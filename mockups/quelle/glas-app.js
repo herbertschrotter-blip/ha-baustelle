@@ -330,14 +330,14 @@ class App {
     // Export (Semikolon, deutsches Komma – öffnet direkt in Excel). art 'firma': Abrechnung je Firma und Container
     const z = (this.s.aw || { zeitraum: 'Monat' }).zeitraum, p = this.d.e.preis, lauf = this.s.awScope === 'alle' ? this.laufende() : [this.laufende()[0]];
     const labels = z === 'Tag' ? [...Array(24)].map((_, h) => `${String(h).padStart(2, '0')}:00`) : z === 'Woche' ? WOCHE.map(w => `${w[0]} ${w[1]}`) : z === 'Monat' ? [...Array(30)].map((_, d) => `${String(d + 1).padStart(2, '0')}.09.2026`) : MONATE.map(m => `${m} 2026`);
-    const zeilen = [];
+    const zeilen = [], zahl = (v, d) => v.toFixed(d).replace('.', ',');   // ohne Tausendertrennung, damit Excel es als Zahl liest
     if (art === 'firma') {
       zeilen.push(['Zeitraum', 'Firma', 'Baustelle', 'Container', 'kWh', 'Preis €/kWh', 'Betrag €'].join(';'));
       for (const f of this.d.firmen) for (const l of lauf) for (const b of l.bereiche.filter(b => (b.firma || 'eigen') === f.id)) {
-        const k = verbrauch(l.bereiche, b.id, z).reduce((a, v) => a + v, 0); zeilen.push([z, f.name, l.name, b.name, de(k, 2), de(p, 2), de(k * p, 2)].join(';')); }
+        const k = verbrauch(l.bereiche, b.id, z).reduce((a, v) => a + v, 0); zeilen.push([z, f.name, l.name, b.name, zahl(k, 2), zahl(p, 2), zahl(k * p, 2)].join(';')); }
     } else {
       zeilen.push(['Zeit', 'Baustelle', 'Firma', 'Container', 'kWh', 'Kosten €'].join(';'));
-      for (const l of lauf) for (const b of l.bereiche) verbrauch(l.bereiche, b.id, z).forEach((v, i) => zeilen.push([labels[i], l.name, this.firma(b.firma).name, b.name, de(v, 3), de(v * p, 2)].join(';')));
+      for (const l of lauf) for (const b of l.bereiche) verbrauch(l.bereiche, b.id, z).forEach((v, i) => zeilen.push([labels[i], l.name, this.firma(b.firma).name, b.name, zahl(v, 3), zahl(v * p, 2)].join(';')));
     }
     const name = `baustelle-${art === 'firma' ? 'abrechnung' : 'verbrauch'}-${lauf.length > 1 ? 'alle' : 'oewg-dobl-zwaring'}-${z.toLowerCase()}.csv`;
     if (typeof Blob !== 'undefined' && typeof URL !== 'undefined' && URL.createObjectURL && typeof document.createElement === 'function') {
