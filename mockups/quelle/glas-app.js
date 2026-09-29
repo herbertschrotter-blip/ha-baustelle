@@ -348,25 +348,58 @@ class App {
     const p = this.planTag(t, b.trocknen); if (!p) return [];
     return [[p.extra, p.vor, 'extra'], [p.vor, p.a, 'vor'], [p.a, p.b, 'heiz'], [p.b, p.nach, 'vor'], [p.nach, p.ende, 'trock']].filter(x => x[1] > x[0]);
   }
+  /* Wann ein Heizkörper wirklich Strom zieht (Leistung über 50 W) – im Mockup aus Plan und typischem Takten nachgebildet,
+     im Panel aus dem Verlauf der Leistungssensoren (history). Für die Zukunft gibt es nur den Plan. */
+  aktiv(b, g, t) {
+    const heizer = ['Ölradiator', 'Konvektor'].includes(g.typ); if (!heizer) return { an: [], off: [] };
+    const tagNr = TAGE.indexOf(t), heuteNr = TAGE.indexOf(HEUTE_TAG); if (tagNr > heuteNr) return { an: [], off: [] };
+    const ende = tagNr === heuteNr ? minu(JETZT) : 24 * 60, r = zufall(b.f * 131 + b.geraete.indexOf(g) * 17 + tagNr * 7 + 3), oel = g.typ === 'Ölradiator';
+    let plan = this.heizzeiten(b, t).map(q => [q[0], q[1]]).sort((p1, p2) => p1[0] - p2[0]);
+    if (b.z === 'frost' && !plan.length) plan = [[0, 24 * 60]];
+    const an = [], off = [];
+    const offline = b.offline && tagNr === heuteNr ? minu('10:42') : b.offline && tagNr < heuteNr ? 13 * 60 + 20 : null;
+    for (const [von, bis] of plan) {
+      let m = von, voll = von + 50;                         // erst durchheizen, dann taktet der Thermostat
+      while (m < Math.min(bis, ende)) {
+        const lauf = m < voll ? voll - m : oel ? 16 + r() * 20 : 7 + r() * 9, pause = oel ? 5 + r() * 9 : 6 + r() * 8;
+        an.push([m, Math.min(m + lauf, bis, ende)]); m += lauf + (m < voll ? 0 : pause);
+      }
+    }
+    // Pausen: Staffelung (wartet), Tür offen, offline
+    const schneide = (von, bis) => { for (const q of an) { if (q[0] < bis && q[1] > von) { if (q[0] >= von) q[0] = Math.min(q[1], bis); else q[1] = Math.max(q[0], von); } } };
+    if (g.warte && tagNr === heuteNr) { for (let m = 13 * 60 + 30; m < ende; m += 30) schneide(m, m + 15); schneide(16 * 60 + 8, ende); }
+    if (b.z === 'pause' && tagNr === heuteNr) schneide(16 * 60 + 14, ende);
+    if (offline !== null) { schneide(offline, ende); off.push([offline, ende]); }
+    return { an: an.filter(q => q[1] - q[0] > 1), off };
+  }
   uebersichtHeizzeiten() {
     const art = this.s.hzArt || 'tag', tag = this.s.hzTag || HEUTE_TAG, C = this.d.bereiche.filter(b => !b.pumpe);
-    const A = 4 * 60, B = 21 * 60, x = m => Math.max(0, Math.min(100, (m - A) / (B - A) * 100));
-    const kl = { extra: 'tl-extra', vor: 'tl-vor', heiz: 'tl-heiz', trock: 'tl-trock', termin: 'tl-termin' };
+    const A = 4 * 60, B = 21 * 60, x = m => Math.max(0, Math.min(100, (m - A) / (B - A) * 100)), breite = (a, b) => Math.max(0, x(b) - x(a));
     const std = segs => segs.reduce((a, q) => a + (q[1] - q[0]), 0) / 60;
+    const HZ = b => b.geraete.filter(g => ['Ölradiator', 'Konvektor'].includes(g.typ));
+    const tagNr = TAGE.indexOf(tag), heuteNr = TAGE.indexOf(HEUTE_TAG), jetzt = minu(JETZT);
     let inhalt;
     if (art === 'tag') {
+      const zukunft = tagNr > heuteNr, heute = tagNr === heuteNr;
       inhalt = `<div class="vb-wer">${WOCHE.map(([t, d]) => `<button data-act="hz-tag" data-v="${t}" class="${t === tag ? 'on' : ''}">${t === HEUTE_TAG ? 'heute' : t} ${d.slice(0, 2)}.</button>`).join('')}</div>
-        <div class="hz-tag">${C.map(b => { const seg = this.heizzeiten(b, tag), h = std(seg);
-          return `<div class="hz-zeile ${b.offline ? 'aus' : ''}"><span class="hz-n">${esc(b.name)}${b.bedarf ? ' <span class="leise">Bedarf</span>' : ''}</span>
-            <div class="tl-spur hz">${seg.map(q => `<i class="${kl[q[2]]}" style="left:${x(q[0])}%;width:${x(q[1]) - x(q[0])}%"></i>`).join('')}${tag === HEUTE_TAG ? `<i class="tl-jetzt" style="left:${x(minu(JETZT))}%"></i>` : ''}</div>
-            <span class="hz-h">${h ? `${de(h)} h` : b.bedarf ? '–' : !b.auto ? 'Hand' : 'frei'}</span></div>`; }).join('')}
+        <div class="leise">${zukunft ? 'Noch nichts gemessen – blass der Plan.' : heute ? 'Bis jetzt gemessen, danach blass der Plan.' : 'Gemessen an der Leistung: kräftig = zieht Strom (über 50 W).'}</div>
+        <div class="hz-tag">${C.map(b => { const plan = this.heizzeiten(b, tag), ph = std(plan);
+          return `<div class="hz-c"><span class="hz-cn">${esc(b.name)}${b.bedarf ? ' <span class="leise">bei Bedarf</span>' : ''}${b.offline ? ' <span class="rot-t">offline</span>' : ''}</span><span class="leise hz-cp">${ph ? `${de(ph)} h geplant` : b.bedarf ? 'kein Termin' : !b.auto ? 'Hand' : 'frei'}</span></div>
+            ${HZ(b).map(g => { const a = this.aktiv(b, g, tag), ah = std(a.an), mess = heute ? Math.min(jetzt, 24 * 60) : 24 * 60;
+              return `<div class="hz-zeile"><span class="hz-n hz-g">${esc(g.n)}</span>
+                <div class="tl-spur hz">${plan.map(q => `<i class="hz-plan ${!zukunft && (!heute || q[1] <= jetzt) ? 'vorbei' : ''}" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
+                  ${zukunft ? '' : a.an.map(q => `<i class="hz-an" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
+                  ${a.off.map(q => `<i class="hz-off" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
+                  ${heute ? `<i class="tl-jetzt" style="left:${x(jetzt)}%"></i>` : ''}</div>
+                <span class="hz-h">${zukunft ? '–' : `${de(ah)} h`}</span></div>`; }).join('')}`; }).join('')}
           <div class="hz-zeile achse"><span></span><div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div><span></span></div></div>
-        <div class="hp-legende"><span><i class="tl-extra"></i>Frühstart</span><span><i class="tl-vor"></i>Vor-/Nachheizen</span><span><i class="tl-heiz"></i>Arbeitszeit</span><span><i class="tl-trock"></i>Trocknen</span><span><i class="tl-termin"></i>Termin / Bedarf</span></div>`;
+        <div class="hp-legende"><span><i class="hz-an"></i>zieht Strom</span><span><i class="hz-plan"></i>geplant</span><span><i class="hz-off"></i>offline</span><span class="leise">Lücken im Plan: Thermostat, Staffelung, Tür offen</span></div>`;
     } else {
-      const werte = C.map(b => TAGE.map(t => std(this.heizzeiten(b, t)))), max = Math.max(...werte.flat(), 1);
+      const zeilen = C.flatMap(b => HZ(b).map(g => ({ b, g, h: TAGE.map((t, k) => k > heuteNr ? std(this.heizzeiten(b, t)) : std(this.aktiv(b, g, t).an)) })));
+      const max = Math.max(...zeilen.flatMap(z => z.h), 1);
       inhalt = `<div class="hz-woche"><div class="hz-wk"><span></span>${WOCHE.map(([t, d]) => `<span class="${t === HEUTE_TAG ? 'heute' : ''}">${t}<br><small>${d.slice(0, 2)}.</small></span>`).join('')}<span>Σ</span></div>
-        ${C.map((b, i) => `<div class="hz-wz"><span class="hz-n">${esc(b.name)}</span>${werte[i].map((h, k) => `<button class="hz-zelle" data-act="hz-tag" data-v="${TAGE[k]}" data-art="tag" style="--a:${h ? .15 + .75 * h / max : 0}" title="${esc(b.name)} ${TAGE[k]}: ${de(h)} h">${h ? de(h, h % 1 ? 1 : 0) : ''}</button>`).join('')}<b class="hz-sum">${de(werte[i].reduce((a, v) => a + v, 0), 0)} h</b></div>`).join('')}</div>
-        <div class="leise">Stunden je Tag – je kräftiger, desto länger. Tippen zeigt den Tag im Detail.</div>`;
+        ${zeilen.map(({ b, g, h }) => `<div class="hz-wz"><span class="hz-n">${esc(b.name)} <span class="leise">· ${esc(g.n)}</span></span>${h.map((v, k) => `<button class="hz-zelle ${k > heuteNr ? 'geplant' : ''}" data-act="hz-tag" data-v="${TAGE[k]}" data-art="tag" style="--a:${v ? .15 + .75 * v / max : 0}" title="${esc(b.name)} · ${esc(g.n)} ${TAGE[k]}: ${de(v)} h ${k > heuteNr ? 'geplant' : 'gemessen'}">${v ? de(v, v % 1 ? 1 : 0) : ''}</button>`).join('')}<b class="hz-sum">${de(h.slice(0, heuteNr + 1).reduce((a, v) => a + v, 0), 0)} h</b></div>`).join('')}</div>
+        <div class="leise">Stunden, in denen der Heizkörper Strom gezogen hat (heute bis jetzt); kommende Tage blass und kursiv = geplant. Σ = bisher gemessen. Tippen zeigt den Tag.</div>`;
     }
     return `<div class="glas-panel block"><div class="block-kopf"><b>Wann welche Heizung heizt</b><div class="seg klein">${[['tag', 'Tag'], ['woche', 'Woche']].map(([k, t]) => `<button data-act="hz-art" data-v="${k}" class="${art === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>${inhalt}</div>`;
   }
