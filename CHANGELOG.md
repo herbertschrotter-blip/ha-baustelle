@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] – 2026-09-29
+
+- Geräte über `via_device_id` verknüpft (statt veraltetem `via_device`, Warnung von HA 2026.9).
+- „Zieht keinen Strom“ nur noch, wenn ein Heizkörper seit dem Einschalten 10 min nie geheizt hat;
+  0 W durch den eigenen Thermostat des Heizkörpers ist kein Fehler mehr.
+
 ## [0.2.0] – 2026-09-29
 
 - Umstellung auf eine eigene Integration `baustelle` (vorher Paket + YAML-Dashboard).

@@ -10,6 +10,7 @@ from .const import DOMAIN
 from .steuerung import Steuerung
 
 HERSTELLER = "ha-baustelle"
+MODELL = {"container": "Container", "pumpenschacht": "Pumpenschacht"}
 
 
 class BaustelleEntity(Entity):
@@ -37,7 +38,7 @@ class BaustelleEntity(Entity):
             if self.device_entry is None:
                 self._attr_device_info = DeviceInfo(
                     identifiers={(DOMAIN, geraet_id)}, name=geraet.name, manufacturer=HERSTELLER, model="Shelly",
-                    via_device=(DOMAIN, bereich_id),
+                    via_device_id=steuerung.geraet_ids[bereich_id],
                 )
         elif bereich_id is None:
             self._attr_unique_id = f"{entry.entry_id}_{key}"
@@ -51,8 +52,8 @@ class BaustelleEntity(Entity):
                 identifiers={(DOMAIN, bereich_id)},
                 name=info.name,
                 manufacturer=HERSTELLER,
-                model="Container" if info.art == "container" else "Pumpenschacht",
-                via_device=(DOMAIN, entry.entry_id),
+                model=MODELL[info.art],
+                via_device_id=steuerung.geraet_ids[entry.entry_id],
             )
 
     async def async_added_to_hass(self) -> None:

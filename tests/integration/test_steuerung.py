@@ -208,3 +208,23 @@ def test_prognose_auswerten() -> None:
     tage = [{"datetime": "2026-09-29T00:00:00+00:00", "temperature": 10.0, "templow": 3.0, "precipitation": 4.0},
             {"datetime": "2026-09-30T00:00:00+00:00", "temperature": 11.0, "templow": -2.0}]
     assert _prognose_auswerten(tage, "daily", jetzt) == {"max_heute": 10.0, "frueh": -2.0, "regen_heute": 4.0}
+
+
+async def test_heizkoerper_ohne_strom_nur_wenn_nie_geheizt(hass: HomeAssistant, baustelle, freezer) -> None:
+    st = baustelle.runtime_data
+    problem = lambda: hass.states.get(_eid(hass, "binary_sensor", f"{HK1}_problem")).state  # noqa: E731
+    # eingeschaltet, zieht nie Strom → nach 10 min Problem
+    hass.states.async_set("switch.hk1", "on")
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=11))
+    st.auswerten()
+    await hass.async_block_till_done()
+    assert problem() == "on"
+    # heizt einmal, danach 0 W (eigener Thermostat) → kein Problem
+    hass.states.async_set("sensor.hk1_power", "1980")
+    await hass.async_block_till_done()
+    hass.states.async_set("sensor.hk1_power", "0")
+    freezer.tick(timedelta(minutes=30))
+    st.auswerten()
+    await hass.async_block_till_done()
+    assert problem() == "off"

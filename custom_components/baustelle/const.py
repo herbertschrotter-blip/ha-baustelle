@@ -67,8 +67,9 @@ TYPEN: Final = [TYP_OELRADIATOR, TYP_KONVEKTOR]
 
 WOCHENTAGE: Final = ["mo", "di", "mi", "do", "fr", "sa", "so"]
 
-# Leistung unter diesem Wert gilt bei eingeschaltetem Heizkörper als „zieht keinen Strom“.
+# Heizkörper eingeschaltet, aber seit dem Einschalten nie über diesem Wert → „zieht keinen Strom“.
+# Hat er einmal geheizt, sind 0 W sein eigener Thermostat und kein Fehler.
 KEINE_LEISTUNG_W: Final = 5.0
-KEINE_LEISTUNG_MIN: Final = 2.0
+KEINE_LEISTUNG_MIN: Final = 10.0
 
 WETTER_INTERVALL_MIN: Final = 30

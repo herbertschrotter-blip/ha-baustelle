@@ -153,8 +153,10 @@ class Steuerung:
         self._frost: dict[str, bool] = {}
         self._offline_seit: dict[str, datetime] = {}
         self._laeuft_seit: dict[str, datetime] = {}
-        self._keine_leistung_seit: dict[str, datetime] = {}
+        self._keine_leistung_seit: dict[str, datetime] = {}  # eingeschaltet seit
+        self._hat_geheizt: set[str] = set()  # seit dem Einschalten schon Strom gezogen
         self._gemeldet: set[str] = set()
+        self.geraet_ids: dict[str, str] = {}  # Baustelle/Bereich → Geräte-ID in der Geräteverwaltung
 
     # ------------------------------------------------------------------ Einrichtung
     @property
@@ -475,12 +477,16 @@ class Steuerung:
                 if not erreichbar and offline_min >= regeln.offline_min:
                     probleme.append(Problem.OFFLINE.value)
                 an = zustand is not None and zustand.state == STATE_ON
-                if g.rolle in HEIZROLLEN and an and leistung is not None and leistung < KEINE_LEISTUNG_W:
+                if g.rolle in HEIZROLLEN and an and leistung is not None:
+                    if leistung >= KEINE_LEISTUNG_W:
+                        self._hat_geheizt.add(g.id)
                     seit = self._keine_leistung_seit.setdefault(g.id, jetzt)
-                    if (jetzt - seit).total_seconds() / 60 >= KEINE_LEISTUNG_MIN:
+                    if g.id not in self._hat_geheizt and (jetzt - seit).total_seconds() / 60 >= KEINE_LEISTUNG_MIN:
                         probleme.append(PROBLEM_KEINE_LEISTUNG)
                 else:
+                    # aus (oder ohne Messung): beim nächsten Einschalten neu beobachten
                     self._keine_leistung_seit.pop(g.id, None)
+                    self._hat_geheizt.discard(g.id)
 
             vorher = set(self.daten.probleme.get(g.id, []))
             self.daten.probleme[g.id] = probleme
