@@ -1,7 +1,4 @@
-"""Diagnose-Download: Einrichtung, Einstellungen, Zähler, Laufzeit und die Entitäten der Baustelle.
-
-Dient auch als Quelle für den Dashboard-Generator (`tools/dashboard.py`).
-"""
+"""Diagnose-Download: Einrichtung, Einstellungen, Zähler, Laufzeit und die Entitäten der Baustelle."""
 
 from __future__ import annotations
 

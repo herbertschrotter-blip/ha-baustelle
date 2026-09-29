@@ -1,7 +1,7 @@
 # ha-baustelle
 
-Eigene Home-Assistant-Integration `baustelle`: Heizung in Baustellencontainern und Pumpenüberwachung mit Shellys, dazu
-ein YAML-Dashboard. Zweck, Aufbau und Auslieferung stehen in `README.md`; die abgenommene Planung ist
+Eigene Home-Assistant-Integration `baustelle`: Heizung in Baustellencontainern und Pumpenüberwachung mit Shellys, mit
+eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferung stehen in `README.md`; die abgenommene Planung ist
 `mockups/baustelle.html` (Abnahme in `mockups/README.md`).
 
 ## Regeln
@@ -36,7 +36,7 @@ ein YAML-Dashboard. Zweck, Aufbau und Auslieferung stehen in `README.md`; die ab
 
 ### Commit
 - Format: [vX.Y.Z] Modul, Typ: Kurztitel
-- Module: Integration=custom_components/**; Dashboard=ha/dashboards/**; Tests=tests/**; Werkzeuge=tools/**, .github/**; Doku=*.md, mockups/**
+- Module: Integration=custom_components/**; Tests=tests/**; Werkzeuge=tools/**, .github/**; Doku=*.md, mockups/**
 - Versionsquelle: changelog:CHANGELOG.md
 - Versionsregel: MINOR nur für eine wirklich neue Funktion; Verbesserungen, Korrekturen und Umbauten sind PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit
 - Push-Policy: user-only

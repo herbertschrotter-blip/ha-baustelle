@@ -1,7 +1,0 @@
-# Paket „baustelle“ (Projekt ha-baustelle, Quelle: /config/projekte/ha-baustelle)
-#
-# Zweck: Geräte der Baustelle (Shellys u. a.) überwachen und steuern – Automationen, auch wettergesteuert,
-#        abgeleitete Werte (Verbrauch, Geräte offline) und Warnungen.
-# Beteiligte Entitäten: noch keine.
-#
-# Nicht hier bearbeiten, wenn diese Datei unter /config liegt: Änderungen im Repo, dann tools/deploy.sh.

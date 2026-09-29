@@ -22,11 +22,9 @@ Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mocku
   Pumpzeit, Pumpzyklen; „ohne Automatik“ (mittlere Leistung im Betrieb × 24 h), Ersparnis, Hochrechnung auf die
   Heizperiode; Vergleich Ölradiator/Konvektor. Die Zähler führen in HA eine Langzeitstatistik (Tag, Woche, Monat über
   `statistics-graph`) und lassen sich ins Energie-Dashboard übernehmen. Gezählt wird nur bei aktiver Baustelle.
-- **Dashboard** (Stufe 5): YAML-Dashboard „Baustelle“ mit eingebauten Karten, erzeugt aus der Diagnose (siehe unten).
-  **Diagnose-Download** je Baustelle, **Reparatur-Hinweise** bei fehlenden Entitäten.
+- **Diagnose-Download** je Baustelle, **Reparatur-Hinweise** bei fehlenden Entitäten (Stufe 5).
 - **Eigene Seite „Baustelle“** (Stufe 6) in der Seitenleiste, nach dem abgenommenen Entwurf: Übersicht, Heizung,
   Pumpen, Auswertung, Verlauf, Einstellungen, Baustellen-Umschalter, Animationen und Diagramme – mit echten Daten.
-  Das YAML-Dashboard bleibt als schlichte Alternative.
 
 ## Aufbau
 
@@ -39,13 +37,10 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   frontend/baustelle-panel.js  eigene Seite (Web-Component, ohne externe Abhängigkeiten)
   panel.py, daten.py           Seite anmelden, WebSocket „baustelle/struktur“
   translations/, icons.json    Texte de/en, Symbole
-ha/dashboards/baustelle.yaml   YAML-Dashboard (→ /config/dashboards/), erzeugt mit tools/dashboard.py
-ha/packages/baustelle.yaml     altes leeres Paket aus 0.1.0, wird nicht mehr ausgeliefert
 tests/logik/                   pytest ohne HA (Python 3.12+)
 tests/integration/             pytest-homeassistant-custom-component (Python 3.14+)
 tests/panel/                   Seite in Node rendern (ohne Browser)
 tools/deploy.sh                Auslieferung nach /config
-tools/dashboard.py             Dashboard aus den Diagnose-Downloads erzeugen
 mockups/                       abgenommener Entwurf
 ```
 
@@ -64,17 +59,6 @@ Quelle der Wahrheit ist dieses Repo (`/config/projekte/ha-baustelle`). `/config`
 
 Ohne Wetterstation nimmt die Integration als „Regen“ den für heute vorhergesagten Niederschlag.
 
-## Dashboard erzeugen
-
-Die Entitäts-IDs hängen von den Namen der Baustellen und Container ab. Deshalb wird das Dashboard erzeugt:
-
-1. Je Baustelle die Diagnose laden: Einstellungen → Geräte & Dienste → Baustelle → ⋮ → Diagnose herunterladen
-   (oder Claude holt sie über die HA-Schnittstelle).
-2. `python3 tools/dashboard.py diagnose-*.json > ha/dashboards/baustelle.yaml`, committen, ausliefern.
-3. Im Browser neu laden. Ein YAML-Dashboard braucht keinen Neustart.
-
-Nach neuen Baustellen, Containern oder Shellys neu erzeugen.
-
 ## Tests
 
 ```
@@ -87,7 +71,7 @@ uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
 
 1. Änderungen im Repo, Tests grün, committen.
 2. Herbert spielt ein: `! /config/projekte/ha-baustelle/tools/deploy.sh`
-   (kopiert die Integration nach `/config/custom_components/baustelle/` und das Dashboard nach `/config/dashboards/`).
+   (kopiert die Integration samt Seite nach `/config/custom_components/baustelle/`).
 3. Konfiguration prüfen, dann **Neustart durch Herbert** (neue oder geänderte Integration braucht immer einen Neustart).
 4. Einstellungen → Geräte & Dienste → Baustelle prüfen; Protokoll auf Meldungen von `custom_components.baustelle` ansehen.
 

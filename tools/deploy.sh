@@ -1,5 +1,5 @@
 #!/bin/sh
-# Liefert Integration und Dashboard nach /config aus. Nur Kopieren – Konfiguration prüfen und
+# Liefert die Integration nach /config aus (die Seite „Baustelle“ ist Teil davon). Nur Kopieren – Konfiguration prüfen und
 # Neustart bleiben eigene Schritte (siehe README.md, Abschnitt Auslieferung).
 set -eu
 
@@ -19,8 +19,4 @@ done
 done
 echo "ausgeliefert: $ZIEL_INT (Version $(sed -n 's/.*"version": "\(.*\)".*/\1/p' "$ZIEL_INT/manifest.json"))"
 
-# Dashboard
-mkdir -p "$ZIEL/dashboards"
-cp "$REPO/ha/dashboards/baustelle.yaml" "$ZIEL/dashboards/baustelle.yaml"
-echo "ausgeliefert: $ZIEL/dashboards/baustelle.yaml"
 echo "Jetzt: Konfiguration prüfen und Home Assistant neu starten."

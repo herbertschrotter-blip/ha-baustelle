@@ -256,43 +256,6 @@ async def test_reparatur_hinweis_bei_fehlender_entitaet(hass: HomeAssistant, bau
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
-async def test_dashboard_generator(hass: HomeAssistant, baustelle, tmp_path) -> None:
-    import importlib.util
-    import json
-    from pathlib import Path
-
-    import yaml
-
-    from custom_components.baustelle.diagnostics import async_get_config_entry_diagnostics
-
-    pfad = tmp_path / "diagnose.json"
-    pfad.write_text(json.dumps({"data": await async_get_config_entry_diagnostics(hass, baustelle)}, default=str))
-    spec = importlib.util.spec_from_file_location("dashboard", Path(__file__).parents[2] / "tools" / "dashboard.py")
-    modul = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modul)
-    d = yaml.safe_load(modul.main([str(pfad)]))
-    assert [v["title"] for v in d["views"]] == ["Übersicht", "Heizung", "Pumpen", "Auswertung", "Verlauf"]
-
-    genutzt: set[str] = set()
-
-    def sammeln(knoten) -> None:
-        if isinstance(knoten, dict):
-            for k, v in knoten.items():
-                if k == "entity" and isinstance(v, str):
-                    genutzt.add(v)
-                sammeln(v)
-        elif isinstance(knoten, list):
-            for v in knoten:
-                if isinstance(v, str) and "." in v and v.split(".")[0] in {"sensor", "switch", "select", "number", "time", "binary_sensor", "button"}:
-                    genutzt.add(v)
-                sammeln(v)
-
-    sammeln(d)
-    fehlend = sorted(e for e in genutzt if hass.states.get(e) is None)
-    assert not fehlend, fehlend
-    assert len(genutzt) > 60
-
-
 async def test_naechste_schaltzeit_morgen(hass: HomeAssistant, baustelle, freezer) -> None:
     st = baustelle.runtime_data
     st.einstellung_setzen(("automatik",), True)

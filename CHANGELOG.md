@@ -6,6 +6,7 @@
 - Seite am Handy: Tabellen scrollen in ihrer Karte statt über den Rand, Tabs kompakt (⚙ = Einstellungen),
   Zeitleiste zeigt den Gerätenamen.
 - Nächste Schaltzeit auch über Mitternacht hinaus (nächster aktiver Tag laut Plan).
+- Aufgeräumt: altes YAML-Dashboard samt Generator und leeres Paket aus 0.1.0 entfernt; die Seite ersetzt sie.
 
 ## [0.5.0] – 2026-09-29
 
