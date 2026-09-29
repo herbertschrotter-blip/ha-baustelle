@@ -1,7 +1,7 @@
 /* Klickbarer Prototyp der Baustellen-Seite im Glas-Stil (Beispieldaten, keine Verbindung zu HA). */
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 const de = (x, d = 1) => Number(x).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d });
-const FARBE = { heizt: '#ff9f0a', trocknen: '#ff9f0a', aus: '#8e8e93', frost: '#64d2ff', offline: '#ff453a', laeuft: '#0a84ff' };
+const FARBE = { heizt: '#ff9f0a', trocknen: '#ff9f0a', aus: '#8e8e93', frost: '#64d2ff', offline: '#ff453a', laeuft: '#0a84ff', pause: '#bf5af2' };
 const TAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const zufall = seed => () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
 
@@ -22,7 +22,7 @@ function daten() {
   const bereich = (id, name, f, z, t, geraete, extra = {}) => ({ id, name, f, z, t, geraete, auto: true, trocknen: false,
     innen: aussen.map((a, h) => t === null ? null : Math.max(a + 2, (h >= 7 && h <= 17 ? t : h === 6 ? t - 3 : h === 18 ? t - 2 : t - 6) + (r() - .5))),
     kwh7: reihe(7, 6, 16).map((v, i) => i > 4 ? v * .15 : v), h7: reihe(7, 3, 7).map((v, i) => i > 4 ? 0 : v), ...extra });
-  const g = (n, typ, kw, an) => ({ n, typ, kw, an, hand: false });
+  let ph = 0; const g = (n, typ, kw, an) => ({ n, typ, kw, an, hand: false, phase: ['L1', 'L2', 'L3'][ph++ % 3] });
   return {
     aussen,
     baustellen: [
@@ -43,9 +43,9 @@ function daten() {
       bereich('k-lager', 'Lager Kalsdorf', 8, 'aus', null, [g('Radiator', 'Ölradiator', 1.5, 0)], { firma: 'huber' }),
     ],
     bereiche: [
-      bereich('polier', 'Poliercontainer', 0, 'heizt', 19.4, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Radiator 2', 'Konvektor', 1.99, 1)], { trocknen: true, firma: 'eigen' }),
-      bereich('mannschaft', 'Mannschaft', 1, 'trocknen', 17.8, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Konvektor', 'Konvektor', 2.0, 1), g('Trockner', 'Steckdose', 1.79, 1)], { trocknen: true, firma: 'eigen' }),
-      bereich('magazin', 'Magazin', 2, 'heizt', null, [g('Radiator', 'Ölradiator', 1.5, 1), g('Steckdose', 'Steckdose', 0.4, 0)], { firma: 'huber' }),
+      bereich('polier', 'Poliercontainer', 0, 'heizt', 19.4, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Radiator 2', 'Konvektor', 1.99, 1)], { trocknen: true, firma: 'eigen', tuer: { sensor: 'Tür Polier', offen: 0 } }),
+      bereich('mannschaft', 'Mannschaft', 1, 'trocknen', 17.8, [g('Radiator 1', 'Ölradiator', 2.0, 1), { ...g('Konvektor', 'Konvektor', 2.0, 0), warte: 6 }, g('Trockner', 'Steckdose', 1.79, 1)], { trocknen: true, firma: 'eigen', prio: 'hoch' }),
+      bereich('magazin', 'Magazin', 2, 'pause', null, [g('Radiator', 'Ölradiator', 1.5, 0), g('Steckdose', 'Steckdose', 0.4, 0)], { firma: 'huber', prio: 'niedrig', tuer: { sensor: 'Tür Magazin', offen: 6 } }),
       bereich('sanitaer', 'Sanitär', 3, 'frost', 4.2, [g('Frostwächter', 'Konvektor', 2.0, 1)], { firma: 'eigen' }),
       bereich('lager', 'Lager Süd', 4, 'offline', null, [g('Radiator', 'Ölradiator', 2.0, 0)], { offline: true, firma: 'leitner' }),
       bereich('schacht', 'Pumpenschacht Nord', 5, 'laeuft', null, [g('Pumpe 1', 'Pumpe', 0.76, 1), g('Pumpe 2 (Reserve)', 'Pumpe', 0.76, 0)],
@@ -58,7 +58,10 @@ function daten() {
       az('2026-09-28', 'Herbst 2026', ['07:00', '16:30'], ['07:00', '12:30']),
       az('2026-11-02', 'Winter 2026/27', ['07:30', '16:30'], ['07:30', '12:00']),
     ],
-    e: { preis: 0.28, feiertag_frei: true, vorheizen: 45, nachheizen: 15, soll: 20, grenze: 15, basis: 'Tageshöchstwert', fruehstart: true, frueh_temp: 0, frueh_min: 30, frost: true, frost_temp: 5,
+    e: { preis: 0.28, feiertag_frei: true,
+      staffel: true, absicherung: 16, phasen: 3, reserve: 1, max_gleich: 5, min_lauf: 10, min_pause: 5, takt: 15, zaehler: 'keiner',
+      tuer_pause: 3, tuer_melden: 10, knoepfe: true,
+      bericht: 'woche', bericht_handy: true, bericht_mail: true, mail: 'herbert@example.at', bericht_csv: true, vorheizen: 45, nachheizen: 15, soll: 20, grenze: 15, basis: 'Tageshöchstwert', fruehstart: true, frueh_temp: 0, frueh_min: 30, frost: true, frost_temp: 5,
       tr_mm: 2, tr_laenger: 45, tr_frueher: 15, empfaenger: 'Handy Herbert', m_offline: true, m_trocken: true, m_dauer: true, dauer_min: 20,
       m_leistung: true, m_kalt: true, kalt_min: 60, m_frost: true, m_fuehler: true, m_wetter: true, m_hand: true, hand_h: 8, m_zyklen: true, zyklen_h: 10 },
     feiertage: [['2026-10-26', 'Nationalfeiertag'], ['2026-11-01', 'Allerheiligen'], ['2026-12-08', 'Mariä Empfängnis'], ['2026-12-25', 'Christtag'],
@@ -70,11 +73,14 @@ function daten() {
       { id: 'w2', stufe: 'stoerung', b: 'sanitaer', titel: 'Frostgefahr: 4,2 °C', seit: 'seit 05:40', hilfe: 'Unter der Frostgrenze (5 °C), obwohl der Frostschutz heizt. Tür offen? Heizkörper prüfen.' },
       { id: 'w3', stufe: 'hinweis', b: 'mannschaft', titel: 'zu kalt: 17,8 °C statt 20 °C', seit: 'seit 07:00', hilfe: 'Erreicht in der Arbeitszeit das Soll nicht. Tür oder Fenster offen? Heizkörper zu schwach?' },
       { id: 'w4', stufe: 'hinweis', b: 'magazin', titel: 'Steckdose seit 3 Tagen auf Hand', seit: 'seit Sa 26.09.', hilfe: 'Von Hand eingeschaltet und nicht zurückgestellt. Soll wieder die Automatik übernehmen?' },
+      { id: 'w6', stufe: 'hinweis', b: 'magazin', titel: 'Tür seit 6 min offen – Heizung pausiert', seit: 'seit 16:14', hilfe: 'Heizt wieder, sobald die Tür zu ist. Nach 10 min kommt eine Nachricht aufs Handy.' },
       { id: 'w5', stufe: 'hinweis', b: 'schacht', titel: 'Pumpe schaltet oft: 14 Zyklen je Stunde', seit: 'seit 13:10', hilfe: 'Üblich sind hier 3–5. Schwimmer prüfen – oder das Grundwasser steigt.' },
     ],
     // Protokoll: dauerhaft bei der Baustelle gespeichert, zusätzlich im HA-Logbuch
     protokoll: [
       ['Heute', '16:30', 'schalten', 'mannschaft', 'Arbeitsende – Nachheizen 15 min, dann Kleidung trocknen 45 min'],
+      ['Heute', '16:14', 'schalten', 'magazin', 'Tür offen – Heizung pausiert'],
+      ['Heute', '16:08', 'schalten', 'mannschaft', 'Staffelung: Konvektor wartet, Radiator 1 heizt weiter (Rundlauf 15 min)'],
       ['Heute', '13:10', 'warnung', 'schacht', 'Pumpe schaltet oft: 14 Zyklen je Stunde'],
       ['Heute', '10:43', 'nachricht', null, 'An Handy Herbert: „Lager Süd nicht erreichbar – Stromausfall?“'],
       ['Heute', '10:42', 'warnung', 'lager', 'nicht erreichbar'],
@@ -102,8 +108,8 @@ function daten() {
 const AKTIV = z => ['heizt', 'trocknen', 'frost', 'laeuft'].includes(z);
 const kwVon = b => b.geraete.reduce((s, g) => s + (g.an ? g.kw : 0), 0);
 const wertHtml = b => b.pumpe ? `${b.zyklen}<small> Zyklen</small>` : b.t !== null ? `${de(b.t)}<small>°C</small>` : '–';
-const illu = b => b.pumpe ? bcSchacht(b.z === 'laeuft') : bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], b.z);
-const TEXT = b => ({ heizt: b.t === null ? 'an · Thermostat regelt' : 'heizt · Arbeitszeit', trocknen: 'Kleidung trocknen', aus: 'aus bis 06:15', frost: 'Frostschutz', offline: 'nicht erreichbar', laeuft: 'Pumpe läuft' }[b.z]);
+const illu = b => b.pumpe ? bcSchacht(b.z === 'laeuft') : bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], b.z === 'pause' ? 'aus' : b.z);
+const TEXT = b => ({ heizt: b.t === null ? 'an · Thermostat regelt' : 'heizt · Arbeitszeit', trocknen: 'Kleidung trocknen', aus: 'aus bis 06:15', frost: 'Frostschutz', offline: 'nicht erreichbar', laeuft: 'Pumpe läuft', pause: 'pausiert · Tür offen' }[b.z]);
 const knopf2 = (t, act, text) => `<button class="knopf leise-k" data-act="${act}" data-t="${text}">${t}</button>`;
 // mdi:cog – dasselbe Zahnrad wie in Home Assistant (im Panel später <ha-icon icon="mdi:cog">)
 const ICON_COG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>';
@@ -272,6 +278,22 @@ class App {
     return `<div class="tl-spur">${inhalt}${jetzt ? `<i class="tl-jetzt" style="left:${x(minu(JETZT))}%"></i>` : ''}</div>`;
   }
   bName(id) { return id ? (this.d.bereiche.find(b => b.id === id) || { name: id }).name : 'Baustelle'; }
+  /* Staffelung: gemessene Last, Grenze und freier Platz (nur Heizungen werden geschaltet) */
+  last() {
+    const e = this.d.e, G = this.d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g }))), heizt = x => ['Ölradiator', 'Konvektor'].includes(x.g.typ);
+    const an = G.filter(x => x.g.an && !x.b.offline), summe = l => l.reduce((a, x) => a + x.g.kw, 0);
+    const heiz = summe(an.filter(heizt)), pumpe = summe(an.filter(x => x.g.typ === 'Pumpe')), sonst = summe(an.filter(x => !heizt(x) && x.g.typ !== 'Pumpe'));
+    const phaseMax = e.absicherung * 230 / 1000, grenze = phaseMax * e.phasen, frei = grenze - e.reserve - pumpe - sonst;
+    const phasen = (e.phasen === 3 ? ['L1', 'L2', 'L3'] : ['L1']).map(ph => { const auf = an.filter(x => e.phasen === 1 || x.g.phase === ph);
+      return { ph, heiz: summe(auf.filter(heizt)), pumpe: summe(auf.filter(x => x.g.typ === 'Pumpe')), sonst: summe(auf.filter(x => !heizt(x) && x.g.typ !== 'Pumpe')), max: phaseMax * (e.phasen === 1 ? 1 : 1) }; });
+    const hk = G.filter(heizt), laufen = hk.filter(x => x.g.an && !x.b.offline).length, warten = hk.filter(x => x.g.warte).length;
+    return { heiz, pumpe, sonst, grenze, frei, phasen, hk, laufen, warten, gesamt: heiz + pumpe + sonst };
+  }
+  stromBalken(L, klein) {
+    const w = v => `${Math.max(0, v / L.grenze * 100)}%`;
+    return `<div class="strom ${klein ? 'klein' : ''}"><div class="strom-spur"><i class="s-heiz" style="width:${w(L.heiz)}"></i><i class="s-pumpe" style="width:${w(L.pumpe)}"></i><i class="s-sonst" style="width:${w(L.sonst)}"></i>
+      <i class="s-res" style="width:${w(this.d.e.reserve)}"></i></div></div>`;
+  }
   laufende() { return [{ id: 'dobl', name: 'ÖWG Dobl Zwaring', bereiche: this.d.bereiche }, { id: 'kalsdorf', name: 'Reihenhäuser Kalsdorf', bereiche: this.d.kalsdorf }]; }
   firma(id) { return this.d.firmen.find(f => f.id === id) || this.d.firmen[0]; }
   /* Was im Verbrauch gestapelt wird: Container dieser Baustelle, laufende Baustellen oder Firmen */
@@ -377,7 +399,8 @@ class App {
     const st = W.filter(w => w.stufe === 'stoerung').length, hi = W.length - st;
     const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
     return `<div class="glas-kopf glas-panel">
-        <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring <span class="pfeil">▾</span></div></div>
+        <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring <span class="pfeil">▾</span></div>
+        ${this.d.e.staffel ? (() => { const L = this.last(); return `<button class="strom-knopf" data-act="sheet" data-s="strom">${this.stromBalken(L, true)}<span class="strom-t"><b>${de(L.gesamt)} / ${de(L.grenze)} kW</b> · ${L.laufen} Heizkörper an${L.warten ? ` · ${L.warten} wartet` : ''} ›</span></button>`; })() : ''}</div>
           <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon(wetterJetzt()[0], 22)}<span>${STIMMUNG.wetter === 'schnee' ? '−2,1°' : STIMMUNG.phase === 'nacht' ? '1,8°' : '4,2°'}</span><span class="kw-t">${wetterJetzt()[1]}</span></button></div>
         <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
       <div class="glas-chips">
@@ -389,7 +412,7 @@ class App {
       </div>
       <div class="glas-raster">${B.map((b, i) => `<button class="glas-panel glas-k ${b.z}" data-act="container" data-id="${b.id}" style="animation-delay:${i * 60}ms;--c:${FARBE[b.z]}">
         <div class="glas-illu">${illu(b)}</div>
-        <div class="glas-name">${esc(b.name)}</div>${this.firma(b.firma).eigen ? '' : `<div class="firma-tag">${esc(this.firma(b.firma).name)}</div>`}
+        <div class="glas-name">${esc(b.name)}</div>${this.firma(b.firma).eigen ? '' : `<div class="firma-tag">${esc(this.firma(b.firma).name)}</div>`}${b.tuer?.offen ? `<div class="tuer-tag">🚪 offen ${b.tuer.offen} min</div>` : ''}
         <div class="glas-zeile"><span class="glas-wert">${wertHtml(b)}</span><span class="glas-kwk">${de(kwVon(b))} kW</span></div>
         <div class="glas-status"><span class="glas-dot"></span>${TEXT(b)}</div>
         <div class="glas-geraete">${b.geraete.map(g => `<i class="${g.an ? 'an' : ''}"></i>`).join('')}<span>${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'}</span></div></button>`).join('')}
@@ -423,12 +446,13 @@ class App {
         <div class="regelung">${b.t !== null ? `<b>🌡 Mit Fühler</b><span>regelt in der Arbeitszeit auf ${de(this.d.e.soll)} °C (jetzt ${de(b.t)} °C)</span>`
           : `<b>Ohne Fühler</b><span>Heizung bleibt in der Arbeitszeit an, der Thermostat am Heizkörper regelt</span>`}</div></div>`}
       <div class="glas-panel liste">
+        ${b.tuer ? `<div class="zeile"><div><b>🚪 ${esc(b.tuer.sensor)}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min – Heizung pausiert nach ${this.d.e.tuer_pause} min, Meldung nach ${this.d.e.tuer_melden} min` : 'zu'}</div></div><span class="tuer-z ${b.tuer.offen ? 'offen' : ''}">${b.tuer.offen ? 'offen' : 'zu'}</span></div>` : ''}
         <div class="zeile"><span>♨ Automatik für ${b.pumpe ? 'diesen Schacht' : 'diesen Container'}</span>${schalter(b.auto, 'b-auto')}</div>
         ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
       </div>
       <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
         ${b.geraete.map((g, i) => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">${g.typ === 'Pumpe' ? '💧' : g.typ === 'Steckdose' ? '⏻' : '♨'}</span>
-          <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${g.hand ? ' · <em class="hand">Hand</em>' : ''}</span></div>
+          <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${this.d.e.phasen === 3 ? ` · ${g.phase}` : ''}${g.hand ? ' · <em class="hand">Hand</em>' : ''}${g.warte ? ` · <em class="warte">wartet – Staffel, dran in ${g.warte} min</em>` : ''}${b.z === 'pause' && ['Ölradiator', 'Konvektor'].includes(g.typ) ? ' · <em class="warte">pausiert – Tür offen</em>' : ''}</span></div>
           ${b.offline ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}
         <button class="zeile" data-act="sheet" data-s="bereich"><span class="blau">Geräte bearbeiten</span><span class="chev">›</span></button></div>
       ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter 30 W beim Laufen)</span><span class="ok">● überwacht</span></div>
@@ -455,12 +479,15 @@ class App {
         ${regel('🌡', `Heizgrenze ${de(e.grenze, 0)} °C`, `${e.basis === 'jetzt' ? 'jetzt' : 'Höchstwert heute'} ${de(bezug, 0)} °C → ${bezug > e.grenze ? 'zu warm, es wird nicht geheizt' : 'es wird geheizt'}`, bezug <= e.grenze)}
         ${regel('🌧', 'Kleidung trocknen', `6 mm Regen seit gestern (ab ${de(e.tr_mm)} mm) → ${e.tr_laenger} min länger, bis ${p ? uhr(p.ende) : '–'}`, 6 >= e.tr_mm)}
         ${regel('❄', 'Kälte-Frühstart morgen', `−1,2 °C erwartet (unter ${de(e.frueh_temp, 0)} °C) → ${e.frueh_min} min früher, dazu ${e.tr_frueher} min nach Regen`, e.fruehstart)}
+        ${e.staffel ? (() => { const L = this.last(); return regel('⚡', `Staffelung: ${L.laufen} von ${L.hk.length} Heizkörpern`, `höchstens ${e.max_gleich} gleichzeitig, ${de(L.frei)} kW frei · Vorheizen startet 15 min früher, damit alle warm werden`, true); })() : ''}
         ${regel('🏖', 'Kein Urlaub, kein Feiertag', `nächster Feiertag ${wtag(naechster[0])} ${kurzDatum(naechster[0])} ${naechster[1]}`, false)}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Heizplan · diese Woche</b><span class="leise">aus Arbeitszeit und Wetter</span></div>${this.heizplanInhalt()}</div>
       ${this.azBlock()}
       <div class="glas-panel block"><div class="block-kopf"><b>So wird geheizt</b><span class="leise">in der Arbeitszeit immer</span></div>
         <div class="zeile"><div><b>Vorheizen</b><div class="leise">vor Arbeitsbeginn, damit es warm ist</div></div>${st('vorheizen', 5, min)}</div>
         <div class="zeile"><div><b>Nachheizen</b><div class="leise">nach Arbeitsende, jeden Tag</div></div>${st('nachheizen', 5, min)}</div>
+        <div class="zeile"><div><b>🚪 Tür offen</b><div class="leise">Heizung pausieren nach</div></div>${st('tuer_pause', 1, min)}</div>
+        <div class="zeile unter"><span>Nachricht nach</span>${st('tuer_melden', 5, min)}</div>
         <div class="zeile"><div><b>🌡 Solltemperatur</b><div class="leise">für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat</div></div>${st('soll', .5, grad)}</div>
         <div class="zeile"><div><b>Heizgrenze</b><div class="leise">nicht heizen, wenn es wärmer ist</div></div>${st('grenze', .5, grad)}</div>
         <div class="zeile"><span>Grundlage</span><div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
@@ -588,7 +615,7 @@ class App {
 
   /* ---- Einstellungen ---- */
   v_einst() {
-    const e = this.d.e;
+    const e = this.d.e, st = (k, d, fmt) => `<span class="stepper"><button data-act="st" data-k="${k}" data-d="${-d}">−</button><b>${fmt(e[k])}</b><button data-act="st" data-k="${k}" data-d="${d}">+</button></span>`;
     return `${this.kopf('Einstellungen', 'ÖWG DOBL ZWARING')}
       <div class="glas-panel liste"><div class="gruppe">Baustelle</div>
         <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">ÖWG Dobl Zwaring ›</span></button>
@@ -602,14 +629,38 @@ class App {
         ${this.d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
         <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button></div>
       <div class="glas-panel liste"><div class="gruppe">Strom</div>
-        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label></div>
+        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label>
+        <div class="zeile"><div><b>⚡ Staffelung</b><div class="leise">verteilt die Heizungen auf den freien Strom – geschaltet werden nur Heizungen</div></div>${schalter(e.staffel, 'e-bool', 'data-k="staffel"')}</div>
+        ${e.staffel ? `<div class="zeile unter"><span>Absicherung je Phase</span>${st('absicherung', 1, v => `${v} A`)}</div>
+        <div class="zeile unter"><span>Phasen</span><div class="seg klein">${[1, 3].map(v => `<button data-act="e-wert" data-k="phasen" data-v="${v}" class="${e.phasen === v ? 'on' : ''}">${v === 1 ? '1 Phase' : '3 Phasen'}</button>`).join('')}</div></div>
+        <div class="zeile unter"><div><span>Reserve</span><div class="leise">für Werkzeug und Ungemessenes</div></div>${st('reserve', .5, v => `${de(v)} kW`)}</div>
+        <div class="zeile unter"><span>Höchstens gleichzeitig</span>${st('max_gleich', 1, v => `${v} Heizk.`)}</div>
+        <div class="zeile unter"><span>Mindestlaufzeit</span>${st('min_lauf', 1, v => `${v} min`)}</div>
+        <div class="zeile unter"><span>Mindestpause</span>${st('min_pause', 1, v => `${v} min`)}</div>
+        <div class="zeile unter"><div><span>Wechsel im Rundlauf</span><div class="leise">wenn nicht alle gleichzeitig dürfen</div></div>${st('takt', 5, v => `${v} min`)}</div>
+        <div class="zeile unter"><span>Gesamtzähler</span><select data-k="zaehler"><option value="keiner" ${e.zaehler === 'keiner' ? 'selected' : ''}>keiner – nur Shellys + Reserve</option><option value="3em" ${e.zaehler === '3em' ? 'selected' : ''}>Shelly Pro 3EM am Verteiler</option></select></div>
+        <div class="gruppe-t gt-einzug">Vorrang, wenn nicht alle dürfen</div>
+        ${this.d.bereiche.filter(b => !b.pumpe).map(b => `<div class="zeile unter"><span>${esc(b.name)}</span><div class="seg klein">${['niedrig', 'normal', 'hoch'].map(v => `<button data-act="prio" data-id="${b.id}" data-v="${v}" class="${(b.prio || 'normal') === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>`).join('')}
+        <div class="leise p-fuss">Frostschutz geht immer vor. Pumpen und andere Verbraucher werden mitgezählt, aber nie geschaltet.</div>` : ''}</div>
       <div class="glas-panel liste"><div class="gruppe">Wetter und Kalender</div>
         <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Wetter</span><span class="leise">Open-Meteo · Zone Baustelle ›</span></button>
         <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Außentemperatur</span><span class="leise">aus der Vorhersage ›</span></button>
         <button class="zeile" data-act="sheet" data-s="urlaub"><span>Urlaub</span><span class="leise">Kalender „Baustelle Urlaub“ ›</span></button>
         <div class="zeile"><span>Feiertage</span><span class="leise">Österreich, automatisch</span></div></div>
+      <div class="glas-panel liste"><div class="gruppe">Bericht</div>
+        <div class="zeile"><span>Wie oft</span><div class="seg klein">${[['aus', 'aus'], ['woche', 'Woche'], ['monat', 'Monat'], ['beides', 'beides']].map(([k, t]) => `<button data-act="e-wert" data-k="bericht" data-v="${k}" class="${e.bericht === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+        ${e.bericht !== 'aus' ? `<div class="zeile unter"><span class="leise">${{ woche: 'jeden Montag 07:00 für die Vorwoche', monat: 'am 1. des Monats 07:00 für den Vormonat', beides: 'Montag 07:00 und am 1. des Monats' }[e.bericht]}</span></div>
+        <div class="zeile unter"><span>📱 aufs Handy</span>${schalter(e.bericht_handy, 'e-bool', 'data-k="bericht_handy"')}</div>
+        <div class="zeile unter"><span>✉ per E-Mail</span>${schalter(e.bericht_mail, 'e-bool', 'data-k="bericht_mail"')}</div>
+        ${e.bericht_mail ? `<label class="zeile unter"><span>an</span><input type="email" value="${esc(e.mail)}" data-k="mail" class="mail-feld"></label>
+        <div class="zeile unter"><span>Abrechnung als CSV anhängen</span>${schalter(e.bericht_csv, 'e-bool', 'data-k="bericht_csv"')}</div>
+        <div class="zeile unter"><span class="leise">über den Dienst notify.baustelle_mail (z. B. Google Mail oder SMTP in HA eingerichtet)</span></div>` : ''}
+        <button class="zeile" data-act="sheet" data-s="bericht"><span class="blau">Beispiel ansehen</span><span class="chev">›</span></button>
+        <button class="zeile" data-act="toast" data-t="Bericht für die Vorwoche gesendet"><span class="blau">Jetzt senden</span></button>` : ''}</div>
       <div class="glas-panel liste"><div class="gruppe">Meldungen · Störungen</div>
         <div class="zeile"><span>Empfänger</span><span class="leise">${e.empfaenger}</span></div>
+        <div class="zeile"><div><b>Knöpfe in der Nachricht</b><div class="leise">direkt aus der Nachricht reagieren, z. B. „bis morgen stumm“</div></div>${schalter(e.knoepfe, 'e-bool', 'data-k="knoepfe"')}</div>
+        <button class="zeile" data-act="sheet" data-s="nachrichten"><span class="blau">Beispiele ansehen</span><span class="chev">›</span></button>
         <div class="zeile"><span>Stromausfall / offline</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
         <div class="zeile"><span>Pumpe Trockenlauf</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
         <div class="zeile"><span>Pumpe Dauerlauf über ${e.dauer_min} min</span>${schalter(e.m_dauer, 'e-bool', 'data-k="m_dauer"')}</div>
@@ -708,6 +759,44 @@ class App {
           <div class="leise">Nur Container ohne andere Firma sind wählbar. Nimmst du einen weg, gehört er wieder der eigenen Firma. Frühere Werte bleiben bei der bisherigen Firma.</div>`}
         ${eigen ? knopf('Schließen', 'zu', 'leise-k') : knopf('Speichern', 'firma-speichern', 'amber') + (neu ? '' : knopf('Firma löschen', 'firma-weg', 'rot')) + knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
+    if (s.art === 'strom') {
+      const L = this.last(), e = this.d.e, ph = L.phasen.length > 1;
+      const zustand = x => x.b.offline ? ['offline', 'rot-t'] : x.b.z === 'pause' ? ['pausiert – Tür offen', 'lila'] : x.g.warte ? [`wartet – dran in ${x.g.warte} min`, 'blau'] : x.g.an ? ['heizt', 'amber-t'] : ['aus', 'leise'];
+      return `${griff}<div class="block-kopf"><h3>Stromverteilung</h3><span class="leise">${L.laufen} von ${L.hk.length} Heizkörpern an · höchstens ${e.max_gleich}</span></div>
+        <div class="strom-leg"><span><i class="s-heiz"></i>Heizung ${de(L.heiz)} kW</span><span><i class="s-pumpe"></i>Pumpen ${de(L.pumpe)} kW</span><span><i class="s-sonst"></i>Sonstiges ${de(L.sonst)} kW</span><span><i class="s-res"></i>Reserve ${de(e.reserve)} kW</span></div>
+        ${this.stromBalken(L)}
+        <div class="leise">${de(L.gesamt)} von ${de(L.grenze)} kW (${e.phasen} × ${e.absicherung} A) · frei für Heizungen ${de(L.frei)} kW${e.zaehler === 'keiner' ? ' · ohne Gesamtzähler: Ungemessenes steckt in der Reserve' : ''}</div>
+        ${ph ? `<div class="gruppe-t">Je Phase · ${de(L.phasen[0].max)} kW</div>${L.phasen.map(p => `<div class="ph-zeile"><b>${p.ph}</b><div class="strom-spur ph"><i class="s-heiz" style="width:${p.heiz / p.max * 100}%"></i><i class="s-pumpe" style="width:${p.pumpe / p.max * 100}%"></i><i class="s-sonst" style="width:${p.sonst / p.max * 100}%"></i></div><span class="leise">${de(p.heiz + p.pumpe + p.sonst)} kW</span></div>`).join('')}` : ''}
+        <div class="gruppe-t">Heizkörper</div>
+        ${L.hk.map(x => { const [t, k] = zustand(x); return `<div class="zeile"><span>${esc(x.b.name)} · ${esc(x.g.n)}${ph ? ` <span class="leise">${x.g.phase}</span>` : ''}</span><span class="${k}">${t}</span></div>`; }).join('')}
+        <div class="hinweis-k">Neue Heizkörper kommen erst dazu, wenn eine Minute lang genug Strom frei ist. Jeder läuft mindestens ${e.min_lauf} min und pausiert mindestens ${e.min_pause} min. Dürfen nicht alle gleichzeitig, wechseln sie alle ${e.takt} min – wer am weitesten unter dem Soll ist, kommt zuerst.</div>
+        ${knopf('Einstellungen', 'tab-einst', 'leise-k')}${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'nachrichten') {
+      const n = (ic, titel, text, knoepfe, b) => `<div class="noti"><div class="noti-kopf"><span class="noti-app">🏗 Home Assistant · jetzt</span></div><b>${ic} ${titel}</b><div>${text}</div>
+        ${this.d.e.knoepfe ? `<div class="noti-knoepfe">${knoepfe.map(k => `<button data-act="n-knopf" data-t="${k}" data-b="${b || ''}">${k}</button>`).join('')}</div>` : ''}</div>`;
+      return `${griff}<h3>Nachrichten aufs Handy</h3><div class="leise">So kommen sie in der Home-Assistant-App an. ${this.d.e.knoepfe ? 'Tippe einen Knopf zum Ausprobieren.' : 'Knöpfe sind ausgeschaltet.'}</div>
+        ${n('⚠', 'Lager Süd nicht erreichbar', 'Seit 10:42 keine Antwort – Stromausfall oder Stecker gezogen?', ['Zum Container', 'Bis morgen stumm'], 'lager')}
+        ${n('🚪', 'Magazin: Tür seit 10 min offen', 'Die Heizung ist pausiert und heizt wieder, sobald die Tür zu ist.', ['Trotzdem heizen', '1 h stumm'], 'magazin')}
+        ${n('❄', 'Morgen −4 °C', 'Vorheizen startet schon um 05:30. Arbeitsbeginn 07:00.', ['Morgen nicht heizen', 'Noch früher (05:00)'])}
+        ${n('✋', 'Steckdose Magazin seit 8 h auf Hand', 'Von Hand eingeschaltet und nicht zurückgestellt.', ['Automatik übernehmen', 'So lassen'], 'magazin')}
+        <div class="leise">Die Knöpfe sind Aktionen der HA-App (mobile_app). Ein Tipp löst die Aktion aus und landet im Protokoll.</div>${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'bericht') {
+      const e = this.d.e, mon = e.bericht === 'monat', z = mon ? 'Monat' : 'Woche', L = this.laufende()[0], p = e.preis;
+      const je = L.bereiche.map(b => [b, verbrauch(L.bereiche, b.id, z).reduce((a, v) => a + v, 0)]), ges = je.reduce((a, x) => a + x[1], 0);
+      const fi = this.d.firmen.map(f => [f, je.filter(([b]) => (b.firma || 'eigen') === f.id).reduce((a, x) => a + x[1], 0)]).filter(x => x[1] > 0);
+      return `${griff}<h3>Bericht · Beispiel</h3>
+        <div class="mail"><div class="mail-kopf"><div><span class="leise">An</span> ${e.bericht_mail ? esc(e.mail) : '—'}</div><div><span class="leise">Betreff</span> Baustelle ÖWG Dobl Zwaring – ${mon ? 'September 2026' : 'Woche 21.–27.09.2026'}</div>
+          ${e.bericht_mail && e.bericht_csv ? `<div class="mail-anhang">📎 abrechnung-${mon ? '2026-09' : 'kw39'}.csv</div>` : ''}</div>
+          <div class="mail-inhalt"><b>${mon ? 'September' : 'Vorwoche'}: ${de(ges, 0)} kWh · ${de(ges * p, 2)} €</b> <span class="leise">(${mon ? '+31 % zum August' : '−4 % zur Woche davor'})</span>
+            <div class="mail-t">Je Firma</div>${fi.map(([f, k]) => `<div class="mail-z"><span>${esc(f.name)}</span><span>${de(k, 0)} kWh · ${de(k * p, 2)} €</span></div>`).join('')}
+            <div class="mail-t">Je Container</div>${je.map(([b, k]) => `<div class="mail-z"><span>${esc(b.name)}</span><span>${de(k, 0)} kWh</span></div>`).join('')}
+            <div class="mail-t">Heizung</div><div class="mail-z"><span>Heiztage</span><span>${mon ? 16 : 5}</span></div><div class="mail-z"><span>gespart durch Automatik</span><span>${de(ges * 3.6 * p, 0)} €</span></div>
+            <div class="mail-t">Offene Warnungen</div>${this.d.warnungen.filter(w => !w.stumm).map(w => `<div class="mail-z"><span>${esc(this.bName(w.b))}: ${esc(w.titel)}</span></div>`).join('')}</div></div>
+        <div class="leise">${e.bericht_handy ? 'Aufs Handy kommt eine Kurzfassung (Summe, Kosten, Warnungen) mit Knopf „Bericht öffnen“. ' : ''}Die E-Mail geht über einen Mail-Dienst in HA (Google Mail oder SMTP); die Zugangsdaten stehen in secrets.yaml.</div>
+        ${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
     if (s.art === 'az-neu') {
       const f = s.form;
       return `${griff}<h3>Neue Arbeitszeit</h3>
@@ -726,17 +815,19 @@ class App {
       <label class="feld">Heizkörper<select><option>Ölradiator</option><option>Konvektor</option></select></label>
       ${knopf('Anlegen', 'neu-anlegen', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     if (s.art === 'bereich') {
-      const b = this.b, e = s.edit ||= { name: b.name, firma: b.firma || 'eigen', geraete: b.geraete.map(g => ({ ...g })) };
+      const b = this.b, e = s.edit ||= { name: b.name, tuer: b.tuer?.sensor || '', firma: b.firma || 'eigen', geraete: b.geraete.map(g => ({ ...g })) };
       const typen = b.pumpe ? ['Pumpe'] : ['Ölradiator', 'Konvektor', 'Steckdose'];
       const wahl = (i, g) => `<select data-ge="typ" data-i="${i}">${typen.map(t => `<option ${g.typ === t ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
       return `${griff}<div class="block-kopf"><h3>Bearbeiten</h3><span class="leise">${b.pumpe ? 'Pumpenschacht' : 'Container'}</span></div>
         <label class="feld">Name<input value="${esc(e.name)}" data-b="name"></label>
+        ${b.pumpe ? '' : `<label class="feld">Türkontakt<select data-btuer>${['', 'Tür Polier', 'Tür Magazin', 'Tür Mannschaft (neu)'].map(t => `<option value="${t}" ${(e.tuer || '') === t ? 'selected' : ''}>${t ? `${t} · Shelly Door/Window` : 'keiner'}</option>`).join('')}</select></label>`}
         <label class="feld">Firma · für die Abrechnung<select data-bf="firma">${this.d.firmen.map(f => `<option value="${f.id}" ${e.firma === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>
         <div class="gruppe-t">${b.pumpe ? 'Pumpen' : 'Geräte'} · ${e.geraete.filter(g => !g.weg).length}</div>
         ${e.geraete.map((g, i) => g.weg ? `<div class="ge-zeile weg"><span>${esc(g.n)} wird entfernt</span><button class="chip glas-panel" data-act="ge-zurueck" data-i="${i}">rückgängig</button></div>`
           : `<div class="ge-zeile"><div class="ge-felder">
             ${g.neu ? `<select data-ge="shelly" data-i="${i}">${['Heizung 03 · Shelly Plug S', 'Heizung 04 · Shelly Plug S', 'Pumpe 3 · Shelly Plus 1PM'].map(x => `<option ${g.shelly === x ? 'selected' : ''}>${x}</option>`).join('')}</select>` : `<span class="leise ge-shelly">${esc(g.shelly || g.n.toLowerCase().replace(/[^a-z0-9]+/g, '_'))} · Shelly Plug S</span>`}
-            <div class="ge-zwei"><input value="${esc(g.n)}" data-ge="n" data-i="${i}" placeholder="Name">${wahl(i, g)}</div></div>
+            <div class="ge-zwei"><input value="${esc(g.n)}" data-ge="n" data-i="${i}" placeholder="Name">${wahl(i, g)}</div>
+            ${this.d.e.phasen === 3 ? `<div class="ge-phase"><span class="leise">Phase</span><div class="seg klein">${['L1', 'L2', 'L3'].map(ph => `<button data-act="ge-phase" data-i="${i}" data-v="${ph}" class="${(g.phase || 'L1') === ph ? 'on' : ''}">${ph}</button>`).join('')}</div></div>` : ''}</div>
             <button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
         <button class="zeile" data-act="ge-neu"><span class="blau">+ Gerät hinzufügen</span></button>
         <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
@@ -796,7 +887,7 @@ class App {
       case 'verlauf': this.s.verlauf = el.dataset.v; return neu();
       case 'basis': d.e.basis = el.dataset.v; return neu();
       case 'e-bool': d.e[el.dataset.k] = !d.e[el.dataset.k]; return neu();
-      case 'st': { const k = el.dataset.k; d.e[k] = Math.max(0, Math.round((d.e[k] + +el.dataset.d) * 10) / 10); return neu(); }
+      case 'st': { const k = el.dataset.k, min = { absicherung: 6, max_gleich: 1, min_lauf: 1, takt: 5, tuer_pause: 1, tuer_melden: 1 }[k] || 0; d.e[k] = Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10); return neu(); }
       case 'jc-auto': { const x = d.bereiche.find(y => y.id === el.dataset.id); x.auto = !x.auto; return neu(); }
       case 'jc-soll': { const x = d.bereiche.find(y => y.id === el.dataset.id); x.soll = Math.round(((x.soll ?? d.e.soll) + +el.dataset.d) * 2) / 2; return neu(); }
       case 'urlaub-weg': { const u = d.urlaube.splice(+el.dataset.i, 1)[0]; neu(); return this.toast(`${u.name} gelöscht`); }
@@ -817,6 +908,11 @@ class App {
       case 'fc-weg': this.s.sheet.form.neu.splice(+el.dataset.i, 1); return neu();
       case 'fc-art': this.s.sheet.form.neu[+el.dataset.i].art = el.dataset.v; return neu();
       case 'firma-weg': { const id = this.s.sheet.form.id; for (const b of d.bereiche) if (b.firma === id) b.firma = 'eigen'; d.firmen = d.firmen.filter(f => f.id !== id); this.s.sheet = null; neu(); return this.toast('Firma gelöscht – Container gehören wieder der eigenen Firma'); }
+      case 'e-wert': { const v = el.dataset.v; d.e[el.dataset.k] = isNaN(+v) ? v : +v; return neu(); }
+      case 'prio': d.bereiche.find(x => x.id === el.dataset.id).prio = el.dataset.v; return neu();
+      case 'ge-phase': this.s.sheet.edit.geraete[+el.dataset.i].phase = el.dataset.v; return neu();
+      case 'n-knopf': d.protokoll.unshift(['Heute', JETZT, 'nachricht', el.dataset.b || null, `Knopf „${el.dataset.t}“ in der Nachricht gedrückt`]); return this.toast(`„${el.dataset.t}“ ausgeführt – steht im Protokoll`);
+      case 'tab-einst': return this.gehe('einst');
       case 'az-alt': this.s.azAlt = !this.s.azAlt; return neu();
       case 'az-heizung': return this.gehe('heizung');
       case 'az-neu': case 'az-vorlage': { const v = a === 'az-vorlage' ? d.arbeitszeiten[this.s.sheet.i] : this.azJetzt;
@@ -834,7 +930,7 @@ class App {
         this.neuerContainer(name, this.s.sheet.neuArt === 'Pumpenschacht', 'eigen'); this.s.sheet = null; neu(); return this.toast(`${name} angelegt`); }
       case 'b-speichern': { const e = this.s.sheet.edit, kw = { Ölradiator: 2, Konvektor: 2, Steckdose: .5, Pumpe: .76 };
         if (e.name.trim()) b.name = e.name.trim();
-        b.firma = e.firma;
+        b.firma = e.firma; b.tuer = e.tuer ? { sensor: e.tuer, offen: b.tuer?.sensor === e.tuer ? b.tuer.offen : 0 } : undefined;
         const weg = e.geraete.filter(g => g.weg).length;
         b.geraete = e.geraete.filter(g => !g.weg).map(g => g.neu ? { n: g.n || g.shelly.split(' · ')[0], typ: g.typ, kw: kw[g.typ], an: 0, hand: false } : { ...g });
         this.s.sheet = null; neu(); return this.toast(weg ? `Gespeichert · ${weg} entfernt – Werte bleiben im Verlauf` : 'Gespeichert'); }
@@ -852,6 +948,8 @@ class App {
     if (el.dataset.ur) this.s.sheet.form[el.dataset.ur] = el.value;
     if (el.dataset.ge) this.s.sheet.edit.geraete[+el.dataset.i][el.dataset.ge] = el.value;
     if (el.dataset.bf) this.s.sheet.edit.firma = el.value;
+    if (el.dataset.btuer !== undefined) this.s.sheet.edit.tuer = el.value;
+    if (el.dataset.k === 'zaehler' || el.dataset.k === 'mail') { this.d.e[el.dataset.k] = el.value; if (el.dataset.k === 'zaehler') this.render(); }
     if (el.dataset.fn !== undefined) this.s.sheet.form.name = el.value;
     if (el.dataset.fnc !== undefined) this.s.sheet.form.neu[+el.dataset.fnc].name = el.value;
     if (el.dataset.b === 'name' && this.s.sheet?.edit) this.s.sheet.edit.name = el.value;
