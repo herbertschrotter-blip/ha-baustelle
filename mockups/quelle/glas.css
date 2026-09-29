@@ -78,6 +78,17 @@ body.hell { background: #d9dee5; color: #111; }
 .glas-nav button.on { color: var(--ink); font-weight: 700; background: rgba(255,255,255,.16); }
 .hell .glas-nav button.on { background: rgba(255,255,255,.7); }
 
+/* Verbrauch (Klick auf kW) */
+.kw-knopf { cursor: pointer; border-radius: 14px !important; padding: 4px 8px !important; margin: -4px -8px -4px 0 !important; transition: background .2s; }
+.kw-knopf:hover { background: rgba(255,255,255,.12) !important; } .kw-pfeil { font-size: 18px; opacity: .5; margin-left: 2px; }
+.c-kw.kw-knopf { margin: 4px 0 0 -8px !important; }
+.vb-wer { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.vb-wer button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; padding: 5px 10px !important; border-radius: 14px !important;
+  border: 1px solid var(--panel-rand) !important; color: var(--ink2) !important; transition: background .2s, color .2s; }
+.vb-wer button.on { background: rgba(255,255,255,.2) !important; color: var(--ink) !important; font-weight: 600; } .hell .vb-wer button.on { background: #fff !important; }
+.vb-wer i { width: 8px; height: 8px; border-radius: 50%; }
+.fl-flaeche, .fl-linie { animation: seite .4s ease-out both; }
+
 /* Container-Ansicht */
 .zurueck-zeile { display: flex; justify-content: space-between; }
 .c-held { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; padding: 14px; }
