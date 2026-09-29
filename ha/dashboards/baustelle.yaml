@@ -151,7 +151,6 @@ views:
     - type: heading
       heading: Poliercontainer
       icon: mdi:home-thermometer
-      badges: []
     - type: tile
       entity: select.poliercontainer_modus
       grid_options:

@@ -71,8 +71,8 @@ def heading(text: str, icon: str | None = None, subtitel: bool = False, badges: 
         karte["icon"] = icon
     if subtitel:
         karte["heading_style"] = "subtitle"
-    if badges:
-        karte["badges"] = [{"type": "entity", "entity": b, "show_state": True} for b in badges if b]
+    if badges := [b for b in badges or [] if b]:
+        karte["badges"] = [{"type": "entity", "entity": b, "show_state": True} for b in badges]
     return karte
 
 
