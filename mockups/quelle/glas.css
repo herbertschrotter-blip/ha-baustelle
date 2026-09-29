@@ -21,7 +21,8 @@ body.hell { background: #d9dee5; color: #111; }
   --ink: #111; --ink2: rgba(0,0,0,.6); --gridc: rgba(0,0,0,.1); --axisc: rgba(0,0,0,.5); --amber: #d97800; --rot: #d7372b; --blau: #0a64d6;
   --panel: rgba(255,255,255,.45); --panel-rand: rgba(255,255,255,.75); --sheet: rgba(250,250,252,.86);
   --fenster: #cfe3f3; --rahmen: #eceff1; --wr-nebel: #8a99a3; --wr-wind: #7d98ad; }
-.app button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+/* Grundform für Knöpfe ohne Gewicht (:where), damit Klassen wie .glas-panel oder .glas-kw sie überschreiben */
+:where(.app button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
 .app input, .app select { font: inherit; color: var(--ink); background: rgba(127,127,127,.16); border: 1px solid var(--panel-rand); border-radius: 10px; padding: 7px 10px; }
 .app select option { color: #111; }
 
@@ -47,9 +48,10 @@ body.hell { background: #d9dee5; color: #111; }
 .kopf-wetter .wi { margin: -4px 0; } .pfeil { font-size: 14px; opacity: .6; }
 .glas-klein { font-size: 11px; letter-spacing: 1.2px; color: var(--ink2); text-transform: uppercase; }
 .glas-titel { font-size: 22px; font-weight: 600; }
-.glas-kw { font-size: 28px; font-weight: 300; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.glas-kw { font-size: 38px; font-weight: 300; letter-spacing: -.5px; display: flex; align-items: baseline; gap: 4px; white-space: nowrap; line-height: 1; }
+.glas-kw small { font-size: 16px !important; opacity: .75 !important; font-weight: 400; letter-spacing: 0; }
 .glas-kw small, .glas-wert small, .c-wert small { font-size: .5em; opacity: .7; }
-.blitz { font-size: 22px; opacity: .4; } .blitz.an { opacity: 1; filter: drop-shadow(0 0 8px rgba(255,214,10,.9)); animation: blitz 2.4s ease-in-out infinite; }
+.blitz { font-size: 26px; opacity: .4; align-self: center; } .blitz.an { opacity: 1; filter: drop-shadow(0 0 8px rgba(255,214,10,.9)); animation: blitz 2.4s ease-in-out infinite; }
 
 .glas-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; padding: 6px 12px; border-radius: 18px !important; transition: transform .15s; }
@@ -80,7 +82,7 @@ body.hell { background: #d9dee5; color: #111; }
 
 /* Verbrauch (Klick auf kW) */
 .kw-knopf { cursor: pointer; border-radius: 14px !important; padding: 4px 8px !important; margin: -4px -8px -4px 0 !important; transition: background .2s; }
-.kw-knopf:hover { background: rgba(255,255,255,.12) !important; } .kw-pfeil { font-size: 18px; opacity: .5; margin-left: 2px; }
+.kw-knopf:hover { background: rgba(255,255,255,.12) !important; } .kw-pfeil { font-size: 22px; opacity: .5; margin-left: 4px; align-self: center; }
 .c-kw.kw-knopf { margin: 4px 0 0 -8px !important; }
 .vb-wer { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
 .vb-wer button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; padding: 5px 10px !important; border-radius: 14px !important;
