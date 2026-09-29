@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1] – 2026-09-29
+
+- Seite: Diagramm-Farben fehlten (Balken schwarz, Legende ohne Farben) – Palette wieder drin, im Test geprüft.
+- Seite am Handy: Tabellen scrollen in ihrer Karte statt über den Rand, Tabs kompakt (⚙ = Einstellungen),
+  Zeitleiste zeigt den Gerätenamen.
+- Nächste Schaltzeit auch über Mitternacht hinaus (nächster aktiver Tag laut Plan).
+
 ## [0.5.0] – 2026-09-29
 
 - Stufe 6 vorgezogen – eigene Seite „Baustelle“ in der Seitenleiste (wie Alarmo/HACS), gebaut nach dem abgenommenen

@@ -441,9 +441,15 @@ class Steuerung:
             daten.grund[bid] = grund or (Grund.AUTOMATIK_AUS if not lage.automatik else Grund.AUSSERHALB)
 
         naechste = naechste_schaltzeit(lage, regeln, bereiche_logik) if self.heizung else None
-        daten.naechste = (
-            jetzt.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(minutes=naechste[0]) if naechste else None
-        )
+        mitternacht = jetzt.replace(hour=0, minute=0, second=0, microsecond=0)
+        daten.naechste = mitternacht + timedelta(minutes=naechste[0]) if naechste else None
+        if daten.naechste is None and lage.automatik and bereiche_logik:
+            # heute nichts mehr: nächster aktiver Tag laut Plan (Urlaub/Feiertag erst am Tag selbst bekannt)
+            for tage in range(1, 8):
+                tag = self.einstellungen.daten["plan"][WOCHENTAGE[(jetzt.weekday() + tage) % 7]]
+                if tag["aktiv"]:
+                    daten.naechste = mitternacht + timedelta(days=tage, minutes=_minuten(tag["ein"]))
+                    break
         daten.status = self._status(lage, regeln, heizt)
         self._geraete_pruefen(jetzt)
         self._zeiten_zaehlen(jetzt)

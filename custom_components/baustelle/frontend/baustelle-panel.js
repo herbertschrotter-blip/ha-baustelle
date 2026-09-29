@@ -130,6 +130,16 @@ const CSS = `:host { display: flex; flex-direction: column; height: 100%; min-he
 .chip.gruen { background: rgba(67,160,71,.15); color: var(--success-color); }
 .tgl.dis { opacity: .4; pointer-events: none; }
 .tile[data-tab] { cursor: pointer; }
+/* Diagramm-Palette: validiert (hell auf #fff, dunkel auf #1c1c1c) – Kategorie-Reihenfolge fest */
+:host { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --crit: #d03b3b; --muted: #898781; --gridc: #e1e0d9; --axisc: #c3c2b7; --ink2: #52514e; }
+:host([dunkel]) { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  --gridc: #2c2c2a; --axisc: #383835; --ink2: #c3c2b7; }
+/* Handy: Abschnitte nicht breiter als der Bildschirm, Tabellen scrollen in der Karte, Tabs kompakt */
+.sec, .card { min-width: 0; }
+.card { overflow-x: auto; }
+.tabs.eng .tab { text-transform: none; font-size: 13px; padding: 10px 9px; letter-spacing: 0; }
+@container (max-width: 700px) { table.t { font-size: 12px; } table.t td, table.t th { padding: 5px 3px; } }
 * { box-sizing: border-box; }
 .hdr { background: var(--app-header-background-color); color: var(--app-header-text-color); }
 .hdr-top { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px; font-size: 20px; }
@@ -430,7 +440,7 @@ class BaustellePanel extends HTMLElement {
     if (b && !TABS.some(([k]) => k === this.ui.tab)) this.ui.tab = 'uebersicht';
     const kopf = `<div class="hdr"><div class="hdr-top">
         ${this._narrow ? '<span class="ico" data-act="menu">☰</span>' : ''}<span class="t">Baustelle</span>${b ? this._auswahl(b) : ''}</div>
-      <div class="tabs">${TABS.map(([k, l]) => `<div class="tab ${this.ui.tab === k ? 'on' : ''}" data-tab="${k}">${l}</div>`).join('')}</div></div>`;
+      <div class="tabs ${this._narrow ? 'eng' : ''}">${TABS.map(([k, l]) => `<div class="tab ${this.ui.tab === k ? 'on' : ''}" data-tab="${k}">${this._narrow && k === 'einstellungen' ? '⚙' : l}</div>`).join('')}</div></div>`;
     let inhalt;
     if (this.fehler) inhalt = `<div class="card errc">Die Daten der Integration sind nicht erreichbar: ${esc(this.fehler)}</div>`;
     else if (!this.baustellen) inhalt = '<div class="card">Lädt …</div>';
@@ -565,7 +575,7 @@ class BaustellePanel extends HTMLElement {
         else if (s === 'unavailable') segs.push([von, Math.max(von + 1, bis), 'off']);
       });
       const idx = b.bereiche.findIndex(x => x.id === g.bereich);
-      return { name: `${this._bereichName(b, g.bereich).split(' · ').pop()} · ${g.name}`, color: sc(idx < 0 ? 0 : idx), onLabel: g.rolle === 'pumpe' ? 'läuft' : 'ein', segs };
+      return { name: this._narrow ? g.name : `${this._bereichName(b, g.bereich)} · ${g.name}`, color: sc(idx < 0 ? 0 : idx), onLabel: g.rolle === 'pumpe' ? 'läuft' : 'ein', segs };
     });
     if (!rows.length) return '<div class="muted">Noch keine Geräte zugeordnet.</div>';
     return timeline({ id: `tl${id}`, W, now: jetztMin, rows }) + legend([...b.bereiche.map((x, i) => [x.name, sc(i)]), ['nicht erreichbar', 'var(--crit)', 'hatch']]);

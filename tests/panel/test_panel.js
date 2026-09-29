@@ -86,6 +86,9 @@ const hass = {
   p._klick({ composedPath: () => [{ dataset: { toggle: 'switch.wohnanlage_nord_automatik' }, classList: { contains: () => false } }] });
   console.log('Dienste:', JSON.stringify(aufrufe));
   console.log(fehler ? `${fehler} Fehler` : 'keine undefined/NaN in allen Ansichten');
-  const ok = !fehler && aufrufe.length === 4 && /class="a run/.test(html);
+  const quelle = fs.readFileSync(datei, 'utf8');
+  const palette = ['--s1:', '--crit:', '--muted:', '--gridc:'].every(v => quelle.includes(v));
+  console.log('Diagramm-Farben definiert:', palette);
+  const ok = !fehler && palette && aufrufe.length === 4 && /class="a run/.test(html);
   if (!ok) { console.error('Panel-Test fehlgeschlagen'); process.exit(1); }
 })();

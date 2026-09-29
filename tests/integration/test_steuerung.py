@@ -291,3 +291,12 @@ async def test_dashboard_generator(hass: HomeAssistant, baustelle, tmp_path) -> 
     fehlend = sorted(e for e in genutzt if hass.states.get(e) is None)
     assert not fehlend, fehlend
     assert len(genutzt) > 60
+
+
+async def test_naechste_schaltzeit_morgen(hass: HomeAssistant, baustelle, freezer) -> None:
+    st = baustelle.runtime_data
+    st.einstellung_setzen(("automatik",), True)
+    freezer.move_to("2026-10-02 19:00:00+02:00")  # Freitag abends → Montag 06:00 (Sa/So aus)
+    st.auswerten()
+    await hass.async_block_till_done()
+    assert st.daten.naechste.isoformat().startswith("2026-10-05T06:00")
