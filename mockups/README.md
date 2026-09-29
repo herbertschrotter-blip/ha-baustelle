@@ -10,6 +10,7 @@ HTML-Entwürfe für das Dashboard „Baustelle“. Design: HA-Standard-Theme und
 | `wettersymbole.html` | Wettersymbole in drei Varianten (Realistisch, 3D, Weich) plus bisher, je mit Beispiel-Wetterkarte, hell und dunkel | **Gewählt von Herbert am 29.09.2026: Realistisch** (eingebaut in 0.6.2) |
 | `uebersicht-varianten.html` | Übersicht: Mischung aus „Geordnet“ und „Kacheln“, dazu beide zum Vergleich | Zwischenstand – abgelöst durch `baustellenuebersicht.html` |
 | `baustellenuebersicht.html` | Übersicht mit Container im Mittelpunkt: Baustellen-Kachel, animierte 3D-Container-/Schacht-Kacheln mit Zustand, Gerätezahl, Leistung; Handy und Desktop, Beispieldaten | **Richtung bestätigt von Herbert am 29.09.2026**, Fenster korrigiert; festgelegt: Wetter nur als Chip, Klick auf eine Kachel öffnet Container/Funktion/Diagramme. Eingebaut in 0.6.3, Abnahme im Echtbetrieb offen |
+| `uebersicht-ios.html` | Baustellenübersicht in drei Handy-Stilen: A iOS (Widgets, großer Titel, Tableiste), B One UI/Samsung (Kopfbereich oben, Bedienung unten), C Glas wie visionOS (Milchglas über Farbverlauf); hell/dunkel, Beispieldaten | Vorschau 29.09.2026 – Auswahl durch Herbert offen |
 
 Bewusst offen bzw. für den Bau festgelegt:
 - Animationen und Zeitleiste im Zeitplan brauchen eine eigene Karte; erste Stufe mit eingebauten Karten

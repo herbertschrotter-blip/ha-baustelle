@@ -1,0 +1,858 @@
+<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Baustellenübersicht im Stil von iOS, One UI, Glas</title>
+<style>
+body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif; background: #0b0b0b; color: #fff; }
+body.licht { background: #d9dee5; }
+.bar { position: sticky; top: 0; z-index: 9; display: flex; gap: 10px; align-items: center; padding: 10px 16px; background: #1c1c1e; color: #fff; }
+.bar button { background: transparent; color: inherit; border: 1px solid #636366; border-radius: 8px; padding: 5px 10px; font: inherit; cursor: pointer; }
+.buehne { display: flex; gap: 26px; padding: 18px; overflow-x: auto; align-items: flex-start; }
+.v h2 { margin: 0 0 3px; font-size: 16px; color: #aeaeb2; } .v p { margin: 0 0 10px; font-size: 12px; color: #8e8e93; max-width: 390px; }
+.telefon { position: relative; width: 390px; height: 844px; border-radius: 48px; overflow: hidden; border: 10px solid #000; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+.telefon::before { content: ""; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 110px; height: 30px; border-radius: 20px; background: #000; z-index: 20; }
+.bc { width: 100%; height: auto; display: block; overflow: visible; } .bc.offline { filter: grayscale(.8) brightness(.8); }
+:root { --fenster: #2b3a44; --rahmen: #cfd8dc; } .licht { --fenster: #cfe3f3; --rahmen: #eceff1; }
+.punkte { display: flex; gap: 4px; } .punkte i { width: 7px; height: 7px; border-radius: 50%; background: rgba(142,142,147,.5); }
+.punkte i.an { background: #ff9f0a; box-shadow: 0 0 6px #ff9f0a; animation: atmen 2s ease-in-out infinite; }
+small { font-size: .5em; font-weight: 400; opacity: .7; }
+
+/* ---------- iOS ---------- */
+.ios { --bg: #000; --karte: #1c1c1e; --karte2: #2c2c2e; --txt: #fff; --sek: #98989f; --tr: rgba(84,84,88,.6); --blau: #0a84ff;
+  height: 100%; background: var(--bg); color: var(--txt); overflow-y: auto; position: relative; }
+.licht .ios { --bg: #f2f2f7; --karte: #fff; --karte2: #f2f2f7; --txt: #000; --sek: #6c6c70; --tr: rgba(60,60,67,.29); --blau: #007aff; }
+.ios-status { display: flex; justify-content: space-between; padding: 16px 30px 0; font-weight: 600; font-size: 15px; }
+.ios-nav { display: flex; justify-content: space-between; padding: 14px 16px 0; } .ios-link { color: var(--blau); font-size: 17px; }
+.ios-titel { font-size: 32px; font-weight: 700; letter-spacing: -.5px; padding: 4px 16px 10px; }
+.ios-seg { display: flex; margin: 0 16px 12px; background: rgba(118,118,128,.24); border-radius: 9px; padding: 2px; }
+.ios-seg span { flex: 1; text-align: center; font-size: 12.5px; padding: 6px 0; border-radius: 7px; } .ios-seg .on { background: var(--karte2); box-shadow: 0 3px 8px rgba(0,0,0,.12); font-weight: 600; }
+.licht .ios-seg .on { background: #fff; }
+.ios-inh { padding: 0 16px 110px; display: flex; flex-direction: column; gap: 12px; }
+.ios-widget { background: var(--karte); border-radius: 22px; padding: 14px; animation: rein .45s ease-out both; }
+.iw-kopf { display: flex; justify-content: space-between; align-items: center; } .iw-app { font-size: 12px; font-weight: 600; color: #ff9f0a; letter-spacing: .3px; }
+.iw-zeile { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; } .iw-riesig { font-size: 38px; font-weight: 600; letter-spacing: -1px; }
+.iw-wetter { display: flex; align-items: center; gap: 4px; font-size: 22px; font-weight: 600; } .iw-wetter small { display: block; font-size: 11px; color: var(--sek); opacity: 1; }
+.iw-sek { color: var(--sek); font-size: 12.5px; }
+.iw-leiste { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 12px; padding-top: 10px; border-top: .5px solid var(--tr); }
+.iw-leiste b { display: block; font-size: 17px; } .iw-leiste small { font-size: 11px; color: var(--sek); opacity: 1; }
+.ios-toggle { width: 51px; height: 31px; border-radius: 16px; background: rgba(120,120,128,.32); position: relative; } .ios-toggle.on { background: #30d158; }
+.ios-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.15); } .ios-toggle.on::after { left: 22px; }
+.ios-warn { display: flex; align-items: center; gap: 12px; background: var(--karte); border-radius: 14px; padding: 12px 14px; font-size: 15px; }
+.iw-dot { width: 10px; height: 10px; border-radius: 50%; } .iw-dot.rot { background: #ff453a; box-shadow: 0 0 8px #ff453a; animation: atmen 1.4s infinite; }
+.ios-chev { margin-left: auto; color: var(--sek); font-size: 20px; }
+.ios-abschnitt { font-size: 13px; color: var(--sek); padding: 8px 4px 0; letter-spacing: .3px; }
+.ios-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ios-widget.klein { padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.iw-pill { font-size: 11px; font-weight: 600; color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); padding: 2px 8px; border-radius: 10px; }
+.iw-kw { font-size: 12px; color: var(--sek); } .iw-illu { margin: 2px -6px -2px; } .iw-name { font-weight: 600; font-size: 15px; }
+.iw-zeile2 { display: flex; justify-content: space-between; align-items: center; } .iw-wert { font-size: 26px; font-weight: 600; letter-spacing: -.5px; }
+.ios-liste { background: var(--karte); border-radius: 14px; overflow: hidden; } .il { display: flex; align-items: center; gap: 12px; padding: 11px 14px; font-size: 16px; border-bottom: .5px solid var(--tr); }
+.il:last-child { border-bottom: 0; } .il-ic { width: 29px; height: 29px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; } .il-t { flex: 1; }
+.ios-tabbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; padding: 8px 0 26px; background: rgba(30,30,30,.72); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px); border-top: .5px solid var(--tr); color: var(--sek); font-size: 20px; }
+.licht .ios-tabbar { background: rgba(249,249,249,.8); } .ios-tabbar span { display: flex; flex-direction: column; align-items: center; gap: 2px; } .ios-tabbar small { font-size: 10px; opacity: 1; } .ios-tabbar .on { color: var(--blau); }
+
+/* ---------- One UI ---------- */
+.one { --bg: #000; --karte: #171717; --txt: #fafafa; --sek: #9a9a9a; --akz: #3e91ff; height: 100%; background: var(--bg); color: var(--txt); overflow-y: auto; position: relative; font-family: "SamsungOne", Roboto, system-ui, sans-serif; }
+.licht .one { --bg: #f6f6f6; --karte: #fff; --txt: #111; --sek: #6f6f6f; --akz: #0a6cff; }
+.one-status { display: flex; justify-content: space-between; padding: 16px 28px 0; font-size: 13px; }
+.one-hero { height: 250px; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 26px 18px; }
+.one-titel { font-size: 38px; font-weight: 400; } .one-sub { color: var(--sek); font-size: 14px; margin-top: 4px; }
+.one-kpi { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 18px; } .one-kpi b { display: block; font-size: 22px; font-weight: 500; } .one-kpi small { color: var(--sek); font-size: 12px; opacity: 1; }
+.one-leiste { display: flex; justify-content: flex-end; gap: 18px; padding: 0 22px 8px; color: var(--sek); font-size: 18px; }
+.one-inh { padding: 0 12px 150px; display: flex; flex-direction: column; gap: 10px; }
+.one-karte { background: var(--karte); border-radius: 26px; padding: 16px; animation: rein .45s ease-out both; }
+.one-status-k { display: flex; align-items: center; gap: 12px; } .one-kreis { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; }
+.one-kreis.orange { background: rgba(255,146,0,.18); color: #ff9200; } .one-sek { color: var(--sek); font-size: 13px; }
+.one-toggle { width: 44px; height: 24px; border-radius: 12px; background: #555; position: relative; } .one-toggle.on { background: var(--akz); }
+.one-toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; } .one-toggle.on::after { left: 23px; }
+.one-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 4px; } .one-chips span { display: flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 13px; padding: 7px 14px; border-radius: 20px; background: var(--karte); }
+.one-chips .rot { color: #ff5b4f; }
+.one-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.one-k { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 2px; } .one-illu { margin: -2px -8px 0; } .one-name { font-size: 15px; font-weight: 600; }
+.one-zeile { display: flex; justify-content: space-between; align-items: center; } .one-wert { font-size: 26px; }
+.one-badge { font-size: 11px; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 60%, transparent); padding: 2px 8px; border-radius: 10px; }
+.one-fuss { display: flex; justify-content: space-between; align-items: center; }
+.one-fab { position: absolute; right: 22px; bottom: 96px; width: 56px; height: 56px; border-radius: 18px; background: var(--akz); color: #fff; display: grid; place-items: center; font-size: 30px; box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+.one-nav { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; padding: 14px 0 28px; background: var(--bg); color: var(--sek); font-size: 13px; }
+.one-nav .on { color: var(--txt); font-weight: 700; }
+
+/* ---------- Glas ---------- */
+.glas { position: relative; height: 100%; overflow-y: auto; color: #fff; padding: 56px 14px 110px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; }
+.glas-bg { position: absolute; inset: 0; background: linear-gradient(160deg, #1b2735 0%, #0e1a2b 45%, #2a1a2e 100%); overflow: hidden; z-index: 0; }
+.licht .glas-bg { background: linear-gradient(160deg, #cfe3ff 0%, #f5e6ff 50%, #ffe9d2 100%); } .licht .glas { color: #111; }
+.glas-bg i { position: absolute; border-radius: 50%; filter: blur(40px); opacity: .7; animation: schweben 14s ease-in-out infinite; }
+.glas-bg .k1 { width: 260px; height: 260px; background: #ff8a00; top: -60px; left: -60px; } .glas-bg .k2 { width: 240px; height: 240px; background: #0a84ff; top: 300px; right: -80px; animation-delay: -5s; }
+.glas-bg .k3 { width: 200px; height: 200px; background: #bf5af2; bottom: -40px; left: 40px; animation-delay: -9s; }
+.glas > *:not(.glas-bg) { position: relative; z-index: 1; }
+.glas-panel { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.22); backdrop-filter: blur(24px) saturate(1.5); -webkit-backdrop-filter: blur(24px); border-radius: 26px; box-shadow: 0 8px 32px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25); }
+.licht .glas-panel { background: rgba(255,255,255,.45); border-color: rgba(255,255,255,.7); }
+.glas-kopf { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; } .glas-klein { font-size: 11px; letter-spacing: 1.2px; opacity: .7; } .glas-titel { font-size: 22px; font-weight: 600; }
+.glas-kw { font-size: 28px; font-weight: 300; display: flex; align-items: center; gap: 4px; } .glas-kw .blitz { font-size: 22px; filter: drop-shadow(0 0 8px rgba(255,214,10,.9)); animation: blitz 2.4s ease-in-out infinite; }
+.glas-chips { display: flex; gap: 8px; flex-wrap: wrap; } .glas-chips span { display: flex; align-items: center; gap: 4px; font-size: 13px; padding: 6px 12px; border-radius: 18px; } .glas-chips .rot { color: #ff6961; }
+.glas-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.glas-k { padding: 12px; display: flex; flex-direction: column; gap: 3px; animation: rein .5s ease-out both, schweben2 6s ease-in-out infinite; }
+.glas-k:nth-child(2n) { animation-delay: 0s, -3s; } .glas-illu { margin: -4px -6px -2px; filter: drop-shadow(0 12px 14px rgba(0,0,0,.35)); }
+.glas-name { font-weight: 600; font-size: 15px; } .glas-zeile { display: flex; justify-content: space-between; align-items: baseline; } .glas-wert { font-size: 26px; font-weight: 300; } .glas-kwk { font-size: 12px; opacity: .75; }
+.glas-status { display: flex; align-items: center; gap: 6px; font-size: 12px; opacity: .85; } .glas-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); animation: atmen 2s infinite; }
+.glas-nav { position: absolute !important; left: 14px; right: 14px; bottom: 22px; display: flex; justify-content: space-around; padding: 13px 4px; font-size: 13px; } .glas-nav .on { font-weight: 700; }
+@keyframes schweben { 50% { transform: translate(30px, 40px) scale(1.15); } }
+@keyframes schweben2 { 50% { transform: translateY(-3px); } }
+@keyframes rein { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes atmen { 50% { opacity: .55; } }
+@keyframes fuellen { from { width: 0; } }
+@keyframes blitz { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-6deg); } }
+.bc-glut { animation: bc-glut 2.6s ease-in-out infinite; } @keyframes bc-glut { 50% { fill: #ffd180; filter: drop-shadow(0 0 4px #ff9800); } }
+.bc-waerme { animation: bc-waerme 2.1s ease-in infinite; opacity: 0; } @keyframes bc-waerme { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-12px); opacity: 0; } }
+.bc-jacke { animation: bc-jacke 2.4s ease-in-out infinite; } @keyframes bc-jacke { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+.bc-eis { animation: bc-eis 2s ease-in-out infinite; } @keyframes bc-eis { 50% { opacity: .3; } }
+.bc-alarm { animation: bc-alarm 1s steps(2) infinite; } @keyframes bc-alarm { 50% { opacity: .25; } }
+.bc-pegel { animation: bc-pegel 5s ease-in-out infinite; } @keyframes bc-pegel { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+.bc-welle { animation: bc-welle 3s linear infinite; } @keyframes bc-welle { to { transform: translateX(-60px); } }
+.bc-rad { animation: bc-rad .9s linear infinite; transform-box: fill-box; transform-origin: center; } @keyframes bc-rad { to { transform: rotate(360deg); } }
+.bc-fluss { stroke-dasharray: 5 5; animation: bc-fluss .6s linear infinite; } @keyframes bc-fluss { to { stroke-dashoffset: -10; } }
+@media (prefers-reduced-motion: reduce) { .bc *, .kc, .kc *, .bk * { animation: none !important; } }
+/* Wetter */
+.hell { --wr-nebel: #cfd8dc; --wr-wind: #90a4ae; }
+.dunkel { --wr-nebel: #c5d0d7; --wr-wind: #b0bec5; }
+.wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
+.wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
+.wetter .wtage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
+.wetter .wtag { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.wetter .wt { font-size: 12px; font-weight: 600; color: var(--secondary-text-color); }
+.wetter .max { font-weight: 600; }
+.wetter .frost { color: #2a78d6; font-weight: 600; }
+.wetter .regen { color: #2a78d6; }
+@keyframes wi-dreh { to { transform: rotate(360deg); } }
+@keyframes wi-wolke { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+@keyframes wi-tropfen { 0% { transform: translateY(-5px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(9px); opacity: 0; } }
+@keyframes wi-flocke { 0% { transform: translate(-1px, -5px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(2px, 9px); opacity: 0; } }
+@keyframes wi-blitz { 0%, 86%, 100% { opacity: .15; } 88%, 93% { opacity: 1; } 90% { opacity: .3; } }
+@keyframes wi-nebel { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+@keyframes wi-stern { 50% { opacity: .2; } }
+@keyframes wi-wind { 0% { stroke-dashoffset: 60; } 100% { stroke-dashoffset: 0; } }
+.wi .wi-dreh { animation: wi-dreh 18s linear infinite; }
+.wi .wi-wolke > g { animation: wi-wolke 6s ease-in-out infinite; }
+.wr .wr-kristall { transform-box: fill-box; animation: wi-dreh 6s linear infinite; }
+@keyframes wb-puls { 0%, 100% { opacity: .55; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
+.wi .wb-puls { transform-box: fill-box; transform-origin: center; animation: wb-puls 3.5s ease-in-out infinite; }
+.wi .wi-tropfen { animation: wi-tropfen 1.3s linear infinite; }
+.wi .wi-flocke { animation: wi-flocke 2.6s linear infinite; }
+.wi .wi-blitz { animation: wi-blitz 3.2s linear infinite; }
+.wi .wi-nebel { animation: wi-nebel 5s ease-in-out infinite; }
+.wi .wi-stern { animation: wi-stern 2.4s ease-in-out infinite; }
+.wi .wi-wind { stroke-dasharray: 60; animation: wi-wind 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .wi * { animation: none !important; } }
+
+/* Übersicht: Baustelle und Container als Kacheln */
+.hell { --fenster: #2b3a44; --rahmen: #cfd8dc; } .hell(:not([dunkel])) { --fenster: #cfe3f3; --rahmen: #eceff1; }
+.bu { display: flex; flex-direction: column; gap: 14px; }
+.bk, .kc { cursor: pointer; } .chip[data-tab], .chip[data-act] { cursor: pointer; }
+.chip.gruen { background: rgba(67,160,71,.16); color: #43a047; }
+.blitz { opacity: .5; } .blitz.an { opacity: 1; }
+.ck { display: grid; grid-template-columns: minmax(200px, 360px) 1fr; gap: 18px; align-items: center;
+  background: radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--f) 22%, transparent), transparent 60%), var(--card-background-color); }
+.ck-zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; } .ck-zahlen b { display: block; font-size: 18px; } .ck-zahlen small { color: var(--secondary-text-color); font-size: 12px; }
+@container (max-width: 700px) { .ck { grid-template-columns: 1fr; } }
+.chip.orange { background: rgba(255,129,0,.18); color: #ff9800; } .chip.blau { background: rgba(42,120,214,.2); color: #64b5f6; } .chip.rot { background: rgba(208,59,59,.2); color: #ef6c6c; } .chip.grau { color: var(--secondary-text-color); }
+.wchip { padding: 1px 10px 1px 4px; }
+/* Kopf-Kachel */
+.bk { position: relative; overflow: hidden; border-radius: 22px; padding: 18px; display: grid; grid-template-columns: 1fr auto; gap: 12px;
+  background: radial-gradient(120% 140% at 0% 0%, rgba(255,152,0,.28), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(57,135,229,.28), transparent 55%), var(--card-background-color); border: 1px solid var(--divider-color); }
+.bk::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255,193,7,.07) 0 14px, transparent 14px 28px); pointer-events: none; }
+.bk-name { font-size: 24px; font-weight: 600; margin: 2px 0 8px; } .bk-zahlen { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--secondary-text-color); } .bk-zahlen b { color: var(--primary-text-color); font-size: 18px; }
+.bk-r { display: flex; align-items: center; gap: 10px; } .bk-kw { font-size: 30px; font-weight: 300; } .bk-kw small { font-size: 14px; color: var(--secondary-text-color); }
+.blitz { font-size: 30px; animation: blitz 2.4s ease-in-out infinite; filter: drop-shadow(0 0 8px rgba(255,193,7,.7)); }
+.bk-leiste { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; position: relative; z-index: 1; }
+@container (max-width: 500px) { .bk { grid-template-columns: 1fr; } }
+/* Kacheln */
+.gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+@container (max-width: 520px) { .gitter { grid-template-columns: 1fr 1fr; gap: 10px; } .kc .gross { font-size: 24px; } .kc-name { font-size: 14px; } .kc-fuss .muted { font-size: 11px; } }
+.kc { position: relative; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 20px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; overflow: hidden;
+  animation: rein .5s ease-out both; transition: transform .2s; }
+.kc::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 58%; background: radial-gradient(90% 90% at 50% 20%, color-mix(in srgb, var(--f) 30%, transparent), transparent 70%); pointer-events: none; }
+.kc.heizt::before, .kc.trocknen::before { background: radial-gradient(90% 90% at 50% 20%, rgba(255,152,0,.32), transparent 70%); animation: atmen 3s ease-in-out infinite; }
+.kc.offline { border-color: rgba(208,59,59,.6); } .kc:hover { transform: translateY(-3px); }
+.illu { margin: -4px -6px 0; } .bc { width: 100%; height: auto; display: block; overflow: visible; } .bc.offline { filter: grayscale(.8) brightness(.8); }
+.kc-kopf { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; position: relative; } .kc-name { font-weight: 600; font-size: 15px; line-height: 1.2; }
+.kc-kopf .chip { font-size: 11px; padding: 2px 8px; white-space: nowrap; }
+.kc-mitte { display: flex; justify-content: space-between; align-items: flex-end; } .gross { font-size: 30px; font-weight: 300; line-height: 1; } .gross small { font-size: 13px; color: var(--secondary-text-color); } .gross.grau { color: var(--secondary-text-color); }
+.kw { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; } .kw b { color: var(--primary-text-color); font-size: 16px; }
+.balken { height: 6px; border-radius: 3px; background: rgba(127,127,127,.2); overflow: hidden; } .balken i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--f), #ff9800); animation: fuellen 1.2s ease-out both; }
+.kc-fuss { display: flex; justify-content: space-between; align-items: center; font-size: 12px; } .punkte { display: flex; gap: 4px; } .punkte i { width: 8px; height: 8px; border-radius: 50%; background: rgba(127,127,127,.4); }
+.punkte i.an { background: #ff9800; box-shadow: 0 0 6px #ff9800; animation: atmen 2s ease-in-out infinite; }
+.kc.laeuft .punkte i.an { background: #42a5f5; box-shadow: 0 0 6px #42a5f5; } .kc.laeuft .balken i { background: linear-gradient(90deg, var(--f), #42a5f5); }
+.kc.neu { align-items: center; justify-content: center; border-style: dashed; min-height: 140px; font-size: 13px; } .kc.neu > div:first-child { font-size: 38px; font-weight: 200; color: var(--secondary-text-color); }
+/* Animationen */
+@keyframes rein { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes atmen { 50% { opacity: .55; } }
+@keyframes fuellen { from { width: 0; } }
+@keyframes blitz { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-6deg); } }
+.bc-glut { animation: bc-glut 2.6s ease-in-out infinite; } @keyframes bc-glut { 50% { fill: #ffd180; filter: drop-shadow(0 0 4px #ff9800); } }
+.bc-waerme { animation: bc-waerme 2.1s ease-in infinite; opacity: 0; } @keyframes bc-waerme { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-12px); opacity: 0; } }
+.bc-jacke { animation: bc-jacke 2.4s ease-in-out infinite; } @keyframes bc-jacke { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+.bc-eis { animation: bc-eis 2s ease-in-out infinite; } @keyframes bc-eis { 50% { opacity: .3; } }
+.bc-alarm { animation: bc-alarm 1s steps(2) infinite; } @keyframes bc-alarm { 50% { opacity: .25; } }
+.bc-pegel { animation: bc-pegel 5s ease-in-out infinite; } @keyframes bc-pegel { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+.bc-welle { animation: bc-welle 3s linear infinite; } @keyframes bc-welle { to { transform: translateX(-60px); } }
+.bc-rad { animation: bc-rad .9s linear infinite; transform-box: fill-box; transform-origin: center; } @keyframes bc-rad { to { transform: rotate(360deg); } }
+.bc-fluss { stroke-dasharray: 5 5; animation: bc-fluss .6s linear infinite; } @keyframes bc-fluss { to { stroke-dashoffset: -10; } }
+@media (prefers-reduced-motion: reduce) { .bc *, .kc, .kc *, .bk * { animation: none !important; } }
+</style></head><body class="dunkel"><div class="bar"><b>Baustellenübersicht – iOS · One UI · Glas</b>
+<button onclick="document.body.classList.toggle('licht');document.body.classList.toggle('dunkel');document.body.classList.toggle('hell')">Hell / Dunkel</button>
+<span style="font-size:12px;opacity:.7">Beispieldaten · Container-Grafiken wie in der Baustellenübersicht</span></div>
+<div class="buehne"><div class="v"><h2>A · iOS</h2><p>Großer Titel, Umschalter oben, Container als iOS-Widgets, Milchglas-Tableiste, gruppierte Liste, grüne Schalter.</p><div class="telefon"><div class="ios">
+  <div class="ios-status"><span>20:45</span><span>▮▮▮ 86 %</span></div>
+  <div class="ios-nav"><span class="ios-link">‹ Home</span><span class="ios-link">Bearbeiten</span></div>
+  <div class="ios-titel">ÖWG Dobl Zwaring</div>
+  <div class="ios-seg"><span class="on">Übersicht</span><span>Heizung</span><span>Auswertung</span><span>Verlauf</span></div>
+  <div class="ios-inh">
+    <div class="ios-widget gross">
+      <div class="iw-kopf"><span class="iw-app">♨ HEIZUNG</span><span class="ios-toggle on"></span></div>
+      <div class="iw-zeile"><div><div class="iw-riesig">12,5 <small>kW</small></div><div class="iw-sek">aus um 17:15 · 7 von 11 Geräten an</div></div>
+        <div class="iw-wetter"><svg class="wi wr" viewBox="0 0 64 64" width="40" height="40" overflow="visible" role="img" aria-label="rainy"><defs>
+  <filter id="wrFluff" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation=".45"/></filter>
+  <filter id="wrWeich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+  <filter id="wrGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="wrNebel" x="-20%" y="-50%" width="140%" height="200%"><feTurbulence type="fractalNoise" baseFrequency=".05 .18" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/><feGaussianBlur stdDeviation="1.2"/></filter>
+  <radialGradient id="wrKern" cx="45%" cy="42%" r="60%"><stop offset="0" stop-color="#fffef2"/><stop offset=".45" stop-color="#ffe680"/><stop offset="1" stop-color="#ff9f0a"/></radialGradient>
+  <radialGradient id="wrKorona"><stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/><stop offset=".5" stop-color="#ffd54f" stop-opacity=".35"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+  <linearGradient id="wrStrahl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff6c8" stop-opacity=".75"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient>
+  <radialGradient id="wrWeiss" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef2f5"/><stop offset="1" stop-color="#b6c2cb"/></radialGradient>
+  <radialGradient id="wrGrau" cx="38%" cy="25%" r="85%"><stop offset="0" stop-color="#cfd8dc"/><stop offset=".5" stop-color="#8d9ca6"/><stop offset="1" stop-color="#4b5a64"/></radialGradient>
+  <linearGradient id="wrRegen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ec5ff" stop-opacity="0"/><stop offset="1" stop-color="#3d8be0"/></linearGradient>
+  <radialGradient id="wrEis" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9cc9ee"/></radialGradient>
+  <radialGradient id="wrMond" cx="38%" cy="35%" r="75%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".7" stop-color="#f3e3a8"/><stop offset="1" stop-color="#d6c07a"/></radialGradient></defs><g class="wi-wolke" transform="translate(0 -8) scale(1)"><g transform="translate(1.5 3)" opacity=".22" filter="url(#wrWeich)"><circle cx="22" cy="34" r="10" fill="#233"/><circle cx="32" cy="27" r="13" fill="#233"/><circle cx="43" cy="32" r="10.5" fill="#233"/><circle cx="14" cy="40" r="7" fill="#233"/><circle cx="51" cy="40" r="7.5" fill="#233"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="#233"/></g>
+    <g filter="url(#wrFluff)"><circle cx="22" cy="34" r="10" fill="url(#wrWeiss)"/><circle cx="32" cy="27" r="13" fill="url(#wrWeiss)"/><circle cx="43" cy="32" r="10.5" fill="url(#wrWeiss)"/><circle cx="14" cy="40" r="7" fill="url(#wrWeiss)"/><circle cx="51" cy="40" r="7.5" fill="url(#wrWeiss)"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="url(#wrWeiss)"/></g></g><line class="wi-tropfen" style="animation-delay:0.00s;animation-duration:1s" x1="22" y1="44" x2="19" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.23s;animation-duration:1s" x1="30.666666666666664" y1="44" x2="27.666666666666664" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.46s;animation-duration:1s" x1="39.33333333333333" y1="44" x2="36.33333333333333" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.69s;animation-duration:1s" x1="48" y1="44" x2="45" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/></svg><div>4°<small>6 mm</small></div></div></div>
+      <div class="iw-leiste"><div><b>18,6</b><small>kWh heute</small></div><div><b>5,21 €</b><small>Kosten</small></div><div><b>12,40 €</b><small>gespart</small></div></div></div>
+    <div class="ios-warn"><span class="iw-dot rot"></span><div><b>Lager Süd nicht erreichbar</b><div class="iw-sek">seit 10:42 – Stromausfall?</div></div><span class="ios-chev">›</span></div>
+    <div class="ios-abschnitt">CONTAINER</div>
+    <div class="ios-raster"><div class="ios-widget klein heizt" style="animation-delay:0ms">
+      <div class="iw-kopf"><span class="iw-pill" style="--c:#ff9f0a">heizt</span><span class="iw-kw">4,0 kW</span></div>
+      <div class="iw-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#3987e5">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #3987e5 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#3987e5"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #3987e5 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #3987e5 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    <path class="bc-waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+      <div class="iw-name">Poliercontainer</div><div class="iw-zeile2"><span class="iw-wert">19,4<small>°</small></span><span class="punkte"><i class="an"></i><i class="an"></i></span></div>
+      <div class="iw-sek">2 Heizkörper</div></div><div class="ios-widget klein trocknen" style="animation-delay:60ms">
+      <div class="iw-kopf"><span class="iw-pill" style="--c:#ff9f0a">trocknet</span><span class="iw-kw">5,8 kW</span></div>
+      <div class="iw-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#eb6834">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #eb6834 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#eb6834"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #eb6834 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #eb6834 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    <g class="bc-jacke" style="transform-origin:88.5px 57.714285714285715px"><path d="M84 59.714285714285715l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>
+    <path class="bc-waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+      <div class="iw-name">Mannschaft</div><div class="iw-zeile2"><span class="iw-wert">17,8<small>°</small></span><span class="punkte"><i class="an"></i><i class="an"></i><i class="an"></i></span></div>
+      <div class="iw-sek">2 Heizkörper · 1 Trockner</div></div><div class="ios-widget klein aus" style="animation-delay:120ms">
+      <div class="iw-kopf"><span class="iw-pill" style="--c:#8e8e93">aus</span><span class="iw-kw">0,0 kW</span></div>
+      <div class="iw-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#1baf7a">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #1baf7a 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#1baf7a"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #1baf7a 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #1baf7a 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    
+  </svg></div>
+      <div class="iw-name">Magazin</div><div class="iw-zeile2"><span class="iw-wert">9,1<small>°</small></span><span class="punkte"><i class=""></i><i class=""></i></span></div>
+      <div class="iw-sek">1 Heizkörper · 1 Steckdose</div></div><div class="ios-widget klein frost" style="animation-delay:180ms">
+      <div class="iw-kopf"><span class="iw-pill" style="--c:#64d2ff">Frostschutz</span><span class="iw-kw">2,0 kW</span></div>
+      <div class="iw-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#c98500">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #c98500 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#c98500"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #c98500 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #c98500 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    <g class="bc-eis" style="animation-delay:0s" transform="translate(60 16)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="bc-eis" style="animation-delay:0.6s" transform="translate(82 14)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="bc-eis" style="animation-delay:1.2s" transform="translate(104 12)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g>
+    
+  </svg></div>
+      <div class="iw-name">Sanitär</div><div class="iw-zeile2"><span class="iw-wert">4,2<small>°</small></span><span class="punkte"><i class="an"></i></span></div>
+      <div class="iw-sek">1 Heizkörper</div></div><div class="ios-widget klein offline" style="animation-delay:240ms">
+      <div class="iw-kopf"><span class="iw-pill" style="--c:#ff453a">offline</span><span class="iw-kw">0,0 kW</span></div>
+      <div class="iw-illu"><svg class="bc offline" viewBox="0 0 170 120" style="--f:#d55181">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #d55181 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#d55181"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #d55181 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #d55181 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    <g class="bc-alarm"><circle cx="140" cy="20" r="11" fill="#d03b3b"/><path d="M140 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="27" r="1.8" fill="#fff"/></g>
+  </svg></div>
+      <div class="iw-name">Lager Süd</div><div class="iw-zeile2"><span class="iw-wert">–</span><span class="punkte"><i class=""></i></span></div>
+      <div class="iw-sek">1 Heizkörper</div></div><div class="ios-widget klein laeuft" style="animation-delay:300ms">
+      <div class="iw-kopf"><span class="iw-pill" style="--c:#0a84ff">läuft</span><span class="iw-kw">0,8 kW</span></div>
+      <div class="iw-illu"><svg class="bc" viewBox="0 0 170 120">
+    <ellipse cx="85" cy="104" rx="56" ry="10" fill="#000" opacity=".22"/>
+    <defs><clipPath id="bcSch"><path d="M40 30v62a45 12 0 0 0 90 0V30z"/></clipPath>
+      <linearGradient id="bcBeton" x1="0" x2="1"><stop offset="0" stop-color="#8d9ca6"/><stop offset=".5" stop-color="#cfd8dc"/><stop offset="1" stop-color="#78909c"/></linearGradient>
+      <linearGradient id="bcWasser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64b5f6"/><stop offset="1" stop-color="#0d47a1"/></linearGradient></defs>
+    <path d="M40 30v62a45 12 0 0 0 90 0V30z" fill="url(#bcBeton)"/>
+    <g clip-path="url(#bcSch)"><g class="bc-pegel"><path class="bc-welle" d="M0 70q15-5 30 0t30 0 30 0 30 0 30 0 30 0 30 0v60H0z" fill="url(#bcWasser)" opacity=".92"/></g>
+      <g transform="translate(85 86)"><circle r="10" fill="#37474f"/><g class="bc-rad"><path d="M0 0l0-8M0 0l7 4M0 0l-7 4" stroke="#b0bec5" stroke-width="3" stroke-linecap="round"/></g></g></g>
+    <ellipse cx="85" cy="30" rx="45" ry="12" fill="#546e7a"/><ellipse cx="85" cy="30" rx="38" ry="9" fill="#263238"/>
+    <path d="M85 76V10h32" fill="none" stroke="#90a4ae" stroke-width="5"/><path class="bc-fluss" d="M85 76V10h32" fill="none" stroke="#64b5f6" stroke-width="2.4"/>
+  </svg></div>
+      <div class="iw-name">Pumpenschacht Nord</div><div class="iw-zeile2"><span class="iw-wert">36<small> Zyklen</small></span><span class="punkte"><i class="an"></i><i class=""></i></span></div>
+      <div class="iw-sek">2 Pumpen</div></div></div>
+    <div class="ios-abschnitt">HEUTE</div>
+    <div class="ios-liste"><div class="il"><span class="il-ic" style="background:#ff9f0a">♨</span><span class="il-t">Poliercontainer</span><span class="iw-sek">Thermostat heizt</span><span class="ios-chev">›</span></div><div class="il"><span class="il-ic" style="background:#ff9f0a">♨</span><span class="il-t">Mannschaft</span><span class="iw-sek">Kleidung trocknen</span><span class="ios-chev">›</span></div><div class="il"><span class="il-ic" style="background:#8e8e93">♨</span><span class="il-t">Magazin</span><span class="iw-sek">aus bis 06:00</span><span class="ios-chev">›</span></div></div>
+  </div>
+  <div class="ios-tabbar"><span class="on">🏗<small>Baustelle</small></span><span>♨<small>Heizung</small></span><span>📊<small>Auswertung</small></span><span>⚙<small>Einstellungen</small></span></div>
+</div></div></div><div class="v"><h2>B · One UI (Samsung)</h2><p>Oben ein ruhiger Kopfbereich mit Kennzahlen, bedient wird unten für den Daumen: runde Karten, Chips, „+“-Knopf, Navigation unten.</p><div class="telefon"><div class="one">
+  <div class="one-status"><span>20:45</span><span>▮▮▮ 86%</span></div>
+  <div class="one-hero"><div class="one-titel">Baustelle</div><div class="one-sub">ÖWG Dobl Zwaring · 6 Bereiche · 11 Geräte</div>
+    <div class="one-kpi"><div><b>12,5</b><small>kW jetzt</small></div><div><b>18,6</b><small>kWh heute</small></div><div><b>5,21 €</b><small>heute</small></div></div></div>
+  <div class="one-leiste"><span class="one-ic">☰</span><span class="one-ic">⟳</span><span class="one-ic">⋮</span></div>
+  <div class="one-inh">
+    <div class="one-karte one-status-k"><span class="one-kreis orange">♨</span><div style="flex:1"><b>Heizung · Automatik</b><div class="one-sek">aus um 17:15 · 7 von 11 an</div></div><span class="one-toggle on"></span></div>
+    <div class="one-chips"><span><svg class="wi wr" viewBox="0 0 64 64" width="20" height="20" overflow="visible" role="img" aria-label="rainy"><defs>
+  <filter id="wrFluff" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation=".45"/></filter>
+  <filter id="wrWeich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+  <filter id="wrGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="wrNebel" x="-20%" y="-50%" width="140%" height="200%"><feTurbulence type="fractalNoise" baseFrequency=".05 .18" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/><feGaussianBlur stdDeviation="1.2"/></filter>
+  <radialGradient id="wrKern" cx="45%" cy="42%" r="60%"><stop offset="0" stop-color="#fffef2"/><stop offset=".45" stop-color="#ffe680"/><stop offset="1" stop-color="#ff9f0a"/></radialGradient>
+  <radialGradient id="wrKorona"><stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/><stop offset=".5" stop-color="#ffd54f" stop-opacity=".35"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+  <linearGradient id="wrStrahl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff6c8" stop-opacity=".75"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient>
+  <radialGradient id="wrWeiss" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef2f5"/><stop offset="1" stop-color="#b6c2cb"/></radialGradient>
+  <radialGradient id="wrGrau" cx="38%" cy="25%" r="85%"><stop offset="0" stop-color="#cfd8dc"/><stop offset=".5" stop-color="#8d9ca6"/><stop offset="1" stop-color="#4b5a64"/></radialGradient>
+  <linearGradient id="wrRegen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ec5ff" stop-opacity="0"/><stop offset="1" stop-color="#3d8be0"/></linearGradient>
+  <radialGradient id="wrEis" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9cc9ee"/></radialGradient>
+  <radialGradient id="wrMond" cx="38%" cy="35%" r="75%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".7" stop-color="#f3e3a8"/><stop offset="1" stop-color="#d6c07a"/></radialGradient></defs><g class="wi-wolke" transform="translate(0 -8) scale(1)"><g transform="translate(1.5 3)" opacity=".22" filter="url(#wrWeich)"><circle cx="22" cy="34" r="10" fill="#233"/><circle cx="32" cy="27" r="13" fill="#233"/><circle cx="43" cy="32" r="10.5" fill="#233"/><circle cx="14" cy="40" r="7" fill="#233"/><circle cx="51" cy="40" r="7.5" fill="#233"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="#233"/></g>
+    <g filter="url(#wrFluff)"><circle cx="22" cy="34" r="10" fill="url(#wrWeiss)"/><circle cx="32" cy="27" r="13" fill="url(#wrWeiss)"/><circle cx="43" cy="32" r="10.5" fill="url(#wrWeiss)"/><circle cx="14" cy="40" r="7" fill="url(#wrWeiss)"/><circle cx="51" cy="40" r="7.5" fill="url(#wrWeiss)"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="url(#wrWeiss)"/></g></g><line class="wi-tropfen" style="animation-delay:0.00s;animation-duration:1s" x1="22" y1="44" x2="19" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.23s;animation-duration:1s" x1="30.666666666666664" y1="44" x2="27.666666666666664" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.46s;animation-duration:1s" x1="39.33333333333333" y1="44" x2="36.33333333333333" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.69s;animation-duration:1s" x1="48" y1="44" x2="45" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/></svg> 4,2 °C · 6 mm</span><span class="rot">● 1 Warnung</span><span>Heizgrenze 15 °C</span></div>
+    <div class="one-raster"><div class="one-karte one-k heizt" style="animation-delay:0ms">
+      <div class="one-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#3987e5">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #3987e5 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#3987e5"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #3987e5 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #3987e5 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    <path class="bc-waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+      <div class="one-name">Poliercontainer</div>
+      <div class="one-zeile"><span class="one-wert">19,4<small>°</small></span><span class="one-badge" style="--c:#ff9f0a">heizt</span></div>
+      <div class="one-fuss"><span class="one-sek">2 Heizkörper</span><span class="punkte"><i class="an"></i><i class="an"></i></span></div></div><div class="one-karte one-k trocknen" style="animation-delay:60ms">
+      <div class="one-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#eb6834">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #eb6834 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#eb6834"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #eb6834 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #eb6834 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    <g class="bc-jacke" style="transform-origin:88.5px 57.714285714285715px"><path d="M84 59.714285714285715l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>
+    <path class="bc-waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+      <div class="one-name">Mannschaft</div>
+      <div class="one-zeile"><span class="one-wert">17,8<small>°</small></span><span class="one-badge" style="--c:#ff9f0a">trocknet</span></div>
+      <div class="one-fuss"><span class="one-sek">2 Heizkörper · 1 Trockner</span><span class="punkte"><i class="an"></i><i class="an"></i><i class="an"></i></span></div></div><div class="one-karte one-k aus" style="animation-delay:120ms">
+      <div class="one-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#1baf7a">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #1baf7a 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#1baf7a"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #1baf7a 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #1baf7a 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    
+  </svg></div>
+      <div class="one-name">Magazin</div>
+      <div class="one-zeile"><span class="one-wert">9,1<small>°</small></span><span class="one-badge" style="--c:#8e8e93">aus</span></div>
+      <div class="one-fuss"><span class="one-sek">1 Heizkörper · 1 Steckdose</span><span class="punkte"><i class=""></i><i class=""></i></span></div></div><div class="one-karte one-k frost" style="animation-delay:180ms">
+      <div class="one-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#c98500">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #c98500 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#c98500"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #c98500 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #c98500 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    <g class="bc-eis" style="animation-delay:0s" transform="translate(60 16)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="bc-eis" style="animation-delay:0.6s" transform="translate(82 14)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="bc-eis" style="animation-delay:1.2s" transform="translate(104 12)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g>
+    
+  </svg></div>
+      <div class="one-name">Sanitär</div>
+      <div class="one-zeile"><span class="one-wert">4,2<small>°</small></span><span class="one-badge" style="--c:#64d2ff">Frostschutz</span></div>
+      <div class="one-fuss"><span class="one-sek">1 Heizkörper</span><span class="punkte"><i class="an"></i></span></div></div><div class="one-karte one-k offline" style="animation-delay:240ms">
+      <div class="one-illu"><svg class="bc offline" viewBox="0 0 170 120" style="--f:#d55181">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #d55181 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#d55181"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #d55181 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #d55181 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    <g class="bc-alarm"><circle cx="140" cy="20" r="11" fill="#d03b3b"/><path d="M140 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="27" r="1.8" fill="#fff"/></g>
+  </svg></div>
+      <div class="one-name">Lager Süd</div>
+      <div class="one-zeile"><span class="one-wert">–</span><span class="one-badge" style="--c:#ff453a">offline</span></div>
+      <div class="one-fuss"><span class="one-sek">1 Heizkörper</span><span class="punkte"><i class=""></i></span></div></div><div class="one-karte one-k laeuft" style="animation-delay:300ms">
+      <div class="one-illu"><svg class="bc" viewBox="0 0 170 120">
+    <ellipse cx="85" cy="104" rx="56" ry="10" fill="#000" opacity=".22"/>
+    <defs><clipPath id="bcSch"><path d="M40 30v62a45 12 0 0 0 90 0V30z"/></clipPath>
+      <linearGradient id="bcBeton" x1="0" x2="1"><stop offset="0" stop-color="#8d9ca6"/><stop offset=".5" stop-color="#cfd8dc"/><stop offset="1" stop-color="#78909c"/></linearGradient>
+      <linearGradient id="bcWasser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64b5f6"/><stop offset="1" stop-color="#0d47a1"/></linearGradient></defs>
+    <path d="M40 30v62a45 12 0 0 0 90 0V30z" fill="url(#bcBeton)"/>
+    <g clip-path="url(#bcSch)"><g class="bc-pegel"><path class="bc-welle" d="M0 70q15-5 30 0t30 0 30 0 30 0 30 0 30 0 30 0v60H0z" fill="url(#bcWasser)" opacity=".92"/></g>
+      <g transform="translate(85 86)"><circle r="10" fill="#37474f"/><g class="bc-rad"><path d="M0 0l0-8M0 0l7 4M0 0l-7 4" stroke="#b0bec5" stroke-width="3" stroke-linecap="round"/></g></g></g>
+    <ellipse cx="85" cy="30" rx="45" ry="12" fill="#546e7a"/><ellipse cx="85" cy="30" rx="38" ry="9" fill="#263238"/>
+    <path d="M85 76V10h32" fill="none" stroke="#90a4ae" stroke-width="5"/><path class="bc-fluss" d="M85 76V10h32" fill="none" stroke="#64b5f6" stroke-width="2.4"/>
+  </svg></div>
+      <div class="one-name">Pumpenschacht Nord</div>
+      <div class="one-zeile"><span class="one-wert">36<small> Zyklen</small></span><span class="one-badge" style="--c:#0a84ff">läuft</span></div>
+      <div class="one-fuss"><span class="one-sek">2 Pumpen</span><span class="punkte"><i class="an"></i><i class=""></i></span></div></div></div>
+  </div>
+  <div class="one-fab">+</div>
+  <div class="one-nav"><span class="on">Übersicht</span><span>Heizung</span><span>Auswertung</span><span>Verlauf</span></div>
+</div></div></div><div class="v"><h2>C · Glas (wie visionOS)</h2><p>Milchglas-Kacheln über einem sanft bewegten Farbverlauf; Container schweben leicht, Licht und Tiefe.</p><div class="telefon"><div class="glas">
+  <div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i></div>
+  <div class="glas-kopf glas-panel"><div><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring</div></div>
+    <div class="glas-kw"><span class="blitz an">⚡</span>12,5<small> kW</small></div></div>
+  <div class="glas-chips"><span class="glas-panel">♨ heizt · aus 17:15</span><span class="glas-panel"><svg class="wi wr" viewBox="0 0 64 64" width="20" height="20" overflow="visible" role="img" aria-label="rainy"><defs>
+  <filter id="wrFluff" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation=".45"/></filter>
+  <filter id="wrWeich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+  <filter id="wrGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="wrNebel" x="-20%" y="-50%" width="140%" height="200%"><feTurbulence type="fractalNoise" baseFrequency=".05 .18" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/><feGaussianBlur stdDeviation="1.2"/></filter>
+  <radialGradient id="wrKern" cx="45%" cy="42%" r="60%"><stop offset="0" stop-color="#fffef2"/><stop offset=".45" stop-color="#ffe680"/><stop offset="1" stop-color="#ff9f0a"/></radialGradient>
+  <radialGradient id="wrKorona"><stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/><stop offset=".5" stop-color="#ffd54f" stop-opacity=".35"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+  <linearGradient id="wrStrahl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff6c8" stop-opacity=".75"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient>
+  <radialGradient id="wrWeiss" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef2f5"/><stop offset="1" stop-color="#b6c2cb"/></radialGradient>
+  <radialGradient id="wrGrau" cx="38%" cy="25%" r="85%"><stop offset="0" stop-color="#cfd8dc"/><stop offset=".5" stop-color="#8d9ca6"/><stop offset="1" stop-color="#4b5a64"/></radialGradient>
+  <linearGradient id="wrRegen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ec5ff" stop-opacity="0"/><stop offset="1" stop-color="#3d8be0"/></linearGradient>
+  <radialGradient id="wrEis" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9cc9ee"/></radialGradient>
+  <radialGradient id="wrMond" cx="38%" cy="35%" r="75%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".7" stop-color="#f3e3a8"/><stop offset="1" stop-color="#d6c07a"/></radialGradient></defs><g class="wi-wolke" transform="translate(0 -8) scale(1)"><g transform="translate(1.5 3)" opacity=".22" filter="url(#wrWeich)"><circle cx="22" cy="34" r="10" fill="#233"/><circle cx="32" cy="27" r="13" fill="#233"/><circle cx="43" cy="32" r="10.5" fill="#233"/><circle cx="14" cy="40" r="7" fill="#233"/><circle cx="51" cy="40" r="7.5" fill="#233"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="#233"/></g>
+    <g filter="url(#wrFluff)"><circle cx="22" cy="34" r="10" fill="url(#wrWeiss)"/><circle cx="32" cy="27" r="13" fill="url(#wrWeiss)"/><circle cx="43" cy="32" r="10.5" fill="url(#wrWeiss)"/><circle cx="14" cy="40" r="7" fill="url(#wrWeiss)"/><circle cx="51" cy="40" r="7.5" fill="url(#wrWeiss)"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="url(#wrWeiss)"/></g></g><line class="wi-tropfen" style="animation-delay:0.00s;animation-duration:1s" x1="22" y1="44" x2="19" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.23s;animation-duration:1s" x1="30.666666666666664" y1="44" x2="27.666666666666664" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.46s;animation-duration:1s" x1="39.33333333333333" y1="44" x2="36.33333333333333" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.69s;animation-duration:1s" x1="48" y1="44" x2="45" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/></svg> 4,2° · 6 mm</span><span class="glas-panel rot">1 Warnung</span></div>
+  <div class="glas-raster"><div class="glas-panel glas-k heizt" style="animation-delay:0ms;--c:#ff9f0a">
+    <div class="glas-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#3987e5">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #3987e5 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#3987e5"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #3987e5 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #3987e5 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    <path class="bc-waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+    <div class="glas-name">Poliercontainer</div>
+    <div class="glas-zeile"><span class="glas-wert">19,4<small>°</small></span><span class="glas-kwk">4,0 kW</span></div>
+    <div class="glas-status"><span class="glas-dot"></span>Thermostat heizt</div></div><div class="glas-panel glas-k trocknen" style="animation-delay:70ms;--c:#ff9f0a">
+    <div class="glas-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#eb6834">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #eb6834 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#eb6834"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #eb6834 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #eb6834 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    <g class="bc-jacke" style="transform-origin:88.5px 57.714285714285715px"><path d="M84 59.714285714285715l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>
+    <path class="bc-waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="bc-waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+    <div class="glas-name">Mannschaft</div>
+    <div class="glas-zeile"><span class="glas-wert">17,8<small>°</small></span><span class="glas-kwk">5,8 kW</span></div>
+    <div class="glas-status"><span class="glas-dot"></span>Kleidung trocknen</div></div><div class="glas-panel glas-k aus" style="animation-delay:140ms;--c:#8e8e93">
+    <div class="glas-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#1baf7a">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #1baf7a 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#1baf7a"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #1baf7a 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #1baf7a 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    
+  </svg></div>
+    <div class="glas-name">Magazin</div>
+    <div class="glas-zeile"><span class="glas-wert">9,1<small>°</small></span><span class="glas-kwk">0,0 kW</span></div>
+    <div class="glas-status"><span class="glas-dot"></span>aus bis 06:00</div></div><div class="glas-panel glas-k frost" style="animation-delay:210ms;--c:#64d2ff">
+    <div class="glas-illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#c98500">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #c98500 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#c98500"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #c98500 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #c98500 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="bc-glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    <g class="bc-eis" style="animation-delay:0s" transform="translate(60 16)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="bc-eis" style="animation-delay:0.6s" transform="translate(82 14)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="bc-eis" style="animation-delay:1.2s" transform="translate(104 12)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g>
+    
+  </svg></div>
+    <div class="glas-name">Sanitär</div>
+    <div class="glas-zeile"><span class="glas-wert">4,2<small>°</small></span><span class="glas-kwk">2,0 kW</span></div>
+    <div class="glas-status"><span class="glas-dot"></span>Frostschutz</div></div><div class="glas-panel glas-k offline" style="animation-delay:280ms;--c:#ff453a">
+    <div class="glas-illu"><svg class="bc offline" viewBox="0 0 170 120" style="--f:#d55181">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #d55181 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="#d55181"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #d55181 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #d55181 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    <g class="bc-alarm"><circle cx="140" cy="20" r="11" fill="#d03b3b"/><path d="M140 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="27" r="1.8" fill="#fff"/></g>
+  </svg></div>
+    <div class="glas-name">Lager Süd</div>
+    <div class="glas-zeile"><span class="glas-wert">–</span><span class="glas-kwk">0,0 kW</span></div>
+    <div class="glas-status"><span class="glas-dot"></span>nicht erreichbar</div></div><div class="glas-panel glas-k laeuft" style="animation-delay:350ms;--c:#0a84ff">
+    <div class="glas-illu"><svg class="bc" viewBox="0 0 170 120">
+    <ellipse cx="85" cy="104" rx="56" ry="10" fill="#000" opacity=".22"/>
+    <defs><clipPath id="bcSch"><path d="M40 30v62a45 12 0 0 0 90 0V30z"/></clipPath>
+      <linearGradient id="bcBeton" x1="0" x2="1"><stop offset="0" stop-color="#8d9ca6"/><stop offset=".5" stop-color="#cfd8dc"/><stop offset="1" stop-color="#78909c"/></linearGradient>
+      <linearGradient id="bcWasser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64b5f6"/><stop offset="1" stop-color="#0d47a1"/></linearGradient></defs>
+    <path d="M40 30v62a45 12 0 0 0 90 0V30z" fill="url(#bcBeton)"/>
+    <g clip-path="url(#bcSch)"><g class="bc-pegel"><path class="bc-welle" d="M0 70q15-5 30 0t30 0 30 0 30 0 30 0 30 0 30 0v60H0z" fill="url(#bcWasser)" opacity=".92"/></g>
+      <g transform="translate(85 86)"><circle r="10" fill="#37474f"/><g class="bc-rad"><path d="M0 0l0-8M0 0l7 4M0 0l-7 4" stroke="#b0bec5" stroke-width="3" stroke-linecap="round"/></g></g></g>
+    <ellipse cx="85" cy="30" rx="45" ry="12" fill="#546e7a"/><ellipse cx="85" cy="30" rx="38" ry="9" fill="#263238"/>
+    <path d="M85 76V10h32" fill="none" stroke="#90a4ae" stroke-width="5"/><path class="bc-fluss" d="M85 76V10h32" fill="none" stroke="#64b5f6" stroke-width="2.4"/>
+  </svg></div>
+    <div class="glas-name">Pumpenschacht Nord</div>
+    <div class="glas-zeile"><span class="glas-wert">36<small> Zyklen</small></span><span class="glas-kwk">0,8 kW</span></div>
+    <div class="glas-status"><span class="glas-dot"></span>Pumpe läuft</div></div></div>
+  <div class="glas-nav glas-panel"><span class="on">Übersicht</span><span>Heizung</span><span>Auswertung</span><span>Verlauf</span><span>⚙</span></div>
+</div></div></div></div></body></html>
