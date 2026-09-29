@@ -288,6 +288,7 @@ body.hell { background: #d9dee5; color: #111; }
 
 /* Firmen und Abrechnung */
 .firma-tag { align-self: flex-start; font-size: 10.5px; padding: 1px 7px; border-radius: 8px; background: rgba(120,120,128,.25); color: var(--ink2); margin-top: -1px; }
+.fc-neu input { flex: 1; min-width: 0; }
 .vb-gruppe { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .ab-firma { padding: 8px 0; border-top: 1px solid var(--gridc); } .ab-firma:first-of-type { border-top: 0; }
 .ab-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }

@@ -338,6 +338,7 @@ body.hell { background: #d9dee5; color: #111; }
 
 /* Firmen und Abrechnung */
 .firma-tag { align-self: flex-start; font-size: 10.5px; padding: 1px 7px; border-radius: 8px; background: rgba(120,120,128,.25); color: var(--ink2); margin-top: -1px; }
+.fc-neu input { flex: 1; min-width: 0; }
 .vb-gruppe { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .ab-firma { padding: 8px 0; border-top: 1px solid var(--gridc); } .ab-firma:first-of-type { border-top: 0; }
 .ab-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -995,6 +996,11 @@ class App {
     this.toast(`${name} · ${zeilen.length - 1} Zeilen`);
     return zeilen;
   }
+  neuerContainer(name, p, firma) {
+    const d = this.d;
+    d.bereiche.push({ id: 'n' + d.bereiche.length + Date.now().toString(36), name, f: d.bereiche.length, z: 'aus', t: null, auto: true, trocknen: false, pumpe: p, firma, zyklen: 0, lauf: '0 min', laengster: '–',
+      innen: [], kwh7: Array(7).fill(0), h7: Array(7).fill(0), zyk7: Array(7).fill(0), geraete: [{ n: p ? 'Pumpe 1' : 'Heizung 03', typ: p ? 'Pumpe' : 'Ölradiator', kw: p ? .76 : 2, an: 0, hand: false }] });
+  }
   toast(t) { const el = this.root.querySelector('.toast'); el.textContent = t; el.classList.remove('an'); void el.offsetWidth; el.classList.add('an'); }
 
   render(neu = false) {
@@ -1333,12 +1339,22 @@ class App {
     }
     if (s.art === 'firma') {
       const f = s.form, neu = !f.id, eigen = !neu && this.firma(f.id).eigen;
+      // wählbar: Container ohne fremde Firma, dazu die, die schon dieser Firma gehören
+      const frei = this.d.bereiche.filter(b => (b.firma || 'eigen') === 'eigen' || (!neu && b.firma === f.id));
       return `${griff}<h3>${neu ? 'Neue Firma' : 'Firma'}</h3>
-        <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Trockenbau Maier" data-fn></label>
-        <div class="gruppe-t">Container dieser Firma</div>
-        ${this.d.bereiche.map(b => `<div class="zeile"><span>${esc(b.name)} <span class="leise">${f.container.includes(b.id) ? '' : '· ' + esc(this.firma(b.firma).name)}</span></span>${schalter(f.container.includes(b.id), 'firma-c', `data-id="${b.id}"`)}</div>`).join('')}
-        <div class="leise">Ein Container gehört genau einer Firma. Nimmst du ihn hier weg, gehört er wieder der eigenen Firma. Der Verbrauch wird ab jetzt zugeordnet, frühere Werte bleiben bei der bisherigen Firma.</div>
-        ${knopf('Speichern', 'firma-speichern', 'amber')}${!neu && !eigen ? knopf('Firma löschen', 'firma-weg', 'rot') : ''}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+        <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Trockenbau Maier" data-fn ${eigen ? 'disabled' : ''}></label>
+        ${eigen ? `<div class="gruppe-t">Container der eigenen Firma</div>
+          ${this.d.bereiche.filter(b => (b.firma || 'eigen') === 'eigen').map(b => `<div class="zeile"><span>${esc(b.name)}</span></div>`).join('')}
+          <div class="leise">Hierher gehören alle Container, die keiner anderen Firma zugeordnet sind.</div>`
+        : `<div class="gruppe-t">Container zuordnen</div>
+          ${frei.length ? frei.map(b => `<div class="zeile"><span>${esc(b.name)}</span>${schalter(f.container.includes(b.id), 'firma-c', `data-id="${b.id}"`)}</div>`).join('')
+            : '<div class="leise">Alle Container sind schon anderen Firmen zugeordnet.</div>'}
+          ${f.neu.map((c, i) => `<div class="zeile fc-neu"><input value="${esc(c.name)}" placeholder="Name des Containers" data-fnc="${i}">
+            <div class="seg klein">${['Container', 'Schacht'].map(a => `<button data-act="fc-art" data-i="${i}" data-v="${a}" class="${c.art === a ? 'on' : ''}">${a}</button>`).join('')}</div>
+            <button class="x" data-act="fc-weg" data-i="${i}" title="nicht anlegen">✕</button></div>`).join('')}
+          <button class="zeile" data-act="fc-neu"><span class="blau">+ Neuer Container für diese Firma</span></button>
+          <div class="leise">Nur Container ohne andere Firma sind wählbar. Nimmst du einen weg, gehört er wieder der eigenen Firma. Frühere Werte bleiben bei der bisherigen Firma.</div>`}
+        ${eigen ? knopf('Schließen', 'zu', 'leise-k') : knopf('Speichern', 'firma-speichern', 'amber') + (neu ? '' : knopf('Firma löschen', 'firma-weg', 'rot')) + knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'az-neu') {
       const f = s.form;
@@ -1438,12 +1454,16 @@ class App {
       case 'bs-oeffnen': { const i = +el.dataset.i; if (d.baustellen[i].aktiv) return this.gehe('uebersicht'); this.s.bs = i; return this.gehe('bsdetail'); }
       case 'csv': return this.csv(el.dataset.art);
       case 'firma-auf': { const f = el.dataset.id ? this.firma(el.dataset.id) : null;
-        this.s.sheet = { art: 'firma', form: { id: f?.id, name: f?.name || '', container: f ? d.bereiche.filter(b => (b.firma || 'eigen') === f.id).map(b => b.id) : [] } }; return neu(); }
+        this.s.sheet = { art: 'firma', form: { id: f?.id, name: f?.name || '', neu: [], container: f ? d.bereiche.filter(b => (b.firma || 'eigen') === f.id).map(b => b.id) : [] } }; return neu(); }
       case 'firma-c': { const c = this.s.sheet.form.container, id = el.dataset.id; this.s.sheet.form.container = c.includes(id) ? c.filter(x => x !== id) : [...c, id]; return neu(); }
       case 'firma-speichern': { const f = this.s.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
         let id = f.id; if (!id) { id = 'f' + Date.now().toString(36); d.firmen.push({ id, name: f.name.trim() }); } else this.firma(id).name = f.name.trim();
         for (const b of d.bereiche) { if (f.container.includes(b.id)) b.firma = id; else if ((b.firma || 'eigen') === id && id !== 'eigen') b.firma = 'eigen'; }
-        this.s.sheet = null; neu(); return this.toast(`${f.name.trim()} gespeichert`); }
+        const neue = f.neu.filter(c => c.name.trim()); for (const c of neue) this.neuerContainer(c.name.trim(), c.art === 'Schacht', id);
+        this.s.sheet = null; neu(); return this.toast(`${f.name.trim()} gespeichert${neue.length ? ` · ${neue.length} Container angelegt` : ''}`); }
+      case 'fc-neu': this.s.sheet.form.neu.push({ name: '', art: 'Container' }); return neu();
+      case 'fc-weg': this.s.sheet.form.neu.splice(+el.dataset.i, 1); return neu();
+      case 'fc-art': this.s.sheet.form.neu[+el.dataset.i].art = el.dataset.v; return neu();
       case 'firma-weg': { const id = this.s.sheet.form.id; for (const b of d.bereiche) if (b.firma === id) b.firma = 'eigen'; d.firmen = d.firmen.filter(f => f.id !== id); this.s.sheet = null; neu(); return this.toast('Firma gelöscht – Container gehören wieder der eigenen Firma'); }
       case 'az-alt': this.s.azAlt = !this.s.azAlt; return neu();
       case 'az-heizung': return this.gehe('heizung');
@@ -1458,10 +1478,8 @@ class App {
         d.arbeitszeiten.push({ ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage: f.tage }); this.s.sheet = null; neu();
         return this.toast(f.ab > HEUTE ? `Geplant – gilt ab ${datum(f.ab)}` : `Gilt jetzt – die bisherige bleibt gespeichert`); }
       case 'neu-art': this.s.sheet.neuArt = el.dataset.v; return neu();
-      case 'neu-anlegen': { const name = this.root.querySelector('[data-neu="name"]').value.trim() || 'Neuer Container', p = this.s.sheet.neuArt === 'Pumpenschacht';
-        d.bereiche.push({ id: 'n' + d.bereiche.length, name, f: d.bereiche.length, z: p ? 'aus' : 'aus', t: null, auto: true, trocknen: false, pumpe: p, zyklen: 0, lauf: '0 min', laengster: '–',
-          innen: [], kwh7: Array(7).fill(0), h7: Array(7).fill(0), zyk7: Array(7).fill(0), geraete: [{ n: p ? 'Pumpe 1' : 'Heizung 03', typ: p ? 'Pumpe' : 'Ölradiator', kw: p ? .76 : 2, an: 0, hand: false }] });
-        this.s.sheet = null; neu(); return this.toast(`${name} angelegt`); }
+      case 'neu-anlegen': { const name = this.root.querySelector('[data-neu="name"]').value.trim() || 'Neuer Container';
+        this.neuerContainer(name, this.s.sheet.neuArt === 'Pumpenschacht', 'eigen'); this.s.sheet = null; neu(); return this.toast(`${name} angelegt`); }
       case 'b-speichern': { const e = this.s.sheet.edit, kw = { Ölradiator: 2, Konvektor: 2, Steckdose: .5, Pumpe: .76 };
         if (e.name.trim()) b.name = e.name.trim();
         b.firma = e.firma;
@@ -1483,6 +1501,7 @@ class App {
     if (el.dataset.ge) this.s.sheet.edit.geraete[+el.dataset.i][el.dataset.ge] = el.value;
     if (el.dataset.bf) this.s.sheet.edit.firma = el.value;
     if (el.dataset.fn !== undefined) this.s.sheet.form.name = el.value;
+    if (el.dataset.fnc !== undefined) this.s.sheet.form.neu[+el.dataset.fnc].name = el.value;
     if (el.dataset.b === 'name' && this.s.sheet?.edit) this.s.sheet.edit.name = el.value;
     if (el.dataset.azt) this.s.sheet.form.tage[el.dataset.azt][+el.dataset.p] = el.value;
   }
