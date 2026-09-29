@@ -1,0 +1,180 @@
+# Bauplan 0.7.0
+
+Vorlage ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`). **Strikt ans Mockup**
+(Herbert): Aufbau, Gestaltung, Texte und Abläufe kommen von dort. Abweichungen, die das echte System erzwingt, werden
+vorher mit Herbert geklärt und hier unter „Abweichungen“ eingetragen.
+
+Entscheidungen (30.09.2026):
+
+- **Neu anfangen:** Die Einstellungen starten mit den neuen Standardwerten; der alte Wochenplan wird nicht übernommen.
+  **Zähler bleiben** (Energie, Kosten, Zeiten, Zyklen, Zählerstände).
+- **Einstellungs-Entitäten entfernen:** Einstellungen gibt es nur auf der Seite. Es bleiben der Automatik-Schalter,
+  die Sensoren (Status, Temperatur, Verbrauch, Kosten, Zeiten …) und die Problem-/Läuft-Sensoren.
+- **Zweig `v0.7.0`**, alles fertig und grün, dann zusammenführen und **einmal** einspielen (Sicherung vorher, Neustart
+  durch Herbert).
+
+Zeiten in der Fachlogik: Minuten seit Mitternacht (`int`), Tage als `datetime.date`, Wochentag `0 = Montag`.
+Fachlogik liegt in `custom_components/baustelle/logik/` **ohne HA-Code**, jede Datei mit Tests in `tests/logik/`.
+
+## 1. Datenmodell (Store Version 2, `.storage/baustelle.<entry_id>`)
+
+```json
+{
+  "automatik": false,
+  "preis": 0.28,
+  "arbeitszeiten": [{"ab": "2026-10-05", "name": "Herbst 2026",
+                     "tage": {"0": ["07:00", "16:30"], "1": [...], "2": [...], "3": [...], "4": ["07:00", "12:30"], "5": null, "6": null}}],
+  "ausnahmen": [{"datum": "2026-10-03", "art": "arbeit|zeiten|frei", "von": "07:00", "bis": "12:00", "notiz": ""}],
+  "heizung": {"vorheizen_min": 45, "nachheizen_min": 15, "soll": 20.0, "toleranz": 0.3,
+              "heizgrenze": 15.0, "heizgrenze_basis": "jetzt|tageshoechst",
+              "fruehstart": true, "fruehstart_unter": 0.0, "fruehstart_min": 30,
+              "frost": true, "frost_grenze": 5.0,
+              "trocknen_ab_mm": 2.0, "trocknen_laenger_min": 45, "trocknen_frueher_min": 15,
+              "tuer_pause_min": 3, "tuer_melden_min": 10, "boost_min": 30, "feiertag_frei": true},
+  "staffel": {"an": true, "nutzbar_prozent": 67, "max_gleichzeitig": 5, "min_lauf_min": 10, "min_pause_min": 5, "takt_min": 15},
+  "anschluesse": [{"id": "a1", "name": "Anschluss 1", "ampere": 32, "phasen": 3, "reserve_kw": 3.0}],
+  "firmen": [{"id": "eigen", "name": "Eigene Firma", "eigen": true}],
+  "zuordnung": [{"bereich": "<subentry_id>", "firma": "eigen", "ab": "2026-10-01T00:00:00+02:00"}],
+  "bereiche": {"<subentry_id>": {"auto": true, "trocknen": false, "soll": null, "bedarf": false, "prio": "normal",
+                                  "anschluss": "a1", "tuer": null}},
+  "laufzeit": {"bedarf_bis": {"<bid>": "ISO"}, "boost_bis": {"<bid>": "ISO"}, "jetzt_bis": null, "hand": {"<gid>": "ISO"}},
+  "meldungen_einst": {"empfaenger": [], "knoepfe": true, "arten": {"<art>": true}, "kalt_min": 60, "hand_h": 8,
+                      "zyklen_h": 10, "dauerlauf_min": 20, "trocken_unter_w": 30, "offline_min": 5},
+  "bericht": {"haeufigkeit": "aus|woche|monat|beides", "handy": true, "mail": false, "mail_an": "", "mail_dienst": "", "csv": true},
+  "termine_kalender": null,
+  "stumm": {"<warnungs-key>": "ISO bis"},
+  "meldungen": [{"id": "", "art": "fehler|wunsch|anregung", "text": "", "kontext": "", "zeit": "ISO", "version": "0.7.0",
+                 "geraet": "Handy|Desktop", "status": "offen|erledigt", "stand": null}],
+  "melden_knopf": true,
+  "protokoll": [["ISO", "warnung|ok|schalten|wetter|nachricht|einstellung", "<bid>|null", "Text"]],
+  "zaehler": {"…": "unverändert aus 0.6"}
+}
+```
+
+- `protokoll`: neueste zuerst, höchstens **1000** Einträge; jeder Eintrag geht zusätzlich ins HA-Logbuch (`logbook.py`).
+- `zuordnung`: Verlauf der Firmen je Container; es gilt der letzte Eintrag mit `ab <= Zeitpunkt`. Frühere Werte bleiben
+  bei der bisherigen Firma. Fehlt ein Eintrag → `eigen`.
+- Termine der Bedarfs-Container kommen aus dem lokalen Kalender `termine_kalender` (Serien = RRULE im Kalender).
+- Laden einer Version-1-Datei: nur `zaehler` übernehmen, alles andere Standard (Entscheidung „neu anfangen“).
+
+## 2. Fachlogik (Stufe 1)
+
+### 2.1 `logik/arbeitszeit.py`
+
+```python
+@dataclass(frozen=True) class Arbeitszeit: ab: date; name: str; tage: dict[int, tuple[int, int] | None]
+@dataclass(frozen=True) class Ausnahme: datum: date; art: str  # "arbeit"|"zeiten"|"frei"; von: int; bis: int; notiz: str = ""
+@dataclass(frozen=True) class HeizRegeln: vorheizen_min=45, nachheizen_min=15, fruehstart=True, fruehstart_unter=0.0,
+    fruehstart_min=30, trocknen_ab_mm=2.0, trocknen_laenger_min=45, trocknen_frueher_min=15
+@dataclass(frozen=True) class WetterTag: frueh_min_temp: float | None = None; regen_vortag_mm: float | None = None; regen_heute_mm: float | None = None
+@dataclass(frozen=True) class Plan: start: int; vor: int; a: int; b: int; nach: int; ende: int; gruende: tuple[str, ...]; ausnahme: Ausnahme | None
+def gueltige_arbeitszeit(liste, tag: date) -> Arbeitszeit | None      # jüngste mit ab <= tag
+def arbeit_am(liste, ausnahmen, tag) -> tuple[int, int] | None          # Ausnahme vor Arbeitszeit; "frei" → None
+def tagesplan(tag, liste, ausnahmen, regeln, wetter, trocknen: bool, frei: bool = False) -> Plan | None
+def bedarf_fenster(termine: list[tuple[datetime, datetime]], vorheizen_min) -> list[tuple[datetime, datetime]]
+```
+
+Regeln (wie Mockup `planTag`):
+- `vor = a − vorheizen`, `nach = b + nachheizen`.
+- Frühstart: `frueh_min_temp < fruehstart_unter` → `start = vor − fruehstart_min`, Grund `fruehstart`.
+- Nach Regen früher: `trocknen and regen_vortag_mm >= trocknen_ab_mm` → zusätzlich `− trocknen_frueher_min`, Grund `frueher_nach_regen`.
+- Kleidung trocknen: `trocknen and regen_heute_mm >= trocknen_ab_mm` → `ende = nach + trocknen_laenger_min`, Grund `trocknen`.
+- Ausnahme: Grund `ausnahme`; `frei` (Ausnahme oder Feiertag/Urlaub) → `None`.
+
+### 2.2 `logik/regelung.py` – Soll je Container
+
+```python
+@dataclass(frozen=True) class LageContainer:
+    minute: int; plan: Plan | None; automatik: bool; auto: bool; temperatur: float | None; soll: float
+    frost: bool; frost_grenze: float; zu_warm: bool; frei: bool; tuer_offen_min: float | None
+    bedarf: bool; bedarf_aktiv: bool     # Bedarfs-Container: Schalter/Termin läuft
+    boost: bool; heizt_gerade: bool; toleranz: float = 0.3
+@dataclass(frozen=True) class Soll: ein: bool | None; grund: str
+def soll_container(lage, tuer_pause_min: int) -> Soll
+```
+
+Reihenfolge: Automatik aus → `None` („automatik_aus“). Frostschutz (Fühler unter `frost_grenze`, bis +2 °C) → ein, gilt
+immer. Tür länger als `tuer_pause_min` offen → aus („tuer_offen“). Container-Automatik aus → `None` („hand“). Boost →
+ein bis Soll (Fühler) bzw. solange `boost` wahr („boost“). Bedarfs-Container: nur `bedarf_aktiv` heizt („bedarf“),
+sonst aus („bereit“). Frei (Ausnahme/Feiertag/Urlaub) → aus („frei“). Zu warm (Heizgrenze) → aus („heizgrenze“).
+Im Plan-Fenster `[start, ende)`: mit Fühler Thermostat (Hysterese `toleranz`), ohne Fühler ein („arbeitszeit“,
+„vorheizen“, „nachheizen“, „trocknen“, „fruehstart“). Sonst aus („ausserhalb“).
+
+### 2.3 `logik/staffel.py` – Staffelung je Anschluss
+
+```python
+@dataclass(frozen=True) class Anschluss: id: str; grenze_kw: float; reserve_kw: float   # grenze = A·230·Phasen·nutzbar%
+@dataclass(frozen=True) class Last: id: str; anschluss: str; kw: float; heizer: bool; an: bool; will: bool
+    prio: int  # 0 niedrig, 1 normal, 2 hoch; frost: bool; boost: bool; defizit: float | None
+    an_seit_min: float; aus_seit_min: float; wartet_seit_min: float
+@dataclass(frozen=True) class StaffelRegeln: max_gleichzeitig=5; min_lauf_min=10; min_pause_min=5; takt_min=15; neue_je_schritt=1
+@dataclass(frozen=True) class StaffelErgebnis: an: frozenset[str]; wartet: dict[str, str]; frei_kw: dict[str, float]
+def staffeln(anschluesse, lasten, regeln, frei_stabil_kw: dict[str, float] | None = None) -> StaffelErgebnis
+```
+
+- Geschaltet werden nur `heizer`; alle anderen Lasten zählen nur mit.
+- `frei = grenze − reserve − Summe(laufende Lasten)` je Anschluss.
+- Überlast (`frei < 0`) → sofort den zuletzt eingeschalteten Nicht-Frost-/Nicht-Boost-Heizer aus (auch vor Mindestlaufzeit).
+- Mindestlaufzeit halten, Mindestpause einhalten, höchstens `max_gleichzeitig` Heizer, höchstens `neue_je_schritt`
+  Einschaltungen pro Aufruf (Anlaufstaffel).
+- Neu einschalten nur, wenn `frei_stabil_kw` (kleinster freier Wert der letzten Minute, vom Aufrufer) die Leistung deckt.
+- Rundlauf: passen nicht alle, tauscht nach `takt_min` der am längsten laufende gegen den besten Wartenden.
+- Reihenfolge: Frost > Boost > Priorität > größtes Defizit > längste Wartezeit.
+- `wartet[id]` = Grund („anschluss_voll“, „max_gleichzeitig“, „mindestpause“, „rundlauf“).
+
+### 2.4 `logik/warnungen.py`
+
+```python
+@dataclass(frozen=True) class Warnung: key: str; art: str; stufe: str  # "stoerung"|"hinweis"; bereich: str | None; geraet: str | None; seit: datetime; werte: dict
+def pruefe(zustand: BaustellenZustand, einst: WarnEinstellungen, jetzt: datetime) -> list[Warnung]
+def zu_melden(neu: list[Warnung], bisher: set[str], stumm: dict[str, datetime], jetzt) -> list[Warnung]
+```
+
+Arten: Störung `offline`, `baustelle_offline`, `trockenlauf`, `dauerlauf`, `zyklen_oft`, `keine_leistung`, `frostgefahr`;
+Hinweis `zu_kalt` (in der Arbeitszeit länger als `kalt_min` unter Soll−1 °C), `fuehler_fehlt`, `kein_wetter`,
+`hand_zu_lange` (> `hand_h`), `tuer_offen`. Nachricht aufs Handy: Störungen sofort (einmal je Problem), `tuer_offen` nach
+`tuer_melden_min`; Hinweise sonst nur Protokoll und Chip. Stumm bis Zeitpunkt unterdrückt Nachricht und Chip, nicht das
+Protokoll. Pumpenlogik aus `logik/pumpen.py` weiterverwenden.
+
+### 2.5 `logik/abrechnung.py`
+
+```python
+def firma_am(zuordnung: list[dict], bereich: str, zeit: datetime) -> str
+def aufteilen(kwh_je_bereich_und_tag: dict[str, dict[date, float]], zuordnung, preis) -> dict[str, dict]  # firma → {kwh, eur, container: {bid: kwh}}
+def csv_zeilen(kopf: list[str], zeilen: list[list]) -> str   # Semikolon, Dezimalkomma, keine Tausendertrennung, BOM, CRLF
+```
+
+### 2.6 `logik/bericht.py`
+
+```python
+def naechster_bericht(jetzt: datetime, haeufigkeit: str) -> tuple[datetime, str] | None  # Mo 07:00 „woche“, am 1. 07:00 „monat“
+def zeitraum(art: str, zeitpunkt: datetime) -> tuple[date, date]                        # Vorwoche Mo–So bzw. Vormonat
+def text_kurz(daten: dict) -> str          # Handy: Summe, Kosten, Warnungen
+def text_mail(daten: dict) -> tuple[str, str]   # Betreff, Inhalt (wie Mockup „Bericht · Beispiel“)
+```
+
+## 3. Integration (Stufe 2)
+
+- Store v2 laden/speichern (§1), Zähler aus v1 übernehmen.
+- Steuerung: jede Minute und bei Zustandsänderungen `soll_container` → `staffeln` → schalten. Handbedienung = Gerät bis
+  zum nächsten Schaltpunkt auf Hand (wie 0.6).
+- Entitäten entfernen: Zeitplan je Wochentag, Regeln, Modus-Auswahl, Soll-Nummern usw.; behalten: `switch.*_automatik`,
+  Sensoren, Problem-/Läuft-Sensoren.
+- WebSocket: `baustelle/struktur` (erweitert um alle Store-Daten und Laufzeit), `baustelle/setzen` (Pfad + Wert, mit
+  Prüfschema), `baustelle/aktion` (bedarf, boost, jetzt_heizen, geraet, warnung_stumm, bericht_jetzt),
+  `baustelle/liste` (arbeitszeit/ausnahme/anschluss/firma/meldung: anlegen, ändern, löschen), `baustelle/protokoll`.
+- `logbook.py` (eigene Ereignisse lesbar), Handy-Nachrichten mit Aktionen (`mobile_app_notification_action`),
+  Bericht-Planer, Termine aus dem Kalender (`calendar.get_events`, alle 15 min).
+- Geräte weiter über die Subentry-Dialoge anlegen/entfernen; Seite ruft diese auf.
+- `tools/changelog.py` erzeugt `frontend/changelog.json` aus `CHANGELOG.md` (Test prüft Gleichstand).
+
+## 4. Seite (Stufe 3)
+
+Neu aus dem Mockup-Code: `mockups/quelle/glas-app.js`, `glas.css`, `himmel.frag`, `himmel.js`, Wettersymbole und
+Container-Grafiken. Beispieldaten (`daten()`) werden durch einen Adapter auf `baustelle/struktur`, Verlauf und Statistik
+ersetzt, Aktionen durch WebSocket-Aufrufe. Vorführ-Leiste (Tageszeit/Wetter) entfällt: Tageszeit aus `sun.sun`, Wetter
+aus der Wetter-Entität. Test: `tests/panel/test_panel.js` rendert alle Ansichten, Einblendungen und Aktionen.
+
+## 5. Abweichungen vom Mockup
+
+(noch keine)
