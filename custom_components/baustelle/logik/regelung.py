@@ -1,0 +1,135 @@
+"""Soll-Zustand je Container – reine Fachlogik ohne Home-Assistant-Code.
+
+Bauplan 0.7 Abschnitt 2.2. Reihenfolge (fachlich festgelegt):
+Automatik aus → Frostschutz → Tür offen → Container-Automatik aus (Hand) → Boost → Bedarfs-Container →
+frei → Heizgrenze → Plan-Fenster (Thermostat bzw. ein) → außerhalb.
+
+Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
+- Frostschutz hält „bis +2 °C“: ein unter `frost_grenze`, weiter ein bis `frost_grenze + 2`, wenn er schon
+  eingeschaltet hatte. Dafür gibt es das Zusatzfeld `frost_vorher` (Standard False) in `LageContainer`.
+- Tür: pausiert, sobald sie `tuer_pause_min` offen ist (Mockup „Heizung pausieren nach 3 min“), also ab `>=`.
+- Boost mit Fühler: ein, solange unter Soll; ist das Soll erreicht, gilt die normale Regel (der Aufrufer beendet den
+  Boost). Ohne Fühler: ein, solange `boost` wahr ist (der Aufrufer setzt es nach `boost_min` zurück).
+- Bedarf aktiv: mit Fühler regelt der Thermostat (Hysterese `toleranz`) auf das Soll, ohne Fühler ein; Grund bleibt
+  „bedarf“. Bedarf geht wie im Bauplan vor frei und Heizgrenze (ausdrücklich angefordert).
+- Im Plan-Fenster ist der Grund der Abschnitt (`fruehstart`, `vorheizen`, `arbeitszeit`, `nachheizen`, `trocknen`),
+  auch wenn der Thermostat gerade ausschaltet.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import StrEnum
+
+from .arbeitszeit import Plan
+
+FROST_SPANNE = 2.0
+
+
+class SollGrund(StrEnum):
+    """Warum ein Container heizen soll oder nicht."""
+
+    AUTOMATIK_AUS = "automatik_aus"
+    FROST = "frost"
+    TUER_OFFEN = "tuer_offen"
+    HAND = "hand"
+    BOOST = "boost"
+    BEDARF = "bedarf"
+    BEREIT = "bereit"
+    FREI = "frei"
+    HEIZGRENZE = "heizgrenze"
+    FRUEHSTART = "fruehstart"
+    VORHEIZEN = "vorheizen"
+    ARBEITSZEIT = "arbeitszeit"
+    NACHHEIZEN = "nachheizen"
+    TROCKNEN = "trocknen"
+    AUSSERHALB = "ausserhalb"
+
+
+@dataclass(frozen=True)
+class LageContainer:
+    """Alles, was für die Entscheidung eines Containers zur Minute `minute` gilt.
+
+    `zu_warm`: Heizgrenze laut Wetter überschritten. `frei`: Ausnahme frei, Feiertag oder Urlaub.
+    `tuer_offen_min`: wie lange die Tür offen ist (None = zu oder kein Kontakt).
+    `bedarf`: Bedarfs-Container; `bedarf_aktiv`: Schalter oder Termin (mit Vorheizen) läuft gerade.
+    `heizt_gerade`: war zuletzt ein (für die Hysterese). `frost_vorher`: war zuletzt wegen Frost ein.
+    """
+
+    minute: int
+    plan: Plan | None
+    automatik: bool
+    auto: bool
+    temperatur: float | None
+    soll: float
+    frost: bool
+    frost_grenze: float
+    zu_warm: bool
+    frei: bool
+    tuer_offen_min: float | None
+    bedarf: bool
+    bedarf_aktiv: bool
+    boost: bool
+    heizt_gerade: bool
+    toleranz: float = 0.3
+    frost_vorher: bool = False
+
+
+@dataclass(frozen=True)
+class Soll:
+    """Soll-Zustand eines Containers; `ein` ist None, wenn nicht geschaltet werden soll."""
+
+    ein: bool | None
+    grund: str
+
+
+def thermostat(temperatur: float, soll: float, toleranz: float, war_ein: bool) -> bool:
+    """Wie der Helfer „Generischer Thermostat“: ein ab `soll − toleranz`, aus ab `soll + toleranz`.
+
+    Die Schwellen werden auf 0,001 °C gerundet, damit z. B. 19,9 − 0,3 genau 19,6 ergibt und nicht 19,5999….
+    """
+    if war_ein:
+        return temperatur < round(soll + toleranz, 3)
+    return temperatur <= round(soll - toleranz, 3)
+
+
+def frostschutz(lage: LageContainer) -> bool:
+    """Frostschutz: ein unter der Grenze, aus erst ab Grenze + 2 °C."""
+    if not lage.frost or lage.temperatur is None:
+        return False
+    if lage.frost_vorher:
+        return lage.temperatur < round(lage.frost_grenze + FROST_SPANNE, 3)
+    return lage.temperatur < lage.frost_grenze
+
+
+def _heizen(lage: LageContainer) -> bool:
+    """Mit Fühler Thermostat, ohne Fühler einfach ein."""
+    if lage.temperatur is None:
+        return True
+    return thermostat(lage.temperatur, lage.soll, lage.toleranz, lage.heizt_gerade)
+
+
+def soll_container(lage: LageContainer, tuer_pause_min: int) -> Soll:
+    """Soll-Zustand eines Containers nach der festen Reihenfolge (siehe Modul-Docstring)."""
+    if not lage.automatik:
+        return Soll(None, SollGrund.AUTOMATIK_AUS)
+    if frostschutz(lage):
+        return Soll(True, SollGrund.FROST)
+    if lage.tuer_offen_min is not None and lage.tuer_offen_min >= tuer_pause_min:
+        return Soll(False, SollGrund.TUER_OFFEN)
+    if not lage.auto:
+        return Soll(None, SollGrund.HAND)
+    if lage.boost and (lage.temperatur is None or lage.temperatur < lage.soll):
+        return Soll(True, SollGrund.BOOST)
+    if lage.bedarf:
+        if lage.bedarf_aktiv:
+            return Soll(_heizen(lage), SollGrund.BEDARF)
+        return Soll(False, SollGrund.BEREIT)
+    if lage.frei:
+        return Soll(False, SollGrund.FREI)
+    if lage.zu_warm:
+        return Soll(False, SollGrund.HEIZGRENZE)
+    abschnitt = lage.plan.abschnitt(lage.minute) if lage.plan is not None else None
+    if abschnitt is None:
+        return Soll(False, SollGrund.AUSSERHALB)
+    return Soll(_heizen(lage), SollGrund(abschnitt.value))

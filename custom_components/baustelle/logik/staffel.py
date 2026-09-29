@@ -1,0 +1,290 @@
+"""Staffelung der Heizungen je Stromanschluss – reine Fachlogik ohne Home-Assistant-Code.
+
+Vorbild ist das abgenommene Mockup (`mockups/quelle/glas-app.js`, `last()` und die Einblendung „Stromverteilung“):
+
+    Je Anschluss gilt: nutzbar % der Anschlussleistung minus Reserve minus alles, was schon läuft.
+    Ein Heizkörper kommt erst dazu, wenn eine Minute lang genug frei ist. Jeder läuft mindestens `min_lauf` min
+    und pausiert mindestens `min_pause` min; dürfen nicht alle, wechseln sie alle `takt` min –
+    wer am weitesten unter dem Soll ist, zuerst.
+
+Geschaltet werden nur Heizer (Ölradiator, Konvektor). Pumpen, Steckdosen und Trockner zählen nur mit.
+Leistungen in kW, Dauern in Minuten. `staffeln` wird regelmäßig (z. B. jede Minute) aufgerufen und liefert den
+Soll-Zustand aller Heizer nach diesem Schritt.
+
+Ablauf eines Schritts:
+
+1. Heizer, die laut Regelung nicht heizen sollen (`will` falsch), gehen aus – ohne Staffel-Grund.
+2. Überlast (`frei < 0`): je Anschluss sofort den zuletzt eingeschalteten Heizer aus, auch vor der Mindestlaufzeit;
+   zuerst normale, dann Boost-, zuletzt Frost-Heizer.
+3. Laufen mehr als `max_gleichzeitig`: die überzähligen (zuletzt eingeschaltete zuerst) nach der Mindestlaufzeit aus;
+   Frost/Boost zuletzt.
+4. Wartende in der Reihenfolge Frost > Boost > Priorität > größtes Defizit > längste Wartezeit einschalten, solange
+   Platz ist (`frei_stabil_kw`), höchstens `max_gleichzeitig`, höchstens `neue_je_schritt` neue je Aufruf.
+   Passt ein Wartender nicht, tauscht der Rundlauf: der am längsten laufende Heizer (mindestens `takt_min`) geht aus.
+
+Entscheidungen, wo der Bauplan (Abschnitt 2.3) offen ist – jeweils im Sinne des Mockups:
+
+- Mindestlaufzeit schützt nur vor Abschalten *durch die Staffelung* (Rundlauf, `max_gleichzeitig`). Will die Regelung
+  aus (Tür offen, Arbeitsende, Thermostat), geht der Heizer sofort aus. Bei Überlast gilt sie nicht (Bauplan).
+- Rundlauf tauscht nur, wenn der Wartende nicht schlechter eingestuft ist (Frost, Boost, Priorität) als der Laufende;
+  innerhalb derselben Stufe wird reihum getauscht. Frost- und Boost-Heizer werden nicht im Rundlauf herausgetauscht.
+- Vorrang (Mockup: „Schnell aufheizen … Vorrang in der Staffelung“): ein wartender Frost-/Boost-Heizer verdrängt einen
+  normalen Heizer schon nach dessen Mindestlaufzeit, nicht erst nach `takt_min`.
+- Frost hat Vorrang vor Boost: ein wartender Frost-Heizer verdrängt nach der Mindestlaufzeit auch einen Boost-Heizer
+  (Reihenfolge Frost > Boost aus dem Bauplan). Laufende Frost-Heizer werden nie getauscht.
+- Ein Tausch geschieht nur, wenn der Wartende danach wirklich Platz hat – sonst bliebe der Anschluss ungenutzt.
+- Zusätzlicher Wartegrund „anlauf“: Platz wäre da, aber in diesem Schritt wurden schon `neue_je_schritt` eingeschaltet.
+- „rundlauf“ heißt: wartet auf den nächsten Tausch; `dran_in_min` sagt wann (Mockup „wartet – dran in 6 min“).
+  Auch „mindestpause“ bekommt `dran_in_min`. Das Feld ist eine Ergänzung zu Bauplan 2.3.
+- `max_gleichzeitig` gilt über alle Anschlüsse (Mockup: „x von y Heizkörpern an · höchstens 5“).
+- Ohne Fühler (`defizit` None) zählt das Defizit als 0.
+- Ein Heizer an einem unbekannten Anschluss wird nicht gestaffelt: er folgt `will` und zählt nicht mit.
+- `frei_stabil_kw`: fehlt ein Anschluss oder ist sein Wert None (noch keine Messung), gilt der freie Platz von jetzt.
+- Vergleiche mit dem freien Platz rechnen mit einer Toleranz von `TOLERANZ_KW`, damit Rundungsreste der Kommazahlen
+  einen genau passenden Heizer weder abwerfen noch sperren (sonst pendelt er an der Grenze an/aus).
+- `frei_kw` ist der freie Platz nach den Schaltungen dieses Schritts (ohne `frei_stabil_kw`).
+- Der Schalter „Staffelung aus“ (`staffel.an`) ist Sache des Aufrufers: ohne Staffelung folgen die Heizer `will`.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import StrEnum
+
+SPANNUNG_V = 230
+TOLERANZ_KW = 1e-6  # 1 mW: Rundungsreste der Kommazahlen, keine Messgenauigkeit
+
+
+class Warten(StrEnum):
+    """Warum ein Heizer, der heizen will, gerade nicht darf."""
+
+    ANSCHLUSS_VOLL = "anschluss_voll"
+    MAX_GLEICHZEITIG = "max_gleichzeitig"
+    MINDESTPAUSE = "mindestpause"
+    RUNDLAUF = "rundlauf"
+    ANLAUF = "anlauf"
+
+
+class Prio:
+    """Priorität eines Containers (Bauplan: 0 niedrig, 1 normal, 2 hoch)."""
+
+    NIEDRIG = 0
+    NORMAL = 1
+    HOCH = 2
+
+
+@dataclass(frozen=True)
+class Anschluss:
+    """Ein Baustromverteiler: nutzbare Grenze und Reserve für Ungemessenes (Kran, Werkzeug)."""
+
+    id: str
+    grenze_kw: float
+    reserve_kw: float
+
+
+@dataclass(frozen=True)
+class Last:
+    """Ein Gerät an einem Anschluss. Nur `heizer` werden geschaltet; alle anderen zählen nur mit.
+
+    `an`: läuft gerade. `will`: Regelung will heizen. `defizit`: Soll minus Ist in °C (None ohne Fühler).
+    """
+
+    id: str
+    anschluss: str
+    kw: float
+    heizer: bool
+    an: bool
+    will: bool = False
+    prio: int = Prio.NORMAL
+    frost: bool = False
+    boost: bool = False
+    defizit: float | None = None
+    an_seit_min: float = 0.0
+    aus_seit_min: float = 1e9
+    wartet_seit_min: float = 0.0
+
+
+@dataclass(frozen=True)
+class StaffelRegeln:
+    """Einstellungen der Staffelung."""
+
+    max_gleichzeitig: int = 5
+    min_lauf_min: float = 10
+    min_pause_min: float = 5
+    takt_min: float = 15
+    neue_je_schritt: int = 1
+
+
+@dataclass(frozen=True)
+class StaffelErgebnis:
+    """Soll-Zustand nach einem Schritt: `an` = Heizer, die laufen sollen; `wartet` = Grund je wartendem Heizer."""
+
+    an: frozenset[str]
+    wartet: dict[str, str]
+    frei_kw: dict[str, float]
+    dran_in_min: dict[str, float] = field(default_factory=dict)
+
+
+def grenze_kw(ampere: float, phasen: int, nutzbar_prozent: float) -> float:
+    """Nutzbare Grenze eines Anschlusses: Ampere · 230 V · Phasen · nutzbar % (in kW)."""
+    return ampere * SPANNUNG_V * phasen / 1000 * nutzbar_prozent / 100
+
+
+def anschluss(id: str, ampere: float, phasen: int, reserve_kw: float, nutzbar_prozent: float = 67) -> Anschluss:
+    """Anschluss aus den Einstellungen (Absicherung, Phasen, Reserve) und „nutzbar je Anschluss“."""
+    return Anschluss(id=id, grenze_kw=grenze_kw(ampere, phasen, nutzbar_prozent), reserve_kw=reserve_kw)
+
+
+def frei_je_anschluss(anschluesse: list[Anschluss], lasten: list[Last]) -> dict[str, float]:
+    """Freier Platz je Anschluss: Grenze − Reserve − alles, was läuft (Heizer, Pumpen, Steckdosen)."""
+    return {
+        a.id: a.grenze_kw - a.reserve_kw - sum(l.kw for l in lasten if l.an and l.anschluss == a.id)
+        for a in anschluesse
+    }
+
+
+def _stufe(last: Last) -> tuple[bool, bool, int]:
+    """Frost > Boost > Priorität."""
+    return (last.frost, last.boost, last.prio)
+
+
+def _rang(last: Last) -> tuple:
+    """Einschalt-Reihenfolge (größer = zuerst): Frost > Boost > Priorität > Defizit > Wartezeit."""
+    defizit = last.defizit if last.defizit is not None else 0.0
+    return (*_stufe(last), defizit, last.wartet_seit_min)
+
+
+def _reihenfolge(lasten: list[Last]) -> list[Last]:
+    return sorted(sorted(lasten, key=lambda l: l.id), key=_rang, reverse=True)
+
+
+def _abschalt_reihenfolge(lasten: list[Last]) -> list[Last]:
+    """Zuerst normale, dann Boost, zuletzt Frost; jeweils der zuletzt eingeschaltete zuerst."""
+    return sorted(lasten, key=lambda l: (l.frost, l.boost, l.an_seit_min, l.id))
+
+
+def staffeln(
+    anschluesse: list[Anschluss],
+    lasten: list[Last],
+    regeln: StaffelRegeln,
+    frei_stabil_kw: dict[str, float] | None = None,
+) -> StaffelErgebnis:
+    """Ein Schritt der Staffelung über alle Anschlüsse."""
+    bekannt = {a.id for a in anschluesse}
+    frei_ist = frei_je_anschluss(anschluesse, lasten)
+    stabil = frei_stabil_kw or {}
+    # Platz für neue Heizer: der kleinere Wert aus jetzt und der letzten Minute
+    platz = {a: f if stabil.get(a) is None else min(f, stabil[a]) for a, f in frei_ist.items()}
+
+    heizer = [l for l in lasten if l.heizer]
+    an: set[str] = {l.id for l in heizer if l.an and l.will}
+    wartet: dict[str, str] = {}
+    dran_in: dict[str, float] = {}
+    nach_id = {l.id: l for l in heizer}
+
+    # Heizer an unbekanntem Anschluss: nicht gestaffelt
+    frei_folgen = {l.id for l in heizer if l.anschluss not in bekannt and l.will}
+    an -= {l.id for l in heizer if l.anschluss not in bekannt}
+
+    def schalte_aus(last: Last) -> None:
+        an.discard(last.id)
+        frei_ist[last.anschluss] += last.kw
+        platz[last.anschluss] += last.kw
+
+    def schalte_ein(last: Last) -> None:
+        an.add(last.id)
+        frei_ist[last.anschluss] -= last.kw
+        platz[last.anschluss] -= last.kw
+
+    # 1. Regelung will nicht mehr → aus (die Leistung wird frei)
+    for l in heizer:
+        if l.an and not l.will and l.anschluss in bekannt:
+            frei_ist[l.anschluss] += l.kw
+            platz[l.anschluss] += l.kw
+
+    # 2. Überlast → sofort der zuletzt eingeschaltete aus
+    abgeworfen: set[str] = set()
+    for a in anschluesse:
+        laufend = _abschalt_reihenfolge([nach_id[i] for i in an if nach_id[i].anschluss == a.id])
+        for l in laufend:
+            if frei_ist[a.id] >= -TOLERANZ_KW:
+                break
+            schalte_aus(l)
+            abgeworfen.add(l.id)
+            wartet[l.id] = Warten.ANSCHLUSS_VOLL
+
+    # 3. Mehr als max_gleichzeitig → überzählige nach der Mindestlaufzeit aus
+    for l in _abschalt_reihenfolge([nach_id[i] for i in an]):
+        if len(an) <= regeln.max_gleichzeitig:
+            break
+        if l.an_seit_min >= regeln.min_lauf_min:
+            schalte_aus(l)
+            abgeworfen.add(l.id)
+            wartet[l.id] = Warten.MAX_GLEICHZEITIG
+
+    # 4. Wartende einschalten, sonst Rundlauf
+    neu = 0
+    ueberlast = {nach_id[i].anschluss for i in abgeworfen if wartet[i] == Warten.ANSCHLUSS_VOLL}
+    kandidaten = [l for l in heizer if l.will and l.id not in an and l.id not in abgeworfen and l.anschluss in bekannt]
+    getauscht: set[str] = set()
+    for k in _reihenfolge(kandidaten):
+        if k.aus_seit_min < regeln.min_pause_min:
+            wartet[k.id] = Warten.MINDESTPAUSE
+            dran_in[k.id] = regeln.min_pause_min - k.aus_seit_min
+            continue
+        zu_voll = k.anschluss in ueberlast or k.kw > platz[k.anschluss] + TOLERANZ_KW
+        zu_viele = len(an) >= regeln.max_gleichzeitig
+        if not zu_voll and not zu_viele:
+            if neu >= regeln.neue_je_schritt:
+                wartet[k.id] = Warten.ANLAUF
+                continue
+            schalte_ein(k)
+            neu += 1
+            continue
+
+        # Rundlauf: wer darf gegen k getauscht werden, und ab wann?
+        vorrang = k.frost or k.boost
+        moeglich: list[tuple[float, Last]] = []
+        for i in an:
+            r = nach_id[i]
+            if r.frost or (r.boost and not k.frost) or i in getauscht or not r.an:
+                continue
+            if zu_voll and (
+                r.anschluss != k.anschluss
+                or k.anschluss in ueberlast
+                or k.kw > platz[k.anschluss] + r.kw + TOLERANZ_KW
+            ):
+                continue
+            if vorrang:
+                ab = regeln.min_lauf_min
+            elif _stufe(k) >= _stufe(r):
+                ab = max(regeln.takt_min, regeln.min_lauf_min)
+            else:
+                continue
+            moeglich.append((ab - r.an_seit_min, r))
+
+        jetzt = [r for rest, r in moeglich if rest <= 0]
+        if jetzt and neu < regeln.neue_je_schritt:
+            # normale vor Boost; dann der am längsten laufende; bei Gleichstand die niedrigere Priorität, dann nach id
+            r = min(jetzt, key=lambda x: (x.boost, -x.an_seit_min, x.prio, x.id))
+            schalte_aus(r)
+            getauscht.add(r.id)
+            wartet[r.id] = Warten.RUNDLAUF
+            dran_in[r.id] = max(regeln.takt_min, regeln.min_lauf_min)
+            schalte_ein(k)
+            getauscht.add(k.id)
+            neu += 1
+        elif jetzt:
+            wartet[k.id] = Warten.ANLAUF
+        elif moeglich:
+            wartet[k.id] = Warten.RUNDLAUF
+            dran_in[k.id] = min(rest for rest, _ in moeglich)
+        else:
+            wartet[k.id] = Warten.ANSCHLUSS_VOLL if zu_voll else Warten.MAX_GLEICHZEITIG
+
+    return StaffelErgebnis(
+        an=frozenset(an | frei_folgen),
+        wartet={i: str(g) for i, g in wartet.items()},
+        frei_kw={a: round(f, 3) for a, f in frei_ist.items()},
+        dran_in_min=dran_in,
+    )

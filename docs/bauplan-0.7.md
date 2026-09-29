@@ -175,6 +175,24 @@ Container-Grafiken. Beispieldaten (`daten()`) werden durch einen Adapter auf `ba
 ersetzt, Aktionen durch WebSocket-Aufrufe. Vorführ-Leiste (Tageszeit/Wetter) entfällt: Tageszeit aus `sun.sun`, Wetter
 aus der Wetter-Entität. Test: `tests/panel/test_panel.js` rendert alle Ansichten, Einblendungen und Aktionen.
 
-## 5. Abweichungen vom Mockup
+## 5. Entscheidungen aus Stufe 1 und Abweichungen vom Mockup
 
-(noch keine)
+Entscheidungen (im Sinne des Mockups, 30.09.2026):
+
+- Regelung: Frostschutz schaltet unter `frost_grenze` ein und bis `frost_grenze + 2 °C` weiter (Aufrufer führt `frost_vorher`);
+  Tür pausiert ab `tuer_pause_min` („nach 3 min“); Bedarf mit Fühler regelt auf Soll; eine Ausnahme „arbeiten/andere Zeiten“
+  gilt auch an einem Feiertag; die Arbeitszeit wird je Tag gewählt; Zeiten mit `bis <= von` gelten als frei;
+  „alle jetzt heizen“ (`laufzeit.jetzt_bis`) heizt wie in der Arbeitszeit, auch an freien Tagen und über der Heizgrenze.
+- Staffelung: Überlast wirft zuerst normale, dann Boost-, zuletzt Frost-Heizer ab; Frost verdrängt beim Tausch auch Boost;
+  `max_gleichzeitig` gilt für die ganze Baustelle; Heizer an unbekanntem Anschluss werden nicht gestaffelt.
+- Warnungen: Handy-Nachricht bei Störungen sofort, bei `tuer_offen` nach `tuer_melden_min` und bei `hand_zu_lange` nach
+  `hand_h` (wie die Beispiele „Nachrichten aufs Handy“ im Mockup); übrige Hinweise nur Protokoll und Chip.
+  `keine_leistung` ohne Messwert gibt keine Warnung. Zahlen in Texten kaufmännisch gerundet wie im Mockup.
+- Abrechnung: Zuordnung zur Firma je **Stunde** (Recorder-Stundenwerte) – „der Verbrauch wird ab jetzt zugeordnet“.
+  CSV setzt Felder mit `;` oder `"` in Anführungszeichen (RFC 4180). Fällt ein Montag auf den 1., gehen beide Berichte.
+
+Abweichungen vom Mockup:
+
+- Einstellungen → Meldungen, Fußzeile: statt „Störungen gehen als Nachricht aufs Handy, Hinweise nur ins Protokoll und in
+  den Warnung-Chip“ → „Störungen, offene Tür und langer Handbetrieb kommen aufs Handy, andere Hinweise nur ins Protokoll
+  und in den Warnung-Chip“ (das Mockup widerspricht sich hier selbst; die Beispiel-Nachrichten gehen vor).
