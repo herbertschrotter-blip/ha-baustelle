@@ -76,20 +76,25 @@ function balken(id, werte, labels, einheit, d = 1) {
 const CHARTS = {};
 function flaeche(id, reihen, labels, einheit, jedes) {
   const W = 320, H = 160, L = 30, R = 8, T = 10, U = 22, n = labels.length, viele = reihen.length > 1;
-  const hi0 = Math.max(...reihen.flatMap(r => r.v)) * 1.12 || 1;
-  const stufe = [.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].find(st => hi0 / st <= 5) || 2000, hi = Math.ceil(hi0 / stufe) * stufe;
+  // gestapelt: jede Reihe liegt auf der Summe der darunterliegenden, die oberste Kante ist die Summe der Auswahl
+  let unten = Array(n).fill(0);
+  const lagen = reihen.map(r => { const u = unten, o = r.v.map((v, i) => u[i] + v); unten = o; return { ...r, u, o }; });
+  const hi0 = Math.max(...unten) * 1.1 || 1;
+  const stufe = [.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000].find(st => hi0 / st <= 5) || 10000, hi = Math.ceil(hi0 / stufe) * stufe;
   const x = i => L + i / (n - 1) * (W - L - R), y = v => T + (1 - v / hi) * (H - T - U);
   const raster = [...Array(hi / stufe + 1)].map((_, k) => k * stufe).map(v =>
     `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${de(v, stufe < 1 ? 1 : 0)}</text>`).join('');
   const achse = labels.map((t, i) => i % jedes ? '' : `<text x="${x(i)}" y="${H - 6}" class="ax" text-anchor="middle">${t}</text>`).join('');
   const g = k => `fl-${id.replace(/[^a-z0-9]/gi, '')}-${k}`;
-  const defs = reihen.map((r, k) => `<linearGradient id="${g(k)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${r.farbe}" stop-opacity="${viele ? .22 : .45}"/><stop offset="1" stop-color="${r.farbe}" stop-opacity=".02"/></linearGradient>`).join('');
-  const pfad = r => r.v.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
-  const flaechen = reihen.map((r, k) => `<path class="fl-flaeche" d="${pfad(r)}L${x(n - 1)} ${y(0)}L${x(0)} ${y(0)}z" fill="url(#${g(k)})"/>`).join('');
-  const linien = reihen.map(r => `<path class="fl-linie" d="${pfad(r)}" fill="none" stroke="${r.farbe}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
-  CHARTS[id] = { art: 'flaeche', x0: L, x1: W - R, W, n, reihen, labels, einheit, y };
-  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${raster}${achse}${flaechen}${linien}<g class="hover"></g></svg>
-    ${viele ? `<div class="legende">${reihen.map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}</div>` : ''}`;
+  const defs = lagen.map((r, k) => `<linearGradient id="${g(k)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${r.farbe}" stop-opacity="${viele ? .75 : .45}"/><stop offset="1" stop-color="${r.farbe}" stop-opacity="${viele ? .45 : .03}"/></linearGradient>`).join('');
+  const linie = a => a.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
+  const zurueck = a => a.map((v, i) => [i, v]).reverse().map(([i, v]) => `L${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
+  const flaechen = lagen.map((r, k) => `<path class="fl-flaeche" style="animation-delay:${k * 40}ms" d="${linie(r.o)}${zurueck(r.u)}z" fill="url(#${g(k)})"/>`).join('');
+  const kanten = lagen.map(r => `<path class="fl-linie" d="${linie(r.o)}" fill="none" stroke="${viele ? 'var(--trenn)' : r.farbe}" stroke-width="${viele ? 1.5 : 2}" stroke-linejoin="round"/>`).join('');
+  const oben = viele ? `<path d="${linie(unten)}" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>` : '';
+  CHARTS[id] = { art: 'flaeche', x0: L, x1: W - R, W, n, reihen: lagen, labels, einheit, y };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${raster}${achse}${flaechen}${kanten}${oben}<g class="hover"></g></svg>
+    ${viele ? `<div class="legende">${[...lagen].reverse().map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}</div>` : ''}`;
 }
 const MONATE = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 /* Verbrauch in kWh je Stunde (Tag), je Tag (Monat) oder je Monat (Jahr); Baustelle = Summe der Container */
@@ -305,17 +310,18 @@ class App {
       const summeJe = labels.map((_, i) => reihen.reduce((a, r) => a + r.v[i], 0)), summe = summeJe.reduce((a, v) => a + v, 0);
       const spitze = Math.max(...summeJe), wo = labels[summeJe.indexOf(spitze)];
       const einheit = z === 'Tag' ? 'kWh/h' : 'kWh', je = { Tag: 'je Stunde · heute', Monat: 'je Tag · September', Jahr: 'je Monat · 2026' }[z];
-      const titel = !aus.length ? 'ÖWG Dobl Zwaring · Summe' : aus.length === 1 ? esc(aus[0].name) : `${aus.length} Container überlagert`;
+      const titel = !aus.length ? 'ÖWG Dobl Zwaring · Summe' : aus.length === 1 ? esc(aus[0].name) : `${aus.length} Container gestapelt`;
       return `${griff}<div class="block-kopf"><h3>Verbrauch</h3><span class="leise">${titel}</span></div>
         <div class="seg">${['Tag', 'Monat', 'Jahr'].map(v => `<button data-act="vb-zeitraum" data-v="${v}" class="${v === z ? 'on' : ''}">${v}</button>`).join('')}</div>
         <div class="vb-wer"><button data-act="vb-wer" class="${!aus.length ? 'on' : ''}"><i style="background:var(--s1)"></i>Baustelle</button>
-          <button data-act="vb-wer" data-id="*" class="${alle ? 'on' : ''}">Alle einzeln</button>
+          <button data-act="vb-wer" data-id="*" class="${alle ? 'on' : ''}">Alle gestapelt</button>
           ${B.map(b => `<button data-act="vb-wer" data-id="${b.id}" class="${s.auswahl.includes(b.id) ? 'on' : ''}"><i style="background:${farbe(b)}"></i>${esc(b.name)}${s.auswahl.includes(b.id) ? ' ✓' : ''}</button>`).join('')}</div>
+        <div class="kennz"><div><b>${de(summe, summe < 100 ? 1 : 0)}</b><span>kWh ${z === 'Tag' ? 'heute' : z === 'Monat' ? 'im Monat' : 'im Jahr'}${reihen.length > 1 ? ' zusammen' : ''}</span></div>
+          <div><b>${de(summe * this.d.e.preis, 2)} €</b><span>Kosten</span></div><div><b>${wo}</b><span>Spitze ${de(spitze, 1)} kWh</span></div></div>
         ${reihen.length > 1 ? `<div class="vb-je">${reihen.map(r => { const su = r.v.reduce((a, v) => a + v, 0), sp = Math.max(...r.v);
             return `<div><i style="background:${r.farbe}"></i><span class="n">${esc(r.name)}</span><b>${de(su, su < 100 ? 1 : 0)} kWh</b><span>${de(su * this.d.e.preis, 2)} €</span><span class="leise">Spitze ${labels[r.v.indexOf(sp)]}</span></div>`; }).join('')}</div>`
-          : `<div class="kennz"><div><b>${de(summe, summe < 100 ? 1 : 0)}</b><span>kWh ${z === 'Tag' ? 'heute' : z === 'Monat' ? 'im Monat' : 'im Jahr'}</span></div>
-          <div><b>${de(summe * this.d.e.preis, 2)} €</b><span>Kosten</span></div><div><b>${wo}</b><span>Spitze ${de(spitze, 1)} kWh</span></div></div>`}
-        <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · jeder Container für sich, nicht zusammengezählt' : ''}</div>
+          : ''}
+        <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · gestapelt, oberste Kante = Summe' : ''}</div>
         <div class="chart-wrap">${flaeche(`vb-${aus.map(b => b.id).join('_') || 'alle'}-${z}`, reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : 3)}</div>
         ${knopf('Schließen')}`;
     }
@@ -416,11 +422,11 @@ class App {
     const c = CHARTS[svg.dataset.chart], r = svg.getBoundingClientRect(), fx = (ev.clientX - r.left) / r.width;
     if (c.art === 'flaeche') {
       const vx = fx * c.W, i = Math.max(0, Math.min(c.n - 1, Math.round((vx - c.x0) / (c.x1 - c.x0) * (c.n - 1)))), x = c.x0 + i / (c.n - 1) * (c.x1 - c.x0);
-      const h = c.einheit === 'kWh/h', reihen = [...c.reihen].sort((a, b) => b.v[i] - a.v[i]), sum = reihen.reduce((a, r) => a + r.v[i], 0);
-      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(r => `<circle cx="${x}" cy="${c.y(r.v[i])}" r="4" fill="${r.farbe}" class="punkt"/>`).join('');
-      return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (reihen.length > 1
-        ? reihen.map(r => `<div><i style="background:${r.farbe}"></i>${esc(r.name)} <b>${de(r.v[i], 2)} kWh</b></div>`).join('') 
-        : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * this.d.e.preis, 2)} €</div>`));
+      const h = c.einheit === 'kWh/h', sum = c.reihen.reduce((a, r) => a + r.v[i], 0), p = this.d.e.preis;
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(r => `<circle cx="${x}" cy="${c.y(r.o[i])}" r="3.5" fill="${r.farbe}" class="punkt"/>`).join('');
+      return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (c.reihen.length > 1
+        ? [...c.reihen].reverse().map(r => `<div><i style="background:${r.farbe}"></i>${esc(r.name)} <b>${de(r.v[i], 2)} kWh</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p, 2)} €</div>`
+        : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p, 2)} €</div>`));
     }
     if (c.art === 'linie') {
       const vx = fx * c.W, i = Math.max(0, Math.min(24, Math.round((vx - c.x0) / (c.x1 - c.x0) * 24))), x = c.x0 + i / 24 * (c.x1 - c.x0);
