@@ -111,10 +111,12 @@ class App {
   v_uebersicht() {
     const B = this.d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), warn = B.filter(b => b.offline).length;
     const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
-    return `${this.kopf(`ÖWG Dobl Zwaring <span class="pfeil">▾</span>`, 'BAUSTELLE', `<div class="glas-kw"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small></div>`).replace('<div><div class="glas-klein">', '<div data-act="sheet" data-s="baustellen" class="klickbar"><div class="glas-klein">')}
+    return `<div class="glas-kopf glas-panel">
+        <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring <span class="pfeil">▾</span></div></div>
+          <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon('rainy', 22)}<span>4,2°</span><span class="kw-t">Regen · 6 mm</span></button></div>
+        <div class="glas-kw"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small></div></div>
       <div class="glas-chips">
         <button class="glas-panel chip ${this.s.auto ? 'amber' : ''}" data-act="auto">♨ ${this.s.auto ? 'Automatik · aus 17:15' : 'Automatik aus'}</button>
-        <button class="glas-panel chip" data-act="sheet" data-s="wetter">${wetterIcon('rainy', 20)} 4,2° · 6 mm</button>
         ${warn ? `<button class="glas-panel chip rot" data-act="sheet" data-s="warnungen">${warn} Warnung</button>` : ''}
         <span class="chip-leise">${an} von ${alle} Geräten an</span>
       </div>

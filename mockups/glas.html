@@ -90,7 +90,11 @@ body.hell { background: #d9dee5; color: #111; }
 .glas-panel { background: var(--panel); border: 1px solid var(--panel-rand); backdrop-filter: blur(24px) saturate(1.5); -webkit-backdrop-filter: blur(24px) saturate(1.5);
   border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.22); }
 .glas-kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; }
-.klickbar { cursor: pointer; } .pfeil { font-size: 14px; opacity: .6; }
+.klickbar { cursor: pointer; }
+.kopf-wetter { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 2px 10px 2px 2px !important; border-radius: 14px !important;
+  font-size: 13px; color: var(--ink2) !important; transition: background .2s; }
+.kopf-wetter:hover { background: rgba(255,255,255,.1) !important; } .kopf-wetter span:first-of-type { color: var(--ink); font-weight: 500; }
+.kopf-wetter .wi { margin: -4px 0; } .pfeil { font-size: 14px; opacity: .6; }
 .glas-klein { font-size: 11px; letter-spacing: 1.2px; color: var(--ink2); text-transform: uppercase; }
 .glas-titel { font-size: 22px; font-weight: 600; }
 .glas-kw { font-size: 28px; font-weight: 300; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
@@ -479,10 +483,12 @@ class App {
   v_uebersicht() {
     const B = this.d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), warn = B.filter(b => b.offline).length;
     const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
-    return `${this.kopf(`ÖWG Dobl Zwaring <span class="pfeil">▾</span>`, 'BAUSTELLE', `<div class="glas-kw"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small></div>`).replace('<div><div class="glas-klein">', '<div data-act="sheet" data-s="baustellen" class="klickbar"><div class="glas-klein">')}
+    return `<div class="glas-kopf glas-panel">
+        <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring <span class="pfeil">▾</span></div></div>
+          <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon('rainy', 22)}<span>4,2°</span><span class="kw-t">Regen · 6 mm</span></button></div>
+        <div class="glas-kw"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small></div></div>
       <div class="glas-chips">
         <button class="glas-panel chip ${this.s.auto ? 'amber' : ''}" data-act="auto">♨ ${this.s.auto ? 'Automatik · aus 17:15' : 'Automatik aus'}</button>
-        <button class="glas-panel chip" data-act="sheet" data-s="wetter">${wetterIcon('rainy', 20)} 4,2° · 6 mm</button>
         ${warn ? `<button class="glas-panel chip rot" data-act="sheet" data-s="warnungen">${warn} Warnung</button>` : ''}
         <span class="chip-leise">${an} von ${alle} Geräten an</span>
       </div>
