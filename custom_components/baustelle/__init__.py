@@ -7,9 +7,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
-from homeassistant.helpers import device_registry as dr, issue_registry as ir
+from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 
-from .const import DOMAIN, PLATFORMS
+from .const import CONF_REGEN_SENSOR, CONF_TEMP_SENSOR, CONF_WETTER, DOMAIN, PLATFORMS
 from .einstellungen import Einstellungen
 from .entity import HERSTELLER, MODELL
 from .panel import async_panel_anmelden
@@ -29,6 +29,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -> bool:
     """Baustelle starten."""
+    _eigene_quellen_entfernen(hass, entry)
     steuerung = Steuerung(hass, entry)
     entry.runtime_data = steuerung
     await steuerung.async_start()
@@ -51,6 +52,18 @@ async def async_remove_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -
     for (domain, issue_id) in list(ir.async_get(hass).issues):
         if domain == DOMAIN and issue_id.startswith(f"fehlt_{entry.entry_id}_"):
             ir.async_delete_issue(hass, DOMAIN, issue_id)
+
+
+def _eigene_quellen_entfernen(hass: HomeAssistant, entry: BaustelleConfigEntry) -> None:
+    """Eigene Sensoren der Integration taugen nicht als Wetterquelle (Kreis): aus den Optionen nehmen."""
+    registry = er.async_get(hass)
+    optionen = dict(entry.options)
+    for key in (CONF_TEMP_SENSOR, CONF_REGEN_SENSOR, CONF_WETTER):
+        eintrag = registry.async_get(optionen.get(key) or "")
+        if eintrag is not None and eintrag.platform == DOMAIN:
+            optionen.pop(key)
+    if optionen != dict(entry.options):
+        hass.config_entries.async_update_entry(entry, options=optionen)
 
 
 def _geraete_anlegen(hass: HomeAssistant, entry: BaustelleConfigEntry, steuerung: Steuerung) -> None:

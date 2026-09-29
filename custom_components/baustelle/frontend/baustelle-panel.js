@@ -112,6 +112,45 @@ function timeline({ id, W, rows, now }) {
 }
 
 
+
+/* Animierte Wettersymbole (eigene SVGs, ohne externe Dateien). Bedingungen wie in HA (weather.*). */
+function wetterIcon(zustand, groesse = 64) {
+  const wolke = (dx = 0, dy = 0, s = 1, dunkel = false) => `<g class="wi-wolke" transform="translate(${dx} ${dy}) scale(${s})"><path d="M18 46h28a9 9 0 0 0 1-18 13 13 0 0 0-25-4 10 10 0 0 0-4 22z"
+    fill="var(${dunkel ? '--wi-wolke-dunkel' : '--wi-wolke'})" stroke="var(--wi-rand)" stroke-width="1.5" stroke-linejoin="round"/></g>`;
+  const sonne = (cx = 32, cy = 32, r = 10) => `<g><g class="wi-dreh" style="transform-origin:${cx}px ${cy}px">${[...Array(8)].map((_, i) => {
+      const w = i * Math.PI / 4, a = r + 4, b = r + 9;
+      return `<line x1="${(cx + a * Math.cos(w)).toFixed(1)}" y1="${(cy + a * Math.sin(w)).toFixed(1)}" x2="${(cx + b * Math.cos(w)).toFixed(1)}" y2="${(cy + b * Math.sin(w)).toFixed(1)}" stroke="#f9b300" stroke-width="3" stroke-linecap="round"/>`; }).join('')}</g>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffc21a" stroke="#f9a300" stroke-width="1.5"/></g>`;
+  const tropfen = (n, dunkel) => [...Array(n)].map((_, i) => `<line class="wi-tropfen" style="animation-delay:${(i * 0.37).toFixed(2)}s" x1="${22 + i * (22 / Math.max(1, n - 1))}" y1="48"
+    x2="${20 + i * (22 / Math.max(1, n - 1))}" y2="54" stroke="${dunkel ? '#1c5cab' : '#2a78d6'}" stroke-width="2.5" stroke-linecap="round"/>`).join('');
+  const flocken = n => [...Array(n)].map((_, i) => `<g class="wi-flocke" style="animation-delay:${(i * 0.7).toFixed(1)}s"><g transform="translate(${22 + i * 10} 51)" stroke="#7fb8ec" stroke-width="1.8" stroke-linecap="round">
+    <line x1="-3" y1="0" x2="3" y2="0"/><line x1="-1.5" y1="-2.6" x2="1.5" y2="2.6"/><line x1="-1.5" y1="2.6" x2="1.5" y2="-2.6"/></g></g>`).join('');
+  const blitz = `<path class="wi-blitz" d="M33 40l-6 10h5l-3 9 9-12h-5l4-7z" fill="#ffc21a" stroke="#f9a300" stroke-width="1" stroke-linejoin="round"/>`;
+  const nebel = `<g stroke="var(--wi-rand)" stroke-width="3" stroke-linecap="round">${[48, 54, 60].map((y, i) => `<line class="wi-nebel" style="animation-delay:${i * 0.8}s" x1="${14 + i * 3}" y1="${y}" x2="${50 - i * 2}" y2="${y}"/>`).join('')}</g>`;
+  const mond = `<g><path d="M40 14a16 16 0 1 0 12 26 13 13 0 0 1-12-26z" fill="#ffd54f" stroke="#f9b300" stroke-width="1.5"/>
+    ${[[16, 16], [24, 8], [12, 30]].map(([x, y], i) => `<circle class="wi-stern" style="animation-delay:${i * 0.9}s" cx="${x}" cy="${y}" r="1.6" fill="#ffd54f"/>`).join('')}</g>`;
+  const wind = `<g fill="none" stroke="var(--wi-rand)" stroke-width="3" stroke-linecap="round"><path class="wi-wind" d="M10 26h30a6 6 0 1 0-6-6"/>
+    <path class="wi-wind" style="animation-delay:.5s" d="M10 36h40a6 6 0 1 1-6 6"/><path class="wi-wind" style="animation-delay:1s" d="M14 46h20"/></g>`;
+  const teile = {
+    sunny: sonne(32, 32, 12),
+    'clear-night': mond,
+    partlycloudy: sonne(24, 22, 9) + wolke(6, 4, 0.9),
+    cloudy: wolke(-8, -6, 0.85) + wolke(4, 2, 0.95),
+    fog: wolke(0, -8, 0.9) + nebel,
+    rainy: wolke(0, -6) + tropfen(3),
+    pouring: wolke(0, -6, 1, true) + tropfen(5, true),
+    snowy: wolke(0, -6) + flocken(3),
+    'snowy-rainy': wolke(0, -6) + tropfen(2) + flocken(1),
+    hail: wolke(0, -6, 1, true) + [0, 1, 2].map(i => `<circle class="wi-tropfen" style="animation-delay:${i * 0.4}s" cx="${22 + i * 10}" cy="52" r="2.4" fill="#e3f2fd" stroke="#7fb8ec"/>`).join(''),
+    lightning: wolke(0, -8, 1, true) + blitz,
+    'lightning-rainy': wolke(0, -8, 1, true) + blitz + tropfen(2, true),
+    windy: wind,
+    'windy-variant': wolke(0, -10, 0.8) + wind,
+    exceptional: sonne(32, 32, 12),
+  };
+  return `<svg class="wi" viewBox="0 0 64 64" width="${groesse}" height="${groesse}" role="img" aria-label="${esc(zustand || '')}">${teile[zustand] || wolke(0, -4)}</svg>`;
+}
+
 const CSS = `:host { display: flex; flex-direction: column; height: 100%; min-height: 100vh; background: var(--primary-background-color);
   color: var(--primary-text-color); font-family: var(--ha-font-family-body, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif); font-size: 14px;
   --state-heat: var(--state-climate-heat-color, #ff8100); --ha-card-border: var(--ha-card-border-width, 1px) solid var(--divider-color, rgba(0,0,0,.12));
@@ -292,7 +331,36 @@ svg.ch .mk:hover { opacity: .75; }
 .stat { position: relative; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 12px 14px; }
 .stat .sl { font-size: 13px; color: var(--secondary-text-color); }
 .stat .sv { font-size: 24px; font-weight: 600; margin: 2px 0; }
-.stat .ss { font-size: 12px; color: var(--secondary-text-color); }`;
+.stat .ss { font-size: 12px; color: var(--secondary-text-color); }
+/* Wetter */
+:host { --wi-wolke: #eef2f5; --wi-wolke-dunkel: #9aa7b0; --wi-rand: #8a98a3; }
+:host([dunkel]) { --wi-wolke: #56626b; --wi-wolke-dunkel: #3d474e; --wi-rand: #a9b6bf; }
+.wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
+.wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
+.wetter .wtage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
+.wetter .wtag { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.wetter .wt { font-size: 12px; font-weight: 600; color: var(--secondary-text-color); }
+.wetter .max { font-weight: 600; }
+.wetter .frost { color: #2a78d6; font-weight: 600; }
+.wetter .regen { color: #2a78d6; }
+@keyframes wi-dreh { to { transform: rotate(360deg); } }
+@keyframes wi-wolke { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+@keyframes wi-tropfen { 0% { transform: translateY(-5px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(9px); opacity: 0; } }
+@keyframes wi-flocke { 0% { transform: translate(-1px, -5px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(2px, 9px); opacity: 0; } }
+@keyframes wi-blitz { 0%, 86%, 100% { opacity: .15; } 88%, 93% { opacity: 1; } 90% { opacity: .3; } }
+@keyframes wi-nebel { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+@keyframes wi-stern { 50% { opacity: .2; } }
+@keyframes wi-wind { 0% { stroke-dashoffset: 60; } 100% { stroke-dashoffset: 0; } }
+.wi .wi-dreh { animation: wi-dreh 14s linear infinite; }
+.wi .wi-wolke > path { animation: wi-wolke 6s ease-in-out infinite; }
+.wi .wi-tropfen { animation: wi-tropfen 1.3s linear infinite; }
+.wi .wi-flocke { animation: wi-flocke 2.6s linear infinite; }
+.wi .wi-blitz { animation: wi-blitz 3.2s linear infinite; }
+.wi .wi-nebel { animation: wi-nebel 5s ease-in-out infinite; }
+.wi .wi-stern { animation: wi-stern 2.4s ease-in-out infinite; }
+.wi .wi-wind { stroke-dasharray: 60; animation: wi-wind 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .wi * { animation: none !important; } }
+`;
 
 const TAGE = [['mo', 'Mo', 'Montag'], ['di', 'Di', 'Dienstag'], ['mi', 'Mi', 'Mittwoch'], ['do', 'Do', 'Donnerstag'],
   ['fr', 'Fr', 'Freitag'], ['sa', 'Sa', 'Samstag'], ['so', 'So', 'Sonntag']];
@@ -538,10 +606,7 @@ class BaustellePanel extends HTMLElement {
     return `<div class="sections">
       <div class="sec">
         <div class="heading">Jetzt <span class="sub">${new Date().toLocaleString('de-AT', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
-        ${wetter ? `<div class="card"><div style="display:flex;align-items:center;gap:12px"><div style="font-size:38px">${this._wetterSymbol(wetter.state)}</div>
-          <div><div class="big">${de(wetter.attributes.temperature)} °C</div><div class="muted">${esc(this._hass.formatEntityState ? this._hass.formatEntityState(wetter) : wetter.state)}</div></div></div>
-          ${this.vorhersage && this.vorhersage.length ? `<div class="grid3" style="margin-top:10px;text-align:center;font-size:12px">${this.vorhersage.slice(0, 3).map(v =>
-            `<div>${new Date(v.datetime).toLocaleDateString('de-AT', { weekday: 'short' })}<br>${this._wetterSymbol(v.condition)} ${de(v.temperature, 0)}° / ${de(v.templow, 0)}°<br><span class="muted">${de(v.precipitation ?? 0)} mm</span></div>`).join('')}</div>` : ''}</div>`
+        ${wetter ? this._wetterKarte(wetter, b)
           : `<div class="card info-card">Kein Wetter eingestellt. ${this.link('Wetter wählen', INTEGRATION)}</div>`}
         <div class="grid3">
           ${this._kachel('🌡', 'Außen', `${de(this.N(this.E(b, 'aussen')))} °C`)}
@@ -582,6 +647,21 @@ class BaustellePanel extends HTMLElement {
 
   _kachel(ic, n, s, tab) { return `<div class="tile" ${tab ? `data-tab="${tab}"` : ''}><span class="ic">${ic}</span><div class="tx"><div class="n">${n}</div><div class="s">${s}</div></div></div>`; }
   _bereichName(b, id) { return (b.bereiche.find(x => x.id === id) || {}).name || '?'; }
+  _wetterKarte(w, b) {
+    const a = w.attributes;
+    const heute = isoTag(new Date()), morgen = isoTag(new Date(Date.now() + 86400000));
+    const frost = this.N(this.E(b, 'frost_ein')) ?? 5;
+    const zustand = this._hass.formatEntityState ? this._hass.formatEntityState(w) : w.state;
+    const tage = (this.vorhersage || []).filter(v => isoTag(new Date(v.datetime)) >= heute).slice(0, 4);
+    const tag = v => { const d = isoTag(new Date(v.datetime)); return d === heute ? 'Heute' : d === morgen ? 'Morgen' : new Date(v.datetime).toLocaleDateString('de-AT', { weekday: 'short' }); };
+    return `<div class="card wetter"><div class="wjetzt">${wetterIcon(w.state, 72)}<div>
+        <div class="big">${de(a.temperature)} °C</div><div class="muted">${esc(zustand)}${a.apparent_temperature !== undefined ? ` · gefühlt ${de(a.apparent_temperature, 0)} °C` : ''}</div>
+        <div class="klein muted">${a.wind_speed !== undefined ? `Wind ${de(a.wind_speed, 0)} ${esc(a.wind_speed_unit || 'km/h')}` : ''}${a.humidity !== undefined ? ` · Feuchte ${de(a.humidity, 0)} %` : ''}</div></div></div>
+      ${tage.length ? `<div class="wtage">${tage.map(v => `<div class="wtag"><div class="wt">${tag(v)}</div>${wetterIcon(v.condition, 40)}
+        <div><span class="max">${de(v.temperature, 0)}°</span> <span class="${v.templow !== undefined && v.templow < frost ? 'frost' : 'muted'}">${de(v.templow, 0)}°</span></div>
+        <div class="klein ${(v.precipitation || 0) > 0 ? 'regen' : 'muted'}">${(v.precipitation || 0) > 0 ? de(v.precipitation) + ' mm' : 'trocken'}</div></div>`).join('')}</div>` : ''}</div>`;
+  }
+
   _wetterSymbol(z) { return ({ sunny: '☀', 'clear-night': '🌙', partlycloudy: '⛅', cloudy: '☁', rainy: '🌧', pouring: '🌧', snowy: '❄', 'snowy-rainy': '🌨', fog: '🌫', windy: '💨', lightning: '⚡', 'lightning-rainy': '⛈', hail: '🌨' })[z] || '🌡'; }
 
   _zeitleiste(b, ids, id) {
@@ -1020,7 +1100,8 @@ class BaustellePanel extends HTMLElement {
   }
 
   _entitaeten(filter) {
-    return Object.values(this._hass.states).filter(filter)
+    const eigene = new Set((this.baustellen || []).flatMap(x => Object.values(x.entitaeten)));
+    return Object.values(this._hass.states).filter(s => !eigene.has(s.entity_id) && filter(s))
       .map(s => [s.entity_id, s.attributes.friendly_name || s.entity_id]).sort((a, b) => a[1].localeCompare(b[1], 'de'));
   }
 

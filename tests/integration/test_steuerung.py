@@ -263,3 +263,30 @@ async def test_naechste_schaltzeit_morgen(hass: HomeAssistant, baustelle, freeze
     st.auswerten()
     await hass.async_block_till_done()
     assert st.daten.naechste.isoformat().startswith("2026-10-05T06:00")
+
+
+async def test_eigene_sensoren_als_wetterquelle_werden_entfernt(hass: HomeAssistant, baustelle) -> None:
+    eigener = _eid(hass, "sensor", f"{baustelle.entry_id}_aussen")
+    hass.config_entries.async_update_entry(baustelle, options={**baustelle.options, "temp_sensor": eigener})
+    await hass.async_block_till_done()  # Update-Listener lädt neu, Setup räumt auf
+    assert "temp_sensor" not in baustelle.options
+    assert baustelle.options["regen_sensor"] == "sensor.regen"
+
+
+async def test_vorhersage_sobald_wetter_da(hass: HomeAssistant, baustelle) -> None:
+    from pytest_homeassistant_custom_component.common import async_mock_service
+    from homeassistant.core import SupportsResponse
+
+    aufrufe = []
+
+    async def vorhersage(call):
+        aufrufe.append(call)
+        return {"weather.spaet": {"forecast": [{"datetime": "2026-09-30T05:00:00+02:00", "temperature": -1.0, "precipitation": 0.4}]}}
+
+    hass.services.async_register("weather", "get_forecasts", vorhersage, supports_response=SupportsResponse.ONLY)
+    hass.config_entries.async_update_entry(baustelle, options={**baustelle.options, "wetter": "weather.spaet"})
+    await hass.async_block_till_done()
+    assert aufrufe == []  # Wetter noch nicht geladen
+    hass.states.async_set("weather.spaet", "sunny", {"temperature": 4.0})
+    await hass.async_block_till_done()
+    assert len(aufrufe) >= 1

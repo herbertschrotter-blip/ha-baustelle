@@ -19,7 +19,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import selector
+from homeassistant.helpers import entity_registry as er, selector
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -69,11 +69,21 @@ def _auswahl(optionen: list[str], key: str, *, multiple: bool = False) -> select
     )
 
 
-def _entitaet(domain: str | list[str], device_class: str | None = None) -> selector.EntitySelector:
+def _entitaet(
+    domain: str | list[str], device_class: str | None = None, ohne: list[str] | None = None
+) -> selector.EntitySelector:
     filt: selector.EntityFilterSelectorConfig = {"domain": domain}
     if device_class:
         filt["device_class"] = device_class
-    return selector.EntitySelector(selector.EntitySelectorConfig(filter=filt))
+    konfig = selector.EntitySelectorConfig(filter=filt)
+    if ohne:
+        konfig["exclude_entities"] = ohne
+    return selector.EntitySelector(konfig)
+
+
+def _eigene_entitaeten(hass: HomeAssistant) -> list[str]:
+    """Entitäten dieser Integration – taugen nicht als Quelle (Kreis)."""
+    return [e.entity_id for e in er.async_get(hass).entities.values() if e.platform == DOMAIN]
 
 
 def _empfaenger(hass: HomeAssistant) -> list[str]:
@@ -170,6 +180,7 @@ class BaustelleOptionsFlow(OptionsFlow):
                 return self.async_create_entry(data=user_input)
 
         o = self.config_entry.options
+        eigene = _eigene_entitaeten(self.hass)
         schema = vol.Schema(
             {
                 vol.Required(CONF_STATUS): _auswahl([STATUS_AKTIV, STATUS_ABGESCHLOSSEN], CONF_STATUS),
@@ -178,8 +189,8 @@ class BaustelleOptionsFlow(OptionsFlow):
                 vol.Required(CONF_HEIZUNG): selector.BooleanSelector(),
                 vol.Required(CONF_PUMPEN): selector.BooleanSelector(),
                 vol.Optional(CONF_WETTER): _entitaet("weather"),
-                vol.Optional(CONF_TEMP_SENSOR): _entitaet("sensor", "temperature"),
-                vol.Optional(CONF_REGEN_SENSOR): _entitaet("sensor", "precipitation"),
+                vol.Optional(CONF_TEMP_SENSOR): _entitaet("sensor", "temperature", eigene),
+                vol.Optional(CONF_REGEN_SENSOR): _entitaet("sensor", "precipitation", eigene),
                 vol.Optional(CONF_FEIERTAG_KALENDER): _entitaet("calendar"),
                 vol.Optional(CONF_URLAUB_KALENDER): _entitaet("calendar"),
                 vol.Optional(CONF_EMPFAENGER): _auswahl(_empfaenger(self.hass), CONF_EMPFAENGER, multiple=True),

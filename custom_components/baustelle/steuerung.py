@@ -164,6 +164,7 @@ class Steuerung:
         self.geraete: dict[str, GeraetInfo] = {}
         self.daten = Laufzeit()
         self._prognose: dict[str, float | None] = {}
+        self._prognose_laeuft = False
         self._listener: list[CALLBACK_TYPE] = []
         self._abmelden: list[CALLBACK_TYPE] = []
         self._eigene_kontexte: deque[str] = deque(maxlen=50)
@@ -307,6 +308,13 @@ class Steuerung:
         for g in self.geraete.values():
             if g.energie == event.data["entity_id"]:
                 self._energie_zaehlen(g, _zahl(neu))
+        if (
+            event.data["entity_id"] == self.entry.options.get(CONF_WETTER)
+            and neu is not None and neu.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+            and not self._prognose and not self._prognose_laeuft
+        ):
+            # Wetter erst nach uns geladen (HA-Start): Vorhersage sofort holen statt nach 30 min
+            self.entry.async_create_background_task(self.hass, self._async_prognose(), "baustelle_prognose")
         if neu is not None and alt is not None and neu.state != alt.state:
             self._handbedienung_erkennen(event.data["entity_id"], neu)
         self.auswerten()
@@ -330,8 +338,16 @@ class Steuerung:
     async def _async_prognose(self, _now: datetime | None = None) -> None:
         """Vorhersage holen (bewährt: Dienst weather.get_forecasts)."""
         wetter = self.entry.options.get(CONF_WETTER)
-        if not wetter or self.hass.states.get(wetter) is None:
+        if not wetter or self.hass.states.get(wetter) is None or self._prognose_laeuft:
             return
+        self._prognose_laeuft = True
+        try:
+            await self._async_prognose_holen(wetter)
+        finally:
+            self._prognose_laeuft = False
+        self.auswerten()
+
+    async def _async_prognose_holen(self, wetter: str) -> None:
         jetzt = dt_util.now()
         for art in ("hourly", "daily"):
             try:
@@ -346,7 +362,6 @@ class Steuerung:
             if liste:
                 self._prognose = _prognose_auswerten(liste, art, jetzt)
                 break
-        self.auswerten()
 
     # ------------------------------------------------------------------ Auswertung
     def _wetter(self) -> Wetter:
