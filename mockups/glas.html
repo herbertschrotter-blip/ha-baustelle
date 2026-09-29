@@ -213,6 +213,25 @@ body.hell { background: #d9dee5; color: #111; }
 .vb-je .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .vb-je span:not(.n) { text-align: right; } .vb-je b { font-weight: 600; text-align: right; }
 .fl-flaeche, .fl-linie { animation: seite .4s ease-out both; }
 
+/* Heizt: Kachel glüht am Rand warm */
+.glas-k, .c-held { position: relative; }
+.glas-k.heizt::after, .glas-k.trocknen::after, .glas-k.frost::after, .c-held.heizt::after, .c-held.trocknen::after, .c-held.frost::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 26px 1px rgba(255, 84, 40, .42), 0 0 22px rgba(255, 84, 40, .22); animation: gluehen 3.4s ease-in-out infinite; }
+.hell .glas-k.heizt::after, .hell .glas-k.trocknen::after, .hell .glas-k.frost::after, .hell .c-held.heizt::after, .hell .c-held.trocknen::after, .hell .c-held.frost::after {
+  box-shadow: inset 0 0 24px 1px rgba(240, 80, 30, .32), 0 0 20px rgba(240, 80, 30, .18); }
+@keyframes gluehen { 50% { opacity: .55; } }
+.glas-k:nth-child(3n)::after { animation-delay: -1.2s; } .glas-k:nth-child(3n+1)::after { animation-delay: -2.3s; }
+
+/* Verbrauch oben in der Container-Ansicht, Diagramm-Optionen, Bearbeiten */
+.kennz-knopf { position: relative; width: 100%; cursor: pointer; transition: transform .15s; } .kennz-knopf:active { transform: scale(.98); }
+.kennz-mehr { position: absolute; right: 12px; top: 6px; font-size: 11px; color: var(--ink2); }
+.chart-optionen { display: flex; justify-content: flex-end; } .chart-optionen .chip { font-size: 12px; font-weight: 500 !important; background: rgba(120,120,128,.18) !important; }
+.ge-zeile { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--gridc); }
+.ge-zeile.weg { justify-content: space-between; color: var(--ink2); text-decoration: line-through; } .ge-zeile.weg .chip { text-decoration: none; font-size: 12px; }
+.ge-felder { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; } .ge-shelly { font-size: 11px; }
+.ge-zwei { display: grid; grid-template-columns: 1fr 120px; gap: 6px; } .ge-zwei input, .ge-zwei select, .ge-felder > select { min-width: 0; }
+
 /* Container-Ansicht */
 .zurueck-zeile { display: flex; justify-content: space-between; }
 .c-held { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; padding: 14px; }
@@ -618,7 +637,7 @@ function daten() {
   const aussen = [...Array(25)].map((_, h) => 4.2 + 3.2 * Math.sin((h - 9) / 24 * 2 * Math.PI) + (r() - .5) * .6);
   const reihe = (n, a, b) => [...Array(n)].map(() => a + r() * (b - a));
   const bereich = (id, name, f, z, t, geraete, extra = {}) => ({ id, name, f, z, t, geraete, auto: true, trocknen: false,
-    innen: aussen.map((a, h) => t === null ? null : Math.max(a + 2, (h >= 5 && h <= 17 ? t : t - 6) + (r() - .5))),
+    innen: aussen.map((a, h) => t === null ? null : Math.max(a + 2, (h >= 7 && h <= 17 ? t : h === 6 ? t - 3 : h === 18 ? t - 2 : t - 6) + (r() - .5))),
     kwh7: reihe(7, 6, 16).map((v, i) => i > 4 ? v * .15 : v), h7: reihe(7, 3, 7).map((v, i) => i > 4 ? 0 : v), ...extra });
   const g = (n, typ, kw, an) => ({ n, typ, kw, an, hand: false });
   return {
@@ -690,18 +709,30 @@ const TEXT = b => ({ heizt: b.t === null ? 'an · Thermostat regelt' : 'heizt ·
 const schalter = (on, act, extra = '') => `<button class="sw ${on ? 'on' : ''}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
 
 /* ---------- Diagramme: dünne Marken, Haarraster, Hover-Anzeige ---------- */
-function linie(id, reihen, einheit) {
-  const W = 320, H = 150, L = 28, R = 8, T = 10, U = 22;
+function linie(id, reihen, einheit, vb = null) {
+  const W = 320, H0 = 150, L = 28, R = 8, T = 10, U = 22, H = H0 + (vb ? 74 : 0);
   const alle = reihen.flatMap(s => s.v.filter(v => v !== null));
   const lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.ceil(Math.max(...alle) / 5) * 5;
-  const x = i => L + i / 24 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U);
+  const x = i => L + i / 24 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H0 - T - U);
   const raster = [...Array((hi - lo) / 5 + 1)].map((_, k) => lo + k * 5).map(v =>
     `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}°</text>`).join('');
   const achse = [0, 6, 12, 18, 24].map(h => `<text x="${x(h)}" y="${H - 6}" class="ax" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('');
   const pfade = reihen.map((s, k) => `<path d="${s.v.map((v, i) => v === null ? '' : `${i && s.v[i - 1] !== null ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('')}" fill="none" stroke="var(--s${k + 1})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
-  CHARTS[id] = { art: 'linie', x0: L, x1: W - R, W, n: 25, reihen, einheit, y };
-  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}<g class="hover"></g></svg>
-    <div class="legende">${reihen.map((s, k) => `<span><i style="background:var(--s${k + 1})"></i>${s.name}</span>`).join('')}</div>`;
+  let streifen = '', yv = null, unten = H0 - U;
+  if (vb) {   // Verbrauch als Fläche in einem eigenen Streifen – keine zweite Skala im Temperaturbereich
+    const bt = H0 - U + 16, bb = H - U, vmax = Math.max(.5, Math.ceil(Math.max(...vb) * 2) / 2), wert = i => vb[Math.min(i, vb.length - 1)];
+    yv = v => bb - v / vmax * (bb - bt); unten = bb;
+    const d = [...Array(25)].map((_, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${yv(wert(i)).toFixed(1)}`).join('');
+    const k = reihen.length + 1;
+    streifen = `<defs><linearGradient id="vbg-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--s${k})" stop-opacity=".5"/><stop offset="1" stop-color="var(--s${k})" stop-opacity=".05"/></linearGradient></defs>
+      <line x1="${L}" x2="${W - R}" y1="${bb}" y2="${bb}" class="gr"/><line x1="${L}" x2="${W - R}" y1="${bt}" y2="${bt}" class="gr" stroke-dasharray="2 3"/>
+      <text x="${L - 5}" y="${bt + 3}" class="ax" text-anchor="end">${de(vmax, vmax % 1 ? 1 : 0)}</text><text x="${L - 5}" y="${bb + 3}" class="ax" text-anchor="end">0</text>
+      <text x="${L + 3}" y="${bt - 3}" class="ax">kWh je Stunde</text>
+      <path class="fl-flaeche" d="${d}L${x(24)} ${bb}L${x(0)} ${bb}z" fill="url(#vbg-${id})"/><path class="fl-linie" d="${d}" fill="none" stroke="var(--s${k})" stroke-width="1.5" stroke-linejoin="round"/>`;
+  }
+  CHARTS[id] = { art: 'linie', x0: L, x1: W - R, W, n: 25, reihen, einheit, y, vb, yv, unten };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}${streifen}<g class="hover"></g></svg>
+    <div class="legende">${reihen.map((s, k) => `<span><i style="background:var(--s${k + 1})"></i>${s.name}</span>`).join('')}${vb ? `<span><i style="background:var(--s${reihen.length + 1})"></i>Verbrauch</span>` : ''}</div>`;
 }
 function balken(id, werte, labels, einheit, d = 1) {
   const W = 320, H = 150, L = 28, R = 8, T = 10, U = 22, n = werte.length, hi = Math.max(...werte) * 1.15 || 1;
@@ -741,7 +772,7 @@ const MONATE = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep',
 /* Verbrauch in kWh je Stunde (Tag), je Tag (Monat) oder je Monat (Jahr); Baustelle = Summe der Container */
 function verbrauch(bereiche, cid, zeitraum) {
   const eins = (b, k) => { const r = zufall(k * 97 + b.f * 13 + 5), p = b.geraete.reduce((s, g) => s + g.kw, 0) * (b.pumpe ? .25 : 1);
-    if (zeitraum === 'Tag') return [...Array(24)].map((_, h) => { const heiz = (h >= 5 && h < 8) || h === 11 || (h >= 15 && h < 18);
+    if (zeitraum === 'Tag') return [...Array(24)].map((_, h) => { const heiz = h >= 6 && h < (b.trocknen ? 18 : 17);   // Vorheizen, Arbeitszeit, Nachheizen (+ Trocknen)
       return b.z === 'frost' ? p * (.3 + r() * .2) : b.offline && h > 10 ? 0 : heiz ? p * (.65 + r() * .3) : p * r() * .06; });
     if (zeitraum === 'Monat') return [...Array(30)].map((_, d) => { const we = [5, 6].includes((d + 1) % 7); return we ? p * r() * .6 : p * (4.2 + r() * 1.8); });
     return MONATE.map((_, m) => { const saison = [1, .95, .8, .45, .08, 0, 0, 0, .8, 1, 1.05, .95][m]; return p * 135 * saison * (.9 + r() * .2); });
@@ -874,34 +905,36 @@ class App {
     const b = this.b, tl = this.zeitleiste(b);
     const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
     if (!tabs.some(t => t[0] === this.s.chart)) this.s.chart = tabs[0][0];
-    const c = this.s.chart, tage = TAGE;
+    const c = this.s.chart, tage = TAGE, mitVb = this.s.tempVb !== false;
     const chart = c === 'temp' ? (b.t === null ? '<div class="leer">Kein Temperaturfühler zugeordnet · <button class="link" data-act="tab" data-v="einst">zuordnen</button></div>'
-        : linie('t-' + b.id, [{ name: 'Innen', v: b.innen }, { name: 'Außen', v: this.d.aussen }], '°C'))
+        : linie(`t-${b.id}-${mitVb ? 'vb' : ''}`, [{ name: 'Innen', v: b.innen }, { name: 'Außen', v: this.d.aussen }], '°C', mitVb ? verbrauch(this.d.bereiche, b.id, 'Tag') : null))
       : c === 'verbrauch' ? balken('v-' + b.id, b.kwh7, tage, 'kWh') : c === 'zyklen' ? balken('z-' + b.id, b.zyk7, tage, 'Zyklen', 0) : balken('h-' + b.id, b.h7, tage, 'h');
     const kennz = b.pumpe ? [['Zyklen heute', b.zyklen], ['Laufzeit', b.lauf], ['Längster Lauf', b.laengster]]
-      : [['Heute', `${de(b.kwh7[2])} kWh`], ['Kosten', `${de(b.kwh7[2] * this.d.e.preis, 2)} €`], ['Heizzeit', `${de(b.h7[2])} h`]];
+      : [['kWh heute', de(b.kwh7[2])], ['Kosten', `${de(b.kwh7[2] * this.d.e.preis, 2)} €`], ['Heizzeit', `${de(b.h7[2])} h`]];
     return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
         <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
-      <div class="glas-panel c-held" style="--c:${FARBE[b.z]}">
+      <div class="glas-panel c-held ${b.z}" style="--c:${FARBE[b.z]}">
         <div class="c-illu">${illu(b)}</div>
         <div class="c-text"><div class="glas-klein">${b.pumpe ? 'PUMPENSCHACHT' : 'CONTAINER'}</div><div class="glas-titel">${esc(b.name)}</div>
           <div class="c-wert">${wertHtml(b)}</div><div class="glas-status"><span class="glas-dot"></span>${TEXT(b)}</div>
-          <button class="c-kw kw-knopf" data-act="sheet" data-s="verbrauch" data-id="${b.id}">⚡ ${de(kwVon(b))} kW · Verbrauch ›</button></div>
+          <div class="c-kw">⚡ ${de(kwVon(b))} kW jetzt</div></div>
       </div>
+      <button class="glas-panel kennz kennz-knopf" data-act="sheet" data-s="verbrauch" data-id="${b.id}">${kennz.map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}<span class="kennz-mehr">Verbrauch ›</span></button>
+      <div class="glas-panel block"><div class="seg">${tabs.map(([k, t]) => `<button data-act="chart" data-c="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
+        ${c === 'temp' && b.t !== null ? `<div class="chart-optionen"><button class="chip auto-chip ${mitVb ? 'on' : ''}" data-act="temp-vb"><span class="mini-sw"><i></i></span>Verbrauch einblenden</button></div>` : ''}
+        <div class="chart-wrap">${chart}</div></div>
+      ${b.pumpe ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Vorheizen · Arbeitszeit · Nachheizen · Kleidung trocknen</span></div>${tl}
+        <div class="regelung">${b.t !== null ? `<b>🌡 Mit Fühler</b><span>regelt in der Arbeitszeit auf ${de(this.d.e.soll)} °C (jetzt ${de(b.t)} °C)</span>`
+          : `<b>Ohne Fühler</b><span>Heizung bleibt in der Arbeitszeit an, der Thermostat am Heizkörper regelt</span>`}</div></div>`}
       <div class="glas-panel liste">
         <div class="zeile"><span>♨ Automatik für ${b.pumpe ? 'diesen Schacht' : 'diesen Container'}</span>${schalter(b.auto, 'b-auto')}</div>
         ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
       </div>
-      ${b.pumpe ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Vorheizen · Arbeitszeit · Nachheizen · Kleidung trocknen</span></div>${tl}
-        <div class="regelung">${b.t !== null ? `<b>🌡 Mit Fühler</b><span>regelt in der Arbeitszeit auf ${de(this.d.e.soll)} °C (jetzt ${de(b.t)} °C)</span>`
-          : `<b>Ohne Fühler</b><span>Heizung bleibt in der Arbeitszeit an, der Thermostat am Heizkörper regelt</span>`}</div></div>`}
       <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
         ${b.geraete.map((g, i) => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">${g.typ === 'Pumpe' ? '💧' : g.typ === 'Steckdose' ? '⏻' : '♨'}</span>
           <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${g.hand ? ' · <em class="hand">Hand</em>' : ''}</span></div>
-          ${b.offline ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}</div>
-      <div class="glas-panel block"><div class="seg">${tabs.map(([k, t]) => `<button data-act="chart" data-c="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
-        <div class="chart-wrap">${chart}</div></div>
-      <div class="glas-panel kennz">${kennz.map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>
+          ${b.offline ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}
+        <button class="zeile" data-act="sheet" data-s="bereich"><span class="blau">Geräte bearbeiten</span><span class="chev">›</span></button></div>
       ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter 30 W beim Laufen)</span><span class="ok">● überwacht</span></div>
         <div class="zeile"><span>Dauerlauf über ${this.d.e.dauer_min} min</span><span class="ok">● überwacht</span></div>
         <div class="zeile"><span>Stromausfall / offline</span><span class="ok">● überwacht</span></div></div>` : ''}`;
@@ -1143,11 +1176,22 @@ class App {
       <label class="feld">Shelly<select><option>Heizung 03 (Shelly Plug S)</option><option>Heizung 04 (Shelly Plug S)</option></select></label>
       <label class="feld">Heizkörper<select><option>Ölradiator</option><option>Konvektor</option></select></label>
       ${knopf('Anlegen', 'neu-anlegen', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    if (s.art === 'bereich') { const b = this.b;
-      return `${griff}<h3>${esc(b.name)}</h3><label class="feld">Name<input value="${esc(b.name)}" data-b="name"></label>
-        ${b.geraete.map(g => `<div class="zeile"><span>${esc(g.n)}</span><select><option ${g.typ === 'Ölradiator' ? 'selected' : ''}>Ölradiator</option><option ${g.typ === 'Konvektor' ? 'selected' : ''}>Konvektor</option><option ${g.typ === 'Steckdose' ? 'selected' : ''}>Steckdose</option><option ${g.typ === 'Pumpe' ? 'selected' : ''}>Pumpe</option></select></div>`).join('')}
-        <button class="zeile" data-act="toast" data-t="Gerät wird über HA hinzugefügt"><span class="blau">+ Gerät</span></button>
-        ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}`; }
+    if (s.art === 'bereich') {
+      const b = this.b, e = s.edit ||= { name: b.name, geraete: b.geraete.map(g => ({ ...g })) };
+      const typen = b.pumpe ? ['Pumpe'] : ['Ölradiator', 'Konvektor', 'Steckdose'];
+      const wahl = (i, g) => `<select data-ge="typ" data-i="${i}">${typen.map(t => `<option ${g.typ === t ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+      return `${griff}<div class="block-kopf"><h3>Bearbeiten</h3><span class="leise">${b.pumpe ? 'Pumpenschacht' : 'Container'}</span></div>
+        <label class="feld">Name<input value="${esc(e.name)}" data-b="name"></label>
+        <div class="gruppe-t">${b.pumpe ? 'Pumpen' : 'Geräte'} · ${e.geraete.filter(g => !g.weg).length}</div>
+        ${e.geraete.map((g, i) => g.weg ? `<div class="ge-zeile weg"><span>${esc(g.n)} wird entfernt</span><button class="chip glas-panel" data-act="ge-zurueck" data-i="${i}">rückgängig</button></div>`
+          : `<div class="ge-zeile"><div class="ge-felder">
+            ${g.neu ? `<select data-ge="shelly" data-i="${i}">${['Heizung 03 · Shelly Plug S', 'Heizung 04 · Shelly Plug S', 'Pumpe 3 · Shelly Plus 1PM'].map(x => `<option ${g.shelly === x ? 'selected' : ''}>${x}</option>`).join('')}</select>` : `<span class="leise ge-shelly">${esc(g.shelly || g.n.toLowerCase().replace(/[^a-z0-9]+/g, '_'))} · Shelly Plug S</span>`}
+            <div class="ge-zwei"><input value="${esc(g.n)}" data-ge="n" data-i="${i}" placeholder="Name">${wahl(i, g)}</div></div>
+            <button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
+        <button class="zeile" data-act="ge-neu"><span class="blau">+ Gerät hinzufügen</span></button>
+        <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
+        ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
     if (s.art === 'baustelle') { const b = this.d.baustellen[s.i], r = zufall(s.i + 3), m = ['Sep', 'Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär', 'Apr'].slice(0, b.aktiv ? 2 : 6);
       return `${griff}<h3>${esc(b.name)}</h3><div class="leise">${b.zeit}</div>
         <div class="kennz"><div><b>${de(b.kwh, 0)}</b><span>kWh</span></div><div><b>${de(b.eur, 2)} €</b><span>Kosten</span></div><div><b>${b.container}</b><span>Container</span></div></div>
@@ -1216,7 +1260,15 @@ class App {
         d.bereiche.push({ id: 'n' + d.bereiche.length, name, f: d.bereiche.length, z: p ? 'aus' : 'aus', t: null, auto: true, trocknen: false, pumpe: p, zyklen: 0, lauf: '0 min', laengster: '–',
           innen: [], kwh7: Array(7).fill(0), h7: Array(7).fill(0), zyk7: Array(7).fill(0), geraete: [{ n: p ? 'Pumpe 1' : 'Heizung 03', typ: p ? 'Pumpe' : 'Ölradiator', kw: p ? .76 : 2, an: 0, hand: false }] });
         this.s.sheet = null; neu(); return this.toast(`${name} angelegt`); }
-      case 'b-speichern': { const v = this.root.querySelector('[data-b="name"]').value.trim(); if (v) b.name = v; this.s.sheet = null; neu(); return this.toast('Gespeichert'); }
+      case 'b-speichern': { const e = this.s.sheet.edit, kw = { Ölradiator: 2, Konvektor: 2, Steckdose: .5, Pumpe: .76 };
+        if (e.name.trim()) b.name = e.name.trim();
+        const weg = e.geraete.filter(g => g.weg).length;
+        b.geraete = e.geraete.filter(g => !g.weg).map(g => g.neu ? { n: g.n || g.shelly.split(' · ')[0], typ: g.typ, kw: kw[g.typ], an: 0, hand: false } : { ...g });
+        this.s.sheet = null; neu(); return this.toast(weg ? `Gespeichert · ${weg} entfernt – Werte bleiben im Verlauf` : 'Gespeichert'); }
+      case 'ge-weg': { const g = this.s.sheet.edit.geraete[+el.dataset.i]; if (g.neu) this.s.sheet.edit.geraete.splice(+el.dataset.i, 1); else g.weg = true; return neu(); }
+      case 'ge-zurueck': this.s.sheet.edit.geraete[+el.dataset.i].weg = false; return neu();
+      case 'ge-neu': this.s.sheet.edit.geraete.push({ neu: true, shelly: 'Heizung 03 · Shelly Plug S', n: '', typ: b.pumpe ? 'Pumpe' : 'Ölradiator' }); return neu();
+      case 'temp-vb': this.s.tempVb = this.s.tempVb === false; return neu();
       case 'b-weg': d.bereiche = d.bereiche.filter(x => x !== b); this.toast(`${b.name} entfernt – Werte bleiben im Verlauf`); return this.gehe('uebersicht');
     }
   }
@@ -1224,6 +1276,8 @@ class App {
     const el = ev.target;
     if (el.dataset.k === 'preis') this.d.e.preis = +el.value || 0;
     if (el.dataset.azn) this.s.sheet.form[el.dataset.azn] = el.value;
+    if (el.dataset.ge) this.s.sheet.edit.geraete[+el.dataset.i][el.dataset.ge] = el.value;
+    if (el.dataset.b === 'name' && this.s.sheet?.edit) this.s.sheet.edit.name = el.value;
     if (el.dataset.azt) this.s.sheet.form.tage[el.dataset.azt][+el.dataset.p] = el.value;
   }
   hover(ev) {
@@ -1239,8 +1293,11 @@ class App {
     }
     if (c.art === 'linie') {
       const vx = fx * c.W, i = Math.max(0, Math.min(24, Math.round((vx - c.x0) / (c.x1 - c.x0) * 24))), x = c.x0 + i / 24 * (c.x1 - c.x0);
-      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="128" class="kreuz"/>` + c.reihen.map((s, k) => s.v[i] === null ? '' : `<circle cx="${x}" cy="${c.y(s.v[i])}" r="4" fill="var(--s${k + 1})" class="punkt"/>`).join('');
-      this.tip(ev, `<b>${String(i).padStart(2, '0')}:00</b>${c.reihen.map((s, k) => s.v[i] === null ? '' : `<div><i style="background:var(--s${k + 1})"></i>${s.name} <b>${de(s.v[i])} ${c.einheit}</b></div>`).join('')}`);
+      const v = c.vb ? c.vb[Math.min(i, c.vb.length - 1)] : null, kv = c.reihen.length + 1;
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="${c.unten}" class="kreuz"/>` + c.reihen.map((s, k) => s.v[i] === null ? '' : `<circle cx="${x}" cy="${c.y(s.v[i])}" r="4" fill="var(--s${k + 1})" class="punkt"/>`).join('')
+        + (c.vb ? `<circle cx="${x}" cy="${c.yv(v)}" r="3.5" fill="var(--s${kv})" class="punkt"/>` : '');
+      this.tip(ev, `<b>${String(i).padStart(2, '0')}:00</b>${c.reihen.map((s, k) => s.v[i] === null ? '' : `<div><i style="background:var(--s${k + 1})"></i>${s.name} <b>${de(s.v[i])} ${c.einheit}</b></div>`).join('')}`
+        + (c.vb ? `<div><i style="background:var(--s${kv})"></i>Verbrauch <b>${de(v, 2)} kWh</b></div>` : ''));
     } else {
       const bar = ev.target.closest('.bar'); svg.querySelectorAll('.bar').forEach(x => x.classList.toggle('matt', !!bar && x !== bar));
       if (!bar) return this.tip(null); const i = +bar.dataset.i;
