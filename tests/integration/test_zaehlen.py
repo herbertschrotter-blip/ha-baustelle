@@ -20,15 +20,15 @@ async def baustelle(hass: HomeAssistant, freezer):
     for eid, wert in {
         "switch.hk1": "off", "sensor.hk1_power": "0", "sensor.hk1_energy": "10.0",
         "switch.hk2": "off", "sensor.hk2_power": "0",
-        "switch.p1": "on", "sensor.p1_power": "0",
+        "switch.p1": "on", "sensor.p1_power": "0", "sensor.c_temp": "10.0", "sensor.aussen": "2.0",
     }.items():
         hass.states.async_set(eid, wert)
     entry = MockConfigEntry(
         domain=DOMAIN, title="Z", data={"name": "Z"},
         options={"heizung": True, "pumpen": True, "status": "aktiv", "beginn": "2026-09-01",
-                 "heizperiode_von": "10", "heizperiode_bis": "4", "empfaenger": []},
+                 "heizperiode_von": "10", "heizperiode_bis": "4", "empfaenger": [], "temp_sensor": "sensor.aussen"},
         subentries_data=[
-            _sub("c", "bereich", "C", {"name": "C", "art": "container"}),
+            _sub("c", "bereich", "C", {"name": "C", "art": "container", "fuehler": "sensor.c_temp"}),
             _sub("s", "bereich", "S", {"name": "S", "art": "pumpenschacht"}),
             _sub("h1", "geraet", "HK1", {"bereich": "c", "schalter": "switch.hk1", "name": "HK1", "rolle": "heizkoerper",
                                          "typ": "oelradiator", "leistung": "sensor.hk1_power", "energie": "sensor.hk1_energy"}),
@@ -127,3 +127,23 @@ async def test_abgeschlossen_zaehlt_nicht(hass: HomeAssistant, baustelle) -> Non
     assert baustelle.runtime_data.zaehler.get("energie", 0.0) == 0.0
     # Sensoren und ihre Statistik bleiben vorhanden
     assert er.async_get(hass).async_get_entity_id("sensor", DOMAIN, f"{baustelle.entry_id}_energie")
+
+
+async def test_aufheizen_abkuehlen_gradstunden(hass: HomeAssistant, baustelle, freezer) -> None:
+    st = baustelle.runtime_data
+    hass.states.async_set("switch.hk2", "on")
+    for i in range(16):  # 1 h heizen in 4-min-Schritten: 10 → 13 °C
+        hass.states.async_set("sensor.c_temp", str(10.0 + i * 0.2))
+        await hass.async_block_till_done()
+        freezer.tick(timedelta(minutes=4))
+        st.auswerten()
+    assert st.zaehler["aufheiz:c"] == pytest.approx(3.0, abs=0.6)
+    hass.states.async_set("switch.hk2", "off")
+    await hass.async_block_till_done()
+    for i in range(18):  # 72 min aus: 13 → 11,6 °C
+        hass.states.async_set("sensor.c_temp", str(13.0 - i * 0.08))
+        await hass.async_block_till_done()
+        freezer.tick(timedelta(minutes=4))
+        st.auswerten()
+    assert st.zaehler["abkuehl:c"] == pytest.approx(1.2, abs=0.4)
+    assert st.zaehler["gradh:c"] > 10

@@ -76,7 +76,12 @@ from .logik.heizung import (
 )
 from .logik.pumpen import Problem, PumpenRegeln, PumpenZustand, baustelle_offline, laeuft, pruefe
 from .logik.zaehlen import (
+    ABKUEHL_MIN_H,
+    AUFHEIZ_MIN_H,
     energie_zuwachs,
+    gradstunden,
+    mittel,
+    rate,
     hochrechnung,
     leistung_integriert,
     mittel_im_betrieb,
@@ -172,6 +177,7 @@ class Steuerung:
         self.geraet_ids: dict[str, str] = {}  # Baustelle/Bereich → Geräte-ID in der Geräteverwaltung
         self._letzte_auswertung: datetime | None = None
         self._gestartet = dt_util.now()
+        self._phase: dict[str, tuple[bool, datetime, float]] = {}  # Bereich → (heizt, seit, Temperatur beim Beginn)
 
     # ------------------------------------------------------------------ Einrichtung
     @property
@@ -656,7 +662,30 @@ class Steuerung:
                     self._energie_buchen(g, leistung_integriert(leistung, stunden))
             if heizt:
                 self._zaehler_plus(f"heizzeit:{bid}", stunden)
+            self._temperaturverhalten(bid, heizt, jetzt, stunden)
         self._zaehler_plus("ohne", ohne_w * stunden / 1000)
+
+    def _temperaturverhalten(self, bid: str, heizt: bool, jetzt: datetime, stunden: float) -> None:
+        """Aufheiz- und Abkühlrate (°C/h) und Gradstunden innen–außen eines Containers mit Fühler."""
+        info = self.bereiche[bid]
+        innen = self._temperatur(info.fuehler)
+        if info.art != ART_CONTAINER or innen is None:
+            self._phase.pop(bid, None)
+            return
+        self._zaehler_plus(f"gradh:{bid}", gradstunden(innen, self.daten.wetter.aussen, stunden))
+        phase = self._phase.get(bid)
+        if phase is None or phase[0] != heizt:
+            self._phase[bid] = (heizt, jetzt, innen)
+            return
+        dauer = (jetzt - phase[1]).total_seconds() / 3600
+        if dauer < (AUFHEIZ_MIN_H if heizt else ABKUEHL_MIN_H):
+            return
+        aenderung = rate(phase[2], innen, dauer)
+        key = f"aufheiz:{bid}" if heizt else f"abkuehl:{bid}"
+        if aenderung is not None and (aenderung > 0 if heizt else aenderung < 0):
+            self.zaehler[key] = mittel(self.zaehler.get(key), abs(aenderung))
+            self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
+        self._phase[bid] = (heizt, jetzt, innen)
 
     def ersparnis_kwh(self) -> float:
         """Was 24-h-Dauerbetrieb mehr verbraucht hätte als tatsächlich geheizt wurde."""

@@ -4,7 +4,7 @@ Eigene Home-Assistant-Integration **Baustelle**: Heizkörper in Baustellencontai
 schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und Shellys, die man in HA zuordnet.
 Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mockups/README.md`).
 
-## Stand 0.5.0 (Stufen 1–6 des Bauplans)
+## Stand 0.6.0 (Stufen 1–6 des Bauplans)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (was dranhängt: Heizkörper, Bautrockner, Pumpe,
@@ -25,6 +25,8 @@ Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mocku
 - **Diagnose-Download** je Baustelle, **Reparatur-Hinweise** bei fehlenden Entitäten (Stufe 5).
 - **Eigene Seite „Baustelle“** (Stufe 6) in der Seitenleiste, nach dem abgenommenen Entwurf: Übersicht, Heizung,
   Pumpen, Auswertung, Verlauf, Einstellungen, Baustellen-Umschalter, Animationen und Diagramme – mit echten Daten.
+  Anlegen und Ändern (Baustellen, Container, Shellys, Wetter, Kalender, Empfänger) geht direkt auf der Seite über
+  die Einrichtungs-Dialoge von HA.
 
 ## Aufbau
 

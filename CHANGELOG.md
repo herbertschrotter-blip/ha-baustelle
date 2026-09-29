@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0] – 2026-09-29
+
+- Seite, Einstellungen: Baustellen anlegen, Status/Optionen ändern, Container/Pumpenschächte und Shellys anlegen,
+  ändern und entfernen, Wetter, Kalender und Empfänger wählen – direkt auf der Seite, über dieselben
+  Einrichtungs-Dialoge wie in HA (REST `config_entries/…/flow`, Prüfungen der Integration gelten weiter).
+- Seite: Wettervorhersage 3 Tage (`weather/subscribe_forecast`), „Kleidung trocknen“ schraffiert in der Zeitleiste,
+  Temperatur-Tagesmittel (7/30 Tage, Heizperiode), Pumpzyklen je Tag, Ereignisse je Baustelle aus dem Logbuch.
+- Vergleich Ölradiator/Konvektor: Aufheiz- und Abkühlrate (°C/h) und kWh je Tag und Grad innen/außen –
+  gemessen je Container mit Fühler.
+
 ## [0.5.1] – 2026-09-29
 
 - Seite: Diagramm-Farben fehlten (Balken schwarz, Legende ohne Farben) – Palette wieder drin, im Test geprüft.

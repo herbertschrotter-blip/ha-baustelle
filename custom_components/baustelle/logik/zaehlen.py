@@ -53,3 +53,30 @@ def hochrechnung(summe: float, tage_gezaehlt: float, tage_ziel: int) -> float | 
     if tage_gezaehlt < 1:
         return None
     return summe / tage_gezaehlt * tage_ziel
+
+
+# Temperaturverhalten eines Containers (Vergleich Ölradiator/Konvektor)
+RATE_GEWICHT = 0.3
+AUFHEIZ_MIN_H = 0.5   # so lange muss durchgehend geheizt werden, bevor eine Aufheizrate zählt
+ABKUEHL_MIN_H = 1.0   # so lange muss durchgehend aus sein, bevor eine Abkühlrate zählt
+
+
+def rate(t_start: float, t_jetzt: float, stunden: float) -> float | None:
+    """Temperaturänderung in °C je Stunde; None, wenn die Zeit zu kurz ist."""
+    if stunden <= 0:
+        return None
+    return (t_jetzt - t_start) / stunden
+
+
+def mittel(bisher: float | None, neu: float | None, gewicht: float = RATE_GEWICHT) -> float | None:
+    """Gleitendes Mittel für Raten."""
+    if neu is None:
+        return bisher
+    return neu if bisher is None else bisher + gewicht * (neu - bisher)
+
+
+def gradstunden(innen: float | None, aussen: float | None, stunden: float) -> float:
+    """Temperaturunterschied innen–außen × Zeit (nur wenn innen wärmer ist)."""
+    if innen is None or aussen is None or stunden <= 0:
+        return 0.0
+    return max(0.0, innen - aussen) * stunden

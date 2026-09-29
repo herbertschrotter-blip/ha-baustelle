@@ -43,17 +43,27 @@ for (const b of struktur) for (const [k, eid] of Object.entries(b.entitaeten)) {
 }
 for (const g of zwei.geraete) { setze(g.schalter, 'on'); if (g.leistung) setze(g.leistung, '1980'); }
 setze('weather.baustelle', 'rainy', { temperature: 4.2 });
-const aufrufe = [];
+const aufrufe = [], dialoge = [];
+echt.zaehler = { 'aufheiz:BEREICH1': 2.4, 'abkuehl:BEREICH1': 1.1, 'gradh:BEREICH1': 480, 'energie:BEREICH1': 36 };
 const start = Date.now() / 1000 - 3600 * 5;
 const hass = {
   states, themes: { darkMode: false },
+  services: { notify: { mobile_app_herbert: {}, send_message: {} } },
+  connection: { subscribeMessage: (cb, msg) => { cb({ forecast: [0, 1, 2].map(i => ({ datetime: new Date(Date.now() + i * 86400000).toISOString(), condition: 'rainy', temperature: 8 + i, templow: 1 - i, precipitation: 2.5 })) }); return Promise.resolve(() => {}); } },
   callWS: async m => {
     if (m.type === 'baustelle/struktur') return struktur;
     if (m.type === 'history/history_during_period') return Object.fromEntries(m.entity_ids.map(e => [e, [{ s: 'off', lu: start }, { s: 'on', lu: start + 3600 }, { s: '1500', lu: start + 7200 }]]));
-    if (m.type === 'recorder/statistics_during_period') return Object.fromEntries(m.statistic_ids.map(e => [e, [0, 1, 2].map(i => ({ start: Date.now() - i * 86400000, change: 3 + i }))]));
+    if (m.type === 'recorder/statistics_during_period') return Object.fromEntries(m.statistic_ids.map(e => [e, [0, 1, 2].map(i => ({ start: Date.now() - i * 86400000, change: 3 + i, mean: 12 - i }))]));
+    if (m.type === 'logbook/get_events') return m.entity_ids.map((e, i) => ({ entity_id: e, state: i % 2 ? 'on' : 'off', when: Date.now() / 1000 - i * 3600 }));
+    if (m.type === 'config_entries/subentries/delete') { dialoge.push(['loeschen', m.subentry_id]); return {}; }
     return {};
   },
-  callApi: async () => [{ summary: 'Weihnachten', start: { date: '2026-12-23' }, end: { date: '2027-01-07' }, uid: 'u1' }],
+  callApi: async (methode, pfad, daten) => {
+    if (methode === 'GET') return [{ summary: 'Weihnachten', start: { date: '2026-12-23' }, end: { date: '2027-01-07' }, uid: 'u1' }];
+    if (/flow$/.test(pfad)) { dialoge.push(['start', pfad, daten]); return { type: 'form', flow_id: 'F1' }; }
+    dialoge.push(['daten', pfad, daten]);
+    return pfad.includes('subentries') ? { type: 'abort', reason: 'reconfigure_successful' } : { type: 'create_entry', result: { entry_id: 'NEU' } };
+  },
   callService: async (d, s, data) => aufrufe.push([d, s, data]),
 };
 (async () => {
@@ -66,7 +76,7 @@ const hass = {
   const tabs = ['uebersicht', 'heizung', 'pumpen', 'auswertung', 'verlauf', 'einstellungen'];
   for (const bid of ['ENTRY1', 'E2']) {
     p.ui.bid = bid;
-    for (const tab of tabs) for (const per of ['d', '7', 'hp']) for (const sub of ['baustellen', 'diese', 'wetter', 'urlaub']) {
+    for (const tab of tabs) for (const per of ['d', '7', 'hp']) for (const sub of ['baustellen', 'diese', 'wetter', 'urlaub', 'meldungen']) {
       Object.assign(p.ui, { tab, per, sub, hsel: 'E3' });
       p._seite();                                     // Abfragen anstoßen
       await new Promise(r => setTimeout(r, 5));       // Antworten einsammeln
@@ -78,7 +88,39 @@ const hass = {
   }
   p.ui.tab = 'heizung'; const html = p._seite();
   console.log('Heizung enthält Animation:', /class="a run/.test(html), '· Zeitplan-Zeilen:', (html.match(/data-time=/g) || []).length);
-  p.ui.tab = 'uebersicht'; console.log('Übersicht Zeitleiste:', /<svg class="ch"/.test(p._seite()), '· Warnung:', /Heizkörper selbst an/.test(p._seite()));
+  p.ui.tab = 'uebersicht'; const ue = p._seite();
+  console.log('Übersicht Zeitleiste:', /<svg class="ch"/.test(ue), '· Warnung:', /Heizkörper selbst an/.test(ue), '· Vorhersage:', /°C<\/div>[\s\S]*mm<\/span><\/div>/.test(ue));
+  p.ui.bid = 'ENTRY1'; p.ui.tab = 'auswertung'; p.ui.per = '7'; p._seite(); await new Promise(r => setTimeout(r, 5));
+  const au = p._seite(); const vglOk = /2,4 °C\/h/.test(au) && /Temperatur je Tag/.test(au); console.log('Vergleich Aufheizen + Temperatur-Mittel:', vglOk); if (!vglOk) fehler++;
+  p.ui.tab = 'verlauf'; p.ui.hsel = 'ENTRY1'; p._seite(); await new Promise(r => setTimeout(r, 5));
+  console.log('Ereignisse:', /Automatik (ein|aus)geschaltet|Status:/.test(p._seite()));
+  // Formulare der Einstellungen rendern
+  p.ui.bid = 'ENTRY1'; p.ui.tab = 'einstellungen';
+  for (const form of [['baustellen', { art: 'optionen', id: 'ENTRY1' }], ['baustellen', { art: 'neu' }], ['diese', { art: 'bereich' }], ['diese', { art: 'bereich', id: 'BEREICH1' }],
+    ['diese', { art: 'geraet', bereich: 'BEREICH1' }], ['diese', { art: 'geraet', id: 'GERAET1' }], ['diese', { art: 'geraet-loeschen', id: 'GERAET1' }], ['wetter', { art: 'wetter' }],
+    ['urlaub', { art: 'kalender' }], ['urlaub', { art: 'urlaub' }]]) {
+    p.ui.sub = form[0]; p.ui.form = form[1];
+    const h = p._seite();
+    if (!/class="form"/.test(h) || /undefined|NaN/.test(h)) { fehler++; console.log('FORMULAR', JSON.stringify(form), (h.match(/.{60}(undefined|NaN).{30}/) || [''])[0]); }
+  }
+  // Speichern → Einrichtungs-Dialoge von HA
+  const werte = { name: 'Container 2', art: 'container', fuehler: '', bereich: 'BEREICH1', schalter: 'switch.neu', rolle: 'heizkoerper', typ: 'oelradiator',
+    wetter: 'weather.baustelle', temp_sensor: '', regen_sensor: '' };
+  p.shadowRoot.querySelector = sel => { const k = (sel.match(/data-f="([^"]+)"/) || [])[1]; return k in werte ? { value: werte[k], type: 'text' } : null; };
+  p.shadowRoot.querySelectorAll = () => [{ checked: true, value: 'mobile_app_herbert' }];
+  p.ui.form = { art: 'bereich' }; await p._einstellungAktion('bereich-speichern', {}, p.B());
+  p.ui.form = { art: 'geraet', bereich: 'BEREICH1' }; await p._einstellungAktion('geraet-speichern', {}, p.B());
+  p.ui.form = { art: 'wetter' }; await p._einstellungAktion('wetter-speichern', {}, p.B());
+  await p._einstellungAktion('meldungen-speichern', {}, p.B());
+  p.ui.form = { art: 'geraet-loeschen', id: 'GERAET1' }; await p._einstellungAktion('geraet-entfernen', {}, p.B());
+  const pfade = dialoge.map(d => d[0] + ':' + (d[1] || ''));
+  console.log('Dialoge:', pfade.join(' | '));
+  const optionen = dialoge.filter(d => d[0] === 'daten' && d[1].includes('options')).map(d => d[2]);
+  const dialogOk = dialoge.some(d => d[0] === 'start' && JSON.stringify(d[2]).includes('"bereich"')) && dialoge.some(d => d[0] === 'start' && JSON.stringify(d[2]).includes('"geraet"'))
+    && optionen.length === 2 && optionen[0].wetter === 'weather.baustelle' && !('temp_sensor' in optionen[0]) && optionen[0].heizung === true
+    && JSON.stringify(optionen[1].empfaenger) === '["mobile_app_herbert"]' && dialoge.some(d => d[0] === 'loeschen' && d[1] === 'GERAET1');
+  console.log('Einrichtungs-Dialoge richtig aufgerufen:', dialogOk);
+  if (!dialogOk) fehler++;
   // Bedienung
   p._aenderung({ composedPath: () => [{ dataset: { num: 'number.x' }, value: '7' }] });
   p._aenderung({ composedPath: () => [{ dataset: { time: 'time.x' }, value: '05:30' }] });

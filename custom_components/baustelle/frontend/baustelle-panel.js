@@ -306,6 +306,10 @@ const GRUND = { automatik_aus: 'Automatik aus', frostschutz: 'Frostschutz', hand
 const PROBLEM = { offline: 'nicht erreichbar – Stromausfall oder Verbindung weg?', trockenlauf: 'läuft, zieht aber zu wenig – Trockenlauf?',
   dauerlauf: 'läuft ohne Pause – Schwimmer oder starker Zufluss?',
   keine_leistung: 'eingeschaltet, zieht aber keinen Strom – Heizkörper selbst an? Stecker, Sicherung?' };
+const FEHLER = { keine_funktion: 'Mindestens eine Funktion einschalten.', geraete_vergeben: 'Einige Shellys gehören inzwischen einer anderen aktiven Baustelle.',
+  name_vergeben: 'Diesen Namen gibt es schon.', schalter_vergeben: 'Dieser Shelly ist in dieser Baustelle schon zugeordnet.',
+  schalter_andere_baustelle: 'Dieser Shelly gehört einer anderen aktiven Baustelle – die zuerst abschließen.', kein_bereich: 'Zuerst einen Container oder Bereich anlegen.',
+  rolle_passt_nicht: 'Pumpen gehören in einen Pumpenschacht, alles andere in einen Container.', already_configured: 'Diese Baustelle gibt es schon.' };
 const OPTION = { zeitplan: 'Zeitplan', thermostat: 'Thermostat', hand: 'Hand', aus: 'Aus', frost: 'Nur Frostschutz',
   absenken: 'Absenken', jetzt: 'aktueller Temperatur', tageshoechst: 'Tageshöchstwert (Vorhersage)' };
 const ROLLE = { heizkoerper: 'Heizkörper', bautrockner: 'Bautrockner', pumpe: 'Pumpe', steckdose: 'Steckdose' };
@@ -338,7 +342,26 @@ class BaustellePanel extends HTMLElement {
     this._hass = h;
     if (erst) { this._laden(); this._timer = setInterval(() => this._laden(), 60000); }
     this.toggleAttribute('dunkel', !!(h.themes && h.themes.darkMode));
+    this._vorhersageAbo();
     this._planen();
+  }
+
+  _vorhersageAbo() {
+    const b = this.baustellen && this.B();
+    const eid = b && b.baustelle.optionen.wetter;
+    if (!eid || this._aboFuer === eid || !this._hass.connection) return;
+    this._aboEnde();
+    this._aboFuer = eid;
+    this.vorhersage = null;
+    this._abo = this._hass.connection.subscribeMessage(m => { this.vorhersage = m.forecast; this._planen(); },
+      { type: 'weather/subscribe_forecast', entity_id: eid, forecast_type: 'daily' });
+    this._abo.catch(() => { this._aboFuer = null; });
+  }
+
+  _aboEnde() {
+    if (this._abo) this._abo.then(ende => ende()).catch(() => {});
+    this._abo = null;
+    this._aboFuer = null;
   }
   get hass() { return this._hass; }
   set narrow(n) { this._narrow = n; this._planen(); }
@@ -354,13 +377,14 @@ class BaustellePanel extends HTMLElement {
     sr.addEventListener('pointermove', e => this._tooltip(e));
     sr.addEventListener('pointerleave', () => { const t = sr.querySelector('.tip'); if (t) t.style.display = 'none'; });
   }
-  disconnectedCallback() { clearInterval(this._timer); this._timer = null; this._hass = this._hass; }
+  disconnectedCallback() { clearInterval(this._timer); this._timer = null; this._aboEnde(); }
 
   /* ---------------------------------------------------------------- Daten */
   async _laden() {
     try {
       this.baustellen = await this._hass.callWS({ type: 'baustelle/struktur' });
       this.fehler = null;
+      this._vorhersageAbo();
     } catch (e) { this.fehler = e.message || String(e); }
     this._planen();
   }
@@ -515,7 +539,9 @@ class BaustellePanel extends HTMLElement {
       <div class="sec">
         <div class="heading">Jetzt <span class="sub">${new Date().toLocaleString('de-AT', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
         ${wetter ? `<div class="card"><div style="display:flex;align-items:center;gap:12px"><div style="font-size:38px">${this._wetterSymbol(wetter.state)}</div>
-          <div><div class="big">${de(wetter.attributes.temperature)} °C</div><div class="muted">${esc(this._hass.formatEntityState ? this._hass.formatEntityState(wetter) : wetter.state)}</div></div></div></div>`
+          <div><div class="big">${de(wetter.attributes.temperature)} °C</div><div class="muted">${esc(this._hass.formatEntityState ? this._hass.formatEntityState(wetter) : wetter.state)}</div></div></div>
+          ${this.vorhersage && this.vorhersage.length ? `<div class="grid3" style="margin-top:10px;text-align:center;font-size:12px">${this.vorhersage.slice(0, 3).map(v =>
+            `<div>${new Date(v.datetime).toLocaleDateString('de-AT', { weekday: 'short' })}<br>${this._wetterSymbol(v.condition)} ${de(v.temperature, 0)}° / ${de(v.templow, 0)}°<br><span class="muted">${de(v.precipitation ?? 0)} mm</span></div>`).join('')}</div>` : ''}</div>`
           : `<div class="card info-card">Kein Wetter eingestellt. ${this.link('Wetter wählen', INTEGRATION)}</div>`}
         <div class="grid3">
           ${this._kachel('🌡', 'Außen', `${de(this.N(this.E(b, 'aussen')))} °C`)}
@@ -560,9 +586,27 @@ class BaustellePanel extends HTMLElement {
 
   _zeitleiste(b, ids, id) {
     const W = this._breite(), start = mitternacht();
-    const h = this._historie(ids, start);
+    const gruende = b.bereiche.map(x => this.E(b, 'grund', x.id)).filter(Boolean);
+    const h = this._historie([...ids, ...gruende], start);
     if (h === undefined) return '<div class="muted">Lädt …</div>';
     const jetzt = new Date(), jetztMin = (jetzt - start) / 60000;
+    const zeitpunkt = e => Math.max(0, ((e.lu || e.lc || 0) * 1000 - start) / 60000);
+    const trocknen = {};
+    for (const x of b.bereiche) {
+      const liste = (h && h[this.E(b, 'grund', x.id)]) || [];
+      trocknen[x.id] = liste.map((e, i) => [zeitpunkt(e), i + 1 < liste.length ? zeitpunkt(liste[i + 1]) : jetztMin, e.s ?? e.state])
+        .filter(z => z[2] === 'kleidung_trocknen');
+    }
+    const schneiden = (segs, zeiten) => segs.flatMap(([von, bis, k]) => {
+      if (k !== 'on') return [[von, bis, k]];
+      const teile = []; let pos = von;
+      for (const [tv, tb] of zeiten.filter(z => z[1] > von && z[0] < bis).sort((p, q) => p[0] - q[0])) {
+        if (tv > pos) teile.push([pos, tv, 'on']);
+        teile.push([Math.max(pos, tv), Math.min(bis, tb), 'extra']); pos = Math.min(bis, tb);
+      }
+      if (pos < bis) teile.push([pos, bis, 'on']);
+      return teile;
+    });
     const rows = ids.map(eid => {
       const g = b.geraete.find(x => x.schalter === eid) || { name: eid, bereich: '' };
       const liste = (h && h[eid]) || [];
@@ -575,10 +619,11 @@ class BaustellePanel extends HTMLElement {
         else if (s === 'unavailable') segs.push([von, Math.max(von + 1, bis), 'off']);
       });
       const idx = b.bereiche.findIndex(x => x.id === g.bereich);
-      return { name: this._narrow ? g.name : `${this._bereichName(b, g.bereich)} · ${g.name}`, color: sc(idx < 0 ? 0 : idx), onLabel: g.rolle === 'pumpe' ? 'läuft' : 'ein', segs };
+      return { name: this._narrow ? g.name : `${this._bereichName(b, g.bereich)} · ${g.name}`, color: sc(idx < 0 ? 0 : idx), onLabel: g.rolle === 'pumpe' ? 'läuft' : 'ein',
+        segs: g.rolle === 'pumpe' ? segs : schneiden(segs, trocknen[g.bereich] || []) };
     });
     if (!rows.length) return '<div class="muted">Noch keine Geräte zugeordnet.</div>';
-    return timeline({ id: `tl${id}`, W, now: jetztMin, rows }) + legend([...b.bereiche.map((x, i) => [x.name, sc(i)]), ['nicht erreichbar', 'var(--crit)', 'hatch']]);
+    return timeline({ id: `tl${id}`, W, now: jetztMin, rows }) + legend([...b.bereiche.map((x, i) => [x.name, sc(i)]), ['Kleidung trocknen', 'var(--muted)', 'hatch'], ['nicht erreichbar', 'var(--crit)', 'hatch']]);
   }
 
   _breite() { return this._narrow ? 340 : Math.min(1100, Math.max(600, (this.clientWidth || 1000) - 60)); }
@@ -668,6 +713,8 @@ class BaustellePanel extends HTMLElement {
         <div class="card info-card klein">Stromausfall erkennt HA daran, dass die Shellys nicht mehr antworten. Fällt das Internet der Baustelle aus, sieht das gleich aus.</div></div>
       <div class="sec span3"><div class="heading">Pumpzeit je Tag <span class="sub">Stunden, letzte 14 Tage</span></div><div class="card">
         ${this._tagesSaeulen(pumpen.map((g, i) => [this.E(b, 'pumpzeit', g.id), g.name, sc(b.bereiche.length + i)]), 14, 'h', false)}</div></div>
+      <div class="sec span3"><div class="heading">Pumpzyklen je Tag <span class="sub">letzte 14 Tage</span></div><div class="card">
+        ${this._tagesSaeulen(pumpen.map((g, i) => [this.E(b, 'pumpzyklen', g.id), g.name, sc(b.bereiche.length + i)]), 14, 'Zyklen', false)}</div></div>
     </div>`;
   }
 
@@ -716,13 +763,20 @@ class BaustellePanel extends HTMLElement {
         <div class="sec span3"><div class="heading">Heizzeit je ${was} <span class="sub">Stunden je Container</span></div><div class="card">
           ${this._tagesSaeulen(heizBereiche.map(x => [this.E(b, 'heizzeit', x.id), x.name, sc(b.bereiche.indexOf(x))]), tage, 'h', false, periode, start)}</div></div>
         <div class="sec span3"><div class="heading">Kosten je ${was}</div><div class="card">
-          ${this._tagesSaeulen(bereiche.map(x => [this.E(b, 'kosten', x.id), x.name, sc(b.bereiche.indexOf(x))]), tage, '€', true, periode, start)}</div></div>`;
+          ${this._tagesSaeulen(bereiche.map(x => [this.E(b, 'kosten', x.id), x.name, sc(b.bereiche.indexOf(x))]), tage, '€', true, periode, start)}</div></div>
+        <div class="sec span3"><div class="heading">Temperatur je ${was} <span class="sub">Mittel °C</span></div><div class="card">
+          ${this._mittelTemperatur([...heizBereiche.filter(x => x.fuehler).map(x => [x.fuehler, x.name, sc(b.bereiche.indexOf(x))]), [this.E(b, 'aussen'), 'Außen', 'var(--muted)', true]], tage, periode, start)}</div></div>`;
     }
     const ist = this.N(this.E(b, 'energie')), ohne = this.N(this.E(b, 'energie_ohne_automatik')), preis = this.N(this.E(b, 'preis')) || 0;
     const typen = ['oelradiator', 'konvektor'].map(t => {
       const g = b.geraete.filter(x => x.rolle === 'heizkoerper' && x.typ === t);
       const suffix = t;
-      return { t, n: g.length, mittel: this.N(this.E(b, `mittel_${suffix}`)), energie: this.N(this.E(b, `energie_${suffix}`)), zeit: this.N(this.E(b, `heizzeit_${suffix}`)) };
+      const z = b.zaehler || {};
+      const reine = b.bereiche.filter(x => { const hk = b.geraete.filter(y => y.bereich === x.id && y.rolle === 'heizkoerper'); return hk.length && hk.every(y => y.typ === t); });
+      const schnitt = werte => { werte = werte.filter(v => v !== null && v !== undefined && Number.isFinite(v)); return werte.length ? werte.reduce((p, q) => p + q, 0) / werte.length : null; };
+      return { t, n: g.length, mittel: this.N(this.E(b, `mittel_${suffix}`)), energie: this.N(this.E(b, `energie_${suffix}`)), zeit: this.N(this.E(b, `heizzeit_${suffix}`)),
+        aufheiz: schnitt(reine.map(x => z[`aufheiz:${x.id}`])), abkuehl: schnitt(reine.map(x => z[`abkuehl:${x.id}`])),
+        jeGrad: schnitt(reine.map(x => (z[`gradh:${x.id}`] || 0) > 24 ? (z[`energie:${x.id}`] || 0) / (z[`gradh:${x.id}`] / 24) : null)) };
     });
     const vgl = (label, f, fmt, besser) => `<tr><td>${label}</td>${typen.map(r => `<td>${r.n ? fmt(f(r)) : '–'}</td>`).join('')}<td class="muted klein" style="text-align:left;white-space:normal">${besser}</td></tr>`;
     return `<div class="sections">
@@ -755,9 +809,34 @@ class BaustellePanel extends HTMLElement {
           ${vgl('Ø Leistung im Betrieb', r => r.mittel, x => de(x, 0) + ' W', '–')}
           ${vgl('Energie gesamt', r => r.energie, x => de(x, 1) + ' kWh', '')}
           ${vgl('Energie je Gerät', r => r.energie === null ? null : r.energie / r.n, x => de(x, 1) + ' kWh · ' + eur(x * preis), 'weniger')}
-          ${vgl('Heizzeit je Gerät', r => r.zeit === null ? null : r.zeit / r.n, x => de(x, 1) + ' h', 'weniger')}</table>
-        <div class="muted klein">Beide wandeln Strom zu 100 % in Wärme – pro kWh gibt es keinen Unterschied. Unterschiede entstehen durch Leistung, Laufzeit, Takten am Thermostat und Wärmespeicherung.</div></div></div>` : ''}
+          ${vgl('Heizzeit je Gerät', r => r.zeit === null ? null : r.zeit / r.n, x => de(x, 1) + ' h', 'weniger')}
+          ${vgl('Aufheizen', r => r.aufheiz, x => x === null ? '–' : de(x, 1) + ' °C/h', 'mehr = schneller warm')}
+          ${vgl('Abkühlen nach Aus', r => r.abkuehl, x => x === null ? '–' : de(x, 1) + ' °C/h', 'weniger = hält Wärme länger')}
+          ${vgl('kWh je Tag und Grad innen/außen', r => r.jeGrad, x => x === null ? '–' : de(x, 2), 'weniger = fairer Vergleich')}</table>
+        <div class="muted klein">Beide wandeln Strom zu 100 % in Wärme – pro kWh gibt es keinen Unterschied. Unterschiede entstehen durch Leistung, Laufzeit, Takten am Thermostat und Wärmespeicherung.
+          Aufheizen, Abkühlen und „je Grad“ brauchen einen Fühler im Container und zählen nur Container mit einem einzigen Heizkörper-Typ.</div></div></div>` : ''}
     </div>`;
+  }
+
+  _mittelTemperatur(reihen, tage, periode, start) {
+    reihen = reihen.filter(r => r[0]);
+    if (!reihen.length) return '<div class="muted">Kein Fühler und keine Außentemperatur.</div>';
+    const von = start || new Date(mitternacht().getTime() - (tage - 1) * 86400000);
+    const st = this._statistik(reihen.map(r => r[0]), periode, von, ['mean']);
+    if (st === undefined) return '<div class="muted">Lädt …</div>';
+    const schluessel = [];
+    for (let d = new Date(von); d <= new Date(); periode === 'month' ? d.setMonth(d.getMonth() + 1) : d.setDate(d.getDate() + 1)) schluessel.push(periode === 'month' ? `${d.getFullYear()}-${d.getMonth()}` : isoTag(d));
+    const key = ms => { const d = new Date(ms); return periode === 'month' ? `${d.getFullYear()}-${d.getMonth()}` : isoTag(d); };
+    const series = reihen.map(([eid, name, color, dash]) => {
+      const werte = Object.fromEntries(((st && st[eid]) || []).filter(x => x.mean !== null && x.mean !== undefined).map(x => [key(x.start), x.mean]));
+      if (!Object.keys(werte).length) return null;
+      let letzter = Object.values(werte)[0];
+      return { name, color, dash, values: schluessel.map(k => (letzter = werte[k] ?? letzter)) };
+    }).filter(Boolean);
+    if (!series.length) return '<div class="muted">Noch keine Werte in der Langzeitstatistik – die füllt sich stündlich.</div>';
+    const labels = schluessel.map(k => periode === 'month' ? `${MON[Number(k.split('-')[1])]} ${k.slice(2, 4)}` : `${k.slice(8, 10)}.${k.slice(5, 7)}.`);
+    return lineChart({ id: 'm' + Math.random().toString(36).slice(2, 7), W: this._breite(), H: 190, labels, series, unit: '°C' })
+      + legend(series.map(x => [x.name, x.color, x.dash ? 'dash' : '']), 'line');
   }
 
   _linie(hs, reihen, einheit, flaeche, ref = null) {
@@ -799,71 +878,247 @@ class BaustellePanel extends HTMLElement {
       <div class="sec span3"><div class="heading">Verbrauch je Monat <span class="sub">alle Baustellen</span></div><div class="card">
         ${this._tagesSaeulen(alle.map((x, i) => [this.E(x, 'energie'), x.baustelle.titel, sc(i)]), null, 'kWh', true, 'month', start)}</div></div>
       ${detail ? `<div class="sec span3"><div class="heading">${esc(detail.baustelle.titel)} <span class="sub"><span class="btn flat small" data-ui="hsel" data-wert="all">schließen</span></span></div><div class="card">
-        ${this._tagesSaeulen([[this.E(detail, 'energie'), 'mit Automatik', sc(0)], [this.E(detail, 'energie_ohne_automatik'), 'ohne (24/7)', 'rgba(127,127,127,.45)']], null, 'kWh', false, 'month', start)}</div></div>` : ''}
+        ${this._tagesSaeulen([[this.E(detail, 'energie'), 'mit Automatik', sc(0)], [this.E(detail, 'energie_ohne_automatik'), 'ohne (24/7)', 'rgba(127,127,127,.45)']], null, 'kWh', false, 'month', start)}</div></div>
+        <div class="sec span3"><div class="heading">Ereignisse <span class="sub">letzte 30 Tage</span></div><div class="card">${this._ereignisse(detail)}</div></div>` : ''}
     </div>`;
+  }
+
+  _ereignisse(b) {
+    const probleme = b.geraete.map(g => [this.E(b, 'problem', g.id), g]).filter(p => p[0]);
+    const ids = [this.E(b, 'status'), this.E(b, 'erreichbar'), this.E(b, 'automatik'), ...probleme.map(p => p[0])].filter(Boolean);
+    const start = new Date(Date.now() - 30 * 86400000);
+    const liste = this._holen(`lb:${b.baustelle.entry_id}`, () => this._hass.callWS({ type: 'logbook/get_events', start_time: start.toISOString(), entity_ids: ids }), 120000);
+    if (liste === undefined) return '<div class="muted">Lädt …</div>';
+    const text = e => {
+      const p = probleme.find(q => q[0] === e.entity_id);
+      if (p) return e.state === 'on' ? `⚠ ${p[1].name}: Problem` : `✓ ${p[1].name}: wieder in Ordnung`;
+      if (e.entity_id === this.E(b, 'erreichbar')) return e.state === 'off' ? '⚠ Baustelle nicht erreichbar' : '✓ Baustelle wieder erreichbar';
+      if (e.entity_id === this.E(b, 'automatik')) return e.state === 'on' ? 'Automatik eingeschaltet' : 'Automatik ausgeschaltet';
+      if (e.entity_id === this.E(b, 'status')) return `Status: ${STATUS[e.state] || e.state}`;
+      return null;
+    };
+    const zeilen = (liste || []).map(e => [e.when, text(e)]).filter(z => z[1]).reverse().slice(0, 40);
+    if (!zeilen.length) return '<div class="muted">Keine Ereignisse.</div>';
+    return `<div class="rows">${zeilen.map(([w, t]) => this.zeile('', esc(t), new Date(w * 1000).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }), '')).join('')}</div>`;
   }
 
   /* ---------------------------------------------------------------- Einstellungen */
   vEinstellungen(b) {
-    const SUBS = [['baustellen', 'Baustellen'], ['diese', 'Diese Baustelle'], ['wetter', 'Wetter'], ['urlaub', 'Urlaub & Feiertage']];
+    const SUBS = [['baustellen', 'Baustellen'], ['diese', 'Container & Shellys'], ['wetter', 'Wetter'], ['urlaub', 'Urlaub & Feiertage'], ['meldungen', 'Meldungen']];
     const o = b.baustelle.optionen;
+    const f = this.ui.form || {};
+    const knopf = (text, act, extra = '', klasse = 'btn flat small') => `<span class="${klasse}" data-act="${act}" ${extra}>${text}</span>`;
+    const formular = (felder, speichern, text = 'Speichern') => `<div class="form">${felder}<div class="act">${knopf('Abbrechen', 'abbrechen', '', 'btn flat')}${knopf(text, speichern, '', 'btn')}</div></div>`;
     let inhalt = '';
     if (this.ui.sub === 'baustellen') {
       inhalt = `<div class="sec span2"><div class="heading">Baustellen</div><div class="card"><div class="rows">
-        ${this.baustellen.map(x => { const ab = x.baustelle.optionen.status === 'abgeschlossen'; return `<div class="r"><span class="ic">🏗</span><div class="l">${esc(x.baustelle.titel)}
-          <span class="chip ${ab ? 'grey' : 'gruen'}">${ab ? 'abgeschlossen' : 'aktiv'}</span>${x === b ? '<span class="chip">angezeigt</span>' : ''}
-          <small>${esc(x.baustelle.optionen.beginn || '')}${ab ? ' – ' + esc(x.baustelle.optionen.ende || '') : ''} · ${x.bereiche.length} Bereiche · ${x.geraete.length} Shellys</small></div>
-          ${!ab && x !== b ? `<span class="btn flat small" data-ui="bid" data-wert="${x.baustelle.entry_id}">anzeigen</span>` : ''}${this.link('Status & Optionen', INTEGRATION)}</div>`; }).join('')}
-        </div><div style="margin-top:8px">${this.link('+ Baustelle anlegen', '/config/integrations/dashboard/add?domain=baustelle', 'btn')}</div></div></div>
+        ${this.baustellen.map(x => { const id = x.baustelle.entry_id, xo = x.baustelle.optionen, ab = xo.status === 'abgeschlossen';
+          return `<div class="r"><span class="ic">🏗</span><div class="l">${esc(x.baustelle.titel)}
+            <span class="chip ${ab ? 'grey' : 'gruen'}">${ab ? 'abgeschlossen' : 'aktiv'}</span>${x === b ? '<span class="chip">angezeigt</span>' : ''}
+            <small>${esc(xo.beginn || '')}${ab ? ' – ' + esc(xo.ende || '') : ''} · ${x.bereiche.length} Bereiche · ${x.geraete.length} Shellys</small></div>
+            ${!ab && x !== b ? `<span class="btn flat small" data-ui="bid" data-wert="${id}">anzeigen</span>` : ''}${knopf('Status & Optionen', 'optionen', `data-id="${id}"`)}</div>
+            ${f.art === 'optionen' && f.id === id ? formular(`
+              <label>Status<select class="inp wide" data-f="status"><option value="aktiv" ${!ab ? 'selected' : ''}>aktiv</option><option value="abgeschlossen" ${ab ? 'selected' : ''}>abgeschlossen – Shellys frei, Zahlen bleiben</option></select></label>
+              <label>Beginn<input class="inp wide" type="date" data-f="beginn" value="${esc(xo.beginn || '')}"></label>
+              <label>Ende (nur abgeschlossen)<input class="inp wide" type="date" data-f="ende" value="${esc(xo.ende || '')}"></label>
+              <label><span><input type="checkbox" data-f="heizung" ${xo.heizung ? 'checked' : ''}> Funktion Heizung</span></label>
+              <label><span><input type="checkbox" data-f="pumpen" ${xo.pumpen ? 'checked' : ''}> Funktion Pumpenüberwachung</span></label>
+              <label>Heizperiode von<select class="inp wide" data-f="heizperiode_von">${MON.map((m, i) => `<option value="${i + 1}" ${String(xo.heizperiode_von) === String(i + 1) ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+              <label>Heizperiode bis<select class="inp wide" data-f="heizperiode_bis">${MON.map((m, i) => `<option value="${i + 1}" ${String(xo.heizperiode_bis) === String(i + 1) ? 'selected' : ''}>${m}</option>`).join('')}</select></label>`, 'optionen-speichern') : ''}`; }).join('')}
+        </div>${f.art === 'neu' ? formular(`
+          <label>Name<input class="inp wide" data-f="name" placeholder="z. B. Wohnanlage Ost"></label>
+          <label>Beginn<input class="inp wide" type="date" data-f="beginn" value="${isoTag(new Date())}"></label>
+          <label><span><input type="checkbox" data-f="heizung" checked> Funktion Heizung</span></label>
+          <label><span><input type="checkbox" data-f="pumpen"> Funktion Pumpenüberwachung</span></label>`, 'baustelle-anlegen', 'Anlegen')
+          : `<div style="margin-top:8px">${knopf('+ Baustelle anlegen', 'neu', '', 'btn')}</div>`}</div></div>
         <div class="sec"><div class="heading">Status</div><div class="card klein"><b>Aktiv:</b> Automatik, Meldungen und Zähler laufen.<br><br>
-          <b>Abgeschlossen:</b> nichts wird mehr geschaltet, Shellys werden frei, alle Zahlen bleiben im Verlauf.<br><br>
-          Umstellen unter „Status & Optionen“ → Konfigurieren.</div></div>`;
+          <b>Abgeschlossen:</b> nichts wird mehr geschaltet, Shellys werden frei für die nächste Baustelle, alle Zahlen bleiben im Verlauf.<br><br>
+          Löschen einer Baustelle nur in den ${this.link('Einstellungen der Integration', INTEGRATION)} – die Langzeitstatistik bleibt dabei erhalten.</div></div>`;
     }
     if (this.ui.sub === 'diese') {
+      const fuehler = this._entitaeten(s => (s.entity_id.startsWith('sensor.') && s.attributes.device_class === 'temperature') || s.entity_id.startsWith('climate.'));
+      const eigene = new Set(this.baustellen.flatMap(x => Object.values(x.entitaeten)));
+      const schalter = this._entitaeten(s => s.entity_id.startsWith('switch.') && !eigene.has(s.entity_id));
+      const bereichFelder = x => `<label>Name<input class="inp wide" data-f="name" value="${esc(x ? x.name : '')}" placeholder="z. B. Container 2 · Mannschaft"></label>
+        ${x ? '' : `<label>Art<select class="inp wide" data-f="art"><option value="container">Container</option><option value="pumpenschacht">Pumpenschacht</option></select></label>`}
+        <label>Thermostat / Temperaturfühler (ohne: kein Thermostat-Modus, kein Frostschutz)<select class="inp wide" data-f="fuehler">${this._optionen(fuehler, x && x.fuehler, true)}</select></label>`;
+      const geraetFelder = g => `<label>Container / Bereich<select class="inp wide" data-f="bereich">${b.bereiche.map(x => `<option value="${x.id}" ${g ? (g.bereich === x.id ? 'selected' : '') : (f.bereich === x.id ? 'selected' : '')}>${esc(x.name)}</option>`).join('')}</select></label>
+        <label>Shelly – das, was geschaltet wird<select class="inp wide" data-f="schalter">${this._optionen(g ? [[g.schalter, this.S(g.schalter)?.attributes.friendly_name || g.schalter], ...schalter.filter(([e]) => e !== g.schalter)] : schalter, g && g.schalter)}</select></label>
+        <label>Bezeichnung<input class="inp wide" data-f="name" value="${esc(g ? g.name : '')}" placeholder="z. B. Heizkörper 3"></label>
+        <label>Was hängt dran<select class="inp wide" data-f="rolle">${Object.entries(ROLLE).map(([k, l]) => `<option value="${k}" ${(g ? g.rolle : 'heizkoerper') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label>Heizkörper-Typ – nur für den Vergleich<select class="inp wide" data-f="typ">${Object.entries(TYP).map(([k, l]) => `<option value="${k}" ${(g ? g.typ : 'konvektor') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
       inhalt = `<div class="sec span2"><div class="heading">„${esc(b.baustelle.titel)}“ – Container und Shellys</div>
-        ${b.bereiche.map(x => `<div class="card"><b>${x.art === 'pumpenschacht' ? '💧' : '🏠'} ${esc(x.name)}</b> <span class="muted klein">${x.fuehler ? 'Fühler: ' + esc(x.fuehler) : 'kein Fühler'}</span><div class="rows">
-          ${b.geraete.filter(g => g.bereich === x.id).map(g => this.zeile('🔌', `${esc(this.S(g.schalter)?.attributes.friendly_name || g.schalter)} → ${esc(g.name)}`,
-            `${esc(g.schalter)} · schaltet: ${ROLLE[g.rolle]}${g.rolle === 'heizkoerper' ? ' · Typ (Vergleich): ' + TYP[g.typ] : ''}`, '')).join('') || '<div class="muted">kein Shelly</div>'}</div></div>`).join('')}
-        <div class="card info-card klein">Container, Pumpenschächte und Shellys hinzufügen, ändern oder entfernen: in den Einstellungen der Integration
-          („+ Container / Bereich hinzufügen“, „+ Shelly hinzufügen“, Stift zum Ändern). ${this.link('Öffnen', INTEGRATION, 'btn small')}</div></div>
-        <div class="sec"><div class="heading">Funktionen</div><div class="card"><div class="rows">
-          ${this.zeile('♨', 'Heizung', '', o.heizung ? 'an' : 'aus')}${this.zeile('💧', 'Pumpenüberwachung', '', o.pumpen ? 'an' : 'aus')}
-          ${this.zeile('🗓', 'Heizperiode', '', `${MON[Number(o.heizperiode_von || 10) - 1]} – ${MON[Number(o.heizperiode_bis || 4) - 1]}`)}
-          </div>${this.link('ändern', INTEGRATION)}</div></div>`;
+        ${b.bereiche.map(x => `<div class="card"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1">${x.art === 'pumpenschacht' ? '💧' : '🏠'} ${esc(x.name)}
+            <span class="muted klein">${x.fuehler ? 'Fühler: ' + esc(this.S(x.fuehler)?.attributes.friendly_name || x.fuehler) : 'kein Fühler'}</span></b>
+            ${knopf('ändern', 'bereich-aendern', `data-id="${x.id}"`)}${knopf('entfernen', 'bereich-loeschen', `data-id="${x.id}"`, 'btn flat small rot')}</div>
+          ${f.art === 'bereich' && f.id === x.id ? formular(bereichFelder(x), 'bereich-speichern') : ''}
+          ${f.art === 'bereich-loeschen' && f.id === x.id ? formular(`<b>„${esc(x.name)}“ entfernen?</b> Die zugeordneten Shellys bleiben als Einträge ohne Bereich – entferne sie vorher. Die Zahlen bleiben im Verlauf.`, 'bereich-entfernen', 'Entfernen') : ''}
+          <div class="rows">${b.geraete.filter(g => g.bereich === x.id).map(g => `${this.zeile('🔌', `${esc(this.S(g.schalter)?.attributes.friendly_name || g.schalter)} → ${esc(g.name)}`,
+            `${esc(g.schalter)} · schaltet: ${ROLLE[g.rolle]}${g.rolle === 'heizkoerper' ? ' · Typ (Vergleich): ' + TYP[g.typ] : ''}`,
+            knopf('ändern', 'geraet-aendern', `data-id="${g.id}"`) + knopf('✕', 'geraet-loeschen', `data-id="${g.id}"`, 'btn flat small rot'))}
+            ${f.art === 'geraet' && f.id === g.id ? formular(geraetFelder(g), 'geraet-speichern') : ''}
+            ${f.art === 'geraet-loeschen' && f.id === g.id ? formular(`<b>„${esc(g.name)}“ entfernen?</b> Der Shelly wird frei; die Zahlen bleiben.`, 'geraet-entfernen', 'Entfernen') : ''}`).join('') || '<div class="muted">kein Shelly</div>'}</div>
+          <div style="margin-top:6px">${knopf('+ Shelly', 'geraet-neu', `data-bereich="${x.id}"`)}</div>
+          ${f.art === 'geraet' && !f.id && f.bereich === x.id ? formular(geraetFelder(null), 'geraet-speichern', 'Hinzufügen') : ''}</div>`).join('')}
+        ${f.art === 'bereich' && !f.id ? formular(bereichFelder(null), 'bereich-speichern', 'Anlegen') : `<div>${knopf('+ Container / Pumpenschacht', 'bereich-neu', '', 'btn')}</div>`}</div>
+        <div class="sec"><div class="heading">So funktioniert es</div><div class="card klein">Jede Zeile ist ein Shelly: das, was geschaltet wird.
+          Ein Shelly gehört immer nur einer aktiven Baustelle. Leistung und Energie findet die Integration am Shelly selbst.<br><br>
+          Heizkörper in Containern, Pumpen in Pumpenschächten. Ohne Fühler heizt der Container nach Zeitplan, der Heizkörper regelt selbst.</div></div>`;
     }
     if (this.ui.sub === 'wetter') {
-      const z = (label, eid, einheit) => this.zeile('📡', label, eid ? esc(eid) : 'nicht gewählt', eid ? `<span class="v">${esc(this.V(eid) ?? '–')} ${einheit}</span>` : '');
+      const z = (label, eid, einheit) => this.zeile('📡', label, eid ? esc(this.S(eid)?.attributes.friendly_name || eid) : 'nicht gewählt', eid ? `<span class="v">${esc(this.V(eid) ?? '–')} ${einheit}</span>` : '');
+      const wetter = this._entitaeten(s => s.entity_id.startsWith('weather.'));
+      const temp = this._entitaeten(s => s.entity_id.startsWith('sensor.') && s.attributes.device_class === 'temperature');
+      const regen = this._entitaeten(s => s.entity_id.startsWith('sensor.') && s.attributes.device_class === 'precipitation');
       inhalt = `<div class="sec span2"><div class="heading">Wetter für „${esc(b.baustelle.titel)}“</div><div class="card"><div class="rows">
         ${z('Wetter (Vorhersage)', o.wetter, '')}${z('Außentemperatur (Wetterstation)', o.temp_sensor, '°C')}${z('Regen letzte 24 h (Wetterstation)', o.regen_sensor, 'mm')}
-        ${this.zeile('🧮', 'Damit rechnet die Heizung', '', `<span class="v">außen ${de(this.N(this.E(b, 'aussen')))} °C · Regen ${de(this.N(this.E(b, 'regen')))} mm · Früh ${de(this.N(this.E(b, 'frueh_prognose')))} °C</span>`)}
-        </div>${this.link('Wetter wählen', INTEGRATION)}</div></div>
-        <div class="sec"><div class="heading">Bewährte Quellen</div><div class="card klein"><b>Open-Meteo</b> über eine Zone der Baustelle (eingebaut) – Vorhersage.<br><br>
-          <b>Wetterstation</b> (z. B. Ecowitt) – gemessene Temperatur und Regen, genauer für „Kleidung trocknen“.</div></div>`;
+        ${this.zeile('🧮', 'Damit rechnet die Heizung', '', `<span class="v">außen ${de(this.N(this.E(b, 'aussen')))} °C · Regen ${de(this.N(this.E(b, 'regen')))} mm · Früh ${de(this.N(this.E(b, 'frueh_prognose')))} °C</span>`)}</div>
+        ${f.art === 'wetter' ? formular(`<label>Wetter (Vorhersage)<select class="inp wide" data-f="wetter">${this._optionen(wetter, o.wetter, true)}</select></label>
+            <label>Außentemperatur (Wetterstation, optional)<select class="inp wide" data-f="temp_sensor">${this._optionen(temp, o.temp_sensor, true)}</select></label>
+            <label>Regen letzte 24 h (Wetterstation, optional)<select class="inp wide" data-f="regen_sensor">${this._optionen(regen, o.regen_sensor, true)}</select></label>`, 'wetter-speichern')
+          : `<div style="margin-top:8px">${knopf('Wetter wählen', 'wetter', '', 'btn small')}</div>`}</div></div>
+        <div class="sec"><div class="heading">Bewährte Quellen</div><div class="card klein"><b>Open-Meteo</b> über eine Zone der Baustelle (eingebaut) – Vorhersage.
+          Zuerst unter Einstellungen → Bereiche & Zonen eine Zone anlegen, dann Open-Meteo hinzufügen.<br><br>
+          <b>Wetterstation</b> (z. B. Ecowitt) – gemessene Temperatur und Regen, genauer für „Kleidung trocknen“.<br><br>
+          ${this.link('Open-Meteo hinzufügen', '/config/integrations/dashboard/add?domain=open_meteo')}</div></div>`;
     }
     if (this.ui.sub === 'urlaub') {
       const feiertage = (this._kalender(o.feiertag_kalender) || []).slice(0, 6);
       const urlaub = this._kalender(o.urlaub_kalender) || [];
+      const kalender = this._entitaeten(s => s.entity_id.startsWith('calendar.'));
       const datum = e => (e.start.date || e.start.dateTime || '').slice(0, 10);
       const bis = e => { const d = new Date((e.end.date || e.end.dateTime || '').slice(0, 10)); if (e.end.date) d.setDate(d.getDate() - 1); return isoTag(d); };
       inhalt = `<div class="sec"><div class="heading">Feiertage</div><div class="card"><div class="rows">
-        ${o.feiertag_kalender ? (feiertage.map(e => this.zeile('🎌', esc(e.summary), datum(e), '')).join('') || '<div class="muted">Lädt …</div>') : '<div class="muted">Kein Feiertags-Kalender gewählt (Integration „Feiertage“).</div>'}
-        </div>${this.link('Kalender wählen', INTEGRATION)}</div>
+        ${o.feiertag_kalender ? (feiertage.map(e => this.zeile('🎌', esc(e.summary), datum(e), '')).join('') || '<div class="muted">Lädt …</div>') : '<div class="muted">Kein Feiertags-Kalender gewählt (Integration „Feiertage“).</div>'}</div>
+        ${f.art === 'kalender' ? formular(`<label>Feiertage (Kalender der Integration „Feiertage“)<select class="inp wide" data-f="feiertag_kalender">${this._optionen(kalender, o.feiertag_kalender, true)}</select></label>
+            <label>Urlaub / Betriebsruhe (Lokaler Kalender)<select class="inp wide" data-f="urlaub_kalender">${this._optionen(kalender, o.urlaub_kalender, true)}</select></label>`, 'kalender-speichern')
+          : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${knopf('Kalender wählen', 'kalender', '', 'btn small')}${this.link('Feiertage hinzufügen', '/config/integrations/dashboard/add?domain=holiday')}${this.link('Lokalen Kalender hinzufügen', '/config/integrations/dashboard/add?domain=local_calendar')}</div>`}</div>
         <div class="heading">Verhalten im Urlaub / an Feiertagen</div><div class="card"><div class="rows">
         ${this.zeile('♨', 'Heizung', 'Pumpen werden weiter überwacht', this.auswahl(this.E(b, 'urlaub_modus')))}${this.zeile('🌡', 'Absenken auf', '', this.zahl(this.E(b, 'absenk_temp')))}</div></div></div>
         <div class="sec span2"><div class="heading">Urlaub / Betriebsruhe</div><div class="card">
         ${o.urlaub_kalender ? `<div class="rows">${urlaub.map(e => this.zeile('🏖', esc(e.summary), `${datum(e)} – ${bis(e)}`,
           e.uid ? `<span class="btn flat small rot" data-act="urlaub-loeschen" data-uid="${esc(e.uid)}">✕</span>` : '')).join('') || '<div class="muted">Kein Zeitraum eingetragen.</div>'}</div>
-          ${this.ui.form === 'urlaub' ? `<div class="form"><label>Bezeichnung<input class="inp wide" data-f="name" value="Urlaub"></label>
-            <label>Von<input class="inp wide" type="date" data-f="von" value="${isoTag(new Date())}"></label><label>Bis<input class="inp wide" type="date" data-f="bis" value="${isoTag(new Date(Date.now() + 6 * 86400000))}"></label>
-            <div class="act"><span class="btn flat" data-act="abbrechen">Abbrechen</span><span class="btn" data-act="urlaub-speichern">Eintragen</span></div></div>`
-          : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><span class="btn small" data-act="urlaub-neu">+ Zeitraum</span>
-            <span class="btn small flat" data-act="urlaub-weihnachten">Weihnachten (23.12.–06.01.)</span></div>`}`
-          : `<div class="muted">Kein Urlaubs-Kalender gewählt. Lege einen „Lokalen Kalender“ an (z. B. „Baustelle Urlaub“) und wähle ihn aus.</div>${this.link('Kalender wählen', INTEGRATION)}`}
+          ${f.art === 'urlaub' ? formular(`<label>Bezeichnung<input class="inp wide" data-f="name" value="Urlaub"></label>
+            <label>Von<input class="inp wide" type="date" data-f="von" value="${isoTag(new Date())}"></label><label>Bis<input class="inp wide" type="date" data-f="bis" value="${isoTag(new Date(Date.now() + 6 * 86400000))}"></label>`, 'urlaub-speichern', 'Eintragen')
+          : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${knopf('+ Zeitraum', 'urlaub-neu', '', 'btn small')}${knopf('Weihnachten (23.12.–06.01.)', 'urlaub-weihnachten')}</div>`}`
+          : '<div class="muted">Kein Urlaubs-Kalender gewählt. Lege einen „Lokalen Kalender“ an (z. B. „Baustelle Urlaub“) und wähle ihn links unter „Kalender wählen“ aus.</div>'}
         </div></div>`;
     }
-    return `<div class="sections"><div class="sec span3"><div class="card info-card klein">Hier stellst du alles ein, was du oft änderst. Anlegen und Zuordnen (Baustellen, Container, Shellys, Wetter, Kalender, Empfänger)
-        läuft über die Dialoge der Integration – die Links führen direkt hin.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${SUBS.map(([k, l]) => `<span class="btn small ${this.ui.sub === k ? '' : 'flat'}" data-ui="sub" data-wert="${k}">${l}</span>`).join('')}</div></div>${inhalt}</div>`;
+    if (this.ui.sub === 'meldungen') {
+      const dienste = Object.keys((this._hass.services || {}).notify || {}).filter(d => d !== 'send_message').sort();
+      const gewaehlt = Array.isArray(o.empfaenger) ? o.empfaenger : [];
+      inhalt = `<div class="sec span2"><div class="heading">Meldungen an</div><div class="card">
+        ${dienste.length ? `<div class="rows">${dienste.map(d => this.zeile('📱', esc(d.replace('mobile_app_', '')), 'notify.' + esc(d),
+          `<input type="checkbox" data-f="empf" value="${esc(d)}" ${gewaehlt.includes(d) ? 'checked' : ''}>`)).join('')}</div>
+          <div style="display:flex;gap:8px;margin-top:8px">${knopf('Speichern', 'meldungen-speichern', '', 'btn small')}<span class="btn flat small" data-press="${this.E(b, 'test_meldung')}">Test-Meldung senden</span></div>`
+          : '<div class="muted">Keine Benachrichtigungsdienste gefunden. Installiere die Companion App am Handy und melde dich an – dann erscheint dein Handy hier.</div>'}</div></div>
+        <div class="sec"><div class="heading">Wann gemeldet wird</div><div class="card klein">Bei aktiver Pumpenüberwachung: Pumpe offline, Trockenlauf, Dauerlauf und
+          „Baustelle nicht erreichbar“ (Stromausfall oder Internet weg). Die Grenzwerte stellst du im Tab „Pumpen“ ein.</div></div>`;
+    }
+    return `<div class="sections"><div class="sec span3">
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${SUBS.map(([k, l]) => `<span class="btn small ${this.ui.sub === k ? '' : 'flat'}" data-ui="sub" data-wert="${k}">${l}</span>`).join('')}</div></div>${inhalt}</div>`;
+  }
+
+  _entitaeten(filter) {
+    return Object.values(this._hass.states).filter(filter)
+      .map(s => [s.entity_id, s.attributes.friendly_name || s.entity_id]).sort((a, b) => a[1].localeCompare(b[1], 'de'));
+  }
+
+  _optionen(liste, aktuell, leer = false) {
+    return (leer ? `<option value="">– keiner –</option>` : '')
+      + liste.map(([e, n]) => `<option value="${esc(e)}" ${e === aktuell ? 'selected' : ''}>${esc(n)} (${esc(e)})</option>`).join('');
+  }
+
+  /* Einrichtungs-Dialoge von HA (dieselben wie unter Einstellungen → Geräte & Dienste) */
+  async _dialog(pfad, start, daten) {
+    const form = await this._hass.callApi('POST', pfad, start);
+    if (form.type !== 'form') return form;
+    return this._hass.callApi('POST', `${pfad}/${form.flow_id}`, daten);
+  }
+
+  async _ausfuehren(text, lauf) {
+    try {
+      const r = await lauf();
+      const fehler = r && ((r.type === 'form' && r.errors && (r.errors.base || Object.values(r.errors)[0]))
+        || (r.type === 'abort' && r.reason !== 'reconfigure_successful' && r.reason));
+      if (fehler) { this._meldung(FEHLER[fehler] || fehler); return null; }
+      this._meldung(text);
+      this.ui.form = null;
+      this._rendern();
+      setTimeout(() => this._laden(), 1500);
+      setTimeout(() => this._laden(), 5000);
+      return r;
+    } catch (err) {
+      this._meldung((err && err.body && err.body.message) || (err && err.message) || String(err));
+      return null;
+    }
+  }
+
+  _optionenSpeichern(b, aenderung) {
+    const o = { ...b.baustelle.optionen, ...aenderung };
+    for (const k of Object.keys(o)) if (o[k] === '' || o[k] === null || o[k] === undefined) delete o[k];
+    return this._ausfuehren('Gespeichert', () => this._dialog('config/config_entries/options/flow', { handler: b.baustelle.entry_id }, o));
+  }
+
+  _formWert(k) {
+    const el = this.shadowRoot.querySelector(`[data-f="${k}"]`);
+    if (!el) return undefined;
+    return el.type === 'checkbox' ? el.checked : el.value;
+  }
+
+  _einstellungAktion(act, d, b) {
+    const f = k => this._formWert(k);
+    const id = b.baustelle.entry_id;
+    const bereich = x => x ? { name: f('name').trim(), art: x.art, ...(f('fuehler') ? { fuehler: f('fuehler') } : {}) }
+      : { name: f('name').trim(), art: f('art'), ...(f('fuehler') ? { fuehler: f('fuehler') } : {}) };
+    switch (act) {
+      case 'optionen': this.ui.form = { art: 'optionen', id: d.id }; return this._rendern();
+      case 'neu': this.ui.form = { art: 'neu' }; return this._rendern();
+      case 'wetter': case 'kalender': this.ui.form = { art: act }; return this._rendern();
+      case 'bereich-neu': this.ui.form = { art: 'bereich' }; return this._rendern();
+      case 'bereich-aendern': this.ui.form = { art: 'bereich', id: d.id }; return this._rendern();
+      case 'bereich-loeschen': this.ui.form = { art: 'bereich-loeschen', id: d.id }; return this._rendern();
+      case 'geraet-neu': this.ui.form = { art: 'geraet', bereich: d.bereich }; return this._rendern();
+      case 'geraet-aendern': this.ui.form = { art: 'geraet', id: d.id }; return this._rendern();
+      case 'geraet-loeschen': this.ui.form = { art: 'geraet-loeschen', id: d.id }; return this._rendern();
+      case 'optionen-speichern': {
+        const x = this.baustellen.find(y => y.baustelle.entry_id === this.ui.form.id);
+        return this._optionenSpeichern(x, { status: f('status'), beginn: f('beginn'), ende: f('status') === 'abgeschlossen' ? f('ende') : '',
+          heizung: f('heizung'), pumpen: f('pumpen'), heizperiode_von: f('heizperiode_von'), heizperiode_bis: f('heizperiode_bis') });
+      }
+      case 'wetter-speichern': return this._optionenSpeichern(b, { wetter: f('wetter'), temp_sensor: f('temp_sensor'), regen_sensor: f('regen_sensor') });
+      case 'kalender-speichern': return this._optionenSpeichern(b, { feiertag_kalender: f('feiertag_kalender'), urlaub_kalender: f('urlaub_kalender') });
+      case 'meldungen-speichern':
+        return this._optionenSpeichern(b, { empfaenger: [...this.shadowRoot.querySelectorAll('[data-f="empf"]')].filter(x => x.checked).map(x => x.value) });
+      case 'baustelle-anlegen': {
+        if (!f('name').trim()) return this._meldung('Bitte einen Namen eingeben');
+        return this._ausfuehren('Baustelle angelegt – jetzt Container anlegen', () => this._dialog('config/config_entries/flow',
+          { handler: 'baustelle', show_advanced_options: false }, { name: f('name').trim(), beginn: f('beginn'), heizung: f('heizung'), pumpen: f('pumpen') }))
+          .then(r => {
+            if (!r) return;
+            if (r.next_flow) this._hass.callApi('DELETE', `config/config_entries/subentries/flow/${r.next_flow[1]}`).catch(() => {});
+            if (r.result && r.result.entry_id) { this.ui.bid = r.result.entry_id; this.ui.sub = 'diese'; }
+          });
+      }
+      case 'bereich-speichern': {
+        if (!f('name').trim()) return this._meldung('Bitte einen Namen eingeben');
+        const x = b.bereiche.find(y => y.id === this.ui.form.id);
+        return this._ausfuehren(x ? 'Gespeichert' : 'Angelegt', () => this._dialog('config/config_entries/subentries/flow',
+          { handler: [id, 'bereich'], ...(x ? { subentry_id: x.id } : {}) }, bereich(x)));
+      }
+      case 'bereich-entfernen':
+        return this._ausfuehren('Entfernt', () => this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: id, subentry_id: this.ui.form.id }));
+      case 'geraet-speichern': {
+        if (!f('schalter')) return this._meldung('Bitte einen Shelly wählen');
+        const g = b.geraete.find(y => y.id === this.ui.form.id);
+        const daten = { bereich: f('bereich'), schalter: f('schalter'), name: f('name').trim() || ROLLE[f('rolle')], rolle: f('rolle'), typ: f('typ') };
+        return this._ausfuehren(g ? 'Gespeichert' : 'Shelly hinzugefügt', () => this._dialog('config/config_entries/subentries/flow',
+          { handler: [id, 'geraet'], ...(g ? { subentry_id: g.id } : {}) }, daten));
+      }
+      case 'geraet-entfernen':
+        return this._ausfuehren('Entfernt', () => this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: id, subentry_id: this.ui.form.id }));
+      default: return undefined;
+    }
   }
 
   /* ---------------------------------------------------------------- Bedienung */
@@ -879,7 +1134,7 @@ class BaustellePanel extends HTMLElement {
     const b = this.B();
     switch (d.act) {
       case 'menu': this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true })); break;
-      case 'urlaub-neu': this.ui.form = 'urlaub'; this._rendern(); break;
+      case 'urlaub-neu': this.ui.form = { art: 'urlaub' }; this._rendern(); break;
       case 'abbrechen': this.ui.form = null; this._rendern(); break;
       case 'urlaub-speichern': {
         const f = k => this.shadowRoot.querySelector(`[data-f="${k}"]`).value;
@@ -891,7 +1146,7 @@ class BaustellePanel extends HTMLElement {
         this._hass.callWS({ type: 'calendar/event/delete', entity_id: b.baustelle.optionen.urlaub_kalender, uid: d.uid })
           .then(() => { delete this.cache[`k:${b.baustelle.optionen.urlaub_kalender}`]; this._planen(); }).catch(err => this._meldung('Löschen ging nicht: ' + err.message));
         break;
-      default:
+      default: this._einstellungAktion(d.act, d, b);
     }
   }
 

@@ -3,6 +3,9 @@
 import pytest
 
 from logik.zaehlen import (
+    gradstunden,
+    mittel,
+    rate,
     energie_zuwachs,
     hochrechnung,
     leistung_integriert,
@@ -41,3 +44,14 @@ def test_tage_heizperiode():
 def test_hochrechnung():
     assert hochrechnung(100, 0.5, 30) is None
     assert hochrechnung(100, 10, 30) == pytest.approx(300)
+
+
+def test_temperaturverhalten():
+    assert rate(10.0, 13.0, 1.5) == pytest.approx(2.0)
+    assert rate(10.0, 13.0, 0) is None
+    assert mittel(None, 2.0) == 2.0
+    assert mittel(2.0, 4.0) == pytest.approx(2.6)
+    assert mittel(2.0, None) == 2.0
+    assert gradstunden(18.0, 3.0, 2.0) == pytest.approx(30.0)
+    assert gradstunden(5.0, 8.0, 2.0) == 0.0
+    assert gradstunden(None, 3.0, 1.0) == 0.0
