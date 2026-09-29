@@ -457,20 +457,22 @@ function balken(id, werte, labels, einheit, d = 1) {
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${b}<rect class="treffer" x="0" y="0" width="0" height="0"/></svg>`;
 }
 const CHARTS = {};
-function flaeche(id, werte, labels, einheit, farbe, jedes) {
-  const W = 320, H = 160, L = 30, R = 8, T = 10, U = 22, n = werte.length, hi0 = Math.max(...werte) * 1.12 || 1;
+function flaeche(id, reihen, labels, einheit, jedes) {
+  const W = 320, H = 160, L = 30, R = 8, T = 10, U = 22, n = labels.length, viele = reihen.length > 1;
+  const hi0 = Math.max(...reihen.flatMap(r => r.v)) * 1.12 || 1;
   const stufe = [.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].find(st => hi0 / st <= 5) || 2000, hi = Math.ceil(hi0 / stufe) * stufe;
   const x = i => L + i / (n - 1) * (W - L - R), y = v => T + (1 - v / hi) * (H - T - U);
   const raster = [...Array(hi / stufe + 1)].map((_, k) => k * stufe).map(v =>
     `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${de(v, stufe < 1 ? 1 : 0)}</text>`).join('');
   const achse = labels.map((t, i) => i % jedes ? '' : `<text x="${x(i)}" y="${H - 6}" class="ax" text-anchor="middle">${t}</text>`).join('');
-  const linie = werte.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
-  const g = 'fl-' + id.replace(/[^a-z0-9]/gi, '');
-  CHARTS[id] = { art: 'flaeche', x0: L, x1: W - R, W, n, werte, labels, einheit, farbe, y };
-  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}"><defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${farbe}" stop-opacity=".45"/><stop offset="1" stop-color="${farbe}" stop-opacity=".03"/></linearGradient></defs>
-    ${raster}${achse}<path class="fl-flaeche" d="${linie}L${x(n - 1)} ${y(0)}L${x(0)} ${y(0)}z" fill="url(#${g})"/>
-    <path class="fl-linie" d="${linie}" fill="none" stroke="${farbe}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><g class="hover"></g></svg>`;
+  const g = k => `fl-${id.replace(/[^a-z0-9]/gi, '')}-${k}`;
+  const defs = reihen.map((r, k) => `<linearGradient id="${g(k)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${r.farbe}" stop-opacity="${viele ? .22 : .45}"/><stop offset="1" stop-color="${r.farbe}" stop-opacity=".02"/></linearGradient>`).join('');
+  const pfad = r => r.v.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
+  const flaechen = reihen.map((r, k) => `<path class="fl-flaeche" d="${pfad(r)}L${x(n - 1)} ${y(0)}L${x(0)} ${y(0)}z" fill="url(#${g(k)})"/>`).join('');
+  const linien = reihen.map(r => `<path class="fl-linie" d="${pfad(r)}" fill="none" stroke="${r.farbe}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+  CHARTS[id] = { art: 'flaeche', x0: L, x1: W - R, W, n, reihen, labels, einheit, y };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${raster}${achse}${flaechen}${linien}<g class="hover"></g></svg>
+    ${viele ? `<div class="legende">${reihen.map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}</div>` : ''}`;
 }
 const MONATE = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 /* Verbrauch in kWh je Stunde (Tag), je Tag (Monat) oder je Monat (Jahr); Baustelle = Summe der Container */
@@ -482,7 +484,7 @@ function verbrauch(bereiche, cid, zeitraum) {
     return MONATE.map((_, m) => { const saison = [1, .95, .8, .45, .08, 0, 0, 0, .8, 1, 1.05, .95][m]; return p * 135 * saison * (.9 + r() * .2); });
   };
   const k = { Tag: 1, Monat: 2, Jahr: 3 }[zeitraum];
-  const liste = cid ? bereiche.filter(b => b.id === cid) : bereiche;
+  const liste = cid ? bereiche.filter(b => b.id === cid) : bereiche; // cid null = Summe der Baustelle
   return liste.map(b => eins(b, k)).reduce((a, w) => a.map((v, i) => v + w[i]));
 }
 
@@ -679,19 +681,23 @@ class App {
     const s = this.s.sheet, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
     const griff = '<div class="griff"></div>';
     if (s.art === 'verbrauch') {
-      const B = this.d.bereiche, z = s.zeitraum, werte = verbrauch(B, s.cid, z), idx = s.cid ? B.findIndex(b => b.id === s.cid) : -1;
-      const farbe = idx < 0 ? 'var(--s1)' : BEREICH_FARBEN[B[idx].f % BEREICH_FARBEN.length];
+      const B = this.d.bereiche, z = s.zeitraum, aus = B.filter(b => s.auswahl.includes(b.id)), alle = aus.length === B.length;
+      const farbe = b => BEREICH_FARBEN[b.f % BEREICH_FARBEN.length];
+      const reihen = aus.length ? aus.map(b => ({ name: b.name, v: verbrauch(B, b.id, z), farbe: farbe(b) })) : [{ name: 'Baustelle', v: verbrauch(B, null, z), farbe: 'var(--s1)' }];
       const labels = z === 'Tag' ? [...Array(24)].map((_, h) => String(h).padStart(2, '0')) : z === 'Monat' ? [...Array(30)].map((_, d) => `${d + 1}.`) : MONATE;
-      const summe = werte.reduce((a, v) => a + v, 0), spitze = Math.max(...werte), wo = labels[werte.indexOf(spitze)];
+      const summeJe = labels.map((_, i) => reihen.reduce((a, r) => a + r.v[i], 0)), summe = summeJe.reduce((a, v) => a + v, 0);
+      const spitze = Math.max(...summeJe), wo = labels[summeJe.indexOf(spitze)];
       const einheit = z === 'Tag' ? 'kWh/h' : 'kWh', je = { Tag: 'je Stunde · heute', Monat: 'je Tag · September', Jahr: 'je Monat · 2026' }[z];
-      return `${griff}<div class="block-kopf"><h3>Verbrauch</h3><span class="leise">${idx < 0 ? 'ÖWG Dobl Zwaring' : esc(B[idx].name)}</span></div>
+      const titel = !aus.length ? 'ÖWG Dobl Zwaring · Summe' : aus.length === 1 ? esc(aus[0].name) : `${aus.length} Container überlagert`;
+      return `${griff}<div class="block-kopf"><h3>Verbrauch</h3><span class="leise">${titel}</span></div>
         <div class="seg">${['Tag', 'Monat', 'Jahr'].map(v => `<button data-act="vb-zeitraum" data-v="${v}" class="${v === z ? 'on' : ''}">${v}</button>`).join('')}</div>
-        <div class="vb-wer"><button data-act="vb-wer" class="${!s.cid ? 'on' : ''}"><i style="background:var(--s1)"></i>Baustelle</button>
-          ${B.map(b => `<button data-act="vb-wer" data-id="${b.id}" class="${s.cid === b.id ? 'on' : ''}"><i style="background:${BEREICH_FARBEN[b.f % BEREICH_FARBEN.length]}"></i>${esc(b.name)}</button>`).join('')}</div>
-        <div class="kennz"><div><b>${de(summe, summe < 100 ? 1 : 0)}</b><span>kWh ${z === 'Tag' ? 'heute' : z === 'Monat' ? 'im Monat' : 'im Jahr'}</span></div>
+        <div class="vb-wer"><button data-act="vb-wer" class="${!aus.length ? 'on' : ''}"><i style="background:var(--s1)"></i>Baustelle</button>
+          <button data-act="vb-wer" data-id="*" class="${alle ? 'on' : ''}">Alle einzeln</button>
+          ${B.map(b => `<button data-act="vb-wer" data-id="${b.id}" class="${s.auswahl.includes(b.id) ? 'on' : ''}"><i style="background:${farbe(b)}"></i>${esc(b.name)}${s.auswahl.includes(b.id) ? ' ✓' : ''}</button>`).join('')}</div>
+        <div class="kennz"><div><b>${de(summe, summe < 100 ? 1 : 0)}</b><span>kWh ${z === 'Tag' ? 'heute' : z === 'Monat' ? 'im Monat' : 'im Jahr'}${aus.length > 1 ? ' zus.' : ''}</span></div>
           <div><b>${de(summe * this.d.e.preis, 2)} €</b><span>Kosten</span></div><div><b>${wo}</b><span>Spitze ${de(spitze, 1)} kWh</span></div></div>
-        <div class="leise">${einheit} ${je}</div>
-        <div class="chart-wrap">${flaeche(`vb-${s.cid || 'alle'}-${z}`, werte, labels, einheit, farbe, z === 'Tag' ? 6 : z === 'Monat' ? 7 : 3)}</div>
+        <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · Linien überlagert, nicht gestapelt' : ''}</div>
+        <div class="chart-wrap">${flaeche(`vb-${aus.map(b => b.id).join('_') || 'alle'}-${z}`, reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : 3)}</div>
         ${knopf('Schließen')}`;
     }
     if (s.art === 'wetter') {
@@ -746,9 +752,12 @@ class App {
       case 'tab': return this.gehe(el.dataset.v);
       case 'container': this.s.chart = 'temp'; return this.gehe('container', el.dataset.id);
       case 'container-lager': return this.gehe('container', 'lager');
-      case 'sheet': this.s.sheet = { art: el.dataset.s, t: el.dataset.t, i: +el.dataset.i, cid: el.dataset.id || null, zeitraum: 'Tag' }; return neu();
+      case 'sheet': this.s.sheet = { art: el.dataset.s, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
       case 'vb-zeitraum': this.s.sheet.zeitraum = el.dataset.v; return neu();
-      case 'vb-wer': this.s.sheet.cid = el.dataset.id || null; return neu();
+      case 'vb-wer': { const sh = this.s.sheet, id = el.dataset.id;
+        if (!id) sh.auswahl = []; else if (id === '*') sh.auswahl = d.bereiche.map(x => x.id);
+        else sh.auswahl = sh.auswahl.includes(id) ? sh.auswahl.filter(x => x !== id) : [...sh.auswahl, id];
+        return neu(); }
       case 'bereich-einst': this.s.cid = el.dataset.id; this.s.sheet = { art: 'bereich' }; return neu();
       case 'zu': this.s.sheet = null; return neu();
       case 'toast': return this.toast(el.dataset.t);
@@ -788,8 +797,11 @@ class App {
     const c = CHARTS[svg.dataset.chart], r = svg.getBoundingClientRect(), fx = (ev.clientX - r.left) / r.width;
     if (c.art === 'flaeche') {
       const vx = fx * c.W, i = Math.max(0, Math.min(c.n - 1, Math.round((vx - c.x0) / (c.x1 - c.x0) * (c.n - 1)))), x = c.x0 + i / (c.n - 1) * (c.x1 - c.x0);
-      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/><circle cx="${x}" cy="${c.y(c.werte[i])}" r="4" fill="${c.farbe}" class="punkt"/>`;
-      return this.tip(ev, `<b>${c.labels[i]}${c.einheit === 'kWh/h' ? ':00' : ''}</b><div>${de(c.werte[i], 2)} ${c.einheit === 'kWh/h' ? 'kWh' : c.einheit}</div><div class="leise">${de(c.werte[i] * this.d.e.preis, 2)} €</div>`);
+      const h = c.einheit === 'kWh/h', reihen = [...c.reihen].sort((a, b) => b.v[i] - a.v[i]), sum = reihen.reduce((a, r) => a + r.v[i], 0);
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(r => `<circle cx="${x}" cy="${c.y(r.v[i])}" r="4" fill="${r.farbe}" class="punkt"/>`).join('');
+      return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (reihen.length > 1
+        ? reihen.map(r => `<div><i style="background:${r.farbe}"></i>${esc(r.name)} <b>${de(r.v[i], 2)} kWh</b></div>`).join('') + `<div class="leise">zusammen ${de(sum, 2)} kWh · ${de(sum * this.d.e.preis, 2)} €</div>`
+        : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * this.d.e.preis, 2)} €</div>`));
     }
     if (c.art === 'linie') {
       const vx = fx * c.W, i = Math.max(0, Math.min(24, Math.round((vx - c.x0) / (c.x1 - c.x0) * 24))), x = c.x0 + i / 24 * (c.x1 - c.x0);
