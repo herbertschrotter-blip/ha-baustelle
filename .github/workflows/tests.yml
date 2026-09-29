@@ -13,4 +13,9 @@ jobs:
       - name: Fachlogik
         run: uv run --no-project --python 3.12 --with pytest python -m pytest -q -p no:cacheprovider tests/logik
       - name: Integration gegen Home Assistant
-        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component python -m pytest -q -p no:cacheprovider tests/integration
+        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Seite (Panel)
+        run: node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/diagnose-beispiel.json

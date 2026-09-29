@@ -31,7 +31,8 @@ ein YAML-Dashboard. Zweck, Aufbau und Auslieferung stehen in `README.md`; die ab
 
 ### Checks
 - logik: python3 -m pytest -q -p no:cacheprovider tests/logik [custom_components/baustelle/logik/**; tests/logik/**]
-- integration: uv run --no-project --python 3.14 --index-strategy unsafe-best-match --with pytest-homeassistant-custom-component python -m pytest -q -p no:cacheprovider tests/integration [custom_components/**; tests/integration/**]
+- integration: uv run --no-project --python 3.14 --index-strategy unsafe-best-match --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration [custom_components/**; tests/integration/**]
+- panel: node --check custom_components/baustelle/frontend/baustelle-panel.js; node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/diagnose-beispiel.json [custom_components/baustelle/frontend/**; tests/panel/**]
 
 ### Commit
 - Format: [vX.Y.Z] Modul, Typ: Kurztitel
@@ -39,7 +40,7 @@ ein YAML-Dashboard. Zweck, Aufbau und Auslieferung stehen in `README.md`; die ab
 - Versionsquelle: changelog:CHANGELOG.md
 - Versionsregel: MINOR nur für eine wirklich neue Funktion; Verbesserungen, Korrekturen und Umbauten sind PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit
 - Push-Policy: user-only
-- Pre-Commit-Checks: logik; integration
+- Pre-Commit-Checks: logik; integration; panel
 - Doku-Check: none
 
 ### Code
@@ -47,7 +48,7 @@ ein YAML-Dashboard. Zweck, Aufbau und Auslieferung stehen in `README.md`; die ab
 - Pflichtkontext: CLAUDE.md; README.md; mockups/README.md
 - Aufgabenquelle: none
 - Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
-- Tests: logik; integration
+- Tests: logik; integration; panel
 - Auslieferung: ref:README.md#Auslieferung
 - Mockup-Policy: none
 - Befund-Ort: none

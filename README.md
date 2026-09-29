@@ -4,7 +4,7 @@ Eigene Home-Assistant-Integration **Baustelle**: Heizkörper in Baustellencontai
 schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und Shellys, die man in HA zuordnet.
 Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mockups/README.md`).
 
-## Stand 0.4.0 (Stufen 1–5 des Bauplans)
+## Stand 0.5.0 (Stufen 1–6 des Bauplans)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (was dranhängt: Heizkörper, Bautrockner, Pumpe,
@@ -24,7 +24,9 @@ Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mocku
   `statistics-graph`) und lassen sich ins Energie-Dashboard übernehmen. Gezählt wird nur bei aktiver Baustelle.
 - **Dashboard** (Stufe 5): YAML-Dashboard „Baustelle“ mit eingebauten Karten, erzeugt aus der Diagnose (siehe unten).
   **Diagnose-Download** je Baustelle, **Reparatur-Hinweise** bei fehlenden Entitäten.
-- **Noch nicht:** eigene Karte mit Animationen und Baustellen-Umschalter (Stufe 6).
+- **Eigene Seite „Baustelle“** (Stufe 6) in der Seitenleiste, nach dem abgenommenen Entwurf: Übersicht, Heizung,
+  Pumpen, Auswertung, Verlauf, Einstellungen, Baustellen-Umschalter, Animationen und Diagramme – mit echten Daten.
+  Das YAML-Dashboard bleibt als schlichte Alternative.
 
 ## Aufbau
 
@@ -34,11 +36,14 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   steuerung.py                 Laufzeit: Zustände lesen, schalten, melden
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät
   einstellungen.py             Zeitplan, Regeln, Modi (Store unter .storage/, in der Sicherung)
+  frontend/baustelle-panel.js  eigene Seite (Web-Component, ohne externe Abhängigkeiten)
+  panel.py, daten.py           Seite anmelden, WebSocket „baustelle/struktur“
   translations/, icons.json    Texte de/en, Symbole
 ha/dashboards/baustelle.yaml   YAML-Dashboard (→ /config/dashboards/), erzeugt mit tools/dashboard.py
 ha/packages/baustelle.yaml     altes leeres Paket aus 0.1.0, wird nicht mehr ausgeliefert
 tests/logik/                   pytest ohne HA (Python 3.12+)
 tests/integration/             pytest-homeassistant-custom-component (Python 3.14+)
+tests/panel/                   Seite in Node rendern (ohne Browser)
 tools/deploy.sh                Auslieferung nach /config
 tools/dashboard.py             Dashboard aus den Diagnose-Downloads erzeugen
 mockups/                       abgenommener Entwurf

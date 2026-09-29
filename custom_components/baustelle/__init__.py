@@ -4,14 +4,27 @@ from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
 
 from .const import DOMAIN, PLATFORMS
 from .einstellungen import Einstellungen
 from .entity import HERSTELLER, MODELL
+from .panel import async_panel_anmelden
 from .steuerung import Steuerung
 
 type BaustelleConfigEntry = ConfigEntry[Steuerung]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Eigene Seite „Baustelle“ anmelden (unabhängig von den einzelnen Baustellen)."""
+    version = str((await async_get_integration(hass, DOMAIN)).version)
+    await async_panel_anmelden(hass, version)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -> bool:
