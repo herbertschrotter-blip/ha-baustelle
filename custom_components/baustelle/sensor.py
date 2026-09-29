@@ -7,12 +7,19 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import EntityCategory, UnitOfPower, UnitOfPrecipitationDepth, UnitOfTemperature
+from homeassistant.const import (
+    EntityCategory,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfPrecipitationDepth,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import BaustelleConfigEntry
-from .const import ART_CONTAINER
+from .const import ART_CONTAINER, HEIZROLLEN, ROLLE_PUMPE, TYPEN
 from .entity import BaustelleEntity
 from .logik.heizung import Grund
 from .steuerung import Steuerung
@@ -45,13 +52,21 @@ async def async_setup_entry(
     liste: list[SensorEntity] = [StatusSensor(st), LeistungSensor(st)]
     if st.heizung:
         liste += [NaechsteSchaltzeitSensor(st), *(WetterSensor(st, w) for w in WETTER)]
+    liste += [ZaehlerSensor(st, z) for z in ZAEHLER_BAUSTELLE if st.heizung or not z.nur_heizung]
+    if st.heizung:
+        for typ in TYPEN:
+            liste += [ZaehlerSensor(st, z) for z in _typ_zaehler(typ)]
     async_add_entities(liste)
     for bid, info in st.bereiche.items():
         bereich: list[SensorEntity] = [LeistungSensor(st, bid)]
+        bereich += [ZaehlerSensor(st, z, bereich_id=bid) for z in _bereich_zaehler(bid)]
         if st.heizung and info.art == ART_CONTAINER:
-            bereich.append(GrundSensor(st, bid))
+            bereich += [GrundSensor(st, bid), ZaehlerSensor(st, _heizzeit(bid), bereich_id=bid)]
         async_add_entities(bereich, config_subentry_id=bid)
-
+    for gid, g in st.geraete.items():
+        geraet = [ZaehlerSensor(st, z, geraet_id=gid) for z in _geraet_zaehler(gid, g.rolle)]
+        if geraet:
+            async_add_entities(geraet, config_subentry_id=gid)
 
 class StatusSensor(BaustelleEntity, SensorEntity):
     """Was die Baustelle gerade tut."""
@@ -130,3 +145,97 @@ class WetterSensor(BaustelleEntity, SensorEntity):
     @property
     def native_value(self) -> float | None:
         return self._lesen(self.steuerung)
+
+
+# --------------------------------------------------------------------- Zähler (Stufe 4)
+@dataclass(frozen=True)
+class Zaehler:
+    key: str
+    lesen: Callable[[Steuerung], float | None]
+    einheit: str | None = UnitOfEnergy.KILO_WATT_HOUR
+    klasse: SensorDeviceClass | None = SensorDeviceClass.ENERGY
+    art: SensorStateClass | None = SensorStateClass.TOTAL_INCREASING
+    stellen: int = 2
+    geld: bool = False
+    nur_heizung: bool = False
+    diagnose: bool = False
+
+
+GELD = {"einheit": None, "klasse": SensorDeviceClass.MONETARY, "art": SensorStateClass.TOTAL, "geld": True}
+STUNDEN = {"einheit": UnitOfTime.HOURS, "klasse": SensorDeviceClass.DURATION, "stellen": 1}
+MITTEL = {"einheit": UnitOfPower.WATT, "klasse": SensorDeviceClass.POWER, "art": SensorStateClass.MEASUREMENT, "stellen": 0, "diagnose": True}
+PROGNOSE = {"art": None, "stellen": 0, "nur_heizung": True}
+
+
+def _preis(st: Steuerung) -> float:
+    return float(st.einstellungen.daten["preis"])
+
+
+def _mal_preis(wert: float | None, st: Steuerung) -> float | None:
+    return None if wert is None else wert * _preis(st)
+
+
+ZAEHLER_BAUSTELLE = [
+    Zaehler("energie", lambda st: st.zaehler.get("energie", 0.0)),
+    Zaehler("kosten", lambda st: st.zaehler.get("kosten", 0.0), **GELD),
+    Zaehler("energie_ohne_automatik", lambda st: st.zaehler.get("ohne", 0.0), nur_heizung=True),
+    Zaehler("ersparnis", lambda st: st.ersparnis_kwh() * _preis(st), **{**GELD, "nur_heizung": True}),
+    Zaehler("prognose_heizperiode", lambda st: st.hochrechnung_heizperiode("energie_heizen"), **PROGNOSE),
+    Zaehler(
+        "prognose_heizperiode_kosten",
+        lambda st: _mal_preis(st.hochrechnung_heizperiode("energie_heizen"), st),
+        **{**GELD, "art": None, "nur_heizung": True},
+    ),
+    Zaehler("prognose_heizperiode_ohne", lambda st: st.hochrechnung_heizperiode("ohne"), **PROGNOSE),
+]
+
+
+def _typ_zaehler(typ: str) -> list[Zaehler]:
+    return [
+        Zaehler(f"energie_{typ}", lambda st: st.zaehler.get(f"energie_typ:{typ}", 0.0)),
+        Zaehler(f"heizzeit_{typ}", lambda st: st.zaehler.get(f"heizzeit_typ:{typ}", 0.0), **STUNDEN),
+        Zaehler(f"mittel_{typ}", lambda st: st.mittel_typ(typ), **{**MITTEL, "diagnose": False}),
+    ]
+
+
+def _heizzeit(bid: str) -> Zaehler:
+    return Zaehler("heizzeit", lambda st: st.zaehler.get(f"heizzeit:{bid}", 0.0), **STUNDEN)
+
+
+def _geraet_zaehler(gid: str, rolle: str) -> list[Zaehler]:
+    if rolle in HEIZROLLEN:
+        return [Zaehler("mittel_im_betrieb", lambda st: st.zaehler.get(f"mittel:{gid}"), **MITTEL)]
+    if rolle == ROLLE_PUMPE:
+        return [
+            Zaehler("pumpzeit", lambda st: st.zaehler.get(f"pumpzeit:{gid}", 0.0), **STUNDEN),
+            Zaehler("pumpzyklen", lambda st: st.zaehler.get(f"zyklen:{gid}", 0), einheit=None, klasse=None, stellen=0),
+        ]
+    return []
+
+
+def _bereich_zaehler(bid: str) -> list[Zaehler]:
+    return [
+        Zaehler("energie", lambda st: st.zaehler.get(f"energie:{bid}", 0.0)),
+        Zaehler("kosten", lambda st: st.zaehler.get(f"kosten:{bid}", 0.0), **GELD),
+    ]
+
+
+class ZaehlerSensor(BaustelleEntity, SensorEntity):
+    """Zähler und Auswertungen: bleiben dauerhaft, HA führt dazu die Langzeitstatistik."""
+
+    def __init__(
+        self, steuerung: Steuerung, zaehler: Zaehler, *, bereich_id: str | None = None, geraet_id: str | None = None
+    ) -> None:
+        super().__init__(steuerung, zaehler.key, bereich_id, geraet_id)
+        self._lesen = zaehler.lesen
+        self._attr_device_class = zaehler.klasse
+        self._attr_state_class = zaehler.art
+        self._attr_suggested_display_precision = zaehler.stellen
+        self._attr_native_unit_of_measurement = steuerung.hass.config.currency if zaehler.geld else zaehler.einheit
+        if zaehler.diagnose:
+            self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def native_value(self) -> float | None:
+        wert = self._lesen(self.steuerung)
+        return None if wert is None else round(float(wert), 4)

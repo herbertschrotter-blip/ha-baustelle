@@ -152,6 +152,54 @@
       },
       "tageshoechst": {
         "default": "mdi:thermometer-chevron-up"
+      },
+      "energie": {
+        "default": "mdi:lightning-bolt"
+      },
+      "kosten": {
+        "default": "mdi:currency-eur"
+      },
+      "energie_ohne_automatik": {
+        "default": "mdi:lightning-bolt-outline"
+      },
+      "ersparnis": {
+        "default": "mdi:piggy-bank"
+      },
+      "prognose_heizperiode": {
+        "default": "mdi:chart-timeline-variant"
+      },
+      "prognose_heizperiode_kosten": {
+        "default": "mdi:cash-clock"
+      },
+      "prognose_heizperiode_ohne": {
+        "default": "mdi:chart-timeline-variant-shimmer"
+      },
+      "heizzeit": {
+        "default": "mdi:radiator"
+      },
+      "pumpzeit": {
+        "default": "mdi:pump"
+      },
+      "pumpzyklen": {
+        "default": "mdi:counter"
+      },
+      "energie_oelradiator": {
+        "default": "mdi:radiator"
+      },
+      "energie_konvektor": {
+        "default": "mdi:heat-wave"
+      },
+      "heizzeit_oelradiator": {
+        "default": "mdi:radiator"
+      },
+      "heizzeit_konvektor": {
+        "default": "mdi:heat-wave"
+      },
+      "mittel_oelradiator": {
+        "default": "mdi:radiator"
+      },
+      "mittel_konvektor": {
+        "default": "mdi:heat-wave"
       }
     },
     "binary_sensor": {

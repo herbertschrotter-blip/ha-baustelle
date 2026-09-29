@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.0] – 2026-09-29
+
+- Stufe 4 – Verbrauch und Kosten: Zähler je Baustelle und Container (Energie kWh, Kosten zum jeweiligen Preis),
+  Heizzeit je Container, Pumpzeit und Pumpzyklen je Pumpe; Energie aus dem Zählerstand des Shelly (übersteht
+  Neustarts) oder aus Leistung × Zeit. Gezählt wird nur, solange die Baustelle aktiv ist.
+- „Ohne Automatik“: mittlere Leistung im Betrieb je Heizgerät, Zähler für 24-h-Dauerbetrieb, Ersparnis,
+  Hochrechnung auf die Heizperiode (mit und ohne Automatik, Kosten).
+- Vergleich Ölradiator/Konvektor: Energie, Heizzeit und mittlere Leistung je Typ.
+
 ## [0.2.1] – 2026-09-29
 
 - Geräte über `via_device_id` verknüpft (statt veraltetem `via_device`, Warnung von HA 2026.9).

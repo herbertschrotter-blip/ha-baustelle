@@ -46,6 +46,8 @@ STANDARD: dict[str, Any] = {
     "pumpen": {"offline_min": 5.0, "trocken_unter_w": 300.0, "dauerlauf_h": 4.0},
     "preis": 0.28,
     "bereiche": {},
+    # Zähler (Stufe 4): Energie, Kosten, Zeiten, Zyklen, Mittel; „stand:<gerät>“ = letzter Zählerstand des Shelly
+    "zaehler": {},
 }
 
 STANDARD_BEREICH: dict[str, Any] = {"modus": Modus.ZEITPLAN.value, "soll": 18.0, "trocknen": False}
@@ -79,9 +81,9 @@ class Einstellungen:
         for bid in bereich_ids:
             _ergaenzen(bereiche.setdefault(bid, {}), STANDARD_BEREICH)
 
-    def speichern(self) -> None:
+    def speichern(self, verzoegerung: float = SPEICHER_VERZOEGERUNG_S) -> None:
         """Verzögert speichern (mehrere Änderungen hintereinander → ein Schreibvorgang)."""
-        self._store.async_delay_save(lambda: self.daten, SPEICHER_VERZOEGERUNG_S)
+        self._store.async_delay_save(lambda: self.daten, verzoegerung)
 
     async def async_entfernen(self) -> None:
         """Datei beim Löschen der Baustelle entfernen."""

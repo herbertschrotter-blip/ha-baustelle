@@ -4,7 +4,7 @@ Eigene Home-Assistant-Integration **Baustelle**: Heizkörper in Baustellencontai
 schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und Shellys, die man in HA zuordnet.
 Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mockups/README.md`).
 
-## Stand 0.2.0 (Stufen 1–3 des Bauplans)
+## Stand 0.3.0 (Stufen 1–4 des Bauplans)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (was dranhängt: Heizkörper, Bautrockner, Pumpe,
@@ -18,13 +18,17 @@ Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mocku
   Wer einen Heizkörper in HA von Hand schaltet, stellt seinen Container auf „Hand“.
 - **Pumpen**: läuft (nach Leistung), Probleme offline, Trockenlauf, Dauerlauf, Baustelle nicht erreichbar;
   Meldung an die gewählten Handys, Knopf „Test-Meldung“. Problem- und Läuft-Sensoren stehen auf der Geräteseite des Shelly.
-- **Noch nicht:** Verbrauch/Kosten/Prognose (Stufe 4), Dashboard und Diagnose (Stufe 5), eigene Karte (Stufe 6).
+- **Verbrauch und Kosten** (Stufe 4): Zähler je Baustelle und Container (kWh, € zum jeweiligen Preis), Heizzeit,
+  Pumpzeit, Pumpzyklen; „ohne Automatik“ (mittlere Leistung im Betrieb × 24 h), Ersparnis, Hochrechnung auf die
+  Heizperiode; Vergleich Ölradiator/Konvektor. Die Zähler führen in HA eine Langzeitstatistik (Tag, Woche, Monat über
+  `statistics-graph`) und lassen sich ins Energie-Dashboard übernehmen. Gezählt wird nur bei aktiver Baustelle.
+- **Noch nicht:** Dashboard und Diagnose (Stufe 5), eigene Karte (Stufe 6).
 
 ## Aufbau
 
 ```
 custom_components/baustelle/   Integration (→ /config/custom_components/baustelle/)
-  logik/                       Fachlogik ohne HA-Code (Heizungsregeln, Pumpen)
+  logik/                       Fachlogik ohne HA-Code (Heizungsregeln, Pumpen, Zählen)
   steuerung.py                 Laufzeit: Zustände lesen, schalten, melden
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät
   einstellungen.py             Zeitplan, Regeln, Modi (Store unter .storage/, in der Sicherung)

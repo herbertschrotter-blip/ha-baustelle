@@ -390,6 +390,57 @@
       },
       "regen": {
         "name": "Rain"
+      },
+      "energie": {
+        "name": "Energy"
+      },
+      "kosten": {
+        "name": "Cost"
+      },
+      "energie_ohne_automatik": {
+        "name": "Energy without automation (24/7)"
+      },
+      "ersparnis": {
+        "name": "Savings from automation"
+      },
+      "prognose_heizperiode": {
+        "name": "Heating season projected"
+      },
+      "prognose_heizperiode_kosten": {
+        "name": "Heating season projected (cost)"
+      },
+      "prognose_heizperiode_ohne": {
+        "name": "Heating season without automation"
+      },
+      "energie_oelradiator": {
+        "name": "Energy oil radiators"
+      },
+      "energie_konvektor": {
+        "name": "Energy convectors"
+      },
+      "heizzeit_oelradiator": {
+        "name": "Heating time oil radiators"
+      },
+      "heizzeit_konvektor": {
+        "name": "Heating time convectors"
+      },
+      "mittel_oelradiator": {
+        "name": "Avg. power oil radiator"
+      },
+      "mittel_konvektor": {
+        "name": "Avg. power convector"
+      },
+      "heizzeit": {
+        "name": "Heating time"
+      },
+      "mittel_im_betrieb": {
+        "name": "{geraet} avg. power while heating"
+      },
+      "pumpzeit": {
+        "name": "{geraet} pump time"
+      },
+      "pumpzyklen": {
+        "name": "{geraet} pump cycles"
       }
     },
     "binary_sensor": {

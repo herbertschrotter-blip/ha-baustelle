@@ -33,6 +33,8 @@ from .const import (
     CONF_ENERGIE,
     CONF_FEIERTAG_KALENDER,
     CONF_FUEHLER,
+    CONF_HEIZPERIODE_BIS,
+    CONF_HEIZPERIODE_VON,
     CONF_HEIZUNG,
     CONF_LEISTUNG,
     CONF_PUMPEN,
@@ -72,10 +74,19 @@ from .logik.heizung import (
     zu_warm,
 )
 from .logik.pumpen import Problem, PumpenRegeln, PumpenZustand, baustelle_offline, laeuft, pruefe
+from .logik.zaehlen import (
+    energie_zuwachs,
+    hochrechnung,
+    leistung_integriert,
+    mittel_im_betrieb,
+    tage_heizperiode,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 PROBLEM_KEINE_LEISTUNG = "keine_leistung"
+ZAEHLER_SPEICHERN_S = 30
+MAX_SCHRITT_H = 5 / 60  # längere Lücken (Neustart) zählen nicht als Laufzeit
 MELDETEXT = {
     Problem.OFFLINE.value: "{geraet} ({bereich}) ist nicht erreichbar – Stromausfall oder Verbindung weg?",
     Problem.TROCKENLAUF.value: "{geraet} ({bereich}) läuft, zieht aber nur {leistung} W – Trockenlauf?",
@@ -157,6 +168,7 @@ class Steuerung:
         self._hat_geheizt: set[str] = set()  # seit dem Einschalten schon Strom gezogen
         self._gemeldet: set[str] = set()
         self.geraet_ids: dict[str, str] = {}  # Baustelle/Bereich → Geräte-ID in der Geräteverwaltung
+        self._letzte_auswertung: datetime | None = None
 
     # ------------------------------------------------------------------ Einrichtung
     @property
@@ -200,10 +212,14 @@ class Steuerung:
         """Einstellungen laden, auf Änderungen hören, erste Auswertung."""
         self._einrichtung_lesen()
         await self.einstellungen.async_laden(list(self.bereiche))
+        # aktuellen Zählerstand übernehmen; was seit dem letzten gespeicherten Stand dazukam, zählt mit
+        for g in self.geraete.values():
+            if g.energie:
+                self._energie_zaehlen(g, _zahl(self.hass.states.get(g.energie)))
 
         beobachtet: set[str] = set()
         for g in self.geraete.values():
-            beobachtet.update(e for e in (g.schalter, g.leistung) if e)
+            beobachtet.update(e for e in (g.schalter, g.leistung, g.energie) if e)
         for b in self.bereiche.values():
             if b.fuehler:
                 beobachtet.add(b.fuehler)
@@ -255,6 +271,9 @@ class Steuerung:
     @callback
     def _zustand_geaendert(self, event: Event[EventStateChangedData]) -> None:
         neu, alt = event.data["new_state"], event.data["old_state"]
+        for g in self.geraete.values():
+            if g.energie == event.data["entity_id"]:
+                self._energie_zaehlen(g, _zahl(neu))
         if neu is not None and alt is not None and neu.state != alt.state:
             self._handbedienung_erkennen(event.data["entity_id"], neu)
         self.auswerten()
@@ -400,6 +419,7 @@ class Steuerung:
         )
         daten.status = self._status(lage, regeln, heizt)
         self._geraete_pruefen(jetzt)
+        self._zeiten_zaehlen(jetzt)
         for update in list(self._listener):
             update()
 
@@ -471,7 +491,10 @@ class Steuerung:
                 laeuft_min = (jetzt - self._laeuft_seit[g.id]).total_seconds() / 60 if g.id in self._laeuft_seit else 0.0
                 z = PumpenZustand(erreichbar, leistung, offline_min, laeuft_min)
                 probleme = [p.value for p in pruefe(z, regeln)]
-                self.daten.pumpe_laeuft[g.id] = laeuft(z, regeln)
+                laeuft_jetzt = laeuft(z, regeln)
+                if laeuft_jetzt and self.daten.pumpe_laeuft.get(g.id) is False and self.aktiv:
+                    self._zaehler_plus(f"zyklen:{g.id}", 1)
+                self.daten.pumpe_laeuft[g.id] = laeuft_jetzt
             else:
                 probleme = []
                 if not erreichbar and offline_min >= regeln.offline_min:
@@ -531,6 +554,102 @@ class Steuerung:
                 "baustelle_melden",
             )
 
+    # ------------------------------------------------------------------ Zählen (Stufe 4)
+    @property
+    def zaehler(self) -> dict[str, Any]:
+        """Dauerhafte Zähler der Baustelle (im Store, in der Sicherung)."""
+        return self.einstellungen.daten["zaehler"]
+
+    def _zaehler_plus(self, key: str, wert: float) -> None:
+        if wert <= 0:
+            return
+        z = self.zaehler
+        z[key] = z.get(key, 0.0) + wert
+        z.setdefault("seit", dt_util.now().isoformat())
+        self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
+
+    def _energie_buchen(self, g: GeraetInfo, kwh: float) -> None:
+        """Energie eines Shelly der Baustelle und seinem Bereich zurechnen; Kosten zum aktuellen Preis."""
+        if kwh <= 0 or not self.aktiv:
+            return
+        preis = float(self.einstellungen.daten["preis"])
+        for key in ("energie", f"energie:{g.bereich}"):
+            self._zaehler_plus(key, kwh)
+        for key in ("kosten", f"kosten:{g.bereich}"):
+            self._zaehler_plus(key, kwh * preis)
+        if g.rolle in HEIZROLLEN:
+            self._zaehler_plus("energie_heizen", kwh)
+        if g.rolle == ROLLE_HEIZKOERPER:
+            self._zaehler_plus(f"energie_typ:{g.typ}", kwh)
+
+    def _energie_zaehlen(self, g: GeraetInfo, stand: float | None) -> None:
+        """Neuer Stand des Energiezählers eines Shelly; der letzte Stand ist gespeichert (übersteht Neustarts)."""
+        if stand is None:
+            return
+        key = f"stand:{g.id}"
+        alt = self.zaehler.get(key)
+        self.zaehler[key] = stand
+        self._energie_buchen(g, energie_zuwachs(alt, stand))
+        self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
+
+    def _zeiten_zaehlen(self, jetzt: datetime) -> None:
+        """Heiz- und Pumpzeit, mittlere Leistung, „ohne Automatik“ und Energie ohne Zähler seit der letzten Auswertung."""
+        vorher, self._letzte_auswertung = self._letzte_auswertung, jetzt
+        if vorher is None or not self.aktiv:
+            return
+        stunden = (jetzt - vorher).total_seconds() / 3600
+        if stunden <= 0 or stunden > MAX_SCHRITT_H:
+            return
+        ohne_w = 0.0
+        for bid in self.bereiche:
+            heizt = False
+            for g in self.geraete_in(bid):
+                zustand = self.hass.states.get(g.schalter)
+                an = zustand is not None and zustand.state == STATE_ON
+                leistung = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
+                if g.rolle in HEIZROLLEN:
+                    mittel = mittel_im_betrieb(self.zaehler.get(f"mittel:{g.id}"), leistung if an else None)
+                    if mittel is not None:
+                        self.zaehler[f"mittel:{g.id}"] = mittel
+                        if self.heizung:
+                            ohne_w += mittel
+                    if an:
+                        heizt = True
+                        if g.rolle == ROLLE_HEIZKOERPER:
+                            self._zaehler_plus(f"heizzeit_typ:{g.typ}", stunden)
+                if g.rolle == ROLLE_PUMPE and self.daten.pumpe_laeuft.get(g.id):
+                    self._zaehler_plus(f"pumpzeit:{g.id}", stunden)
+                if not g.energie and an:
+                    self._energie_buchen(g, leistung_integriert(leistung, stunden))
+            if heizt:
+                self._zaehler_plus(f"heizzeit:{bid}", stunden)
+        self._zaehler_plus("ohne", ohne_w * stunden / 1000)
+
+    def ersparnis_kwh(self) -> float:
+        """Was 24-h-Dauerbetrieb mehr verbraucht hätte als tatsächlich geheizt wurde."""
+        return max(0.0, self.zaehler.get("ohne", 0.0) - self.zaehler.get("energie_heizen", 0.0))
+
+    def hochrechnung_heizperiode(self, key: str) -> float | None:
+        """Tagesschnitt seit Zählbeginn auf die ganze Heizperiode hochgerechnet (kWh)."""
+        seit = dt_util.parse_datetime(self.zaehler["seit"]) if self.zaehler.get("seit") else None
+        if seit is None:
+            return None
+        jetzt = dt_util.now()
+        von = int(self.entry.options.get(CONF_HEIZPERIODE_VON, 10))
+        bis = int(self.entry.options.get(CONF_HEIZPERIODE_BIS, 4))
+        jahr = jetzt.year if jetzt.month >= von else jetzt.year - 1
+        tage = (jetzt - seit).total_seconds() / 86400
+        return hochrechnung(self.zaehler.get(key, 0.0), tage, tage_heizperiode(von, bis, jahr))
+
+    def mittel_typ(self, typ: str) -> float | None:
+        """Mittlere Leistung im Betrieb aller Heizkörper eines Typs (Vergleich Ölradiator/Konvektor)."""
+        werte = [
+            self.zaehler[f"mittel:{g.id}"]
+            for g in self.geraete.values()
+            if g.rolle == ROLLE_HEIZKOERPER and g.typ == typ and f"mittel:{g.id}" in self.zaehler
+        ]
+        return sum(werte) / len(werte) if werte else None
+
 
 def _sensor_am_geraet(registry: er.EntityRegistry, schalter: str, device_class: str) -> str | None:
     """Leistungs- bzw. Energiesensor desselben Shelly finden (bei Mehrkanal: gleicher Namensanfang)."""
@@ -579,3 +698,4 @@ def _prognose_auswerten(liste: list[dict[str, Any]], art: str, jetzt: datetime) 
             if zeit.date() == heute + timedelta(days=1) and eintrag.get("templow") is not None:
                 frueh = eintrag["templow"]
     return {"max_heute": max_heute, "frueh": frueh, "regen_heute": regen if regen_da else None}
+

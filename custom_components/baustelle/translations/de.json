@@ -390,6 +390,57 @@
       },
       "regen": {
         "name": "Regen"
+      },
+      "energie": {
+        "name": "Energie"
+      },
+      "kosten": {
+        "name": "Kosten"
+      },
+      "energie_ohne_automatik": {
+        "name": "Energie ohne Automatik (24/7)"
+      },
+      "ersparnis": {
+        "name": "Ersparnis durch Automatik"
+      },
+      "prognose_heizperiode": {
+        "name": "Heizperiode hochgerechnet"
+      },
+      "prognose_heizperiode_kosten": {
+        "name": "Heizperiode hochgerechnet (Kosten)"
+      },
+      "prognose_heizperiode_ohne": {
+        "name": "Heizperiode ohne Automatik"
+      },
+      "energie_oelradiator": {
+        "name": "Energie Ölradiatoren"
+      },
+      "energie_konvektor": {
+        "name": "Energie Konvektoren"
+      },
+      "heizzeit_oelradiator": {
+        "name": "Heizzeit Ölradiatoren"
+      },
+      "heizzeit_konvektor": {
+        "name": "Heizzeit Konvektoren"
+      },
+      "mittel_oelradiator": {
+        "name": "Ø Leistung Ölradiator"
+      },
+      "mittel_konvektor": {
+        "name": "Ø Leistung Konvektor"
+      },
+      "heizzeit": {
+        "name": "Heizzeit"
+      },
+      "mittel_im_betrieb": {
+        "name": "{geraet} Ø Leistung im Betrieb"
+      },
+      "pumpzeit": {
+        "name": "{geraet} Pumpzeit"
+      },
+      "pumpzyklen": {
+        "name": "{geraet} Pumpzyklen"
       }
     },
     "binary_sensor": {
