@@ -38,7 +38,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Format: [vX.Y.Z] Modul, Typ: Kurztitel
 - Module: Integration=custom_components/**; Tests=tests/**; Werkzeuge=tools/**, .github/**; Doku=*.md, mockups/**
 - Versionsquelle: changelog:CHANGELOG.md
-- Versionsregel: MINOR nur für eine wirklich neue Funktion; Verbesserungen, Korrekturen und Umbauten sind PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit
+- Versionsregel: MINOR nur für eine wirklich neue Funktion, die es vorher nicht gab; Verbesserungen, Korrekturen und Umbauten (auch neue Gestaltung bestehender Seiten, z. B. neue Übersicht) sind PATCH – im Zweifel PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit (Herbert, 29.09.2026)
 - Push-Policy: user-only
 - Pre-Commit-Checks: logik; integration; panel
 - Doku-Check: none
