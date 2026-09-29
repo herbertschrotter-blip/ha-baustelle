@@ -1,0 +1,376 @@
+/* Klickbarer Prototyp der Baustellen-Seite im Glas-Stil (Beispieldaten, keine Verbindung zu HA). */
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const de = (x, d = 1) => Number(x).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d });
+const FARBE = { heizt: '#ff9f0a', trocknen: '#ff9f0a', aus: '#8e8e93', frost: '#64d2ff', offline: '#ff453a', laeuft: '#0a84ff' };
+const TAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const zufall = seed => () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+
+function daten() {
+  const r = zufall(7);
+  const aussen = [...Array(25)].map((_, h) => 4.2 + 3.2 * Math.sin((h - 9) / 24 * 2 * Math.PI) + (r() - .5) * .6);
+  const reihe = (n, a, b) => [...Array(n)].map(() => a + r() * (b - a));
+  const bereich = (id, name, f, z, t, geraete, extra = {}) => ({ id, name, f, z, t, geraete, auto: true, trocknen: false,
+    innen: aussen.map((a, h) => t === null ? null : Math.max(a + 2, (h >= 5 && h <= 17 ? t : t - 6) + (r() - .5))),
+    kwh7: reihe(7, 6, 16).map((v, i) => i > 4 ? v * .15 : v), h7: reihe(7, 3, 7).map((v, i) => i > 4 ? 0 : v), ...extra });
+  const g = (n, typ, kw, an) => ({ n, typ, kw, an, hand: false });
+  return {
+    aussen,
+    baustellen: [
+      { name: 'ÖWG Dobl Zwaring', aktiv: true, zeit: 'seit 08.09.2026', kwh: 412, eur: 115.4, container: 6 },
+      { name: 'Wohnanlage Lieboch', aktiv: false, zeit: '03.11.2025 – 17.04.2026', kwh: 3480, eur: 974.4, container: 5 },
+      { name: 'Volksschule Wundschuh', aktiv: false, zeit: '12.01.2025 – 28.03.2025', kwh: 1920, eur: 537.6, container: 3 },
+    ],
+    bereiche: [
+      bereich('polier', 'Poliercontainer', 0, 'heizt', 19.4, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Radiator 2', 'Konvektor', 1.99, 1)], { trocknen: true }),
+      bereich('mannschaft', 'Mannschaft', 1, 'trocknen', 17.8, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Konvektor', 'Konvektor', 2.0, 1), g('Trockner', 'Steckdose', 1.79, 1)], { trocknen: true }),
+      bereich('magazin', 'Magazin', 2, 'aus', 9.1, [g('Radiator', 'Ölradiator', 1.5, 0), g('Steckdose', 'Steckdose', 0.4, 0)]),
+      bereich('sanitaer', 'Sanitär', 3, 'frost', 4.2, [g('Frostwächter', 'Konvektor', 2.0, 1)]),
+      bereich('lager', 'Lager Süd', 4, 'offline', null, [g('Radiator', 'Ölradiator', 2.0, 0)], { offline: true }),
+      bereich('schacht', 'Pumpenschacht Nord', 5, 'laeuft', null, [g('Pumpe 1', 'Pumpe', 0.76, 1), g('Pumpe 2 (Reserve)', 'Pumpe', 0.76, 0)],
+        { pumpe: true, zyklen: 36, lauf: '1 h 12 min', laengster: '4 min', kwh7: reihe(7, 0.6, 1.4), h7: reihe(7, 0.8, 1.8), zyk7: reihe(7, 20, 44).map(Math.round) }),
+    ],
+    plan: { Mo: ['05:30–07:30', '11:30–12:30', '15:30–17:15'], Di: ['05:30–07:30', '11:30–12:30', '15:30–17:15'], Mi: ['05:30–07:30', '11:30–12:30', '15:30–17:15'],
+      Do: ['05:30–07:30', '11:30–12:30', '15:30–17:15'], Fr: ['05:30–07:30', '11:30–12:30'], Sa: [], So: [] },
+    e: { preis: 0.28, grenze: 15, basis: 'Tageshöchstwert', fruehstart: true, frueh_temp: 0, frueh_min: 30, frost: true, frost_temp: 5,
+      tr_mm: 2, tr_laenger: 45, tr_frueher: 15, empfaenger: 'Handy Herbert', m_offline: true, m_trocken: true, m_dauer: true, dauer_min: 20 },
+    ereignisse: [
+      ['16:02', 'Poliercontainer', 'heizt – Zeitplan 15:30–17:15', 'heizt'], ['15:30', 'Mannschaft', 'Kleidung trocknen – 6 mm Regen, 45 min länger', 'trocknen'],
+      ['12:30', 'Alle Container', 'aus – Zeitplan', 'aus'], ['10:42', 'Lager Süd', 'nicht erreichbar – Stromausfall?', 'offline'],
+      ['09:14', 'Pumpenschacht Nord', 'Pumpe 1 läuft seit 4 min', 'laeuft'], ['05:15', 'Alle Container', 'Kälte-Frühstart: −1,2 °C, 15 min früher', 'heizt'],
+    ],
+  };
+}
+
+const AKTIV = z => ['heizt', 'trocknen', 'frost', 'laeuft'].includes(z);
+const kwVon = b => b.geraete.reduce((s, g) => s + (g.an ? g.kw : 0), 0);
+const wertHtml = b => b.pumpe ? `${b.zyklen}<small> Zyklen</small>` : b.t !== null ? `${de(b.t)}<small>°C</small>` : '–';
+const illu = b => b.pumpe ? bcSchacht(b.z === 'laeuft') : bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], b.z);
+const TEXT = b => ({ heizt: 'heizt · Zeitplan', trocknen: 'Kleidung trocknen', aus: 'aus bis 05:30', frost: 'Frostschutz', offline: 'nicht erreichbar', laeuft: 'Pumpe läuft' }[b.z]);
+const schalter = (on, act, extra = '') => `<button class="sw ${on ? 'on' : ''}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
+
+/* ---------- Diagramme: dünne Marken, Haarraster, Hover-Anzeige ---------- */
+function linie(id, reihen, einheit) {
+  const W = 320, H = 150, L = 28, R = 8, T = 10, U = 22;
+  const alle = reihen.flatMap(s => s.v.filter(v => v !== null));
+  const lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.ceil(Math.max(...alle) / 5) * 5;
+  const x = i => L + i / 24 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U);
+  const raster = [...Array((hi - lo) / 5 + 1)].map((_, k) => lo + k * 5).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}°</text>`).join('');
+  const achse = [0, 6, 12, 18, 24].map(h => `<text x="${x(h)}" y="${H - 6}" class="ax" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('');
+  const pfade = reihen.map((s, k) => `<path d="${s.v.map((v, i) => v === null ? '' : `${i && s.v[i - 1] !== null ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('')}" fill="none" stroke="var(--s${k + 1})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+  CHARTS[id] = { art: 'linie', x0: L, x1: W - R, W, n: 25, reihen, einheit, y };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}<g class="hover"></g></svg>
+    <div class="legende">${reihen.map((s, k) => `<span><i style="background:var(--s${k + 1})"></i>${s.name}</span>`).join('')}</div>`;
+}
+function balken(id, werte, labels, einheit, d = 1) {
+  const W = 320, H = 150, L = 28, R = 8, T = 10, U = 22, n = werte.length, hi = Math.max(...werte) * 1.15 || 1;
+  const bw = (W - L - R) / n, y = v => T + (1 - v / hi) * (H - T - U), stufe = hi > 20 ? 10 : hi > 6 ? 2 : hi > 2 ? 1 : .5;
+  const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_, k) => k * stufe).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${de(v, stufe < 1 ? 1 : 0)}</text>`).join('');
+  const b = werte.map((v, i) => { const h = H - U - y(v), bx = L + i * bw + 1, w = bw - 2;
+    return `<path d="M${bx} ${H - U}V${y(v) + Math.min(4, h)}q0 -4 4 -4h${w - 8}q4 0 4 4V${H - U}z" fill="var(--s1)" class="bar" data-i="${i}"/>
+      <text x="${bx + w / 2}" y="${H - 6}" class="ax" text-anchor="middle">${labels[i]}</text>`; }).join('');
+  CHARTS[id] = { art: 'balken', werte, labels, einheit, d };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${b}<rect class="treffer" x="0" y="0" width="0" height="0"/></svg>`;
+}
+const CHARTS = {};
+
+/* ---------- App ---------- */
+class App {
+  constructor(root) {
+    this.root = root; this.d = daten();
+    this.s = { view: 'uebersicht', cid: null, auto: true, sheet: null, chart: 'temp', zeitraum: 'Woche', verlauf: 'aktiv' };
+    root.addEventListener('click', e => this.klick(e));
+    root.addEventListener('input', e => this.eingabe(e));
+    root.addEventListener('pointermove', e => this.hover(e));
+    root.addEventListener('pointerleave', () => this.tip(null));
+    this.render();
+  }
+  get b() { return this.d.bereiche.find(x => x.id === this.s.cid); }
+  gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.sheet = null; this.render(true); }
+  toast(t) { const el = this.root.querySelector('.toast'); el.textContent = t; el.classList.remove('an'); void el.offsetWidth; el.classList.add('an'); }
+
+  render(neu = false) {
+    const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0;
+    const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
+    const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view;
+    this.root.innerHTML = `<div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i></div>
+      <div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this['v_' + this.s.view]()}</div></div>
+      <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''}">${t}</button>`).join('')}</nav>
+      <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
+      <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${this.s.sheet ? this.sheet() : ''}</div>
+      <div class="tip"></div><div class="toast glas-panel"></div>`;
+    this.root.querySelector('.scroll').scrollTop = pos;
+  }
+
+  kopf(titel, klein, rechts = '') {
+    return `<div class="glas-kopf glas-panel"><div><div class="glas-klein">${klein}</div><div class="glas-titel">${titel}</div></div>${rechts}</div>`;
+  }
+
+  /* ---- Übersicht ---- */
+  v_uebersicht() {
+    const B = this.d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), warn = B.filter(b => b.offline).length;
+    const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
+    return `${this.kopf(`ÖWG Dobl Zwaring <span class="pfeil">▾</span>`, 'BAUSTELLE', `<div class="glas-kw"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small></div>`).replace('<div><div class="glas-klein">', '<div data-act="sheet" data-s="baustellen" class="klickbar"><div class="glas-klein">')}
+      <div class="glas-chips">
+        <button class="glas-panel chip ${this.s.auto ? 'amber' : ''}" data-act="auto">♨ ${this.s.auto ? 'Automatik · aus 17:15' : 'Automatik aus'}</button>
+        <button class="glas-panel chip" data-act="sheet" data-s="wetter">${wetterIcon('rainy', 20)} 4,2° · 6 mm</button>
+        ${warn ? `<button class="glas-panel chip rot" data-act="sheet" data-s="warnungen">${warn} Warnung</button>` : ''}
+        <span class="chip-leise">${an} von ${alle} Geräten an</span>
+      </div>
+      <div class="glas-raster">${B.map((b, i) => `<button class="glas-panel glas-k ${b.z}" data-act="container" data-id="${b.id}" style="animation-delay:${i * 60}ms;--c:${FARBE[b.z]}">
+        <div class="glas-illu">${illu(b)}</div>
+        <div class="glas-name">${esc(b.name)}</div>
+        <div class="glas-zeile"><span class="glas-wert">${wertHtml(b)}</span><span class="glas-kwk">${de(kwVon(b))} kW</span></div>
+        <div class="glas-status"><span class="glas-dot"></span>${TEXT(b)}</div>
+        <div class="glas-geraete">${b.geraete.map(g => `<i class="${g.an ? 'an' : ''}"></i>`).join('')}<span>${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'}</span></div></button>`).join('')}
+        <button class="glas-panel glas-k neu" data-act="sheet" data-s="container-neu"><span>+</span>Container</button></div>`;
+  }
+
+  /* ---- Container ---- */
+  v_container() {
+    const b = this.b, tl = this.zeitleiste(b);
+    const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
+    if (!tabs.some(t => t[0] === this.s.chart)) this.s.chart = tabs[0][0];
+    const c = this.s.chart, tage = TAGE;
+    const chart = c === 'temp' ? (b.t === null ? '<div class="leer">Kein Temperaturfühler zugeordnet · <button class="link" data-act="tab" data-v="einst">zuordnen</button></div>'
+        : linie('t-' + b.id, [{ name: 'Innen', v: b.innen }, { name: 'Außen', v: this.d.aussen }], '°C'))
+      : c === 'verbrauch' ? balken('v-' + b.id, b.kwh7, tage, 'kWh') : c === 'zyklen' ? balken('z-' + b.id, b.zyk7, tage, 'Zyklen', 0) : balken('h-' + b.id, b.h7, tage, 'h');
+    const kennz = b.pumpe ? [['Zyklen heute', b.zyklen], ['Laufzeit', b.lauf], ['Längster Lauf', b.laengster]]
+      : [['Heute', `${de(b.kwh7[2])} kWh`], ['Kosten', `${de(b.kwh7[2] * this.d.e.preis, 2)} €`], ['Heizzeit', `${de(b.h7[2])} h`]];
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
+        <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
+      <div class="glas-panel c-held" style="--c:${FARBE[b.z]}">
+        <div class="c-illu">${illu(b)}</div>
+        <div class="c-text"><div class="glas-klein">${b.pumpe ? 'PUMPENSCHACHT' : 'CONTAINER'}</div><div class="glas-titel">${esc(b.name)}</div>
+          <div class="c-wert">${wertHtml(b)}</div><div class="glas-status"><span class="glas-dot"></span>${TEXT(b)}</div>
+          <div class="c-kw">${de(kwVon(b))} kW</div></div>
+      </div>
+      <div class="glas-panel liste">
+        <div class="zeile"><span>♨ Automatik für ${b.pumpe ? 'diesen Schacht' : 'diesen Container'}</span>${schalter(b.auto, 'b-auto')}</div>
+        ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
+      </div>
+      ${b.pumpe ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Zeitplan · Kleidung trocknen schraffiert</span></div>${tl}</div>`}
+      <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
+        ${b.geraete.map((g, i) => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">${g.typ === 'Pumpe' ? '💧' : g.typ === 'Steckdose' ? '⏻' : '♨'}</span>
+          <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${g.hand ? ' · <em class="hand">Hand</em>' : ''}</span></div>
+          ${b.offline ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}</div>
+      <div class="glas-panel block"><div class="seg">${tabs.map(([k, t]) => `<button data-act="chart" data-c="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <div class="chart-wrap">${chart}</div></div>
+      <div class="glas-panel kennz">${kennz.map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>
+      ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter 30 W beim Laufen)</span><span class="ok">● überwacht</span></div>
+        <div class="zeile"><span>Dauerlauf über ${this.d.e.dauer_min} min</span><span class="ok">● überwacht</span></div>
+        <div class="zeile"><span>Stromausfall / offline</span><span class="ok">● überwacht</span></div></div>` : ''}`;
+  }
+  zeitleiste(b) {
+    const x = t => { const [h, m] = t.split(':').map(Number); return (h + m / 60) / 24 * 100; };
+    const fenster = this.d.plan.Mi.map(f => f.split('–'));
+    const seg = fenster.map(([a, e], i) => `<i class="tl-heiz" style="left:${x(a)}%;width:${x(e) - x(a)}%"></i>` +
+      (b.trocknen && i === fenster.length - 1 ? `<i class="tl-trock" style="left:${x(e)}%;width:${45 / 60 / 24 * 100}%"></i>` : '')).join('');
+    return `<div class="tl"><div class="tl-spur">${seg}<i class="tl-jetzt" style="left:${x('16:20')}%"></i></div>
+      <div class="tl-achse">${['00', '06', '12', '18', '24'].map(h => `<span>${h}</span>`).join('')}</div></div>`;
+  }
+
+  /* ---- Heizung ---- */
+  v_heizung() {
+    const e = this.d.e, st = (k, d, fmt) => `<span class="stepper"><button data-act="st" data-k="${k}" data-d="${-d}">−</button><b>${fmt(e[k])}</b><button data-act="st" data-k="${k}" data-d="${d}">+</button></span>`;
+    const grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, mm = v => `${de(v, 1)} mm`;
+    return `${this.kopf('Heizung', 'ÖWG DOBL ZWARING', `<div>${schalter(this.s.auto, 'auto')}</div>`)}
+      <div class="glas-panel block"><div class="block-kopf"><b>Zeitplan</b><span class="leise">Tippen zum Ändern</span></div>
+        ${TAGE.map(t => `<button class="zeile tag" data-act="sheet" data-s="tag" data-t="${t}"><b class="tag-n">${t}</b>
+          <span class="fenster">${this.d.plan[t].length ? this.d.plan[t].map(f => `<em>${f}</em>`).join('') : '<span class="leise">aus</span>'}</span><span class="chev">›</span></button>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Regeln</b></div>
+        <div class="zeile"><div><b>Heizgrenze</b><div class="leise">nicht heizen, wenn es wärmer ist</div></div>${st('grenze', .5, grad)}</div>
+        <div class="zeile"><span>Grundlage</span><div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+        <div class="zeile"><div><b>Kälte-Frühstart</b><div class="leise">unter ${de(e.frueh_temp, 0)} °C früher einschalten</div></div>${schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"')}</div>
+        ${e.fruehstart ? `<div class="zeile unter"><span>so viel früher</span>${st('frueh_min', 5, min)}</div>` : ''}
+        <div class="zeile"><div><b>Frostschutz</b><div class="leise">hält jeden Container über der Grenze</div></div>${schalter(e.frost, 'e-bool', 'data-k="frost"')}</div>
+        ${e.frost ? `<div class="zeile unter"><span>Frostgrenze</span>${st('frost_temp', .5, grad)}</div>` : ''}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen länger heizen</span></div>
+        <div class="zeile"><span>ab Regen (seit gestern)</span>${st('tr_mm', .5, mm)}</div>
+        <div class="zeile"><span>länger heizen</span>${st('tr_laenger', 5, min)}</div>
+        <div class="zeile"><span>früher beginnen</span>${st('tr_frueher', 5, min)}</div>
+        ${this.d.bereiche.filter(b => !b.pumpe).map(b => `<div class="zeile unter"><span>${esc(b.name)}</span>${schalter(b.trocknen, 'tr-b', `data-id="${b.id}"`)}</div>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Urlaub &amp; Feiertage</b></div>
+        <div class="zeile"><div><b>Nächster Feiertag</b><div class="leise">aus dem Kalender „Feiertage“ (Österreich, jedes Jahr neu)</div></div><span>Sa 01.11.</span></div>
+        <div class="zeile"><div><b>Urlaub</b><div class="leise">Weihnachten 23.12. – 06.01.</div></div><button class="chip glas-panel" data-act="sheet" data-s="urlaub">Eintragen</button></div></div>`;
+  }
+
+  /* ---- Auswertung ---- */
+  v_auswertung() {
+    const f = { Tag: 1, Woche: 6.2, Monat: 26, Heizperiode: 150 }[this.s.zeitraum], preis = this.d.e.preis;
+    const kwh = 18.6 * f, ohne = 96 * f, B = this.d.bereiche;
+    const labels = { Tag: ['00', '04', '08', '12', '16', '20'], Woche: TAGE, Monat: ['KW36', 'KW37', 'KW38', 'KW39', 'KW40'], Heizperiode: ['Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär'] }[this.s.zeitraum];
+    const r = zufall(labels.length * 3), werte = labels.map(() => kwh / labels.length * (.6 + r() * .8));
+    const anteil = [.24, .3, .08, .2, .04, .14], maxA = Math.max(...anteil);
+    return `${this.kopf('Auswertung', 'VERBRAUCH UND KOSTEN')}
+      <div class="seg glas-panel">${['Tag', 'Woche', 'Monat', 'Heizperiode'].map(z => `<button data-act="zeitraum" data-v="${z}" class="${z === this.s.zeitraum ? 'on' : ''}">${z}</button>`).join('')}</div>
+      <div class="glas-panel kennz"><div><b>${de(kwh, 0)}</b><span>kWh</span></div><div><b>${de(kwh * preis, 2)} €</b><span>Kosten</span></div><div><b>${de(kwh / 3.6, 0)} h</b><span>Heizzeit</span></div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Verbrauch</b><span class="leise">kWh je ${this.s.zeitraum === 'Tag' ? '4 Stunden' : this.s.zeitraum === 'Woche' ? 'Tag' : this.s.zeitraum === 'Monat' ? 'Woche' : 'Monat'}</span></div>
+        <div class="chart-wrap">${balken('aw-' + this.s.zeitraum, werte, labels, 'kWh')}</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">kWh · Anteil</span></div>
+        ${B.map((b, i) => `<div class="hbar"><span class="hb-n">${esc(b.name)}</span><span class="hb-spur"><i style="width:${anteil[i] / maxA * 100}%;background:var(--s${i + 1})"></i></span><span class="hb-w">${de(kwh * anteil[i], 0)}</span></div>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
+        <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${kwh / ohne * 100}%;background:var(--s1)"></i></span><span class="hb-w">${de(kwh * preis, 0)} €</span></div>
+        <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(ohne * preis, 0)} €</span></div>
+        <div class="gespart">gespart <b>${de((ohne - kwh) * preis, 2)} €</b> · ${de((1 - kwh / ohne) * 100, 0)} %</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
+        <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
+          <tr><td>kWh je Heizstunde</td><td>1,62</td><td><b>1,94</b></td></tr>
+          <tr><td>Aufheizen auf 18 °C</td><td><b>48 min</b></td><td>31 min</td></tr>
+          <tr><td>Abkühlen nach Aus</td><td>2,1 °C/h</td><td><b>3,4 °C/h</b></td></tr>
+          <tr><td>Kosten je Tag</td><td>2,72 €</td><td>3,26 €</td></tr></table>
+        <div class="leise fuss">Der Ölradiator braucht länger, hält die Wärme aber besser und verbraucht rund 16 % weniger.</div></div>`;
+  }
+
+  /* ---- Verlauf ---- */
+  v_verlauf() {
+    const liste = this.d.baustellen.filter(b => b.aktiv === (this.s.verlauf === 'aktiv'));
+    return `${this.kopf('Verlauf', 'BAUSTELLEN')}
+      <div class="seg glas-panel">${[['aktiv', 'Aktiv'], ['ab', 'Abgeschlossen']].map(([k, t]) => `<button data-act="verlauf" data-v="${k}" class="${k === this.s.verlauf ? 'on' : ''}">${t}</button>`).join('')}</div>
+      ${liste.map((b, i) => `<button class="glas-panel bs-karte" data-act="sheet" data-s="baustelle" data-i="${this.d.baustellen.indexOf(b)}" style="animation-delay:${i * 60}ms">
+        <div class="bs-kopf"><b>${esc(b.name)}</b><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></div>
+        <div class="leise">${b.zeit} · ${b.container} Container</div>
+        <div class="bs-zahlen"><span><b>${de(b.kwh, 0)}</b> kWh</span><span><b>${de(b.eur, 2)}</b> €</span></div></button>`).join('')}
+      ${this.s.verlauf === 'aktiv' ? `<div class="glas-panel block"><div class="block-kopf"><b>Ereignisse heute</b><span class="leise">aus dem Logbuch</span></div>
+        ${this.d.ereignisse.map(([t, w, x, z]) => `<div class="zeile ereignis"><span class="zeit">${t}</span><span class="glas-dot" style="--c:${FARBE[z]}"></span><div><b>${w}</b><div class="leise">${x}</div></div></div>`).join('')}</div>` : ''}`;
+  }
+
+  /* ---- Einstellungen ---- */
+  v_einst() {
+    const e = this.d.e;
+    return `${this.kopf('Einstellungen', 'ÖWG DOBL ZWARING')}
+      <div class="glas-panel liste"><div class="gruppe">Baustelle</div>
+        <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">ÖWG Dobl Zwaring ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">Container und Geräte</div>
+        ${this.d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
+        <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">Strom</div>
+        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label></div>
+      <div class="glas-panel liste"><div class="gruppe">Wetter und Kalender</div>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Wetter</span><span class="leise">Open-Meteo · Zone Baustelle ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Außentemperatur</span><span class="leise">aus der Vorhersage ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="urlaub"><span>Urlaub</span><span class="leise">Kalender „Baustelle Urlaub“ ›</span></button>
+        <div class="zeile"><span>Feiertage</span><span class="leise">Österreich, automatisch</span></div></div>
+      <div class="glas-panel liste"><div class="gruppe">Meldungen</div>
+        <div class="zeile"><span>Empfänger</span><span class="leise">${e.empfaenger}</span></div>
+        <div class="zeile"><span>Stromausfall / offline</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
+        <div class="zeile"><span>Pumpe Trockenlauf</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
+        <div class="zeile"><span>Pumpe Dauerlauf über ${e.dauer_min} min</span>${schalter(e.m_dauer, 'e-bool', 'data-k="m_dauer"')}</div></div>`;
+  }
+
+  /* ---- Einblendungen von unten ---- */
+  sheet() {
+    const s = this.s.sheet, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
+    const griff = '<div class="griff"></div>';
+    if (s.art === 'wetter') {
+      const std = [['16', 'rainy', 4.2, 1.2], ['17', 'rainy', 3.8, .8], ['18', 'cloudy', 3.1, .1], ['19', 'cloudy', 2.4, 0], ['20', 'fog', 1.9, 0], ['21', 'clear-night', 1.2, 0], ['22', 'clear-night', .6, 0], ['23', 'clear-night', 0.1, 0]];
+      return `${griff}<h3>Wetter · Dobl</h3><div class="w-jetzt">${wetterIcon('rainy', 72)}<div><b>4,2 °C</b><div class="leise">Regen · 6 mm seit gestern · morgen früh −1 °C</div></div></div>
+        <div class="w-std">${std.map(([h, w, t, r]) => `<div><span class="leise">${h}</span>${wetterIcon(w, 34)}<b>${de(t, 0)}°</b><span class="leise">${r ? de(r) + ' mm' : ''}</span></div>`).join('')}</div>
+        <div class="leise">Folgen: Kleidung trocknen morgen aktiv (Regen über ${de(this.d.e.tr_mm)} mm), Kälte-Frühstart 15 min früher.</div>${knopf('Schließen')}`;
+    }
+    if (s.art === 'warnungen') return `${griff}<h3>Warnungen</h3><div class="warn-k"><b>Lager Süd nicht erreichbar</b><div class="leise">seit 10:42 · Shelly antwortet nicht – Stromausfall oder Stecker gezogen?</div></div>
+      ${knopf('Zum Container', 'container-lager')}${knopf('Schließen', 'zu', 'leise-k')}`;
+    if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.d.baustellen.map((b, i) => `<button class="zeile" data-act="zu"><span>${esc(b.name)}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>`).join('')}
+      <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>`;
+    if (s.art === 'tag') {
+      const f = this.d.plan[s.t];
+      return `${griff}<h3>Zeitplan ${s.t}</h3>${f.map((x, i) => { const [a, e] = x.split('–');
+        return `<div class="zeile"><input type="time" value="${a}" data-f="${i}" data-p="0"><span>bis</span><input type="time" value="${e}" data-f="${i}" data-p="1"><button class="x" data-act="f-weg" data-i="${i}">✕</button></div>`; }).join('')}
+        <button class="zeile" data-act="f-neu"><span class="blau">+ Zeitfenster</span></button>
+        <button class="zeile" data-act="f-alle"><span class="blau">Auf Mo–Fr übertragen</span></button>${knopf('Fertig', 'f-fertig')}`;
+    }
+    if (s.art === 'container-neu') return `${griff}<h3>Neuer Container</h3>
+      <label class="feld">Name<input value="" placeholder="z. B. Lager Nord" data-neu="name"></label>
+      <div class="feld">Art<div class="seg klein">${['Container', 'Pumpenschacht'].map(v => `<button data-act="neu-art" data-v="${v}" class="${(s.neuArt || 'Container') === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+      <label class="feld">Temperaturfühler<select><option>– keiner –</option><option>Poliercontainer Temperatur</option></select></label>
+      <label class="feld">Shelly<select><option>Heizung 03 (Shelly Plug S)</option><option>Heizung 04 (Shelly Plug S)</option></select></label>
+      <label class="feld">Heizkörper<select><option>Ölradiator</option><option>Konvektor</option></select></label>
+      ${knopf('Anlegen', 'neu-anlegen', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    if (s.art === 'bereich') { const b = this.b;
+      return `${griff}<h3>${esc(b.name)}</h3><label class="feld">Name<input value="${esc(b.name)}" data-b="name"></label>
+        ${b.geraete.map(g => `<div class="zeile"><span>${esc(g.n)}</span><select><option ${g.typ === 'Ölradiator' ? 'selected' : ''}>Ölradiator</option><option ${g.typ === 'Konvektor' ? 'selected' : ''}>Konvektor</option><option ${g.typ === 'Steckdose' ? 'selected' : ''}>Steckdose</option><option ${g.typ === 'Pumpe' ? 'selected' : ''}>Pumpe</option></select></div>`).join('')}
+        <button class="zeile" data-act="toast" data-t="Gerät wird über HA hinzugefügt"><span class="blau">+ Gerät</span></button>
+        ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}`; }
+    if (s.art === 'baustelle') { const b = this.d.baustellen[s.i], r = zufall(s.i + 3), m = ['Sep', 'Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär', 'Apr'].slice(0, b.aktiv ? 2 : 6);
+      return `${griff}<h3>${esc(b.name)}</h3><div class="leise">${b.zeit}</div>
+        <div class="kennz"><div><b>${de(b.kwh, 0)}</b><span>kWh</span></div><div><b>${de(b.eur, 2)} €</b><span>Kosten</span></div><div><b>${b.container}</b><span>Container</span></div></div>
+        <div class="chart-wrap">${balken('bs-' + s.i, m.map(() => b.kwh / m.length * (.5 + r())), m, 'kWh', 0)}</div>
+        ${b.aktiv ? knopf('Öffnen', 'zu', 'amber') : knopf('Wieder aktiv setzen', 'toast-zu', 'leise-k')}`; }
+    if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'toast-zu', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    if (s.art === 'urlaub') return `${griff}<h3>Urlaub</h3><label class="feld">Von<input type="date" value="2026-12-23"></label><label class="feld">Bis<input type="date" value="2027-01-06"></label>
+      <div class="leise">Wird in den Kalender „Baustelle Urlaub“ eingetragen; in der Zeit läuft nur der Frostschutz.</div>${knopf('Eintragen', 'toast-zu', 'amber')}`;
+    return `${griff}<h3>${{ name: 'Name', 'baustelle-neu': 'Neue Baustelle', wetterquelle: 'Wetter' }[s.art] || ''}</h3>
+      ${s.art === 'wetterquelle' ? `<label class="feld">Wetter<select><option>Open-Meteo · Zone Baustelle Dobl Zwaring</option></select></label><label class="feld">Außentemperatur<select><option>aus der Vorhersage</option></select></label><label class="feld">Regenmenge<select><option>aus der Vorhersage</option></select></label>`
+        : `<label class="feld">Name<input value="${s.art === 'name' ? 'ÖWG Dobl Zwaring' : ''}" placeholder="z. B. Wohnbau Kalsdorf"></label>`}
+      ${knopf('Speichern', 'toast-zu', 'amber')}`;
+  }
+
+  /* ---- Aktionen ---- */
+  klick(ev) {
+    const el = ev.target.closest('[data-act]'); if (!el || !this.root.contains(el)) return;
+    const a = el.dataset.act, d = this.d, b = this.b;
+    const neu = () => this.render();
+    switch (a) {
+      case 'tab': return this.gehe(el.dataset.v);
+      case 'container': this.s.chart = 'temp'; return this.gehe('container', el.dataset.id);
+      case 'container-lager': return this.gehe('container', 'lager');
+      case 'sheet': this.s.sheet = { art: el.dataset.s, t: el.dataset.t, i: +el.dataset.i }; return neu();
+      case 'bereich-einst': this.s.cid = el.dataset.id; this.s.sheet = { art: 'bereich' }; return neu();
+      case 'zu': this.s.sheet = null; return neu();
+      case 'toast': return this.toast(el.dataset.t);
+      case 'toast-zu': this.s.sheet = null; neu(); return this.toast('Gespeichert');
+      case 'auto': this.s.auto = !this.s.auto; neu(); return this.toast(this.s.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
+      case 'b-auto': b.auto = !b.auto; return neu();
+      case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; x.trocknen = !x.trocknen; return neu(); }
+      case 'geraet': { const g = b.geraete[+el.dataset.i]; g.an = g.an ? 0 : 1; g.hand = b.auto;
+        const an = b.geraete.some(x => x.an); if (b.pumpe) b.z = b.geraete[0].an ? 'laeuft' : 'aus'; else b.z = an ? (b.z === 'aus' ? 'heizt' : b.z) : 'aus';
+        neu(); return b.auto && this.toast('Handbetrieb bis zum nächsten Schaltpunkt'); }
+      case 'chart': this.s.chart = el.dataset.c; return neu();
+      case 'zeitraum': this.s.zeitraum = el.dataset.v; return neu();
+      case 'verlauf': this.s.verlauf = el.dataset.v; return neu();
+      case 'basis': d.e.basis = el.dataset.v; return neu();
+      case 'e-bool': d.e[el.dataset.k] = !d.e[el.dataset.k]; return neu();
+      case 'st': { const k = el.dataset.k; d.e[k] = Math.max(0, Math.round((d.e[k] + +el.dataset.d) * 10) / 10); return neu(); }
+      case 'f-weg': d.plan[this.s.sheet.t].splice(+el.dataset.i, 1); return neu();
+      case 'f-neu': d.plan[this.s.sheet.t].push('13:00–14:00'); return neu();
+      case 'f-alle': for (const t of TAGE.slice(0, 5)) d.plan[t] = [...d.plan[this.s.sheet.t]]; this.s.sheet = null; neu(); return this.toast('Auf Mo–Fr übertragen');
+      case 'f-fertig': this.s.sheet = null; neu(); return this.toast('Zeitplan gespeichert');
+      case 'neu-art': this.s.sheet.neuArt = el.dataset.v; return neu();
+      case 'neu-anlegen': { const name = this.root.querySelector('[data-neu="name"]').value.trim() || 'Neuer Container', p = this.s.sheet.neuArt === 'Pumpenschacht';
+        d.bereiche.push({ id: 'n' + d.bereiche.length, name, f: d.bereiche.length, z: p ? 'aus' : 'aus', t: null, auto: true, trocknen: false, pumpe: p, zyklen: 0, lauf: '0 min', laengster: '–',
+          innen: [], kwh7: Array(7).fill(0), h7: Array(7).fill(0), zyk7: Array(7).fill(0), geraete: [{ n: p ? 'Pumpe 1' : 'Heizung 03', typ: p ? 'Pumpe' : 'Ölradiator', kw: p ? .76 : 2, an: 0, hand: false }] });
+        this.s.sheet = null; neu(); return this.toast(`${name} angelegt`); }
+      case 'b-speichern': { const v = this.root.querySelector('[data-b="name"]').value.trim(); if (v) b.name = v; this.s.sheet = null; neu(); return this.toast('Gespeichert'); }
+      case 'b-weg': d.bereiche = d.bereiche.filter(x => x !== b); this.toast(`${b.name} entfernt – Werte bleiben im Verlauf`); return this.gehe('uebersicht');
+    }
+  }
+  eingabe(ev) {
+    const el = ev.target;
+    if (el.dataset.k === 'preis') this.d.e.preis = +el.value || 0;
+    if (el.dataset.f !== undefined) { const t = this.s.sheet.t, arr = this.d.plan[t][+el.dataset.f].split('–'); arr[+el.dataset.p] = el.value; this.d.plan[t][+el.dataset.f] = arr.join('–'); }
+  }
+  hover(ev) {
+    const svg = ev.target.closest('svg.chart'); if (!svg) return this.tip(null);
+    const c = CHARTS[svg.dataset.chart], r = svg.getBoundingClientRect(), fx = (ev.clientX - r.left) / r.width;
+    if (c.art === 'linie') {
+      const vx = fx * c.W, i = Math.max(0, Math.min(24, Math.round((vx - c.x0) / (c.x1 - c.x0) * 24))), x = c.x0 + i / 24 * (c.x1 - c.x0);
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="128" class="kreuz"/>` + c.reihen.map((s, k) => s.v[i] === null ? '' : `<circle cx="${x}" cy="${c.y(s.v[i])}" r="4" fill="var(--s${k + 1})" class="punkt"/>`).join('');
+      this.tip(ev, `<b>${String(i).padStart(2, '0')}:00</b>${c.reihen.map((s, k) => s.v[i] === null ? '' : `<div><i style="background:var(--s${k + 1})"></i>${s.name} <b>${de(s.v[i])} ${c.einheit}</b></div>`).join('')}`);
+    } else {
+      const bar = ev.target.closest('.bar'); svg.querySelectorAll('.bar').forEach(x => x.classList.toggle('matt', !!bar && x !== bar));
+      if (!bar) return this.tip(null); const i = +bar.dataset.i;
+      this.tip(ev, `<b>${c.labels[i]}</b><div>${de(c.werte[i], c.d)} ${c.einheit}</div>`);
+    }
+  }
+  tip(ev, html) {
+    const t = this.root.querySelector('.tip'); if (!t) return;
+    if (!ev || !html) { t.classList.remove('an'); this.root.querySelectorAll('.chart .hover').forEach(h => h.innerHTML = ''); this.root.querySelectorAll('.bar.matt').forEach(x => x.classList.remove('matt')); return; }
+    const r = this.root.getBoundingClientRect(); t.innerHTML = html; t.classList.add('an');
+    const x = Math.min(ev.clientX - r.left + 12, r.width - t.offsetWidth - 8); t.style.left = x + 'px'; t.style.top = (ev.clientY - r.top - t.offsetHeight - 12) + 'px';
+  }
+}
+document.querySelectorAll('.app').forEach(el => new App(el));
+document.getElementById('modus').onclick = () => document.body.classList.toggle('hell');

@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baustelle – Glas, klickbar</title>
+<style>/* Wetter */
+.wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
+.wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
+.wetter .wtage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
+.wetter .wtag { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.wetter .wt { font-size: 12px; font-weight: 600; color: var(--secondary-text-color); }
+.wetter .max { font-weight: 600; }
+.wetter .frost { color: #2a78d6; font-weight: 600; }
+.wetter .regen { color: #2a78d6; }
+@keyframes wi-dreh { to { transform: rotate(360deg); } }
+@keyframes wi-wolke { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+@keyframes wi-tropfen { 0% { transform: translateY(-5px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(9px); opacity: 0; } }
+@keyframes wi-flocke { 0% { transform: translate(-1px, -5px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(2px, 9px); opacity: 0; } }
+@keyframes wi-blitz { 0%, 86%, 100% { opacity: .15; } 88%, 93% { opacity: 1; } 90% { opacity: .3; } }
+@keyframes wi-nebel { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+@keyframes wi-stern { 50% { opacity: .2; } }
+@keyframes wi-wind { 0% { stroke-dashoffset: 60; } 100% { stroke-dashoffset: 0; } }
+.wi .wi-dreh { animation: wi-dreh 18s linear infinite; }
+.wi .wi-wolke > g { animation: wi-wolke 6s ease-in-out infinite; }
+.wr .wr-kristall { transform-box: fill-box; animation: wi-dreh 6s linear infinite; }
+@keyframes wb-puls { 0%, 100% { opacity: .55; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
+.wi .wb-puls { transform-box: fill-box; transform-origin: center; animation: wb-puls 3.5s ease-in-out infinite; }
+.wi .wi-tropfen { animation: wi-tropfen 1.3s linear infinite; }
+.wi .wi-flocke { animation: wi-flocke 2.6s linear infinite; }
+.wi .wi-blitz { animation: wi-blitz 3.2s linear infinite; }
+.wi .wi-nebel { animation: wi-nebel 5s ease-in-out infinite; }
+.wi .wi-stern { animation: wi-stern 2.4s ease-in-out infinite; }
+.wi .wi-wind { stroke-dasharray: 60; animation: wi-wind 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .wi * { animation: none !important; } }
+
+
+.bc { width: 100%; height: auto; display: block; overflow: visible; } .bc.offline { filter: grayscale(.8) brightness(.8); }
+@keyframes rein { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes atmen { 50% { opacity: .55; } }
+@keyframes fuellen { from { width: 0; } }
+@keyframes blitz { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-6deg); } }
+.bc-glut { animation: bc-glut 2.6s ease-in-out infinite; } @keyframes bc-glut { 50% { fill: #ffd180; filter: drop-shadow(0 0 4px #ff9800); } }
+.bc-waerme { animation: bc-waerme 2.1s ease-in infinite; opacity: 0; } @keyframes bc-waerme { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-12px); opacity: 0; } }
+.bc-jacke { animation: bc-jacke 2.4s ease-in-out infinite; } @keyframes bc-jacke { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+.bc-eis { animation: bc-eis 2s ease-in-out infinite; } @keyframes bc-eis { 50% { opacity: .3; } }
+.bc-alarm { animation: bc-alarm 1s steps(2) infinite; } @keyframes bc-alarm { 50% { opacity: .25; } }
+.bc-pegel { animation: bc-pegel 5s ease-in-out infinite; } @keyframes bc-pegel { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+.bc-welle { animation: bc-welle 3s linear infinite; } @keyframes bc-welle { to { transform: translateX(-60px); } }
+.bc-rad { animation: bc-rad .9s linear infinite; transform-box: fill-box; transform-origin: center; } @keyframes bc-rad { to { transform: rotate(360deg); } }
+.bc-fluss { stroke-dasharray: 5 5; animation: bc-fluss .6s linear infinite; } @keyframes bc-fluss { to { stroke-dashoffset: -10; } }
+@media (prefers-reduced-motion: reduce) { .bc *, .kc, .kc *, .bk * { animation: none !important; } }
+
+/* Glas-Stil (Variante C) – klickbarer Prototyp */
+body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif; background: #0b0b0b; color: #fff; }
+body.hell { background: #d9dee5; color: #111; }
+.bar { position: sticky; top: 0; z-index: 50; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: #1c1c1e; color: #fff; font-size: 14px; }
+.bar button { background: transparent; color: inherit; border: 1px solid #636366; border-radius: 8px; padding: 5px 10px; font: inherit; cursor: pointer; }
+.bar .leise { opacity: .65; font-size: 12px; }
+.buehne { display: flex; gap: 28px; padding: 20px 16px; align-items: flex-start; flex-wrap: wrap; }
+.buehne h2 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: #8e8e93; }
+.telefon { width: 390px; height: 844px; border-radius: 48px; border: 10px solid #000; overflow: hidden; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,.6); flex: none; }
+.telefon::before { content: ""; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 110px; height: 30px; border-radius: 20px; background: #000; z-index: 40; }
+.desktop { width: min(1180px, calc(100vw - 32px)); height: 800px; border-radius: 12px; border: 1px solid #3a3a3c; overflow: hidden; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+@media (max-width: 440px) { .telefon { width: calc(100vw - 32px); } }
+
+/* Farben der Diagramme (validierte Palette, eigene Stufen für dunkel) */
+.app { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  --ink: #fff; --ink2: rgba(255,255,255,.66); --gridc: rgba(255,255,255,.14); --axisc: rgba(255,255,255,.55); --amber: #ff9f0a; --rot: #ff6961; --blau: #64a8ff;
+  --panel: rgba(255,255,255,.1); --panel-rand: rgba(255,255,255,.22); --sheet: rgba(28,32,44,.82);
+  --fenster: #2b3a44; --rahmen: #cfd8dc; --wr-nebel: #c5d0d7; --wr-wind: #cfe3f3;
+  position: relative; height: 100%; overflow: hidden; color: var(--ink); container-type: inline-size; }
+.hell .app { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --ink: #111; --ink2: rgba(0,0,0,.6); --gridc: rgba(0,0,0,.1); --axisc: rgba(0,0,0,.5); --amber: #d97800; --rot: #d7372b; --blau: #0a64d6;
+  --panel: rgba(255,255,255,.45); --panel-rand: rgba(255,255,255,.75); --sheet: rgba(250,250,252,.86);
+  --fenster: #cfe3f3; --rahmen: #eceff1; --wr-nebel: #8a99a3; --wr-wind: #7d98ad; }
+.app button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+.app input, .app select { font: inherit; color: var(--ink); background: rgba(127,127,127,.16); border: 1px solid var(--panel-rand); border-radius: 10px; padding: 7px 10px; }
+.app select option { color: #111; }
+
+/* Hintergrund */
+.glas-bg { position: absolute; inset: 0; background: linear-gradient(160deg, #1b2735 0%, #0e1a2b 45%, #2a1a2e 100%); overflow: hidden; }
+.hell .glas-bg { background: linear-gradient(160deg, #cfe3ff 0%, #f5e6ff 50%, #ffe9d2 100%); }
+.glas-bg i { position: absolute; border-radius: 50%; filter: blur(40px); opacity: .7; animation: schweben 14s ease-in-out infinite; }
+.glas-bg .k1 { width: 260px; height: 260px; background: #ff8a00; top: -60px; left: -60px; }
+.glas-bg .k2 { width: 240px; height: 240px; background: #0a84ff; top: 300px; right: -80px; animation-delay: -5s; }
+.glas-bg .k3 { width: 200px; height: 200px; background: #bf5af2; bottom: -40px; left: 40px; animation-delay: -9s; }
+
+.scroll { position: absolute; inset: 0; overflow-y: auto; }
+.seite { padding: 56px 14px 120px; display: flex; flex-direction: column; gap: 12px; max-width: 1100px; margin: 0 auto; }
+.seite.rein { animation: seite .28s cubic-bezier(.2,.7,.2,1) both; }
+
+.glas-panel { background: var(--panel); border: 1px solid var(--panel-rand); backdrop-filter: blur(24px) saturate(1.5); -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.22); }
+.glas-kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; }
+.klickbar { cursor: pointer; } .pfeil { font-size: 14px; opacity: .6; }
+.glas-klein { font-size: 11px; letter-spacing: 1.2px; color: var(--ink2); text-transform: uppercase; }
+.glas-titel { font-size: 22px; font-weight: 600; }
+.glas-kw { font-size: 28px; font-weight: 300; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.glas-kw small, .glas-wert small, .c-wert small { font-size: .5em; opacity: .7; }
+.blitz { font-size: 22px; opacity: .4; } .blitz.an { opacity: 1; filter: drop-shadow(0 0 8px rgba(255,214,10,.9)); animation: blitz 2.4s ease-in-out infinite; }
+
+.glas-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; padding: 6px 12px; border-radius: 18px !important; transition: transform .15s; }
+.chip:active { transform: scale(.96); } .chip.rot { color: var(--rot); } .chip.amber { color: var(--amber); }
+.chip-leise { font-size: 12px; color: var(--ink2); margin-left: 4px; }
+
+.glas-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.glas-k { padding: 12px; display: flex; flex-direction: column; gap: 3px; animation: rein .5s ease-out both, schweben2 6s ease-in-out infinite;
+  transition: transform .2s cubic-bezier(.2,.7,.2,1), box-shadow .2s; }
+.glas-k:nth-child(2n) { animation-delay: 0s, -3s; }
+.glas-k:hover { box-shadow: 0 14px 40px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.3); } .glas-k:active { transform: scale(.97); }
+.glas-illu { margin: -4px -6px -2px; filter: drop-shadow(0 12px 14px rgba(0,0,0,.35)); }
+.glas-name { font-weight: 600; font-size: 15px; }
+.glas-zeile { display: flex; justify-content: space-between; align-items: baseline; }
+.glas-wert { font-size: 26px; font-weight: 300; } .glas-kwk { font-size: 12px; color: var(--ink2); }
+.glas-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink2); }
+.glas-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); animation: atmen 2s infinite; flex: none; }
+.glas-geraete { display: flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11px; color: var(--ink2); }
+.glas-geraete i { width: 6px; height: 6px; border-radius: 50%; background: rgba(142,142,147,.55); } .glas-geraete i.an { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.glas-geraete span { margin-left: 4px; }
+.glas-k.neu { align-items: center; justify-content: center; min-height: 180px; color: var(--ink2); background: transparent; border-style: dashed; box-shadow: none; animation: rein .5s ease-out both; }
+.glas-k.neu span { font-size: 34px; font-weight: 200; color: var(--ink); }
+
+.glas-nav { position: absolute; left: 14px; right: 14px; bottom: 22px; display: flex; justify-content: space-around; padding: 6px; z-index: 5; }
+.glas-nav button { flex: 1; text-align: center; padding: 8px 2px; border-radius: 16px; font-size: 13px; color: var(--ink2); transition: background .2s, color .2s; }
+.glas-nav button.on { color: var(--ink); font-weight: 700; background: rgba(255,255,255,.16); }
+.hell .glas-nav button.on { background: rgba(255,255,255,.7); }
+
+/* Container-Ansicht */
+.zurueck-zeile { display: flex; justify-content: space-between; }
+.c-held { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; padding: 14px; }
+.c-illu { filter: drop-shadow(0 16px 18px rgba(0,0,0,.35)); animation: schweben2 6s ease-in-out infinite; }
+.c-wert { font-size: 40px; font-weight: 300; margin: 4px 0; } .c-kw { font-size: 13px; color: var(--ink2); margin-top: 4px; }
+.block { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.block-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.leise { color: var(--ink2); font-size: 12px; } .rot-t { color: var(--rot); } .blau { color: var(--blau); } .ok { color: #30d158; font-size: 12px; }
+.liste { padding: 4px 0; }
+.zeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; width: 100%; box-sizing: border-box; min-height: 44px; }
+.block .zeile { padding: 8px 0; }
+.liste .zeile + .zeile, .block .zeile + .zeile { border-top: 1px solid var(--gridc); }
+.zeile.unter { padding-left: 14px; font-size: 14px; }
+.block .zeile.unter { padding-left: 14px; }
+.gruppe { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink2); padding: 10px 16px 2px; }
+.geraet { justify-content: flex-start; } .g-t { flex: 1; display: flex; flex-direction: column; } .g-t .leise em.hand { color: var(--amber); font-style: normal; font-weight: 600; }
+.g-ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: rgba(142,142,147,.22); flex: none; transition: background .25s, box-shadow .25s; }
+.g-ic.an { background: color-mix(in srgb, var(--amber) 28%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--amber) 50%, transparent); }
+.farbpunkt { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+
+/* Schalter */
+.sw { width: 50px; height: 30px; border-radius: 15px !important; background: rgba(120,120,128,.36) !important; position: relative; flex: none; transition: background .25s; }
+.sw i { position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.2); transition: transform .25s cubic-bezier(.3,.7,.2,1.2); }
+.sw.on { background: var(--amber) !important; } .sw.on i { transform: translateX(20px); }
+
+/* Segmente und Stepper */
+.seg { display: flex; padding: 3px; border-radius: 14px; background: rgba(120,120,128,.2); gap: 2px; }
+.seg.glas-panel { border-radius: 16px; padding: 4px; }
+.seg button { flex: 1; text-align: center; padding: 7px 6px; border-radius: 11px; font-size: 13px; color: var(--ink2); transition: background .2s, color .2s; white-space: nowrap; }
+.seg button.on { background: rgba(255,255,255,.2); color: var(--ink); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.hell .seg button.on { background: #fff; }
+.seg.klein button { padding: 5px 10px; font-size: 12px; flex: none; }
+.stepper { display: flex; align-items: center; gap: 4px; background: rgba(120,120,128,.2); border-radius: 12px; padding: 2px; }
+.stepper button { width: 32px; height: 30px; text-align: center; border-radius: 10px; font-size: 18px; }
+.stepper button:active { background: rgba(255,255,255,.2); } .stepper b { min-width: 66px; text-align: center; font-size: 14px; font-weight: 600; }
+
+/* Zeitplan */
+.tag { cursor: pointer; } .tag-n { width: 28px; } .fenster { flex: 1; display: flex; gap: 6px; flex-wrap: wrap; }
+.fenster em { font-style: normal; font-size: 12px; padding: 3px 8px; border-radius: 8px; background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--ink); }
+.chev { color: var(--ink2); font-size: 18px; }
+.tl-spur { position: relative; height: 22px; border-radius: 8px; background: rgba(120,120,128,.2); overflow: hidden; }
+.tl-spur i { position: absolute; top: 0; bottom: 0; }
+.tl-heiz { background: var(--amber); opacity: .85; }
+.tl-trock { background: repeating-linear-gradient(45deg, var(--amber) 0 3px, transparent 3px 7px); }
+.tl-jetzt { width: 2px; background: var(--ink); box-shadow: 0 0 6px var(--ink); }
+.tl-achse { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink2); margin-top: 4px; }
+
+/* Kennzahlen */
+.kennz { display: grid; grid-template-columns: repeat(3, 1fr); padding: 14px 6px; text-align: center; }
+.kennz div + div { border-left: 1px solid var(--gridc); }
+.kennz b { display: block; font-size: 20px; font-weight: 500; } .kennz span { font-size: 11px; color: var(--ink2); }
+
+/* Diagramme */
+.chart-wrap { position: relative; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .gr { stroke: var(--gridc); stroke-width: 1; } .chart .ax { fill: var(--axisc); font-size: 10px; }
+.chart .kreuz { stroke: var(--ink2); stroke-width: 1; stroke-dasharray: 2 3; } .chart .punkt { stroke: var(--sheet); stroke-width: 2; }
+.chart .bar { transition: opacity .15s; } .chart .bar.matt { opacity: .35; }
+.legende { display: flex; gap: 14px; font-size: 12px; color: var(--ink2); margin-top: 4px; }
+.legende i, .tip i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.leer { font-size: 13px; color: var(--ink2); padding: 24px 0; text-align: center; } .link { color: var(--blau) !important; }
+.tip { position: absolute; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .12s; background: var(--sheet); color: var(--ink); border: 1px solid var(--panel-rand);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 12px; padding: 7px 10px; font-size: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.25); white-space: nowrap; }
+.tip.an { opacity: 1; }
+.hbar { display: grid; grid-template-columns: 110px 1fr 54px; align-items: center; gap: 10px; font-size: 13px; }
+.hb-spur { height: 10px; border-radius: 5px; background: rgba(120,120,128,.18); overflow: hidden; }
+.hb-spur i { display: block; height: 100%; border-radius: 5px; animation: wachsen .6s cubic-bezier(.2,.7,.2,1) both; transform-origin: left; }
+.hb-w { text-align: right; font-weight: 600; } .hb-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gespart { font-size: 14px; } .gespart b { color: #30d158; }
+.vergleich { width: 100%; border-collapse: collapse; font-size: 13px; }
+.vergleich th { text-align: right; font-weight: 600; color: var(--ink2); font-size: 12px; padding: 4px 0; } .vergleich td { padding: 7px 0; border-top: 1px solid var(--gridc); }
+.vergleich td + td { text-align: right; } .fuss { margin-top: 4px; }
+
+/* Verlauf */
+.bs-karte { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; animation: rein .45s ease-out both; }
+.bs-kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.bs-zahlen { display: flex; gap: 18px; margin-top: 6px; font-size: 13px; color: var(--ink2); } .bs-zahlen b { font-size: 18px; color: var(--ink); font-weight: 500; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(142,142,147,.25); color: var(--ink2); }
+.badge.gruen { background: rgba(48,209,88,.22); color: #30d158; }
+.ereignis { justify-content: flex-start; align-items: flex-start; } .ereignis .zeit { width: 42px; font-size: 12px; color: var(--ink2); padding-top: 2px; } .ereignis .glas-dot { margin-top: 5px; }
+.eingabe input { width: 70px; text-align: right; }
+
+/* Einblendung von unten */
+.schleier { position: absolute; inset: 0; background: rgba(0,0,0,.35); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 20; }
+.schleier.an { opacity: 1; pointer-events: auto; }
+.sheet { position: absolute; left: 8px; right: 8px; bottom: 8px; max-height: 82%; overflow-y: auto; z-index: 21; padding: 8px 18px 18px; background: var(--sheet);
+  transform: translateY(110%); transition: transform .32s cubic-bezier(.2,.8,.2,1); border-radius: 28px; display: flex; flex-direction: column; gap: 10px; }
+.sheet.an { transform: none; }
+.sheet h3 { margin: 4px 0 0; font-size: 20px; }
+.griff { width: 40px; height: 5px; border-radius: 3px; background: var(--ink2); opacity: .5; margin: 0 auto 4px; }
+.sheet .zeile { padding: 8px 0; } .sheet .zeile + .zeile { border-top: 1px solid var(--gridc); }
+.sheet input[type=time] { flex: 1; } .x { color: var(--rot) !important; padding: 4px 8px !important; }
+.feld { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink2); } .feld input, .feld select { font-size: 15px; }
+.knopf { width: 100%; text-align: center !important; padding: 13px !important; border-radius: 16px !important; background: rgba(120,120,128,.24) !important; font-weight: 600; transition: transform .12s; }
+.knopf:active { transform: scale(.98); } .knopf.amber { background: var(--amber) !important; color: #1a1000 !important; } .knopf.rot { color: var(--rot) !important; }
+.knopf.leise-k { background: transparent !important; color: var(--ink2) !important; }
+.w-jetzt { display: flex; gap: 12px; align-items: center; } .w-jetzt b { font-size: 30px; font-weight: 400; }
+.w-std { display: grid; grid-template-columns: repeat(8, 1fr); text-align: center; gap: 2px; font-size: 12px; }
+.w-std div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.warn-k { border-left: 3px solid var(--rot); padding: 4px 0 4px 12px; }
+.toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 25; padding: 10px 16px; font-size: 13px;
+  white-space: nowrap; border-radius: 18px; background: var(--sheet); }
+.toast.an { animation: toast 2.6s ease both; }
+
+/* Desktop: breiteres Raster, Navigation oben */
+@container (min-width: 700px) {
+  .seite { padding: 84px 28px 40px; }
+  .glas-nav { top: 16px; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: 560px; }
+  .glas-raster { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .c-held { grid-template-columns: 1fr 1.2fr; padding: 22px 28px; }
+  .sheet { left: 50%; right: auto; width: 460px; bottom: auto; top: 50%; transform: translate(-50%, -40%) scale(.96); opacity: 0; pointer-events: none;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), opacity .2s; }
+  .sheet.an { transform: translate(-50%, -50%); opacity: 1; pointer-events: auto; }
+  .griff { display: none; } .toast { bottom: 28px; }
+  .raster2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+}
+
+@keyframes schweben { 50% { transform: translate(30px, 40px) scale(1.15); } }
+@keyframes schweben2 { 50% { transform: translateY(-3px); } }
+@keyframes seite { from { opacity: 0; transform: translateY(10px); } }
+@keyframes wachsen { from { transform: scaleX(0); } }
+@keyframes toast { 0% { opacity: 0; transform: translate(-50%, 20px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 10px); } }
+@media (prefers-reduced-motion: reduce) { .app *, .app *::before { animation: none !important; transition: none !important; } }
+</style></head>
+<body>
+<div class="bar"><b>Baustelle · Glas · klickbarer Prototyp</b><button id="modus">Hell / Dunkel</button>
+<span class="leise">Beispieldaten · alles anklickbar: Kacheln, Chips, Schalter, Zeitplan, Diagramme (Maus darüber), ⚙</span></div>
+<div class="buehne">
+  <div><h2>Handy · 390 px</h2><div class="telefon"><div class="app"></div></div></div>
+  <div><h2>Desktop</h2><div class="desktop"><div class="app"></div></div></div>
+</div>
+<script>
+/* Realistische, animierte Wettersymbole (eigene SVGs mit Filtern, ohne externe Dateien; von Herbert gewählt 29.09.2026).
+   Bedingungen wie in HA (weather.*). */
+const R_DEFS = `<defs>
+  <filter id="wrFluff" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation=".45"/></filter>
+  <filter id="wrWeich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+  <filter id="wrGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="wrNebel" x="-20%" y="-50%" width="140%" height="200%"><feTurbulence type="fractalNoise" baseFrequency=".05 .18" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/><feGaussianBlur stdDeviation="1.2"/></filter>
+  <radialGradient id="wrKern" cx="45%" cy="42%" r="60%"><stop offset="0" stop-color="#fffef2"/><stop offset=".45" stop-color="#ffe680"/><stop offset="1" stop-color="#ff9f0a"/></radialGradient>
+  <radialGradient id="wrKorona"><stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/><stop offset=".5" stop-color="#ffd54f" stop-opacity=".35"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+  <linearGradient id="wrStrahl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff6c8" stop-opacity=".75"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient>
+  <radialGradient id="wrWeiss" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef2f5"/><stop offset="1" stop-color="#b6c2cb"/></radialGradient>
+  <radialGradient id="wrGrau" cx="38%" cy="25%" r="85%"><stop offset="0" stop-color="#cfd8dc"/><stop offset=".5" stop-color="#8d9ca6"/><stop offset="1" stop-color="#4b5a64"/></radialGradient>
+  <linearGradient id="wrRegen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ec5ff" stop-opacity="0"/><stop offset="1" stop-color="#3d8be0"/></linearGradient>
+  <radialGradient id="wrEis" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9cc9ee"/></radialGradient>
+  <radialGradient id="wrMond" cx="38%" cy="35%" r="75%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".7" stop-color="#f3e3a8"/><stop offset="1" stop-color="#d6c07a"/></radialGradient></defs>`;
+const R_WOLKE_TEILE = [[22, 34, 10], [32, 27, 13], [43, 32, 10.5], [14, 40, 7], [51, 40, 7.5]];
+function rWolke(dx = 0, dy = 0, s = 1, dunkel = false) {
+  const kreise = f => R_WOLKE_TEILE.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${f}"/>`).join('') + `<ellipse cx="32" cy="42" rx="21" ry="7" fill="${f}"/>`;
+  return `<g class="wi-wolke" transform="translate(${dx} ${dy}) scale(${s})"><g transform="translate(1.5 3)" opacity=".22" filter="url(#wrWeich)">${kreise('#233')}</g>
+    <g filter="url(#wrFluff)">${kreise(`url(#${dunkel ? 'wrGrau' : 'wrWeiss'})`)}</g></g>`;
+}
+function rSonne(cx = 32, cy = 32, r = 11) {
+  return `<circle class="wb-puls" cx="${cx}" cy="${cy}" r="${r * 2.2}" fill="url(#wrKorona)"/>
+    <g class="wi-dreh" style="transform-origin:${cx}px ${cy}px" opacity=".9">${[...Array(12)].map((_, i) =>
+      `<polygon points="${cx},${cy - 1.2} ${cx + r * 2.6},${cy} ${cx},${cy + 1.2}" fill="url(#wrStrahl)" transform="rotate(${i * 30} ${cx} ${cy})"/>`).join('')}</g>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#wrKern)" filter="url(#wrGlow)"/>
+    <circle cx="${cx + r * 1.6}" cy="${cy + r * 1.5}" r="2.2" fill="#fff" opacity=".3"/><circle cx="${cx + r * 2.2}" cy="${cy + r * 2.1}" r="1.3" fill="#fff" opacity=".25"/>`;
+}
+function wetterIcon(zustand, groesse = 64) {
+  const regen = (n, schnell) => [...Array(n)].map((_, i) => { const x = 20 + i * (26 / Math.max(1, n - 1));
+    return `<line class="wi-tropfen" style="animation-delay:${(i * 0.23).toFixed(2)}s;animation-duration:${schnell ? .7 : 1}s" x1="${x + 2}" y1="44" x2="${x - 1}" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/>`; }).join('');
+  const kristall = (x, y, i) => `<g class="wi-flocke" style="animation-delay:${(i * 0.8).toFixed(1)}s"><g class="wr-kristall" style="transform-origin:${x}px ${y}px">
+    ${[0, 60, 120].map(w => `<g transform="rotate(${w} ${x} ${y})" stroke="#e8f4ff" stroke-width="1.1" stroke-linecap="round"><line x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + 4}"/>
+      <line x1="${x}" y1="${y - 2.4}" x2="${x - 1.4}" y2="${y - 3.6}"/><line x1="${x}" y1="${y - 2.4}" x2="${x + 1.4}" y2="${y - 3.6}"/>
+      <line x1="${x}" y1="${y + 2.4}" x2="${x - 1.4}" y2="${y + 3.6}"/><line x1="${x}" y1="${y + 2.4}" x2="${x + 1.4}" y2="${y + 3.6}"/></g>`).join('')}
+    <circle cx="${x}" cy="${y}" r="1" fill="#fff"/></g></g>`;
+  const blitz = `<g class="wi-blitz" filter="url(#wrGlow)"><path d="M34 38l-7 9 5 .5-5 10 11-12-5-.5 5-7z" fill="#fffde7" stroke="#b39ddb" stroke-width=".8" stroke-linejoin="round"/></g>`;
+  const nebel = `<g filter="url(#wrNebel)" opacity=".85">${[46, 52, 58].map((y, i) => `<rect class="wi-nebel" style="animation-delay:${i * 1.1}s" x="${8 + i * 2}" y="${y - 3}" width="${48 - i * 4}" height="6" rx="3" fill="var(--wr-nebel)"/>`).join('')}</g>`;
+  const mond = `<circle cx="34" cy="30" r="21" fill="url(#wrKorona)" opacity=".45"/><circle cx="34" cy="30" r="15" fill="url(#wrMond)" filter="url(#wrGlow)"/>
+    ${[[29, 25, 2.6], [39, 33, 2], [33, 37, 1.6], [37, 23, 1.3]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#cbb46a" opacity=".45"/>`).join('')}
+    ${[[10, 12], [18, 50], [54, 10], [56, 50], [8, 34]].map(([x, y], i) => `<circle class="wi-stern" style="animation-delay:${i * 0.6}s" cx="${x}" cy="${y}" r="1.1" fill="#fff8e1" filter="url(#wrGlow)"/>`).join('')}`;
+  const wind = `<g fill="none" stroke="var(--wr-wind)" stroke-linecap="round" filter="url(#wrWeich)" opacity=".8">${[[24, 40, 3], [34, 48, 2.2], [44, 34, 1.6]].map(([y, l, w], i) =>
+    `<path class="wi-wind" style="animation-delay:${i * .6}s" d="M${6 + i * 3} ${y}q${l / 2} -5 ${l} 0" stroke-width="${w}"/>`).join('')}</g>`;
+  const hagel = [0, 1, 2, 3].map(i => `<circle class="wi-tropfen" style="animation-delay:${i * 0.3}s" cx="${20 + i * 8}" cy="52" r="2.3" fill="url(#wrEis)"/>`).join('');
+  const t = {
+    sunny: rSonne(32, 32, 11), exceptional: rSonne(32, 32, 11), 'clear-night': mond,
+    partlycloudy: rSonne(23, 21, 8.5) + rWolke(5, 6, 0.9), cloudy: rWolke(-9, -8, 0.8, true) + rWolke(4, 2, 0.95),
+    fog: rWolke(0, -9, 0.85) + nebel, rainy: rWolke(0, -8) + regen(4), pouring: rWolke(0, -8, 1, true) + regen(7, true),
+    snowy: rWolke(0, -8) + [0, 1, 2].map(i => kristall(22 + i * 10, 51, i)).join(''),
+    'snowy-rainy': rWolke(0, -8) + regen(2) + kristall(36, 51, 1), hail: rWolke(0, -8, 1, true) + hagel,
+    lightning: rWolke(0, -10, 1, true) + blitz, 'lightning-rainy': rWolke(0, -10, 1, true) + regen(3) + blitz,
+    windy: wind, 'windy-variant': rWolke(0, -10, 0.8) + wind,
+  };
+  return `<svg class="wi wr" viewBox="0 0 64 64" width="${groesse}" height="${groesse}" overflow="visible" role="img" aria-label="${esc(zustand)}">${R_DEFS}${t[zustand] || rWolke(0, -4)}</svg>`;
+}
+
+/* Baustellen-Illustrationen: Baucontainer (3D, Zustand) und Pumpenschacht – aus dem Entwurf „Baustellenübersicht“. */
+const BEREICH_FARBEN = ['#3987e5', '#eb6834', '#1baf7a', '#c98500', '#d55181', '#199e70'];
+function bcContainer(f, zustand) {
+  const heizt = ['heizt', 'trocknen', 'frost'].includes(zustand), off = zustand === 'offline';
+  const dunkler = `color-mix(in srgb, ${f} 70%, #000)`, heller = `color-mix(in srgb, ${f} 75%, #fff)`;
+  const neig = 20 / 84, obenY = x => 30 + (x - 22) * neig;          // Oberkante der Front bei x
+  const fenster = (x, b = 17, h = 15) => { const y = obenY(x) + 11, d = b * neig;
+    return `<g>
+      <path d="M${x - 1.6} ${y - 1.6}l${b + 3.2} ${d + .8}v${h + 3.2}l${-(b + 3.2)} ${-(d + .8)}z" fill="var(--rahmen)"/>
+      <path d="M${x} ${y}l${b} ${d}v${h}l${-b} ${-d}z" class="${heizt ? 'bc-glut' : ''}" fill="${heizt ? '#ffb74d' : 'var(--fenster)'}"/>
+      <path d="M${x + b / 2} ${y + d / 2}v${h}" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M${x + 2.5} ${y + 3}l${b * .35} ${d * .35 + 7}" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="${heizt ? .25 : .35}"/>
+      <path d="M${x - 1.6} ${y + h + 1.6}l${b + 3.2} ${d + .8}" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>`; };
+  return `<svg class="bc ${off ? 'offline' : ''}" viewBox="0 0 170 120" style="--f:${f}">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="${dunkler}"/>
+    ${[0, 1, 2, 3, 4].map(k => `<path d="M${112 + k * 9} ${47.8 - k * 3.2}v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>`).join('')}
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="${f}"/>
+    ${[0, 1, 2, 3, 4, 5, 6, 7].map(k => `<path d="M${28 + k * 10.5} ${31.4 + k * 2.5}v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>`).join('')}
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="${heller}"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M${34} ${obenY(34) + 9}l14 ${14 * neig}v${44}l-14 ${-14 * neig}z" fill="${dunkler}" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M${37} ${obenY(37) + 13}l8 ${8 * neig}v7l-8 ${-8 * neig}z" fill="${heizt ? '#ffcc80' : 'var(--fenster)'}" opacity=".9"/>
+    <circle cx="45.5" cy="${obenY(45.5) + 33}" r="1.2" fill="#e0e0e0"/>
+    ${fenster(56)}${fenster(80)}
+    ${zustand === 'trocknen' ? `<g class="bc-jacke" style="transform-origin:88.5px ${obenY(88) + 12}px"><path d="M84 ${obenY(88) + 14}l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>` : ''}
+    ${heizt && zustand !== 'frost' ? [0, 1, 2].map(k => `<path class="bc-waerme" style="animation-delay:${k * .7}s" d="M${62 + k * 18} ${24 - k * 1} q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>`).join('') : ''}
+    ${zustand === 'frost' ? [0, 1, 2].map(k => `<g class="bc-eis" style="animation-delay:${k * .6}s" transform="translate(${60 + k * 22} ${16 - k * 2})" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g>`).join('') : ''}
+    ${off ? `<g class="bc-alarm"><circle cx="140" cy="20" r="11" fill="#d03b3b"/><path d="M140 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="27" r="1.8" fill="#fff"/></g>` : ''}
+  </svg>`;
+}
+
+function bcSchacht(laeuft) {
+  return `<svg class="bc" viewBox="0 0 170 120">
+    <ellipse cx="85" cy="104" rx="56" ry="10" fill="#000" opacity=".22"/>
+    <defs><clipPath id="bcSch"><path d="M40 30v62a45 12 0 0 0 90 0V30z"/></clipPath>
+      <linearGradient id="bcBeton" x1="0" x2="1"><stop offset="0" stop-color="#8d9ca6"/><stop offset=".5" stop-color="#cfd8dc"/><stop offset="1" stop-color="#78909c"/></linearGradient>
+      <linearGradient id="bcWasser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64b5f6"/><stop offset="1" stop-color="#0d47a1"/></linearGradient></defs>
+    <path d="M40 30v62a45 12 0 0 0 90 0V30z" fill="url(#bcBeton)"/>
+    <g clip-path="url(#bcSch)"><g class="${laeuft ? 'bc-pegel' : ''}"><path class="bc-welle" d="M0 70q15-5 30 0t30 0 30 0 30 0 30 0 30 0 30 0v60H0z" fill="url(#bcWasser)" opacity=".92"/></g>
+      <g transform="translate(85 86)"><circle r="10" fill="#37474f"/><g class="${laeuft ? 'bc-rad' : ''}"><path d="M0 0l0-8M0 0l7 4M0 0l-7 4" stroke="#b0bec5" stroke-width="3" stroke-linecap="round"/></g></g></g>
+    <ellipse cx="85" cy="30" rx="45" ry="12" fill="#546e7a"/><ellipse cx="85" cy="30" rx="38" ry="9" fill="#263238"/>
+    <path d="M85 76V10h32" fill="none" stroke="#90a4ae" stroke-width="5"/><path class="${laeuft ? 'bc-fluss' : ''}" d="M85 76V10h32" fill="none" stroke="#64b5f6" stroke-width="2.4"/>
+  </svg>`;
+}
+
+/* Klickbarer Prototyp der Baustellen-Seite im Glas-Stil (Beispieldaten, keine Verbindung zu HA). */
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const de = (x, d = 1) => Number(x).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d });
+const FARBE = { heizt: '#ff9f0a', trocknen: '#ff9f0a', aus: '#8e8e93', frost: '#64d2ff', offline: '#ff453a', laeuft: '#0a84ff' };
+const TAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const zufall = seed => () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+
+function daten() {
+  const r = zufall(7);
+  const aussen = [...Array(25)].map((_, h) => 4.2 + 3.2 * Math.sin((h - 9) / 24 * 2 * Math.PI) + (r() - .5) * .6);
+  const reihe = (n, a, b) => [...Array(n)].map(() => a + r() * (b - a));
+  const bereich = (id, name, f, z, t, geraete, extra = {}) => ({ id, name, f, z, t, geraete, auto: true, trocknen: false,
+    innen: aussen.map((a, h) => t === null ? null : Math.max(a + 2, (h >= 5 && h <= 17 ? t : t - 6) + (r() - .5))),
+    kwh7: reihe(7, 6, 16).map((v, i) => i > 4 ? v * .15 : v), h7: reihe(7, 3, 7).map((v, i) => i > 4 ? 0 : v), ...extra });
+  const g = (n, typ, kw, an) => ({ n, typ, kw, an, hand: false });
+  return {
+    aussen,
+    baustellen: [
+      { name: 'ÖWG Dobl Zwaring', aktiv: true, zeit: 'seit 08.09.2026', kwh: 412, eur: 115.4, container: 6 },
+      { name: 'Wohnanlage Lieboch', aktiv: false, zeit: '03.11.2025 – 17.04.2026', kwh: 3480, eur: 974.4, container: 5 },
+      { name: 'Volksschule Wundschuh', aktiv: false, zeit: '12.01.2025 – 28.03.2025', kwh: 1920, eur: 537.6, container: 3 },
+    ],
+    bereiche: [
+      bereich('polier', 'Poliercontainer', 0, 'heizt', 19.4, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Radiator 2', 'Konvektor', 1.99, 1)], { trocknen: true }),
+      bereich('mannschaft', 'Mannschaft', 1, 'trocknen', 17.8, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Konvektor', 'Konvektor', 2.0, 1), g('Trockner', 'Steckdose', 1.79, 1)], { trocknen: true }),
+      bereich('magazin', 'Magazin', 2, 'aus', 9.1, [g('Radiator', 'Ölradiator', 1.5, 0), g('Steckdose', 'Steckdose', 0.4, 0)]),
+      bereich('sanitaer', 'Sanitär', 3, 'frost', 4.2, [g('Frostwächter', 'Konvektor', 2.0, 1)]),
+      bereich('lager', 'Lager Süd', 4, 'offline', null, [g('Radiator', 'Ölradiator', 2.0, 0)], { offline: true }),
+      bereich('schacht', 'Pumpenschacht Nord', 5, 'laeuft', null, [g('Pumpe 1', 'Pumpe', 0.76, 1), g('Pumpe 2 (Reserve)', 'Pumpe', 0.76, 0)],
+        { pumpe: true, zyklen: 36, lauf: '1 h 12 min', laengster: '4 min', kwh7: reihe(7, 0.6, 1.4), h7: reihe(7, 0.8, 1.8), zyk7: reihe(7, 20, 44).map(Math.round) }),
+    ],
+    plan: { Mo: ['05:30–07:30', '11:30–12:30', '15:30–17:15'], Di: ['05:30–07:30', '11:30–12:30', '15:30–17:15'], Mi: ['05:30–07:30', '11:30–12:30', '15:30–17:15'],
+      Do: ['05:30–07:30', '11:30–12:30', '15:30–17:15'], Fr: ['05:30–07:30', '11:30–12:30'], Sa: [], So: [] },
+    e: { preis: 0.28, grenze: 15, basis: 'Tageshöchstwert', fruehstart: true, frueh_temp: 0, frueh_min: 30, frost: true, frost_temp: 5,
+      tr_mm: 2, tr_laenger: 45, tr_frueher: 15, empfaenger: 'Handy Herbert', m_offline: true, m_trocken: true, m_dauer: true, dauer_min: 20 },
+    ereignisse: [
+      ['16:02', 'Poliercontainer', 'heizt – Zeitplan 15:30–17:15', 'heizt'], ['15:30', 'Mannschaft', 'Kleidung trocknen – 6 mm Regen, 45 min länger', 'trocknen'],
+      ['12:30', 'Alle Container', 'aus – Zeitplan', 'aus'], ['10:42', 'Lager Süd', 'nicht erreichbar – Stromausfall?', 'offline'],
+      ['09:14', 'Pumpenschacht Nord', 'Pumpe 1 läuft seit 4 min', 'laeuft'], ['05:15', 'Alle Container', 'Kälte-Frühstart: −1,2 °C, 15 min früher', 'heizt'],
+    ],
+  };
+}
+
+const AKTIV = z => ['heizt', 'trocknen', 'frost', 'laeuft'].includes(z);
+const kwVon = b => b.geraete.reduce((s, g) => s + (g.an ? g.kw : 0), 0);
+const wertHtml = b => b.pumpe ? `${b.zyklen}<small> Zyklen</small>` : b.t !== null ? `${de(b.t)}<small>°C</small>` : '–';
+const illu = b => b.pumpe ? bcSchacht(b.z === 'laeuft') : bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], b.z);
+const TEXT = b => ({ heizt: 'heizt · Zeitplan', trocknen: 'Kleidung trocknen', aus: 'aus bis 05:30', frost: 'Frostschutz', offline: 'nicht erreichbar', laeuft: 'Pumpe läuft' }[b.z]);
+const schalter = (on, act, extra = '') => `<button class="sw ${on ? 'on' : ''}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
+
+/* ---------- Diagramme: dünne Marken, Haarraster, Hover-Anzeige ---------- */
+function linie(id, reihen, einheit) {
+  const W = 320, H = 150, L = 28, R = 8, T = 10, U = 22;
+  const alle = reihen.flatMap(s => s.v.filter(v => v !== null));
+  const lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.ceil(Math.max(...alle) / 5) * 5;
+  const x = i => L + i / 24 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U);
+  const raster = [...Array((hi - lo) / 5 + 1)].map((_, k) => lo + k * 5).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}°</text>`).join('');
+  const achse = [0, 6, 12, 18, 24].map(h => `<text x="${x(h)}" y="${H - 6}" class="ax" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('');
+  const pfade = reihen.map((s, k) => `<path d="${s.v.map((v, i) => v === null ? '' : `${i && s.v[i - 1] !== null ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('')}" fill="none" stroke="var(--s${k + 1})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+  CHARTS[id] = { art: 'linie', x0: L, x1: W - R, W, n: 25, reihen, einheit, y };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}<g class="hover"></g></svg>
+    <div class="legende">${reihen.map((s, k) => `<span><i style="background:var(--s${k + 1})"></i>${s.name}</span>`).join('')}</div>`;
+}
+function balken(id, werte, labels, einheit, d = 1) {
+  const W = 320, H = 150, L = 28, R = 8, T = 10, U = 22, n = werte.length, hi = Math.max(...werte) * 1.15 || 1;
+  const bw = (W - L - R) / n, y = v => T + (1 - v / hi) * (H - T - U), stufe = hi > 20 ? 10 : hi > 6 ? 2 : hi > 2 ? 1 : .5;
+  const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_, k) => k * stufe).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${de(v, stufe < 1 ? 1 : 0)}</text>`).join('');
+  const b = werte.map((v, i) => { const h = H - U - y(v), bx = L + i * bw + 1, w = bw - 2;
+    return `<path d="M${bx} ${H - U}V${y(v) + Math.min(4, h)}q0 -4 4 -4h${w - 8}q4 0 4 4V${H - U}z" fill="var(--s1)" class="bar" data-i="${i}"/>
+      <text x="${bx + w / 2}" y="${H - 6}" class="ax" text-anchor="middle">${labels[i]}</text>`; }).join('');
+  CHARTS[id] = { art: 'balken', werte, labels, einheit, d };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${b}<rect class="treffer" x="0" y="0" width="0" height="0"/></svg>`;
+}
+const CHARTS = {};
+
+/* ---------- App ---------- */
+class App {
+  constructor(root) {
+    this.root = root; this.d = daten();
+    this.s = { view: 'uebersicht', cid: null, auto: true, sheet: null, chart: 'temp', zeitraum: 'Woche', verlauf: 'aktiv' };
+    root.addEventListener('click', e => this.klick(e));
+    root.addEventListener('input', e => this.eingabe(e));
+    root.addEventListener('pointermove', e => this.hover(e));
+    root.addEventListener('pointerleave', () => this.tip(null));
+    this.render();
+  }
+  get b() { return this.d.bereiche.find(x => x.id === this.s.cid); }
+  gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.sheet = null; this.render(true); }
+  toast(t) { const el = this.root.querySelector('.toast'); el.textContent = t; el.classList.remove('an'); void el.offsetWidth; el.classList.add('an'); }
+
+  render(neu = false) {
+    const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0;
+    const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
+    const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view;
+    this.root.innerHTML = `<div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i></div>
+      <div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this['v_' + this.s.view]()}</div></div>
+      <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''}">${t}</button>`).join('')}</nav>
+      <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
+      <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${this.s.sheet ? this.sheet() : ''}</div>
+      <div class="tip"></div><div class="toast glas-panel"></div>`;
+    this.root.querySelector('.scroll').scrollTop = pos;
+  }
+
+  kopf(titel, klein, rechts = '') {
+    return `<div class="glas-kopf glas-panel"><div><div class="glas-klein">${klein}</div><div class="glas-titel">${titel}</div></div>${rechts}</div>`;
+  }
+
+  /* ---- Übersicht ---- */
+  v_uebersicht() {
+    const B = this.d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), warn = B.filter(b => b.offline).length;
+    const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
+    return `${this.kopf(`ÖWG Dobl Zwaring <span class="pfeil">▾</span>`, 'BAUSTELLE', `<div class="glas-kw"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small></div>`).replace('<div><div class="glas-klein">', '<div data-act="sheet" data-s="baustellen" class="klickbar"><div class="glas-klein">')}
+      <div class="glas-chips">
+        <button class="glas-panel chip ${this.s.auto ? 'amber' : ''}" data-act="auto">♨ ${this.s.auto ? 'Automatik · aus 17:15' : 'Automatik aus'}</button>
+        <button class="glas-panel chip" data-act="sheet" data-s="wetter">${wetterIcon('rainy', 20)} 4,2° · 6 mm</button>
+        ${warn ? `<button class="glas-panel chip rot" data-act="sheet" data-s="warnungen">${warn} Warnung</button>` : ''}
+        <span class="chip-leise">${an} von ${alle} Geräten an</span>
+      </div>
+      <div class="glas-raster">${B.map((b, i) => `<button class="glas-panel glas-k ${b.z}" data-act="container" data-id="${b.id}" style="animation-delay:${i * 60}ms;--c:${FARBE[b.z]}">
+        <div class="glas-illu">${illu(b)}</div>
+        <div class="glas-name">${esc(b.name)}</div>
+        <div class="glas-zeile"><span class="glas-wert">${wertHtml(b)}</span><span class="glas-kwk">${de(kwVon(b))} kW</span></div>
+        <div class="glas-status"><span class="glas-dot"></span>${TEXT(b)}</div>
+        <div class="glas-geraete">${b.geraete.map(g => `<i class="${g.an ? 'an' : ''}"></i>`).join('')}<span>${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'}</span></div></button>`).join('')}
+        <button class="glas-panel glas-k neu" data-act="sheet" data-s="container-neu"><span>+</span>Container</button></div>`;
+  }
+
+  /* ---- Container ---- */
+  v_container() {
+    const b = this.b, tl = this.zeitleiste(b);
+    const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
+    if (!tabs.some(t => t[0] === this.s.chart)) this.s.chart = tabs[0][0];
+    const c = this.s.chart, tage = TAGE;
+    const chart = c === 'temp' ? (b.t === null ? '<div class="leer">Kein Temperaturfühler zugeordnet · <button class="link" data-act="tab" data-v="einst">zuordnen</button></div>'
+        : linie('t-' + b.id, [{ name: 'Innen', v: b.innen }, { name: 'Außen', v: this.d.aussen }], '°C'))
+      : c === 'verbrauch' ? balken('v-' + b.id, b.kwh7, tage, 'kWh') : c === 'zyklen' ? balken('z-' + b.id, b.zyk7, tage, 'Zyklen', 0) : balken('h-' + b.id, b.h7, tage, 'h');
+    const kennz = b.pumpe ? [['Zyklen heute', b.zyklen], ['Laufzeit', b.lauf], ['Längster Lauf', b.laengster]]
+      : [['Heute', `${de(b.kwh7[2])} kWh`], ['Kosten', `${de(b.kwh7[2] * this.d.e.preis, 2)} €`], ['Heizzeit', `${de(b.h7[2])} h`]];
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
+        <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
+      <div class="glas-panel c-held" style="--c:${FARBE[b.z]}">
+        <div class="c-illu">${illu(b)}</div>
+        <div class="c-text"><div class="glas-klein">${b.pumpe ? 'PUMPENSCHACHT' : 'CONTAINER'}</div><div class="glas-titel">${esc(b.name)}</div>
+          <div class="c-wert">${wertHtml(b)}</div><div class="glas-status"><span class="glas-dot"></span>${TEXT(b)}</div>
+          <div class="c-kw">${de(kwVon(b))} kW</div></div>
+      </div>
+      <div class="glas-panel liste">
+        <div class="zeile"><span>♨ Automatik für ${b.pumpe ? 'diesen Schacht' : 'diesen Container'}</span>${schalter(b.auto, 'b-auto')}</div>
+        ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
+      </div>
+      ${b.pumpe ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Zeitplan · Kleidung trocknen schraffiert</span></div>${tl}</div>`}
+      <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
+        ${b.geraete.map((g, i) => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">${g.typ === 'Pumpe' ? '💧' : g.typ === 'Steckdose' ? '⏻' : '♨'}</span>
+          <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${g.hand ? ' · <em class="hand">Hand</em>' : ''}</span></div>
+          ${b.offline ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}</div>
+      <div class="glas-panel block"><div class="seg">${tabs.map(([k, t]) => `<button data-act="chart" data-c="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <div class="chart-wrap">${chart}</div></div>
+      <div class="glas-panel kennz">${kennz.map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>
+      ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter 30 W beim Laufen)</span><span class="ok">● überwacht</span></div>
+        <div class="zeile"><span>Dauerlauf über ${this.d.e.dauer_min} min</span><span class="ok">● überwacht</span></div>
+        <div class="zeile"><span>Stromausfall / offline</span><span class="ok">● überwacht</span></div></div>` : ''}`;
+  }
+  zeitleiste(b) {
+    const x = t => { const [h, m] = t.split(':').map(Number); return (h + m / 60) / 24 * 100; };
+    const fenster = this.d.plan.Mi.map(f => f.split('–'));
+    const seg = fenster.map(([a, e], i) => `<i class="tl-heiz" style="left:${x(a)}%;width:${x(e) - x(a)}%"></i>` +
+      (b.trocknen && i === fenster.length - 1 ? `<i class="tl-trock" style="left:${x(e)}%;width:${45 / 60 / 24 * 100}%"></i>` : '')).join('');
+    return `<div class="tl"><div class="tl-spur">${seg}<i class="tl-jetzt" style="left:${x('16:20')}%"></i></div>
+      <div class="tl-achse">${['00', '06', '12', '18', '24'].map(h => `<span>${h}</span>`).join('')}</div></div>`;
+  }
+
+  /* ---- Heizung ---- */
+  v_heizung() {
+    const e = this.d.e, st = (k, d, fmt) => `<span class="stepper"><button data-act="st" data-k="${k}" data-d="${-d}">−</button><b>${fmt(e[k])}</b><button data-act="st" data-k="${k}" data-d="${d}">+</button></span>`;
+    const grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, mm = v => `${de(v, 1)} mm`;
+    return `${this.kopf('Heizung', 'ÖWG DOBL ZWARING', `<div>${schalter(this.s.auto, 'auto')}</div>`)}
+      <div class="glas-panel block"><div class="block-kopf"><b>Zeitplan</b><span class="leise">Tippen zum Ändern</span></div>
+        ${TAGE.map(t => `<button class="zeile tag" data-act="sheet" data-s="tag" data-t="${t}"><b class="tag-n">${t}</b>
+          <span class="fenster">${this.d.plan[t].length ? this.d.plan[t].map(f => `<em>${f}</em>`).join('') : '<span class="leise">aus</span>'}</span><span class="chev">›</span></button>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Regeln</b></div>
+        <div class="zeile"><div><b>Heizgrenze</b><div class="leise">nicht heizen, wenn es wärmer ist</div></div>${st('grenze', .5, grad)}</div>
+        <div class="zeile"><span>Grundlage</span><div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+        <div class="zeile"><div><b>Kälte-Frühstart</b><div class="leise">unter ${de(e.frueh_temp, 0)} °C früher einschalten</div></div>${schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"')}</div>
+        ${e.fruehstart ? `<div class="zeile unter"><span>so viel früher</span>${st('frueh_min', 5, min)}</div>` : ''}
+        <div class="zeile"><div><b>Frostschutz</b><div class="leise">hält jeden Container über der Grenze</div></div>${schalter(e.frost, 'e-bool', 'data-k="frost"')}</div>
+        ${e.frost ? `<div class="zeile unter"><span>Frostgrenze</span>${st('frost_temp', .5, grad)}</div>` : ''}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen länger heizen</span></div>
+        <div class="zeile"><span>ab Regen (seit gestern)</span>${st('tr_mm', .5, mm)}</div>
+        <div class="zeile"><span>länger heizen</span>${st('tr_laenger', 5, min)}</div>
+        <div class="zeile"><span>früher beginnen</span>${st('tr_frueher', 5, min)}</div>
+        ${this.d.bereiche.filter(b => !b.pumpe).map(b => `<div class="zeile unter"><span>${esc(b.name)}</span>${schalter(b.trocknen, 'tr-b', `data-id="${b.id}"`)}</div>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Urlaub &amp; Feiertage</b></div>
+        <div class="zeile"><div><b>Nächster Feiertag</b><div class="leise">aus dem Kalender „Feiertage“ (Österreich, jedes Jahr neu)</div></div><span>Sa 01.11.</span></div>
+        <div class="zeile"><div><b>Urlaub</b><div class="leise">Weihnachten 23.12. – 06.01.</div></div><button class="chip glas-panel" data-act="sheet" data-s="urlaub">Eintragen</button></div></div>`;
+  }
+
+  /* ---- Auswertung ---- */
+  v_auswertung() {
+    const f = { Tag: 1, Woche: 6.2, Monat: 26, Heizperiode: 150 }[this.s.zeitraum], preis = this.d.e.preis;
+    const kwh = 18.6 * f, ohne = 96 * f, B = this.d.bereiche;
+    const labels = { Tag: ['00', '04', '08', '12', '16', '20'], Woche: TAGE, Monat: ['KW36', 'KW37', 'KW38', 'KW39', 'KW40'], Heizperiode: ['Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär'] }[this.s.zeitraum];
+    const r = zufall(labels.length * 3), werte = labels.map(() => kwh / labels.length * (.6 + r() * .8));
+    const anteil = [.24, .3, .08, .2, .04, .14], maxA = Math.max(...anteil);
+    return `${this.kopf('Auswertung', 'VERBRAUCH UND KOSTEN')}
+      <div class="seg glas-panel">${['Tag', 'Woche', 'Monat', 'Heizperiode'].map(z => `<button data-act="zeitraum" data-v="${z}" class="${z === this.s.zeitraum ? 'on' : ''}">${z}</button>`).join('')}</div>
+      <div class="glas-panel kennz"><div><b>${de(kwh, 0)}</b><span>kWh</span></div><div><b>${de(kwh * preis, 2)} €</b><span>Kosten</span></div><div><b>${de(kwh / 3.6, 0)} h</b><span>Heizzeit</span></div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Verbrauch</b><span class="leise">kWh je ${this.s.zeitraum === 'Tag' ? '4 Stunden' : this.s.zeitraum === 'Woche' ? 'Tag' : this.s.zeitraum === 'Monat' ? 'Woche' : 'Monat'}</span></div>
+        <div class="chart-wrap">${balken('aw-' + this.s.zeitraum, werte, labels, 'kWh')}</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">kWh · Anteil</span></div>
+        ${B.map((b, i) => `<div class="hbar"><span class="hb-n">${esc(b.name)}</span><span class="hb-spur"><i style="width:${anteil[i] / maxA * 100}%;background:var(--s${i + 1})"></i></span><span class="hb-w">${de(kwh * anteil[i], 0)}</span></div>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
+        <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${kwh / ohne * 100}%;background:var(--s1)"></i></span><span class="hb-w">${de(kwh * preis, 0)} €</span></div>
+        <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(ohne * preis, 0)} €</span></div>
+        <div class="gespart">gespart <b>${de((ohne - kwh) * preis, 2)} €</b> · ${de((1 - kwh / ohne) * 100, 0)} %</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
+        <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
+          <tr><td>kWh je Heizstunde</td><td>1,62</td><td><b>1,94</b></td></tr>
+          <tr><td>Aufheizen auf 18 °C</td><td><b>48 min</b></td><td>31 min</td></tr>
+          <tr><td>Abkühlen nach Aus</td><td>2,1 °C/h</td><td><b>3,4 °C/h</b></td></tr>
+          <tr><td>Kosten je Tag</td><td>2,72 €</td><td>3,26 €</td></tr></table>
+        <div class="leise fuss">Der Ölradiator braucht länger, hält die Wärme aber besser und verbraucht rund 16 % weniger.</div></div>`;
+  }
+
+  /* ---- Verlauf ---- */
+  v_verlauf() {
+    const liste = this.d.baustellen.filter(b => b.aktiv === (this.s.verlauf === 'aktiv'));
+    return `${this.kopf('Verlauf', 'BAUSTELLEN')}
+      <div class="seg glas-panel">${[['aktiv', 'Aktiv'], ['ab', 'Abgeschlossen']].map(([k, t]) => `<button data-act="verlauf" data-v="${k}" class="${k === this.s.verlauf ? 'on' : ''}">${t}</button>`).join('')}</div>
+      ${liste.map((b, i) => `<button class="glas-panel bs-karte" data-act="sheet" data-s="baustelle" data-i="${this.d.baustellen.indexOf(b)}" style="animation-delay:${i * 60}ms">
+        <div class="bs-kopf"><b>${esc(b.name)}</b><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></div>
+        <div class="leise">${b.zeit} · ${b.container} Container</div>
+        <div class="bs-zahlen"><span><b>${de(b.kwh, 0)}</b> kWh</span><span><b>${de(b.eur, 2)}</b> €</span></div></button>`).join('')}
+      ${this.s.verlauf === 'aktiv' ? `<div class="glas-panel block"><div class="block-kopf"><b>Ereignisse heute</b><span class="leise">aus dem Logbuch</span></div>
+        ${this.d.ereignisse.map(([t, w, x, z]) => `<div class="zeile ereignis"><span class="zeit">${t}</span><span class="glas-dot" style="--c:${FARBE[z]}"></span><div><b>${w}</b><div class="leise">${x}</div></div></div>`).join('')}</div>` : ''}`;
+  }
+
+  /* ---- Einstellungen ---- */
+  v_einst() {
+    const e = this.d.e;
+    return `${this.kopf('Einstellungen', 'ÖWG DOBL ZWARING')}
+      <div class="glas-panel liste"><div class="gruppe">Baustelle</div>
+        <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">ÖWG Dobl Zwaring ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">Container und Geräte</div>
+        ${this.d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
+        <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">Strom</div>
+        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label></div>
+      <div class="glas-panel liste"><div class="gruppe">Wetter und Kalender</div>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Wetter</span><span class="leise">Open-Meteo · Zone Baustelle ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Außentemperatur</span><span class="leise">aus der Vorhersage ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="urlaub"><span>Urlaub</span><span class="leise">Kalender „Baustelle Urlaub“ ›</span></button>
+        <div class="zeile"><span>Feiertage</span><span class="leise">Österreich, automatisch</span></div></div>
+      <div class="glas-panel liste"><div class="gruppe">Meldungen</div>
+        <div class="zeile"><span>Empfänger</span><span class="leise">${e.empfaenger}</span></div>
+        <div class="zeile"><span>Stromausfall / offline</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
+        <div class="zeile"><span>Pumpe Trockenlauf</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
+        <div class="zeile"><span>Pumpe Dauerlauf über ${e.dauer_min} min</span>${schalter(e.m_dauer, 'e-bool', 'data-k="m_dauer"')}</div></div>`;
+  }
+
+  /* ---- Einblendungen von unten ---- */
+  sheet() {
+    const s = this.s.sheet, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
+    const griff = '<div class="griff"></div>';
+    if (s.art === 'wetter') {
+      const std = [['16', 'rainy', 4.2, 1.2], ['17', 'rainy', 3.8, .8], ['18', 'cloudy', 3.1, .1], ['19', 'cloudy', 2.4, 0], ['20', 'fog', 1.9, 0], ['21', 'clear-night', 1.2, 0], ['22', 'clear-night', .6, 0], ['23', 'clear-night', 0.1, 0]];
+      return `${griff}<h3>Wetter · Dobl</h3><div class="w-jetzt">${wetterIcon('rainy', 72)}<div><b>4,2 °C</b><div class="leise">Regen · 6 mm seit gestern · morgen früh −1 °C</div></div></div>
+        <div class="w-std">${std.map(([h, w, t, r]) => `<div><span class="leise">${h}</span>${wetterIcon(w, 34)}<b>${de(t, 0)}°</b><span class="leise">${r ? de(r) + ' mm' : ''}</span></div>`).join('')}</div>
+        <div class="leise">Folgen: Kleidung trocknen morgen aktiv (Regen über ${de(this.d.e.tr_mm)} mm), Kälte-Frühstart 15 min früher.</div>${knopf('Schließen')}`;
+    }
+    if (s.art === 'warnungen') return `${griff}<h3>Warnungen</h3><div class="warn-k"><b>Lager Süd nicht erreichbar</b><div class="leise">seit 10:42 · Shelly antwortet nicht – Stromausfall oder Stecker gezogen?</div></div>
+      ${knopf('Zum Container', 'container-lager')}${knopf('Schließen', 'zu', 'leise-k')}`;
+    if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.d.baustellen.map((b, i) => `<button class="zeile" data-act="zu"><span>${esc(b.name)}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>`).join('')}
+      <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>`;
+    if (s.art === 'tag') {
+      const f = this.d.plan[s.t];
+      return `${griff}<h3>Zeitplan ${s.t}</h3>${f.map((x, i) => { const [a, e] = x.split('–');
+        return `<div class="zeile"><input type="time" value="${a}" data-f="${i}" data-p="0"><span>bis</span><input type="time" value="${e}" data-f="${i}" data-p="1"><button class="x" data-act="f-weg" data-i="${i}">✕</button></div>`; }).join('')}
+        <button class="zeile" data-act="f-neu"><span class="blau">+ Zeitfenster</span></button>
+        <button class="zeile" data-act="f-alle"><span class="blau">Auf Mo–Fr übertragen</span></button>${knopf('Fertig', 'f-fertig')}`;
+    }
+    if (s.art === 'container-neu') return `${griff}<h3>Neuer Container</h3>
+      <label class="feld">Name<input value="" placeholder="z. B. Lager Nord" data-neu="name"></label>
+      <div class="feld">Art<div class="seg klein">${['Container', 'Pumpenschacht'].map(v => `<button data-act="neu-art" data-v="${v}" class="${(s.neuArt || 'Container') === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+      <label class="feld">Temperaturfühler<select><option>– keiner –</option><option>Poliercontainer Temperatur</option></select></label>
+      <label class="feld">Shelly<select><option>Heizung 03 (Shelly Plug S)</option><option>Heizung 04 (Shelly Plug S)</option></select></label>
+      <label class="feld">Heizkörper<select><option>Ölradiator</option><option>Konvektor</option></select></label>
+      ${knopf('Anlegen', 'neu-anlegen', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    if (s.art === 'bereich') { const b = this.b;
+      return `${griff}<h3>${esc(b.name)}</h3><label class="feld">Name<input value="${esc(b.name)}" data-b="name"></label>
+        ${b.geraete.map(g => `<div class="zeile"><span>${esc(g.n)}</span><select><option ${g.typ === 'Ölradiator' ? 'selected' : ''}>Ölradiator</option><option ${g.typ === 'Konvektor' ? 'selected' : ''}>Konvektor</option><option ${g.typ === 'Steckdose' ? 'selected' : ''}>Steckdose</option><option ${g.typ === 'Pumpe' ? 'selected' : ''}>Pumpe</option></select></div>`).join('')}
+        <button class="zeile" data-act="toast" data-t="Gerät wird über HA hinzugefügt"><span class="blau">+ Gerät</span></button>
+        ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}`; }
+    if (s.art === 'baustelle') { const b = this.d.baustellen[s.i], r = zufall(s.i + 3), m = ['Sep', 'Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär', 'Apr'].slice(0, b.aktiv ? 2 : 6);
+      return `${griff}<h3>${esc(b.name)}</h3><div class="leise">${b.zeit}</div>
+        <div class="kennz"><div><b>${de(b.kwh, 0)}</b><span>kWh</span></div><div><b>${de(b.eur, 2)} €</b><span>Kosten</span></div><div><b>${b.container}</b><span>Container</span></div></div>
+        <div class="chart-wrap">${balken('bs-' + s.i, m.map(() => b.kwh / m.length * (.5 + r())), m, 'kWh', 0)}</div>
+        ${b.aktiv ? knopf('Öffnen', 'zu', 'amber') : knopf('Wieder aktiv setzen', 'toast-zu', 'leise-k')}`; }
+    if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'toast-zu', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    if (s.art === 'urlaub') return `${griff}<h3>Urlaub</h3><label class="feld">Von<input type="date" value="2026-12-23"></label><label class="feld">Bis<input type="date" value="2027-01-06"></label>
+      <div class="leise">Wird in den Kalender „Baustelle Urlaub“ eingetragen; in der Zeit läuft nur der Frostschutz.</div>${knopf('Eintragen', 'toast-zu', 'amber')}`;
+    return `${griff}<h3>${{ name: 'Name', 'baustelle-neu': 'Neue Baustelle', wetterquelle: 'Wetter' }[s.art] || ''}</h3>
+      ${s.art === 'wetterquelle' ? `<label class="feld">Wetter<select><option>Open-Meteo · Zone Baustelle Dobl Zwaring</option></select></label><label class="feld">Außentemperatur<select><option>aus der Vorhersage</option></select></label><label class="feld">Regenmenge<select><option>aus der Vorhersage</option></select></label>`
+        : `<label class="feld">Name<input value="${s.art === 'name' ? 'ÖWG Dobl Zwaring' : ''}" placeholder="z. B. Wohnbau Kalsdorf"></label>`}
+      ${knopf('Speichern', 'toast-zu', 'amber')}`;
+  }
+
+  /* ---- Aktionen ---- */
+  klick(ev) {
+    const el = ev.target.closest('[data-act]'); if (!el || !this.root.contains(el)) return;
+    const a = el.dataset.act, d = this.d, b = this.b;
+    const neu = () => this.render();
+    switch (a) {
+      case 'tab': return this.gehe(el.dataset.v);
+      case 'container': this.s.chart = 'temp'; return this.gehe('container', el.dataset.id);
+      case 'container-lager': return this.gehe('container', 'lager');
+      case 'sheet': this.s.sheet = { art: el.dataset.s, t: el.dataset.t, i: +el.dataset.i }; return neu();
+      case 'bereich-einst': this.s.cid = el.dataset.id; this.s.sheet = { art: 'bereich' }; return neu();
+      case 'zu': this.s.sheet = null; return neu();
+      case 'toast': return this.toast(el.dataset.t);
+      case 'toast-zu': this.s.sheet = null; neu(); return this.toast('Gespeichert');
+      case 'auto': this.s.auto = !this.s.auto; neu(); return this.toast(this.s.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
+      case 'b-auto': b.auto = !b.auto; return neu();
+      case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; x.trocknen = !x.trocknen; return neu(); }
+      case 'geraet': { const g = b.geraete[+el.dataset.i]; g.an = g.an ? 0 : 1; g.hand = b.auto;
+        const an = b.geraete.some(x => x.an); if (b.pumpe) b.z = b.geraete[0].an ? 'laeuft' : 'aus'; else b.z = an ? (b.z === 'aus' ? 'heizt' : b.z) : 'aus';
+        neu(); return b.auto && this.toast('Handbetrieb bis zum nächsten Schaltpunkt'); }
+      case 'chart': this.s.chart = el.dataset.c; return neu();
+      case 'zeitraum': this.s.zeitraum = el.dataset.v; return neu();
+      case 'verlauf': this.s.verlauf = el.dataset.v; return neu();
+      case 'basis': d.e.basis = el.dataset.v; return neu();
+      case 'e-bool': d.e[el.dataset.k] = !d.e[el.dataset.k]; return neu();
+      case 'st': { const k = el.dataset.k; d.e[k] = Math.max(0, Math.round((d.e[k] + +el.dataset.d) * 10) / 10); return neu(); }
+      case 'f-weg': d.plan[this.s.sheet.t].splice(+el.dataset.i, 1); return neu();
+      case 'f-neu': d.plan[this.s.sheet.t].push('13:00–14:00'); return neu();
+      case 'f-alle': for (const t of TAGE.slice(0, 5)) d.plan[t] = [...d.plan[this.s.sheet.t]]; this.s.sheet = null; neu(); return this.toast('Auf Mo–Fr übertragen');
+      case 'f-fertig': this.s.sheet = null; neu(); return this.toast('Zeitplan gespeichert');
+      case 'neu-art': this.s.sheet.neuArt = el.dataset.v; return neu();
+      case 'neu-anlegen': { const name = this.root.querySelector('[data-neu="name"]').value.trim() || 'Neuer Container', p = this.s.sheet.neuArt === 'Pumpenschacht';
+        d.bereiche.push({ id: 'n' + d.bereiche.length, name, f: d.bereiche.length, z: p ? 'aus' : 'aus', t: null, auto: true, trocknen: false, pumpe: p, zyklen: 0, lauf: '0 min', laengster: '–',
+          innen: [], kwh7: Array(7).fill(0), h7: Array(7).fill(0), zyk7: Array(7).fill(0), geraete: [{ n: p ? 'Pumpe 1' : 'Heizung 03', typ: p ? 'Pumpe' : 'Ölradiator', kw: p ? .76 : 2, an: 0, hand: false }] });
+        this.s.sheet = null; neu(); return this.toast(`${name} angelegt`); }
+      case 'b-speichern': { const v = this.root.querySelector('[data-b="name"]').value.trim(); if (v) b.name = v; this.s.sheet = null; neu(); return this.toast('Gespeichert'); }
+      case 'b-weg': d.bereiche = d.bereiche.filter(x => x !== b); this.toast(`${b.name} entfernt – Werte bleiben im Verlauf`); return this.gehe('uebersicht');
+    }
+  }
+  eingabe(ev) {
+    const el = ev.target;
+    if (el.dataset.k === 'preis') this.d.e.preis = +el.value || 0;
+    if (el.dataset.f !== undefined) { const t = this.s.sheet.t, arr = this.d.plan[t][+el.dataset.f].split('–'); arr[+el.dataset.p] = el.value; this.d.plan[t][+el.dataset.f] = arr.join('–'); }
+  }
+  hover(ev) {
+    const svg = ev.target.closest('svg.chart'); if (!svg) return this.tip(null);
+    const c = CHARTS[svg.dataset.chart], r = svg.getBoundingClientRect(), fx = (ev.clientX - r.left) / r.width;
+    if (c.art === 'linie') {
+      const vx = fx * c.W, i = Math.max(0, Math.min(24, Math.round((vx - c.x0) / (c.x1 - c.x0) * 24))), x = c.x0 + i / 24 * (c.x1 - c.x0);
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="128" class="kreuz"/>` + c.reihen.map((s, k) => s.v[i] === null ? '' : `<circle cx="${x}" cy="${c.y(s.v[i])}" r="4" fill="var(--s${k + 1})" class="punkt"/>`).join('');
+      this.tip(ev, `<b>${String(i).padStart(2, '0')}:00</b>${c.reihen.map((s, k) => s.v[i] === null ? '' : `<div><i style="background:var(--s${k + 1})"></i>${s.name} <b>${de(s.v[i])} ${c.einheit}</b></div>`).join('')}`);
+    } else {
+      const bar = ev.target.closest('.bar'); svg.querySelectorAll('.bar').forEach(x => x.classList.toggle('matt', !!bar && x !== bar));
+      if (!bar) return this.tip(null); const i = +bar.dataset.i;
+      this.tip(ev, `<b>${c.labels[i]}</b><div>${de(c.werte[i], c.d)} ${c.einheit}</div>`);
+    }
+  }
+  tip(ev, html) {
+    const t = this.root.querySelector('.tip'); if (!t) return;
+    if (!ev || !html) { t.classList.remove('an'); this.root.querySelectorAll('.chart .hover').forEach(h => h.innerHTML = ''); this.root.querySelectorAll('.bar.matt').forEach(x => x.classList.remove('matt')); return; }
+    const r = this.root.getBoundingClientRect(); t.innerHTML = html; t.classList.add('an');
+    const x = Math.min(ev.clientX - r.left + 12, r.width - t.offsetWidth - 8); t.style.left = x + 'px'; t.style.top = (ev.clientY - r.top - t.offsetHeight - 12) + 'px';
+  }
+}
+document.querySelectorAll('.app').forEach(el => new App(el));
+document.getElementById('modus').onclick = () => document.body.classList.toggle('hell');
+
+</script></body></html>
