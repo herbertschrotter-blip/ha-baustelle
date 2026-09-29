@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ha-baustelle Dashboard — Entwurf v4</title>
+<style>
+/* Designquelle: HA-Standard-Theme (hell/dunkel), nachgebildet. Kein eigenes Theme – im echten Dashboard
+   kommen alle Farben aus HA. Werte sind Platzhalter. */
+:root {
+  --primary-color: #03a9f4;
+  --accent-color: #ff9800;
+  --primary-background-color: #fafafa;
+  --secondary-background-color: #e5e5e5;
+  --card-background-color: #ffffff;
+  --primary-text-color: #212121;
+  --secondary-text-color: #727272;
+  --divider-color: rgba(0, 0, 0, .12);
+  --app-header-background-color: #03a9f4;
+  --app-header-text-color: #ffffff;
+  --state-heat: #ff8100;
+  --state-on: #ffc107;
+  --success-color: #43a047;
+  --warning-color: #ffa600;
+  --error-color: #db4437;
+  --info-color: #039be5;
+  --ha-card-border-radius: 12px;
+  --ha-card-border: 1px solid #e0e0e0;
+  --tag-bg: #eceff1;
+}
+[data-theme="dark"] {
+  --primary-background-color: #111111;
+  --secondary-background-color: #282828;
+  --card-background-color: #1c1c1c;
+  --primary-text-color: #e1e1e1;
+  --secondary-text-color: #9b9b9b;
+  --divider-color: rgba(225, 225, 225, .12);
+  --app-header-background-color: #101e24;
+  --app-header-text-color: #e1e1e1;
+  --ha-card-border: 1px solid rgba(225, 225, 225, .12);
+  --tag-bg: #2c3437;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 14px;
+  background: #cfd8dc; color: var(--primary-text-color);
+}
+[data-theme="dark"] body, body[data-theme="dark"] { background: #000; }
+
+/* Rahmen der Entwurfsseite */
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: #263238; color: #eceff1; }
+.bar b { margin-right: 12px; }
+.bar button { border: 1px solid #546e7a; background: transparent; color: inherit; padding: 5px 10px; border-radius: 6px; cursor: pointer; font: inherit; }
+.bar button.on { background: #eceff1; color: #263238; }
+.bar .note { opacity: .7; font-size: 12px; margin-left: auto; }
+.stage { display: flex; gap: 24px; padding: 16px; align-items: flex-start; overflow-x: auto; }
+.frame-wrap { flex: 0 0 auto; }
+.frame-wrap h4 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: #37474f; }
+[data-theme="dark"] .frame-wrap h4 { color: #90a4ae; }
+.frame { background: var(--primary-background-color); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.25); container-type: inline-size; }
+.frame.desktop { width: 1180px; }
+.frame.phone { width: 390px; border-radius: 28px; border: 8px solid #111; }
+.stage.only-desktop .frame-wrap.phone, .stage.only-phone .frame-wrap.desktop { display: none; }
+
+/* HA-Kopfzeile mit Ansichts-Tabs */
+.hdr { background: var(--app-header-background-color); color: var(--app-header-text-color); }
+.hdr-top { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px; font-size: 20px; }
+.hdr-top .ico { width: 24px; text-align: center; opacity: .9; }
+.hdr-top .t { flex: 1; }
+.tabs { display: flex; overflow-x: auto; padding: 0 4px; }
+.tab { padding: 10px 14px; font-size: 14px; text-transform: uppercase; letter-spacing: .03em; cursor: pointer; border-bottom: 2px solid transparent; opacity: .75; white-space: nowrap; }
+.tab.on { border-bottom-color: currentColor; opacity: 1; }
+
+/* Abschnitte-Ansicht (sections view) */
+.view { display: none; padding: 16px; }
+.view.on { display: block; }
+.sections { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+.sec { display: flex; flex-direction: column; gap: 8px; }
+.sec.span2 { grid-column: span 2; }
+.sec.span3 { grid-column: 1 / -1; }
+@container (max-width: 700px) {
+  .sections { grid-template-columns: 1fr; }
+  .sec.span2, .sec.span3 { grid-column: auto; }
+  .view { padding: 8px; }
+  .grid2 { grid-template-columns: 1fr 1fr; }
+  .week .row { grid-template-columns: 34px 1fr 1fr 44px; }
+  .hide-phone { display: none !important; }
+}
+.heading { display: flex; align-items: baseline; gap: 8px; padding: 8px 4px 0; font-size: 16px; font-weight: 500; }
+.heading .sub { margin-left: auto; font-size: 13px; color: var(--secondary-text-color); font-weight: 400; }
+.card { position: relative; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 12px; }
+.card h3 { margin: 0 0 8px; font-size: 15px; font-weight: 500; }
+.ctype { display: none; position: absolute; top: 4px; right: 6px; font: 10px/1.4 ui-monospace, monospace; background: var(--tag-bg); color: var(--secondary-text-color); padding: 0 5px; border-radius: 4px; }
+.show-types .ctype { display: block; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+/* Kachel (tile card) */
+.tile { position: relative; display: flex; align-items: center; gap: 10px; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 10px; min-height: 56px; }
+.tile .ic { flex: 0 0 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; background: rgba(127,127,127,.15); }
+.tile.heat .ic { background: rgba(255,129,0,.2); color: var(--state-heat); }
+.tile.ok .ic { background: rgba(67,160,71,.18); color: var(--success-color); }
+.tile.bad .ic { background: rgba(219,68,55,.18); color: var(--error-color); }
+.tile.info .ic { background: rgba(3,155,229,.18); color: var(--info-color); }
+.tile .tx { flex: 1; min-width: 0; }
+.tile .n { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .s { color: var(--secondary-text-color); font-size: 12px; }
+.tile .ctype { top: auto; bottom: 3px; }
+
+.tgl { flex: 0 0 auto; width: 36px; height: 20px; border-radius: 10px; background: #9e9e9e; position: relative; cursor: pointer; }
+.tgl::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.tgl.on { background: var(--primary-color); }
+.tgl.on::after { left: 18px; }
+
+/* Zeilen (entities card) */
+.rows { display: flex; flex-direction: column; }
+.r { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--divider-color); }
+.r:first-child { border-top: 0; }
+.r .ic { width: 24px; text-align: center; color: var(--secondary-text-color); }
+.r .l { flex: 1; min-width: 0; }
+.r .l small { display: block; color: var(--secondary-text-color); font-size: 12px; }
+.r .v { color: var(--secondary-text-color); white-space: nowrap; }
+.inp { border: 1px solid var(--divider-color); border-radius: 6px; padding: 4px 8px; background: transparent; color: var(--primary-text-color); font: inherit; width: 76px; text-align: center; }
+.slider { width: 110px; accent-color: var(--primary-color); }
+
+.big { font-size: 28px; font-weight: 400; }
+.muted { color: var(--secondary-text-color); }
+.warnc { border-left: 4px solid var(--warning-color); }
+.errc { border-left: 4px solid var(--error-color); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: rgba(255,129,0,.18); color: var(--state-heat); }
+.pill.blue { background: rgba(3,155,229,.15); color: var(--info-color); }
+.pill.grey { background: rgba(127,127,127,.15); color: var(--secondary-text-color); }
+
+/* Wochenplan */
+.week .row { display: grid; grid-template-columns: 40px 1fr 1fr 1fr 44px; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid var(--divider-color); }
+.week .row.h { border-top: 0; font-size: 12px; color: var(--secondary-text-color); }
+.week .inp { width: 100%; }
+.tl { position: relative; height: 10px; border-radius: 5px; background: rgba(127,127,127,.18); }
+.tl i { position: absolute; top: 0; bottom: 0; border-radius: 5px; background: var(--state-heat); }
+.tl i.ext { background: repeating-linear-gradient(45deg, var(--state-heat) 0 4px, transparent 4px 8px); }
+.tl i.pre { background: repeating-linear-gradient(45deg, var(--info-color) 0 4px, transparent 4px 8px); }
+
+/* Diagramme (statistics-graph nachgebildet) */
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 140px; padding-top: 8px; }
+.bars .b { flex: 1; display: flex; flex-direction: column-reverse; min-width: 6px; }
+.bars .b span { display: block; }
+.xlab { display: flex; gap: 4px; font-size: 10px; color: var(--secondary-text-color); }
+.xlab span { flex: 1; text-align: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--secondary-text-color); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.c1 { background: #03a9f4; } .c2 { background: #ff9800; } .c3 { background: #8e24aa; }
+.hbar { height: 10px; border-radius: 5px; background: rgba(127,127,127,.18); overflow: hidden; }
+.hbar i { display: block; height: 100%; }
+svg.line { width: 100%; height: 140px; }
+.bar.sim { background: #37474f; font-size: 13px; }
+.bar.sim label { display: flex; align-items: center; gap: 6px; }
+.bar.sim input[type=range] { width: 110px; accent-color: #4fc3f7; }
+.bar.sim select { font: inherit; }
+.bar.sim span { min-width: 52px; font-variant-numeric: tabular-nums; }
+.tgl, [data-v], [data-goto] { user-select: none; }
+.inp:disabled { opacity: .4; }
+.tile .s i { font-style: normal; opacity: .8; }
+.bar.sim { background: #37474f; font-size: 13px; }
+.bar.sim label { display: flex; align-items: center; gap: 6px; }
+.bar.sim input[type=range] { width: 100px; accent-color: #4fc3f7; }
+.bar.sim select, .bar select { font: inherit; }
+.bar.sim span { min-width: 48px; font-variant-numeric: tabular-nums; }
+.tgl, [data-act] { user-select: none; cursor: pointer; }
+.inp:disabled, .dis { opacity: .45; pointer-events: none; }
+.tile .s i { font-style: normal; opacity: .8; }
+select.inp { width: auto; text-align: left; }
+.inp.wide { width: 100%; text-align: left; }
+.btn { border: 0; border-radius: 18px; padding: 6px 14px; font: inherit; font-weight: 500; cursor: pointer; background: var(--primary-color); color: #fff; }
+.btn.flat { background: transparent; color: var(--primary-color); }
+.btn.warn { background: var(--error-color); }
+.btn.small { padding: 3px 10px; font-size: 12px; }
+.chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9px; background: rgba(3,169,244,.15); color: var(--info-color); margin-right: 4px; }
+.chip.grey { background: rgba(127,127,127,.15); color: var(--secondary-text-color); }
+.chip.red { background: rgba(219,68,55,.15); color: var(--error-color); }
+.form { background: rgba(3,169,244,.06); border: 1px dashed var(--primary-color); border-radius: 10px; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.form label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--secondary-text-color); }
+.form .act { display: flex; gap: 8px; justify-content: flex-end; }
+.bsel { display: flex; align-items: center; gap: 10px; }
+.bsel select { font: inherit; font-size: 15px; font-weight: 500; border: 0; background: transparent; color: var(--primary-text-color); flex: 1; }
+.info-card { background: rgba(3,169,244,.08); border: 1px solid rgba(3,169,244,.3); }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #323232; color: #fff; padding: 10px 18px; border-radius: 6px; z-index: 9; display: none; }
+table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.t th, table.t td { padding: 6px 4px; text-align: right; border-top: 1px solid var(--divider-color); white-space: nowrap; }
+table.t th { color: var(--secondary-text-color); font-weight: 500; border-top: 0; }
+table.t td:first-child, table.t th:first-child { text-align: left; }
+.save { color: var(--success-color); font-weight: 600; }
+
+/* HA-Sidebar im Rahmen */
+.shell { display: flex; min-height: 760px; position: relative; }
+.side { flex: 0 0 210px; background: var(--card-background-color); border-right: 1px solid var(--divider-color); padding: 8px 0; }
+.side .ttl { padding: 8px 16px 14px; font-size: 18px; }
+.side .it { display: flex; gap: 14px; align-items: center; padding: 9px 16px; color: var(--secondary-text-color); cursor: pointer; border-radius: 0 20px 20px 0; margin-right: 8px; }
+.side .it.on { background: rgba(3,169,244,.14); color: var(--primary-color); font-weight: 500; }
+.side .it.ours { color: var(--primary-text-color); }
+.side .it .i { width: 22px; text-align: center; }
+.side hr { border: 0; border-top: 1px solid var(--divider-color); margin: 6px 0; }
+.main { flex: 1; min-width: 0; }
+.frame.phone .side { display: none; position: absolute; top: 0; left: 0; bottom: 0; z-index: 5; box-shadow: 4px 0 18px rgba(0,0,0,.3); }
+.frame.phone .side.open { display: block; }
+
+/* Animierte Geräte (im echten Dashboard nur mit eigener Karte) */
+.dev { display: flex; gap: 10px; align-items: center; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 8px 10px; position: relative; }
+.dev.bad { border-color: var(--error-color); }
+.dev svg.a { flex: 0 0 52px; width: 52px; height: 52px; }
+.dev .tx { flex: 1; min-width: 0; }
+.dev .n { font-weight: 500; }
+.dev .s { color: var(--secondary-text-color); font-size: 12px; }
+.dev .ctype { top: auto; bottom: 3px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes rise { 0% { transform: translateY(5px); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-7px); opacity: 0; } }
+@keyframes flow { to { stroke-dashoffset: -12; } }
+@keyframes glow { 50% { opacity: .65; } }
+@keyframes blink { 50% { opacity: .2; } }
+.run .spin { transform-box: fill-box; transform-origin: center; animation: spin .9s linear infinite; }
+.run .spin.slow { animation-duration: 1.6s; }
+.wave { opacity: 0; }
+.run .wave { animation: rise 1.8s ease-in infinite; }
+.run .wave.d2 { animation-delay: .6s; } .run .wave.d3 { animation-delay: 1.2s; }
+.run .flow { stroke-dasharray: 3 3; animation: flow .5s linear infinite; }
+.run .glow { animation: glow 2.2s ease-in-out infinite; }
+.alarm .blink { animation: blink 1s steps(2) infinite; }
+@media (prefers-reduced-motion: reduce) { .run *, .alarm * { animation: none !important; } .wave { opacity: .7; } }
+
+/* Diagramm-Palette: validiert (hell auf #fff, dunkel auf #1c1c1c) – Kategorie-Reihenfolge fest */
+.frame { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --crit: #d03b3b; --muted: #898781; --gridc: #e1e0d9; --axisc: #c3c2b7; --ink2: #52514e; }
+[data-theme="dark"] .frame { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  --gridc: #2c2c2a; --axisc: #383835; --ink2: #c3c2b7; }
+svg.ch { width: 100%; height: auto; display: block; overflow: visible; font-family: inherit; }
+svg.ch .grid { stroke: var(--gridc); stroke-width: 1; }
+svg.ch .base { stroke: var(--axisc); stroke-width: 1; }
+svg.ch .yt { font-size: 10px; fill: var(--muted); text-anchor: end; font-variant-numeric: tabular-nums; }
+svg.ch .xt { font-size: 10px; fill: var(--muted); text-anchor: middle; }
+svg.ch .un { font-size: 10px; fill: var(--muted); }
+svg.ch .rl { font-size: 11px; fill: var(--ink2); text-anchor: end; }
+svg.ch .lane { fill: var(--gridc); opacity: .5; }
+svg.ch .refl { stroke: var(--crit); stroke-width: 1; }
+svg.ch .reft { font-size: 10px; fill: var(--ink2); text-anchor: end; }
+svg.ch .now { stroke: var(--primary-text-color); stroke-width: 1.5; }
+svg.ch .now-t { fill: var(--primary-text-color); font-weight: 600; }
+svg.ch .cross { stroke: var(--muted); stroke-width: 1; pointer-events: none; }
+svg.ch .ring { stroke: var(--card-background-color); stroke-width: 2; }
+svg.ch .mk { cursor: default; transition: opacity .1s; }
+svg.ch .mk:hover { opacity: .75; }
+.lg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink2); margin-top: 8px; }
+.lg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+.lg i.line { height: 2px; width: 14px; border-radius: 1px; vertical-align: 3px; }
+.lg i.dash { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+.lg i.hatch { background: repeating-linear-gradient(45deg, var(--c) 0 2px, transparent 2px 5px); border: 1px solid var(--c); }
+.tip { position: fixed; z-index: 20; display: none; pointer-events: none; background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121);
+  border: 1px solid rgba(127,127,127,.3); border-radius: 8px; padding: 7px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.18); max-width: 260px; }
+.tip .tr { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tip .tr i { width: 12px; height: 2px; border-radius: 1px; flex: 0 0 auto; }
+.tip .tr span { color: var(--secondary-text-color, #727272); }
+.stat { position: relative; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 12px 14px; }
+.stat .sl { font-size: 13px; color: var(--secondary-text-color); }
+.stat .sv { font-size: 24px; font-weight: 600; margin: 2px 0; }
+.stat .ss { font-size: 12px; color: var(--secondary-text-color); }
+</style>
+</head>
+<body>
+<div class="bar">
+  <b>Baustelle – Dashboard-Entwurf v4</b>
+  <button data-mode="both" class="on">Desktop + 390 px</button>
+  <button data-mode="only-desktop">Nur Desktop</button>
+  <button data-mode="only-phone">Nur 390 px</button>
+  <label>Navigation <select id="nav"><option value="tabs">Tabs je Funktion (1 Sidebar-Eintrag)</option><option value="side">Sidebar-Eintrag je Funktion</option></select></label>
+  <button id="theme">Hell / Dunkel</button>
+  <button id="types">Kartentypen zeigen</button>
+  <span class="note">Entwurf: Namen und Werte sind Platzhalter · Eingaben bleiben in diesem Browser gespeichert</span>
+</div>
+<div class="bar sim">
+  <b>Simulation</b>
+  <label>Datum <input type="date" data-simd="date" style="font:inherit"></label><span data-simv="wd" style="min-width:24px"></span>
+  <label>Uhrzeit <input type="range" min="0" max="1439" step="5" data-sim="time"><span data-simv="time"></span></label>
+  <label>Regen 24 h <input type="range" min="0" max="20" step="0.2" data-sim="rain"><span data-simv="rain"></span></label>
+  <label>Außen <input type="range" min="-10" max="30" step="0.5" data-sim="out"><span data-simv="out"></span></label>
+  <label>Früh-Prognose <input type="range" min="-10" max="12" step="0.5" data-sim="fc"><span data-simv="fc"></span></label>
+  <label>Innen ± <input type="range" min="-15" max="6" step="0.5" data-sim="dT"><span data-simv="dT"></span></label>
+  <label><input type="checkbox" data-simc="outage"> Stromausfall</label>
+  <label><input type="checkbox" data-simc="dry"> Pumpe 1 trocken</label>
+  <button id="reset">Alles zurücksetzen</button>
+</div>
+
+<div class="stage" id="stage">
+  <div class="frame-wrap desktop"><h4>Desktop</h4><div class="frame desktop"></div></div>
+  <div class="frame-wrap phone"><h4>Smartphone 390 px</h4><div class="frame phone"></div></div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+/* =========================================================================================
+   Zustand. In HA später: Baustellen/Bereiche/Geräte = Einträge der Integration (.storage),
+   Messwerte = Langzeitstatistik (Recorder). Hier nur im Browser (localStorage).
+   ========================================================================================= */
+const LS = 'ha-baustelle-mockup-v6';
+const TAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const MON = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const ROLLE = { heat: 'Heizkörper', dry: 'Bautrockner', pump: 'Pumpe', plug: 'Steckdose' };
+const HTYP = { oel: 'Ölradiator', konv: 'Konvektor' };
+const STDW = { heat: 2000, dry: 1800, pump: 750, plug: 500 };
+const POOL = [
+  ...['a1f3', 'b27c', 'c90e', 'd4a1', 'e5b2', 'f6c3', '17d4', '28e5', '39f6', '4a07', '5b18', '6c29', '7d3a', '8e4b'].map(k => ({ e: 'switch.shellyplugs_' + k, n: 'Shelly Plug S ' + k, t: 'switch' })),
+  ...['7c21', '9d02', 'ae13', 'bf24', 'c035'].map(k => ({ e: 'sensor.shellyht_' + k + '_temperatur', n: 'Shelly H&T ' + k, t: 'temp' })),
+  { e: 'climate.thermostat_polier', n: 'Thermostat Polier (Gerät)', t: 'climate' },
+  { e: 'weather.baustelle_nord', n: 'Met.no – Baustelle Nord', t: 'weather' }, { e: 'weather.forecast_home', n: 'Met.no – Zuhause', t: 'weather' },
+  { e: 'sensor.wetterstation_sued_temperatur', n: 'Wetterstation Süd – Temperatur', t: 'wtemp' }, { e: 'sensor.wetterstation_sued_regen_24h', n: 'Wetterstation Süd – Regen 24 h', t: 'wrain' },
+  { e: 'sensor.ecowitt_temperatur', n: 'Ecowitt – Temperatur', t: 'wtemp' }, { e: 'sensor.ecowitt_regen_24h', n: 'Ecowitt – Regen 24 h', t: 'wrain' }
+];
+const wd = iso => (new Date(iso + 'T12:00:00').getDay() + 6) % 7;
+const dmy = iso => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : '–';
+const addDays = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+/* Feiertage Österreich – in HA über die eingebaute Integration „Feiertage“ (holiday) bzw. „Arbeitstag“ (workday) */
+const easter = y => { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
+  h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+  mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return `${y}-${String(mo).padStart(2, '0')}-${String(da).padStart(2, '0')}`; };
+const HOLC = {};
+function holYear(y) {
+  const o = {}, E = easter(y);
+  [['01-01', 'Neujahr'], ['01-06', 'Hl. Drei Könige'], ['05-01', 'Staatsfeiertag'], ['08-15', 'Mariä Himmelfahrt'], ['10-26', 'Nationalfeiertag'],
+   ['11-01', 'Allerheiligen'], ['12-08', 'Mariä Empfängnis'], ['12-25', 'Christtag'], ['12-26', 'Stefanitag']].forEach(([md, n]) => o[`${y}-${md}`] = n);
+  [[1, 'Ostermontag'], [39, 'Christi Himmelfahrt'], [50, 'Pfingstmontag'], [60, 'Fronleichnam']].forEach(([n, t]) => o[addDays(E, n)] = t);
+  return o;
+}
+const holName = iso => { const y = Number(iso.slice(0, 4)); return (HOLC[y] = HOLC[y] || holYear(y))[iso] || ''; };
+const holUpcoming = (from, n) => { const y = Number(from.slice(0, 4)); return [y, y + 1].flatMap(j => Object.keys(HOLC[j] = HOLC[j] || holYear(j))).filter(d => d >= from).sort().slice(0, n); };
+const SF = [1.2, 1.0, .8, .5, .08, .05, .05, .05, .1, .6, .9, 1.1];
+function hist(from, to, base, seed) {
+  const out = []; let [y, m] = from.split('-').map(Number); const [ty, tm] = to.split('-').map(Number);
+  while (y < ty || (y === ty && m <= tm)) { const f = SF[m - 1], k = Math.round(base * f * (0.9 + ((m * 7 + seed) % 5) / 20));
+    out.push({ ym: `${y}-${String(m).padStart(2, '0')}`, kwh: k, ohne: Math.round(k * (1.7 + ((m + seed) % 3) / 10)), al: (m + seed) % 4 === 0 ? 1 : 0 }); m++; if (m > 12) { m = 1; y++; } }
+  return out;
+}
+const sched = (off5 = '16:30') => [0, 1, 2, 3, 4, 5, 6].map(d => ({ on: d < 5 ? '06:00' : '07:00', off: d === 4 ? '13:00' : d < 5 ? off5 : '12:00', act: d < 5 }));
+const dev = (n, role, e, o = {}) => ({ id: Math.random().toString(36).slice(2, 8), n, role, e, w: o.w || STDW[role], kwh: o.kwh || 0, mon: o.mon || 0, man: !!o.man, fault: !!o.fault, off: !!o.off, typ: o.typ || (role === 'heat' ? 'konv' : undefined) });
+const START = () => ({
+  sim: { date: '2026-09-29', day: 1, time: 1010, out: 4.5, rain: 6.4, fc: -2, dT: 0, outage: false, dry: false },
+  active: 'b1',
+  kept: [],
+  bs: [
+    { id: 'b1', name: 'Wohnanlage Nord', arch: false, start: '2025-11-03', end: '', hist: hist('2025-11', '2026-09', 1400, 1), wx: { src: 'weather', weather: 'weather.baustelle_nord', temp: '', rain: '' }, hol: true, vacMode: 'frost', vac: [{ name: 'Weihnachten', from: '2026-12-23', to: '2027-01-06' }],  price: 0.28, season: [10, 4], fx: { heat: true, pump: false },
+      auto: true, sched: sched(), dry: { thr: 2, after: 60, before: 30 }, early: { thr: 3, min: 30 }, frost: { act: true, on: 5, off: 8 }, warm: { act: true, thr: 15, basis: 'now' },
+      pr: { offMin: 5, dryW: 300, runMaxH: 4, notify: ['Herbert (Handy)'] },
+      areas: [
+        { id: 'a1', name: 'Container 1 · Büro', kind: 'cont', mode: 'thermo', target: 20, sensor: 'sensor.shellyht_7c21_temperatur', t: 19.4, hum: 58, dev: [
+          dev('Heizkörper 1', 'heat', 'switch.shellyplugs_a1f3', { w: 2010, kwh: 7.1, mon: 101, typ: 'oel' }),
+          dev('Heizkörper 2', 'heat', 'switch.shellyplugs_b27c', { w: 1985, kwh: 6.8, mon: 97, typ: 'konv' })] },
+        { id: 'a2', name: 'Container 2 · Mannschaft', kind: 'cont', dryClothes: true, mode: 'plan', target: 18, sensor: 'sensor.shellyht_9d02_temperatur', t: 17.8, hum: 71, dev: [
+          dev('Heizkörper 1', 'heat', 'switch.shellyplugs_c90e', { w: 2005, kwh: 6.9, mon: 96, typ: 'oel' }),
+          dev('Heizkörper 2', 'heat', 'switch.shellyplugs_d4a1', { w: 1990, kwh: 1.2, mon: 71, fault: true, typ: 'konv' }),
+          dev('Bautrockner', 'dry', 'switch.shellyplugs_e5b2', { w: 1790, kwh: 5.4, mon: 87 })] },
+        { id: 'a3', name: 'Container 3 · Magazin', kind: 'cont', mode: 'plan', target: 12, sensor: null, t: 9.1, hum: 64, dev: [
+          dev('Heizkörper 1', 'heat', 'switch.shellyplugs_f6c3', { w: 1995, kwh: 3.3, mon: 52, typ: 'konv' }),
+          dev('Werkzeug', 'plug', 'switch.shellyplugs_17d4', { w: 850, kwh: 0.4, mon: 8, off: true })] }
+      ] },
+    { id: 'b2', name: 'Tiefgarage Süd', arch: false, start: '2026-09-01', end: '', hist: hist('2026-09', '2026-09', 900, 2), wx: { src: 'station', weather: '', temp: 'sensor.wetterstation_sued_temperatur', rain: 'sensor.wetterstation_sued_regen_24h' }, hol: true, vacMode: 'frost', vac: [],  price: 0.31, season: [10, 3], fx: { heat: true, pump: true },
+      auto: true, sched: sched('17:00'), dry: { thr: 2, after: 60, before: 30 }, early: { thr: 2, min: 20 }, frost: { act: true, on: 5, off: 8 }, warm: { act: true, thr: 15, basis: 'now' },
+      pr: { offMin: 5, dryW: 300, runMaxH: 4, notify: ['Herbert (Handy)', 'Polier (Handy)'] },
+      areas: [
+        { id: 'a4', name: 'Container Polier', kind: 'cont', dryClothes: true, mode: 'thermo', target: 19, sensor: 'climate.thermostat_polier', t: 18.2, hum: 55, dev: [
+          dev('Heizkörper 1', 'heat', 'switch.shellyplugs_28e5', { w: 2000, kwh: 6.2, mon: 88, typ: 'oel' })] },
+        { id: 'a5', name: 'Pumpenschacht Nord', kind: 'pump', mode: 'off', target: 0, sensor: null, t: 8, hum: 90, dev: [
+          dev('Pumpe 1', 'pump', 'switch.shellyplugs_39f6', { w: 760, kwh: 3.1, mon: 64 }),
+          dev('Pumpe 2', 'pump', 'switch.shellyplugs_4a07', { w: 745, kwh: 2.8, mon: 59 })] }
+      ] },
+    { id: 'b3', name: 'Kindergarten West', arch: true, start: '2025-10-06', end: '2026-04-24', hist: hist('2025-10', '2026-04', 1100, 3), wx: { src: 'weather', weather: 'weather.forecast_home', temp: '', rain: '' }, hol: true, vacMode: 'frost', vac: [{ name: 'Weihnachten', from: '2025-12-22', to: '2026-01-06' }],  price: 0.26, season: [10, 4], fx: { heat: true, pump: false },
+      auto: false, sched: sched(), dry: { thr: 2, after: 60, before: 30 }, early: { thr: 3, min: 30 }, frost: { act: true, on: 5, off: 8 }, warm: { act: true, thr: 15, basis: 'now' },
+      pr: { offMin: 5, dryW: 300, runMaxH: 4, notify: [] },
+      areas: [{ id: 'a6', name: 'Container A', kind: 'cont', mode: 'plan', target: 18, sensor: null, t: 15, hum: 60, dev: [
+        dev('Heizkörper 1', 'heat', 'switch.shellyplugs_5b18', { w: 2000, mon: 412, typ: 'oel' }),
+        dev('Heizkörper 2', 'heat', 'switch.shellyplugs_6c29', { w: 2000, mon: 398, typ: 'konv' })] }] },
+    { id: 'b4', name: 'Schule Ost', arch: true, start: '2024-11-11', end: '2025-03-28', hist: hist('2024-11', '2025-03', 1700, 4), wx: { src: 'weather', weather: 'weather.forecast_home', temp: '', rain: '' }, hol: true, vacMode: 'frost', vac: [],
+      price: 0.24, season: [10, 4], fx: { heat: true, pump: true }, auto: false, sched: sched(), dry: { thr: 2, after: 60, before: 30 }, early: { thr: 3, min: 30 }, frost: { act: true, on: 5, off: 8 }, warm: { act: true, thr: 15, basis: 'now' },
+      pr: { offMin: 5, dryW: 300, runMaxH: 4, notify: [] },
+      areas: [{ id: 'a7', name: 'Container 1', kind: 'cont', mode: 'plan', target: 18, sensor: null, t: 15, hum: 60, dev: [
+        dev('Heizkörper 1', 'heat', 'switch.shellyplugs_7d3a', { w: 2000, mon: 510, typ: 'konv' })] },
+        { id: 'a8', name: 'Baugrube', kind: 'pump', mode: 'off', target: 0, sensor: null, t: 8, hum: 90, dev: [dev('Pumpe 1', 'pump', 'switch.shellyplugs_8e4b', { w: 800, mon: 120 })] }] }
+  ],
+  cfg: { price: 0.28, season: [10, 4], notify: ['Herbert (Handy)'], country: 'Österreich', region: 'Steiermark', vacMode: 'frost', frostOn: 5, warmThr: 15 }
+});
+let S = START();
+try { const j = localStorage.getItem(LS); if (j) S = JSON.parse(j); } catch (e) { }
+const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { } };
+const UI = [0, 1].map(() => ({ v: 'v1', form: null, drawer: false, scope: 'all', sub: 'bs', hsel: 'all', per: '7' }));
+let showTypes = false, nav = 'tabs';
+
+/* ---------- Hilfen ---------- */
+const m2t = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const t2m = t => { const [h, m] = String(t).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+const de = (x, d = 1) => Number(x).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d });
+const eur = x => de(x, 2) + ' €';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const B = () => S.bs.find(b => b.id === S.active) || S.bs.find(b => !b.arch) || S.bs[0];
+const resolve = p => p.startsWith('B.') ? [B(), p.slice(2)] : [S, p];
+const get = p => { const [o, q] = resolve(p); return q.split('.').reduce((a, k) => a[k], o); };
+const set = (p, v) => { const [o, q] = resolve(p); const k = q.split('.'); const l = k.pop(); k.reduce((a, x) => a[x], o)[l] = v; };
+const tgl = (path, on) => `<span class="tgl ${on ? 'on' : ''}" data-t="${path}"></span>`;
+const ct = t => `<span class="ctype">${t}</span>`;
+const used = () => new Set(S.bs.filter(b => !b.arch).flatMap(b => b.areas.flatMap(a => [a.sensor, ...a.dev.map(d => d.e)])));
+const months = s => ((s[1] - s[0] + 12) % 12) + 1;
+function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => el.style.display = 'none', 2600); }
+
+/* ---------- Animierte Symbole ---------- */
+function icon(d, st) {
+  const run = st.on && !st.off && st.p > 0 ? 'run' : '', al = st.alarm ? 'alarm' : '';
+  const hot = run ? '#ff7043' : '#9e9e9e';
+  const waves = `<g stroke="#ff8a50" stroke-width="2" fill="none" stroke-linecap="round">
+      <path class="wave" d="M16 14 q3 -4 0 -8"/><path class="wave d2" d="M26 14 q3 -4 0 -8"/><path class="wave d3" d="M36 14 q3 -4 0 -8"/></g>`;
+  if (d.role === 'heat' && d.typ === 'oel') return `<svg class="a ${run} ${al}" viewBox="0 0 52 52">${waves}
+      <g class="glow">${[0, 1, 2, 3, 4, 5].map(i => `<rect x="${8 + i * 6.3}" y="17" width="5" height="26" rx="2.5" fill="${hot}"/>`).join('')}</g>
+      <rect x="9" y="42" width="34" height="3" rx="1.5" fill="#757575"/><circle cx="12" cy="48" r="2" fill="#757575"/><circle cx="40" cy="48" r="2" fill="#757575"/></svg>`;
+  if (d.role === 'heat') return `<svg class="a ${run} ${al}" viewBox="0 0 52 52">${waves}
+      <rect x="7" y="17" width="38" height="26" rx="4" fill="none" stroke="#9e9e9e" stroke-width="2"/>
+      <g class="glow" stroke="${hot}" stroke-width="2">${[0, 1, 2, 3, 4, 5, 6].map(i => `<line x1="${12 + i * 4.6}" y1="20" x2="${12 + i * 4.6}" y2="25"/>`).join('')}</g>
+      <circle cx="39" cy="37" r="2.3" fill="${run ? '#ff7043' : '#bdbdbd'}"/><line x1="11" y1="45" x2="11" y2="49" stroke="#757575" stroke-width="2"/><line x1="41" y1="45" x2="41" y2="49" stroke="#757575" stroke-width="2"/></svg>`;
+  if (d.role === 'dry') return `<svg class="a ${run} ${al}" viewBox="0 0 52 52">
+      <rect x="6" y="8" width="40" height="38" rx="6" fill="none" stroke="#9e9e9e" stroke-width="2"/>
+      <circle cx="26" cy="27" r="13" fill="none" stroke="#bdbdbd" stroke-width="1.5"/>
+      <g class="spin"><path d="M26 27 L26 15 A6 6 0 0 1 32 21 Z M26 27 L38 27 A6 6 0 0 1 32 33 Z M26 27 L26 39 A6 6 0 0 1 20 33 Z M26 27 L14 27 A6 6 0 0 1 20 21 Z" fill="${run ? '#03a9f4' : '#9e9e9e'}"/></g></svg>`;
+  if (d.role === 'pump') return `<svg class="a ${run} ${al}" viewBox="0 0 52 52">
+      <path d="M4 44 H14" stroke="#03a9f4" stroke-width="4" class="flow" stroke-linecap="round"/>
+      <circle cx="22" cy="30" r="12" fill="none" stroke="${st.alarm ? '#db4437' : '#78909c'}" stroke-width="2.5" class="blink"/>
+      <g class="spin"><path d="M22 30 l0 -9 M22 30 l8 4 M22 30 l-8 4" stroke="${run ? '#03a9f4' : '#9e9e9e'}" stroke-width="3" stroke-linecap="round"/></g>
+      <path d="M34 30 H40 V8 H48" fill="none" stroke="#78909c" stroke-width="4"/>
+      <path d="M34 30 H40 V8 H48" fill="none" stroke="#4fc3f7" stroke-width="2" class="flow"/>
+      <path d="M2 48 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#4fc3f7" stroke-width="2" opacity=".6"/></svg>`;
+  return `<svg class="a ${run} ${al}" viewBox="0 0 52 52"><rect x="12" y="10" width="28" height="34" rx="6" fill="none" stroke="#9e9e9e" stroke-width="2"/>
+      <circle cx="21" cy="25" r="2" fill="#9e9e9e"/><circle cx="31" cy="25" r="2" fill="#9e9e9e"/><circle class="glow" cx="26" cy="37" r="2.5" fill="${run ? '#43a047' : '#bdbdbd'}"/></svg>`;
+}
+
+/* ---------- Logik (später in der Integration) ---------- */
+function calc(b) {
+  const sim = S.sim, act = b.id === S.active;
+  const dryOn = sim.rain >= b.dry.thr;                       // Kleidung trocknen: nur nach Regen
+  const ext = dryOn ? b.dry.after : 0, earlyDry = dryOn ? b.dry.before : 0;
+  const early = sim.fc < b.early.thr ? b.early.min : 0;      // Kälte: für alle Container
+  const s = b.sched[sim.day];
+  const vac = (b.vac || []).find(v => sim.date >= v.from && sim.date <= v.to);
+  const hol = b.hol && holName(sim.date);
+  const wb = b.warm || { act: false }, wT = wb.basis === 'max' ? sim.out + 4 : sim.out;
+  const warm = b.fx.heat && wb.act && wT > wb.thr ? `Heizgrenze: ${wb.basis === 'max' ? 'Tageshöchstwert' : 'außen'} ${de(wT)} °C über ${de(wb.thr)} °C` : '';
+  const pause = vac ? `Urlaub „${vac.name}“ bis ${dmy(vac.to)}` : hol ? `Feiertag (${hol})` : '';
+  const w = s.act && !pause ? { on: t2m(s.on) - early, off: t2m(s.off), onDry: t2m(s.on) - early - earlyDry, offDry: t2m(s.off) + ext } : null;
+  const dryA = a => a && a.dryClothes && dryOn;
+  const win = a => b.fx.heat && b.auto && !!w && sim.time >= (dryA(a) ? w.onDry : w.on) && sim.time < (dryA(a) ? w.offDry : w.off);
+  const extra = a => dryA(a) && !!w && (sim.time < w.on || sim.time >= w.off) && win(a);
+  const anyDry = b.areas.some(a => a.dryClothes);
+  const want = win(anyDry ? { dryClothes: true } : null);
+  const R = { warm, pause, vac, ext, early, earlyDry, dryOn, w, want, power: 0, kwh: 0, heatOn: 0, heatAll: 0, pumpRun: 0, pumpAll: 0, warn: [], st: {} };
+  const outage = act && sim.outage;
+  b.areas.forEach(a => {
+    a.tt = a.sensor ? +(a.t + sim.dT).toFixed(1) : null;
+    a.frost = b.fx.heat && b.frost.act && a.tt !== null && a.tt < b.frost.on;
+    a.on = 0; a.power = 0;
+    a.dev.forEach((d, k) => {
+      const st = { on: false, off: outage || d.off, src: '', p: 0, alarm: false };
+      if (st.off) st.src = 'nicht erreichbar';
+      else if (d.role === 'pump') {
+        const pi = a.dev.filter(x => x.role === 'pump').indexOf(d);
+        st.on = ((sim.time + pi * 20) % 40) < 12 || (act && sim.dry && pi === 0);
+        st.src = 'Schwimmer';
+        st.p = st.on ? (act && sim.dry && pi === 0 ? 120 : d.w) : 0;
+      } else if (d.role === 'plug') { st.on = d.man; st.src = 'Hand'; }
+      else if (!b.fx.heat) { st.on = d.man; st.src = 'Hand'; }
+      else if (a.frost && d.role === 'heat') { st.on = true; st.src = 'Frostschutz'; }
+      else if (a.mode === 'off') { st.on = false; st.src = 'Modus aus'; }
+      else if (warm && a.mode !== 'hand') { st.on = false; st.src = 'Heizgrenze – zu warm'; }
+      else if (pause && b.vacMode === 'off') { st.on = false; st.src = 'Urlaub: aus'; }
+      else if (pause && b.vacMode === 'lower' && a.sensor && a.mode !== 'hand') { st.on = a.tt < 10; st.src = 'Urlaub: auf 10 °C abgesenkt'; }
+      else if (pause && a.mode !== 'hand') { st.on = false; st.src = pause.startsWith('Urlaub') ? 'Urlaub (Frostschutz bereit)' : 'Feiertag'; }
+      else if (a.mode === 'hand') { st.on = d.man; st.src = 'Hand'; }
+      else if (a.mode === 'thermo') { const inW = win(a); st.on = inW && a.tt < a.target; st.src = !inW ? 'Thermostat, außerhalb Zeitplan' : (extra(a) ? 'Kleidung trocknen · ' : '') + (st.on ? `Thermostat < ${a.target} °C` : `Thermostat: ${a.target} °C erreicht`); }
+      else { st.on = win(a); st.src = extra(a) ? 'Kleidung trocknen (nach Regen)' : 'Zeitplan'; }
+      if (d.role !== 'pump') st.p = st.on && !st.off && !d.fault ? d.w : 0;
+      if (st.on && d.fault && !st.off) { st.alarm = true; R.warn.push({ lvl: 'errc', t: `${a.name} · ${d.n}`, s: 'eingeschaltet, zieht aber 0 W – Sicherung oder Gerät prüfen' }); }
+      if (d.role === 'pump') {
+        R.pumpAll++; if (st.on && !st.off) R.pumpRun++;
+        if (st.on && !st.off && st.p < b.pr.dryW) { st.alarm = true; R.warn.push({ lvl: 'errc', t: `${a.name} · ${d.n}`, s: `läuft, zieht aber nur ${st.p} W – Trockenlauf?`, msg: true }); }
+        if (st.off && !outage) { st.alarm = true; R.warn.push({ lvl: 'errc', t: `${a.name} · ${d.n}`, s: `nicht erreichbar seit mehr als ${b.pr.offMin} min`, msg: true }); }
+      } else if (st.off && !outage) R.warn.push({ lvl: 'warnc', t: `${a.name} · ${d.n}`, s: 'Shelly nicht erreichbar seit 10:42' });
+      if (d.role === 'heat' || d.role === 'dry') { R.heatAll++; if (st.on && !st.off) R.heatOn++; }
+      if (st.on && !st.off) a.on++;
+      a.power += st.p; R.power += st.p; R.kwh += d.kwh;
+      R.st[d.id] = st;
+    });
+    if (a.frost) R.warn.push({ lvl: 'warnc', t: `${a.name} · Frostschutz`, s: `${de(a.tt)} °C unter ${b.frost.on} °C – Heizkörper laufen unabhängig vom Plan` });
+  });
+  if (outage) R.warn.unshift({ lvl: 'errc', t: 'Baustelle nicht erreichbar', s: `Alle ${b.areas.reduce((n, a) => n + a.dev.length, 0)} Geräte offline seit ${m2t(sim.time - 3)} – Stromausfall oder Internet weg`, msg: true });
+  R.warn.forEach(x => x.sent = x.msg && b.fx.pump && b.pr.notify.length ? b.pr.notify.join(', ') : '');
+  let next = '';
+  if (!b.fx.heat) next = '—';
+  else if (!b.auto) next = 'Automatik aus';
+  else if (warm) next = warm;
+  else if (pause) next = pause;
+  else if (!w) next = `${TAGE[sim.day]}: kein Heiztag`;
+  else if (sim.time < (anyDry && dryOn ? w.onDry : w.on)) next = `Ein um ${m2t(anyDry && dryOn ? w.onDry : w.on)}`;
+  else if (sim.time < (anyDry && dryOn ? w.offDry : w.off)) next = `Aus um ${m2t(anyDry && dryOn ? w.offDry : w.off)}`;
+  else next = 'Heizphase heute vorbei';
+  R.next = next;
+  return R;
+}
+
+/* Verbrauch/Prognose je Umfang (alle Bereiche oder einer) */
+function usage(b, scope) {
+  const areas = scope === 'all' ? b.areas : b.areas.filter(a => a.id === scope);
+  const devs = areas.flatMap(a => a.dev);
+  const heat = devs.filter(d => d.role === 'heat' || d.role === 'dry');
+  const M = months(b.season);
+  const mon = devs.reduce((s, d) => s + d.mon, 0), day = devs.reduce((s, d) => s + d.kwh, 0);
+  const hMon = heat.reduce((s, d) => s + d.mon, 0);
+  const full = heat.reduce((s, d) => s + d.w, 0) * 24 / 1000;
+  return { areas, devs, heat, M, mon, day, week: mon / 29 * 7, rows: [
+    ['Tag', heat.reduce((s, d) => s + d.kwh, 0), full],
+    ['Woche', hMon / 29 * 7, full * 7],
+    ['Monat', hMon, full * 30],
+    [`Heizperiode (${MON[b.season[0] - 1]}–${MON[b.season[1] - 1]}, ${M} Mon.)`, hMon * M, full * 30 * M]] };
+}
+
+/* =========================================================================================
+   Diagramme. In HA später: history-graph (Zeitleiste/Temperaturen), statistics-graph
+   (kWh je Tag aus Energiezählern, Heiz-/Pumpzeit aus history_stats-Sensoren).
+   Farben: Kategorie-Palette (geprüft: Farbenblindheit/Kontrast), Farbe folgt dem Container.
+   ========================================================================================= */
+const CX = {};                                   // Fadenkreuz-Daten je Diagramm
+const hash = str => { let h = 7; for (const c of str) h = (h * 31 + c.charCodeAt(0)) % 100003; return h; };
+const rnd = (str) => (hash(str) % 1000) / 1000;
+const niceMax = v => { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p; return 10 * p; };
+const sc = i => `var(--s${(i % 6) + 1})`;
+const legend = (items, kind = 'rect') => `<div class="lg">${items.map(([n, c, extra]) => `<span><i class="${kind}${extra ? ' ' + extra : ''}" style="--c:${c}"></i>${esc(n)}</span>`).join('')}</div>`;
+const rtop = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`; };
+
+/* Säulen, gestapelt oder gruppiert */
+function colChart({ id, W, H = 190, labels, series, stack, unit, dec = 1 }) {
+  const L = 40, R = 6, T = 10, Bm = 24, pw = W - L - R, ph = H - T - Bm, n = labels.length;
+  const max = niceMax(Math.max(...labels.map((_, i) => stack ? series.reduce((s, q) => s + (q.values[i] || 0), 0) : Math.max(...series.map(q => q.values[i] || 0))), 0.1));
+  const y = v => T + ph - v / max * ph, band = pw / n;
+  let g = '';
+  for (let k = 0; k <= 4; k++) { const v = max * k / 4; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="${k ? 'grid' : 'base'}"/><text x="${L - 6}" y="${y(v) + 3}" class="yt">${de(v, v < 10 && max < 10 ? 1 : 0)}</text>`; }
+  const step = Math.ceil(n / (W < 400 ? 6 : 12));
+  labels.forEach((l, i) => { if (i % step === 0) g += `<text x="${L + band * i + band / 2}" y="${H - 8}" class="xt">${esc(l)}</text>`; });
+  let bars = '';
+  labels.forEach((l, i) => {
+    const cx = L + band * i + band / 2;
+    if (stack) {
+      const bw = Math.min(24, band * .62); let acc = 0; const vals = series.map(q => q.values[i] || 0); const top = vals.map((v, k) => v > 0 ? k : -1).filter(k => k >= 0).pop();
+      series.forEach((q, k) => { const v = vals[k]; if (v <= 0) return; const y0 = y(acc + v), hh = Math.max(0, y(acc) - y0 - (k ? 2 : 0)); acc += v;
+        bars += `<path d="${k === top ? rtop(cx - bw / 2, y0, bw, hh, 4) : `M${cx - bw / 2},${y0}h${bw}v${hh}h${-bw}Z`}" fill="${q.color}" class="mk" data-tip="${de(v, dec)} ${unit}|${esc(q.name)} · ${esc(l)}"/>`; });
+    } else {
+      const k = series.length, bw = Math.min(24, (band * .8 - (k - 1) * 2) / k), x0 = cx - (k * bw + (k - 1) * 2) / 2;
+      series.forEach((q, j) => { const v = q.values[i] || 0; if (v <= 0) return; bars += `<path d="${rtop(x0 + j * (bw + 2), y(v), bw, y(0) - y(v), 4)}" fill="${q.color}" class="mk" data-tip="${de(v, dec)} ${unit}|${esc(q.name)} · ${esc(l)}"/>`; });
+    }
+  });
+  return `<svg class="ch" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(unit)}">${g}${bars}<text x="${L}" y="${T - 1}" class="un">${esc(unit)}</text></svg>`;
+}
+
+/* Linien, eine Achse, Fadenkreuz */
+function lineChart({ id, W, H = 190, labels, series, unit, ref, dec = 1, area }) {
+  const L = 40, R = 10, T = 12, Bm = 24, pw = W - L - R, ph = H - T - Bm, n = labels.length;
+  const all = series.flatMap(q => q.values).concat(ref ? [ref.v] : []);
+  let lo = Math.min(...all), hi = Math.max(...all); if (area) lo = 0;
+  const span = niceMax((hi - lo) || 1) , stp = span / 4; lo = Math.floor(lo / stp) * stp; hi = lo + stp * 4; while (hi < Math.max(...all)) hi += stp;
+  const x = i => L + (n === 1 ? pw / 2 : pw * i / (n - 1)), y = v => T + ph - (v - lo) / (hi - lo) * ph;
+  let g = '';
+  const tk = Math.round((hi - lo) / stp);
+  for (let k = 0; k <= tk; k++) { const v = lo + stp * k; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="${k ? 'grid' : 'base'}"/><text x="${L - 6}" y="${y(v) + 3}" class="yt">${de(v, stp < 1 ? 1 : 0)}</text>`; }
+  const step = Math.ceil(n / (W < 400 ? 5 : 10));
+  labels.forEach((l, i) => { if (i % step === 0) g += `<text x="${x(i)}" y="${H - 8}" class="xt">${esc(l)}</text>`; });
+  if (ref) g += `<line x1="${L}" x2="${W - R}" y1="${y(ref.v)}" y2="${y(ref.v)}" class="refl"/><text x="${W - R}" y="${y(ref.v) - 4}" class="reft">${esc(ref.label)}</text>`;
+  let ls = '';
+  series.forEach(q => {
+    const pts = q.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    if (area) ls += `<polygon points="${x(0)},${y(lo)} ${pts} ${x(n - 1)},${y(lo)}" fill="${q.color}" opacity=".1"/>`;
+    ls += `<polyline points="${pts}" fill="none" stroke="${q.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${q.dash ? 'stroke-dasharray="4 4"' : ''}/>`;
+    const li = q.last != null ? q.last : n - 1;
+    ls += `<circle cx="${x(li)}" cy="${y(q.values[li])}" r="4" fill="${q.color}" class="ring"/>`;
+  });
+  CX[id] = { L, pw, n, W, labels, series: series.map(q => ({ name: q.name, color: q.color, values: q.values })), unit, dec };
+  return `<svg class="ch" viewBox="0 0 ${W} ${H}" data-cxid="${id}">${g}${ls}<line id="${id}-x" x1="0" x2="0" y1="${T}" y2="${T + ph}" class="cross" style="display:none"/>
+    <rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent" data-cx="${id}"/><text x="${L}" y="${T - 2}" class="un">${esc(unit)}</text></svg>`;
+}
+
+/* Zeitleiste (ein/aus je Gerät) über 24 h */
+function timeline({ id, W, rows, now }) {
+  const LW = W < 400 ? 96 : 170, R = 6, T = 6, RH = 22, H = T + rows.length * RH + 22, pw = W - LW - R;
+  const x = m => LW + pw * m / 1440;
+  let g = `<defs><pattern id="${id}-h" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="6" fill="currentColor"/></pattern></defs>`;
+  [0, 360, 720, 1080, 1440].forEach(m => g += `<line x1="${x(m)}" x2="${x(m)}" y1="${T}" y2="${H - 20}" class="grid"/><text x="${x(m)}" y="${H - 6}" class="xt">${m2t(m).slice(0, 2)}</text>`);
+  rows.forEach((r, i) => {
+    const yy = T + i * RH;
+    g += `<text x="${LW - 8}" y="${yy + 15}" class="rl">${esc(r.name.length > (W < 400 ? 13 : 24) ? r.name.slice(0, W < 400 ? 12 : 23) + '…' : r.name)}</text><rect x="${LW}" y="${yy + 5}" width="${pw}" height="12" rx="3" class="lane"/>`;
+    r.segs.forEach(([a, b2, k]) => {
+      const w = Math.max(1.5, x(b2) - x(a)), tip = `${m2t(a)}–${m2t(b2)} · ${de((b2 - a) / 60)} h|${esc(r.name)} · ${k === 'on' ? r.onLabel : k === 'extra' ? 'Kleidung trocknen' : 'offline'}`;
+      if (k === 'off') g += `<rect x="${x(a)}" y="${yy + 5}" width="${w}" height="12" rx="3" fill="url(#${id}-h)" style="color:var(--crit)" class="mk" data-tip="${tip}"/>`;
+      else if (k === 'extra') g += `<g class="mk" data-tip="${tip}" style="color:${r.color}"><rect x="${x(a)}" y="${yy + 5}" width="${w}" height="12" rx="3" fill="url(#${id}-h)"/><rect x="${x(a)}" y="${yy + 5}" width="${w}" height="12" rx="3" fill="none" stroke="${r.color}" stroke-width="1"/></g>`;
+      else g += `<rect x="${x(a)}" y="${yy + 5}" width="${w}" height="12" rx="3" fill="${r.color}" class="mk" data-tip="${tip}"/>`;
+    });
+  });
+  if (now != null) g += `<line x1="${x(now)}" x2="${x(now)}" y1="${T}" y2="${H - 20}" class="now"/><text x="${x(now)}" y="${H - 6}" class="xt now-t">jetzt</text>`;
+  return `<svg class="ch" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+
+/* ---------- Daten für die Diagramme ---------- */
+/* Heute: Regeln im 10-Minuten-Takt durchrechnen (gleiche Logik wie die Steuerung) */
+function dayRun(b) {
+  const keep = S.sim.time, steps = [];
+  for (let t = 0; t < 1440; t += 10) { S.sim.time = t; const C = calc(b); const st = {}; for (const k in C.st) st[k] = { on: C.st[k].on && !C.st[k].off, off: C.st[k].off, p: C.st[k].p, x: /Kleidung/.test(C.st[k].src) }; steps.push({ t, st, power: C.power }); }
+  S.sim.time = keep; calc(b);
+  return steps;
+}
+function segsOf(steps, id) {
+  const out = []; let cur = null;
+  steps.forEach(s => { const q = s.st[id], k = !q ? null : q.off ? 'off' : q.on ? (q.x ? 'extra' : 'on') : null;
+    if (cur && cur[2] === k) cur[1] = s.t + 10; else { if (cur && cur[2]) out.push(cur); cur = [s.t, s.t + 10, k]; } });
+  if (cur && cur[2]) out.push(cur);
+  return out;
+}
+/* Mehrere Tage: aus Plan, Wetter und Geräten abgeleitete Platzhalterwerte */
+function daySeries(b, n) {
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = addDays(S.sim.date, -i), wdi = wd(d), s = b.sched[wdi], rain = rnd(d + 'r') < .35, out1 = S.sim.out - 3 + rnd(d + 'o') * 6;
+    const off = !s.act || (b.hol && holName(d)) || b.vac.some(v => d >= v.from && d <= v.to) || (b.warm.act && out1 > b.warm.thr);
+    const baseH = s.act ? (t2m(s.off) - t2m(s.on)) / 60 : 0;
+    const row = { d, lab: d.slice(8, 10) + '.' + d.slice(5, 7) + '.', out: out1, area: {}, dev: {} };
+    b.areas.forEach(a => {
+      let aH = 0; a.hT = null;
+      a.dev.forEach(x => {
+        let h = 0;
+        if (x.role === 'pump') h = 24 * 12 / 40 * (rain ? 1.35 : 1) * (.85 + rnd(d + x.id) * .3);
+        else if (x.role !== 'plug' && !off && a.mode !== 'off') h = (baseH + (out1 < b.early.thr ? b.early.min / 60 : 0) + (a.dryClothes && rain ? (b.dry.after + b.dry.before) / 60 : 0)) * (a.mode === 'thermo' ? .6 + rnd(d + x.id) * .2 : 1);
+        else if (x.role !== 'plug' && off && a.sensor && out1 < 2) h = 1.5 * rnd(d + x.id);
+        if (i === 0 && x.off) h = 0;
+        row.dev[x.id] = { h, kwh: x.fault ? h * .2 : h * x.w / 1000, cyc: x.role === 'pump' ? Math.round(h * 60 / 12) : 0 };
+        if (x.role === 'heat' || x.role === 'dry') aH = Math.max(aH, h);
+      });
+      row.area[a.id] = { h: aH, kwh: a.dev.reduce((s2, x) => s2 + row.dev[x.id].kwh, 0), t: a.sensor ? a.t - (off ? 5 : 1.5) + rnd(d + a.id) * 2 : null };
+    });
+    out.push(row);
+  }
+  return out;
+}
+
+/* ---------- Oberfläche ---------- */
+function render(fi) {
+  const ui = UI[fi], b = B(), C = calc(b), sim = S.sim;
+  let DR = null; const dr = () => DR || (DR = dayRun(b));
+  const VIEWS = [['v1', 'Übersicht', '🏗'], ['v2', 'Heizung', '♨'], ['v3', 'Pumpen', '💧'], ['v4', 'Auswertung', '📊'], ['v5', 'Einstellungen', '⚙'], ['v6', 'Verlauf', '📈']];
+  const view = (v, h) => ui.v === v ? `<div class="view on">${v === 'v6' ? '' : bsel()}${h}</div>` : '';
+  const nope = (f, l) => `<div class="card info-card">${l} ist auf „${esc(b.name)}“ nicht eingeschaltet. <span class="btn flat small" data-act="goto" data-a="v5">In den Einstellungen einschalten</span></div>`;
+  function bsel() {
+    return `<div class="card bsel" style="margin-bottom:12px">${ct('tile (select.baustelle_aktiv)')}<span style="font-size:20px">🏗</span>
+      <select data-act-change="selB">${S.bs.filter(x => !x.arch).map(x => `<option value="${x.id}" ${x.id === b.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
+      ${b.fx.heat ? '<span class="chip">Heizung</span>' : ''}${b.fx.pump ? '<span class="chip">Pumpen</span>' : ''}
+      ${sim.outage ? '<span class="chip red">offline</span>' : '<span class="chip grey">erreichbar</span>'}</div>`;
+  }
+  const devCard = (a, d, ai, di, opts = '') => {
+    const st = C.st[d.id];
+    const s = st.off ? (sim.outage ? 'offline (Stromausfall?)' : 'nicht erreichbar')
+      : `${st.on ? (d.role === 'pump' ? 'läuft' : 'Ein') : (d.role === 'pump' ? 'steht' : 'Aus')} · ${st.p} W · heute ${de(d.kwh)} kWh · <i>${st.src}</i>`;
+    const sw = d.role === 'pump' || st.off ? '' : `<span class="tgl ${st.on ? 'on' : ''}" data-act="dev" data-a="${ai}.${di}"></span>`;
+    return `<div class="dev ${st.alarm ? 'bad' : ''}">${icon(d, st)}<div class="tx"><div class="n">${esc(d.n)}</div><div class="s">${s}</div>${opts}</div>${sw}${ct('eigene Karte (Animation)')}</div>`;
+  };
+
+  /* Übersicht */
+  const v1 = () => `<div class="sections">
+    <div class="sec">
+      <div class="heading">Jetzt <span class="sub">${TAGE[sim.day]} ${m2t(sim.time)}</span></div>
+      <div class="card">${ct('weather-forecast')}<div style="display:flex;align-items:center;gap:12px"><div style="font-size:38px">${sim.rain > .5 ? '🌧' : '⛅'}</div>
+        <div><div class="big">${de(sim.out)} °C</div><div class="muted">Regen 24 h ${de(sim.rain)} mm · Quelle: ${b.wx.src === 'station' ? 'Wetterstation' : 'Wetter-Integration'}</div></div></div></div>
+      ${C.warm ? `<div class="card info-card">☀ <b>${C.warm}</b><br><span class="muted">Heizung bleibt aus (außer Handbetrieb).</span></div>` : ''}
+      ${C.pause ? `<div class="card info-card">🏖 <b>${C.pause}</b><br><span class="muted">Heizung pausiert (${{ frost: 'nur Frostschutz', off: 'alles aus', lower: 'abgesenkt' }[b.vacMode]}), Pumpen werden weiter überwacht.</span></div>` : ''}
+      ${b.fx.heat ? `<div class="tile ${C.want ? 'heat' : ''}" data-act="goto" data-a="v2"><span class="ic">♨</span><div class="tx"><div class="n">Heizung</div><div class="s">${C.heatOn} von ${C.heatAll} ein · ${C.next}</div></div>${ct('tile')}</div>` : ''}
+      ${b.fx.pump ? `<div class="tile ${C.warn.some(w => w.msg) ? 'bad' : 'info'}" data-act="goto" data-a="v3"><span class="ic">💧</span><div class="tx"><div class="n">Pumpen</div><div class="s">${C.pumpRun} von ${C.pumpAll} laufen</div></div>${ct('tile')}</div>` : ''}
+    </div>
+    <div class="sec">
+      <div class="heading">Warnungen <span class="sub">${C.warn.length || 'keine'}</span></div>
+      ${C.warn.length ? C.warn.map(w => `<div class="card ${w.lvl}">${ct('conditional + markdown')}<b>${esc(w.t)}</b><br><span class="muted">${w.s}</span>${w.sent ? `<br><span class="chip">📱 gemeldet an ${esc(w.sent)}</span>` : ''}</div>`).join('') : '<div class="tile ok"><span class="ic">✓</span><div class="tx"><div class="n">Alles in Ordnung</div></div></div>'}
+    </div>
+    <div class="sec">
+      <div class="heading">Verbrauch heute</div>
+      <div class="grid2">
+        <div class="tile" data-act="goto" data-a="v4"><span class="ic">⚡</span><div class="tx"><div class="n">${de(C.kwh)} kWh</div><div class="s">jetzt ${de(C.power / 1000)} kW</div></div>${ct('tile')}</div>
+        <div class="tile" data-act="goto" data-a="v4"><span class="ic">€</span><div class="tx"><div class="n">${eur(C.kwh * b.price)}</div><div class="s">${de(b.price, 2)} €/kWh</div></div>${ct('tile')}</div>
+      </div>
+    </div>
+    <div class="sec span3"><div class="heading">Heute <span class="sub">wann geheizt und gepumpt wird · <span class="btn flat small" data-act="goto" data-a="v4">Auswertung</span></span></div><div class="card">${ct('history-graph (Zeitleiste)')}
+      ${timeline({ id: `f${fi}tl`, W: fi === 1 ? 330 : 900, now: sim.time, rows: b.areas.flatMap(a => a.dev.filter(x => x.role !== 'plug').map(x => ({ name: `${a.name.split(' · ').pop()} · ${x.n}`, color: sc(b.areas.indexOf(a)), onLabel: x.role === 'pump' ? 'läuft' : 'heizt', segs: segsOf(dr(), x.id) }))) })}
+      ${legend([...b.areas.map((a, i) => [a.name, sc(i)]), ['Kleidung trocknen', 'var(--muted)', 'hatch'], ['offline', 'var(--crit)', 'hatch']])}</div></div>
+    <div class="sec span3"><div class="heading">Bereiche</div>
+      <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${b.areas.map(a => `<div class="tile ${a.on ? (a.kind === 'pump' ? 'info' : 'heat') : ''}" data-act="goto" data-a="${a.kind === 'pump' ? 'v3' : 'v2'}"><span class="ic">${a.kind === 'pump' ? '💧' : '🏠'}</span><div class="tx"><div class="n">${esc(a.name)}</div><div class="s">${a.tt !== null ? de(a.tt) + ' °C · ' : ''}${a.on}/${a.dev.length} ein · ${de(a.power / 1000)} kW</div></div>${ct('tile')}</div>`).join('')}</div>
+    </div></div>`;
+
+  /* Heizung */
+  const tl = d => {
+    const s = b.sched[d]; if (!s.act) return '<div class="tl hide-phone"></div>';
+    const p = m => (Math.max(0, Math.min(1440, m)) / 14.4).toFixed(2), on = t2m(s.on), off = t2m(s.off);
+    let h = `<i style="left:${p(on)}%;width:${p(off - on)}%"></i>`;
+    if (d === sim.day) {
+      if (C.early + C.earlyDry) h += `<i class="pre" style="left:${p(on - C.early - C.earlyDry)}%;width:${p(C.early + C.earlyDry)}%"></i>`;
+      if (C.ext) h += `<i class="ext" style="left:${p(off)}%;width:${p(C.ext)}%"></i>`;
+      h += `<b style="position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--primary-text-color);left:${p(sim.time)}%"></b>`;
+    }
+    return `<div class="tl hide-phone">${h}</div>`;
+  };
+  const sl = (path, min, max, step, unit, label, sub, ic) => { const v = get(path); return `<div class="r"><span class="ic">${ic}</span><div class="l">${label}${sub ? `<small>${sub}</small>` : ''}</div><input class="slider" type="range" min="${min}" max="${max}" step="${step}" value="${v}" data-set="${path}"><span class="v" data-live="${unit}">${de(v, step < 1 ? 1 : 0)} ${unit}</span></div>`; };
+  const heatAreas = b.areas.map((a, ai) => [a, ai]).filter(([a]) => a.dev.some(d => d.role === 'heat' || d.role === 'dry'));
+  const v2 = () => !b.fx.heat ? nope('heat', 'Heizung') : `<div class="sections">
+    ${C.pause ? `<div class="sec span3"><div class="card info-card">🏖 <b>${C.pause}</b> – Heizung pausiert. <span class="btn flat small" data-act="goUrlaub">Urlaub &amp; Feiertage</span></div></div>` : ''}
+    <div class="sec span3"><div class="tile ${C.want ? 'heat' : ''}"><span class="ic">♨</span><div class="tx"><div class="n">Automatik (alle Container)</div><div class="s">${C.next}${C.dryOn ? ` · Kleidung trocknen −${C.earlyDry}/+${C.ext} min` : ''}${C.early ? ` · −${C.early} min Kälte` : ''}</div></div>${tgl('B.auto', b.auto)}${ct('tile (switch.baustelle_…_automatik)')}</div></div>
+    ${heatAreas.map(([a, ai]) => `<div class="sec">
+      <div class="heading">${esc(a.name)} <span class="sub">${a.tt !== null ? de(a.tt) + ' °C · ' + a.hum + ' %' : 'kein Fühler'}</span></div>
+      <div class="card">${ct('entities (select, number)')}<div class="rows">
+        <div class="r"><span class="ic">⚙</span><div class="l">Modus<small>${a.mode === 'thermo' ? 'schaltet im Zeitfenster nach Temperatur' : a.mode === 'plan' ? 'ein/aus nach Zeitplan, Heizkörper regelt selbst' : a.mode === 'hand' ? 'Schalter unten' : 'alles aus (Frostschutz bleibt)'}</small></div>
+          <select class="inp" data-set="B.areas.${ai}.mode">${[['plan', 'Zeitplan'], ['thermo', 'Thermostat'], ['hand', 'Hand'], ['off', 'Aus']].map(([k, l]) => `<option value="${k}" ${a.mode === k ? 'selected' : ''} ${k === 'thermo' && !a.sensor ? 'disabled' : ''}>${l}${k === 'thermo' && !a.sensor ? ' (kein Fühler)' : ''}</option>`).join('')}</select></div>
+        <div class="r"><span class="ic">👕</span><div class="l">Kleidung trocknen<small>nach Regen ${b.dry.before} min früher, ${b.dry.after} min länger</small></div>${tgl(`B.areas.${ai}.dryClothes`, !!a.dryClothes)}</div>
+        ${a.mode === 'thermo' ? `<div class="r"><span class="ic">🌡</span><div class="l">Solltemperatur</div><input class="inp" type="number" step="0.5" value="${a.target}" data-set="B.areas.${ai}.target"><span class="v">°C</span></div>` : ''}
+      </div></div>
+      ${a.dev.map((d, di) => d.role === 'heat' || d.role === 'dry' || d.role === 'plug' ? devCard(a, d, ai, di) : '').join('')}
+    </div>`).join('')}
+    <div class="sec span2"><div class="heading">Zeitplan je Tag <span class="sub hide-phone">schraffiert = Wetter-Anpassung · Strich = jetzt</span></div>
+      <div class="card week">${ct('entities (time, switch)')}
+        <div class="row h"><span>Tag</span><span>Ein</span><span>Aus</span><span class="hide-phone">Verlauf</span><span>Aktiv</span></div>
+        ${b.sched.map((s, d) => `<div class="row" ${d === sim.day ? 'style="font-weight:600"' : ''}><b>${TAGE[d]}</b><input class="inp" type="time" value="${s.on}" data-set="B.sched.${d}.on" ${s.act ? '' : 'disabled'}><input class="inp" type="time" value="${s.off}" data-set="B.sched.${d}.off" ${s.act ? '' : 'disabled'}>${tl(d)}${tgl(`B.sched.${d}.act`, s.act)}</div>`).join('')}
+      </div></div>
+    <div class="sec"><div class="heading">Heizgrenze – zu warm</div><div class="card">${ct('entities (switch, number, select)')}<div class="rows">
+      <div class="r"><span class="ic">☀</span><div class="l">Heizgrenze<small>über dem Wert läuft die Heizung gar nicht</small></div>${tgl('B.warm.act', b.warm.act)}</div>
+      ${sl('B.warm.thr', 5, 25, .5, '°C', 'Aus über', 'laut Wetterbericht', '🌡')}
+      <div class="r"><span class="ic">🔮</span><div class="l">Grundlage</div><select class="inp" data-set="B.warm.basis"><option value="now" ${b.warm.basis === 'now' ? 'selected' : ''}>aktuelle Temperatur</option><option value="max" ${b.warm.basis === 'max' ? 'selected' : ''}>Tageshöchstwert (Vorhersage)</option></select></div>
+      <div class="r"><div class="l">Jetzt<small>${b.warm.basis === 'max' ? 'Höchstwert heute' : 'außen'}: ${de(b.warm.basis === 'max' ? sim.out + 4 : sim.out)} °C</small></div><span class="v">${C.warm ? '<b>Heizung gesperrt</b>' : 'Heizung erlaubt'}</span></div>
+    </div></div></div>
+    <div class="sec"><div class="heading">Frostschutz</div><div class="card">${ct('entities')}<div class="rows">
+      <div class="r"><span class="ic">❄</span><div class="l">Frostschutz<small>nur Container mit Fühler</small></div>${tgl('B.frost.act', b.frost.act)}</div>
+      ${sl('B.frost.on', 0, 12, .5, '°C', 'Ein unter', '', '🌡')}${sl('B.frost.off', 2, 15, .5, '°C', 'Aus über', '', '🌡')}</div></div></div>
+    <div class="sec"><div class="heading">Kleidung trocknen <span class="sub">${C.dryOn ? 'greift heute' : 'kein Regen'}</span></div><div class="card">${ct('entities (number)')}<div class="rows">
+      <div class="muted" style="font-size:12px;padding-bottom:4px">Nach Regen: nasse Arbeitskleidung soll in der Früh trocken sein. Gilt nur für Container mit „Kleidung trocknen“.</div>
+      ${sl('B.dry.thr', 0, 10, .5, 'mm', 'Ab Regen', 'letzte 24 h', '💧')}
+      ${sl('B.dry.after', 0, 240, 15, 'min', 'Abends länger heizen', 'nach der Aus-Zeit', '⏩')}
+      ${sl('B.dry.before', 0, 120, 5, 'min', 'In der Früh früher starten', 'vor der Ein-Zeit', '⏪')}
+      <div class="r"><div class="l">Heute<small>${C.w ? `${m2t(C.w.onDry)} – ${m2t(C.w.offDry)} statt ${m2t(C.w.on)} – ${m2t(C.w.off)}` : 'kein Heiztag'}</small></div><span class="v">${C.dryOn ? '<b>aktiv</b>' : '–'}</span></div>
+    </div></div></div>
+    <div class="sec"><div class="heading">Bei Kälte früher ein</div><div class="card">${ct('entities (number)')}<div class="rows">
+      ${sl('B.early.thr', -10, 10, .5, '°C', 'Früh-Prognose unter', 'gilt für alle Container', '🌡')}${sl('B.early.min', 0, 120, 5, 'min', 'Früher um', '', '⏪')}</div></div></div>
+  </div>`;
+
+  /* Pumpen */
+  const pumpAreas = b.areas.map((a, ai) => [a, ai]).filter(([a]) => a.dev.some(d => d.role === 'pump'));
+  const v3 = () => !b.fx.pump ? nope('pump', 'Die Pumpenüberwachung') : `<div class="sections">
+    ${pumpAreas.length ? pumpAreas.map(([a, ai]) => `<div class="sec">
+      <div class="heading">${esc(a.name)}</div>
+      ${a.dev.map((d, di) => d.role === 'pump' ? devCard(a, d, ai, di, `<div class="s">Laufzeit heute ${Math.floor(sim.time / 40) * 12} min · ${Math.floor(sim.time / 40)} Zyklen</div>`) : '').join('')}
+    </div>`).join('') : '<div class="sec"><div class="card info-card">Noch keine Pumpe zugeordnet – in den Einstellungen einen Bereich mit Pumpen anlegen.</div></div>'}
+    <div class="sec"><div class="heading">Meldungen</div><div class="card">${ct('entities (number)')}<div class="rows">
+      ${sl('B.pr.offMin', 1, 30, 1, 'min', 'Offline länger als', 'Stromausfall / Verbindung', '⚡')}
+      ${sl('B.pr.dryW', 50, 600, 10, 'W', 'Trockenlauf unter', 'Pumpe läuft, aber zu wenig Leistung', '🏜')}
+      ${sl('B.pr.runMaxH', 1, 12, 1, 'h', 'Dauerlauf länger als', 'Schwimmer hängt / starker Zufluss', '⏱')}
+    </div></div></div>
+    <div class="sec"><div class="heading">Empfänger</div><div class="card">${ct('entities (notify.mobile_app_*)')}<div class="rows">
+      ${['Herbert (Handy)', 'Polier (Handy)', 'Bauleitung (Handy)'].map(n => `<div class="r"><span class="ic">📱</span><div class="l">${n}</div><span class="tgl ${b.pr.notify.includes(n) ? 'on' : ''}" data-act="notify" data-a="${n}"></span></div>`).join('')}
+      <div class="r"><div class="l"></div><span class="btn small" data-act="test">Test-Meldung senden</span></div>
+    </div></div>
+    <div class="card info-card" style="font-size:12px">Stromausfall erkennt HA daran, dass die Shellys nicht mehr antworten. Fällt auch das Internet der Baustelle aus, sieht das gleich aus – unterscheiden lässt es sich nur mit einem Gerät an einer USV oder mit Mobilfunk.</div></div>
+  </div>`;
+
+  /* Verbrauch & Kosten */
+  const v4 = () => {
+    const U = usage(b, ui.scope);
+    const typRows = ['oel', 'konv'].map(t => {
+      const ds = b.areas.flatMap(a => a.dev.filter(d => d.role === 'heat' && d.typ === t));
+      const n = ds.length, mon = ds.reduce((s, d) => s + d.mon, 0);
+      return { t, n, w: n ? ds.reduce((s, d) => s + d.w, 0) / n : 0, perDay: n ? mon / 29 / n : 0, run: n ? mon / 29 / n / (ds.reduce((s, d) => s + d.w, 0) / n / 1000) : 0, heat: t === 'oel' ? 62 : 34, cool: t === 'oel' ? 1.8 : 3.2, perK: t === 'oel' ? 0.56 : 0.61 };
+    });
+    const mx = (k) => Math.max(...typRows.map(r => r[k]), 0.001);
+    const cmp = (label, k, fmt, better) => `<tr><td>${label}</td>${typRows.map(r => `<td>${r.n ? fmt(r[k]) : '–'}<div class="hbar" style="margin-top:3px"><i style="background:${r.t === 'oel' ? sc(1) : sc(0)};width:${r.n ? r[k] / mx(k) * 100 : 0}%"></i></div></td>`).join('')}<td class="muted" style="white-space:normal;text-align:left;font-size:11px">${better}</td></tr>`;
+
+    /* Zeitraum und Umfang */
+    const W = fi === 1 ? 330 : 900, Wh = fi === 1 ? 330 : 440;
+    const areas = U.areas, heatAreas = areas.filter(a => a.dev.some(x => x.role === 'heat' || x.role === 'dry'));
+    const pumps = areas.flatMap(a => a.dev.filter(x => x.role === 'pump').map(x => ({ a, x })));
+    const aCol = a => sc(b.areas.indexOf(a));
+    const PER = [['d', 'Heute'], ['7', '7 Tage'], ['30', '30 Tage'], ['hp', 'Heizperiode']];
+    let tiles, charts = '';
+    if (ui.per === 'd') {
+      const st = dr();
+      const kwh = st.reduce((s, q) => s + q.power, 0) / 6 / 1000;
+      const hA = a => st.filter(q => a.dev.some(x => (x.role === 'heat' || x.role === 'dry') && q.st[x.id] && q.st[x.id].on)).length / 6;
+      const hP = x => st.filter(q => q.st[x.id] && q.st[x.id].on).length / 6;
+      const heatH = heatAreas.reduce((s, a) => s + hA(a), 0), pumpH = pumps.reduce((s, p) => s + hP(p.x), 0);
+      tiles = [['⚡', 'Verbrauch heute', `${de(kwh)} kWh`, eur(kwh * b.price)], ['♨', 'Heizzeit', `${de(heatH)} h`, 'Summe der Container'], ['💧', 'Pumpzeit', `${de(pumpH)} h`, `${pumps.length} Pumpen`], ['✓', 'Ohne Automatik', eur(U.heat.reduce((s, x) => s + x.w, 0) * 24 / 1000 * b.price), 'Kosten bei 24 h Dauerbetrieb']];
+      const hrs = st.map(q => m2t(q.t));
+      charts += `<div class="sec span3"><div class="heading">Leistung heute <span class="sub">kW, alle 10 min</span></div><div class="card">${ct('history-graph (Leistung)')}
+        ${lineChart({ id: `f${fi}pw`, W, H: 200, labels: hrs, series: [{ name: 'Leistung gesamt', color: sc(0), values: st.map(q => q.power / 1000), last: Math.floor(sim.time / 10) }], unit: 'kW', area: true })}</div></div>`;
+      charts += `<div class="sec span3"><div class="heading">Heiz- und Pumpzeiten heute</div><div class="card">${ct('history-graph (Zeitleiste)')}
+        ${timeline({ id: `f${fi}tl2`, W, now: sim.time, rows: areas.flatMap(a => a.dev.filter(x => x.role !== 'plug').map(x => ({ name: `${a.name.split(' · ').pop()} · ${x.n}`, color: aCol(a), onLabel: x.role === 'pump' ? 'läuft' : 'heizt', segs: segsOf(st, x.id) }))) })}
+        ${legend([...areas.map(a => [a.name, aCol(a)]), ['Kleidung trocknen', 'var(--muted)', 'hatch'], ['offline', 'var(--crit)', 'hatch']])}</div></div>`;
+      const tAreas = areas.filter(a => a.sensor);
+      if (tAreas.length) {
+        const outC = st.map(q => S.sim.out + 3 * Math.sin(2 * Math.PI * (q.t - 540) / 1440));
+        const tSer = tAreas.map(a => { let T = 11; const v = st.map((q, i) => { const on = a.dev.some(x => x.role === 'heat' && q.st[x.id] && q.st[x.id].on); T += (on ? .5 : 0) - .03 * (T - outC[i]); return T; });
+          const off = a.tt - v[Math.floor(sim.time / 10)]; return { name: a.name, color: aCol(a), values: v.map(z => +(z + off).toFixed(1)), last: Math.floor(sim.time / 10) }; });
+        charts += `<div class="sec span3"><div class="heading">Temperaturen heute <span class="sub">°C</span></div><div class="card">${ct('history-graph (Temperatur)')}
+          ${lineChart({ id: `f${fi}tt`, W, H: 200, labels: hrs, series: [...tSer, { name: 'Außen', color: 'var(--muted)', values: outC.map(z => +z.toFixed(1)), dash: true, last: Math.floor(sim.time / 10) }], unit: '°C', ref: b.frost.act ? { v: b.frost.on, label: `Frostschutz ${de(b.frost.on)} °C` } : null })}
+          ${legend([...tSer.map(q => [q.name, q.color]), ['Außen', 'var(--muted)', 'dash']], 'line')}</div></div>`;
+      }
+    } else {
+      let rows, labs, get2;
+      if (ui.per === 'hp') {
+        const M = months(b.season), ms = [...Array(M)].map((_, i) => ((b.season[0] - 1 + i) % 12) + 1);
+        labs = ms.map(m => MON[m - 1]);
+        const totMon = b.areas.reduce((s, a) => s + a.dev.reduce((t, x) => t + x.mon, 0), 0) || 1;
+        rows = ms.map(m => { const h = b.hist.find(q => Number(q.ym.slice(5)) === m); const k = h ? h.kwh : 0, sf = SF[m - 1];
+          const r = { area: {}, dev: {}, out: 4 + (1 - sf) * 10 };
+          b.areas.forEach(a => { const share = a.dev.reduce((t, x) => t + x.mon, 0) / totMon, kw = a.dev.filter(x => x.role !== 'pump').reduce((t, x) => t + x.w, 0) / 1000 || 1;
+            r.area[a.id] = { kwh: k * share, h: k * share / kw, t: a.sensor ? a.t - 2 + sf : null };
+            a.dev.forEach(x => r.dev[x.id] = { h: x.role === 'pump' ? (h ? 7.2 * 30 : 0) : 0, cyc: x.role === 'pump' ? (h ? 36 * 30 : 0) : 0 }); });
+          return r; });
+        get2 = 'Monat';
+      } else { rows = daySeries(b, Number(ui.per)); labs = rows.map(r => r.lab); get2 = 'Tag'; }
+      const sum = f => rows.reduce((s, r) => s + f(r), 0);
+      const kwh = sum(r => areas.reduce((s, a) => s + r.area[a.id].kwh, 0));
+      const heatH = sum(r => heatAreas.reduce((s, a) => s + r.area[a.id].h, 0)), pumpH = sum(r => pumps.reduce((s, p) => s + r.dev[p.x.id].h, 0));
+      const ohne = U.heat.reduce((s, x) => s + x.w, 0) * 24 / 1000 * (ui.per === 'hp' ? 30 * rows.length : rows.length);
+      const heatK = sum(r => heatAreas.reduce((s, a) => s + r.area[a.id].kwh, 0));
+      tiles = [['⚡', 'Verbrauch', `${de(kwh, 0)} kWh`, eur(kwh * b.price)], ['♨', 'Heizzeit', `${de(heatH, 0)} h`, `Ø ${de(heatH / rows.length / (ui.per === 'hp' ? 30 : 1) / Math.max(1, heatAreas.length))} h je Container und Tag`], ['💧', 'Pumpzeit', `${de(pumpH, 0)} h`, `${pumps.length} Pumpen`], ['✓', 'Gespart', eur(Math.max(0, ohne - heatK) * b.price), `${de(Math.max(0, 1 - heatK / ohne) * 100, 0)} % ggü. 24 h Dauerbetrieb`]];
+      charts += `<div class="sec span3"><div class="heading">Verbrauch je ${get2} <span class="sub">kWh, gestapelt nach Container</span></div><div class="card">${ct('statistics-graph (bar, gestapelt)')}
+        ${colChart({ id: `f${fi}kw`, W, labels: labs, stack: true, unit: 'kWh', series: areas.map(a => ({ name: a.name, color: aCol(a), values: rows.map(r => r.area[a.id].kwh) })) })}
+        ${legend(areas.map(a => [a.name, aCol(a)]))}</div></div>`;
+      if (heatAreas.length) charts += `<div class="sec ${fi === 1 ? 'span3' : 'span2'}" style="${fi === 1 ? '' : 'grid-column:span 2'}"><div class="heading">Heizzeit je ${get2} <span class="sub">Stunden je Container</span></div><div class="card">${ct('statistics-graph + history_stats')}
+        ${colChart({ id: `f${fi}hz`, W: fi === 1 ? 330 : 590, labels: labs, unit: 'h', series: heatAreas.map(a => ({ name: a.name, color: aCol(a), values: rows.map(r => r.area[a.id].h) })) })}
+        ${legend(heatAreas.map(a => [a.name, aCol(a)]))}</div></div>`;
+      if (pumps.length) charts += `<div class="sec"><div class="heading">Pumpzeit je ${get2} <span class="sub">Stunden</span></div><div class="card">${ct('statistics-graph + history_stats')}
+        ${colChart({ id: `f${fi}pz`, W: Wh - 110, labels: labs, unit: 'h', series: pumps.map((p, i) => ({ name: p.x.n, color: sc(b.areas.length + i), values: rows.map(r => r.dev[p.x.id].h) })) })}
+        ${legend(pumps.map((p, i) => [p.x.n, sc(b.areas.length + i)]))}</div>
+        <div class="heading">Pumpzyklen je ${get2}</div><div class="card">${ct('statistics-graph (Zähler)')}
+        ${lineChart({ id: `f${fi}cy`, W: Wh - 110, H: 150, labels: labs, unit: 'Zyklen', dec: 0, series: pumps.map((p, i) => ({ name: p.x.n, color: sc(b.areas.length + i), values: rows.map(r => r.dev[p.x.id].cyc) })) })}
+        ${legend(pumps.map((p, i) => [p.x.n, sc(b.areas.length + i)]), 'line')}</div></div>`;
+      const tAreas = areas.filter(a => a.sensor);
+      if (tAreas.length) charts += `<div class="sec span3"><div class="heading">Temperatur je ${get2} <span class="sub">Tagesmittel °C</span></div><div class="card">${ct('statistics-graph (mean)')}
+        ${lineChart({ id: `f${fi}tm`, W, H: 190, labels: labs, unit: '°C', ref: b.frost.act ? { v: b.frost.on, label: `Frostschutz ${de(b.frost.on)} °C` } : null,
+          series: [...tAreas.map(a => ({ name: a.name, color: aCol(a), values: rows.map(r => +r.area[a.id].t.toFixed(1)) })), { name: 'Außen', color: 'var(--muted)', dash: true, values: rows.map(r => +r.out.toFixed(1)) }] })}
+        ${legend([...tAreas.map(a => [a.name, aCol(a)]), ['Außen', 'var(--muted)', 'dash']], 'line')}</div></div>`;
+    }
+    return `<div class="sections">
+    <div class="sec span3"><div class="card" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${ct('Filter (eine Zeile, gilt für alles darunter)')}
+      ${PER.map(([k, l]) => `<span class="btn small ${ui.per === k ? '' : 'flat'}" data-act="per" data-a="${k}">${l}</span>`).join('')}
+      <span style="flex:1"></span><select class="inp" data-act-change="scope"><option value="all">Ganze Baustelle</option>${b.areas.map(a => `<option value="${a.id}" ${ui.scope === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>
+    </div></div>
+    <div class="sec span3"><div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+      ${tiles.map(([i, l, v, s2]) => `<div class="stat">${ct('tile')}<div class="sl">${i} ${l}</div><div class="sv">${v}</div><div class="ss">${s2}</div></div>`).join('')}
+    </div></div>
+    ${charts}
+    <div class="sec span2"><div class="heading">Mit Automatik vs. ohne <span class="sub">Heizkörper + Trockner</span></div>
+      <div class="card">${ct('entities (Prognose-Sensoren)')}
+        <table class="t"><tr><th></th><th>mit Automatik</th><th>ohne (24/7)</th><th>Ersparnis</th></tr>
+        ${U.rows.map(([l, ist, ohne]) => `<tr><td>${l}</td><td>${de(ist, 0)} kWh<br><span class="muted">${eur(ist * b.price)}</span></td><td>${de(ohne, 0)} kWh<br><span class="muted">${eur(ohne * b.price)}</span></td><td class="save">${eur(Math.max(0, ohne - ist) * b.price)}<br><span class="muted">${ohne ? de(Math.max(0, 1 - ist / ohne) * 100, 0) : 0} %</span></td></tr>`).join('')}</table>
+        <div class="muted" style="font-size:12px;margin-top:6px">„Ohne“ = Ø Leistung jedes Geräts im Betrieb (gemessen) × 24 h.</div>
+      </div></div>
+    <div class="sec"><div class="heading">Kosten</div><div class="card">${ct('entities (number, select)')}<div class="rows">
+      <div class="r"><span class="ic">€</span><div class="l">Strompreis</div><input class="inp" type="number" step="0.01" min="0" value="${b.price}" data-set="B.price"><span class="v">€/kWh</span></div>
+      <div class="r"><span class="ic">🗓</span><div class="l">Heizperiode</div><select class="inp" data-set="B.season.0">${MON.map((m, i) => `<option value="${i + 1}" ${b.season[0] === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select>–<select class="inp" data-set="B.season.1">${MON.map((m, i) => `<option value="${i + 1}" ${b.season[1] === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
+    </div></div>
+      <div class="heading">Je Gerät (Monat)</div>
+      <div class="card">${ct('entities')}<table class="t"><tr><th>Gerät</th><th>Ø Betrieb</th><th>kWh</th><th>€</th></tr>
+      ${U.areas.flatMap(a => a.dev.map(d => `<tr><td>${esc(d.n)}<br><span class="muted" style="font-size:11px">${esc(a.name)}${d.typ ? ' · ' + HTYP[d.typ] : ''}</span></td><td>${de(d.w, 0)} W</td><td>${d.mon}</td><td>${eur(d.mon * b.price)}</td></tr>`)).join('')}</table></div></div>
+    <div class="sec span3"><div class="heading">Vergleich Ölradiator ↔ Konvektor <span class="sub">alle Container dieser Baustelle</span></div>
+      <div class="card">${ct('eigene Karte oder markdown (Vergleichs-Sensoren)')}
+        <table class="t"><tr><th></th><th>Ölradiator</th><th>Konvektor</th><th style="text-align:left">besser ist</th></tr>
+        ${cmp('Anzahl', 'n', x => x, '')}
+        ${cmp('Ø Leistung im Betrieb', 'w', x => de(x, 0) + ' W', '–')}
+        ${cmp('Verbrauch je Gerät und Tag', 'perDay', x => de(x) + ' kWh · ' + eur(x * b.price), 'weniger')}
+        ${cmp('Laufzeit je Tag', 'run', x => de(x) + ' h', 'weniger')}
+        ${cmp('Aufheizen auf Soll', 'heat', x => de(x, 0) + ' min', 'weniger = schneller warm')}
+        ${cmp('Abkühlen nach Aus', 'cool', x => de(x) + ' °C/h', 'weniger = hält Wärme länger')}
+        ${cmp('kWh je Tag und Grad Unterschied innen/außen', 'perK', x => de(x, 2), 'weniger = fairer Vergleich')}
+        </table>
+        <div class="muted" style="font-size:12px;margin-top:6px">Beide wandeln Strom zu 100 % in Wärme – pro kWh gibt es keinen Unterschied. Unterschiede entstehen durch Leistung, Laufzeit, Takten am Thermostat und Wärmespeicherung. Werte hier Platzhalter.</div>
+      </div></div>
+  </div>`;
+  };
+
+  /* Einstellungen (in HA: Einstellungen → Geräte & Dienste → Baustelle → Konfigurieren) */
+  const v5 = () => {
+    const f = ui.form, U = used();
+    const free = t => POOL.filter(p => (t ? t.includes(p.t) : true) && !U.has(p.e));
+    const SUBS = [['bs', 'Baustellen'], ['edit', 'Diese Baustelle'], ['wx', 'Wetter'], ['urlaub', 'Urlaub & Feiertage'], ['allg', 'Allgemein']];
+    const chips = `<div class="sec span3"><div style="display:flex;flex-wrap:wrap;gap:6px">${SUBS.map(([k, l]) => `<span class="btn small ${ui.sub === k ? '' : 'flat'}" data-act="sub" data-a="${k}">${l}</span>`).join('')}</div></div>`;
+    const stChip = x => x.arch ? '<span class="chip grey">abgeschlossen</span>' : '<span class="chip" style="background:rgba(67,160,71,.15);color:var(--success-color)">aktiv</span>';
+    const sel = (path, opts, val) => `<select class="inp" data-set="${path}">${opts.map(([k, l]) => `<option value="${k}" ${String(val) === String(k) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+    const row = (ic, l, sub, ctl) => `<div class="r"><span class="ic">${ic}</span><div class="l">${l}${sub ? `<small>${sub}</small>` : ''}</div>${ctl}</div>`;
+    let body = '';
+
+    if (ui.sub === 'bs') {
+      const formNewB = `<div class="form"><label>Name<input class="inp wide" data-f="name" placeholder="z. B. Wohnanlage Ost"></label>
+        <label>Beginn<input class="inp wide" type="date" data-f="start" value="${sim.date}"></label>
+        <label><span><input type="checkbox" data-f="heat" checked> Heizung</span></label><label><span><input type="checkbox" data-f="pump"> Pumpenüberwachung</span></label>
+        <div class="muted" style="font-size:12px">Preis, Heizperiode, Empfänger und Urlaubsverhalten kommen aus „Allgemein“.</div>
+        <div class="act"><span class="btn flat" data-act="cancel">Abbrechen</span><span class="btn" data-act="saveB">Anlegen</span></div></div>`;
+      body = `<div class="sec span2"><div class="heading">Baustellen</div><div class="card">${ct('Integration: Einträge')}<div class="rows">
+        ${S.bs.map(x => `<div class="r"><span class="ic">🏗</span><div class="l">${esc(x.name)} ${stChip(x)} ${x.id === b.id ? '<span class="chip">angezeigt</span>' : ''}
+          <small>${dmy(x.start)} – ${x.arch ? dmy(x.end) : 'laufend'} · ${x.areas.length} Bereiche · ${x.areas.reduce((n, a) => n + a.dev.length, 0)} Geräte</small></div>
+          <span class="btn flat small" data-act="histOf" data-a="${x.id}">Verlauf</span>
+          ${x.arch ? `<span class="btn flat small" data-act="unarch" data-a="${x.id}">Wieder aktiv</span>` : `<span class="btn flat small" data-act="arch" data-a="${x.id}">Abschließen</span>`}
+          <span class="btn flat small" style="color:var(--error-color)" data-act="delB" data-a="${x.id}">Löschen</span></div>
+          ${f && f.type === 'delB' && f.id === x.id ? `<div class="form"><b>„${esc(x.name)}“ löschen?</b><label><span><input type="checkbox" data-f="keep" checked> Verbrauch und Kosten im Verlauf behalten</span></label>
+            <div class="act"><span class="btn flat" data-act="cancel">Abbrechen</span><span class="btn warn" data-act="doDelB" data-a="${x.id}">Löschen</span></div></div>` : ''}`).join('')}
+        ${S.kept.map((k, i) => `<div class="r"><span class="ic">📊</span><div class="l">${esc(k.name)} <span class="chip grey">gelöscht, Zahlen behalten</span><small>${de(k.kwh, 0)} kWh</small></div><span class="btn flat small" style="color:var(--error-color)" data-act="dropKept" data-a="${i}">Zahlen löschen</span></div>`).join('')}
+        </div>${f && f.type === 'newB' ? formNewB : '<div style="margin-top:8px"><span class="btn" data-act="newB">+ Baustelle anlegen</span></div>'}</div></div>
+        <div class="sec"><div class="heading">Status</div><div class="card" style="font-size:13px">${ct('Hinweis')}
+          <b>Aktiv:</b> Automatik, Meldungen und Zähler laufen; Geräte sind dieser Baustelle zugeordnet.<br><br>
+          <b>Abgeschlossen:</b> nichts wird mehr geschaltet, Geräte werden frei für die nächste Baustelle, alle Zahlen bleiben im Verlauf.<br><br>
+          <b>Löschen:</b> nur wenn du willst – mit Wahl, ob die Zahlen bleiben.</div></div>`;
+    }
+
+    if (ui.sub === 'edit') body = `<div class="sec"><div class="heading">„${esc(b.name)}“</div>
+      <div class="card">${ct('Optionen-Dialog')}<div class="rows">
+        ${row('✎', 'Name', '', `<input class="inp" style="width:180px;text-align:left" value="${esc(b.name)}" data-set="B.name">`)}
+        ${row('📅', 'Beginn', '', `<input class="inp" type="date" style="width:150px" value="${b.start}" data-set="B.start">`)}
+        ${row('🏁', 'Status', 'abschließen = Geräte frei, Zahlen bleiben', `<span class="btn small flat" data-act="arch" data-a="${b.id}">Abschließen</span>`)}
+        ${row('♨', 'Funktion Heizung', '', tgl('B.fx.heat', b.fx.heat))}
+        ${row('💧', 'Funktion Pumpenüberwachung', '', tgl('B.fx.pump', b.fx.pump))}
+        ${row('€', 'Strompreis', 'für diese Baustelle', `<input class="inp" type="number" step="0.01" value="${b.price}" data-set="B.price"><span class="v">€/kWh</span>`)}
+        ${row('🗓', 'Heizperiode', '', `${sel('B.season.0', MON.map((m, i) => [i + 1, m]), b.season[0])} – ${sel('B.season.1', MON.map((m, i) => [i + 1, m]), b.season[1])}`)}
+      </div></div></div>
+      <div class="sec span2"><div class="heading">Container und Bereiche</div>
+      ${b.areas.map((a, ai) => `<div class="card">${ct('Unter-Eintrag: Bereich (Geräte = Shellys)')}
+        <div style="display:flex;align-items:center;gap:8px"><b style="flex:1">${a.kind === 'pump' ? '💧' : '🏠'} ${esc(a.name)}</b><span class="btn flat small" style="color:var(--error-color)" data-act="delA" data-a="${ai}">Entfernen</span></div>
+        ${f && f.type === 'delA' && f.ai === ai ? `<div class="form"><b>„${esc(a.name)}“ mit ${a.dev.length} Geräten entfernen?</b> Die Zahlen bleiben im Verlauf.<div class="act"><span class="btn flat" data-act="cancel">Abbrechen</span><span class="btn warn" data-act="doDelA" data-a="${ai}">Entfernen</span></div></div>` : ''}
+        <div class="rows">
+          ${row('🌡', 'Thermostat / Fühler', 'ohne: nur Zeitplan, Heizkörper regelt selbst', `<select class="inp" data-set="B.areas.${ai}.sensor"><option value="">keiner</option>${POOL.filter(p => (p.t === 'temp' || p.t === 'climate') && (!U.has(p.e) || p.e === a.sensor)).map(p => `<option value="${p.e}" ${a.sensor === p.e ? 'selected' : ''}>${p.n}</option>`).join('')}</select>`)}
+          ${a.dev.map((d, di) => row('🔌', `${esc((POOL.find(p => p.e === d.e) || { n: d.e }).n)} → ${esc(d.n)}`, `${d.e} · schaltet: ${ROLLE[d.role]}`,
+            `${d.role === 'heat' ? `<span class="muted" style="font-size:11px">Typ (Vergleich)</span>${sel(`B.areas.${ai}.dev.${di}.typ`, Object.entries(HTYP), d.typ)}` : ''}<span class="btn flat small" style="color:var(--error-color)" data-act="delD" data-a="${ai}.${di}">✕</span>`)).join('')}
+        </div>
+        ${f && f.type === 'newD' && f.ai === ai ? `<div class="form">
+          <label>Shelly – das, was geschaltet wird<select class="inp wide" data-f="e">${free(['switch']).map(p => `<option value="${p.e}">${p.n} (${p.e})</option>`).join('') || '<option value="">keiner frei</option>'}</select></label>
+          <label>Was hängt dran<select class="inp wide" data-f="role">${Object.entries(ROLLE).map(([k, l]) => `<option value="${k}" ${a.kind === 'pump' && k === 'pump' ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <label>Bezeichnung<input class="inp wide" data-f="n" placeholder="z. B. Heizkörper 3"></label>
+          <label>Heizkörper-Typ – nur für den Vergleich Ölradiator/Konvektor<select class="inp wide" data-f="typ">${Object.entries(HTYP).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></label>
+          <div class="act"><span class="btn flat" data-act="cancel">Abbrechen</span><span class="btn" data-act="saveD" data-a="${ai}">Hinzufügen</span></div></div>`
+          : `<div style="margin-top:6px"><span class="btn flat small" data-act="newD" data-a="${ai}">+ Shelly</span></div>`}
+      </div>`).join('')}
+      ${f && f.type === 'newA' ? `<div class="form"><label>Name<input class="inp wide" data-f="name" placeholder="z. B. Container 4 · Sanitär"></label>
+        <label>Art<select class="inp wide" data-f="kind"><option value="cont">Container</option><option value="pump">Pumpenschacht</option></select></label>
+        <div class="act"><span class="btn flat" data-act="cancel">Abbrechen</span><span class="btn" data-act="saveA">Anlegen</span></div></div>`
+        : '<div><span class="btn" data-act="newA">+ Container / Bereich</span></div>'}</div>`;
+
+    if (ui.sub === 'wx') {
+      const opt = t => POOL.filter(p => p.t === t);
+      body = `<div class="sec span2"><div class="heading">Wetter für „${esc(b.name)}“</div><div class="card">${ct('Optionen-Dialog (Entitäts-Auswahl)')}<div class="rows">
+        ${row('📡', 'Messwerte (Temperatur, Regen) aus', 'Wetterstation vor Ort ist genauer', sel('B.wx.src', [['weather', 'Wetter-Integration'], ['station', 'Wetterstation (Sensoren)']], b.wx.src))}
+        ${b.wx.src === 'station' ? `
+          ${row('🌡', 'Außentemperatur', 'Sensor der Wetterstation', `<select class="inp" data-set="B.wx.temp"><option value="">–</option>${opt('wtemp').map(p => `<option value="${p.e}" ${b.wx.temp === p.e ? 'selected' : ''}>${p.n}</option>`).join('')}</select>`)}
+          ${row('💧', 'Regen letzte 24 h', 'Sensor (mm); oder Tages-Zähler', `<select class="inp" data-set="B.wx.rain"><option value="">–</option>${opt('wrain').map(p => `<option value="${p.e}" ${b.wx.rain === p.e ? 'selected' : ''}>${p.n}</option>`).join('')}</select>`)}` : ''}
+        ${row('🔮', 'Vorhersage (Früh-Prognose) aus', 'kommt immer aus einer Wetter-Integration', `<select class="inp" data-set="B.wx.weather"><option value="">–</option>${opt('weather').map(p => `<option value="${p.e}" ${b.wx.weather === p.e ? 'selected' : ''}>${p.n}</option>`).join('')}</select>`)}
+      </div></div></div>
+      <div class="sec"><div class="heading">Bewährte Quellen</div><div class="card" style="font-size:13px">${ct('Hinweis')}
+        <b>Wetter-Integration:</b> Met.no (eingebaut) mit den Koordinaten der Baustelle – eigene Instanz je Baustelle. Liefert Vorhersage, aber keinen gemessenen Regen.<br><br>
+        <b>Wetterstation:</b> z. B. Ecowitt (eingebaute Integration) oder Shelly-/Zigbee-Sensoren. Liefert gemessene Temperatur und Regen – genauer für „nach Regen länger heizen“.<br><br>
+        Später hinzufügen geht jederzeit: Station einrichten, hier auswählen.</div></div>`;
+    }
+
+    if (ui.sub === 'urlaub') {
+      const up = holUpcoming(sim.date, 6);
+      body = `<div class="sec"><div class="heading">Feiertage</div><div class="card">${ct('entities')}<div class="rows">
+        ${row('🎌', 'Feiertage wie Sonntag', `${S.cfg.country} · ${S.cfg.region} – jedes Jahr berechnet (Integration „Feiertage“)`, tgl('B.hol', b.hol))}
+        ${up.map(d => row('📅', holName(d), `${TAGE[wd(d)]}, ${dmy(d)}`, `<span class="btn flat small" data-act="simTo" data-a="${d}">simulieren</span>`)).join('')}
+      </div></div>
+      <div class="heading">Verhalten im Urlaub / an Feiertagen</div><div class="card">${ct('select')}<div class="rows">
+        ${row('♨', 'Heizung', 'Pumpen werden immer weiter überwacht', sel('B.vacMode', [['frost', 'Nur Frostschutz'], ['lower', 'Absenken auf 10 °C (mit Fühler)'], ['off', 'Alles aus']], b.vacMode))}
+      </div></div></div>
+      <div class="sec span2"><div class="heading">Urlaub / Betriebsruhe <span class="sub">${C.vac ? '🏖 läuft gerade' : ''}</span></div>
+      <div class="card">${ct('calendar (Lokaler Kalender „Baustelle Urlaub“)')}<div class="rows">
+        ${b.vac.length ? b.vac.map((v, i) => row('🏖', esc(v.name), `${dmy(v.from)} – ${dmy(v.to)}${sim.date >= v.from && sim.date <= v.to ? ' · <b>aktiv</b>' : ''}`,
+          `<span class="btn flat small" data-act="simTo" data-a="${v.from}">simulieren</span><span class="btn flat small" style="color:var(--error-color)" data-act="delVac" data-a="${i}">✕</span>`)).join('') : '<div class="muted">Kein Zeitraum eingetragen.</div>'}
+      </div>
+      ${f && f.type === 'newVac' ? `<div class="form"><label>Bezeichnung<input class="inp wide" data-f="name" placeholder="z. B. Betriebsurlaub"></label>
+        <label>Von<input class="inp wide" type="date" data-f="from" value="${sim.date}"></label><label>Bis<input class="inp wide" type="date" data-f="to" value="${addDays(sim.date, 7)}"></label>
+        <div class="act"><span class="btn flat" data-act="cancel">Abbrechen</span><span class="btn" data-act="saveVac">Eintragen</span></div></div>`
+        : `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"><span class="btn small" data-act="newVac">+ Zeitraum</span>
+          <span class="btn small flat" data-act="vacPreset" data-a="xmas">Weihnachten (23.12.–06.01.)</span>
+          <span class="btn small flat" data-act="vacPreset" data-a="week">Ab heute 1 Woche</span>
+          ${C.vac ? '<span class="btn small warn" data-act="vacEnd">Urlaub jetzt beenden</span>' : ''}</div>`}
+      <div class="muted" style="font-size:12px;margin-top:8px">Bewährt: Zeiträume als Einträge in einem lokalen HA-Kalender – auch vom Handy aus eintragbar.</div>
+      </div></div>`;
+    }
+
+    if (ui.sub === 'allg') body = `<div class="sec span2"><div class="heading">Standardwerte für neue Baustellen</div><div class="card">${ct('Optionen der Integration')}<div class="rows">
+        ${row('€', 'Strompreis', '', `<input class="inp" type="number" step="0.01" value="${S.cfg.price}" data-set="cfg.price"><span class="v">€/kWh</span>`)}
+        ${row('🗓', 'Heizperiode', '', `${sel('cfg.season.0', MON.map((m, i) => [i + 1, m]), S.cfg.season[0])} – ${sel('cfg.season.1', MON.map((m, i) => [i + 1, m]), S.cfg.season[1])}`)}
+        ${row('🏖', 'Verhalten im Urlaub', '', sel('cfg.vacMode', [['frost', 'Nur Frostschutz'], ['lower', 'Absenken'], ['off', 'Alles aus']], S.cfg.vacMode))}
+        ${row('☀', 'Heizgrenze aus über', 'laut Wetterbericht', `<input class="inp" type="number" step="0.5" value="${S.cfg.warmThr}" data-set="cfg.warmThr"><span class="v">°C</span>`)}
+        ${row('❄', 'Frostschutz ein unter', '', `<input class="inp" type="number" step="0.5" value="${S.cfg.frostOn}" data-set="cfg.frostOn"><span class="v">°C</span>`)}
+        ${row('🎌', 'Feiertage', 'Land / Bundesland', `${sel('cfg.country', [['Österreich', 'Österreich'], ['Deutschland', 'Deutschland']], S.cfg.country)} ${sel('cfg.region', ['Steiermark', 'Wien', 'Kärnten', 'Oberösterreich', 'Niederösterreich', 'Salzburg', 'Tirol', 'Vorarlberg', 'Burgenland'].map(r => [r, r]), S.cfg.region)}`)}
+        ${row('📱', 'Meldungen an', '', ['Herbert (Handy)', 'Polier (Handy)', 'Bauleitung (Handy)'].map(n => `<span class="chip ${S.cfg.notify.includes(n) ? '' : 'grey'}" data-act="cfgNotify" data-a="${n}">${n}</span>`).join(''))}
+      </div></div></div>
+      <div class="sec"><div class="heading">Daten</div><div class="card" style="font-size:13px">${ct('Hinweis')}
+        <b>Einstellungen</b> (Baustellen, Container, Zuordnungen): in HA gespeichert, in der nächtlichen Sicherung.<br><br>
+        <b>Zahlen</b> (kWh, Kosten, Temperaturen): Langzeitstatistik der HA-Datenbank – bleibt dauerhaft.<br><br>
+        <b>Löschen</b> nur über „Baustellen“ – mit Rückfrage.<br><br><span class="btn small flat" data-act="export">Verlauf als CSV exportieren</span></div></div>`;
+
+    return `<div class="sections">
+      <div class="sec span3"><div class="card info-card" style="font-size:13px"><b>Brauche ich ein Einstellungsmenü?</b> In HA ist das der Knopf <b>„Konfigurieren“</b> unter Einstellungen → Geräte &amp; Dienste → Baustelle (Standard-Dialoge, nichts Eigenes). Was du oft änderst (Modus, Zeiten, Preis, Urlaub), liegt zusätzlich als Schalter/Felder direkt im Dashboard.</div></div>
+      ${chips}${body}</div>`;
+  };
+
+  /* Verlauf – eine oder alle Baustellen */
+  const v6 = () => {
+    const all = S.bs.map((x, i) => { const k = x.hist.reduce((s, h) => s + h.kwh, 0), o = x.hist.reduce((s, h) => s + h.ohne, 0);
+      return { x, i, k, o, eur: k * x.price, save: (o - k) * x.price, al: x.hist.reduce((s, h) => s + h.al, 0) }; });
+    const colr = ['#03a9f4', '#ff9800', '#8e24aa', '#43a047', '#e91e63', '#607d8b'];
+    const chipS = x => x.arch ? '<span class="chip grey">abgeschlossen</span>' : '<span class="chip" style="background:rgba(67,160,71,.15);color:var(--success-color)">aktiv</span>';
+    const pick = `<div class="card bsel" style="margin-bottom:12px">${ct('select')}<span style="font-size:20px">📈</span><select data-act-change="hsel"><option value="all">Alle Baustellen</option>${S.bs.map(x => `<option value="${x.id}" ${ui.hsel === x.id ? 'selected' : ''}>${esc(x.name)} (${x.arch ? 'abgeschlossen' : 'aktiv'})</option>`).join('')}</select></div>`;
+    if (ui.hsel === 'all' || !S.bs.some(x => x.id === ui.hsel)) {
+      const yms = [...new Set(S.bs.flatMap(x => x.hist.map(h => h.ym)))].sort();
+      const tot = all.reduce((s, r) => ({ k: s.k + r.k, eur: s.eur + r.eur, save: s.save + r.save }), { k: 0, eur: 0, save: 0 });
+      const mx = Math.max(...yms.map(ym => S.bs.reduce((s, x) => s + ((x.hist.find(h => h.ym === ym) || {}).kwh || 0), 0)));
+      return `${pick}<div class="sections">
+        <div class="sec span3"><div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+          <div class="tile"><span class="ic">🏗</span><div class="tx"><div class="n">${S.bs.length} Baustellen</div><div class="s">${S.bs.filter(x => !x.arch).length} aktiv · ${S.bs.filter(x => x.arch).length} abgeschlossen</div></div></div>
+          <div class="tile"><span class="ic">⚡</span><div class="tx"><div class="n">${de(tot.k, 0)} kWh</div><div class="s">gesamt</div></div></div>
+          <div class="tile"><span class="ic">€</span><div class="tx"><div class="n">${eur(tot.eur)}</div><div class="s">Stromkosten gesamt</div></div></div>
+          <div class="tile ok"><span class="ic">✓</span><div class="tx"><div class="n">${eur(tot.save)}</div><div class="s">gespart durch Automatik</div></div></div>
+        </div></div>
+        <div class="sec span3"><div class="heading">Alle Baustellen</div><div class="card" style="overflow-x:auto">${ct('eigene Karte oder markdown')}
+          <table class="t"><tr><th>Baustelle</th><th class="hide-phone">Zeitraum</th><th>kWh</th><th>Kosten</th><th>gespart</th><th class="hide-phone">Meldungen</th></tr>
+          ${all.map(r => `<tr data-act="hsel2" data-a="${r.x.id}" style="cursor:pointer"><td><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${colr[r.i % 6]}"></i> ${esc(r.x.name)} ${chipS(r.x)}</td><td class="hide-phone">${dmy(r.x.start)} – ${r.x.arch ? dmy(r.x.end) : 'laufend'}</td><td>${de(r.k, 0)}</td><td>${eur(r.eur)}</td><td class="save">${eur(r.save)}</td><td class="hide-phone">${r.al}</td></tr>`).join('')}
+          ${S.kept.map(k => `<tr><td>${esc(k.name)} <span class="chip grey">gelöscht</span></td><td class="hide-phone">–</td><td>${de(k.kwh, 0)}</td><td>–</td><td>–</td><td class="hide-phone">–</td></tr>`).join('')}
+          </table><div class="muted" style="font-size:12px;margin-top:6px">Zeile antippen = Baustelle im Detail.</div></div></div>
+        <div class="sec span3"><div class="heading">Verbrauch je Monat <span class="sub">alle Baustellen</span></div><div class="card">${ct('statistics-graph (bar, gestapelt)')}
+          <div class="bars" style="height:160px">${yms.map(ym => `<div class="b" title="${ym}">${S.bs.map((x, i) => { const h = x.hist.find(q => q.ym === ym); return h ? `<span style="background:${colr[i % 6]};height:${h.kwh / mx * 150}px"></span>` : ''; }).join('')}</div>`).join('')}</div>
+          <div class="xlab">${yms.map((ym, i) => `<span>${i % 3 ? '' : MON[Number(ym.slice(5)) - 1] + ' ' + ym.slice(2, 4)}</span>`).join('')}</div>
+          <div class="legend">${S.bs.map((x, i) => `<span><i style="background:${colr[i % 6]}"></i>${esc(x.name)}</span>`).join('')}</div></div></div>
+      </div>`;
+    }
+    const r = all.find(q => q.x.id === ui.hsel), x = r.x, mx = Math.max(...x.hist.map(h => h.ohne), 1);
+    const ev = [...x.hist.filter(h => h.al).map(h => ({ d: h.ym + '-14', t: x.fx.pump ? '📱 Pumpe offline gemeldet (Stromausfall?)' : '❄ Frostschutz hat eingegriffen' })),
+      ...x.vac.map(v => ({ d: v.from, t: `🏖 Urlaub „${esc(v.name)}“ bis ${dmy(v.to)}` })), { d: x.start, t: '🏗 Baustelle angelegt' }, ...(x.arch ? [{ d: x.end, t: '🏁 Baustelle abgeschlossen' }] : [])].sort((a, c) => c.d.localeCompare(a.d));
+    return `${pick}<div class="sections">
+      <div class="sec span3"><div class="card" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">${ct('Kopf')}<b style="font-size:16px">${esc(x.name)}</b> ${chipS(x)}<span class="muted">${dmy(x.start)} – ${x.arch ? dmy(x.end) : 'laufend'} · ${x.hist.length} Monate · ${de(x.price, 2)} €/kWh</span>
+        <span style="margin-left:auto"></span><span class="btn small flat" data-act="hsel2" data-a="all">← alle</span>${x.arch ? '' : `<span class="btn small" data-act="openB" data-a="${x.id}">Dashboard öffnen</span>`}</div></div>
+      <div class="sec span3"><div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        <div class="tile"><span class="ic">⚡</span><div class="tx"><div class="n">${de(r.k, 0)} kWh</div><div class="s">Verbrauch</div></div></div>
+        <div class="tile"><span class="ic">€</span><div class="tx"><div class="n">${eur(r.eur)}</div><div class="s">Kosten</div></div></div>
+        <div class="tile ok"><span class="ic">✓</span><div class="tx"><div class="n">${eur(r.save)}</div><div class="s">gespart (${de((1 - r.k / r.o) * 100, 0)} %)</div></div></div>
+        <div class="tile"><span class="ic">🔔</span><div class="tx"><div class="n">${r.al} Meldungen</div><div class="s">${x.areas.length} Bereiche · ${x.areas.reduce((n, a) => n + a.dev.length, 0)} Geräte</div></div></div>
+      </div></div>
+      <div class="sec span2"><div class="heading">Je Monat <span class="sub">mit Automatik / ohne</span></div><div class="card">${ct('statistics-graph (bar)')}
+        <div class="bars" style="height:160px">${x.hist.map(h => `<div class="b" style="flex-direction:row;align-items:flex-end;gap:1px" title="${h.ym}: ${h.kwh} / ${h.ohne} kWh"><span class="c1" style="flex:1;height:${h.kwh / mx * 150}px"></span><span style="flex:1;height:${h.ohne / mx * 150}px;background:rgba(127,127,127,.35)"></span></div>`).join('')}</div>
+        <div class="xlab">${x.hist.map(h => `<span>${MON[Number(h.ym.slice(5)) - 1]}</span>`).join('')}</div>
+        <div class="legend"><span><i class="c1"></i>mit Automatik</span><span><i style="background:rgba(127,127,127,.35)"></i>ohne (24/7)</span></div></div>
+        <div class="card">${ct('entities')}<table class="t"><tr><th>Monat</th><th>kWh</th><th>Kosten</th><th>gespart</th></tr>
+          ${x.hist.map(h => `<tr><td>${MON[Number(h.ym.slice(5)) - 1]} ${h.ym.slice(0, 4)}</td><td>${h.kwh}</td><td>${eur(h.kwh * x.price)}</td><td class="save">${eur((h.ohne - h.kwh) * x.price)}</td></tr>`).join('')}</table></div></div>
+      <div class="sec"><div class="heading">Ereignisse</div><div class="card">${ct('logbook')}<div class="rows">
+        ${ev.map(e => `<div class="r"><div class="l">${e.t}<small>${dmy(e.d)}</small></div></div>`).join('')}</div></div>
+        <div class="heading">Je Bereich</div><div class="card">${ct('entities')}<div class="rows">
+        ${x.areas.map(a => { const k = a.dev.reduce((s, d) => s + d.mon, 0), all2 = x.areas.reduce((s, q) => s + q.dev.reduce((t, d) => t + d.mon, 0), 0) || 1; return `<div class="r"><div class="l">${esc(a.name)}<div class="hbar"><i class="c1" style="width:${k / all2 * 100}%"></i></div></div><span class="v">${de(k / all2 * r.k, 0)} kWh</span></div>`; }).join('')}</div></div></div>
+    </div>`;
+  };
+
+  const sideItems = nav === 'tabs'
+    ? [['v1', 'Baustelle', '🏗']]
+    : VIEWS.filter(v => v[0] !== 'v5').map(([v, l, i]) => [v, v === 'v1' ? 'Baustelle' : l, i]);
+  const side = `<div class="side ${ui.drawer ? 'open' : ''}"><div class="ttl">Home Assistant</div>
+    <div class="it"><span class="i">▦</span>Übersicht</div><div class="it"><span class="i">⚡</span>Energie</div>
+    ${sideItems.map(([v, l, i]) => `<div class="it ours ${(nav === 'tabs' ? ui.v !== 'v5' || true : ui.v === v) && (nav === 'tabs' || ui.v === v) ? 'on' : ''}" data-act="goto" data-a="${v}"><span class="i">${i}</span>${l}</div>`).join('')}
+    <hr><div class="it ${nav === 'side' && ui.v === 'v5' ? 'on' : ''}" data-act="goto" data-a="v5"><span class="i">⚙</span>Einstellungen</div></div>`;
+  const tabs = nav === 'tabs' ? `<div class="tabs">${VIEWS.map(([v, l]) => `<div class="tab ${ui.v === v ? 'on' : ''}" data-act="goto" data-a="${v}">${l}</div>`).join('')}</div>` : '';
+  const title = nav === 'tabs' ? 'Baustelle' : (VIEWS.find(v => v[0] === ui.v) || VIEWS[0])[1];
+  return `<div class="shell">${side}<div class="main">
+    <div class="hdr"><div class="hdr-top"><span class="ico" data-act="drawer">☰</span><span class="t">${title}</span><span class="ico">✎</span></div>${tabs}</div>
+    ${view('v1', v1())}${view('v2', v2())}${view('v3', v3())}${view('v4', v4())}${view('v5', v5())}${view('v6', v6())}
+  </div></div>`;
+}
+
+/* ---------- Ablauf ---------- */
+const frames = [...document.querySelectorAll('.frame')];
+function draw() {
+  S.sim.date = S.sim.date || '2026-09-29'; S.sim.day = wd(S.sim.date);
+  if (!S.bs.some(b => b.id === S.active && !b.arch)) { const n = S.bs.find(b => !b.arch); if (n) S.active = n.id; }
+  frames.forEach((f, i) => { f.innerHTML = render(i); f.classList.toggle('show-types', showTypes); });
+  document.querySelectorAll('[data-sim]').forEach(el => { if (el !== document.activeElement) el.value = S.sim[el.dataset.sim]; });
+  document.querySelectorAll('[data-simc]').forEach(el => el.checked = !!S.sim[el.dataset.simc]);
+  document.querySelector('[data-simd]').value = S.sim.date;
+  document.querySelector('[data-simv="wd"]').textContent = TAGE[S.sim.day] + (holName(S.sim.date) ? ' · ' + holName(S.sim.date) : '');
+  const sv = (k, t) => document.querySelector(`[data-simv="${k}"]`).textContent = t;
+  sv('time', m2t(S.sim.time)); sv('rain', de(S.sim.rain) + ' mm'); sv('fc', de(S.sim.fc) + ' °C'); sv('out', de(S.sim.out) + ' °C'); sv('dT', (S.sim.dT > 0 ? '+' : '') + de(S.sim.dT) + ' K');
+  save();
+}
+const fv = (f, k) => { const el = f.querySelector(`[data-f="${k}"]`); return el ? (el.type === 'checkbox' ? el.checked : el.value) : ''; };
+const nid = () => Math.random().toString(36).slice(2, 8);
+
+frames.forEach((f, fi) => {
+  const ui = UI[fi];
+  f.addEventListener('click', e => {
+    const t = e.target.closest('[data-act],[data-t]'); if (!t) return;
+    const a = t.dataset.a, b = B();
+    if (t.dataset.t) { set(t.dataset.t, !get(t.dataset.t)); return draw(); }
+    switch (t.dataset.act) {
+      case 'goto': ui.v = a; ui.drawer = false; ui.form = null; break;
+      case 'drawer': ui.drawer = !ui.drawer; break;
+      case 'dev': { const [ai, di] = a.split('.').map(Number), ar = b.areas[ai], d = ar.dev[di], st = calc(b).st[d.id];
+        if (ar.mode !== 'hand' && d.role !== 'plug') { ar.dev.forEach(x => x.man = calc(b).st[x.id].on); ar.mode = 'hand'; toast(`${ar.name}: auf Handbetrieb gestellt`); }
+        d.man = !st.on; break; }
+      case 'notify': b.pr.notify = b.pr.notify.includes(a) ? b.pr.notify.filter(x => x !== a) : [...b.pr.notify, a]; break;
+      case 'test': toast(b.pr.notify.length ? `Test-Meldung an ${b.pr.notify.join(', ')} gesendet (Entwurf)` : 'Kein Empfänger ausgewählt'); return;
+      case 'cancel': ui.form = null; break;
+      case 'newB': ui.form = { type: 'newB' }; break;
+      case 'saveB': { const n = fv(f, 'name').trim(); if (!n) return toast('Bitte einen Namen eingeben');
+        const x = JSON.parse(JSON.stringify(S.bs[0])); const c = S.cfg;
+        Object.assign(x, { id: 'b' + nid(), name: n, arch: false, start: fv(f, 'start') || S.sim.date, end: '', hist: [], vac: [], hol: true, vacMode: c.vacMode, price: c.price, season: [...c.season],
+          wx: { src: 'weather', weather: '', temp: '', rain: '' }, fx: { heat: fv(f, 'heat'), pump: fv(f, 'pump') }, auto: true, areas: [] });
+        x.frost.on = c.frostOn; x.warm = { act: true, thr: c.warmThr, basis: 'now' }; x.pr.notify = [...c.notify];
+        S.bs.push(x); S.active = x.id; ui.form = null; ui.v = 'v5'; ui.sub = 'edit'; toast(`Baustelle „${n}“ angelegt – jetzt Container hinzufügen`); break; }
+      case 'arch': { const x = S.bs.find(y => y.id === a); x.arch = true; x.end = S.sim.date; toast(`„${x.name}“ abgeschlossen – Geräte frei, Zahlen im Verlauf`); break; }
+      case 'sub': ui.sub = a; ui.form = null; break;
+      case 'per': ui.per = a; break;
+      case 'goUrlaub': ui.v = 'v5'; ui.sub = 'urlaub'; ui.form = null; break;
+      case 'histOf': ui.v = 'v6'; ui.hsel = a; break;
+      case 'hsel2': ui.hsel = a; break;
+      case 'openB': S.active = a; ui.v = 'v1'; break;
+      case 'simTo': S.sim.date = a; toast(`Simulation: ${dmy(a)}`); break;
+      case 'newVac': ui.form = { type: 'newVac' }; break;
+      case 'saveVac': { const fr = fv(f, 'from'), to = fv(f, 'to'); if (!fr || !to || to < fr) return toast('Bitte gültigen Zeitraum wählen');
+        b.vac.push({ name: fv(f, 'name').trim() || 'Urlaub', from: fr, to }); b.vac.sort((x, y) => x.from.localeCompare(y.from)); ui.form = null; break; }
+      case 'delVac': b.vac.splice(Number(a), 1); break;
+      case 'vacPreset': { const y = Number(S.sim.date.slice(0, 4)) + (S.sim.date.slice(5) > '01-06' ? 0 : -1);
+        b.vac.push(a === 'xmas' ? { name: 'Weihnachten', from: `${y}-12-23`, to: `${y + 1}-01-06` } : { name: 'Urlaub', from: S.sim.date, to: addDays(S.sim.date, 6) });
+        b.vac.sort((x, z) => x.from.localeCompare(z.from)); toast('Zeitraum eingetragen'); break; }
+      case 'vacEnd': { const v = b.vac.find(q => S.sim.date >= q.from && S.sim.date <= q.to); if (v) v.to = addDays(S.sim.date, -1); if (v && v.to < v.from) b.vac = b.vac.filter(q => q !== v); toast('Urlaub beendet – Zeitplan gilt wieder'); break; }
+      case 'cfgNotify': S.cfg.notify = S.cfg.notify.includes(a) ? S.cfg.notify.filter(x => x !== a) : [...S.cfg.notify, a]; break;
+      case 'export': toast('CSV-Export (Entwurf) – in HA: Statistik-Export'); return;
+      case 'unarch': { const x = S.bs.find(y => y.id === a), u = used(); const clash = x.areas.flatMap(ar => ar.dev).filter(d => u.has(d.e));
+        if (clash.length) return toast(`Geht nicht: ${clash.length} Gerät(e) sind inzwischen anderswo zugeordnet`); x.arch = false; x.end = ''; break; }
+      case 'delB': ui.form = { type: 'delB', id: a }; break;
+      case 'doDelB': { const x = S.bs.find(y => y.id === a); if (fv(f, 'keep')) S.kept.push({ name: x.name, kwh: x.areas.flatMap(ar => ar.dev).reduce((s, d) => s + d.mon, 0) });
+        S.bs = S.bs.filter(y => y.id !== a); ui.form = null; toast(`„${x.name}“ gelöscht`); break; }
+      case 'dropKept': S.kept.splice(Number(a), 1); break;
+      case 'newA': ui.form = { type: 'newA' }; break;
+      case 'saveA': { const n = fv(f, 'name').trim(); if (!n) return toast('Bitte einen Namen eingeben');
+        const kind = fv(f, 'kind'); b.areas.push({ id: 'a' + nid(), name: n, kind, mode: kind === 'pump' ? 'off' : 'plan', target: 18, sensor: null, t: 12, hum: 60, dev: [] });
+        if (kind === 'pump') b.fx.pump = true; ui.form = null; break; }
+      case 'delA': ui.form = { type: 'delA', ai: Number(a) }; break;
+      case 'doDelA': b.areas.splice(Number(a), 1); ui.form = null; break;
+      case 'newD': ui.form = { type: 'newD', ai: Number(a) }; break;
+      case 'saveD': { const e = fv(f, 'e'); if (!e) return toast('Kein freier Shelly');
+        const role = fv(f, 'role'), ar = b.areas[Number(a)];
+        ar.dev.push(dev(fv(f, 'n').trim() || ROLLE[role] + ' ' + (ar.dev.length + 1), role, e, { typ: role === 'heat' ? fv(f, 'typ') : undefined }));
+        ui.form = null; toast('Gerät hinzugefügt – Ø Leistung wird ab jetzt gemessen'); break; }
+      case 'delD': { const [ai, di] = a.split('.').map(Number); b.areas[ai].dev.splice(di, 1); break; }
+      default: return;
+    }
+    draw();
+  });
+  f.addEventListener('input', e => {
+    const el = e.target; if (!el.dataset.set || el.type !== 'range') return;
+    const lab = el.parentNode.querySelector('[data-live]'), st = Number(el.step);
+    if (lab) lab.textContent = de(Number(el.value), st < 1 ? 1 : 0) + ' ' + lab.dataset.live;
+  });
+  f.addEventListener('change', e => {
+    const el = e.target;
+    if (el.dataset.actChange === 'selB') { S.active = el.value; UI.forEach(u => { u.scope = 'all'; u.form = null; }); return draw(); }
+    if (el.dataset.actChange === 'scope') { ui.scope = el.value; return draw(); }
+    if (el.dataset.actChange === 'hsel') { ui.hsel = el.value; return draw(); }
+    if (!el.dataset.set) return;
+    let v = el.value;
+    if (el.type === 'range' || el.type === 'number' || /season/.test(el.dataset.set)) v = Number(v);
+    if (el.dataset.set === 'B.start' && !v) return draw();
+    if (/\.sensor$/.test(el.dataset.set)) { v = v || null; const ai = Number(el.dataset.set.split('.')[2]); const ar = B().areas[ai]; if (!v && ar.mode === 'thermo') ar.mode = 'plan'; }
+    set(el.dataset.set, v); draw();
+  });
+});
+
+document.querySelector('[data-simd]').addEventListener('change', e => { if (e.target.value) { S.sim.date = e.target.value; draw(); } });
+document.querySelectorAll('[data-sim]').forEach(el => el.addEventListener('input', () => { S.sim[el.dataset.sim] = Number(el.value); draw(); }));
+document.querySelectorAll('[data-simc]').forEach(el => el.addEventListener('change', () => { S.sim[el.dataset.simc] = el.checked; draw(); }));
+document.getElementById('reset').addEventListener('click', () => { S = START(); UI.forEach(u => Object.assign(u, { v: 'v1', form: null, scope: 'all', sub: 'bs', hsel: 'all' })); draw(); toast('Zurückgesetzt'); });
+document.getElementById('nav').addEventListener('change', e => { nav = e.target.value; UI.forEach(u => u.drawer = false); draw(); });
+const stage = document.getElementById('stage');
+document.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-mode]').forEach(x => x.classList.toggle('on', x === btn));
+  stage.className = 'stage ' + (btn.dataset.mode === 'both' ? '' : btn.dataset.mode);
+}));
+/* Tooltips: Balken/Segmente (data-tip) und Fadenkreuz (data-cx) */
+const tip = document.getElementById('tip');
+function showTip(e, rows) {
+  tip.replaceChildren(...rows.map(([v, n, c]) => { const r = document.createElement('div'); r.className = 'tr';
+    if (c) { const k = document.createElement('i'); k.style.background = c; r.appendChild(k); }
+    const b1 = document.createElement('b'); b1.textContent = v; r.appendChild(b1); if (n) { const s1 = document.createElement('span'); s1.textContent = ' ' + n; r.appendChild(s1); } return r; }));
+  tip.style.display = 'block';
+  const x = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8), y = e.clientY + 16 + tip.offsetHeight > innerHeight ? e.clientY - tip.offsetHeight - 10 : e.clientY + 16;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+document.addEventListener('pointermove', e => {
+  const cx = e.target.closest && e.target.closest('[data-cx]');
+  document.querySelectorAll('.cross').forEach(l => { if (!cx || l.id !== cx.dataset.cx + '-x') l.style.display = 'none'; });
+  if (cx) {
+    const d = CX[cx.dataset.cx], svg = cx.ownerSVGElement, r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * d.W;
+    const i = Math.max(0, Math.min(d.n - 1, Math.round((vx - d.L) / d.pw * (d.n - 1)))), X = d.L + (d.n === 1 ? d.pw / 2 : d.pw * i / (d.n - 1));
+    const ln = svg.querySelector('.cross'); if (ln) { ln.setAttribute('x1', X); ln.setAttribute('x2', X); ln.style.display = ''; }
+    return showTip(e, [[d.labels[i], '', ''], ...d.series.map(q => [`${de(q.values[i], d.dec)} ${d.unit}`, q.name, q.color.startsWith('var') ? getComputedStyle(svg).getPropertyValue(q.color.slice(4, -1)) : q.color])]);
+  }
+  const t = e.target.closest && e.target.closest('[data-tip]');
+  if (!t) { tip.style.display = 'none'; return; }
+  const [v, n] = t.dataset.tip.split('|'); showTip(e, [[v, n, '']]);
+});
+document.addEventListener('pointerleave', () => tip.style.display = 'none');
+document.getElementById('theme').addEventListener('click', () => { document.body.dataset.theme = document.body.dataset.theme === 'dark' ? '' : 'dark'; });
+document.getElementById('types').addEventListener('click', e => { showTypes = !showTypes; e.target.classList.toggle('on', showTypes); draw(); });
+draw();
+</script>
+</body>
+</html>

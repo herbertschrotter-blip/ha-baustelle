@@ -59,10 +59,10 @@ Home-Assistant-Projekt für die Baustelle: ein Paket und ein YAML-Dashboard. Zwe
 - Config: none
 
 ### Mockup
-- Ablage: none
-- Designquelle: none
-- Ansichten: none
-- Abnahme-Ort: none
+- Ablage: mockups
+- Designquelle: HA-Standard-Theme und eingebaute Karten (kein eigenes Theme; im Mockup als CSS-Variablen nachgebildet)
+- Ansichten: Desktop; 390 px
+- Abnahme-Ort: mockups/README.md
 
 ### Review
 - Config: none
