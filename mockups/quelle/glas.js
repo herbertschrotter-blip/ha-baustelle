@@ -12,6 +12,8 @@ const bcCss = '.bc { width: 100%; height: auto; display: block; overflow: visibl
   + zwischen('@keyframes rein', '`;', panel.indexOf('/* Übersicht: Baustelle und Container als Kacheln */'));
 const css = fs.readFileSync(path.join(__dirname, 'glas.css'), 'utf8');
 const app = fs.readFileSync(path.join(__dirname, 'glas-app.js'), 'utf8');
+// Himmel: Shader als Zeichenkette, dazu Werte je Stimmung und der WebGL-Zeichner
+const himmel = `const HIMMEL_FS = ${JSON.stringify(fs.readFileSync(path.join(__dirname, 'himmel.frag'), 'utf8'))};\n` + fs.readFileSync(path.join(__dirname, 'himmel.js'), 'utf8');
 
 const html = `<!DOCTYPE html>
 <html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -30,6 +32,7 @@ ${css}</style></head>
 </div>
 <script>
 ${js}
+${himmel}
 ${app}
 </script></body></html>`;
 const ziel = path.join(repo, 'mockups', 'glas.html');

@@ -135,7 +135,9 @@ class App {
   constructor(root) {
     this.root = root; APPS.push(this);
     root.innerHTML = `<div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui"></div>`;
-    this.bg = root.querySelector('.glas-bg'); this.ui = root.querySelector('.ui'); this.d = daten();
+    this.bg = root.querySelector('.glas-bg'); this.ui = root.querySelector('.ui');
+    this.himmel = Himmel.an(this.bg);          // WebGL-Himmel; ohne WebGL bleibt der CSS-Hintergrund
+    this.d = daten();
     this.s = { view: 'uebersicht', cid: null, auto: true, sheet: null, chart: 'temp', zeitraum: 'Woche', verlauf: 'aktiv' };
     root.addEventListener('click', e => this.klick(e));
     root.addEventListener('input', e => this.eingabe(e));
@@ -148,6 +150,7 @@ class App {
     const { phase, wetter } = STIMMUNG;
     if (this.bg.dataset.phase !== phase || this.bg.dataset.wetter !== wetter) this.bg.querySelector('.partikel').innerHTML = partikel(phase, wetter);
     this.bg.dataset.phase = phase; this.bg.dataset.wetter = wetter;
+    this.himmel?.setze(phase, wetter, document.body.classList.contains('hell'));
     if (neuZeichnen) this.render();
   }
   get b() { return this.d.bereiche.find(x => x.id === this.s.cid); }
@@ -497,7 +500,7 @@ class App {
   }
 }
 document.querySelectorAll('.app').forEach(el => new App(el));
-document.getElementById('modus').onclick = () => document.body.classList.toggle('hell');
+document.getElementById('modus').onclick = () => { document.body.classList.toggle('hell'); APPS.forEach(a => a.stimmung(false)); };
 for (const [id, k] of [['phase', 'phase'], ['wetter', 'wetter']]) {
   const el = document.getElementById(id); if (el) el.onchange = () => { STIMMUNG[k] = el.value; APPS.forEach(a => a.stimmung()); };
 }

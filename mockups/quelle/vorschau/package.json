@@ -1,0 +1,7 @@
+{
+  "name": "himmel-vorschau",
+  "private": true,
+  "description": "Standbilder des Himmel-Shaders ohne Browser: npm install, dann node vorschau.mjs 390 844 1 12 tag:regen:dunkel",
+  "type": "module",
+  "dependencies": { "glsl-transpiler": "^3.0.3", "pngjs": "^7.0.0" }
+}
