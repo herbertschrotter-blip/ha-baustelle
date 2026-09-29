@@ -4,7 +4,7 @@ Eigene Home-Assistant-Integration **Baustelle**: Heizkörper in Baustellencontai
 schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und Shellys, die man in HA zuordnet.
 Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mockups/README.md`).
 
-## Stand 0.3.0 (Stufen 1–4 des Bauplans)
+## Stand 0.4.0 (Stufen 1–5 des Bauplans)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (was dranhängt: Heizkörper, Bautrockner, Pumpe,
@@ -22,7 +22,9 @@ Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mocku
   Pumpzeit, Pumpzyklen; „ohne Automatik“ (mittlere Leistung im Betrieb × 24 h), Ersparnis, Hochrechnung auf die
   Heizperiode; Vergleich Ölradiator/Konvektor. Die Zähler führen in HA eine Langzeitstatistik (Tag, Woche, Monat über
   `statistics-graph`) und lassen sich ins Energie-Dashboard übernehmen. Gezählt wird nur bei aktiver Baustelle.
-- **Noch nicht:** Dashboard und Diagnose (Stufe 5), eigene Karte (Stufe 6).
+- **Dashboard** (Stufe 5): YAML-Dashboard „Baustelle“ mit eingebauten Karten, erzeugt aus der Diagnose (siehe unten).
+  **Diagnose-Download** je Baustelle, **Reparatur-Hinweise** bei fehlenden Entitäten.
+- **Noch nicht:** eigene Karte mit Animationen und Baustellen-Umschalter (Stufe 6).
 
 ## Aufbau
 
@@ -33,11 +35,12 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät
   einstellungen.py             Zeitplan, Regeln, Modi (Store unter .storage/, in der Sicherung)
   translations/, icons.json    Texte de/en, Symbole
-ha/dashboards/baustelle.yaml   YAML-Dashboard (→ /config/dashboards/), noch Platzhalter
+ha/dashboards/baustelle.yaml   YAML-Dashboard (→ /config/dashboards/), erzeugt mit tools/dashboard.py
 ha/packages/baustelle.yaml     altes leeres Paket aus 0.1.0, wird nicht mehr ausgeliefert
 tests/logik/                   pytest ohne HA (Python 3.12+)
 tests/integration/             pytest-homeassistant-custom-component (Python 3.14+)
 tools/deploy.sh                Auslieferung nach /config
+tools/dashboard.py             Dashboard aus den Diagnose-Downloads erzeugen
 mockups/                       abgenommener Entwurf
 ```
 
@@ -55,6 +58,17 @@ Quelle der Wahrheit ist dieses Repo (`/config/projekte/ha-baustelle`). `/config`
    Empfänger wählen. Werte (Zeiten, Regeln) an den Entitäten der Baustelle einstellen, dann **Automatik** einschalten.
 
 Ohne Wetterstation nimmt die Integration als „Regen“ den für heute vorhergesagten Niederschlag.
+
+## Dashboard erzeugen
+
+Die Entitäts-IDs hängen von den Namen der Baustellen und Container ab. Deshalb wird das Dashboard erzeugt:
+
+1. Je Baustelle die Diagnose laden: Einstellungen → Geräte & Dienste → Baustelle → ⋮ → Diagnose herunterladen
+   (oder Claude holt sie über die HA-Schnittstelle).
+2. `python3 tools/dashboard.py diagnose-*.json > ha/dashboards/baustelle.yaml`, committen, ausliefern.
+3. Im Browser neu laden. Ein YAML-Dashboard braucht keinen Neustart.
+
+Nach neuen Baustellen, Containern oder Shellys neu erzeugen.
 
 ## Tests
 

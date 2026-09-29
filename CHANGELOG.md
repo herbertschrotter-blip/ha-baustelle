@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0] – 2026-09-29
+
+- Stufe 5 – Dashboard: Generator `tools/dashboard.py` erzeugt das YAML-Dashboard aus den Diagnose-Downloads
+  (Übersicht, Heizung, Pumpen, Auswertung je aktive Baustelle, Verlauf über alle Baustellen) – nur eingebaute
+  Karten (tile mit Features, heading, entities, statistic, statistics-graph, history-graph, weather-forecast).
+- Diagnose-Download je Baustelle (Einrichtung, Einstellungen, Zähler, Laufzeit, Entitäten; Empfänger geschwärzt).
+- Reparatur-Hinweis, wenn eine eingestellte Entität länger als 10 Minuten fehlt.
+
 ## [0.3.0] – 2026-09-29
 
 - Stufe 4 – Verbrauch und Kosten: Zähler je Baustelle und Container (Energie kWh, Kosten zum jeweiligen Preis),

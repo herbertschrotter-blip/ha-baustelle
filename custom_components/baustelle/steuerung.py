@@ -17,7 +17,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Context, Event, EventStateChangedData, HomeAssistant, State, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_change,
@@ -46,6 +46,7 @@ from .const import (
     CONF_TYP,
     CONF_URLAUB_KALENDER,
     CONF_WETTER,
+    DOMAIN,
     HEIZROLLEN,
     KEINE_LEISTUNG_MIN,
     KEINE_LEISTUNG_W,
@@ -87,6 +88,7 @@ _LOGGER = logging.getLogger(__name__)
 PROBLEM_KEINE_LEISTUNG = "keine_leistung"
 ZAEHLER_SPEICHERN_S = 30
 MAX_SCHRITT_H = 5 / 60  # längere Lücken (Neustart) zählen nicht als Laufzeit
+FEHLT_NACH = timedelta(minutes=10)  # so lange darf eine Entität nach dem Start fehlen (andere Integrationen laden)
 MELDETEXT = {
     Problem.OFFLINE.value: "{geraet} ({bereich}) ist nicht erreichbar – Stromausfall oder Verbindung weg?",
     Problem.TROCKENLAUF.value: "{geraet} ({bereich}) läuft, zieht aber nur {leistung} W – Trockenlauf?",
@@ -169,6 +171,7 @@ class Steuerung:
         self._gemeldet: set[str] = set()
         self.geraet_ids: dict[str, str] = {}  # Baustelle/Bereich → Geräte-ID in der Geräteverwaltung
         self._letzte_auswertung: datetime | None = None
+        self._gestartet = dt_util.now()
 
     # ------------------------------------------------------------------ Einrichtung
     @property
@@ -267,6 +270,30 @@ class Steuerung:
     @callback
     def _takt(self, _now: datetime) -> None:
         self.auswerten()
+        self._fehlende_pruefen(dt_util.now())
+
+    def _erwartete_entitaeten(self) -> set[str]:
+        o = self.entry.options
+        erwartet = {o[k] for k in (CONF_WETTER, CONF_TEMP_SENSOR, CONF_REGEN_SENSOR, CONF_FEIERTAG_KALENDER, CONF_URLAUB_KALENDER) if o.get(k)}
+        for g in self.geraete.values():
+            erwartet.update(e for e in (g.schalter, g.leistung, g.energie) if e)
+        erwartet.update(b.fuehler for b in self.bereiche.values() if b.fuehler)
+        return erwartet
+
+    def _fehlende_pruefen(self, jetzt: datetime) -> None:
+        """Reparatur-Hinweis, wenn eine eingestellte Entität fehlt (z. B. Shelly umbenannt oder entfernt)."""
+        if jetzt - self._gestartet < FEHLT_NACH:
+            return
+        for entity_id in self._erwartete_entitaeten():
+            issue_id = f"fehlt_{self.entry.entry_id}_{entity_id}"
+            if self.aktiv and self.hass.states.get(entity_id) is None:
+                ir.async_create_issue(
+                    self.hass, DOMAIN, issue_id, is_fixable=False, severity=ir.IssueSeverity.WARNING,
+                    translation_key="entitaet_fehlt",
+                    translation_placeholders={"entitaet": entity_id, "baustelle": self.entry.title},
+                )
+            else:
+                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     @callback
     def _zustand_geaendert(self, event: Event[EventStateChangedData]) -> None:

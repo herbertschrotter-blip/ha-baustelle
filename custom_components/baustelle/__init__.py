@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 
 from .const import DOMAIN, PLATFORMS
 from .einstellungen import Einstellungen
@@ -33,8 +33,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -> None:
-    """Gespeicherte Einstellungen löschen; die Langzeitstatistik bleibt in HA erhalten."""
+    """Gespeicherte Einstellungen und Reparatur-Hinweise löschen; die Langzeitstatistik bleibt in HA erhalten."""
     await Einstellungen(hass, entry.entry_id).async_entfernen()
+    for (domain, issue_id) in list(ir.async_get(hass).issues):
+        if domain == DOMAIN and issue_id.startswith(f"fehlt_{entry.entry_id}_"):
+            ir.async_delete_issue(hass, DOMAIN, issue_id)
 
 
 def _geraete_anlegen(hass: HomeAssistant, entry: BaustelleConfigEntry, steuerung: Steuerung) -> None:

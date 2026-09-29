@@ -464,5 +464,11 @@
     "keine_empfaenger": {
       "message": "No recipients configured."
     }
+  },
+  "issues": {
+    "entitaet_fehlt": {
+      "title": "Site {baustelle}: {entitaet} is missing",
+      "description": "The site uses `{entitaet}`, but this entity has not existed for over 10 minutes. Was it renamed or removed? Reassign it under Settings → Devices & services → Baustelle."
+    }
   }
 }

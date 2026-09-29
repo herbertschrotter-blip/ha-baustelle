@@ -228,3 +228,66 @@ async def test_heizkoerper_ohne_strom_nur_wenn_nie_geheizt(hass: HomeAssistant, 
     st.auswerten()
     await hass.async_block_till_done()
     assert problem() == "off"
+
+
+async def test_diagnose(hass: HomeAssistant, baustelle) -> None:
+    from custom_components.baustelle.diagnostics import async_get_config_entry_diagnostics
+
+    d = await async_get_config_entry_diagnostics(hass, baustelle)
+    assert d["baustelle"]["titel"] == "B1"
+    assert d["baustelle"]["optionen"]["empfaenger"] == "**REDACTED**"
+    assert d["entitaeten"][f"{baustelle.entry_id}_status"].startswith("sensor.")
+    assert {g["id"] for g in d["geraete"]} == {HK1, HK2, P1}
+    assert d["laufzeit"]["status"] == "automatik_aus"
+
+
+async def test_reparatur_hinweis_bei_fehlender_entitaet(hass: HomeAssistant, baustelle, freezer) -> None:
+    from homeassistant.helpers import issue_registry as ir
+    from homeassistant.util import dt as dt_util
+
+    st = baustelle.runtime_data
+    issue_id = f"fehlt_{baustelle.entry_id}_switch.hk1"
+    hass.states.async_remove("switch.hk1")
+    st._gestartet = dt_util.now() - timedelta(minutes=11)
+    st._takt(dt_util.now())
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    hass.states.async_set("switch.hk1", "off")
+    st._takt(dt_util.now())
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_dashboard_generator(hass: HomeAssistant, baustelle, tmp_path) -> None:
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    import yaml
+
+    from custom_components.baustelle.diagnostics import async_get_config_entry_diagnostics
+
+    pfad = tmp_path / "diagnose.json"
+    pfad.write_text(json.dumps({"data": await async_get_config_entry_diagnostics(hass, baustelle)}, default=str))
+    spec = importlib.util.spec_from_file_location("dashboard", Path(__file__).parents[2] / "tools" / "dashboard.py")
+    modul = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modul)
+    d = yaml.safe_load(modul.main([str(pfad)]))
+    assert [v["title"] for v in d["views"]] == ["Übersicht", "Heizung", "Pumpen", "Auswertung", "Verlauf"]
+
+    genutzt: set[str] = set()
+
+    def sammeln(knoten) -> None:
+        if isinstance(knoten, dict):
+            for k, v in knoten.items():
+                if k == "entity" and isinstance(v, str):
+                    genutzt.add(v)
+                sammeln(v)
+        elif isinstance(knoten, list):
+            for v in knoten:
+                if isinstance(v, str) and "." in v and v.split(".")[0] in {"sensor", "switch", "select", "number", "time", "binary_sensor", "button"}:
+                    genutzt.add(v)
+                sammeln(v)
+
+    sammeln(d)
+    fehlend = sorted(e for e in genutzt if hass.states.get(e) is None)
+    assert not fehlend, fehlend
+    assert len(genutzt) > 60
