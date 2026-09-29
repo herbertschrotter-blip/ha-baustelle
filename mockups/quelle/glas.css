@@ -305,6 +305,8 @@ body.hell { background: #d9dee5; color: #111; }
 .s-res { background: repeating-linear-gradient(45deg, rgba(142,142,147,.6) 0 3px, transparent 3px 6px); }
 .strom-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--ink2); }
 .strom-leg i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.an-block { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; border-top: 1px solid var(--gridc); }
+.an-kopf { display: flex; justify-content: space-between; gap: 8px; }
 .ph-zeile { display: grid; grid-template-columns: 24px 1fr 56px; gap: 8px; align-items: center; font-size: 12px; } .ph-zeile .leise { text-align: right; }
 .amber-t { color: var(--amber); } .lila { color: #bf5af2; } .blau { color: var(--blau); }
 .g-t em.warte { color: var(--blau); font-style: normal; }

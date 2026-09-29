@@ -23,6 +23,10 @@ function daten() {
     innen: aussen.map((a, h) => t === null ? null : Math.max(a + 2, (h >= 7 && h <= 17 ? t : h === 6 ? t - 3 : h === 18 ? t - 2 : t - 6) + (r() - .5))),
     kwh7: reihe(7, 6, 16).map((v, i) => i > 4 ? v * .15 : v), h7: reihe(7, 3, 7).map((v, i) => i > 4 ? 0 : v), ...extra });
   let ph = 0; const g = (n, typ, kw, an) => ({ n, typ, kw, an, hand: false, phase: ['L1', 'L2', 'L3'][ph++ % 3] });
+  // Phase je Gerät und Anschluss je Container (Beispiel so verteilt, dass keine Phase überlastet ist)
+  const PHASEN = { polier: ['L1', 'L2'], mannschaft: ['L3', 'L1', 'L1'], magazin: ['L2', 'L3'], sanitaer: ['L3'], lager: ['L1'], schacht: ['L1', 'L2'] };
+  const ANSCHLUSS = { polier: 'nord', mannschaft: 'nord', sanitaer: 'nord', magazin: 'sued', lager: 'sued', schacht: 'sued' };
+  const phasen = liste => { for (const b of liste) { b.anschluss = ANSCHLUSS[b.id] || 'nord'; (PHASEN[b.id] || []).forEach((ph, i) => { if (b.geraete[i]) b.geraete[i].phase = ph; }); } return liste; };
   return {
     aussen,
     baustellen: [
@@ -35,6 +39,8 @@ function daten() {
       { name: 'Volksschule Wundschuh', aktiv: false, zeit: '12.01.2025 – 28.03.2025', kwh: 1920, eur: 537.6, container: 3, heiztage: 55, monate: 2.5, gespart: 2990,
         verlauf: {}, namen: ['Polier', 'Mannschaft', 'Sanitär'] },
     ],
+    // Stromanschlüsse (Baustromverteiler): je Anschluss Absicherung, Phasen und Reserve für Ungemessenes (Kran, Werkzeug)
+    anschluesse: [{ id: 'nord', name: 'Verteiler Nord (Kran)', ampere: 32, phasen: 3, reserve: 9 }, { id: 'sued', name: 'Verteiler Süd', ampere: 32, phasen: 3, reserve: 3 }],
     firmen: [{ id: 'eigen', name: 'Eigene Firma', eigen: true }, { id: 'huber', name: 'Elektro Huber GmbH' }, { id: 'leitner', name: 'Installateur Leitner' }],
     // zweite laufende Baustelle (nur für die Auswertung „Alle laufenden“)
     kalsdorf: [
@@ -42,7 +48,7 @@ function daten() {
       bereich('k-mannschaft', 'Mannschaft Kalsdorf', 7, 'heizt', 18.9, [g('Radiator 1', 'Konvektor', 2.0, 1), g('Radiator 2', 'Konvektor', 2.0, 1)], { firma: 'eigen' }),
       bereich('k-lager', 'Lager Kalsdorf', 8, 'aus', null, [g('Radiator', 'Ölradiator', 1.5, 0)], { firma: 'huber' }),
     ],
-    bereiche: [
+    bereiche: phasen([
       bereich('polier', 'Poliercontainer', 0, 'heizt', 19.4, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Radiator 2', 'Konvektor', 1.99, 1)], { trocknen: true, firma: 'eigen', tuer: { sensor: 'Tür Polier', offen: 0 } }),
       bereich('mannschaft', 'Mannschaft', 1, 'trocknen', 17.8, [g('Radiator 1', 'Ölradiator', 2.0, 1), { ...g('Konvektor', 'Konvektor', 2.0, 0), warte: 6 }, g('Trockner', 'Steckdose', 1.79, 1)], { trocknen: true, firma: 'eigen', prio: 'hoch' }),
       bereich('magazin', 'Magazin', 2, 'pause', null, [g('Radiator', 'Ölradiator', 1.5, 0), g('Steckdose', 'Steckdose', 0.4, 0)], { firma: 'huber', prio: 'niedrig', tuer: { sensor: 'Tür Magazin', offen: 6 } }),
@@ -50,7 +56,7 @@ function daten() {
       bereich('lager', 'Lager Süd', 4, 'offline', null, [g('Radiator', 'Ölradiator', 2.0, 0)], { offline: true, firma: 'leitner' }),
       bereich('schacht', 'Pumpenschacht Nord', 5, 'laeuft', null, [g('Pumpe 1', 'Pumpe', 0.76, 1), g('Pumpe 2 (Reserve)', 'Pumpe', 0.76, 0)],
         { pumpe: true, firma: 'eigen', zyklen: 36, lauf: '1 h 12 min', laengster: '4 min', kwh7: reihe(7, 0.6, 1.4), h7: reihe(7, 0.8, 1.8), zyk7: reihe(7, 20, 44).map(Math.round) }),
-    ],
+    ]),
     // Arbeitszeiten mit Startdatum: es gilt die jüngste, die schon begonnen hat; alte bleiben gespeichert
     arbeitszeiten: [
       az('2025-11-03', 'Winter 2025/26', ['07:30', '16:30'], ['07:30', '12:00']),
@@ -59,7 +65,7 @@ function daten() {
       az('2026-11-02', 'Winter 2026/27', ['07:30', '16:30'], ['07:30', '12:00']),
     ],
     e: { preis: 0.28, feiertag_frei: true,
-      staffel: true, absicherung: 16, phasen: 3, reserve: 1, max_gleich: 5, min_lauf: 10, min_pause: 5, takt: 15, zaehler: 'keiner',
+      staffel: true, max_gleich: 5, min_lauf: 10, min_pause: 5, takt: 15,
       tuer_pause: 3, tuer_melden: 10, knoepfe: true,
       bericht: 'woche', bericht_handy: true, bericht_mail: true, mail: 'herbert@example.at', bericht_csv: true, vorheizen: 45, nachheizen: 15, soll: 20, grenze: 15, basis: 'Tageshöchstwert', fruehstart: true, frueh_temp: 0, frueh_min: 30, frost: true, frost_temp: 5,
       tr_mm: 2, tr_laenger: 45, tr_frueher: 15, empfaenger: 'Handy Herbert', m_offline: true, m_trocken: true, m_dauer: true, dauer_min: 20,
@@ -280,20 +286,26 @@ class App {
   bName(id) { return id ? (this.d.bereiche.find(b => b.id === id) || { name: id }).name : 'Baustelle'; }
   /* Staffelung: gemessene Last, Grenze und freier Platz (nur Heizungen werden geschaltet) */
   last() {
-    const e = this.d.e, G = this.d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g }))), heizt = x => ['Ölradiator', 'Konvektor'].includes(x.g.typ);
-    const an = G.filter(x => x.g.an && !x.b.offline), summe = l => l.reduce((a, x) => a + x.g.kw, 0);
-    const heiz = summe(an.filter(heizt)), pumpe = summe(an.filter(x => x.g.typ === 'Pumpe')), sonst = summe(an.filter(x => !heizt(x) && x.g.typ !== 'Pumpe'));
-    const phaseMax = e.absicherung * 230 / 1000, grenze = phaseMax * e.phasen, frei = grenze - e.reserve - pumpe - sonst;
-    const phasen = (e.phasen === 3 ? ['L1', 'L2', 'L3'] : ['L1']).map(ph => { const auf = an.filter(x => e.phasen === 1 || x.g.phase === ph);
-      return { ph, heiz: summe(auf.filter(heizt)), pumpe: summe(auf.filter(x => x.g.typ === 'Pumpe')), sonst: summe(auf.filter(x => !heizt(x) && x.g.typ !== 'Pumpe')), max: phaseMax * (e.phasen === 1 ? 1 : 1) }; });
-    const hk = G.filter(heizt), laufen = hk.filter(x => x.g.an && !x.b.offline).length, warten = hk.filter(x => x.g.warte).length;
-    return { heiz, pumpe, sonst, grenze, frei, phasen, hk, laufen, warten, gesamt: heiz + pumpe + sonst };
+    const heizt = x => ['Ölradiator', 'Konvektor'].includes(x.g.typ), summe = l => l.reduce((a, x) => a + x.g.kw, 0);
+    const alleG = this.d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g }))), an = alleG.filter(x => x.g.an && !x.b.offline);
+    const A = this.d.anschluesse.map(a => {
+      const auf = an.filter(x => x.b.anschluss === a.id), phMax = a.ampere * 230 / 1000, res = a.reserve / a.phasen;
+      const phasen = (a.phasen === 3 ? ['L1', 'L2', 'L3'] : ['L1']).map(ph => { const q = auf.filter(x => a.phasen === 1 || x.g.phase === ph);
+        const heiz = summe(q.filter(heizt)), pumpe = summe(q.filter(x => x.g.typ === 'Pumpe')), sonst = summe(q.filter(x => !heizt(x) && x.g.typ !== 'Pumpe'));
+        return { ph, heiz, pumpe, sonst, res, max: phMax, frei: phMax - res - heiz - pumpe - sonst }; });
+      const s2 = k => phasen.reduce((x, p) => x + p[k], 0);
+      return { ...a, phasen, heiz: s2('heiz'), pumpe: s2('pumpe'), sonst: s2('sonst'), grenze: phMax * a.phasen };
+    });
+    const s3 = k => A.reduce((x, a) => x + a[k], 0), hk = alleG.filter(heizt);
+    return { A, heiz: s3('heiz'), pumpe: s3('pumpe'), sonst: s3('sonst'), grenze: s3('grenze'), reserve: this.d.anschluesse.reduce((x, a) => x + a.reserve, 0),
+      gesamt: s3('heiz') + s3('pumpe') + s3('sonst'), hk, laufen: hk.filter(x => x.g.an && !x.b.offline).length, warten: hk.filter(x => x.g.warte).length };
   }
   stromBalken(L, klein) {
     const w = v => `${Math.max(0, v / L.grenze * 100)}%`;
     return `<div class="strom ${klein ? 'klein' : ''}"><div class="strom-spur"><i class="s-heiz" style="width:${w(L.heiz)}"></i><i class="s-pumpe" style="width:${w(L.pumpe)}"></i><i class="s-sonst" style="width:${w(L.sonst)}"></i>
-      <i class="s-res" style="width:${w(this.d.e.reserve)}"></i></div></div>`;
+      <i class="s-res" style="width:${w(L.reserve)}"></i></div></div>`;
   }
+  anschluss(id) { return this.d.anschluesse.find(a => a.id === id) || this.d.anschluesse[0]; }
   laufende() { return [{ id: 'dobl', name: 'ÖWG Dobl Zwaring', bereiche: this.d.bereiche }, { id: 'kalsdorf', name: 'Reihenhäuser Kalsdorf', bereiche: this.d.kalsdorf }]; }
   firma(id) { return this.d.firmen.find(f => f.id === id) || this.d.firmen[0]; }
   /* Was im Verbrauch gestapelt wird: Container dieser Baustelle, laufende Baustellen oder Firmen */
@@ -400,7 +412,7 @@ class App {
     const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
     return `<div class="glas-kopf glas-panel">
         <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring <span class="pfeil">▾</span></div>
-        ${this.d.e.staffel ? (() => { const L = this.last(); return `<button class="strom-knopf" data-act="sheet" data-s="strom">${this.stromBalken(L, true)}<span class="strom-t"><b>${de(L.gesamt)} / ${de(L.grenze)} kW</b> · ${L.laufen} Heizkörper an${L.warten ? ` · ${L.warten} wartet` : ''} ›</span></button>`; })() : ''}</div>
+        ${this.d.e.staffel ? (() => { const L = this.last(); return `<button class="strom-knopf" data-act="sheet" data-s="strom">${this.stromBalken(L, true)}<span class="strom-t"><b>${de(L.gesamt)} kW</b> · ${L.A.length} Anschlüsse · ${L.laufen} Heizkörper an${L.warten ? ` · ${L.warten} wartet` : ''} ›</span></button>`; })() : ''}</div>
           <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon(wetterJetzt()[0], 22)}<span>${STIMMUNG.wetter === 'schnee' ? '−2,1°' : STIMMUNG.phase === 'nacht' ? '1,8°' : '4,2°'}</span><span class="kw-t">${wetterJetzt()[1]}</span></button></div>
         <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
       <div class="glas-chips">
@@ -452,7 +464,7 @@ class App {
       </div>
       <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
         ${b.geraete.map((g, i) => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">${g.typ === 'Pumpe' ? '💧' : g.typ === 'Steckdose' ? '⏻' : '♨'}</span>
-          <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${this.d.e.phasen === 3 ? ` · ${g.phase}` : ''}${g.hand ? ' · <em class="hand">Hand</em>' : ''}${g.warte ? ` · <em class="warte">wartet – Staffel, dran in ${g.warte} min</em>` : ''}${b.z === 'pause' && ['Ölradiator', 'Konvektor'].includes(g.typ) ? ' · <em class="warte">pausiert – Tür offen</em>' : ''}</span></div>
+          <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${this.anschluss(b.anschluss).phasen === 3 ? ` · ${g.phase}` : ''}${g.hand ? ' · <em class="hand">Hand</em>' : ''}${g.warte ? ` · <em class="warte">wartet – ${g.phase} am ${esc(this.anschluss(b.anschluss).name)} voll, dran in ${g.warte} min</em>` : ''}${b.z === 'pause' && ['Ölradiator', 'Konvektor'].includes(g.typ) ? ' · <em class="warte">pausiert – Tür offen</em>' : ''}</span></div>
           ${b.offline ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}
         <button class="zeile" data-act="sheet" data-s="bereich"><span class="blau">Geräte bearbeiten</span><span class="chev">›</span></button></div>
       ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter 30 W beim Laufen)</span><span class="ok">● überwacht</span></div>
@@ -479,7 +491,7 @@ class App {
         ${regel('🌡', `Heizgrenze ${de(e.grenze, 0)} °C`, `${e.basis === 'jetzt' ? 'jetzt' : 'Höchstwert heute'} ${de(bezug, 0)} °C → ${bezug > e.grenze ? 'zu warm, es wird nicht geheizt' : 'es wird geheizt'}`, bezug <= e.grenze)}
         ${regel('🌧', 'Kleidung trocknen', `6 mm Regen seit gestern (ab ${de(e.tr_mm)} mm) → ${e.tr_laenger} min länger, bis ${p ? uhr(p.ende) : '–'}`, 6 >= e.tr_mm)}
         ${regel('❄', 'Kälte-Frühstart morgen', `−1,2 °C erwartet (unter ${de(e.frueh_temp, 0)} °C) → ${e.frueh_min} min früher, dazu ${e.tr_frueher} min nach Regen`, e.fruehstart)}
-        ${e.staffel ? (() => { const L = this.last(); return regel('⚡', `Staffelung: ${L.laufen} von ${L.hk.length} Heizkörpern`, `höchstens ${e.max_gleich} gleichzeitig, ${de(L.frei)} kW frei · Vorheizen startet 15 min früher, damit alle warm werden`, true); })() : ''}
+        ${e.staffel ? (() => { const L = this.last(); return regel('⚡', `Staffelung: ${L.laufen} von ${L.hk.length} Heizkörpern`, `${L.warten ? `${L.warten} wartet, weil eine Phase voll ist` : 'alle haben Platz'} · höchstens ${e.max_gleich} gleichzeitig · Vorheizen startet 15 min früher, damit alle warm werden`, true); })() : ''}
         ${regel('🏖', 'Kein Urlaub, kein Feiertag', `nächster Feiertag ${wtag(naechster[0])} ${kurzDatum(naechster[0])} ${naechster[1]}`, false)}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Heizplan · diese Woche</b><span class="leise">aus Arbeitszeit und Wetter</span></div>${this.heizplanInhalt()}</div>
       ${this.azBlock()}
@@ -631,14 +643,14 @@ class App {
       <div class="glas-panel liste"><div class="gruppe">Strom</div>
         <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label>
         <div class="zeile"><div><b>⚡ Staffelung</b><div class="leise">verteilt die Heizungen auf den freien Strom – geschaltet werden nur Heizungen</div></div>${schalter(e.staffel, 'e-bool', 'data-k="staffel"')}</div>
-        ${e.staffel ? `<div class="zeile unter"><span>Absicherung je Phase</span>${st('absicherung', 1, v => `${v} A`)}</div>
-        <div class="zeile unter"><span>Phasen</span><div class="seg klein">${[1, 3].map(v => `<button data-act="e-wert" data-k="phasen" data-v="${v}" class="${e.phasen === v ? 'on' : ''}">${v === 1 ? '1 Phase' : '3 Phasen'}</button>`).join('')}</div></div>
-        <div class="zeile unter"><div><span>Reserve</span><div class="leise">für Werkzeug und Ungemessenes</div></div>${st('reserve', .5, v => `${de(v)} kW`)}</div>
+        ${e.staffel ? `<div class="gruppe-t gt-einzug">Anschlüsse</div>
+        ${this.d.anschluesse.map(a => `<button class="zeile unter" data-act="anschluss-auf" data-id="${a.id}"><div><b>${esc(a.name)}</b><div class="leise">${a.phasen === 3 ? '3' : '1'} × ${a.ampere} A · Reserve ${de(a.reserve)} kW · ${this.d.bereiche.filter(b => b.anschluss === a.id).map(b => esc(b.name)).join(', ') || 'keine Container'}</div></div><span class="chev">›</span></button>`).join('')}
+        <button class="zeile unter" data-act="anschluss-auf"><span class="blau">+ Anschluss hinzufügen</span></button>
         <div class="zeile unter"><span>Höchstens gleichzeitig</span>${st('max_gleich', 1, v => `${v} Heizk.`)}</div>
         <div class="zeile unter"><span>Mindestlaufzeit</span>${st('min_lauf', 1, v => `${v} min`)}</div>
         <div class="zeile unter"><span>Mindestpause</span>${st('min_pause', 1, v => `${v} min`)}</div>
         <div class="zeile unter"><div><span>Wechsel im Rundlauf</span><div class="leise">wenn nicht alle gleichzeitig dürfen</div></div>${st('takt', 5, v => `${v} min`)}</div>
-        <div class="zeile unter"><span>Gesamtzähler</span><select data-k="zaehler"><option value="keiner" ${e.zaehler === 'keiner' ? 'selected' : ''}>keiner – nur Shellys + Reserve</option><option value="3em" ${e.zaehler === '3em' ? 'selected' : ''}>Shelly Pro 3EM am Verteiler</option></select></div>
+        <div class="zeile unter"><span class="leise">Gesamtzähler: keiner – gerechnet wird mit den Shellys und der Reserve je Anschluss. Später kann je Anschluss ein Zähler dazukommen.</span></div>
         <div class="gruppe-t gt-einzug">Vorrang, wenn nicht alle dürfen</div>
         ${this.d.bereiche.filter(b => !b.pumpe).map(b => `<div class="zeile unter"><span>${esc(b.name)}</span><div class="seg klein">${['niedrig', 'normal', 'hoch'].map(v => `<button data-act="prio" data-id="${b.id}" data-v="${v}" class="${(b.prio || 'normal') === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>`).join('')}
         <div class="leise p-fuss">Frostschutz geht immer vor. Pumpen und andere Verbraucher werden mitgezählt, aber nie geschaltet.</div>` : ''}</div>
@@ -760,17 +772,29 @@ class App {
         ${eigen ? knopf('Schließen', 'zu', 'leise-k') : knopf('Speichern', 'firma-speichern', 'amber') + (neu ? '' : knopf('Firma löschen', 'firma-weg', 'rot')) + knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'strom') {
-      const L = this.last(), e = this.d.e, ph = L.phasen.length > 1;
-      const zustand = x => x.b.offline ? ['offline', 'rot-t'] : x.b.z === 'pause' ? ['pausiert – Tür offen', 'lila'] : x.g.warte ? [`wartet – dran in ${x.g.warte} min`, 'blau'] : x.g.an ? ['heizt', 'amber-t'] : ['aus', 'leise'];
+      const L = this.last(), e = this.d.e;
+      const zustand = x => x.b.offline ? ['offline', 'rot-t'] : x.b.z === 'pause' ? ['pausiert – Tür offen', 'lila'] : x.g.warte ? [`wartet – ${x.g.phase} voll, dran in ${x.g.warte} min`, 'blau'] : x.g.an ? ['heizt', 'amber-t'] : ['aus', 'leise'];
+      const pw = (v, p) => `${Math.max(0, v / p.max * 100)}%`;
       return `${griff}<div class="block-kopf"><h3>Stromverteilung</h3><span class="leise">${L.laufen} von ${L.hk.length} Heizkörpern an · höchstens ${e.max_gleich}</span></div>
-        <div class="strom-leg"><span><i class="s-heiz"></i>Heizung ${de(L.heiz)} kW</span><span><i class="s-pumpe"></i>Pumpen ${de(L.pumpe)} kW</span><span><i class="s-sonst"></i>Sonstiges ${de(L.sonst)} kW</span><span><i class="s-res"></i>Reserve ${de(e.reserve)} kW</span></div>
-        ${this.stromBalken(L)}
-        <div class="leise">${de(L.gesamt)} von ${de(L.grenze)} kW (${e.phasen} × ${e.absicherung} A) · frei für Heizungen ${de(L.frei)} kW${e.zaehler === 'keiner' ? ' · ohne Gesamtzähler: Ungemessenes steckt in der Reserve' : ''}</div>
-        ${ph ? `<div class="gruppe-t">Je Phase · ${de(L.phasen[0].max)} kW</div>${L.phasen.map(p => `<div class="ph-zeile"><b>${p.ph}</b><div class="strom-spur ph"><i class="s-heiz" style="width:${p.heiz / p.max * 100}%"></i><i class="s-pumpe" style="width:${p.pumpe / p.max * 100}%"></i><i class="s-sonst" style="width:${p.sonst / p.max * 100}%"></i></div><span class="leise">${de(p.heiz + p.pumpe + p.sonst)} kW</span></div>`).join('')}` : ''}
-        <div class="gruppe-t">Heizkörper</div>
-        ${L.hk.map(x => { const [t, k] = zustand(x); return `<div class="zeile"><span>${esc(x.b.name)} · ${esc(x.g.n)}${ph ? ` <span class="leise">${x.g.phase}</span>` : ''}</span><span class="${k}">${t}</span></div>`; }).join('')}
-        <div class="hinweis-k">Neue Heizkörper kommen erst dazu, wenn eine Minute lang genug Strom frei ist. Jeder läuft mindestens ${e.min_lauf} min und pausiert mindestens ${e.min_pause} min. Dürfen nicht alle gleichzeitig, wechseln sie alle ${e.takt} min – wer am weitesten unter dem Soll ist, kommt zuerst.</div>
-        ${knopf('Einstellungen', 'tab-einst', 'leise-k')}${knopf('Schließen', 'zu', 'leise-k')}`;
+        <div class="strom-leg"><span><i class="s-heiz"></i>Heizung ${de(L.heiz)} kW</span><span><i class="s-pumpe"></i>Pumpen ${de(L.pumpe)} kW</span><span><i class="s-sonst"></i>Sonstiges ${de(L.sonst)} kW</span><span><i class="s-res"></i>Reserve (Kran, Werkzeug)</span></div>
+        ${L.A.map(a => `<div class="an-block"><div class="an-kopf"><b>${esc(a.name)}</b><span class="leise">${a.phasen.length} × ${a.ampere} A · ${de(a.heiz + a.pumpe + a.sonst)} kW</span></div>
+          ${a.phasen.map(p => `<div class="ph-zeile"><b>${p.ph}</b><div class="strom-spur ph"><i class="s-heiz" style="width:${pw(p.heiz, p)}"></i><i class="s-pumpe" style="width:${pw(p.pumpe, p)}"></i><i class="s-sonst" style="width:${pw(p.sonst, p)}"></i><i class="s-res" style="width:${pw(p.res, p)}"></i></div><span class="${p.frei < 2 ? 'amber-t' : 'leise'}">${de(Math.max(0, p.frei))} frei</span></div>`).join('')}
+          ${L.hk.filter(x => x.b.anschluss === a.id).map(x => { const [t, k] = zustand(x); return `<div class="zeile"><span>${esc(x.b.name)} · ${esc(x.g.n)} <span class="leise">${a.phasen.length === 3 ? x.g.phase : ''}</span></span><span class="${k}">${t}</span></div>`; }).join('')}</div>`).join('')}
+        <div class="hinweis-k">Je Phase gilt: Absicherung minus Reserve minus alles, was schon läuft. Ein Heizkörper kommt erst dazu, wenn auf seiner Phase eine Minute lang genug frei ist. Jeder läuft mindestens ${e.min_lauf} min und pausiert mindestens ${e.min_pause} min; dürfen nicht alle, wechseln sie alle ${e.takt} min – wer am weitesten unter dem Soll ist, zuerst.</div>
+        ${knopf('Anschlüsse einstellen', 'tab-einst', 'leise-k')}${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'anschluss') {
+      const f = s.form, neu = !f.id;
+      return `${griff}<h3>${neu ? 'Neuer Anschluss' : 'Anschluss'}</h3>
+        <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Verteiler West" data-an="name"></label>
+        <div class="zeile"><span>Absicherung</span><div class="seg klein">${[16, 32, 63].map(v => `<button data-act="an-wert" data-k="ampere" data-v="${v}" class="${f.ampere === v ? 'on' : ''}">${v} A</button>`).join('')}</div></div>
+        <div class="zeile"><span>Phasen</span><div class="seg klein">${[1, 3].map(v => `<button data-act="an-wert" data-k="phasen" data-v="${v}" class="${f.phasen === v ? 'on' : ''}">${v === 3 ? 'Starkstrom (3)' : '1 Phase'}</button>`).join('')}</div></div>
+        <div class="zeile"><div><span>Reserve</span><div class="leise">für Ungemessenes wie Kran oder Werkzeug</div></div><span class="stepper"><button data-act="an-res" data-d="-1">−</button><b>${de(f.reserve)} kW</b><button data-act="an-res" data-d="1">+</button></span></div>
+        <div class="leise">Je Phase ${de(f.ampere * .23)} kW, davon ${de(f.reserve / f.phasen)} kW Reserve.</div>
+        <div class="gruppe-t">Container an diesem Anschluss</div>
+        ${this.d.bereiche.map(b => `<div class="zeile"><span>${esc(b.name)} <span class="leise">${f.container.includes(b.id) ? '' : '· ' + esc(this.anschluss(b.anschluss).name)}</span></span>${schalter(f.container.includes(b.id), 'an-c', `data-id="${b.id}"`)}</div>`).join('')}
+        <div class="leise">Ein Container hängt an genau einem Anschluss. Die Phase je Gerät stellst du beim Container unter „Bearbeiten“ ein.</div>
+        ${knopf('Speichern', 'an-speichern', 'amber')}${!neu && this.d.anschluesse.length > 1 ? knopf('Anschluss löschen', 'an-weg', 'rot') : ''}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'nachrichten') {
       const n = (ic, titel, text, knoepfe, b) => `<div class="noti"><div class="noti-kopf"><span class="noti-app">🏗 Home Assistant · jetzt</span></div><b>${ic} ${titel}</b><div>${text}</div>
@@ -815,19 +839,20 @@ class App {
       <label class="feld">Heizkörper<select><option>Ölradiator</option><option>Konvektor</option></select></label>
       ${knopf('Anlegen', 'neu-anlegen', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     if (s.art === 'bereich') {
-      const b = this.b, e = s.edit ||= { name: b.name, tuer: b.tuer?.sensor || '', firma: b.firma || 'eigen', geraete: b.geraete.map(g => ({ ...g })) };
+      const b = this.b, e = s.edit ||= { name: b.name, anschluss: b.anschluss || this.d.anschluesse[0].id, tuer: b.tuer?.sensor || '', firma: b.firma || 'eigen', geraete: b.geraete.map(g => ({ ...g })) };
       const typen = b.pumpe ? ['Pumpe'] : ['Ölradiator', 'Konvektor', 'Steckdose'];
       const wahl = (i, g) => `<select data-ge="typ" data-i="${i}">${typen.map(t => `<option ${g.typ === t ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
       return `${griff}<div class="block-kopf"><h3>Bearbeiten</h3><span class="leise">${b.pumpe ? 'Pumpenschacht' : 'Container'}</span></div>
         <label class="feld">Name<input value="${esc(e.name)}" data-b="name"></label>
         ${b.pumpe ? '' : `<label class="feld">Türkontakt<select data-btuer>${['', 'Tür Polier', 'Tür Magazin', 'Tür Mannschaft (neu)'].map(t => `<option value="${t}" ${(e.tuer || '') === t ? 'selected' : ''}>${t ? `${t} · Shelly Door/Window` : 'keiner'}</option>`).join('')}</select></label>`}
+        <label class="feld">Stromanschluss<select data-ban>${this.d.anschluesse.map(a => `<option value="${a.id}" ${e.anschluss === a.id ? 'selected' : ''}>${esc(a.name)} · ${a.phasen === 3 ? '3' : '1'} × ${a.ampere} A</option>`).join('')}</select></label>
         <label class="feld">Firma · für die Abrechnung<select data-bf="firma">${this.d.firmen.map(f => `<option value="${f.id}" ${e.firma === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>
         <div class="gruppe-t">${b.pumpe ? 'Pumpen' : 'Geräte'} · ${e.geraete.filter(g => !g.weg).length}</div>
         ${e.geraete.map((g, i) => g.weg ? `<div class="ge-zeile weg"><span>${esc(g.n)} wird entfernt</span><button class="chip glas-panel" data-act="ge-zurueck" data-i="${i}">rückgängig</button></div>`
           : `<div class="ge-zeile"><div class="ge-felder">
             ${g.neu ? `<select data-ge="shelly" data-i="${i}">${['Heizung 03 · Shelly Plug S', 'Heizung 04 · Shelly Plug S', 'Pumpe 3 · Shelly Plus 1PM'].map(x => `<option ${g.shelly === x ? 'selected' : ''}>${x}</option>`).join('')}</select>` : `<span class="leise ge-shelly">${esc(g.shelly || g.n.toLowerCase().replace(/[^a-z0-9]+/g, '_'))} · Shelly Plug S</span>`}
             <div class="ge-zwei"><input value="${esc(g.n)}" data-ge="n" data-i="${i}" placeholder="Name">${wahl(i, g)}</div>
-            ${this.d.e.phasen === 3 ? `<div class="ge-phase"><span class="leise">Phase</span><div class="seg klein">${['L1', 'L2', 'L3'].map(ph => `<button data-act="ge-phase" data-i="${i}" data-v="${ph}" class="${(g.phase || 'L1') === ph ? 'on' : ''}">${ph}</button>`).join('')}</div></div>` : ''}</div>
+            ${this.anschluss(e.anschluss).phasen === 3 ? `<div class="ge-phase"><span class="leise">Phase</span><div class="seg klein">${['L1', 'L2', 'L3'].map(ph => `<button data-act="ge-phase" data-i="${i}" data-v="${ph}" class="${(g.phase || 'L1') === ph ? 'on' : ''}">${ph}</button>`).join('')}</div></div>` : ''}</div>
             <button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
         <button class="zeile" data-act="ge-neu"><span class="blau">+ Gerät hinzufügen</span></button>
         <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
@@ -887,7 +912,7 @@ class App {
       case 'verlauf': this.s.verlauf = el.dataset.v; return neu();
       case 'basis': d.e.basis = el.dataset.v; return neu();
       case 'e-bool': d.e[el.dataset.k] = !d.e[el.dataset.k]; return neu();
-      case 'st': { const k = el.dataset.k, min = { absicherung: 6, max_gleich: 1, min_lauf: 1, takt: 5, tuer_pause: 1, tuer_melden: 1 }[k] || 0; d.e[k] = Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10); return neu(); }
+      case 'st': { const k = el.dataset.k, min = { max_gleich: 1, min_lauf: 1, takt: 5, tuer_pause: 1, tuer_melden: 1 }[k] || 0; d.e[k] = Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10); return neu(); }
       case 'jc-auto': { const x = d.bereiche.find(y => y.id === el.dataset.id); x.auto = !x.auto; return neu(); }
       case 'jc-soll': { const x = d.bereiche.find(y => y.id === el.dataset.id); x.soll = Math.round(((x.soll ?? d.e.soll) + +el.dataset.d) * 2) / 2; return neu(); }
       case 'urlaub-weg': { const u = d.urlaube.splice(+el.dataset.i, 1)[0]; neu(); return this.toast(`${u.name} gelöscht`); }
@@ -912,6 +937,19 @@ class App {
       case 'prio': d.bereiche.find(x => x.id === el.dataset.id).prio = el.dataset.v; return neu();
       case 'ge-phase': this.s.sheet.edit.geraete[+el.dataset.i].phase = el.dataset.v; return neu();
       case 'n-knopf': d.protokoll.unshift(['Heute', JETZT, 'nachricht', el.dataset.b || null, `Knopf „${el.dataset.t}“ in der Nachricht gedrückt`]); return this.toast(`„${el.dataset.t}“ ausgeführt – steht im Protokoll`);
+      case 'anschluss-auf': { const a = el.dataset.id ? this.anschluss(el.dataset.id) : null;
+        this.s.sheet = { art: 'anschluss', form: { id: a?.id, name: a?.name || '', ampere: a?.ampere || 32, phasen: a?.phasen || 3, reserve: a?.reserve ?? 3, container: a ? d.bereiche.filter(b => b.anschluss === a.id).map(b => b.id) : [] } }; return neu(); }
+      case 'an-wert': this.s.sheet.form[el.dataset.k] = +el.dataset.v; return neu();
+      case 'an-res': this.s.sheet.form.reserve = Math.max(0, this.s.sheet.form.reserve + +el.dataset.d); return neu();
+      case 'an-c': { const c = this.s.sheet.form.container, id = el.dataset.id; this.s.sheet.form.container = c.includes(id) ? c.filter(x => x !== id) : [...c, id]; return neu(); }
+      case 'an-speichern': { const f = this.s.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
+        let a = f.id && this.anschluss(f.id); if (!a) { a = { id: 'a' + Date.now().toString(36) }; d.anschluesse.push(a); }
+        Object.assign(a, { name: f.name.trim(), ampere: f.ampere, phasen: f.phasen, reserve: f.reserve });
+        const rest = d.anschluesse.find(x => x !== a) || a;
+        for (const b of d.bereiche) { if (f.container.includes(b.id)) b.anschluss = a.id; else if (b.anschluss === a.id && rest !== a) b.anschluss = rest.id; }
+        this.s.sheet = null; neu(); return this.toast(`${a.name} gespeichert`); }
+      case 'an-weg': { const id = this.s.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); for (const b of d.bereiche) if (b.anschluss === id) b.anschluss = rest.id;
+        d.anschluesse = d.anschluesse.filter(x => x.id !== id); this.s.sheet = null; neu(); return this.toast(`Gelöscht – Container hängen jetzt an ${rest.name}`); }
       case 'tab-einst': return this.gehe('einst');
       case 'az-alt': this.s.azAlt = !this.s.azAlt; return neu();
       case 'az-heizung': return this.gehe('heizung');
@@ -930,7 +968,7 @@ class App {
         this.neuerContainer(name, this.s.sheet.neuArt === 'Pumpenschacht', 'eigen'); this.s.sheet = null; neu(); return this.toast(`${name} angelegt`); }
       case 'b-speichern': { const e = this.s.sheet.edit, kw = { Ölradiator: 2, Konvektor: 2, Steckdose: .5, Pumpe: .76 };
         if (e.name.trim()) b.name = e.name.trim();
-        b.firma = e.firma; b.tuer = e.tuer ? { sensor: e.tuer, offen: b.tuer?.sensor === e.tuer ? b.tuer.offen : 0 } : undefined;
+        b.firma = e.firma; b.anschluss = e.anschluss; b.tuer = e.tuer ? { sensor: e.tuer, offen: b.tuer?.sensor === e.tuer ? b.tuer.offen : 0 } : undefined;
         const weg = e.geraete.filter(g => g.weg).length;
         b.geraete = e.geraete.filter(g => !g.weg).map(g => g.neu ? { n: g.n || g.shelly.split(' · ')[0], typ: g.typ, kw: kw[g.typ], an: 0, hand: false } : { ...g });
         this.s.sheet = null; neu(); return this.toast(weg ? `Gespeichert · ${weg} entfernt – Werte bleiben im Verlauf` : 'Gespeichert'); }
@@ -949,7 +987,9 @@ class App {
     if (el.dataset.ge) this.s.sheet.edit.geraete[+el.dataset.i][el.dataset.ge] = el.value;
     if (el.dataset.bf) this.s.sheet.edit.firma = el.value;
     if (el.dataset.btuer !== undefined) this.s.sheet.edit.tuer = el.value;
-    if (el.dataset.k === 'zaehler' || el.dataset.k === 'mail') { this.d.e[el.dataset.k] = el.value; if (el.dataset.k === 'zaehler') this.render(); }
+    if (el.dataset.k === 'mail') this.d.e.mail = el.value;
+    if (el.dataset.ban !== undefined) { this.s.sheet.edit.anschluss = el.value; this.render(); }
+    if (el.dataset.an) this.s.sheet.form[el.dataset.an] = el.value;
     if (el.dataset.fn !== undefined) this.s.sheet.form.name = el.value;
     if (el.dataset.fnc !== undefined) this.s.sheet.form.neu[+el.dataset.fnc].name = el.value;
     if (el.dataset.b === 'name' && this.s.sheet?.edit) this.s.sheet.edit.name = el.value;
