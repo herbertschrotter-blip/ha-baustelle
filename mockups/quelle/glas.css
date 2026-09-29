@@ -336,6 +336,19 @@ body.hell { background: #d9dee5; color: #111; }
 .bedarf-an { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--amber); }
 .glas-k[role=button] { cursor: pointer; }
 
+/* Heizzeiten-Übersicht */
+.tl-termin { background: color-mix(in srgb, var(--amber) 70%, #bf5af2); }
+.hz-tag { display: flex; flex-direction: column; gap: 6px; }
+.hz-zeile { display: grid; grid-template-columns: 96px 1fr 40px; gap: 8px; align-items: center; } .hz-zeile.aus { opacity: .45; }
+.hz-n { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hz-h { font-size: 11px; color: var(--ink2); text-align: right; }
+.tl-spur.hz { height: 14px; border-radius: 5px; }
+.hz-woche { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.hz-wk, .hz-wz { display: grid; grid-template-columns: 92px repeat(7, 1fr) 40px; gap: 3px; align-items: center; }
+.hz-wk span { text-align: center; font-size: 11px; color: var(--ink2); line-height: 1.1; } .hz-wk span.heute { color: var(--amber); font-weight: 700; }
+.hz-zelle { height: 26px; border-radius: 6px !important; text-align: center !important; font-size: 11px; background: color-mix(in srgb, var(--amber) calc(var(--a) * 100%), rgba(120,120,128,.14)) !important; }
+.hz-sum { text-align: right; font-size: 11px; }
+.t-wann { width: 70px !important; }
+
 /* Kennzahlen */
 .kennz { display: grid; grid-template-columns: repeat(3, 1fr); padding: 14px 6px; text-align: center; }
 .kennz div + div { border-left: 1px solid var(--gridc); }
