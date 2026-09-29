@@ -364,6 +364,8 @@ body.hell { background: #d9dee5; color: #111; }
 .cl-liste { padding: 0 0 8px 4px; } .cl-v { border-top: 1px solid var(--gridc); }
 @container (min-width: 700px) { .melden-knopf { bottom: 24px; right: 24px; } .melden-knopf.ueber-sheet { top: 24px; } }
 
+.hp-zeile.ausn .hp-tag b::after { content: ' •'; color: var(--blau); }
+
 /* Kennzahlen */
 .kennz { display: grid; grid-template-columns: repeat(3, 1fr); padding: 14px 6px; text-align: center; }
 .kennz div + div { border-left: 1px solid var(--gridc); }

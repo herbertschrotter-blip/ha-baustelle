@@ -414,6 +414,8 @@ body.hell { background: #d9dee5; color: #111; }
 .cl-liste { padding: 0 0 8px 4px; } .cl-v { border-top: 1px solid var(--gridc); }
 @container (min-width: 700px) { .melden-knopf { bottom: 24px; right: 24px; } .melden-knopf.ueber-sheet { top: 24px; } }
 
+.hp-zeile.ausn .hp-tag b::after { content: ' •'; color: var(--blau); }
+
 /* Kennzahlen */
 .kennz { display: grid; grid-template-columns: repeat(3, 1fr); padding: 14px 6px; text-align: center; }
 .kennz div + div { border-left: 1px solid var(--gridc); }
@@ -739,6 +741,7 @@ const tageZwischen = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(
 /* Liegt ein (wiederkehrender) Termin auf diesem Tag? */
 const terminAm = (t, iso) => { const d = tageZwischen(t.datum, iso); return t.wieder === 'einmal' ? d === 0 : d >= 0 && d % (t.wieder === '2wochen' ? 14 : 7) === 0; };
 const naechsterTermin = (t, ab) => { for (let k = 0; k < 28; k++) { const d = new Date(ab + 'T12:00:00'); d.setDate(d.getDate() + k); const iso = d.toISOString().slice(0, 10); if (terminAm(t, iso)) return iso; } return null; };
+const AUSNAHME = { arbeit: 'zusätzlich arbeiten', zeiten: 'andere Zeiten', frei: 'frei' };
 const kurzDatum = iso => iso.split('-').reverse().slice(0, 2).join('.') + '.';
 const wtag = iso => ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date(iso + 'T12:00:00').getDay()];
 const dauer = (a, b) => { const m = minu(b) - minu(a); return `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}`; };
@@ -807,6 +810,8 @@ function daten() {
     feiertage: [['2026-10-26', 'Nationalfeiertag'], ['2026-11-01', 'Allerheiligen'], ['2026-12-08', 'Mariä Empfängnis'], ['2026-12-25', 'Christtag'],
       ['2026-12-26', 'Stefanitag'], ['2027-01-01', 'Neujahr'], ['2027-01-06', 'Heilige Drei Könige']],
     urlaube: [{ name: 'Weihnachten', von: '2026-12-23', bis: '2027-01-06' }],
+    // Einmal-Ausnahmen von der Arbeitszeit (gelten genau für ein Datum)
+    ausnahmen: [{ datum: '2026-09-30', art: 'zeiten', von: '07:00', bis: '18:00', notiz: 'Kranmontage – länger' }, { datum: '2026-10-03', art: 'arbeit', von: '07:00', bis: '12:00', notiz: 'Samstag betonieren' }],
     // offene Warnungen: stufe 'stoerung' (rot) oder 'hinweis' (gelb)
     warnungen: [
       { id: 'w1', stufe: 'stoerung', b: 'lager', titel: 'nicht erreichbar', seit: 'seit 10:42', hilfe: 'Shelly antwortet nicht. Stecker und Sicherung prüfen – bei Stromausfall meldet er sich von selbst zurück.' },
@@ -992,18 +997,20 @@ class App {
   get azJetzt() { return this.azListe.filter(a => a.ab <= HEUTE).at(-1); }
   /* Heizplan eines Tages aus Arbeitszeit, Vorheizen, Kälte-Frühstart und Kleidung trocknen */
   planTag(tag, trocknen = true) {
-    const zeit = this.azJetzt.tage[tag], e = this.d.e, w = WETTER_WOCHE[tag] || {};
+    const iso = WOCHE_ISO[TAGE.indexOf(tag)], aus = this.d.ausnahmen.find(x => x.datum === iso);
+    const zeit = aus ? (aus.art === 'frei' ? null : [aus.von, aus.bis]) : this.azJetzt.tage[tag], e = this.d.e, w = WETTER_WOCHE[tag] || {};
     if (!zeit) return null;
-    const [a, b] = zeit.map(minu), gruende = [];
+    const [a, b] = zeit.map(minu), gruende = aus ? [`Ausnahme: ${aus.notiz || AUSNAHME[aus.art]}`] : [];
     let extra = 0;
     if (e.fruehstart && w.kalt !== undefined && w.kalt < e.frueh_temp) { extra += e.frueh_min; gruende.push(`Frühstart ${de(w.kalt).replace('-', '−')} °C`); }
     if (trocknen && w.regenVortag >= e.tr_mm) { extra += e.tr_frueher; gruende.push(`früher nach Regen`); }
     const tr = trocknen && w.regen >= e.tr_mm ? e.tr_laenger : 0;
     if (tr) gruende.push(`Kleidung trocknen, ${de(w.regen, w.regen % 1 ? 1 : 0)} mm Regen`);
-    return { vor: a - e.vorheizen, extra: a - e.vorheizen - extra, a, b, nach: b + e.nachheizen, ende: b + e.nachheizen + tr, gruende };
+    return { vor: a - e.vorheizen, extra: a - e.vorheizen - extra, a, b, nach: b + e.nachheizen, ende: b + e.nachheizen + tr, gruende, ausnahme: aus };
   }
   statusText() {
     if (!this.s.auto) return 'Handbetrieb – nichts wird geschaltet';
+    if (this.d.jetztBis) return `♨ alle heizen bis ${this.d.jetztBis}`;
     const p = this.planTag(HEUTE_TAG), j = minu(JETZT);
     if (p && j >= p.extra && j < p.ende) return `♨ heizt bis ${uhr(p.ende)}`;
     if (p && j < p.extra) return `Start um ${uhr(p.extra)}`;
@@ -1134,8 +1141,8 @@ class App {
   heizplanInhalt() {
     return `<div class="hp-legende"><span><i class="tl-extra"></i>Frühstart</span><span><i class="tl-vor"></i>Vor- und Nachheizen ${this.d.e.vorheizen}/${this.d.e.nachheizen} min</span><span><i class="tl-heiz"></i>Arbeitszeit</span><span><i class="tl-trock"></i>Kleidung trocknen</span></div>
       <div class="hp">${WOCHE.map(([t, d]) => { const p = this.planTag(t), h = t === HEUTE_TAG;
-        return `<div class="hp-zeile ${h ? 'heute' : ''}"><div class="hp-tag"><b>${h ? 'heute' : t}</b><span>${d}</span></div>
-          <div class="hp-mitte">${this.zeitstrahl(p, h)}<div class="leise">${p ? p.gruende.join(' · ') : 'frei · nur Frostschutz'}</div></div>
+        return `<div class="hp-zeile ${h ? 'heute' : ''} ${this.d.ausnahmen.some(x => x.datum === WOCHE_ISO[TAGE.indexOf(t)]) ? 'ausn' : ''}"><div class="hp-tag"><b>${h ? 'heute' : t}</b><span>${d}</span></div>
+          <div class="hp-mitte">${this.zeitstrahl(p, h)}<div class="leise">${p ? p.gruende.join(' · ') : (() => { const a = this.d.ausnahmen.find(x => x.datum === WOCHE_ISO[TAGE.indexOf(t)]); return a ? `Ausnahme: frei${a.notiz ? ' – ' + esc(a.notiz) : ''} · nur Frostschutz` : 'frei · nur Frostschutz'; })()}</div></div>
           <div class="hp-zeit">${p ? `${uhr(p.extra)}<br>${uhr(p.ende)}` : '–'}</div></div>`; }).join('')}
         <div class="hp-zeile achse"><div></div><div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div><div></div></div></div>`;
   }
@@ -1284,6 +1291,7 @@ class App {
       ${this.uebersichtHeizzeiten()}
       <div class="glas-panel block"><div class="block-kopf"><b>Heizplan · diese Woche</b><span class="leise">aus Arbeitszeit und Wetter</span></div>${this.heizplanInhalt()}</div>
       ${this.azBlock()}
+      ${this.ausnahmenBlock()}
       <div class="glas-panel block"><div class="block-kopf"><b>So wird geheizt</b><span class="leise">in der Arbeitszeit immer</span></div>
         <div class="zeile"><div><b>Vorheizen</b><div class="leise">vor Arbeitsbeginn, damit es warm ist</div></div>${st('vorheizen', 5, min)}</div>
         <div class="zeile"><div><b>Nachheizen</b><div class="leise">nach Arbeitsende, jeden Tag</div></div>${st('nachheizen', 5, min)}</div>
@@ -1316,6 +1324,15 @@ class App {
         <div class="gruppe-t">Urlaub · Kalender „Baustelle Urlaub“</div>
         ${this.d.urlaube.map((u, i) => `<div class="zeile unter"><span><b>${esc(u.name)}</b> <span class="leise">${kurzDatum(u.von)} – ${datum(u.bis)}</span></span><button class="x" data-act="urlaub-weg" data-i="${i}" title="Urlaub löschen">✕</button></div>`).join('') || '<div class="leise">Kein Urlaub eingetragen</div>'}
         <button class="zeile" data-act="sheet" data-s="urlaub"><span class="blau">+ Urlaub eintragen</span></button></div>`;
+  }
+  ausnahmenBlock() {
+    const L = this.d.ausnahmen.filter(a => a.datum >= HEUTE).sort((a, b) => a.datum.localeCompare(b.datum));
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Ausnahmen</b><span class="leise">einmalig – die Arbeitszeit bleibt, wie sie ist</span></div>
+      <div class="bedarf-dauer">${[['heute-laenger', '+ Heute länger'], ['morgen-spaeter', '+ Morgen später'], ['samstag', '+ Samstag arbeiten'], ['frei', '+ Freier Tag']].map(([k, t]) => `<button class="chip glas-panel" data-act="ausn-neu" data-v="${k}">${t}</button>`).join('')}</div>
+      ${L.length ? L.map(a => `<div class="zeile ereignis"><span class="zeit t-wann">${wtag(a.datum)} ${kurzDatum(a.datum)}</span>
+          <div><b>${a.art === 'frei' ? 'frei' : `${a.von}–${a.bis}`}</b> <span class="badge ${a.art === 'frei' ? '' : 'blau-b'}">${AUSNAHME[a.art]}</span>${a.notiz ? `<div class="leise">${esc(a.notiz)}</div>` : ''}</div>
+          <button class="x" data-act="ausn-weg" data-d="${a.datum}" title="Ausnahme löschen">✕</button></div>`).join('') : '<div class="leise">Keine Ausnahmen</div>'}
+      <button class="zeile" data-act="ausn-neu" data-v=""><span class="blau">+ Ausnahme für einen anderen Tag</span></button></div>`;
   }
   azBlock() {
     const L = this.azListe, jetzt = this.azJetzt, geplant = L.filter(a => a.ab > HEUTE), frueher = L.filter(a => a.ab < jetzt.ab).reverse();
@@ -1575,6 +1592,7 @@ class App {
       return `${griff}<div class="block-kopf"><h3>Heizplan · diese Woche</h3><span class="leise">${esc(az.name)} · seit ${datum(az.ab)}</span></div>
         ${this.s.auto ? '' : '<div class="warn-k"><b>Automatik ist aus</b><div class="leise">Der Plan wird gerade nicht ausgeführt.</div></div>'}
         ${this.heizplanInhalt()}
+        <div class="bedarf-dauer">${this.d.jetztBis ? `<button class="chip glas-panel amber" data-act="jetzt-aus">■ alle heizen bis ${this.d.jetztBis} – beenden</button>` : `<button class="chip glas-panel" data-act="jetzt-an">▶ alle jetzt 1 h heizen</button>`}<button class="chip glas-panel" data-act="ausn-neu" data-v="">+ Ausnahme</button></div>
         ${knopf('Arbeitszeit ändern', 'az-heizung', 'amber')}${knopf('Schließen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'az') {
@@ -1683,6 +1701,18 @@ class App {
         <div class="ml-kontext"><div><span class="leise">Fenster</span> ${esc(f.kontext)}</div><div><span class="leise">Version</span> ${VERSION} · ${f.geraet} · Di 29.09. ${JETZT}</div></div>
         <div class="zeile"><div><b>Stand der Seite mitschicken</b><div class="leise">Zustand und Einstellungen als Anhang – hilft beim Nachstellen, ohne Zugangsdaten</div></div>${schalter(f.stand, 'ml-stand')}</div>
         ${knopf('Senden', 'ml-senden', 'amber')}${knopf('Abbrechen', 'ml-zurueck', 'leise-k')}`;
+    }
+    if (s.art === 'ausnahme') {
+      const f = s.form, az = this.azJetzt.tage[wtag(f.datum)];
+      return `${griff}<h3>Ausnahme</h3>
+        <label class="feld">Tag<input type="date" value="${f.datum}" data-au="datum"></label>
+        <div class="leise">${wtag(f.datum)} ${kurzDatum(f.datum)} · laut Arbeitszeit ${az ? az.join('–') : 'frei'}</div>
+        <div class="seg">${Object.entries(AUSNAHME).map(([k, t]) => `<button data-act="au-art" data-v="${k}" class="${f.art === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+        ${f.art === 'frei' ? '<div class="leise">An diesem Tag wird nicht geheizt, nur der Frostschutz läuft.</div>'
+          : `<div class="raster-2"><label class="feld">von<input type="time" value="${f.von}" data-au="von"></label><label class="feld">bis<input type="time" value="${f.bis}" data-au="bis"></label></div>
+          <div class="leise">Vorheizen ${this.d.e.vorheizen} min und Nachheizen ${this.d.e.nachheizen} min gelten auch hier – geheizt wird ${uhr(minu(f.von) - this.d.e.vorheizen)}–${uhr(minu(f.bis) + this.d.e.nachheizen)}.</div>`}
+        <label class="feld">Notiz<input value="${esc(f.notiz)}" placeholder="z. B. Betonieren" data-au="notiz"></label>
+        ${knopf('Speichern', 'au-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'az-neu') {
       const f = s.form;
@@ -1803,6 +1833,20 @@ class App {
         neu(); return this.toast(x.boost ? `${x.name}: schnell aufheizen` : `${x.name}: normal weiter`); }
       case 'hz-art': this.s.hzArt = el.dataset.v; return neu();
       case 'hz-tag': this.s.hzTag = el.dataset.v; if (el.dataset.art) this.s.hzArt = 'tag'; return neu();
+      case 'ausn-neu': { const v = el.dataset.v, az = this.azJetzt.tage;
+        const vor = { 'heute-laenger': { datum: HEUTE, art: 'zeiten', von: (az[HEUTE_TAG] || ['07:00'])[0], bis: '18:00', notiz: 'heute länger' },
+          'morgen-spaeter': { datum: '2026-09-30', art: 'zeiten', von: '09:00', bis: (az.Mi || ['', '16:30'])[1], notiz: 'morgen später' },
+          samstag: { datum: '2026-10-03', art: 'arbeit', von: '07:00', bis: '12:00', notiz: '' }, frei: { datum: '2026-10-02', art: 'frei', von: '07:00', bis: '16:30', notiz: 'Zwickeltag' } }[v]
+          || { datum: '2026-10-05', art: 'zeiten', von: '07:00', bis: '16:30', notiz: '' };
+        this.s.sheet = { art: 'ausnahme', form: { ...vor } }; return neu(); }
+      case 'au-art': this.s.sheet.form.art = el.dataset.v; return neu();
+      case 'au-speichern': { const f = this.s.sheet.form; if (!f.datum || (f.art !== 'frei' && f.bis <= f.von)) return this.toast('Bitte Tag und Uhrzeit prüfen');
+        d.ausnahmen = d.ausnahmen.filter(x => x.datum !== f.datum); d.ausnahmen.push({ datum: f.datum, art: f.art, von: f.von, bis: f.bis, notiz: f.notiz.trim() });
+        d.protokoll.unshift(['Heute', JETZT, 'einstellung', null, `Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)}: ${f.art === 'frei' ? 'frei' : `${f.von}–${f.bis}`}${f.notiz.trim() ? ' – ' + f.notiz.trim() : ''}`]);
+        this.s.sheet = null; neu(); return this.toast(`Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)} gespeichert`); }
+      case 'ausn-weg': { d.ausnahmen = d.ausnahmen.filter(x => x.datum !== el.dataset.d); neu(); return this.toast('Ausnahme gelöscht – es gilt wieder die Arbeitszeit'); }
+      case 'jetzt-an': d.jetztBis = uhr(minu(JETZT) + 60); d.protokoll.unshift(['Heute', JETZT, 'schalten', null, `Alle Container jetzt heizen bis ${d.jetztBis}`]); neu(); return this.toast(`Alle heizen bis ${d.jetztBis}`);
+      case 'jetzt-aus': d.jetztBis = null; neu(); return this.toast('Zurück zum Plan');
       case 'b-auto': b.auto = !b.auto; return neu();
       case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; x.trocknen = !x.trocknen; return neu(); }
       case 'geraet': { const g = b.geraete[+el.dataset.i]; g.an = g.an ? 0 : 1; g.hand = b.auto;
@@ -1887,6 +1931,7 @@ class App {
     if (el.dataset.azn) this.s.sheet.form[el.dataset.azn] = el.value;
     if (el.dataset.ur) this.s.sheet.form[el.dataset.ur] = el.value;
     if (el.dataset.tm) this.s.sheet.form[el.dataset.tm] = el.value;
+    if (el.dataset.au) { this.s.sheet.form[el.dataset.au] = el.value; if (el.dataset.au === 'datum') this.render(); }
     if (el.dataset.ml) this.s.sheet.form[el.dataset.ml] = el.value;
     if (el.dataset.ge) this.s.sheet.edit.geraete[+el.dataset.i][el.dataset.ge] = el.value;
     if (el.dataset.bf) this.s.sheet.edit.firma = el.value;
