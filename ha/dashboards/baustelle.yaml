@@ -1,0 +1,12 @@
+# Dashboard „Baustelle“ (Projekt ha-baustelle, Quelle: /config/projekte/ha-baustelle)
+title: Baustelle
+views:
+  - title: Übersicht
+    path: uebersicht
+    icon: mdi:crane
+    cards:
+      - type: markdown
+        content: >-
+          ## Baustelle
+
+          Dieses Dashboard ist noch im Aufbau.

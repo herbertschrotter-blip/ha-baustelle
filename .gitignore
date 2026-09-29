@@ -1,0 +1,15 @@
+# Niemals ins Repo: Zugangsdaten, interner HA-Zustand, Datenbanken, Protokolle
+secrets.yaml
+.storage/
+.cloud/
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.log.*
+.env
+
+# Lokales
+__pycache__/
+*.pyc
+*.bak
