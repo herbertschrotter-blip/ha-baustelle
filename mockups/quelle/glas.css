@@ -266,6 +266,31 @@ body.hell { background: #d9dee5; color: #111; }
 .p-ic { width: 16px; text-align: center; flex: none; font-size: 13px; }
 .ereignis > div { font-size: 13px; } .p-fuss { padding: 6px 16px 10px; }
 
+/* Heizung: Regeln heute, je Container, Feiertage */
+.hr-zeile { display: grid; grid-template-columns: 26px 1fr 14px; gap: 8px; align-items: center; padding: 7px 0; opacity: .6; }
+.hr-zeile + .hr-zeile { border-top: 1px solid var(--gridc); } .hr-zeile.an { opacity: 1; }
+.hr-ic { font-size: 18px; text-align: center; } .hr-an { color: var(--ink2); font-size: 11px; } .hr-zeile.an .hr-an { color: var(--amber); }
+.jc { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--gridc); flex-wrap: wrap; }
+.jc-name { display: flex; flex-direction: column; min-width: 110px; } .jc-ctrl { display: flex; align-items: center; gap: 6px; }
+.jc-l { font-size: 11px; color: var(--ink2); } .jc-th { width: 92px; text-align: center; font-size: 11px; }
+.sw.klein { width: 38px; height: 22px; } .sw.klein i { width: 18px; height: 18px; } .sw.klein.on i { transform: translateX(16px); }
+.stepper.klein button { width: 24px; height: 24px; font-size: 15px; } .stepper.klein b { min-width: 40px; font-size: 13px; } .stepper b.eigen { color: var(--amber); }
+.ft-d { font-weight: 600; min-width: 64px; display: inline-block; }
+/* Auswertung */
+.kennz.vier { grid-template-columns: repeat(4, 1fr); } .kennz em { display: block; font-style: normal; font-size: 10.5px; margin-top: 2px; }
+.kennz em.mehr { color: var(--rot); } .kennz em.weniger { color: #30d158; }
+@container (max-width: 420px) { .kennz.vier { grid-template-columns: repeat(2, 1fr); row-gap: 10px; } .kennz.vier div:nth-child(3) { border-left: 0; } }
+.vgl { margin: -6px 6px 0; }
+.hinweis-k { font-size: 13px; padding: 8px 10px; border-radius: 12px; background: rgba(120,120,128,.14); }
+.punkt-s { stroke: var(--sheet); stroke-width: 1.5; opacity: .9; }
+
+/* Firmen und Abrechnung */
+.firma-tag { align-self: flex-start; font-size: 10.5px; padding: 1px 7px; border-radius: 8px; background: rgba(120,120,128,.25); color: var(--ink2); margin-top: -1px; }
+.vb-gruppe { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.ab-firma { padding: 8px 0; border-top: 1px solid var(--gridc); } .ab-firma:first-of-type { border-top: 0; }
+.ab-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ab-c { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 3px 0 0 12px; }
+
 /* Kennzahlen */
 .kennz { display: grid; grid-template-columns: repeat(3, 1fr); padding: 14px 6px; text-align: center; }
 .kennz div + div { border-left: 1px solid var(--gridc); }
