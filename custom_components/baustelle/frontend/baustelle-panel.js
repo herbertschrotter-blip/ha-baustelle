@@ -113,42 +113,62 @@ function timeline({ id, W, rows, now }) {
 
 
 
-/* Animierte Wettersymbole (eigene SVGs, ohne externe Dateien). Bedingungen wie in HA (weather.*). */
+/* Realistische, animierte Wettersymbole (eigene SVGs mit Filtern, ohne externe Dateien; von Herbert gewählt 29.09.2026).
+   Bedingungen wie in HA (weather.*). */
+const R_DEFS = `<defs>
+  <filter id="wrFluff" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation=".45"/></filter>
+  <filter id="wrWeich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+  <filter id="wrGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="wrNebel" x="-20%" y="-50%" width="140%" height="200%"><feTurbulence type="fractalNoise" baseFrequency=".05 .18" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/><feGaussianBlur stdDeviation="1.2"/></filter>
+  <radialGradient id="wrKern" cx="45%" cy="42%" r="60%"><stop offset="0" stop-color="#fffef2"/><stop offset=".45" stop-color="#ffe680"/><stop offset="1" stop-color="#ff9f0a"/></radialGradient>
+  <radialGradient id="wrKorona"><stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/><stop offset=".5" stop-color="#ffd54f" stop-opacity=".35"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+  <linearGradient id="wrStrahl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff6c8" stop-opacity=".75"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient>
+  <radialGradient id="wrWeiss" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef2f5"/><stop offset="1" stop-color="#b6c2cb"/></radialGradient>
+  <radialGradient id="wrGrau" cx="38%" cy="25%" r="85%"><stop offset="0" stop-color="#cfd8dc"/><stop offset=".5" stop-color="#8d9ca6"/><stop offset="1" stop-color="#4b5a64"/></radialGradient>
+  <linearGradient id="wrRegen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ec5ff" stop-opacity="0"/><stop offset="1" stop-color="#3d8be0"/></linearGradient>
+  <radialGradient id="wrEis" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9cc9ee"/></radialGradient>
+  <radialGradient id="wrMond" cx="38%" cy="35%" r="75%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".7" stop-color="#f3e3a8"/><stop offset="1" stop-color="#d6c07a"/></radialGradient></defs>`;
+const R_WOLKE_TEILE = [[22, 34, 10], [32, 27, 13], [43, 32, 10.5], [14, 40, 7], [51, 40, 7.5]];
+function rWolke(dx = 0, dy = 0, s = 1, dunkel = false) {
+  const kreise = f => R_WOLKE_TEILE.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${f}"/>`).join('') + `<ellipse cx="32" cy="42" rx="21" ry="7" fill="${f}"/>`;
+  return `<g class="wi-wolke" transform="translate(${dx} ${dy}) scale(${s})"><g transform="translate(1.5 3)" opacity=".22" filter="url(#wrWeich)">${kreise('#233')}</g>
+    <g filter="url(#wrFluff)">${kreise(`url(#${dunkel ? 'wrGrau' : 'wrWeiss'})`)}</g></g>`;
+}
+function rSonne(cx = 32, cy = 32, r = 11) {
+  return `<circle class="wb-puls" cx="${cx}" cy="${cy}" r="${r * 2.2}" fill="url(#wrKorona)"/>
+    <g class="wi-dreh" style="transform-origin:${cx}px ${cy}px" opacity=".9">${[...Array(12)].map((_, i) =>
+      `<polygon points="${cx},${cy - 1.2} ${cx + r * 2.6},${cy} ${cx},${cy + 1.2}" fill="url(#wrStrahl)" transform="rotate(${i * 30} ${cx} ${cy})"/>`).join('')}</g>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#wrKern)" filter="url(#wrGlow)"/>
+    <circle cx="${cx + r * 1.6}" cy="${cy + r * 1.5}" r="2.2" fill="#fff" opacity=".3"/><circle cx="${cx + r * 2.2}" cy="${cy + r * 2.1}" r="1.3" fill="#fff" opacity=".25"/>`;
+}
 function wetterIcon(zustand, groesse = 64) {
-  const wolke = (dx = 0, dy = 0, s = 1, dunkel = false) => `<g class="wi-wolke" transform="translate(${dx} ${dy}) scale(${s})"><path d="M18 46h28a9 9 0 0 0 1-18 13 13 0 0 0-25-4 10 10 0 0 0-4 22z"
-    fill="var(${dunkel ? '--wi-wolke-dunkel' : '--wi-wolke'})" stroke="var(--wi-rand)" stroke-width="1.5" stroke-linejoin="round"/></g>`;
-  const sonne = (cx = 32, cy = 32, r = 10) => `<g><g class="wi-dreh" style="transform-origin:${cx}px ${cy}px">${[...Array(8)].map((_, i) => {
-      const w = i * Math.PI / 4, a = r + 4, b = r + 9;
-      return `<line x1="${(cx + a * Math.cos(w)).toFixed(1)}" y1="${(cy + a * Math.sin(w)).toFixed(1)}" x2="${(cx + b * Math.cos(w)).toFixed(1)}" y2="${(cy + b * Math.sin(w)).toFixed(1)}" stroke="#f9b300" stroke-width="3" stroke-linecap="round"/>`; }).join('')}</g>
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffc21a" stroke="#f9a300" stroke-width="1.5"/></g>`;
-  const tropfen = (n, dunkel) => [...Array(n)].map((_, i) => `<line class="wi-tropfen" style="animation-delay:${(i * 0.37).toFixed(2)}s" x1="${22 + i * (22 / Math.max(1, n - 1))}" y1="48"
-    x2="${20 + i * (22 / Math.max(1, n - 1))}" y2="54" stroke="${dunkel ? '#1c5cab' : '#2a78d6'}" stroke-width="2.5" stroke-linecap="round"/>`).join('');
-  const flocken = n => [...Array(n)].map((_, i) => `<g class="wi-flocke" style="animation-delay:${(i * 0.7).toFixed(1)}s"><g transform="translate(${22 + i * 10} 51)" stroke="#7fb8ec" stroke-width="1.8" stroke-linecap="round">
-    <line x1="-3" y1="0" x2="3" y2="0"/><line x1="-1.5" y1="-2.6" x2="1.5" y2="2.6"/><line x1="-1.5" y1="2.6" x2="1.5" y2="-2.6"/></g></g>`).join('');
-  const blitz = `<path class="wi-blitz" d="M33 40l-6 10h5l-3 9 9-12h-5l4-7z" fill="#ffc21a" stroke="#f9a300" stroke-width="1" stroke-linejoin="round"/>`;
-  const nebel = `<g stroke="var(--wi-rand)" stroke-width="3" stroke-linecap="round">${[48, 54, 60].map((y, i) => `<line class="wi-nebel" style="animation-delay:${i * 0.8}s" x1="${14 + i * 3}" y1="${y}" x2="${50 - i * 2}" y2="${y}"/>`).join('')}</g>`;
-  const mond = `<g><path d="M40 14a16 16 0 1 0 12 26 13 13 0 0 1-12-26z" fill="#ffd54f" stroke="#f9b300" stroke-width="1.5"/>
-    ${[[16, 16], [24, 8], [12, 30]].map(([x, y], i) => `<circle class="wi-stern" style="animation-delay:${i * 0.9}s" cx="${x}" cy="${y}" r="1.6" fill="#ffd54f"/>`).join('')}</g>`;
-  const wind = `<g fill="none" stroke="var(--wi-rand)" stroke-width="3" stroke-linecap="round"><path class="wi-wind" d="M10 26h30a6 6 0 1 0-6-6"/>
-    <path class="wi-wind" style="animation-delay:.5s" d="M10 36h40a6 6 0 1 1-6 6"/><path class="wi-wind" style="animation-delay:1s" d="M14 46h20"/></g>`;
-  const teile = {
-    sunny: sonne(32, 32, 12),
-    'clear-night': mond,
-    partlycloudy: sonne(24, 22, 9) + wolke(6, 4, 0.9),
-    cloudy: wolke(-8, -6, 0.85) + wolke(4, 2, 0.95),
-    fog: wolke(0, -8, 0.9) + nebel,
-    rainy: wolke(0, -6) + tropfen(3),
-    pouring: wolke(0, -6, 1, true) + tropfen(5, true),
-    snowy: wolke(0, -6) + flocken(3),
-    'snowy-rainy': wolke(0, -6) + tropfen(2) + flocken(1),
-    hail: wolke(0, -6, 1, true) + [0, 1, 2].map(i => `<circle class="wi-tropfen" style="animation-delay:${i * 0.4}s" cx="${22 + i * 10}" cy="52" r="2.4" fill="#e3f2fd" stroke="#7fb8ec"/>`).join(''),
-    lightning: wolke(0, -8, 1, true) + blitz,
-    'lightning-rainy': wolke(0, -8, 1, true) + blitz + tropfen(2, true),
-    windy: wind,
-    'windy-variant': wolke(0, -10, 0.8) + wind,
-    exceptional: sonne(32, 32, 12),
+  const regen = (n, schnell) => [...Array(n)].map((_, i) => { const x = 20 + i * (26 / Math.max(1, n - 1));
+    return `<line class="wi-tropfen" style="animation-delay:${(i * 0.23).toFixed(2)}s;animation-duration:${schnell ? .7 : 1}s" x1="${x + 2}" y1="44" x2="${x - 1}" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/>`; }).join('');
+  const kristall = (x, y, i) => `<g class="wi-flocke" style="animation-delay:${(i * 0.8).toFixed(1)}s"><g class="wr-kristall" style="transform-origin:${x}px ${y}px">
+    ${[0, 60, 120].map(w => `<g transform="rotate(${w} ${x} ${y})" stroke="#e8f4ff" stroke-width="1.1" stroke-linecap="round"><line x1="${x}" y1="${y - 4}" x2="${x}" y2="${y + 4}"/>
+      <line x1="${x}" y1="${y - 2.4}" x2="${x - 1.4}" y2="${y - 3.6}"/><line x1="${x}" y1="${y - 2.4}" x2="${x + 1.4}" y2="${y - 3.6}"/>
+      <line x1="${x}" y1="${y + 2.4}" x2="${x - 1.4}" y2="${y + 3.6}"/><line x1="${x}" y1="${y + 2.4}" x2="${x + 1.4}" y2="${y + 3.6}"/></g>`).join('')}
+    <circle cx="${x}" cy="${y}" r="1" fill="#fff"/></g></g>`;
+  const blitz = `<g class="wi-blitz" filter="url(#wrGlow)"><path d="M34 38l-7 9 5 .5-5 10 11-12-5-.5 5-7z" fill="#fffde7" stroke="#b39ddb" stroke-width=".8" stroke-linejoin="round"/></g>`;
+  const nebel = `<g filter="url(#wrNebel)" opacity=".85">${[46, 52, 58].map((y, i) => `<rect class="wi-nebel" style="animation-delay:${i * 1.1}s" x="${8 + i * 2}" y="${y - 3}" width="${48 - i * 4}" height="6" rx="3" fill="var(--wr-nebel)"/>`).join('')}</g>`;
+  const mond = `<circle cx="34" cy="30" r="21" fill="url(#wrKorona)" opacity=".45"/><circle cx="34" cy="30" r="15" fill="url(#wrMond)" filter="url(#wrGlow)"/>
+    ${[[29, 25, 2.6], [39, 33, 2], [33, 37, 1.6], [37, 23, 1.3]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#cbb46a" opacity=".45"/>`).join('')}
+    ${[[10, 12], [18, 50], [54, 10], [56, 50], [8, 34]].map(([x, y], i) => `<circle class="wi-stern" style="animation-delay:${i * 0.6}s" cx="${x}" cy="${y}" r="1.1" fill="#fff8e1" filter="url(#wrGlow)"/>`).join('')}`;
+  const wind = `<g fill="none" stroke="var(--wr-wind)" stroke-linecap="round" filter="url(#wrWeich)" opacity=".8">${[[24, 40, 3], [34, 48, 2.2], [44, 34, 1.6]].map(([y, l, w], i) =>
+    `<path class="wi-wind" style="animation-delay:${i * .6}s" d="M${6 + i * 3} ${y}q${l / 2} -5 ${l} 0" stroke-width="${w}"/>`).join('')}</g>`;
+  const hagel = [0, 1, 2, 3].map(i => `<circle class="wi-tropfen" style="animation-delay:${i * 0.3}s" cx="${20 + i * 8}" cy="52" r="2.3" fill="url(#wrEis)"/>`).join('');
+  const t = {
+    sunny: rSonne(32, 32, 11), exceptional: rSonne(32, 32, 11), 'clear-night': mond,
+    partlycloudy: rSonne(23, 21, 8.5) + rWolke(5, 6, 0.9), cloudy: rWolke(-9, -8, 0.8, true) + rWolke(4, 2, 0.95),
+    fog: rWolke(0, -9, 0.85) + nebel, rainy: rWolke(0, -8) + regen(4), pouring: rWolke(0, -8, 1, true) + regen(7, true),
+    snowy: rWolke(0, -8) + [0, 1, 2].map(i => kristall(22 + i * 10, 51, i)).join(''),
+    'snowy-rainy': rWolke(0, -8) + regen(2) + kristall(36, 51, 1), hail: rWolke(0, -8, 1, true) + hagel,
+    lightning: rWolke(0, -10, 1, true) + blitz, 'lightning-rainy': rWolke(0, -10, 1, true) + regen(3) + blitz,
+    windy: wind, 'windy-variant': rWolke(0, -10, 0.8) + wind,
   };
-  return `<svg class="wi" viewBox="0 0 64 64" width="${groesse}" height="${groesse}" role="img" aria-label="${esc(zustand || '')}">${teile[zustand] || wolke(0, -4)}</svg>`;
+  return `<svg class="wi wr" viewBox="0 0 64 64" width="${groesse}" height="${groesse}" overflow="visible" role="img" aria-label="${esc(zustand)}">${R_DEFS}${t[zustand] || rWolke(0, -4)}</svg>`;
 }
 
 const CSS = `:host { display: flex; flex-direction: column; height: 100%; min-height: 100vh; background: var(--primary-background-color);
@@ -333,8 +353,8 @@ svg.ch .mk:hover { opacity: .75; }
 .stat .sv { font-size: 24px; font-weight: 600; margin: 2px 0; }
 .stat .ss { font-size: 12px; color: var(--secondary-text-color); }
 /* Wetter */
-:host { --wi-wolke: #eef2f5; --wi-wolke-dunkel: #9aa7b0; --wi-rand: #8a98a3; }
-:host([dunkel]) { --wi-wolke: #56626b; --wi-wolke-dunkel: #3d474e; --wi-rand: #a9b6bf; }
+:host { --wr-nebel: #cfd8dc; --wr-wind: #90a4ae; }
+:host([dunkel]) { --wr-nebel: #7f8f9a; --wr-wind: #b0bec5; }
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
 .wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
 .wetter .wtage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
@@ -351,8 +371,11 @@ svg.ch .mk:hover { opacity: .75; }
 @keyframes wi-nebel { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
 @keyframes wi-stern { 50% { opacity: .2; } }
 @keyframes wi-wind { 0% { stroke-dashoffset: 60; } 100% { stroke-dashoffset: 0; } }
-.wi .wi-dreh { animation: wi-dreh 14s linear infinite; }
-.wi .wi-wolke > path { animation: wi-wolke 6s ease-in-out infinite; }
+.wi .wi-dreh { animation: wi-dreh 18s linear infinite; }
+.wi .wi-wolke > g { animation: wi-wolke 6s ease-in-out infinite; }
+.wr .wr-kristall { transform-box: fill-box; animation: wi-dreh 6s linear infinite; }
+@keyframes wb-puls { 0%, 100% { opacity: .55; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
+.wi .wb-puls { transform-box: fill-box; transform-origin: center; animation: wb-puls 3.5s ease-in-out infinite; }
 .wi .wi-tropfen { animation: wi-tropfen 1.3s linear infinite; }
 .wi .wi-flocke { animation: wi-flocke 2.6s linear infinite; }
 .wi .wi-blitz { animation: wi-blitz 3.2s linear infinite; }

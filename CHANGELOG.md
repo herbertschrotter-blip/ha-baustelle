@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.2] – 2026-09-29
+
+- Seite: realistische animierte Wettersymbole (Herberts Wahl aus drei Varianten): Sonne mit Glut und Strahlen,
+  flauschige Wolken, Regenschlieren, drehende Schneekristalle, leuchtender Blitz, wabernder Nebel, Mond mit Kratern.
+
 ## [0.6.1] – 2026-09-29
 
 - Fehler: Eigene Sensoren der Integration ließen sich als Wetterstation wählen (Kreis – „Außen“ blieb stehen,

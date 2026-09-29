@@ -89,10 +89,10 @@ const hass = {
   p.ui.tab = 'heizung'; const html = p._seite();
   console.log('Heizung enthält Animation:', /class="a run/.test(html), '· Zeitplan-Zeilen:', (html.match(/data-time=/g) || []).length);
   p.ui.tab = 'uebersicht'; const ue = p._seite();
-  const wetterOk = (ue.match(/<svg class="wi"/g) || []).length === 4 && /Heute/.test(ue) && /trocken|mm</.test(ue);
+  const wetterOk = (ue.match(/<svg class="wi[ "]/g) || []).length === 4 && /filter="url\(#wrFluff\)"/.test(ue) && /Heute/.test(ue) && /trocken|mm</.test(ue);
   console.log('Wetterkarte mit animierten Symbolen:', wetterOk); if (!wetterOk) fehler++;
   const zustaende = ['sunny', 'clear-night', 'partlycloudy', 'cloudy', 'fog', 'rainy', 'pouring', 'snowy', 'snowy-rainy', 'hail', 'lightning', 'lightning-rainy', 'windy', 'windy-variant', 'exceptional'];
-  if (process.env.SYMBOLE) require('fs').writeFileSync(process.env.SYMBOLE, zustaende.map(z => wetterIcon(z, 64)).join('\n'));
+  if (process.env.SYMBOLE) require('fs').writeFileSync(process.env.SYMBOLE, zustaende.map(z => wetterIcon(z, 64).replace(/\n/g, ' ')).join('\n'));
   console.log('Übersicht Zeitleiste:', /<svg class="ch"/.test(ue), '· Warnung:', /Heizkörper selbst an/.test(ue), '· Vorhersage:', /°C<\/div>[\s\S]*mm<\/span><\/div>/.test(ue));
   p.ui.bid = 'ENTRY1'; p.ui.tab = 'auswertung'; p.ui.per = '7'; p._seite(); await new Promise(r => setTimeout(r, 5));
   const au = p._seite(); const vglOk = /2,4 °C\/h/.test(au) && /Temperatur je Tag/.test(au); console.log('Vergleich Aufheizen + Temperatur-Mittel:', vglOk); if (!vglOk) fehler++;
