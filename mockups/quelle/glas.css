@@ -273,7 +273,7 @@ body.hell { background: #d9dee5; color: #111; }
 /* Diagramme */
 .chart-wrap { position: relative; }
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
-.chart .gr { stroke: var(--gridc); stroke-width: 1; } .chart .ax { fill: var(--axisc); font-size: 10px; }
+.chart .gr { stroke: var(--gridc); stroke-width: 1; } .chart .ax-e { font-weight: 600; font-size: 9px; } .chart .ax { fill: var(--axisc); font-size: 10px; }
 .chart .kreuz { stroke: var(--ink2); stroke-width: 1; stroke-dasharray: 2 3; } .chart .punkt { stroke: var(--sheet); stroke-width: 2; }
 .chart .bar { transition: opacity .15s; } .chart .bar.matt { opacity: .35; }
 .legende { display: flex; gap: 14px; font-size: 12px; color: var(--ink2); margin-top: 4px; }

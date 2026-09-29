@@ -91,29 +91,31 @@ const schalter = (on, act, extra = '') => `<button class="sw ${on ? 'on' : ''}" 
 
 /* ---------- Diagramme: dünne Marken, Haarraster, Hover-Anzeige ---------- */
 function linie(id, reihen, einheit, vb = null) {
-  const W = 320, H0 = 150, L = 28, R = 8, T = 10, U = 22, H = H0 + (vb ? 74 : 0);
+  // mit vb: Verbrauch als Fläche im selben Diagramm – links °C, rechts kWh (Herbert, 29.09.2026)
+  const W = 320, H = 160, L = 28, R = vb ? 30 : 8, T = 16, U = 22;
   const alle = reihen.flatMap(s => s.v.filter(v => v !== null));
-  const lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.ceil(Math.max(...alle) / 5) * 5;
-  const x = i => L + i / 24 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H0 - T - U);
-  const raster = [...Array((hi - lo) / 5 + 1)].map((_, k) => lo + k * 5).map(v =>
+  const lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.ceil(Math.max(...alle) / 5) * 5, n = (hi - lo) / 5;
+  const x = i => L + i / 24 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U);
+  const raster = [...Array(n + 1)].map((_, k) => lo + k * 5).map(v =>
     `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}°</text>`).join('');
   const achse = [0, 6, 12, 18, 24].map(h => `<text x="${x(h)}" y="${H - 6}" class="ax" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('');
   const pfade = reihen.map((s, k) => `<path d="${s.v.map((v, i) => v === null ? '' : `${i && s.v[i - 1] !== null ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('')}" fill="none" stroke="var(--s${k + 1})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
-  let streifen = '', yv = null, unten = H0 - U;
-  if (vb) {   // Verbrauch als Fläche in einem eigenen Streifen – keine zweite Skala im Temperaturbereich
-    const bt = H0 - U + 16, bb = H - U, vmax = Math.max(.5, Math.ceil(Math.max(...vb) * 2) / 2), wert = i => vb[Math.min(i, vb.length - 1)];
-    yv = v => bb - v / vmax * (bb - bt); unten = bb;
+  let flaeche = '', rechts = '', yv = null;
+  if (vb) {
+    // rechte Achse auf dieselben Rasterlinien legen: n Schritte, Schrittweite glatt gerundet
+    const roh = Math.max(...vb) * 1.1 / n, schritt = [.1, .2, .25, .5, 1, 1.5, 2, 2.5, 5].find(st => st >= roh) || 10, vmax = schritt * n;
+    yv = v => T + (1 - v / vmax) * (H - T - U);
+    const wert = i => vb[Math.min(i, vb.length - 1)], k = reihen.length + 1;
     const d = [...Array(25)].map((_, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${yv(wert(i)).toFixed(1)}`).join('');
-    const k = reihen.length + 1;
-    streifen = `<defs><linearGradient id="vbg-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--s${k})" stop-opacity=".5"/><stop offset="1" stop-color="var(--s${k})" stop-opacity=".05"/></linearGradient></defs>
-      <line x1="${L}" x2="${W - R}" y1="${bb}" y2="${bb}" class="gr"/><line x1="${L}" x2="${W - R}" y1="${bt}" y2="${bt}" class="gr" stroke-dasharray="2 3"/>
-      <text x="${L - 5}" y="${bt + 3}" class="ax" text-anchor="end">${de(vmax, vmax % 1 ? 1 : 0)}</text><text x="${L - 5}" y="${bb + 3}" class="ax" text-anchor="end">0</text>
-      <text x="${L + 3}" y="${bt - 3}" class="ax">kWh je Stunde</text>
-      <path class="fl-flaeche" d="${d}L${x(24)} ${bb}L${x(0)} ${bb}z" fill="url(#vbg-${id})"/><path class="fl-linie" d="${d}" fill="none" stroke="var(--s${k})" stroke-width="1.5" stroke-linejoin="round"/>`;
+    flaeche = `<defs><linearGradient id="vbg-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--s${k})" stop-opacity=".42"/><stop offset="1" stop-color="var(--s${k})" stop-opacity=".06"/></linearGradient></defs>
+      <path class="fl-flaeche" d="${d}L${x(24)} ${yv(0)}L${x(0)} ${yv(0)}z" fill="url(#vbg-${id})"/><path class="fl-linie" d="${d}" fill="none" stroke="var(--s${k})" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>`;
+    rechts = [...Array(n + 1)].map((_, q) => q * schritt).map(v => `<text x="${W - R + 5}" y="${yv(v) + 3}" class="ax">${de(v, schritt < 1 ? (schritt < .25 ? 1 : 2) : 0)}</text>`).join('')
+      + `<text x="${W - R + 5}" y="${T - 7}" class="ax ax-e">kWh</text>`;
   }
-  CHARTS[id] = { art: 'linie', x0: L, x1: W - R, W, n: 25, reihen, einheit, y, vb, yv, unten };
-  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}${streifen}<g class="hover"></g></svg>
-    <div class="legende">${reihen.map((s, k) => `<span><i style="background:var(--s${k + 1})"></i>${s.name}</span>`).join('')}${vb ? `<span><i style="background:var(--s${reihen.length + 1})"></i>Verbrauch</span>` : ''}</div>`;
+  const links = `<text x="${L - 5}" y="${T - 7}" class="ax ax-e" text-anchor="end">°C</text>`;
+  CHARTS[id] = { art: 'linie', x0: L, x1: W - R, W, n: 25, reihen, einheit, y, vb, yv, unten: H - U };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${flaeche}${pfade}${vb ? links + rechts : ''}<g class="hover"></g></svg>
+    <div class="legende">${reihen.map((s, k) => `<span><i style="background:var(--s${k + 1})"></i>${s.name} (°C, links)</span>`).join('')}${vb ? `<span><i style="background:var(--s${reihen.length + 1})"></i>Verbrauch (kWh je Stunde, rechts)</span>` : ''}</div>`;
 }
 function balken(id, werte, labels, einheit, d = 1) {
   const W = 320, H = 150, L = 28, R = 8, T = 10, U = 22, n = werte.length, hi = Math.max(...werte) * 1.15 || 1;
