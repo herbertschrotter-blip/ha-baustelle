@@ -327,6 +327,15 @@ body.hell { background: #d9dee5; color: #111; }
 .mail-z { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
 .mail-feld { flex: 1; min-width: 0; margin-left: 12px; }
 
+/* Nur bei Bedarf */
+.glas-k.bereit { opacity: .88; }
+.bedarf-knopf { align-self: stretch; margin-top: 6px; padding: 7px 10px !important; border-radius: 12px !important; text-align: center !important; font-size: 13px; font-weight: 600;
+  background: rgba(120,120,128,.22) !important; transition: background .2s, transform .12s; }
+.bedarf-knopf:active { transform: scale(.96); } .bedarf-knopf.an { background: color-mix(in srgb, var(--amber) 30%, transparent) !important; color: var(--amber) !important; }
+.bedarf-dauer { display: flex; gap: 8px; flex-wrap: wrap; } .bedarf-dauer.gross { flex-direction: column; }
+.bedarf-an { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--amber); }
+.glas-k[role=button] { cursor: pointer; }
+
 /* Kennzahlen */
 .kennz { display: grid; grid-template-columns: repeat(3, 1fr); padding: 14px 6px; text-align: center; }
 .kennz div + div { border-left: 1px solid var(--gridc); }
