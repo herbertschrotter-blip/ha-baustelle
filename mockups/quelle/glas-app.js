@@ -311,9 +311,11 @@ class App {
         <div class="vb-wer"><button data-act="vb-wer" class="${!aus.length ? 'on' : ''}"><i style="background:var(--s1)"></i>Baustelle</button>
           <button data-act="vb-wer" data-id="*" class="${alle ? 'on' : ''}">Alle einzeln</button>
           ${B.map(b => `<button data-act="vb-wer" data-id="${b.id}" class="${s.auswahl.includes(b.id) ? 'on' : ''}"><i style="background:${farbe(b)}"></i>${esc(b.name)}${s.auswahl.includes(b.id) ? ' ✓' : ''}</button>`).join('')}</div>
-        <div class="kennz"><div><b>${de(summe, summe < 100 ? 1 : 0)}</b><span>kWh ${z === 'Tag' ? 'heute' : z === 'Monat' ? 'im Monat' : 'im Jahr'}${aus.length > 1 ? ' zus.' : ''}</span></div>
-          <div><b>${de(summe * this.d.e.preis, 2)} €</b><span>Kosten</span></div><div><b>${wo}</b><span>Spitze ${de(spitze, 1)} kWh</span></div></div>
-        <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · Linien überlagert, nicht gestapelt' : ''}</div>
+        ${reihen.length > 1 ? `<div class="vb-je">${reihen.map(r => { const su = r.v.reduce((a, v) => a + v, 0), sp = Math.max(...r.v);
+            return `<div><i style="background:${r.farbe}"></i><span class="n">${esc(r.name)}</span><b>${de(su, su < 100 ? 1 : 0)} kWh</b><span>${de(su * this.d.e.preis, 2)} €</span><span class="leise">Spitze ${labels[r.v.indexOf(sp)]}</span></div>`; }).join('')}</div>`
+          : `<div class="kennz"><div><b>${de(summe, summe < 100 ? 1 : 0)}</b><span>kWh ${z === 'Tag' ? 'heute' : z === 'Monat' ? 'im Monat' : 'im Jahr'}</span></div>
+          <div><b>${de(summe * this.d.e.preis, 2)} €</b><span>Kosten</span></div><div><b>${wo}</b><span>Spitze ${de(spitze, 1)} kWh</span></div></div>`}
+        <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · jeder Container für sich, nicht zusammengezählt' : ''}</div>
         <div class="chart-wrap">${flaeche(`vb-${aus.map(b => b.id).join('_') || 'alle'}-${z}`, reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : 3)}</div>
         ${knopf('Schließen')}`;
     }
@@ -417,7 +419,7 @@ class App {
       const h = c.einheit === 'kWh/h', reihen = [...c.reihen].sort((a, b) => b.v[i] - a.v[i]), sum = reihen.reduce((a, r) => a + r.v[i], 0);
       svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(r => `<circle cx="${x}" cy="${c.y(r.v[i])}" r="4" fill="${r.farbe}" class="punkt"/>`).join('');
       return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (reihen.length > 1
-        ? reihen.map(r => `<div><i style="background:${r.farbe}"></i>${esc(r.name)} <b>${de(r.v[i], 2)} kWh</b></div>`).join('') + `<div class="leise">zusammen ${de(sum, 2)} kWh · ${de(sum * this.d.e.preis, 2)} €</div>`
+        ? reihen.map(r => `<div><i style="background:${r.farbe}"></i>${esc(r.name)} <b>${de(r.v[i], 2)} kWh</b></div>`).join('') 
         : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * this.d.e.preis, 2)} €</div>`));
     }
     if (c.art === 'linie') {
