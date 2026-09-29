@@ -194,7 +194,21 @@ body.hell { background: #d9dee5; color: #111; }
 .knopf:active { transform: scale(.98); } .knopf.amber { background: var(--amber) !important; color: #1a1000 !important; } .knopf.rot { color: var(--rot) !important; }
 .knopf.leise-k { background: transparent !important; color: var(--ink2) !important; }
 .w-jetzt { display: flex; gap: 12px; align-items: center; } .w-jetzt b { font-size: 30px; font-weight: 400; }
-.w-std { display: grid; grid-template-columns: repeat(8, 1fr); text-align: center; gap: 2px; font-size: 12px; }
+.w-std { display: grid; grid-template-columns: repeat(6, 1fr); text-align: center; gap: 2px; font-size: 12px; }
+.w-inhalt { animation: seite .25s ease-out both; }
+.w-regen { color: var(--blau); font-size: 12px; }
+.w-std b, .w-teile b { font-size: 16px; font-weight: 500; }
+.w-tag + .w-tag { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--gridc); }
+.w-tag-n { font-size: 12px; font-weight: 600; letter-spacing: .5px; margin-bottom: 4px; }
+.w-teile { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; font-size: 12px; }
+.w-teile div { display: flex; flex-direction: column; align-items: center; gap: 2px; } .w-teile .vorbei { opacity: .38; }
+.w-3z { display: grid; grid-template-columns: 58px 44px 54px 58px 1fr; align-items: center; gap: 6px; padding: 6px 0; font-size: 13px; }
+.w-3z + .w-3z { border-top: 1px solid var(--gridc); }
+.w-3t, .w-3w, .w-3r { display: flex; flex-direction: column; } .w-3w b { font-size: 17px; font-weight: 500; }
+.w-3f { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.w-folge { font-size: 10.5px; padding: 2px 7px; border-radius: 9px; background: rgba(142,142,147,.22); white-space: nowrap; }
+.w-folge.amber { color: var(--amber); background: color-mix(in srgb, var(--amber) 16%, transparent); }
+.w-folge.blau { color: var(--blau); background: color-mix(in srgb, var(--blau) 16%, transparent); }
 .w-std div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .warn-k { border-left: 3px solid var(--rot); padding: 4px 0 4px 12px; }
 .toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 25; padding: 10px 16px; font-size: 13px;

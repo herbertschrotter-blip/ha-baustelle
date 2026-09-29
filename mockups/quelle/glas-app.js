@@ -326,10 +326,32 @@ class App {
         ${knopf('Schließen')}`;
     }
     if (s.art === 'wetter') {
-      const std = [['16', 'rainy', 4.2, 1.2], ['17', 'rainy', 3.8, .8], ['18', 'cloudy', 3.1, .1], ['19', 'cloudy', 2.4, 0], ['20', 'fog', 1.9, 0], ['21', 'clear-night', 1.2, 0], ['22', 'clear-night', .6, 0], ['23', 'clear-night', 0.1, 0]];
-      return `${griff}<h3>Wetter · Dobl</h3><div class="w-jetzt">${wetterIcon('rainy', 72)}<div><b>4,2 °C</b><div class="leise">Regen · 6 mm seit gestern · morgen früh −1 °C</div></div></div>
-        <div class="w-std">${std.map(([h, w, t, r]) => `<div><span class="leise">${h}</span>${wetterIcon(w, 34)}<b>${de(t, 0)}°</b><span class="leise">${r ? de(r) + ' mm' : ''}</span></div>`).join('')}</div>
-        <div class="leise">Folgen: Kleidung trocknen morgen aktiv (Regen über ${de(this.d.e.tr_mm)} mm), Kälte-Frühstart 15 min früher.</div>${knopf('Schließen')}`;
+      const a = s.wa || 'std', e = this.d.e;
+      const folge = (t, mm) => [t < e.frueh_temp ? '<span class="w-folge blau">Frühstart</span>' : '', mm >= e.tr_mm ? '<span class="w-folge amber">Kleidung trocknen</span>' : '',
+        t > e.grenze ? '<span class="w-folge">über Heizgrenze</span>' : ''].join('');
+      let inhalt;
+      if (a === 'std') {
+        const std = [['17', 'rainy', 3.8, .8, 70], ['18', 'rainy', 3.1, .4, 55], ['19', 'cloudy', 2.4, 0, 20], ['20', 'cloudy', 1.9, 0, 10], ['21', 'fog', 1.2, 0, 5], ['22', 'clear-night', .6, 0, 0]];
+        inhalt = `<div class="w-std">${std.map(([h, w, t, r, p]) => `<div><span class="leise">${h}:00</span>${wetterIcon(w, 36)}<b>${de(t, 0)}°</b>
+          <span class="w-regen">${r ? de(r) + ' mm' : '–'}</span><span class="leise">${p} %</span></div>`).join('')}</div>`;
+      } else if (a === 'tag') {
+        const teile = ['Morgen', 'Mittag', 'Nachmittag', 'Nacht'];
+        const tage = [['Heute', [['rainy', 2.1, 2.4], ['pouring', 4.8, 2.9], ['rainy', 4.2, .7], ['fog', 1.0, 0]], 2],
+          ['Morgen', [['fog', -1.2, 0], ['partlycloudy', 5.4, 0], ['sunny', 7.1, 0], ['clear-night', 0.4, 0]], 0]];
+        inhalt = tage.map(([name, abschnitte, vorbei]) => `<div class="w-tag"><div class="w-tag-n">${name}</div><div class="w-teile">${abschnitte.map(([w, t, r], k) =>
+          `<div class="${k < vorbei ? 'vorbei' : ''}"><span class="leise">${teile[k]}</span>${wetterIcon(w, 34)}<b>${de(t, 0)}°</b><span class="w-regen">${r ? de(r) + ' mm' : '–'}</span></div>`).join('')}</div></div>`).join('');
+      } else {
+        const tage = [['Mi', '30.09.', 'fog', 7.1, -1.2, 0, 10], ['Do', '01.10.', 'partlycloudy', 9.4, 1.8, 0, 15], ['Fr', '02.10.', 'rainy', 8.2, 4.1, 5.5, 80]];
+        inhalt = `<div class="w-3">${tage.map(([t, d, w, hi, lo, mm, p]) => `<div class="w-3z">
+          <div class="w-3t"><b>${t}</b><span class="leise">${d}</span></div>${wetterIcon(w, 40)}
+          <div class="w-3w"><b>${de(hi, 0)}°</b><span class="leise">${de(lo, 0)}°</span></div>
+          <div class="w-3r"><span class="w-regen">${mm ? de(mm) + ' mm' : '–'}</span><span class="leise">${p} %</span></div>
+          <div class="w-3f">${folge(lo, mm)}</div></div>`).join('')}</div>`;
+      }
+      return `${griff}<h3>Wetter · Dobl</h3><div class="w-jetzt">${wetterIcon('rainy', 72)}<div><b>4,2 °C</b><div class="leise">Regen · 6 mm seit gestern · gefühlt 1 °C</div></div></div>
+        <div class="seg">${[['std', 'Stündlich'], ['tag', 'Tagesverlauf'], ['3', '3 Tage']].map(([k, t]) => `<button data-act="wa" data-v="${k}" class="${a === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <div class="w-inhalt">${inhalt}</div>
+        <div class="leise">Für die Heizung: Kleidung trocknen morgen früh aktiv (Regen über ${de(e.tr_mm)} mm), Kälte-Frühstart morgen 15 min früher (−1 °C).</div>${knopf('Schließen')}`;
     }
     if (s.art === 'warnungen') return `${griff}<h3>Warnungen</h3><div class="warn-k"><b>Lager Süd nicht erreichbar</b><div class="leise">seit 10:42 · Shelly antwortet nicht – Stromausfall oder Stecker gezogen?</div></div>
       ${knopf('Zum Container', 'container-lager')}${knopf('Schließen', 'zu', 'leise-k')}`;
@@ -378,6 +400,7 @@ class App {
       case 'container': this.s.chart = 'temp'; return this.gehe('container', el.dataset.id);
       case 'container-lager': return this.gehe('container', 'lager');
       case 'sheet': this.s.sheet = { art: el.dataset.s, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
+      case 'wa': this.s.sheet.wa = el.dataset.v; return neu();
       case 'vb-zeitraum': this.s.sheet.zeitraum = el.dataset.v; return neu();
       case 'vb-wer': { const sh = this.s.sheet, id = el.dataset.id;
         if (!id) sh.auswahl = []; else if (id === '*') sh.auswahl = d.bereiche.map(x => x.id);
