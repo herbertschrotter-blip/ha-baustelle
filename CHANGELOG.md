@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.3] – 2026-09-29
+
+- Seite, Übersicht neu (Herberts Wahl): Baustellen-Kachel (Container, Pumpenschächte, Geräte, Leistung, heute) mit
+  Chips für Heizung, nächste Schaltzeit, Wetter (klappt die Wetterkarte auf) und Warnungen; darunter je Container
+  bzw. Pumpenschacht eine Kachel mit gezeichnetem 3D-Baucontainer bzw. Schacht, der den Zustand zeigt (heizt,
+  Kleidung trocknen, aus, Frostschutz, nicht erreichbar; Pumpe läuft), Temperatur, Leistung, Gerätezahl.
+- Klick auf eine Kachel öffnet die Container-Ansicht: Geräte mit Schaltern, Einstellungen, Zeitleiste, Leistung und
+  Temperatur heute, Energie/Heizzeit (bzw. Pumpzeit/Zyklen) je Tag.
+- Nebel-Symbol im Dunkelmodus heller.
+
 ## [0.6.2] – 2026-09-29
 
 - Seite: realistische animierte Wettersymbole (Herberts Wahl aus drei Varianten): Sonne mit Glut und Strahlen,

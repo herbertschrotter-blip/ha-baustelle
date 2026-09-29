@@ -171,6 +171,58 @@ function wetterIcon(zustand, groesse = 64) {
   return `<svg class="wi wr" viewBox="0 0 64 64" width="${groesse}" height="${groesse}" overflow="visible" role="img" aria-label="${esc(zustand)}">${R_DEFS}${t[zustand] || rWolke(0, -4)}</svg>`;
 }
 
+/* Baustellen-Illustrationen: Baucontainer (3D, Zustand) und Pumpenschacht – aus dem Entwurf „Baustellenübersicht“. */
+const BEREICH_FARBEN = ['#3987e5', '#eb6834', '#1baf7a', '#c98500', '#d55181', '#199e70'];
+function bcContainer(f, zustand) {
+  const heizt = ['heizt', 'trocknen', 'frost'].includes(zustand), off = zustand === 'offline';
+  const dunkler = `color-mix(in srgb, ${f} 70%, #000)`, heller = `color-mix(in srgb, ${f} 75%, #fff)`;
+  const neig = 20 / 84, obenY = x => 30 + (x - 22) * neig;          // Oberkante der Front bei x
+  const fenster = (x, b = 17, h = 15) => { const y = obenY(x) + 11, d = b * neig;
+    return `<g>
+      <path d="M${x - 1.6} ${y - 1.6}l${b + 3.2} ${d + .8}v${h + 3.2}l${-(b + 3.2)} ${-(d + .8)}z" fill="var(--rahmen)"/>
+      <path d="M${x} ${y}l${b} ${d}v${h}l${-b} ${-d}z" class="${heizt ? 'bc-glut' : ''}" fill="${heizt ? '#ffb74d' : 'var(--fenster)'}"/>
+      <path d="M${x + b / 2} ${y + d / 2}v${h}" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M${x + 2.5} ${y + 3}l${b * .35} ${d * .35 + 7}" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="${heizt ? .25 : .35}"/>
+      <path d="M${x - 1.6} ${y + h + 1.6}l${b + 3.2} ${d + .8}" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>`; };
+  return `<svg class="bc ${off ? 'offline' : ''}" viewBox="0 0 170 120" style="--f:${f}">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    
+    <path d="M106 50l50-18v58l-50 18z" fill="${dunkler}"/>
+    ${[0, 1, 2, 3, 4].map(k => `<path d="M${112 + k * 9} ${47.8 - k * 3.2}v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>`).join('')}
+    
+    <path d="M22 30l84 20v58l-84-20z" fill="${f}"/>
+    ${[0, 1, 2, 3, 4, 5, 6, 7].map(k => `<path d="M${28 + k * 10.5} ${31.4 + k * 2.5}v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>`).join('')}
+    
+    <path d="M22 30l50-18 84 20-50 18z" fill="${heller}"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    
+    <path d="M${34} ${obenY(34) + 9}l14 ${14 * neig}v${44}l-14 ${-14 * neig}z" fill="${dunkler}" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M${37} ${obenY(37) + 13}l8 ${8 * neig}v7l-8 ${-8 * neig}z" fill="${heizt ? '#ffcc80' : 'var(--fenster)'}" opacity=".9"/>
+    <circle cx="45.5" cy="${obenY(45.5) + 33}" r="1.2" fill="#e0e0e0"/>
+    ${fenster(56)}${fenster(80)}
+    ${zustand === 'trocknen' ? `<g class="bc-jacke" style="transform-origin:88.5px ${obenY(88) + 12}px"><path d="M84 ${obenY(88) + 14}l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>` : ''}
+    ${heizt && zustand !== 'frost' ? [0, 1, 2].map(k => `<path class="bc-waerme" style="animation-delay:${k * .7}s" d="M${62 + k * 18} ${24 - k * 1} q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>`).join('') : ''}
+    ${zustand === 'frost' ? [0, 1, 2].map(k => `<g class="bc-eis" style="animation-delay:${k * .6}s" transform="translate(${60 + k * 22} ${16 - k * 2})" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g>`).join('') : ''}
+    ${off ? `<g class="bc-alarm"><circle cx="140" cy="20" r="11" fill="#d03b3b"/><path d="M140 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="27" r="1.8" fill="#fff"/></g>` : ''}
+  </svg>`;
+}
+
+function bcSchacht(laeuft) {
+  return `<svg class="bc" viewBox="0 0 170 120">
+    <ellipse cx="85" cy="104" rx="56" ry="10" fill="#000" opacity=".22"/>
+    <defs><clipPath id="bcSch"><path d="M40 30v62a45 12 0 0 0 90 0V30z"/></clipPath>
+      <linearGradient id="bcBeton" x1="0" x2="1"><stop offset="0" stop-color="#8d9ca6"/><stop offset=".5" stop-color="#cfd8dc"/><stop offset="1" stop-color="#78909c"/></linearGradient>
+      <linearGradient id="bcWasser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64b5f6"/><stop offset="1" stop-color="#0d47a1"/></linearGradient></defs>
+    <path d="M40 30v62a45 12 0 0 0 90 0V30z" fill="url(#bcBeton)"/>
+    <g clip-path="url(#bcSch)"><g class="${laeuft ? 'bc-pegel' : ''}"><path class="bc-welle" d="M0 70q15-5 30 0t30 0 30 0 30 0 30 0 30 0 30 0v60H0z" fill="url(#bcWasser)" opacity=".92"/></g>
+      <g transform="translate(85 86)"><circle r="10" fill="#37474f"/><g class="${laeuft ? 'bc-rad' : ''}"><path d="M0 0l0-8M0 0l7 4M0 0l-7 4" stroke="#b0bec5" stroke-width="3" stroke-linecap="round"/></g></g></g>
+    <ellipse cx="85" cy="30" rx="45" ry="12" fill="#546e7a"/><ellipse cx="85" cy="30" rx="38" ry="9" fill="#263238"/>
+    <path d="M85 76V10h32" fill="none" stroke="#90a4ae" stroke-width="5"/><path class="${laeuft ? 'bc-fluss' : ''}" d="M85 76V10h32" fill="none" stroke="#64b5f6" stroke-width="2.4"/>
+  </svg>`;
+}
+
 const CSS = `:host { display: flex; flex-direction: column; height: 100%; min-height: 100vh; background: var(--primary-background-color);
   color: var(--primary-text-color); font-family: var(--ha-font-family-body, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif); font-size: 14px;
   --state-heat: var(--state-climate-heat-color, #ff8100); --ha-card-border: var(--ha-card-border-width, 1px) solid var(--divider-color, rgba(0,0,0,.12));
@@ -354,7 +406,7 @@ svg.ch .mk:hover { opacity: .75; }
 .stat .ss { font-size: 12px; color: var(--secondary-text-color); }
 /* Wetter */
 :host { --wr-nebel: #cfd8dc; --wr-wind: #90a4ae; }
-:host([dunkel]) { --wr-nebel: #7f8f9a; --wr-wind: #b0bec5; }
+:host([dunkel]) { --wr-nebel: #c5d0d7; --wr-wind: #b0bec5; }
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
 .wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
 .wetter .wtage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
@@ -383,6 +435,61 @@ svg.ch .mk:hover { opacity: .75; }
 .wi .wi-stern { animation: wi-stern 2.4s ease-in-out infinite; }
 .wi .wi-wind { stroke-dasharray: 60; animation: wi-wind 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .wi * { animation: none !important; } }
+
+/* Übersicht: Baustelle und Container als Kacheln */
+:host { --fenster: #2b3a44; --rahmen: #cfd8dc; } :host(:not([dunkel])) { --fenster: #cfe3f3; --rahmen: #eceff1; }
+.bu { display: flex; flex-direction: column; gap: 14px; }
+.bk, .kc { cursor: pointer; } .chip[data-tab], .chip[data-act] { cursor: pointer; }
+.chip.gruen { background: rgba(67,160,71,.16); color: #43a047; }
+.blitz { opacity: .5; } .blitz.an { opacity: 1; }
+.ck { display: grid; grid-template-columns: minmax(200px, 360px) 1fr; gap: 18px; align-items: center;
+  background: radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--f) 22%, transparent), transparent 60%), var(--card-background-color); }
+.ck-zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; } .ck-zahlen b { display: block; font-size: 18px; } .ck-zahlen small { color: var(--secondary-text-color); font-size: 12px; }
+@container (max-width: 700px) { .ck { grid-template-columns: 1fr; } }
+.chip.orange { background: rgba(255,129,0,.18); color: #ff9800; } .chip.blau { background: rgba(42,120,214,.2); color: #64b5f6; } .chip.rot { background: rgba(208,59,59,.2); color: #ef6c6c; } .chip.grau { color: var(--secondary-text-color); }
+.wchip { padding: 1px 10px 1px 4px; }
+/* Kopf-Kachel */
+.bk { position: relative; overflow: hidden; border-radius: 22px; padding: 18px; display: grid; grid-template-columns: 1fr auto; gap: 12px;
+  background: radial-gradient(120% 140% at 0% 0%, rgba(255,152,0,.28), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(57,135,229,.28), transparent 55%), var(--card-background-color); border: 1px solid var(--divider-color); }
+.bk::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255,193,7,.07) 0 14px, transparent 14px 28px); pointer-events: none; }
+.bk-name { font-size: 24px; font-weight: 600; margin: 2px 0 8px; } .bk-zahlen { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--secondary-text-color); } .bk-zahlen b { color: var(--primary-text-color); font-size: 18px; }
+.bk-r { display: flex; align-items: center; gap: 10px; } .bk-kw { font-size: 30px; font-weight: 300; } .bk-kw small { font-size: 14px; color: var(--secondary-text-color); }
+.blitz { font-size: 30px; animation: blitz 2.4s ease-in-out infinite; filter: drop-shadow(0 0 8px rgba(255,193,7,.7)); }
+.bk-leiste { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; position: relative; z-index: 1; }
+@container (max-width: 500px) { .bk { grid-template-columns: 1fr; } }
+/* Kacheln */
+.gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+@container (max-width: 520px) { .gitter { grid-template-columns: 1fr 1fr; gap: 10px; } .kc .gross { font-size: 24px; } .kc-name { font-size: 14px; } .kc-fuss .muted { font-size: 11px; } }
+.kc { position: relative; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 20px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; overflow: hidden;
+  animation: rein .5s ease-out both; transition: transform .2s; }
+.kc::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 58%; background: radial-gradient(90% 90% at 50% 20%, color-mix(in srgb, var(--f) 30%, transparent), transparent 70%); pointer-events: none; }
+.kc.heizt::before, .kc.trocknen::before { background: radial-gradient(90% 90% at 50% 20%, rgba(255,152,0,.32), transparent 70%); animation: atmen 3s ease-in-out infinite; }
+.kc.offline { border-color: rgba(208,59,59,.6); } .kc:hover { transform: translateY(-3px); }
+.illu { margin: -4px -6px 0; } .bc { width: 100%; height: auto; display: block; overflow: visible; } .bc.offline { filter: grayscale(.8) brightness(.8); }
+.kc-kopf { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; position: relative; } .kc-name { font-weight: 600; font-size: 15px; line-height: 1.2; }
+.kc-kopf .chip { font-size: 11px; padding: 2px 8px; white-space: nowrap; }
+.kc-mitte { display: flex; justify-content: space-between; align-items: flex-end; } .gross { font-size: 30px; font-weight: 300; line-height: 1; } .gross small { font-size: 13px; color: var(--secondary-text-color); } .gross.grau { color: var(--secondary-text-color); }
+.kw { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; } .kw b { color: var(--primary-text-color); font-size: 16px; }
+.balken { height: 6px; border-radius: 3px; background: rgba(127,127,127,.2); overflow: hidden; } .balken i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--f), #ff9800); animation: fuellen 1.2s ease-out both; }
+.kc-fuss { display: flex; justify-content: space-between; align-items: center; font-size: 12px; } .punkte { display: flex; gap: 4px; } .punkte i { width: 8px; height: 8px; border-radius: 50%; background: rgba(127,127,127,.4); }
+.punkte i.an { background: #ff9800; box-shadow: 0 0 6px #ff9800; animation: atmen 2s ease-in-out infinite; }
+.kc.laeuft .punkte i.an { background: #42a5f5; box-shadow: 0 0 6px #42a5f5; } .kc.laeuft .balken i { background: linear-gradient(90deg, var(--f), #42a5f5); }
+.kc.neu { align-items: center; justify-content: center; border-style: dashed; min-height: 140px; font-size: 13px; } .kc.neu > div:first-child { font-size: 38px; font-weight: 200; color: var(--secondary-text-color); }
+/* Animationen */
+@keyframes rein { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes atmen { 50% { opacity: .55; } }
+@keyframes fuellen { from { width: 0; } }
+@keyframes blitz { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-6deg); } }
+.bc-glut { animation: bc-glut 2.6s ease-in-out infinite; } @keyframes bc-glut { 50% { fill: #ffd180; filter: drop-shadow(0 0 4px #ff9800); } }
+.bc-waerme { animation: bc-waerme 2.1s ease-in infinite; opacity: 0; } @keyframes bc-waerme { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-12px); opacity: 0; } }
+.bc-jacke { animation: bc-jacke 2.4s ease-in-out infinite; } @keyframes bc-jacke { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+.bc-eis { animation: bc-eis 2s ease-in-out infinite; } @keyframes bc-eis { 50% { opacity: .3; } }
+.bc-alarm { animation: bc-alarm 1s steps(2) infinite; } @keyframes bc-alarm { 50% { opacity: .25; } }
+.bc-pegel { animation: bc-pegel 5s ease-in-out infinite; } @keyframes bc-pegel { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+.bc-welle { animation: bc-welle 3s linear infinite; } @keyframes bc-welle { to { transform: translateX(-60px); } }
+.bc-rad { animation: bc-rad .9s linear infinite; transform-box: fill-box; transform-origin: center; } @keyframes bc-rad { to { transform: rotate(360deg); } }
+.bc-fluss { stroke-dasharray: 5 5; animation: bc-fluss .6s linear infinite; } @keyframes bc-fluss { to { stroke-dashoffset: -10; } }
+@media (prefers-reduced-motion: reduce) { .bc *, .kc, .kc *, .bk * { animation: none !important; } }
 `;
 
 const TAGE = [['mo', 'Mo', 'Montag'], ['di', 'Di', 'Dienstag'], ['mi', 'Mi', 'Mittwoch'], ['do', 'Do', 'Donnerstag'],
@@ -552,15 +659,15 @@ class BaustellePanel extends HTMLElement {
     const TABS = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['pumpen', 'Pumpen'], ['auswertung', 'Auswertung'],
       ['verlauf', 'Verlauf'], ['einstellungen', 'Einstellungen']]
       .filter(([k]) => !b || (k !== 'heizung' || b.baustelle.optionen.heizung) && (k !== 'pumpen' || b.baustelle.optionen.pumpen));
-    if (b && !TABS.some(([k]) => k === this.ui.tab)) this.ui.tab = 'uebersicht';
+    if (b && this.ui.tab !== 'container' && !TABS.some(([k]) => k === this.ui.tab)) this.ui.tab = 'uebersicht';
     const kopf = `<div class="hdr"><div class="hdr-top">
         ${this._narrow ? '<span class="ico" data-act="menu">☰</span>' : ''}<span class="t">Baustelle</span>${b ? this._auswahl(b) : ''}</div>
-      <div class="tabs ${this._narrow ? 'eng' : ''}">${TABS.map(([k, l]) => `<div class="tab ${this.ui.tab === k ? 'on' : ''}" data-tab="${k}">${this._narrow && k === 'einstellungen' ? '⚙' : l}</div>`).join('')}</div></div>`;
+      <div class="tabs ${this._narrow ? 'eng' : ''}">${TABS.map(([k, l]) => `<div class="tab ${this.ui.tab === k || (this.ui.tab === 'container' && k === 'uebersicht') ? 'on' : ''}" data-tab="${k}">${this._narrow && k === 'einstellungen' ? '⚙' : l}</div>`).join('')}</div></div>`;
     let inhalt;
     if (this.fehler) inhalt = `<div class="card errc">Die Daten der Integration sind nicht erreichbar: ${esc(this.fehler)}</div>`;
     else if (!this.baustellen) inhalt = '<div class="card">Lädt …</div>';
     else if (!b) inhalt = this._leer();
-    else inhalt = ({ uebersicht: () => this.vUebersicht(b), heizung: () => this.vHeizung(b), pumpen: () => this.vPumpen(b),
+    else inhalt = ({ uebersicht: () => this.vUebersicht(b), container: () => this.vContainer(b), heizung: () => this.vHeizung(b), pumpen: () => this.vPumpen(b),
       auswertung: () => this.vAuswertung(b), verlauf: () => this.vVerlauf(), einstellungen: () => this.vEinstellungen(b) })[this.ui.tab]();
     return `${kopf}<div class="inhalt"><div class="view">${inhalt}</div></div>`;
   }
@@ -609,12 +716,35 @@ class BaustellePanel extends HTMLElement {
   heizgeraete(b) { return b.geraete.filter(g => HEIZ.includes(g.rolle)); }
 
   /* ---------------------------------------------------------------- Übersicht */
+  /* ---------------------------------------------------------------- Übersicht: Baustelle und Container als Kacheln (Herberts Wahl 29.09.2026) */
+  _bereichZustand(b, x) {
+    const geraete = b.geraete.filter(g => g.bereich === x.id);
+    if (geraete.length && geraete.every(g => this.weg(g.schalter))) return 'offline';
+    if (x.art === 'pumpenschacht') return geraete.some(g => this.an(this.E(b, 'pumpe_laeuft', g.id))) ? 'laeuft' : 'steht';
+    const grund = this.V(this.E(b, 'grund', x.id));
+    if (grund === 'frostschutz') return 'frost';
+    if (grund === 'kleidung_trocknen' && geraete.some(g => this.an(g.schalter))) return 'trocknen';
+    return geraete.some(g => HEIZ.includes(g.rolle) && this.an(g.schalter)) ? 'heizt' : 'aus';
+  }
+
+  _geraeteText(geraete) {
+    const n = {};
+    for (const g of geraete) n[g.rolle] = (n[g.rolle] || 0) + 1;
+    const mehr = { heizkoerper: 'Heizkörper', bautrockner: 'Trockner', pumpe: 'Pumpen', steckdose: 'Steckdosen' };
+    const eins = { heizkoerper: 'Heizkörper', bautrockner: 'Trockner', pumpe: 'Pumpe', steckdose: 'Steckdose' };
+    return Object.entries(n).map(([r, k]) => `${k} ${k > 1 ? mehr[r] : eins[r]}`).join(' · ') || 'noch kein Shelly';
+  }
+
+  _uhrzeit(iso) { return iso && iso !== 'unknown' && iso !== 'unavailable' ? new Date(iso).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) : null; }
+
   vUebersicht(b) {
     const o = b.baustelle.optionen;
     const status = this.V(this.E(b, 'status'));
-    const heiz = this.heizgeraete(b), heizAn = heiz.filter(g => this.an(g.schalter)).length;
-    const pumpen = b.geraete.filter(g => g.rolle === 'pumpe'), pumpenLaufen = pumpen.filter(g => this.an(this.E(b, 'pumpe_laeuft', g.id))).length;
-    const naechste = this.V(this.E(b, 'naechste_schaltzeit'));
+    const naechste = this._uhrzeit(this.V(this.E(b, 'naechste_schaltzeit')));
+    const container = b.bereiche.filter(x => x.art === 'container'), schaechte = b.bereiche.filter(x => x.art === 'pumpenschacht');
+    const an = b.geraete.filter(g => this.an(g.schalter)).length;
+    const heute = this._statistik([this.E(b, 'energie'), this.E(b, 'kosten')], '5minute', mitternacht());
+    const summe = eid => heute && heute[eid] ? heute[eid].reduce((s, x) => s + (x.change || 0), 0) : null;
     const wetter = this.S(o.wetter);
     const warnungen = [];
     if (this.V(this.E(b, 'erreichbar')) === 'off') warnungen.push(['errc', 'Baustelle nicht erreichbar', 'Kein Gerät antwortet – Stromausfall oder Internet weg?']);
@@ -623,48 +753,88 @@ class BaustellePanel extends HTMLElement {
         warnungen.push([p === 'offline' || p === 'trockenlauf' ? 'errc' : 'warnc', `${this._bereichName(b, g.bereich)} · ${g.name}`, PROBLEM[p] || p]);
       }
     }
-    const heute = this._statistik([this.E(b, 'energie'), this.E(b, 'kosten')], '5minute', mitternacht());
-    const summe = eid => heute && heute[eid] ? heute[eid].reduce((s, x) => s + (x.change || 0), 0) : null;
-    const schalter = b.geraete.filter(g => g.rolle !== 'steckdose').map(g => g.schalter);
+    const schaltText = !naechste ? '' : status === 'heizt' ? `aus um ${naechste}` : `Start ${naechste}`;
+    const kopf = `<div class="bk" data-tab="auswertung">
+      <div class="bk-l"><div class="muted klein">BAUSTELLE · ${o.status === 'abgeschlossen' ? 'ABGESCHLOSSEN' : 'AKTIV'}</div><div class="bk-name">${esc(b.baustelle.titel)}</div>
+        <div class="bk-zahlen"><span><b>${container.length}</b> Container</span>${schaechte.length ? `<span><b>${schaechte.length}</b> Pumpenschacht</span>` : ''}<span><b>${b.geraete.length}</b> Geräte · ${an} an</span></div></div>
+      <div class="bk-r"><div class="blitz ${(this.N(this.E(b, 'leistung')) || 0) > 5 ? 'an' : ''}">⚡</div><div><div class="bk-kw">${de((this.N(this.E(b, 'leistung')) || 0) / 1000, 1)}<small> kW</small></div>
+        <div class="muted klein">jetzt · ${de(summe(this.E(b, 'energie')), 1)} kWh heute · ${eur(summe(this.E(b, 'kosten')))}</div></div></div>
+      <div class="bk-leiste">
+        ${o.heizung ? `<span class="chip ${status === 'heizt' ? 'orange' : ''}" data-tab="heizung">♨ ${esc(STATUS[status] || status || '–')}</span>` : ''}
+        ${schaltText ? `<span class="chip">${schaltText}</span>` : ''}
+        ${wetter ? `<span class="chip wchip" data-act="wetter-auf">${wetterIcon(wetter.state, 22)} ${de(wetter.attributes.temperature)} °C${this.N(this.E(b, 'regen')) ? ` · ${de(this.N(this.E(b, 'regen')))} mm` : ''} ${this.ui.wetter ? '▴' : '▾'}</span>`
+          : `<span class="chip" data-act="wetter-waehlen">Wetter wählen</span>`}
+        <span class="chip ${warnungen.length ? 'rot' : 'gruen'}">${warnungen.length ? `${warnungen.length} Warnung${warnungen.length > 1 ? 'en' : ''}` : '✓ alles in Ordnung'}</span></div></div>`;
+    const kacheln = b.bereiche.map((x, i) => {
+      const zustand = this._bereichZustand(b, x);
+      const geraete = b.geraete.filter(g => g.bereich === x.id);
+      const kw = (this.N(this.E(b, 'leistung', x.id)) || 0) / 1000;
+      const max = Math.max(0.5, geraete.reduce((s, g) => s + ((this.N(this.E(b, 'mittel_im_betrieb', g.id)) || 2000) / 1000), 0));
+      const t = x.fuehler ? this.N(x.fuehler) ?? this.S(x.fuehler)?.attributes.current_temperature : null;
+      const soll = this.E(b, 'soll', x.id) && this.V(this.E(b, 'modus', x.id)) === 'thermostat' ? this.N(this.E(b, 'soll', x.id)) : null;
+      const [ct, cf] = { heizt: ['heizt', 'orange'], trocknen: ['Kleidung trocknen', 'orange'], aus: ['aus', ''], frost: ['Frostschutz', 'blau'], offline: ['nicht erreichbar', 'rot'],
+        laeuft: ['läuft', 'blau'], steht: ['steht', ''] }[zustand];
+      const grund = x.art === 'pumpenschacht' ? '' : GRUND[this.V(this.E(b, 'grund', x.id))] || '';
+      const zyklen = x.art === 'pumpenschacht' ? geraete.reduce((s, g) => s + (this.N(this.E(b, 'pumpzyklen', g.id)) || 0), 0) : null;
+      const farbe = BEREICH_FARBEN[i % BEREICH_FARBEN.length];
+      return `<div class="kc ${zustand}" style="--f:${farbe};animation-delay:${i * 70}ms" data-cid="${x.id}">
+        <div class="illu">${x.art === 'pumpenschacht' ? bcSchacht(zustand === 'laeuft') : bcContainer(farbe, zustand)}</div>
+        <div class="kc-kopf"><div class="kc-name">${esc(x.name)}</div><span class="chip ${cf}">${ct}</span></div>
+        <div class="kc-mitte"><div>${x.art === 'pumpenschacht' ? `<div class="gross">${de(zyklen, 0)}<small> Zyklen</small></div>`
+          : t !== null && t !== undefined ? `<div class="gross">${de(t)}<small> °C</small></div>` : '<div class="gross grau">–</div>'}
+          ${soll !== null ? `<div class="muted klein">Soll ${de(soll)} °C</div>` : x.fuehler || x.art === 'pumpenschacht' ? '' : '<div class="muted klein">kein Fühler</div>'}</div>
+          <div class="kw"><b>${de(kw, 2)}</b>&nbsp;kW</div></div>
+        <div class="balken"><i style="width:${Math.min(100, kw / max * 100)}%"></i></div>
+        <div class="kc-fuss"><span class="muted">${this._geraeteText(geraete)}</span><span class="punkte">${geraete.map(g => `<i class="${this.an(g.schalter) && !this.weg(g.schalter) ? 'an' : ''}" title="${esc(g.name)}"></i>`).join('')}</span></div>
+        ${grund ? `<div class="muted klein">${esc(grund)}</div>` : ''}</div>`;
+    }).join('');
+    return `<div class="bu">${kopf}
+      ${this.ui.wetter && wetter ? this._wetterKarte(wetter, b) : ''}
+      ${warnungen.map(([k, t, s]) => `<div class="card ${k}"><b>${esc(t)}</b><br><span class="muted">${esc(s)}</span></div>`).join('')}
+      <div class="gitter">${kacheln}<div class="kc neu" data-act="container-neu"><div>+</div><div class="muted">Container / Pumpenschacht</div></div></div></div>`;
+  }
+
+  /* ---------------------------------------------------------------- Container-Ansicht (Klick auf eine Kachel) */
+  vContainer(b) {
+    const i = b.bereiche.findIndex(x => x.id === this.ui.cid);
+    const x = b.bereiche[i];
+    if (!x) { this.ui.tab = 'uebersicht'; return this.vUebersicht(b); }
+    const zustand = this._bereichZustand(b, x), farbe = BEREICH_FARBEN[i % BEREICH_FARBEN.length];
+    const geraete = b.geraete.filter(g => g.bereich === x.id);
+    const t = x.fuehler ? this.N(x.fuehler) ?? this.S(x.fuehler)?.attributes.current_temperature : null;
+    const pumpe = x.art === 'pumpenschacht';
+    const hs = this._historie([this.E(b, 'leistung', x.id), x.fuehler, this.E(b, 'aussen')], mitternacht());
     return `<div class="sections">
-      <div class="sec">
-        <div class="heading">Jetzt <span class="sub">${new Date().toLocaleString('de-AT', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
-        ${wetter ? this._wetterKarte(wetter, b)
-          : `<div class="card info-card">Kein Wetter eingestellt. ${this.link('Wetter wählen', INTEGRATION)}</div>`}
-        <div class="grid3">
-          ${this._kachel('🌡', 'Außen', `${de(this.N(this.E(b, 'aussen')))} °C`)}
-          ${this._kachel('💧', 'Regen', `${de(this.N(this.E(b, 'regen')))} mm`)}
-          ${this._kachel('🌙', 'Früh', `${de(this.N(this.E(b, 'frueh_prognose')))} °C`)}
-        </div>
-        ${o.heizung ? `<div class="tile ${status === 'heizt' ? 'heat' : ''}" data-tab="heizung"><span class="ic">♨</span><div class="tx"><div class="n">Heizung · ${esc(STATUS[status] || status || '–')}</div>
-          <div class="s">${heizAn} von ${heiz.length} ein${naechste && naechste !== 'unknown' ? ` · nächste Schaltzeit ${new Date(naechste).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })}` : ''}</div></div>${this.tgl(this.E(b, 'automatik'))}</div>` : ''}
-        ${o.pumpen ? `<div class="tile info" data-tab="pumpen"><span class="ic">💧</span><div class="tx"><div class="n">Pumpen</div><div class="s">${pumpenLaufen} von ${pumpen.length} laufen</div></div></div>` : ''}
-      </div>
-      <div class="sec">
-        <div class="heading">Warnungen <span class="sub">${warnungen.length || 'keine'}</span></div>
-        ${warnungen.length ? warnungen.map(([k, t, s]) => `<div class="card ${k}"><b>${esc(t)}</b><br><span class="muted">${esc(s)}</span></div>`).join('')
-          : '<div class="tile ok"><span class="ic">✓</span><div class="tx"><div class="n">Alles in Ordnung</div></div></div>'}
-      </div>
-      <div class="sec">
-        <div class="heading">Verbrauch heute</div>
-        <div class="grid2">
-          ${this._kachel('⚡', `${de(summe(this.E(b, 'energie')), 2)} kWh`, `jetzt ${de((this.N(this.E(b, 'leistung')) || 0) / 1000, 2)} kW`, 'auswertung')}
-          ${this._kachel('€', eur(summe(this.E(b, 'kosten'))), `${de(this.N(this.E(b, 'preis')), 2)} €/kWh`, 'auswertung')}
-        </div>
-        <div class="grid2">
-          ${this._kachel('📊', 'gesamt', `${de(this.N(this.E(b, 'energie')), 1)} kWh · ${eur(this.N(this.E(b, 'kosten')))}`, 'auswertung')}
-          ${o.heizung ? this._kachel('🐷', 'gespart', eur(this.N(this.E(b, 'ersparnis'))), 'auswertung') : ''}
-        </div>
-      </div>
-      <div class="sec span3"><div class="heading">Bereiche</div>
-        <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">${b.bereiche.map(x => {
-          const g = b.geraete.filter(y => y.bereich === x.id), an = g.filter(y => this.an(y.schalter)).length;
-          const t = x.fuehler ? this.N(x.fuehler) ?? this.S(x.fuehler)?.attributes.current_temperature : null;
-          return `<div class="tile ${an ? (x.art === 'pumpenschacht' ? 'info' : 'heat') : ''}" data-tab="${x.art === 'pumpenschacht' ? 'pumpen' : 'heizung'}"><span class="ic">${x.art === 'pumpenschacht' ? '💧' : '🏠'}</span>
-            <div class="tx"><div class="n">${esc(x.name)}</div><div class="s">${t !== null && t !== undefined ? de(t) + ' °C · ' : ''}${an}/${g.length} ein · ${de((this.N(this.E(b, 'leistung', x.id)) || 0) / 1000, 2)} kW${x.art === 'container' ? ' · ' + esc(GRUND[this.V(this.E(b, 'grund', x.id))] || '') : ''}</div></div></div>`;
-        }).join('')}</div></div>
-      <div class="sec span3"><div class="heading">Heute <span class="sub">wann geheizt und gepumpt wird</span></div>
-        <div class="card">${this._zeitleiste(b, schalter, 'ue')}</div></div>
+      <div class="sec span3"><div class="card ck" style="--f:${farbe}">
+        <div class="ck-illu">${pumpe ? bcSchacht(zustand === 'laeuft') : bcContainer(farbe, zustand)}</div>
+        <div class="ck-text"><span class="btn flat small" data-tab="uebersicht">← Übersicht</span>
+          <div class="bk-name">${esc(x.name)}</div>
+          <div class="muted">${this._geraeteText(geraete)} · ${esc(pumpe ? '' : GRUND[this.V(this.E(b, 'grund', x.id))] || '')}</div>
+          <div class="ck-zahlen">${t !== null && t !== undefined ? `<div><b>${de(t)} °C</b><small>innen</small></div>` : ''}
+            <div><b>${de((this.N(this.E(b, 'leistung', x.id)) || 0) / 1000, 2)} kW</b><small>jetzt</small></div>
+            <div><b>${de(this.N(this.E(b, 'energie', x.id)), 1)} kWh</b><small>gesamt</small></div>
+            <div><b>${eur(this.N(this.E(b, 'kosten', x.id)))}</b><small>Kosten</small></div></div></div></div></div>
+      <div class="sec"><div class="heading">Geräte</div>
+        ${geraete.map(g => this.geraetKarte(b, g, g.rolle === 'pumpe' ? `<div class="s">Pumpzeit ${de(this.N(this.E(b, 'pumpzeit', g.id)))} h · ${de(this.N(this.E(b, 'pumpzyklen', g.id)), 0)} Zyklen</div>`
+          : `<div class="s">Ø im Betrieb ${de(this.N(this.E(b, 'mittel_im_betrieb', g.id)), 0)} W${g.rolle === 'heizkoerper' ? ' · ' + TYP[g.typ] : ''}</div>`)).join('') || '<div class="muted">Noch kein Shelly zugeordnet.</div>'}
+        ${pumpe ? '' : '<div class="muted klein">Schalter antippen stellt den Container auf Handbetrieb.</div>'}</div>
+      ${pumpe ? '' : `<div class="sec"><div class="heading">Einstellungen</div><div class="card"><div class="rows">
+        ${this.zeile('⚙', 'Modus', esc(GRUND[this.V(this.E(b, 'grund', x.id))] || ''), this.auswahl(this.E(b, 'modus', x.id)))}
+        ${this.E(b, 'soll', x.id) ? this.zeile('🌡', 'Solltemperatur', '', this.zahl(this.E(b, 'soll', x.id))) : this.zeile('🌡', 'Kein Fühler', 'für Thermostat und Frostschutz einen Fühler zuordnen', `<span class="btn flat small" data-act="fuehler-zuordnen" data-id="${x.id}">zuordnen</span>`)}
+        ${this.zeile('👕', 'Kleidung trocknen', 'nach Regen länger und früher heizen', this.tgl(this.E(b, 'kleidung_trocknen', x.id)))}</div></div></div>`}
+      <div class="sec"><div class="heading">Heute</div><div class="card">${this._zeitleiste(b, geraete.filter(g => g.rolle !== 'steckdose').map(g => g.schalter), 'c' + x.id.slice(-4))}</div></div>
+      <div class="sec span3"><div class="heading">Leistung heute <span class="sub">kW</span></div><div class="card">${this._linie(hs, [[this.E(b, 'leistung', x.id), x.name, farbe, 1000]], 'kW', true)}</div></div>
+      ${x.fuehler ? `<div class="sec span3"><div class="heading">Temperatur heute <span class="sub">°C</span></div><div class="card">${this._linie(hs,
+        [[x.fuehler, x.name, farbe], [this.E(b, 'aussen'), 'Außen', 'var(--muted)', 1, true]], '°C', false,
+        this.an(this.E(b, 'frost_aktiv')) ? { v: this.N(this.E(b, 'frost_ein')), label: `Frostschutz ${de(this.N(this.E(b, 'frost_ein')))} °C` } : null)}</div></div>` : ''}
+      <div class="sec span3"><div class="heading">Energie je Tag <span class="sub">kWh, letzte 14 Tage</span></div><div class="card">
+        ${this._tagesSaeulen([[this.E(b, 'energie', x.id), x.name, farbe]], 14, 'kWh', false)}</div></div>
+      ${pumpe ? `<div class="sec span3"><div class="heading">Pumpzeit je Tag <span class="sub">Stunden</span></div><div class="card">
+          ${this._tagesSaeulen(geraete.map((g, k) => [this.E(b, 'pumpzeit', g.id), g.name, sc(k)]), 14, 'h', false)}</div></div>
+        <div class="sec span3"><div class="heading">Pumpzyklen je Tag</div><div class="card">
+          ${this._tagesSaeulen(geraete.map((g, k) => [this.E(b, 'pumpzyklen', g.id), g.name, sc(k)]), 14, 'Zyklen', false)}</div></div>`
+        : `<div class="sec span3"><div class="heading">Heizzeit je Tag <span class="sub">Stunden</span></div><div class="card">
+          ${this._tagesSaeulen([[this.E(b, 'heizzeit', x.id), x.name, farbe]], 14, 'h', false)}</div></div>`}
     </div>`;
   }
 
@@ -1227,9 +1397,10 @@ class BaustellePanel extends HTMLElement {
 
   /* ---------------------------------------------------------------- Bedienung */
   _klick(e) {
-    const t = e.composedPath().find(x => x.dataset && (x.dataset.tab || x.dataset.toggle || x.dataset.press || x.dataset.act || x.dataset.href || (x.dataset.ui && x.dataset.wert !== undefined)));
+    const t = e.composedPath().find(x => x.dataset && (x.dataset.cid || x.dataset.tab || x.dataset.toggle || x.dataset.press || x.dataset.act || x.dataset.href || (x.dataset.ui && x.dataset.wert !== undefined)));
     if (!t) return;
     const d = t.dataset;
+    if (d.cid) { this.ui.tab = 'container'; this.ui.cid = d.cid; this.ui.form = null; this._rendern(); const i = this.shadowRoot.querySelector('.inhalt'); if (i) i.scrollTop = 0; return; }
     if (d.tab) { this.ui.tab = d.tab; this.ui.form = null; return this._rendern(); }
     if (d.toggle) { if (!t.classList.contains('dis')) this._dienst('homeassistant', this.an(d.toggle) ? 'turn_off' : 'turn_on', { entity_id: d.toggle }); return; }
     if (d.press) { this._dienst('button', 'press', { entity_id: d.press }); this._meldung('Test-Meldung gesendet'); return; }
@@ -1237,6 +1408,10 @@ class BaustellePanel extends HTMLElement {
     if (d.ui) { this.ui[d.ui] = d.wert; this.ui.form = null; if (d.ui === 'bid') this.ui.scope = 'all'; return this._rendern(); }
     const b = this.B();
     switch (d.act) {
+      case 'wetter-auf': this.ui.wetter = !this.ui.wetter; this._rendern(); break;
+      case 'wetter-waehlen': this.ui.tab = 'einstellungen'; this.ui.sub = 'wetter'; this.ui.form = { art: 'wetter' }; this._rendern(); break;
+      case 'container-neu': this.ui.tab = 'einstellungen'; this.ui.sub = 'diese'; this.ui.form = { art: 'bereich' }; this._rendern(); break;
+      case 'fuehler-zuordnen': this.ui.tab = 'einstellungen'; this.ui.sub = 'diese'; this.ui.form = { art: 'bereich', id: d.id }; this._rendern(); break;
       case 'menu': this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true })); break;
       case 'urlaub-neu': this.ui.form = { art: 'urlaub' }; this._rendern(); break;
       case 'abbrechen': this.ui.form = null; this._rendern(); break;

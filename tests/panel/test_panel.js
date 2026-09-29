@@ -73,11 +73,11 @@ const hass = {
   p.hass = hass;
   await new Promise(r => setTimeout(r, 20));
   let fehler = 0;
-  const tabs = ['uebersicht', 'heizung', 'pumpen', 'auswertung', 'verlauf', 'einstellungen'];
+  const tabs = ['uebersicht', 'heizung', 'pumpen', 'auswertung', 'verlauf', 'einstellungen', 'container'];
   for (const bid of ['ENTRY1', 'E2']) {
     p.ui.bid = bid;
     for (const tab of tabs) for (const per of ['d', '7', 'hp']) for (const sub of ['baustellen', 'diese', 'wetter', 'urlaub', 'meldungen']) {
-      Object.assign(p.ui, { tab, per, sub, hsel: 'E3' });
+      Object.assign(p.ui, { tab, per, sub, hsel: 'E3', cid: sub === 'diese' ? 'S1' : 'BEREICH1', wetter: per === 'd' });
       p._seite();                                     // Abfragen anstoßen
       await new Promise(r => setTimeout(r, 5));       // Antworten einsammeln
       const html = p._seite();
@@ -88,12 +88,20 @@ const hass = {
   }
   p.ui.tab = 'heizung'; const html = p._seite();
   console.log('Heizung enthält Animation:', /class="a run/.test(html), '· Zeitplan-Zeilen:', (html.match(/data-time=/g) || []).length);
-  p.ui.tab = 'uebersicht'; const ue = p._seite();
-  const wetterOk = (ue.match(/<svg class="wi[ "]/g) || []).length === 4 && /filter="url\(#wrFluff\)"/.test(ue) && /Heute/.test(ue) && /trocken|mm</.test(ue);
+  p.ui.bid = 'E2'; p.ui.tab = 'uebersicht'; p.ui.wetter = true; const ue = p._seite();
+  const wetterOk = (ue.match(/<svg class="wi[ "]/g) || []).length === 5 && /filter="url\(#wrFluff\)"/.test(ue) && /Heute/.test(ue) && /trocken|mm</.test(ue);
+  const kachelnOk = (ue.match(/class="kc (?!neu)[a-z]+"/g) || []).length === 2 && /data-cid="BEREICH1"/.test(ue) && /class="bc/.test(ue) && /Pumpenschacht/.test(ue) && /data-act="container-neu"/.test(ue);
+  console.log('Übersicht mit Container-Kacheln:', kachelnOk); if (!kachelnOk) fehler++;
+  for (const cid of ['BEREICH1', 'S1']) { p.ui.tab = 'container'; p.ui.cid = cid; p._seite(); await new Promise(r => setTimeout(r, 5));
+    const c = p._seite(); const ok = /← Übersicht/.test(c) && /Energie je Tag/.test(c) && /class="bc/.test(c) && (cid === 'S1' ? /Pumpzyklen je Tag/.test(c) : /Heizzeit je Tag/.test(c)) && !/undefined|NaN/.test(c);
+    console.log('Container-Ansicht', cid, ok); if (!ok) fehler++; }
+  p._klick({ composedPath: () => [{ dataset: { cid: 'BEREICH1' } }] }); if (p.ui.tab !== 'container' || p.ui.cid !== 'BEREICH1') { fehler++; console.log('Klick auf Kachel geht nicht'); }
+  p._klick({ composedPath: () => [{ dataset: { act: 'wetter-auf' } }] }); if (p.ui.wetter !== false) { fehler++; console.log('Wetter-Chip geht nicht'); }
+  p.ui.bid = 'ENTRY1';
   console.log('Wetterkarte mit animierten Symbolen:', wetterOk); if (!wetterOk) fehler++;
   const zustaende = ['sunny', 'clear-night', 'partlycloudy', 'cloudy', 'fog', 'rainy', 'pouring', 'snowy', 'snowy-rainy', 'hail', 'lightning', 'lightning-rainy', 'windy', 'windy-variant', 'exceptional'];
   if (process.env.SYMBOLE) require('fs').writeFileSync(process.env.SYMBOLE, zustaende.map(z => wetterIcon(z, 64).replace(/\n/g, ' ')).join('\n'));
-  console.log('Übersicht Zeitleiste:', /<svg class="ch"/.test(ue), '· Warnung:', /Heizkörper selbst an/.test(ue), '· Vorhersage:', /°C<\/div>[\s\S]*mm<\/span><\/div>/.test(ue));
+  console.log('Warnung:', /Heizkörper selbst an/.test(ue));
   p.ui.bid = 'ENTRY1'; p.ui.tab = 'auswertung'; p.ui.per = '7'; p._seite(); await new Promise(r => setTimeout(r, 5));
   const au = p._seite(); const vglOk = /2,4 °C\/h/.test(au) && /Temperatur je Tag/.test(au); console.log('Vergleich Aufheizen + Temperatur-Mittel:', vglOk); if (!vglOk) fehler++;
   p.ui.tab = 'verlauf'; p.ui.hsel = 'ENTRY1'; p._seite(); await new Promise(r => setTimeout(r, 5));
