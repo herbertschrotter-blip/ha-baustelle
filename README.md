@@ -23,7 +23,7 @@ Quelle der Wahrheit ist dieses Repo (`/config/projekte/ha-baustelle`). `/config`
   `lovelace: dashboards:`:
 
   ```yaml
-  baustelle:
+  ha-baustelle:
     mode: yaml
     title: Baustelle
     icon: mdi:crane
