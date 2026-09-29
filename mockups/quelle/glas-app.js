@@ -182,7 +182,8 @@ class App {
           <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon(wetterJetzt()[0], 22)}<span>${STIMMUNG.wetter === 'schnee' ? '−2,1°' : STIMMUNG.phase === 'nacht' ? '1,8°' : '4,2°'}</span><span class="kw-t">${wetterJetzt()[1]}</span></button></div>
         <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
       <div class="glas-chips">
-        <button class="glas-panel chip ${this.s.auto ? 'amber' : ''}" data-act="auto">♨ ${this.s.auto ? 'Automatik · aus 17:15' : 'Automatik aus'}</button>
+        <button class="glas-panel chip auto-chip ${this.s.auto ? 'on' : ''}" data-act="auto" role="switch" aria-checked="${this.s.auto}" title="Automatik ${this.s.auto ? 'ausschalten' : 'einschalten'}"><span class="mini-sw"><i></i></span>Automatik</button>
+        <span class="chip-status ${this.s.auto ? 'amber' : ''}">${this.s.auto ? '♨ heizt bis 17:15' : 'Handbetrieb – nichts wird geschaltet'}</span>
         ${warn ? `<button class="glas-panel chip rot" data-act="sheet" data-s="warnungen">${warn} Warnung</button>` : ''}
         <span class="chip-leise">${an} von ${alle} Geräten an</span>
       </div>

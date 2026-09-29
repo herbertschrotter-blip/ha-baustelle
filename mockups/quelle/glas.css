@@ -117,6 +117,12 @@ body.hell { background: #d9dee5; color: #111; }
 .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; padding: 6px 12px; border-radius: 18px !important; transition: transform .15s; }
 .chip:active { transform: scale(.96); } .chip.rot { color: var(--rot); } .chip.amber { color: var(--amber); }
 .chip-leise { font-size: 12px; color: var(--ink2); margin-left: 4px; }
+.auto-chip { gap: 8px !important; padding-left: 7px !important; font-weight: 600; }
+.mini-sw { position: relative; width: 28px; height: 16px; border-radius: 8px; background: rgba(120,120,128,.45); transition: background .25s; flex: none; }
+.mini-sw i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: transform .25s cubic-bezier(.3,.7,.2,1.2); }
+.auto-chip.on .mini-sw { background: var(--amber); } .auto-chip.on .mini-sw i { transform: translateX(12px); }
+.chip-status { font-size: 13px; color: var(--ink2); } .chip-status.amber { color: var(--amber); font-weight: 500; }
 
 .glas-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .glas-k { padding: 12px; display: flex; flex-direction: column; gap: 3px; animation: rein .5s ease-out both, schweben2 6s ease-in-out infinite;
