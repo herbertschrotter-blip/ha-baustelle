@@ -1,0 +1,574 @@
+<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Baustellenübersicht</title>
+<style>
+body { margin: 0; font-family: Roboto, system-ui, -apple-system, "Segoe UI", sans-serif; background: #0b0b0b; color: #e1e1e1; }
+body.licht { background: #dfe4ea; }
+.bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 10px; align-items: center; padding: 10px 16px; background: #263238; color: #eceff1; }
+.bar button { background: transparent; color: inherit; border: 1px solid #607d8b; border-radius: 6px; padding: 5px 10px; font: inherit; cursor: pointer; }
+.buehne { display: flex; gap: 24px; padding: 18px; overflow-x: auto; align-items: flex-start; } .rahmen h2 { font-size: 14px; color: #90a4ae; margin: 0 0 6px; }
+.handy, .pc { --bg: #111; --card: #1c1c1c; --txt: #e1e1e1; --sek: #9b9b9b; --div: rgba(225,225,225,.1); --fenster: #2b3a44; --rahmen: #cfd8dc; background: var(--bg); color: var(--txt); border-radius: 22px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.5); container-type: inline-size; }
+.licht .handy, .licht .pc { --bg: #f4f6f8; --card: #fff; --txt: #212121; --sek: #6f7478; --div: rgba(0,0,0,.08); --fenster: #cfe3f3; --rahmen: #eceff1; }
+.handy { width: 390px; border: 8px solid #000; } .pc { width: 1100px; border: 1px solid #333; }
+.bu { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.muted { color: var(--sek); } .klein { font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 10px; border-radius: 12px; background: rgba(127,127,127,.18); }
+.chip.orange { background: rgba(255,129,0,.18); color: #ff9800; } .chip.blau { background: rgba(42,120,214,.2); color: #64b5f6; } .chip.rot { background: rgba(208,59,59,.2); color: #ef6c6c; } .chip.grau { color: var(--sek); }
+.wchip { padding: 1px 10px 1px 4px; }
+/* Kopf-Kachel */
+.bk { position: relative; overflow: hidden; border-radius: 22px; padding: 18px; display: grid; grid-template-columns: 1fr auto; gap: 12px;
+  background: radial-gradient(120% 140% at 0% 0%, rgba(255,152,0,.28), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(57,135,229,.28), transparent 55%), var(--card); border: 1px solid var(--div); }
+.bk::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255,193,7,.07) 0 14px, transparent 14px 28px); pointer-events: none; }
+.bk-name { font-size: 24px; font-weight: 600; margin: 2px 0 8px; } .bk-zahlen { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--sek); } .bk-zahlen b { color: var(--txt); font-size: 18px; }
+.bk-r { display: flex; align-items: center; gap: 10px; } .bk-kw { font-size: 30px; font-weight: 300; } .bk-kw small { font-size: 14px; color: var(--sek); }
+.blitz { font-size: 30px; animation: blitz 2.4s ease-in-out infinite; filter: drop-shadow(0 0 8px rgba(255,193,7,.7)); }
+.bk-leiste { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; position: relative; z-index: 1; }
+@container (max-width: 500px) { .bk { grid-template-columns: 1fr; } }
+/* Kacheln */
+.gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+@container (max-width: 500px) { .gitter { grid-template-columns: 1fr 1fr; gap: 10px; } .kc .gross { font-size: 24px; } .kc-name { font-size: 14px; } .kc-fuss .muted { font-size: 11px; } }
+.kc { position: relative; background: var(--card); border: 1px solid var(--div); border-radius: 20px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; overflow: hidden;
+  animation: rein .5s ease-out both; transition: transform .2s; }
+.kc::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 58%; background: radial-gradient(90% 90% at 50% 20%, color-mix(in srgb, var(--f) 30%, transparent), transparent 70%); pointer-events: none; }
+.kc.heizt::before, .kc.trocknen::before { background: radial-gradient(90% 90% at 50% 20%, rgba(255,152,0,.32), transparent 70%); animation: atmen 3s ease-in-out infinite; }
+.kc.offline { border-color: rgba(208,59,59,.6); } .kc:hover { transform: translateY(-3px); }
+.illu { margin: -4px -6px 0; } .bc { width: 100%; height: auto; display: block; overflow: visible; } .bc.offline { filter: grayscale(.8) brightness(.8); }
+.kc-kopf { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; position: relative; } .kc-name { font-weight: 600; font-size: 15px; line-height: 1.2; }
+.kc-kopf .chip { font-size: 11px; padding: 2px 8px; white-space: nowrap; }
+.kc-mitte { display: flex; justify-content: space-between; align-items: flex-end; } .gross { font-size: 30px; font-weight: 300; line-height: 1; } .gross small { font-size: 13px; color: var(--sek); } .gross.grau { color: var(--sek); }
+.kw { font-size: 12px; color: var(--sek); white-space: nowrap; } .kw b { color: var(--txt); font-size: 16px; }
+.balken { height: 6px; border-radius: 3px; background: rgba(127,127,127,.2); overflow: hidden; } .balken i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--f), #ff9800); animation: fuellen 1.2s ease-out both; }
+.kc-fuss { display: flex; justify-content: space-between; align-items: center; font-size: 12px; } .punkte { display: flex; gap: 4px; } .punkte i { width: 8px; height: 8px; border-radius: 50%; background: rgba(127,127,127,.4); }
+.punkte i.an { background: #ff9800; box-shadow: 0 0 6px #ff9800; animation: atmen 2s ease-in-out infinite; }
+.kc.laeuft .punkte i.an { background: #42a5f5; box-shadow: 0 0 6px #42a5f5; } .kc.laeuft .balken i { background: linear-gradient(90deg, var(--f), #42a5f5); }
+.kc.neu { align-items: center; justify-content: center; border-style: dashed; min-height: 140px; font-size: 13px; } .kc.neu > div:first-child { font-size: 38px; font-weight: 200; color: var(--sek); }
+/* Animationen */
+@keyframes rein { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes atmen { 50% { opacity: .55; } }
+@keyframes fuellen { from { width: 0; } }
+@keyframes blitz { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-6deg); } }
+.glut { animation: glut 2.6s ease-in-out infinite; } @keyframes glut { 50% { fill: #ffd180; filter: drop-shadow(0 0 4px #ff9800); } }
+.waerme { animation: waerme 2.1s ease-in infinite; opacity: 0; } @keyframes waerme { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-12px); opacity: 0; } }
+.jacke { animation: jacke 2.4s ease-in-out infinite; } @keyframes jacke { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+.eis { animation: eis 2s ease-in-out infinite; } @keyframes eis { 50% { opacity: .3; } }
+.alarm { animation: alarm 1s steps(2) infinite; } @keyframes alarm { 50% { opacity: .25; } }
+.pegel { animation: pegel 5s ease-in-out infinite; } @keyframes pegel { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+.welle { animation: welle 3s linear infinite; } @keyframes welle { to { transform: translateX(-60px); } }
+.rad { animation: rad .9s linear infinite; transform-box: fill-box; transform-origin: center; } @keyframes rad { to { transform: rotate(360deg); } }
+.fluss { stroke-dasharray: 5 5; animation: fluss .6s linear infinite; } @keyframes fluss { to { stroke-dashoffset: -10; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+/* Wetter */
+.hell { --wr-nebel: #cfd8dc; --wr-wind: #90a4ae; }
+.dunkel { --wr-nebel: #7f8f9a; --wr-wind: #b0bec5; }
+.wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
+.wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
+.wetter .wtage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
+.wetter .wtag { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.wetter .wt { font-size: 12px; font-weight: 600; color: var(--secondary-text-color); }
+.wetter .max { font-weight: 600; }
+.wetter .frost { color: #2a78d6; font-weight: 600; }
+.wetter .regen { color: #2a78d6; }
+@keyframes wi-dreh { to { transform: rotate(360deg); } }
+@keyframes wi-wolke { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+@keyframes wi-tropfen { 0% { transform: translateY(-5px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(9px); opacity: 0; } }
+@keyframes wi-flocke { 0% { transform: translate(-1px, -5px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translate(2px, 9px); opacity: 0; } }
+@keyframes wi-blitz { 0%, 86%, 100% { opacity: .15; } 88%, 93% { opacity: 1; } 90% { opacity: .3; } }
+@keyframes wi-nebel { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+@keyframes wi-stern { 50% { opacity: .2; } }
+@keyframes wi-wind { 0% { stroke-dashoffset: 60; } 100% { stroke-dashoffset: 0; } }
+.wi .wi-dreh { animation: wi-dreh 18s linear infinite; }
+.wi .wi-wolke > g { animation: wi-wolke 6s ease-in-out infinite; }
+.wr .wr-kristall { transform-box: fill-box; animation: wi-dreh 6s linear infinite; }
+@keyframes wb-puls { 0%, 100% { opacity: .55; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
+.wi .wb-puls { transform-box: fill-box; transform-origin: center; animation: wb-puls 3.5s ease-in-out infinite; }
+.wi .wi-tropfen { animation: wi-tropfen 1.3s linear infinite; }
+.wi .wi-flocke { animation: wi-flocke 2.6s linear infinite; }
+.wi .wi-blitz { animation: wi-blitz 3.2s linear infinite; }
+.wi .wi-nebel { animation: wi-nebel 5s ease-in-out infinite; }
+.wi .wi-stern { animation: wi-stern 2.4s ease-in-out infinite; }
+.wi .wi-wind { stroke-dasharray: 60; animation: wi-wind 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .wi * { animation: none !important; } }
+</style></head><body class="dunkel"><div class="bar"><b>Baustellenübersicht – Container im Mittelpunkt</b>
+<button onclick="document.body.classList.toggle('licht');document.body.classList.toggle('dunkel');document.body.classList.toggle('hell')">Hell / Dunkel</button>
+<span style="font-size:12px;opacity:.7">Beispieldaten mit mehreren Containern, damit man das Design sieht</span></div>
+<div class="buehne"><div class="rahmen"><h2>Handy</h2><div class="handy"><div class="bu "><div class="bk">
+  <div class="bk-l"><div class="muted klein">BAUSTELLE · AKTIV</div><div class="bk-name">ÖWG Dobl Zwaring</div>
+    <div class="bk-zahlen"><span><b>5</b> Container</span><span><b>1</b> Pumpenschacht</span><span><b>11</b> Geräte · 7 an</span></div></div>
+  <div class="bk-r"><div class="blitz">⚡</div><div><div class="bk-kw">12,5<small> kW</small></div><div class="muted klein">jetzt · 18,6 kWh heute · 5,21 €</div></div></div>
+  <div class="bk-leiste"><span class="chip orange">♨ Heizung · Automatik</span><span class="chip">aus um 17:15</span><span class="chip wchip"><svg class="wi wr" viewBox="0 0 64 64" width="22" height="22" overflow="visible" role="img" aria-label="rainy"><defs>
+  <filter id="wrFluff" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation=".45"/></filter>
+  <filter id="wrWeich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+  <filter id="wrGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="wrNebel" x="-20%" y="-50%" width="140%" height="200%"><feTurbulence type="fractalNoise" baseFrequency=".05 .18" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/><feGaussianBlur stdDeviation="1.2"/></filter>
+  <radialGradient id="wrKern" cx="45%" cy="42%" r="60%"><stop offset="0" stop-color="#fffef2"/><stop offset=".45" stop-color="#ffe680"/><stop offset="1" stop-color="#ff9f0a"/></radialGradient>
+  <radialGradient id="wrKorona"><stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/><stop offset=".5" stop-color="#ffd54f" stop-opacity=".35"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+  <linearGradient id="wrStrahl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff6c8" stop-opacity=".75"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient>
+  <radialGradient id="wrWeiss" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef2f5"/><stop offset="1" stop-color="#b6c2cb"/></radialGradient>
+  <radialGradient id="wrGrau" cx="38%" cy="25%" r="85%"><stop offset="0" stop-color="#cfd8dc"/><stop offset=".5" stop-color="#8d9ca6"/><stop offset="1" stop-color="#4b5a64"/></radialGradient>
+  <linearGradient id="wrRegen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ec5ff" stop-opacity="0"/><stop offset="1" stop-color="#3d8be0"/></linearGradient>
+  <radialGradient id="wrEis" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9cc9ee"/></radialGradient>
+  <radialGradient id="wrMond" cx="38%" cy="35%" r="75%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".7" stop-color="#f3e3a8"/><stop offset="1" stop-color="#d6c07a"/></radialGradient></defs><g class="wi-wolke" transform="translate(0 -8) scale(1)"><g transform="translate(1.5 3)" opacity=".22" filter="url(#wrWeich)"><circle cx="22" cy="34" r="10" fill="#233"/><circle cx="32" cy="27" r="13" fill="#233"/><circle cx="43" cy="32" r="10.5" fill="#233"/><circle cx="14" cy="40" r="7" fill="#233"/><circle cx="51" cy="40" r="7.5" fill="#233"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="#233"/></g>
+    <g filter="url(#wrFluff)"><circle cx="22" cy="34" r="10" fill="url(#wrWeiss)"/><circle cx="32" cy="27" r="13" fill="url(#wrWeiss)"/><circle cx="43" cy="32" r="10.5" fill="url(#wrWeiss)"/><circle cx="14" cy="40" r="7" fill="url(#wrWeiss)"/><circle cx="51" cy="40" r="7.5" fill="url(#wrWeiss)"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="url(#wrWeiss)"/></g></g><line class="wi-tropfen" style="animation-delay:0.00s;animation-duration:1s" x1="22" y1="44" x2="19" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.23s;animation-duration:1s" x1="30.666666666666664" y1="44" x2="27.666666666666664" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.46s;animation-duration:1s" x1="39.33333333333333" y1="44" x2="36.33333333333333" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.69s;animation-duration:1s" x1="48" y1="44" x2="45" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/></svg> 4,2 °C · 6 mm</span><span class="chip rot">1 Warnung</span></div></div><div class="gitter"><div class="kc heizt" style="--f:#3987e5;animation-delay:0ms">
+    <div class="illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#3987e5">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #3987e5 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#3987e5"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #3987e5 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #3987e5 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    <path class="waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Poliercontainer</div><span class="chip orange">heizt</span></div>
+    <div class="kc-mitte"><div><div class="gross">19,4<small> °C</small></div>
+        <div class="muted klein">Soll 20,0 °C</div></div>
+      <div class="kw"><b>3,99</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:95%"></i></div>
+    <div class="kc-fuss"><span class="muted">2 Heizkörper</span><span class="punkte"><i class="an" title="Radiator 1"></i><i class="an" title="Konvektor 2"></i></span></div>
+    <div class="muted klein">Thermostat heizt</div>
+  </div><div class="kc trocknen" style="--f:#eb6834;animation-delay:80ms">
+    <div class="illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#eb6834">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #eb6834 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#eb6834"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #eb6834 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #eb6834 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    <g class="jacke" style="transform-origin:88.5px 57.714285714285715px"><path d="M84 59.714285714285715l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>
+    <path class="waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Mannschaft</div><span class="chip orange">Kleidung trocknen</span></div>
+    <div class="kc-mitte"><div><div class="gross">17,8<small> °C</small></div>
+        </div>
+      <div class="kw"><b>5,79</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:91.82539682539682%"></i></div>
+    <div class="kc-fuss"><span class="muted">2 Heizkörper · 1 Trockner</span><span class="punkte"><i class="an" title="Heizkörper 1"></i><i class="an" title="Heizkörper 2"></i><i class="an" title="Bautrockner"></i></span></div>
+    <div class="muted klein">Kleidung trocknen</div>
+  </div><div class="kc aus" style="--f:#1baf7a;animation-delay:160ms">
+    <div class="illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#1baf7a">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #1baf7a 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#1baf7a"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #1baf7a 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #1baf7a 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Magazin</div><span class="chip grau">aus</span></div>
+    <div class="kc-mitte"><div><div class="gross">9,1<small> °C</small></div>
+        </div>
+      <div class="kw"><b>0,00</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:0%"></i></div>
+    <div class="kc-fuss"><span class="muted">1 Heizkörper · 1 Steckdose</span><span class="punkte"><i class="" title="Heizkörper 1"></i><i class="" title="Werkzeug"></i></span></div>
+    <div class="muted klein">aus bis 06:00</div>
+  </div><div class="kc frost" style="--f:#c98500;animation-delay:240ms">
+    <div class="illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#c98500">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #c98500 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#c98500"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #c98500 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #c98500 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    <g class="eis" style="animation-delay:0s" transform="translate(60 16)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="eis" style="animation-delay:0.6s" transform="translate(82 14)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="eis" style="animation-delay:1.2s" transform="translate(104 12)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g>
+    
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Sanitär</div><span class="chip blau">Frostschutz</span></div>
+    <div class="kc-mitte"><div><div class="gross">4,2<small> °C</small></div>
+        </div>
+      <div class="kw"><b>2,00</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:95%"></i></div>
+    <div class="kc-fuss"><span class="muted">1 Heizkörper</span><span class="punkte"><i class="an" title="Heizkörper 1"></i></span></div>
+    <div class="muted klein">Frostschutz</div>
+  </div><div class="kc offline" style="--f:#d55181;animation-delay:320ms">
+    <div class="illu"><svg class="bc offline" viewBox="0 0 170 120" style="--f:#d55181">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #d55181 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#d55181"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #d55181 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #d55181 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    <g class="alarm"><circle cx="140" cy="20" r="11" fill="#d03b3b"/><path d="M140 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="27" r="1.8" fill="#fff"/></g>
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Lager Süd</div><span class="chip rot">nicht erreichbar</span></div>
+    <div class="kc-mitte"><div><div class="gross grau">–</div>
+        </div>
+      <div class="kw"><b>0,00</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:0%"></i></div>
+    <div class="kc-fuss"><span class="muted">1 Heizkörper</span><span class="punkte"><i class="" title="Heizkörper 1"></i></span></div>
+    <div class="muted klein">nicht erreichbar</div>
+  </div><div class="kc laeuft" style="--f:#199e70;animation-delay:400ms">
+    <div class="illu"><svg class="bc" viewBox="0 0 170 120">
+    <ellipse cx="85" cy="104" rx="56" ry="10" fill="#000" opacity=".22"/>
+    <defs><clipPath id="sch"><path d="M40 30v62a45 12 0 0 0 90 0V30z"/></clipPath>
+      <linearGradient id="beton" x1="0" x2="1"><stop offset="0" stop-color="#8d9ca6"/><stop offset=".5" stop-color="#cfd8dc"/><stop offset="1" stop-color="#78909c"/></linearGradient>
+      <linearGradient id="wasser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64b5f6"/><stop offset="1" stop-color="#0d47a1"/></linearGradient></defs>
+    <path d="M40 30v62a45 12 0 0 0 90 0V30z" fill="url(#beton)"/>
+    <g clip-path="url(#sch)"><g class="pegel"><path class="welle" d="M0 70q15-5 30 0t30 0 30 0 30 0 30 0 30 0 30 0v60H0z" fill="url(#wasser)" opacity=".92"/></g>
+      <g transform="translate(85 86)"><circle r="10" fill="#37474f"/><g class="rad"><path d="M0 0l0-8M0 0l7 4M0 0l-7 4" stroke="#b0bec5" stroke-width="3" stroke-linecap="round"/></g></g></g>
+    <ellipse cx="85" cy="30" rx="45" ry="12" fill="#546e7a"/><ellipse cx="85" cy="30" rx="38" ry="9" fill="#263238"/>
+    <path d="M85 76V10h32" fill="none" stroke="#90a4ae" stroke-width="5"/><path class="fluss" d="M85 76V10h32" fill="none" stroke="#64b5f6" stroke-width="2.4"/>
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Pumpenschacht Nord</div><span class="chip blau">läuft</span></div>
+    <div class="kc-mitte"><div><div class="gross">36<small> Zyklen</small></div>
+        </div>
+      <div class="kw"><b>0,76</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:18.095238095238095%"></i></div>
+    <div class="kc-fuss"><span class="muted">2 Pumpen</span><span class="punkte"><i class="an" title="Pumpe 1"></i><i class="" title="Pumpe 2"></i></span></div>
+    <div class="muted klein">Pumpe läuft</div>
+  </div><div class="kc neu"><div>+</div><div class="muted">Container / Pumpenschacht</div></div></div></div></div></div><div class="rahmen"><h2>Desktop</h2><div class="pc"><div class="bu "><div class="bk">
+  <div class="bk-l"><div class="muted klein">BAUSTELLE · AKTIV</div><div class="bk-name">ÖWG Dobl Zwaring</div>
+    <div class="bk-zahlen"><span><b>5</b> Container</span><span><b>1</b> Pumpenschacht</span><span><b>11</b> Geräte · 7 an</span></div></div>
+  <div class="bk-r"><div class="blitz">⚡</div><div><div class="bk-kw">12,5<small> kW</small></div><div class="muted klein">jetzt · 18,6 kWh heute · 5,21 €</div></div></div>
+  <div class="bk-leiste"><span class="chip orange">♨ Heizung · Automatik</span><span class="chip">aus um 17:15</span><span class="chip wchip"><svg class="wi wr" viewBox="0 0 64 64" width="22" height="22" overflow="visible" role="img" aria-label="rainy"><defs>
+  <filter id="wrFluff" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation=".45"/></filter>
+  <filter id="wrWeich" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+  <filter id="wrGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="wrNebel" x="-20%" y="-50%" width="140%" height="200%"><feTurbulence type="fractalNoise" baseFrequency=".05 .18" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="6"/><feGaussianBlur stdDeviation="1.2"/></filter>
+  <radialGradient id="wrKern" cx="45%" cy="42%" r="60%"><stop offset="0" stop-color="#fffef2"/><stop offset=".45" stop-color="#ffe680"/><stop offset="1" stop-color="#ff9f0a"/></radialGradient>
+  <radialGradient id="wrKorona"><stop offset="0" stop-color="#fff3b0" stop-opacity=".85"/><stop offset=".5" stop-color="#ffd54f" stop-opacity=".35"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+  <linearGradient id="wrStrahl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff6c8" stop-opacity=".75"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient>
+  <radialGradient id="wrWeiss" cx="38%" cy="28%" r="80%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef2f5"/><stop offset="1" stop-color="#b6c2cb"/></radialGradient>
+  <radialGradient id="wrGrau" cx="38%" cy="25%" r="85%"><stop offset="0" stop-color="#cfd8dc"/><stop offset=".5" stop-color="#8d9ca6"/><stop offset="1" stop-color="#4b5a64"/></radialGradient>
+  <linearGradient id="wrRegen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ec5ff" stop-opacity="0"/><stop offset="1" stop-color="#3d8be0"/></linearGradient>
+  <radialGradient id="wrEis" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9cc9ee"/></radialGradient>
+  <radialGradient id="wrMond" cx="38%" cy="35%" r="75%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".7" stop-color="#f3e3a8"/><stop offset="1" stop-color="#d6c07a"/></radialGradient></defs><g class="wi-wolke" transform="translate(0 -8) scale(1)"><g transform="translate(1.5 3)" opacity=".22" filter="url(#wrWeich)"><circle cx="22" cy="34" r="10" fill="#233"/><circle cx="32" cy="27" r="13" fill="#233"/><circle cx="43" cy="32" r="10.5" fill="#233"/><circle cx="14" cy="40" r="7" fill="#233"/><circle cx="51" cy="40" r="7.5" fill="#233"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="#233"/></g>
+    <g filter="url(#wrFluff)"><circle cx="22" cy="34" r="10" fill="url(#wrWeiss)"/><circle cx="32" cy="27" r="13" fill="url(#wrWeiss)"/><circle cx="43" cy="32" r="10.5" fill="url(#wrWeiss)"/><circle cx="14" cy="40" r="7" fill="url(#wrWeiss)"/><circle cx="51" cy="40" r="7.5" fill="url(#wrWeiss)"/><ellipse cx="32" cy="42" rx="21" ry="7" fill="url(#wrWeiss)"/></g></g><line class="wi-tropfen" style="animation-delay:0.00s;animation-duration:1s" x1="22" y1="44" x2="19" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.23s;animation-duration:1s" x1="30.666666666666664" y1="44" x2="27.666666666666664" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.46s;animation-duration:1s" x1="39.33333333333333" y1="44" x2="36.33333333333333" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/><line class="wi-tropfen" style="animation-delay:0.69s;animation-duration:1s" x1="48" y1="44" x2="45" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/></svg> 4,2 °C · 6 mm</span><span class="chip rot">1 Warnung</span></div></div><div class="gitter"><div class="kc heizt" style="--f:#3987e5;animation-delay:0ms">
+    <div class="illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#3987e5">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #3987e5 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#3987e5"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #3987e5 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #3987e5 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    <path class="waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Poliercontainer</div><span class="chip orange">heizt</span></div>
+    <div class="kc-mitte"><div><div class="gross">19,4<small> °C</small></div>
+        <div class="muted klein">Soll 20,0 °C</div></div>
+      <div class="kw"><b>3,99</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:95%"></i></div>
+    <div class="kc-fuss"><span class="muted">2 Heizkörper</span><span class="punkte"><i class="an" title="Radiator 1"></i><i class="an" title="Konvektor 2"></i></span></div>
+    <div class="muted klein">Thermostat heizt</div>
+  </div><div class="kc trocknen" style="--f:#eb6834;animation-delay:80ms">
+    <div class="illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#eb6834">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #eb6834 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#eb6834"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #eb6834 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #eb6834 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    <g class="jacke" style="transform-origin:88.5px 57.714285714285715px"><path d="M84 59.714285714285715l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>
+    <path class="waerme" style="animation-delay:0s" d="M62 24 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="waerme" style="animation-delay:0.7s" d="M80 23 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/><path class="waerme" style="animation-delay:1.4s" d="M98 22 q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>
+    
+    
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Mannschaft</div><span class="chip orange">Kleidung trocknen</span></div>
+    <div class="kc-mitte"><div><div class="gross">17,8<small> °C</small></div>
+        </div>
+      <div class="kw"><b>5,79</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:91.82539682539682%"></i></div>
+    <div class="kc-fuss"><span class="muted">2 Heizkörper · 1 Trockner</span><span class="punkte"><i class="an" title="Heizkörper 1"></i><i class="an" title="Heizkörper 2"></i><i class="an" title="Bautrockner"></i></span></div>
+    <div class="muted klein">Kleidung trocknen</div>
+  </div><div class="kc aus" style="--f:#1baf7a;animation-delay:160ms">
+    <div class="illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#1baf7a">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #1baf7a 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#1baf7a"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #1baf7a 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #1baf7a 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Magazin</div><span class="chip grau">aus</span></div>
+    <div class="kc-mitte"><div><div class="gross">9,1<small> °C</small></div>
+        </div>
+      <div class="kw"><b>0,00</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:0%"></i></div>
+    <div class="kc-fuss"><span class="muted">1 Heizkörper · 1 Steckdose</span><span class="punkte"><i class="" title="Heizkörper 1"></i><i class="" title="Werkzeug"></i></span></div>
+    <div class="muted klein">aus bis 06:00</div>
+  </div><div class="kc frost" style="--f:#c98500;animation-delay:240ms">
+    <div class="illu"><svg class="bc " viewBox="0 0 170 120" style="--f:#c98500">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #c98500 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#c98500"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #c98500 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #c98500 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="#ffcc80" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="glut" fill="#ffb74d"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.25"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    <g class="eis" style="animation-delay:0s" transform="translate(60 16)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="eis" style="animation-delay:0.6s" transform="translate(82 14)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g><g class="eis" style="animation-delay:1.2s" transform="translate(104 12)" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+      <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g>
+    
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Sanitär</div><span class="chip blau">Frostschutz</span></div>
+    <div class="kc-mitte"><div><div class="gross">4,2<small> °C</small></div>
+        </div>
+      <div class="kw"><b>2,00</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:95%"></i></div>
+    <div class="kc-fuss"><span class="muted">1 Heizkörper</span><span class="punkte"><i class="an" title="Heizkörper 1"></i></span></div>
+    <div class="muted klein">Frostschutz</div>
+  </div><div class="kc offline" style="--f:#d55181;animation-delay:320ms">
+    <div class="illu"><svg class="bc offline" viewBox="0 0 170 120" style="--f:#d55181">
+    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
+    <!-- Boden-Kufen -->
+    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Seite rechts -->
+    <path d="M106 50l50-18v58l-50 18z" fill="color-mix(in srgb, #d55181 70%, #000)"/>
+    <path d="M112 47.8v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M121 44.599999999999994v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M130 41.4v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M139 38.199999999999996v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/><path d="M148 35v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>
+    <!-- Front -->
+    <path d="M22 30l84 20v58l-84-20z" fill="#d55181"/>
+    <path d="M28 31.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M38.5 33.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M49 36.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M59.5 38.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M70 41.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M80.5 43.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M91 46.4v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/><path d="M101.5 48.9v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
+    <!-- Dach -->
+    <path d="M22 30l50-18 84 20-50 18z" fill="color-mix(in srgb, #d55181 75%, #fff)"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    <!-- Tür und Fenster -->
+    <path d="M34 41.857142857142854l14 3.333333333333333v44l-14 -3.333333333333333z" fill="color-mix(in srgb, #d55181 70%, #000)" stroke="var(--rahmen)" stroke-width="1.2"/>
+    <path d="M37 46.57142857142857l8 1.9047619047619047v7l-8 -1.9047619047619047z" fill="var(--fenster)" opacity=".9"/>
+    <circle cx="45.5" cy="68.5952380952381" r="1.2" fill="#e0e0e0"/>
+    <g>
+      <path d="M54.4 47.49523809523809l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M56 49.095238095238095l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M64.5 51.11904761904762v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M58.5 52.095238095238095l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M54.4 65.6952380952381l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g><g>
+      <path d="M78.4 53.20952380952381l20.2 4.847619047619047v18.2l-20.2 -4.847619047619047z" fill="var(--rahmen)"/>
+      <path d="M80 54.80952380952381l17 4.0476190476190474v15l-17 -4.0476190476190474z" class="" fill="var(--fenster)"/>
+      <path d="M88.5 56.833333333333336v15" stroke="var(--rahmen)" stroke-width="1.4"/>
+      <path d="M82.5 57.80952380952381l5.949999999999999 8.416666666666666" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/>
+      <path d="M78.4 71.4095238095238l20.2 4.847619047619047" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>
+    
+    
+    
+    <g class="alarm"><circle cx="140" cy="20" r="11" fill="#d03b3b"/><path d="M140 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="27" r="1.8" fill="#fff"/></g>
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Lager Süd</div><span class="chip rot">nicht erreichbar</span></div>
+    <div class="kc-mitte"><div><div class="gross grau">–</div>
+        </div>
+      <div class="kw"><b>0,00</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:0%"></i></div>
+    <div class="kc-fuss"><span class="muted">1 Heizkörper</span><span class="punkte"><i class="" title="Heizkörper 1"></i></span></div>
+    <div class="muted klein">nicht erreichbar</div>
+  </div><div class="kc laeuft" style="--f:#199e70;animation-delay:400ms">
+    <div class="illu"><svg class="bc" viewBox="0 0 170 120">
+    <ellipse cx="85" cy="104" rx="56" ry="10" fill="#000" opacity=".22"/>
+    <defs><clipPath id="sch"><path d="M40 30v62a45 12 0 0 0 90 0V30z"/></clipPath>
+      <linearGradient id="beton" x1="0" x2="1"><stop offset="0" stop-color="#8d9ca6"/><stop offset=".5" stop-color="#cfd8dc"/><stop offset="1" stop-color="#78909c"/></linearGradient>
+      <linearGradient id="wasser" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#64b5f6"/><stop offset="1" stop-color="#0d47a1"/></linearGradient></defs>
+    <path d="M40 30v62a45 12 0 0 0 90 0V30z" fill="url(#beton)"/>
+    <g clip-path="url(#sch)"><g class="pegel"><path class="welle" d="M0 70q15-5 30 0t30 0 30 0 30 0 30 0 30 0 30 0v60H0z" fill="url(#wasser)" opacity=".92"/></g>
+      <g transform="translate(85 86)"><circle r="10" fill="#37474f"/><g class="rad"><path d="M0 0l0-8M0 0l7 4M0 0l-7 4" stroke="#b0bec5" stroke-width="3" stroke-linecap="round"/></g></g></g>
+    <ellipse cx="85" cy="30" rx="45" ry="12" fill="#546e7a"/><ellipse cx="85" cy="30" rx="38" ry="9" fill="#263238"/>
+    <path d="M85 76V10h32" fill="none" stroke="#90a4ae" stroke-width="5"/><path class="fluss" d="M85 76V10h32" fill="none" stroke="#64b5f6" stroke-width="2.4"/>
+  </svg></div>
+    <div class="kc-kopf"><div class="kc-name">Pumpenschacht Nord</div><span class="chip blau">läuft</span></div>
+    <div class="kc-mitte"><div><div class="gross">36<small> Zyklen</small></div>
+        </div>
+      <div class="kw"><b>0,76</b>&nbsp;kW</div></div>
+    <div class="balken"><i style="width:18.095238095238095%"></i></div>
+    <div class="kc-fuss"><span class="muted">2 Pumpen</span><span class="punkte"><i class="an" title="Pumpe 1"></i><i class="" title="Pumpe 2"></i></span></div>
+    <div class="muted klein">Pumpe läuft</div>
+  </div><div class="kc neu"><div>+</div><div class="muted">Container / Pumpenschacht</div></div></div></div></div></div></div></body></html>
