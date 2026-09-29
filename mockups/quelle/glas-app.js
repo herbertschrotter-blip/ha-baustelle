@@ -7,6 +7,8 @@ const zufall = seed => () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
 
 const az = (ab, name, moDo, fr) => ({ ab, name, tage: { Mo: moDo, Di: moDo, Mi: moDo, Do: moDo, Fr: fr, Sa: null, So: null } });
 const HEUTE = '2026-09-29', HEUTE_TAG = 'Di', JETZT = '16:20';
+const VERSION = '0.7.0', VERSION_DATUM = '2026-10';
+const ICON_MELDEN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 8v3.5M12 13.6v.2"/></svg>';
 const WOCHE_ISO = ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'];
 const WOCHE = [['Mo', '28.09.'], ['Di', '29.09.'], ['Mi', '30.09.'], ['Do', '01.10.'], ['Fr', '02.10.'], ['Sa', '03.10.'], ['So', '04.10.']];
 const WETTER_WOCHE = { Di: { regen: 6 }, Mi: { kalt: -1.2, regenVortag: 6 }, Fr: { regen: 5.5 } };   // aus der Vorhersage
@@ -48,6 +50,11 @@ function daten() {
     // Stromanschlüsse (Baustromverteiler): je Anschluss Absicherung, Phasen und Reserve für Ungemessenes (Kran, Werkzeug)
     // Termine für Container „nur bei Bedarf“ – aus dem lokalen HA-Kalender „Besprechungen“
     termine: [{ b: 'besprechung', datum: '2026-09-24', wieder: 'woche', von: '09:00', bis: '10:30', titel: 'Baubesprechung' }, { b: 'besprechung', datum: '2026-10-02', wieder: 'einmal', von: '13:00', bis: '14:00', titel: 'Abnahme Rohbau' }],
+    // Meldungen aus dem Melden-Knopf (Entwicklermenü)
+    meldungen: [
+      { id: 'm1', art: 'wunsch', text: 'Eigene Kachel für Bautrockner mit Laufzeit, damit man sie der Firma verrechnen kann.', kontext: 'Übersicht', zeit: 'Mo 28.09. 17:02', version: '0.7.0', geraet: 'Handy', status: 'offen' },
+      { id: 'm2', art: 'fehler', text: 'Nebel-Symbol war im Dunkelmodus kaum zu sehen.', kontext: 'Übersicht · Wetter', zeit: 'Mo 28.09. 20:15', version: '0.6.2', geraet: 'Desktop', status: 'erledigt' },
+    ],
     anschluesse: [{ id: 'nord', name: 'Verteiler Nord (Kran)', ampere: 32, phasen: 3, reserve: 9 }, { id: 'sued', name: 'Verteiler Süd', ampere: 32, phasen: 3, reserve: 3 }],
     firmen: [{ id: 'eigen', name: 'Eigene Firma', eigen: true }, { id: 'huber', name: 'Elektro Huber GmbH' }, { id: 'leitner', name: 'Installateur Leitner' }],
     // zweite laufende Baustelle (nur für die Auswertung „Alle laufenden“)
@@ -73,7 +80,7 @@ function daten() {
       az('2026-09-28', 'Herbst 2026', ['07:00', '16:30'], ['07:00', '12:30']),
       az('2026-11-02', 'Winter 2026/27', ['07:30', '16:30'], ['07:30', '12:00']),
     ],
-    e: { preis: 0.28, feiertag_frei: true, boost_min: 30,
+    e: { preis: 0.28, feiertag_frei: true, boost_min: 30, melden: true,
       staffel: true, max_gleich: 5, min_lauf: 10, min_pause: 5, takt: 15,
       tuer_pause: 3, tuer_melden: 10, knoepfe: true,
       bericht: 'woche', bericht_handy: true, bericht_mail: true, mail: 'herbert@example.at', bericht_csv: true, vorheizen: 45, nachheizen: 15, soll: 20, grenze: 15, basis: 'Tageshöchstwert', fruehstart: true, frueh_temp: 0, frueh_min: 30, frost: true, frost_temp: 5,
@@ -443,17 +450,22 @@ class App {
     d.bereiche.push({ id: 'n' + d.bereiche.length + Date.now().toString(36), name, f: d.bereiche.length, z: 'aus', t: null, auto: true, trocknen: false, pumpe: p, firma, zyklen: 0, lauf: '0 min', laengster: '–',
       innen: [], kwh7: Array(7).fill(0), h7: Array(7).fill(0), zyk7: Array(7).fill(0), geraete: [{ n: p ? 'Pumpe 1' : 'Heizung 03', typ: p ? 'Pumpe' : 'Ölradiator', kw: p ? .76 : 2, an: 0, hand: false }] });
   }
+  meldungenMarkdown() {
+    const ART = { fehler: 'Fehler', wunsch: 'Wunsch', anregung: 'Anregung' };
+    return this.d.meldungen.map(m => `- [${m.status === 'erledigt' ? 'x' : ' '}] **${ART[m.art]}** (${m.zeit}, v${m.version}, ${m.geraet}, ${m.kontext}): ${m.text}`).join('\n');
+  }
   toast(t) { const el = this.root.querySelector('.toast'); el.textContent = t; el.classList.remove('an'); void el.offsetWidth; el.classList.add('an'); }
 
   render(neu = false) {
     const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0;
     const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
-    const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view === 'bsdetail' ? 'verlauf' : this.s.view;
+    const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(this.s.view) ? 'einst' : this.s.view;
     this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this['v_' + this.s.view]()}</div></div>
       <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
       <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
       <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${this.s.sheet ? this.sheet() : ''}</div>
-      <div class="tip"></div><div class="toast glas-panel"></div>`;
+      <div class="tip"></div><div class="toast glas-panel"></div>
+      ${this.d.e.melden && this.s.sheet?.art !== 'melden' ? `<button class="melden-knopf glas-panel ${this.s.sheet ? 'ueber-sheet' : ''}" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}`;
     this.root.querySelector('.scroll').scrollTop = pos;
   }
 
@@ -658,6 +670,43 @@ class App {
         <div class="bs-zahlen"><span><b>${de(b.kwh, 0)}</b> kWh</span><span><b>${de(b.eur, 2)}</b> €</span><span class="leise">${b.aktiv ? 'Übersicht ›' : 'ansehen ›'}</span></div></button>`).join('')}
       ${this.s.verlauf === 'aktiv' ? this.protokoll() : ''}`;
   }
+  v_ueber() {
+    const neu = ['Staffelung der Heizungen je Stromanschluss und Phase', 'Arbeitszeiten mit Startdatum, Vor- und Nachheizen', 'Firmen und Abrechnung, Auswertung über alle laufenden Baustellen',
+      'Container nur bei Bedarf, Termine und Serien, schnell aufheizen', 'Türkontakt, Warnungen mit Stufen, dauerhaftes Protokoll', 'Handy-Nachrichten mit Knöpfen, Wochen-/Monatsbericht per E-Mail',
+      'Glas-Oberfläche mit Himmel nach Tageszeit und Wetter', 'Seite „Über“ und Melden-Knopf'];
+    const offen = this.s.cl ?? 0;
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="einst">‹ Einstellungen</button></div>
+      <div class="glas-panel ueber-kopf"><div class="ueber-illu">${bcContainer(BEREICH_FARBEN[0], 'heizt')}</div>
+        <div><div class="glas-klein">HOME-ASSISTANT-INTEGRATION</div><div class="glas-titel">Baustelle</div><div class="ueber-v">Version <b>${VERSION}</b> <span class="badge blau-b">in Arbeit</span></div>
+          <div class="leise">Heizung und Pumpen auf der Baustelle · Integration und Seite haben dieselbe Nummer</div></div></div>
+      <div class="glas-panel liste"><div class="gruppe">Dieses System</div>
+        <div class="zeile"><span>Integration / Seite</span><span class="leise">${VERSION} · baustelle</span></div>
+        <div class="zeile"><span>Home Assistant</span><span class="leise">2026.9.4</span></div>
+        <div class="zeile"><span>Quellcode</span><span class="leise">GitHub · herbertschrotter-blip/ha-baustelle (privat)</span></div>
+        <div class="zeile"><span>Baustellen</span><span class="leise">${this.d.baustellen.filter(b => b.aktiv).length} laufend · ${this.d.baustellen.filter(b => !b.aktiv).length} abgeschlossen</span></div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Neu in ${VERSION}</b><span class="leise">geplant</span></div>${neu.map(n => `<div class="cl-punkt">${esc(n)}</div>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Verlauf</b><span class="leise">aus CHANGELOG.md</span></div>
+        ${CHANGELOG.map((c, i) => `<button class="zeile cl-v" data-act="cl" data-i="${i}"><span><b>${c.version}</b> <span class="leise">${datum(c.datum)}</span></span><span class="chev">${offen === i ? '⌄' : '›'}</span></button>
+          ${offen === i ? `<div class="cl-liste">${c.punkte.map(p => `<div class="cl-punkt">${esc(p)}</div>`).join('')}</div>` : ''}`).join('')}</div>
+      ${this.d.e.melden ? `<button class="knopf" data-act="melden">Fehler, Wunsch oder Anregung melden</button>` : ''}`;
+  }
+  v_dev() {
+    const f = this.s.mfilter || 'offen', M = this.d.meldungen.filter(m => f === 'alle' || m.status === f);
+    const ART = { fehler: ['Fehler', 'rot-b'], wunsch: ['Wunsch', 'blau-b'], anregung: ['Anregung', 'gruen'] };
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="einst">‹ Einstellungen</button></div>
+      ${this.kopf('Entwicklung', 'NUR FÜR DICH')}
+      <div class="glas-panel block"><div class="block-kopf"><b>Meldungen</b><div class="seg klein">${[['offen', 'offen'], ['erledigt', 'erledigt'], ['alle', 'alle']].map(([k, t]) => `<button data-act="mfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t} ${k === 'alle' ? this.d.meldungen.length : this.d.meldungen.filter(m => m.status === k).length}</button>`).join('')}</div></div>
+        ${M.length ? M.map(m => `<div class="ml ${m.status}"><div class="ml-kopf"><span class="badge ${ART[m.art][1]}">${ART[m.art][0]}</span><span class="leise">${m.zeit} · ${m.geraet} · v${m.version}</span></div>
+          <div class="ml-text">${esc(m.text)}</div><div class="leise">📍 ${esc(m.kontext)}</div>
+          <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-status" data-id="${m.id}">${m.status === 'offen' ? '✓ erledigt' : '↺ wieder offen'}</button><button class="chip glas-panel" data-act="m-weg" data-id="${m.id}">Löschen</button></div></div>`).join('')
+          : '<div class="leer">Keine Meldungen</div>'}
+        <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-md">Als Markdown kopieren</button><button class="chip glas-panel" data-act="m-json">Als JSON herunterladen</button></div>
+        <div class="leise">Meldungen bleiben bei den Daten der Integration (auch in der Sicherung). Markdown passt direkt in ein GitHub-Issue.</div></div>
+      <div class="glas-panel liste"><div class="gruppe">Werkzeuge</div>
+        <button class="zeile" data-act="toast" data-t="Diagnose wird heruntergeladen (wie in HA unter Geräte & Dienste)"><span>Diagnose herunterladen</span><span class="chev">›</span></button>
+        <div class="zeile"><span>Melden-Knopf in jedem Fenster</span>${schalter(this.d.e.melden, 'e-bool', 'data-k="melden"')}</div>
+        <div class="zeile"><span>Version</span><span class="leise">${VERSION} · ${VERSION_DATUM}</span></div></div>`;
+  }
   v_bsdetail() {
     const b = this.d.baustellen[this.s.bs], r = zufall(this.s.bs * 7 + 3), MON = Object.keys(b.verlauf).length ? Object.keys(b.verlauf) : ['Jän', 'Feb', 'Mär'];
     const gesamt = MON.map(x => b.verlauf[x] || b.kwh / MON.length), ant = b.namen.map(() => .5 + r()), su = ant.reduce((a, v) => a + v, 0);
@@ -695,6 +744,10 @@ class App {
         <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">ÖWG Dobl Zwaring ›</span></button>
         <button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>
         <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">App</div>
+        <button class="zeile" data-act="tab" data-v="ueber"><span>Über</span><span class="leise">Version ${VERSION} ›</span></button>
+        <div class="zeile"><div><b>Melden-Knopf</b><div class="leise">kleiner Knopf in jedem Fenster für Fehler, Wünsche und Anregungen</div></div>${schalter(e.melden, 'e-bool', 'data-k="melden"')}</div>
+        <button class="zeile" data-act="tab" data-v="dev"><span>Entwicklung</span><span class="leise">${this.d.meldungen.filter(m => m.status === 'offen').length} offene Meldungen ›</span></button></div>
       <div class="glas-panel liste"><div class="gruppe">Firmen · für die Abrechnung</div>
         ${this.d.firmen.map(f => { const n = this.d.bereiche.filter(b => (b.firma || 'eigen') === f.id).length;
           return `<button class="zeile" data-act="firma-auf" data-id="${f.id}"><span>${esc(f.name)}${f.eigen ? ' <span class="badge">eigene</span>' : ''}</span><span class="leise">${n} Container ›</span></button>`; }).join('')}
@@ -903,6 +956,15 @@ class App {
         <div class="leise">Kommt in den HA-Kalender „Besprechungen“ (Serien als Wiederholung im Kalender). Die Heizung startet ${this.d.e.vorheizen} min vorher (Vorheizen) und hört zum Ende auf.</div>
         ${knopf('Eintragen', 'termin-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
+    if (s.art === 'melden') {
+      const f = s.form;
+      return `${griff}<h3>Melden</h3><div class="leise">Fehler, Wunsch oder Anregung – landet im Entwicklermenü.</div>
+        <div class="seg">${[['fehler', 'Fehler'], ['wunsch', 'Wunsch'], ['anregung', 'Anregung']].map(([k, t]) => `<button data-act="ml-art" data-v="${k}" class="${f.art === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <label class="feld">${{ fehler: 'Was ist passiert, was hättest du erwartet?', wunsch: 'Was wünschst du dir?', anregung: 'Deine Idee' }[f.art]}<textarea rows="4" data-ml="text" placeholder="kurz beschreiben">${esc(f.text)}</textarea></label>
+        <div class="ml-kontext"><div><span class="leise">Fenster</span> ${esc(f.kontext)}</div><div><span class="leise">Version</span> ${VERSION} · ${f.geraet} · Di 29.09. ${JETZT}</div></div>
+        <div class="zeile"><div><b>Stand der Seite mitschicken</b><div class="leise">Zustand und Einstellungen als Anhang – hilft beim Nachstellen, ohne Zugangsdaten</div></div>${schalter(f.stand, 'ml-stand')}</div>
+        ${knopf('Senden', 'ml-senden', 'amber')}${knopf('Abbrechen', 'ml-zurueck', 'leise-k')}`;
+    }
     if (s.art === 'az-neu') {
       const f = s.form;
       return `${griff}<h3>Neue Arbeitszeit</h3>
@@ -983,6 +1045,24 @@ class App {
         return neu(); }
       case 'bereich-einst': this.s.cid = el.dataset.id; this.s.sheet = { art: 'bereich' }; return neu();
       case 'zu': this.s.sheet = null; return neu();
+      case 'melden': { const namen = { uebersicht: 'Übersicht', container: 'Container', heizung: 'Heizung', auswertung: 'Auswertung', verlauf: 'Verlauf', einst: 'Einstellungen', ueber: 'Über', dev: 'Entwicklung', bsdetail: 'Baustelle (abgeschlossen)' };
+        const kontext = [namen[this.s.view] || this.s.view, this.s.view === 'container' && this.b ? this.b.name : '', this.s.sheet ? `Dialog „${this.s.sheet.art}“` : ''].filter(Boolean).join(' · ');
+        const geraet = this.root.getBoundingClientRect().width < 700 ? 'Handy' : 'Desktop';
+        this.s.sheet = { art: 'melden', vorher: this.s.sheet, form: { art: 'wunsch', text: '', kontext, geraet, stand: true } }; return neu(); }
+      case 'ml-art': this.s.sheet.form.art = el.dataset.v; return neu();
+      case 'ml-stand': this.s.sheet.form.stand = !this.s.sheet.form.stand; return neu();
+      case 'ml-zurueck': this.s.sheet = this.s.sheet.vorher || null; return neu();
+      case 'ml-senden': { const f = this.s.sheet.form; if (!f.text.trim()) return this.toast('Bitte kurz beschreiben');
+        d.meldungen.unshift({ id: 'm' + Date.now().toString(36), art: f.art, text: f.text.trim(), kontext: f.kontext, zeit: `Di 29.09. ${JETZT}`, version: VERSION, geraet: f.geraet, status: 'offen', stand: f.stand ? { view: this.s.view, cid: this.s.cid } : null });
+        this.s.sheet = this.s.sheet.vorher || null; neu(); return this.toast('Danke – steht unter Einstellungen › Entwicklung'); }
+      case 'mfilter': this.s.mfilter = el.dataset.v; return neu();
+      case 'm-status': { const m = d.meldungen.find(x => x.id === el.dataset.id); m.status = m.status === 'offen' ? 'erledigt' : 'offen'; return neu(); }
+      case 'm-weg': d.meldungen = d.meldungen.filter(x => x.id !== el.dataset.id); neu(); return this.toast('Meldung gelöscht');
+      case 'm-md': { const md = this.meldungenMarkdown(); if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {}); return this.toast(`${d.meldungen.length} Meldungen als Markdown kopiert`); }
+      case 'm-json': { const text = JSON.stringify(d.meldungen, null, 2);
+        if (typeof Blob !== 'undefined' && typeof document.createElement === 'function') { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = 'baustelle-meldungen.json'; a.click(); }
+        return this.toast('baustelle-meldungen.json'); }
+      case 'cl': { const i = +el.dataset.i; this.s.cl = this.s.cl === i ? -1 : i; return neu(); }
       case 'toast': return this.toast(el.dataset.t);
       case 'toast-zu': this.s.sheet = null; neu(); return this.toast('Gespeichert');
       case 'auto': this.s.auto = !this.s.auto; neu(); return this.toast(this.s.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
@@ -1090,6 +1170,7 @@ class App {
     if (el.dataset.azn) this.s.sheet.form[el.dataset.azn] = el.value;
     if (el.dataset.ur) this.s.sheet.form[el.dataset.ur] = el.value;
     if (el.dataset.tm) this.s.sheet.form[el.dataset.tm] = el.value;
+    if (el.dataset.ml) this.s.sheet.form[el.dataset.ml] = el.value;
     if (el.dataset.ge) this.s.sheet.edit.geraete[+el.dataset.i][el.dataset.ge] = el.value;
     if (el.dataset.bf) this.s.sheet.edit.firma = el.value;
     if (el.dataset.btuer !== undefined) this.s.sheet.edit.tuer = el.value;

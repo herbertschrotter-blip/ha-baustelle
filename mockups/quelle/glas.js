@@ -13,6 +13,11 @@ const bcCss = '.bc { width: 100%; height: auto; display: block; overflow: visibl
 const css = fs.readFileSync(path.join(__dirname, 'glas.css'), 'utf8');
 const app = fs.readFileSync(path.join(__dirname, 'glas-app.js'), 'utf8');
 // Himmel: Shader als Zeichenkette, dazu Werte je Stimmung und der WebGL-Zeichner
+// Über-Seite: Verlauf direkt aus CHANGELOG.md (eine Quelle, nichts doppelt pflegen)
+const changelog = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8').split(/^## /m).slice(1).map(teil => {
+  const [kopf, ...rest] = teil.split('\n'), m = kopf.match(/\[([^\]]+)\]\s*–\s*(\S+)/);
+  const punkte = rest.join('\n').split(/^- /m).slice(1).map(p => p.replace(/\s*\n\s*/g, ' ').trim());
+  return m ? { version: m[1], datum: m[2], punkte } : null; }).filter(Boolean);
 const himmel = `const HIMMEL_FS = ${JSON.stringify(fs.readFileSync(path.join(__dirname, 'himmel.frag'), 'utf8'))};\n` + fs.readFileSync(path.join(__dirname, 'himmel.js'), 'utf8');
 
 const html = `<!DOCTYPE html>
@@ -33,6 +38,7 @@ ${css}</style></head>
 <script>
 ${js}
 ${himmel}
+const CHANGELOG = ${JSON.stringify(changelog)};
 ${app}
 </script></body></html>`;
 const ziel = path.join(repo, 'mockups', 'glas.html');
