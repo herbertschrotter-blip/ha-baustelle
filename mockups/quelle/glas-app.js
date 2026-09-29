@@ -45,11 +45,39 @@ function daten() {
       az('2026-11-02', 'Winter 2026/27', ['07:30', '16:30'], ['07:30', '12:00']),
     ],
     e: { preis: 0.28, vorheizen: 45, nachheizen: 15, soll: 20, grenze: 15, basis: 'Tageshöchstwert', fruehstart: true, frueh_temp: 0, frueh_min: 30, frost: true, frost_temp: 5,
-      tr_mm: 2, tr_laenger: 45, tr_frueher: 15, empfaenger: 'Handy Herbert', m_offline: true, m_trocken: true, m_dauer: true, dauer_min: 20 },
-    ereignisse: [
-      ['16:30', 'Mannschaft', 'Arbeitsende – heizt 45 min länger (Kleidung trocknen)', 'trocknen'], ['07:00', 'Poliercontainer', 'Arbeitsbeginn – 18,6 °C, regelt auf 20 °C', 'heizt'],
-      ['06:15', 'Alle Container', 'Vorheizen – Arbeitsbeginn 07:00', 'heizt'], ['10:42', 'Lager Süd', 'nicht erreichbar – Stromausfall?', 'offline'],
-      ['09:14', 'Pumpenschacht Nord', 'Pumpe 1 läuft seit 4 min', 'laeuft'], ['05:15', 'Alle Container', 'Kälte-Frühstart: −1,2 °C, 15 min früher', 'heizt'],
+      tr_mm: 2, tr_laenger: 45, tr_frueher: 15, empfaenger: 'Handy Herbert', m_offline: true, m_trocken: true, m_dauer: true, dauer_min: 20,
+      m_leistung: true, m_kalt: true, kalt_min: 60, m_frost: true, m_fuehler: true, m_wetter: true, m_hand: true, hand_h: 8, m_zyklen: true, zyklen_h: 10 },
+    // offene Warnungen: stufe 'stoerung' (rot) oder 'hinweis' (gelb)
+    warnungen: [
+      { id: 'w1', stufe: 'stoerung', b: 'lager', titel: 'nicht erreichbar', seit: 'seit 10:42', hilfe: 'Shelly antwortet nicht. Stecker und Sicherung prüfen – bei Stromausfall meldet er sich von selbst zurück.' },
+      { id: 'w2', stufe: 'stoerung', b: 'sanitaer', titel: 'Frostgefahr: 4,2 °C', seit: 'seit 05:40', hilfe: 'Unter der Frostgrenze (5 °C), obwohl der Frostschutz heizt. Tür offen? Heizkörper prüfen.' },
+      { id: 'w3', stufe: 'hinweis', b: 'mannschaft', titel: 'zu kalt: 17,8 °C statt 20 °C', seit: 'seit 07:00', hilfe: 'Erreicht in der Arbeitszeit das Soll nicht. Tür oder Fenster offen? Heizkörper zu schwach?' },
+      { id: 'w4', stufe: 'hinweis', b: 'magazin', titel: 'Steckdose seit 3 Tagen auf Hand', seit: 'seit Sa 26.09.', hilfe: 'Von Hand eingeschaltet und nicht zurückgestellt. Soll wieder die Automatik übernehmen?' },
+      { id: 'w5', stufe: 'hinweis', b: 'schacht', titel: 'Pumpe schaltet oft: 14 Zyklen je Stunde', seit: 'seit 13:10', hilfe: 'Üblich sind hier 3–5. Schwimmer prüfen – oder das Grundwasser steigt.' },
+    ],
+    // Protokoll: dauerhaft bei der Baustelle gespeichert, zusätzlich im HA-Logbuch
+    protokoll: [
+      ['Heute', '16:30', 'schalten', 'mannschaft', 'Arbeitsende – Nachheizen 15 min, dann Kleidung trocknen 45 min'],
+      ['Heute', '13:10', 'warnung', 'schacht', 'Pumpe schaltet oft: 14 Zyklen je Stunde'],
+      ['Heute', '10:43', 'nachricht', null, 'An Handy Herbert: „Lager Süd nicht erreichbar – Stromausfall?“'],
+      ['Heute', '10:42', 'warnung', 'lager', 'nicht erreichbar'],
+      ['Heute', '07:40', 'warnung', 'mannschaft', 'zu kalt: 17,8 °C statt 20 °C'],
+      ['Heute', '07:00', 'schalten', null, 'Arbeitsbeginn – Arbeitszeit „Herbst 2026“ 07:00–16:30'],
+      ['Heute', '06:15', 'schalten', null, 'Vorheizen – alle Container ein'],
+      ['Heute', '05:40', 'warnung', 'sanitaer', 'Frostgefahr: 4,2 °C trotz Frostschutz'],
+      ['Heute', '05:00', 'wetter', null, 'Regen 6 mm seit gestern – heute Kleidung trocknen'],
+      ['Gestern', '16:45', 'schalten', null, 'Nachheizen beendet – alle Container aus'],
+      ['Gestern', '14:05', 'ok', 'lager', 'wieder erreichbar'],
+      ['Gestern', '13:20', 'warnung', 'lager', 'nicht erreichbar'],
+      ['Gestern', '07:00', 'schalten', null, 'Arbeitsbeginn 07:00'],
+      ['Gestern', '06:15', 'schalten', null, 'Vorheizen – alle Container ein'],
+      ['Gestern', '05:00', 'wetter', null, 'Heizgrenze nicht erreicht (Höchstwert 9 °C) – es wird geheizt'],
+      ['Mo 28.09.', '18:02', 'einstellung', null, 'Neue Arbeitszeit „Herbst 2026“ gilt ab 28.09.2026'],
+      ['Mo 28.09.', '09:30', 'schalten', 'magazin', 'Steckdose von Hand eingeschaltet'],
+      ['Mo 28.09.', '06:15', 'schalten', null, 'Vorheizen – alle Container ein'],
+      ['Sa 26.09.', '11:35', 'ok', 'schacht', 'Pumpe 1 wieder normal'],
+      ['Sa 26.09.', '11:12', 'nachricht', null, 'An Handy Herbert: „Pumpenschacht Nord: Dauerlauf 25 min“'],
+      ['Sa 26.09.', '11:10', 'warnung', 'schacht', 'Pumpe 1 Dauerlauf 25 min'],
     ],
   };
 }
@@ -195,6 +223,7 @@ class App {
     const inhalt = p ? seg(p.extra, p.vor, 'tl-extra') + seg(p.vor, p.a, 'tl-vor') + seg(p.a, p.b, 'tl-heiz') + seg(p.b, p.nach, 'tl-vor') + seg(p.nach, p.ende, 'tl-trock') : '';
     return `<div class="tl-spur">${inhalt}${jetzt ? `<i class="tl-jetzt" style="left:${x(minu(JETZT))}%"></i>` : ''}</div>`;
   }
+  bName(id) { return id ? (this.d.bereiche.find(b => b.id === id) || { name: id }).name : 'Baustelle'; }
   get b() { return this.d.bereiche.find(x => x.id === this.s.cid); }
   gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.sheet = null; this.render(true); }
   toast(t) { const el = this.root.querySelector('.toast'); el.textContent = t; el.classList.remove('an'); void el.offsetWidth; el.classList.add('an'); }
@@ -217,7 +246,8 @@ class App {
 
   /* ---- Übersicht ---- */
   v_uebersicht() {
-    const B = this.d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), warn = B.filter(b => b.offline).length;
+    const B = this.d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), W = this.d.warnungen.filter(w => !w.stumm);
+    const st = W.filter(w => w.stufe === 'stoerung').length, hi = W.length - st;
     const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
     return `<div class="glas-kopf glas-panel">
         <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring <span class="pfeil">▾</span></div></div>
@@ -226,7 +256,8 @@ class App {
       <div class="glas-chips">
         <button class="glas-panel chip auto-chip ${this.s.auto ? 'on' : ''}" data-act="auto" role="switch" aria-checked="${this.s.auto}" title="Automatik ${this.s.auto ? 'ausschalten' : 'einschalten'}"><span class="mini-sw"><i></i></span>Automatik</button>
         <button class="chip-status ${this.s.auto ? 'amber' : ''}" data-act="sheet" data-s="heizplan" title="Heizplan anzeigen">${this.statusText()} <span class="pfeil">›</span></button>
-        ${warn ? `<button class="glas-panel chip rot" data-act="sheet" data-s="warnungen">${warn} Warnung</button>` : ''}
+        ${W.length ? `<button class="glas-panel chip warn-chip ${st ? 'rot' : 'gelb'}" data-act="sheet" data-s="warnungen">⚠ ${W.length === 1 ? `${esc(this.bName(W[0].b))}: ${esc(W[0].titel)}`
+          : [st ? `${st} ${st === 1 ? 'Störung' : 'Störungen'}` : '', hi ? `${hi} ${hi === 1 ? 'Hinweis' : 'Hinweise'}` : ''].filter(Boolean).join(' · ')}</button>` : ''}
         <span class="chip-leise">${an} von ${alle} Geräten an</span>
       </div>
       <div class="glas-raster">${B.map((b, i) => `<button class="glas-panel glas-k ${b.z}" data-act="container" data-id="${b.id}" style="animation-delay:${i * 60}ms;--c:${FARBE[b.z]}">
@@ -357,8 +388,19 @@ class App {
         <div class="bs-kopf"><b>${esc(b.name)}</b><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></div>
         <div class="leise">${b.zeit} · ${b.container} Container</div>
         <div class="bs-zahlen"><span><b>${de(b.kwh, 0)}</b> kWh</span><span><b>${de(b.eur, 2)}</b> €</span></div></button>`).join('')}
-      ${this.s.verlauf === 'aktiv' ? `<div class="glas-panel block"><div class="block-kopf"><b>Ereignisse heute</b><span class="leise">aus dem Logbuch</span></div>
-        ${this.d.ereignisse.map(([t, w, x, z]) => `<div class="zeile ereignis"><span class="zeit">${t}</span><span class="glas-dot" style="--c:${FARBE[z]}"></span><div><b>${w}</b><div class="leise">${x}</div></div></div>`).join('')}</div>` : ''}`;
+      ${this.s.verlauf === 'aktiv' ? this.protokoll() : ''}`;
+  }
+  protokoll() {
+    const f = this.s.pfilter || 'alle', ART = { warnung: ['⚠', 'var(--rot)'], ok: ['✓', '#30d158'], schalten: ['⏻', 'var(--amber)'], wetter: ['☁', 'var(--blau)'], nachricht: ['✉', 'var(--ink2)'], einstellung: ['⚙', 'var(--ink2)'] };
+    const passt = e => f === 'alle' || e[2] === f || (f === 'warnung' && e[2] === 'ok') || (f === 'schalten' && e[2] === 'einstellung');
+    let liste = this.d.protokoll.filter(passt); const mehr = !this.s.pmehr && liste.length > 12; if (mehr) liste = liste.slice(0, 12);
+    let tag = '';
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Protokoll</b><span class="leise">bleibt mit der Baustelle gespeichert · auch im HA-Logbuch</span></div>
+      <div class="vb-wer">${[['alle', 'Alle'], ['warnung', 'Warnungen'], ['schalten', 'Schalten'], ['wetter', 'Wetter'], ['nachricht', 'Nachrichten']].map(([k, t]) => `<button data-act="pfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      ${liste.length ? liste.map(e => { const [ic, farbe] = ART[e[2]], kopf = e[0] !== tag ? `<div class="p-tag">${(tag = e[0])}</div>` : '';
+        return `${kopf}<div class="zeile ereignis"><span class="zeit">${e[1]}</span><span class="p-ic" style="color:${farbe}">${ic}</span><div>${e[3] ? `<b>${esc(this.bName(e[3]))}</b> ` : ''}<span class="${e[3] ? 'leise' : ''}">${esc(e[4])}</span></div></div>`; }).join('')
+        : '<div class="leer">Keine Einträge</div>'}
+      ${mehr ? '<button class="zeile" data-act="pmehr"><span class="blau">Ältere Einträge laden</span></button>' : ''}</div>`;
   }
 
   /* ---- Einstellungen ---- */
@@ -379,11 +421,20 @@ class App {
         <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Außentemperatur</span><span class="leise">aus der Vorhersage ›</span></button>
         <button class="zeile" data-act="sheet" data-s="urlaub"><span>Urlaub</span><span class="leise">Kalender „Baustelle Urlaub“ ›</span></button>
         <div class="zeile"><span>Feiertage</span><span class="leise">Österreich, automatisch</span></div></div>
-      <div class="glas-panel liste"><div class="gruppe">Meldungen</div>
+      <div class="glas-panel liste"><div class="gruppe">Meldungen · Störungen</div>
         <div class="zeile"><span>Empfänger</span><span class="leise">${e.empfaenger}</span></div>
         <div class="zeile"><span>Stromausfall / offline</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
         <div class="zeile"><span>Pumpe Trockenlauf</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
-        <div class="zeile"><span>Pumpe Dauerlauf über ${e.dauer_min} min</span>${schalter(e.m_dauer, 'e-bool', 'data-k="m_dauer"')}</div></div>`;
+        <div class="zeile"><span>Pumpe Dauerlauf über ${e.dauer_min} min</span>${schalter(e.m_dauer, 'e-bool', 'data-k="m_dauer"')}</div>
+        <div class="zeile"><span>Pumpe schaltet oft (ab ${e.zyklen_h} je Stunde)</span>${schalter(e.m_zyklen, 'e-bool', 'data-k="m_zyklen"')}</div>
+        <div class="zeile"><span>Heizkörper zieht keinen Strom</span>${schalter(e.m_leistung, 'e-bool', 'data-k="m_leistung"')}</div>
+        <div class="zeile"><span>Frostgefahr trotz Frostschutz</span>${schalter(e.m_frost, 'e-bool', 'data-k="m_frost"')}</div>
+        <div class="gruppe">Hinweise</div>
+        <div class="zeile"><span>Zu kalt trotz Heizung (nach ${e.kalt_min} min)</span>${schalter(e.m_kalt, 'e-bool', 'data-k="m_kalt"')}</div>
+        <div class="zeile"><span>Fühler meldet nichts / Batterie schwach</span>${schalter(e.m_fuehler, 'e-bool', 'data-k="m_fuehler"')}</div>
+        <div class="zeile"><span>Keine Wettervorhersage</span>${schalter(e.m_wetter, 'e-bool', 'data-k="m_wetter"')}</div>
+        <div class="zeile"><span>Handbetrieb länger als ${e.hand_h} h</span>${schalter(e.m_hand, 'e-bool', 'data-k="m_hand"')}</div>
+        <div class="leise p-fuss">Störungen gehen als Nachricht aufs Handy, Hinweise nur ins Protokoll und in den Warnung-Chip.</div></div>`;
   }
 
   /* ---- Einblendungen von unten ---- */
@@ -441,8 +492,19 @@ class App {
         <div class="w-inhalt">${inhalt}</div>
         <div class="leise">Für die Heizung: Kleidung trocknen morgen früh aktiv (Regen über ${de(e.tr_mm)} mm), Kälte-Frühstart morgen 15 min früher (−1 °C).</div>${knopf('Schließen')}`;
     }
-    if (s.art === 'warnungen') return `${griff}<h3>Warnungen</h3><div class="warn-k"><b>Lager Süd nicht erreichbar</b><div class="leise">seit 10:42 · Shelly antwortet nicht – Stromausfall oder Stecker gezogen?</div></div>
-      ${knopf('Zum Container', 'container-lager')}${knopf('Schließen', 'zu', 'leise-k')}`;
+    if (s.art === 'warnungen') {
+      const W = this.d.warnungen, karte = w => `<div class="wk ${w.stufe} ${w.stumm ? 'stumm' : ''}"><div class="wk-kopf"><b>${esc(this.bName(w.b))}</b><span class="leise">${w.seit}</span></div>
+        <div class="wk-titel">${esc(w.titel)}</div><div class="leise">${esc(w.hilfe)}</div>
+        <div class="wk-knoepfe">${w.b ? `<button class="chip glas-panel" data-act="w-hin" data-id="${w.b}">Zum Container ›</button>` : ''}
+          <button class="chip glas-panel" data-act="w-stumm" data-id="${w.id}">${w.stumm ? '🔔 wieder melden' : '🔕 bis morgen stumm'}</button></div></div>`;
+      const gruppe = (titel, liste) => liste.length ? `<div class="gruppe-t">${titel} · ${liste.length}</div>${liste.map(karte).join('')}` : '';
+      const offen = W.filter(w => !w.stumm);
+      return `${griff}<div class="block-kopf"><h3>Warnungen</h3><span class="leise">${offen.length} offen</span></div>
+        ${offen.length ? '' : '<div class="leer">Alles in Ordnung ✓</div>'}
+        ${gruppe('Störungen', offen.filter(w => w.stufe === 'stoerung'))}${gruppe('Hinweise', offen.filter(w => w.stufe === 'hinweis'))}${gruppe('Stumm bis morgen', W.filter(w => w.stumm))}
+        <button class="zeile" data-act="w-protokoll"><span class="blau">Alle Einträge im Protokoll</span><span class="chev">›</span></button>
+        ${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
     if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.d.baustellen.map((b, i) => `<button class="zeile" data-act="zu"><span>${esc(b.name)}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>`).join('')}
       <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>`;
     if (s.art === 'heizplan') {
@@ -509,6 +571,11 @@ class App {
       case 'tab': return this.gehe(el.dataset.v);
       case 'container': this.s.chart = 'temp'; return this.gehe('container', el.dataset.id);
       case 'container-lager': return this.gehe('container', 'lager');
+      case 'w-hin': return this.gehe('container', el.dataset.id);
+      case 'w-stumm': { const w = d.warnungen.find(x => x.id === el.dataset.id); w.stumm = !w.stumm; neu(); return this.toast(w.stumm ? 'Stumm bis morgen – bleibt im Protokoll' : 'Wird wieder gemeldet'); }
+      case 'w-protokoll': this.s.verlauf = 'aktiv'; this.s.pfilter = 'warnung'; return this.gehe('verlauf');
+      case 'pfilter': this.s.pfilter = el.dataset.v; this.s.pmehr = false; return neu();
+      case 'pmehr': this.s.pmehr = true; return neu();
       case 'sheet': this.s.sheet = { art: el.dataset.s, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
       case 'wa': this.s.sheet.wa = el.dataset.v; return neu();
       case 'vb-zeitraum': this.s.sheet.zeitraum = el.dataset.v; return neu();
