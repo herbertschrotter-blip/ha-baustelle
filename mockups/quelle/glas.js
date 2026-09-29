@@ -21,7 +21,9 @@ ${bcCss}
 ${css}</style></head>
 <body>
 <div class="bar"><b>Baustelle · Glas · klickbarer Prototyp</b><button id="modus">Hell / Dunkel</button>
-<span class="leise">Beispieldaten · alles anklickbar: Kacheln, Chips, Schalter, Zeitplan, Diagramme (Maus darüber), ⚙</span></div>
+<label>Tageszeit <select id="phase"><option value="morgen">Morgen</option><option value="tag" selected>Tag</option><option value="abend">Abend</option><option value="nacht">Nacht</option></select></label>
+<label>Wetter <select id="wetter"><option value="klar">klar</option><option value="wolkig">bewölkt</option><option value="regen" selected>Regen</option><option value="gewitter">Gewitter</option><option value="nebel">Nebel</option><option value="schnee">Schnee</option></select></label>
+<span class="leise">Vorführung: Tageszeit kommt später aus sun.sun, Wetter aus der Wetter-Entität</span></div>
 <div class="buehne">
   <div><h2>Handy · 390 px</h2><div class="telefon"><div class="app"></div></div></div>
   <div><h2>Desktop</h2><div class="desktop"><div class="app"></div></div></div>

@@ -62,6 +62,8 @@ body.hell { background: #d9dee5; color: #111; }
 @media (max-width: 440px) { .telefon { width: calc(100vw - 32px); } }
 
 /* Farben der Diagramme (validierte Palette, eigene Stufen für dunkel) */
+.ui { position: absolute; inset: 0; }
+.bar select { background: #2c2c2e; color: #fff; border: 1px solid #636366; border-radius: 8px; padding: 4px 6px; font: inherit; }
 .app { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
   --ink: #fff; --ink2: rgba(255,255,255,.66); --gridc: rgba(255,255,255,.14); --axisc: rgba(255,255,255,.55); --amber: #ff9f0a; --rot: #ff6961; --blau: #64a8ff;
   --panel: rgba(255,255,255,.1); --panel-rand: rgba(255,255,255,.22); --sheet: rgba(28,32,44,.82);
@@ -76,13 +78,67 @@ body.hell { background: #d9dee5; color: #111; }
 .app input, .app select { font: inherit; color: var(--ink); background: rgba(127,127,127,.16); border: 1px solid var(--panel-rand); border-radius: 10px; padding: 7px 10px; }
 .app select option { color: #111; }
 
-/* Hintergrund */
-.glas-bg { position: absolute; inset: 0; background: linear-gradient(160deg, #1b2735 0%, #0e1a2b 45%, #2a1a2e 100%); overflow: hidden; }
-.hell .glas-bg { background: linear-gradient(160deg, #cfe3ff 0%, #f5e6ff 50%, #ffe9d2 100%); }
-.glas-bg i { position: absolute; border-radius: 50%; filter: blur(40px); opacity: .7; animation: schweben 14s ease-in-out infinite; }
-.glas-bg .k1 { width: 260px; height: 260px; background: #ff8a00; top: -60px; left: -60px; }
-.glas-bg .k2 { width: 240px; height: 240px; background: #0a84ff; top: 300px; right: -80px; animation-delay: -5s; }
-.glas-bg .k3 { width: 200px; height: 200px; background: #bf5af2; bottom: -40px; left: 40px; animation-delay: -9s; }
+/* Hintergrund: Stimmung nach Tageszeit und Wetter. Farben als registrierte Eigenschaften, damit sie weich überblenden */
+@property --g1 { syntax: '<color>'; inherits: true; initial-value: #1c3552; }
+@property --g2 { syntax: '<color>'; inherits: true; initial-value: #1f4a70; }
+@property --g3 { syntax: '<color>'; inherits: true; initial-value: #2a5575; }
+@property --f1 { syntax: '<color>'; inherits: true; initial-value: #ffd27a; }
+@property --f2 { syntax: '<color>'; inherits: true; initial-value: #3aa0ff; }
+@property --f3 { syntax: '<color>'; inherits: true; initial-value: #7fd0ff; }
+.glas-bg { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(165deg, var(--g1) 0%, var(--g2) 50%, var(--g3) 100%);
+  transition: --g1 2.5s, --g2 2.5s, --g3 2.5s, --f1 2.5s, --f2 2.5s, --f3 2.5s; --dunst-farbe: #3c4655; --tropfen: rgba(200,225,255,.6); }
+.glas-bg[data-phase=morgen] { --g1: #2e2748; --g2: #4a3150; --g3: #6b4040; --f1: #ff8a5c; --f2: #6a7bd6; --f3: #d07ab8; }
+.glas-bg[data-phase=tag]    { --g1: #1c3552; --g2: #1f4a70; --g3: #2a5575; --f1: #ffc766; --f2: #3aa0ff; --f3: #7fd0ff; }
+.glas-bg[data-phase=abend]  { --g1: #2a1a36; --g2: #45203d; --g3: #5a2a2c; --f1: #ff7a2e; --f2: #d0457a; --f3: #7a4bd0; }
+.glas-bg[data-phase=nacht]  { --g1: #070d1c; --g2: #0c1528; --g3: #131a33; --f1: #2c3e8a; --f2: #1b4a7a; --f3: #4b3a8a; }
+.hell .glas-bg { --dunst-farbe: #c9ced6; --tropfen: rgba(50,80,120,.35); }
+.hell .glas-bg[data-phase=morgen] { --g1: #ffd9c7; --g2: #f5e0f0; --g3: #cfdcff; --f1: #ff9a6a; --f2: #9fb4ff; --f3: #f0a0c8; }
+.hell .glas-bg[data-phase=tag]    { --g1: #cfe6ff; --g2: #e3f1ff; --g3: #fff3d6; --f1: #ffd060; --f2: #6ab8ff; --f3: #a8e0ff; }
+.hell .glas-bg[data-phase=abend]  { --g1: #ffd2b0; --g2: #f7c6d8; --g3: #d9ccff; --f1: #ff8a3a; --f2: #ff6f9a; --f3: #a58aff; }
+.hell .glas-bg[data-phase=nacht]  { --g1: #b9c4e0; --g2: #c9cde6; --g3: #d8d0ec; --f1: #6d80c8; --f2: #7fa3dc; --f3: #9a88d2; }
+.glas-bg > i { position: absolute; border-radius: 50%; filter: blur(40px) saturate(1); opacity: .7; animation: schweben 14s ease-in-out infinite; transition: filter 2.5s, opacity 2.5s; }
+.glas-bg .k1 { width: 260px; height: 260px; background: var(--f1); top: -60px; left: -60px; }
+.glas-bg .k2 { width: 240px; height: 240px; background: var(--f2); top: 300px; right: -80px; animation-delay: -5s; }
+.glas-bg .k3 { width: 200px; height: 200px; background: var(--f3); bottom: -40px; left: 40px; animation-delay: -9s; }
+.glas-bg[data-phase=nacht] > i { opacity: .45; }
+/* Wetter dämpft die Farben und legt Dunst darüber */
+.dunst { position: absolute; inset: 0; background: var(--dunst-farbe); opacity: 0; transition: opacity 2.5s; }
+.glas-bg[data-wetter=wolkig] .dunst { opacity: .3; }  .glas-bg[data-wetter=wolkig] > i { filter: blur(50px) saturate(.6); }
+.glas-bg[data-wetter=regen] .dunst { opacity: .42; }  .glas-bg[data-wetter=regen] > i { filter: blur(55px) saturate(.45); opacity: .5; }
+.glas-bg[data-wetter=gewitter] .dunst { opacity: .55; background: #1c2230; } .glas-bg[data-wetter=gewitter] > i { filter: blur(55px) saturate(.35); opacity: .4; }
+.hell .glas-bg[data-wetter=gewitter] .dunst { background: #9aa3b2; }
+.glas-bg[data-wetter=nebel] .dunst { opacity: .62; }  .glas-bg[data-wetter=nebel] > i { filter: blur(70px) saturate(.3); opacity: .35; }
+.glas-bg[data-wetter=schnee] .dunst { opacity: .35; background: #dfe8f2; } .glas-bg[data-wetter=schnee] > i { filter: blur(50px) saturate(.4); }
+.glas-bg:not(.hell *)[data-wetter=schnee] .dunst { opacity: .16; }
+/* Bewegung */
+.partikel { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.partikel i { position: absolute; display: block; }
+.tropfen { top: -40px; width: 1.5px; height: var(--l); border-radius: 1px; background: linear-gradient(transparent, var(--tropfen));
+  transform: rotate(12deg); animation: fallen var(--d) linear infinite; animation-delay: var(--v); }
+@keyframes fallen { to { transform: translate(-200px, 950px) rotate(12deg); } }
+.blitzlicht { inset: 0; background: #fff; opacity: 0; animation: blitzen 7s linear infinite; }
+@keyframes blitzen { 0%, 86%, 88.5%, 91%, 100% { opacity: 0; } 87% { opacity: .35; } 90% { opacity: .22; } }
+.flocke { top: -12px; animation: schneien var(--d) linear infinite; animation-delay: var(--v); }
+.flocke b { display: block; width: var(--s); height: var(--s); border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 0 4px rgba(255,255,255,.6);
+  animation: pendeln var(--w) ease-in-out infinite alternate; }
+.hell .flocke b { background: #fff; box-shadow: 0 0 3px rgba(80,100,130,.5); }
+@keyframes schneien { to { transform: translateY(950px); } }
+@keyframes pendeln { from { transform: translateX(-10px); } to { transform: translateX(10px); } }
+.schwade { left: -40%; width: 180%; height: 140px; background: radial-gradient(ellipse at center, rgba(225,232,240,.4), transparent 70%); filter: blur(12px);
+  animation: ziehen var(--d) ease-in-out infinite alternate; animation-delay: var(--v); }
+@keyframes ziehen { from { transform: translateX(-12%); } to { transform: translateX(12%); } }
+.wolke { left: -60%; width: 340px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.12); filter: blur(28px);
+  animation: wandern var(--d) linear infinite; animation-delay: var(--v); }
+.hell .wolke { background: rgba(255,255,255,.55); }
+@keyframes wandern { to { transform: translateX(260%); } }
+.stern { width: var(--s); height: var(--s); border-radius: 50%; background: #fff; box-shadow: 0 0 4px #fff; animation: funkeln 3.5s ease-in-out infinite; animation-delay: var(--v); }
+.hell .stern { background: #fffbe8; box-shadow: 0 0 4px #7d8fd0; }
+@keyframes funkeln { 50% { opacity: .2; } }
+.strahlen { top: -300px; left: -300px; width: 720px; height: 720px; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255,236,170,.14) 0 6deg, transparent 6deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 12%, transparent 62%); mask: radial-gradient(circle, #000 12%, transparent 62%); animation: drehen 90s linear infinite; }
+@keyframes drehen { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .partikel { display: none; } }
 
 .scroll { position: absolute; inset: 0; overflow-y: auto; }
 .seite { padding: 56px 14px 120px; display: flex; flex-direction: column; gap: 12px; max-width: 1100px; margin: 0 auto; }
@@ -287,7 +343,9 @@ body.hell { background: #d9dee5; color: #111; }
 </style></head>
 <body>
 <div class="bar"><b>Baustelle · Glas · klickbarer Prototyp</b><button id="modus">Hell / Dunkel</button>
-<span class="leise">Beispieldaten · alles anklickbar: Kacheln, Chips, Schalter, Zeitplan, Diagramme (Maus darüber), ⚙</span></div>
+<label>Tageszeit <select id="phase"><option value="morgen">Morgen</option><option value="tag" selected>Tag</option><option value="abend">Abend</option><option value="nacht">Nacht</option></select></label>
+<label>Wetter <select id="wetter"><option value="klar">klar</option><option value="wolkig">bewölkt</option><option value="regen" selected>Regen</option><option value="gewitter">Gewitter</option><option value="nebel">Nebel</option><option value="schnee">Schnee</option></select></label>
+<span class="leise">Vorführung: Tageszeit kommt später aus sun.sun, Wetter aus der Wetter-Entität</span></div>
 <div class="buehne">
   <div><h2>Handy · 390 px</h2><div class="telefon"><div class="app"></div></div></div>
   <div><h2>Desktop</h2><div class="desktop"><div class="app"></div></div></div>
@@ -515,16 +573,45 @@ function verbrauch(bereiche, cid, zeitraum) {
   return liste.map(b => eins(b, k)).reduce((a, w) => a.map((v, i) => v + w[i]));
 }
 
+/* ---------- Stimmung: Hintergrund nach Tageszeit (sun.sun) und Wetter (weather.*) ---------- */
+const STIMMUNG = { phase: 'tag', wetter: 'regen' };
+const WETTER_ANZEIGE = { klar: ['sunny', 'Sonnig'], wolkig: ['cloudy', 'Bewölkt'], regen: ['rainy', 'Regen · 6 mm'], nebel: ['fog', 'Nebel'],
+  schnee: ['snowy', 'Schnee · 2 cm'], gewitter: ['lightning-rainy', 'Gewitter · 9 mm'] };
+const wetterJetzt = () => { const [w, t] = WETTER_ANZEIGE[STIMMUNG.wetter]; return [w === 'sunny' && STIMMUNG.phase === 'nacht' ? 'clear-night' : w, w === 'sunny' && STIMMUNG.phase === 'nacht' ? 'Klar' : t]; };
+function partikel(phase, wetter) {
+  const r = zufall(42), z = (a, b) => (a + r() * (b - a)).toFixed(2);
+  const tropfen = n => [...Array(n)].map(() => `<i class="tropfen" style="left:${z(-10, 130)}%;--l:${z(12, 26)}px;--d:${z(.55, 1)}s;--v:-${z(0, 2)}s;opacity:${z(.35, .9)}"></i>`).join('');
+  const teile = [];
+  if (wetter === 'regen') teile.push(tropfen(70));
+  if (wetter === 'gewitter') teile.push(tropfen(120), '<i class="blitzlicht"></i>');
+  if (wetter === 'schnee') teile.push([...Array(60)].map(() => `<i class="flocke" style="left:${z(-5, 105)}%;--d:${z(7, 14)}s;--v:-${z(0, 14)}s"><b style="--s:${z(2, 5)}px;--w:${z(2, 4)}s"></b></i>`).join(''));
+  if (wetter === 'nebel') teile.push([...Array(4)].map((_, k) => `<i class="schwade" style="top:${10 + k * 22}%;--d:${24 + k * 7}s;--v:-${k * 6}s"></i>`).join(''));
+  if (wetter === 'wolkig' || wetter === 'regen' || wetter === 'gewitter') teile.push([...Array(3)].map((_, k) => `<i class="wolke" style="top:${z(-5, 45)}%;--d:${z(50, 80)}s;--v:-${z(0, 60)}s"></i>`).join(''));
+  if (wetter === 'klar' && phase === 'nacht') teile.push([...Array(45)].map(() => `<i class="stern" style="left:${z(0, 100)}%;top:${z(0, 60)}%;--v:-${z(0, 4)}s;--s:${z(1, 2.4)}px"></i>`).join(''));
+  if (wetter === 'klar' && phase !== 'nacht') teile.push('<i class="strahlen"></i>');
+  return teile.join('');
+}
+const APPS = [];
+
 /* ---------- App ---------- */
 class App {
   constructor(root) {
-    this.root = root; this.d = daten();
+    this.root = root; APPS.push(this);
+    root.innerHTML = `<div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui"></div>`;
+    this.bg = root.querySelector('.glas-bg'); this.ui = root.querySelector('.ui'); this.d = daten();
     this.s = { view: 'uebersicht', cid: null, auto: true, sheet: null, chart: 'temp', zeitraum: 'Woche', verlauf: 'aktiv' };
     root.addEventListener('click', e => this.klick(e));
     root.addEventListener('input', e => this.eingabe(e));
     root.addEventListener('pointermove', e => this.hover(e));
     root.addEventListener('pointerleave', () => this.tip(null));
+    this.stimmung(false);
     this.render();
+  }
+  stimmung(neuZeichnen = true) {
+    const { phase, wetter } = STIMMUNG;
+    if (this.bg.dataset.phase !== phase || this.bg.dataset.wetter !== wetter) this.bg.querySelector('.partikel').innerHTML = partikel(phase, wetter);
+    this.bg.dataset.phase = phase; this.bg.dataset.wetter = wetter;
+    if (neuZeichnen) this.render();
   }
   get b() { return this.d.bereiche.find(x => x.id === this.s.cid); }
   gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.sheet = null; this.render(true); }
@@ -534,8 +621,7 @@ class App {
     const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0;
     const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view;
-    this.root.innerHTML = `<div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i></div>
-      <div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this['v_' + this.s.view]()}</div></div>
+    this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this['v_' + this.s.view]()}</div></div>
       <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''}">${t}</button>`).join('')}</nav>
       <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
       <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${this.s.sheet ? this.sheet() : ''}</div>
@@ -553,7 +639,7 @@ class App {
     const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
     return `<div class="glas-kopf glas-panel">
         <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring <span class="pfeil">▾</span></div></div>
-          <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon('rainy', 22)}<span>4,2°</span><span class="kw-t">Regen · 6 mm</span></button></div>
+          <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon(wetterJetzt()[0], 22)}<span>${STIMMUNG.wetter === 'schnee' ? '−2,1°' : STIMMUNG.phase === 'nacht' ? '1,8°' : '4,2°'}</span><span class="kw-t">${wetterJetzt()[1]}</span></button></div>
         <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
       <div class="glas-chips">
         <button class="glas-panel chip ${this.s.auto ? 'amber' : ''}" data-act="auto">♨ ${this.s.auto ? 'Automatik · aus 17:15' : 'Automatik aus'}</button>
@@ -875,5 +961,8 @@ class App {
 }
 document.querySelectorAll('.app').forEach(el => new App(el));
 document.getElementById('modus').onclick = () => document.body.classList.toggle('hell');
+for (const [id, k] of [['phase', 'phase'], ['wetter', 'wetter']]) {
+  const el = document.getElementById(id); if (el) el.onchange = () => { STIMMUNG[k] = el.value; APPS.forEach(a => a.stimmung()); };
+}
 
 </script></body></html>

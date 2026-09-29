@@ -12,6 +12,8 @@ body.hell { background: #d9dee5; color: #111; }
 @media (max-width: 440px) { .telefon { width: calc(100vw - 32px); } }
 
 /* Farben der Diagramme (validierte Palette, eigene Stufen für dunkel) */
+.ui { position: absolute; inset: 0; }
+.bar select { background: #2c2c2e; color: #fff; border: 1px solid #636366; border-radius: 8px; padding: 4px 6px; font: inherit; }
 .app { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
   --ink: #fff; --ink2: rgba(255,255,255,.66); --gridc: rgba(255,255,255,.14); --axisc: rgba(255,255,255,.55); --amber: #ff9f0a; --rot: #ff6961; --blau: #64a8ff;
   --panel: rgba(255,255,255,.1); --panel-rand: rgba(255,255,255,.22); --sheet: rgba(28,32,44,.82);
@@ -26,13 +28,67 @@ body.hell { background: #d9dee5; color: #111; }
 .app input, .app select { font: inherit; color: var(--ink); background: rgba(127,127,127,.16); border: 1px solid var(--panel-rand); border-radius: 10px; padding: 7px 10px; }
 .app select option { color: #111; }
 
-/* Hintergrund */
-.glas-bg { position: absolute; inset: 0; background: linear-gradient(160deg, #1b2735 0%, #0e1a2b 45%, #2a1a2e 100%); overflow: hidden; }
-.hell .glas-bg { background: linear-gradient(160deg, #cfe3ff 0%, #f5e6ff 50%, #ffe9d2 100%); }
-.glas-bg i { position: absolute; border-radius: 50%; filter: blur(40px); opacity: .7; animation: schweben 14s ease-in-out infinite; }
-.glas-bg .k1 { width: 260px; height: 260px; background: #ff8a00; top: -60px; left: -60px; }
-.glas-bg .k2 { width: 240px; height: 240px; background: #0a84ff; top: 300px; right: -80px; animation-delay: -5s; }
-.glas-bg .k3 { width: 200px; height: 200px; background: #bf5af2; bottom: -40px; left: 40px; animation-delay: -9s; }
+/* Hintergrund: Stimmung nach Tageszeit und Wetter. Farben als registrierte Eigenschaften, damit sie weich überblenden */
+@property --g1 { syntax: '<color>'; inherits: true; initial-value: #1c3552; }
+@property --g2 { syntax: '<color>'; inherits: true; initial-value: #1f4a70; }
+@property --g3 { syntax: '<color>'; inherits: true; initial-value: #2a5575; }
+@property --f1 { syntax: '<color>'; inherits: true; initial-value: #ffd27a; }
+@property --f2 { syntax: '<color>'; inherits: true; initial-value: #3aa0ff; }
+@property --f3 { syntax: '<color>'; inherits: true; initial-value: #7fd0ff; }
+.glas-bg { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(165deg, var(--g1) 0%, var(--g2) 50%, var(--g3) 100%);
+  transition: --g1 2.5s, --g2 2.5s, --g3 2.5s, --f1 2.5s, --f2 2.5s, --f3 2.5s; --dunst-farbe: #3c4655; --tropfen: rgba(200,225,255,.6); }
+.glas-bg[data-phase=morgen] { --g1: #2e2748; --g2: #4a3150; --g3: #6b4040; --f1: #ff8a5c; --f2: #6a7bd6; --f3: #d07ab8; }
+.glas-bg[data-phase=tag]    { --g1: #1c3552; --g2: #1f4a70; --g3: #2a5575; --f1: #ffc766; --f2: #3aa0ff; --f3: #7fd0ff; }
+.glas-bg[data-phase=abend]  { --g1: #2a1a36; --g2: #45203d; --g3: #5a2a2c; --f1: #ff7a2e; --f2: #d0457a; --f3: #7a4bd0; }
+.glas-bg[data-phase=nacht]  { --g1: #070d1c; --g2: #0c1528; --g3: #131a33; --f1: #2c3e8a; --f2: #1b4a7a; --f3: #4b3a8a; }
+.hell .glas-bg { --dunst-farbe: #c9ced6; --tropfen: rgba(50,80,120,.35); }
+.hell .glas-bg[data-phase=morgen] { --g1: #ffd9c7; --g2: #f5e0f0; --g3: #cfdcff; --f1: #ff9a6a; --f2: #9fb4ff; --f3: #f0a0c8; }
+.hell .glas-bg[data-phase=tag]    { --g1: #cfe6ff; --g2: #e3f1ff; --g3: #fff3d6; --f1: #ffd060; --f2: #6ab8ff; --f3: #a8e0ff; }
+.hell .glas-bg[data-phase=abend]  { --g1: #ffd2b0; --g2: #f7c6d8; --g3: #d9ccff; --f1: #ff8a3a; --f2: #ff6f9a; --f3: #a58aff; }
+.hell .glas-bg[data-phase=nacht]  { --g1: #b9c4e0; --g2: #c9cde6; --g3: #d8d0ec; --f1: #6d80c8; --f2: #7fa3dc; --f3: #9a88d2; }
+.glas-bg > i { position: absolute; border-radius: 50%; filter: blur(40px) saturate(1); opacity: .7; animation: schweben 14s ease-in-out infinite; transition: filter 2.5s, opacity 2.5s; }
+.glas-bg .k1 { width: 260px; height: 260px; background: var(--f1); top: -60px; left: -60px; }
+.glas-bg .k2 { width: 240px; height: 240px; background: var(--f2); top: 300px; right: -80px; animation-delay: -5s; }
+.glas-bg .k3 { width: 200px; height: 200px; background: var(--f3); bottom: -40px; left: 40px; animation-delay: -9s; }
+.glas-bg[data-phase=nacht] > i { opacity: .45; }
+/* Wetter dämpft die Farben und legt Dunst darüber */
+.dunst { position: absolute; inset: 0; background: var(--dunst-farbe); opacity: 0; transition: opacity 2.5s; }
+.glas-bg[data-wetter=wolkig] .dunst { opacity: .3; }  .glas-bg[data-wetter=wolkig] > i { filter: blur(50px) saturate(.6); }
+.glas-bg[data-wetter=regen] .dunst { opacity: .42; }  .glas-bg[data-wetter=regen] > i { filter: blur(55px) saturate(.45); opacity: .5; }
+.glas-bg[data-wetter=gewitter] .dunst { opacity: .55; background: #1c2230; } .glas-bg[data-wetter=gewitter] > i { filter: blur(55px) saturate(.35); opacity: .4; }
+.hell .glas-bg[data-wetter=gewitter] .dunst { background: #9aa3b2; }
+.glas-bg[data-wetter=nebel] .dunst { opacity: .62; }  .glas-bg[data-wetter=nebel] > i { filter: blur(70px) saturate(.3); opacity: .35; }
+.glas-bg[data-wetter=schnee] .dunst { opacity: .35; background: #dfe8f2; } .glas-bg[data-wetter=schnee] > i { filter: blur(50px) saturate(.4); }
+.glas-bg:not(.hell *)[data-wetter=schnee] .dunst { opacity: .16; }
+/* Bewegung */
+.partikel { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.partikel i { position: absolute; display: block; }
+.tropfen { top: -40px; width: 1.5px; height: var(--l); border-radius: 1px; background: linear-gradient(transparent, var(--tropfen));
+  transform: rotate(12deg); animation: fallen var(--d) linear infinite; animation-delay: var(--v); }
+@keyframes fallen { to { transform: translate(-200px, 950px) rotate(12deg); } }
+.blitzlicht { inset: 0; background: #fff; opacity: 0; animation: blitzen 7s linear infinite; }
+@keyframes blitzen { 0%, 86%, 88.5%, 91%, 100% { opacity: 0; } 87% { opacity: .35; } 90% { opacity: .22; } }
+.flocke { top: -12px; animation: schneien var(--d) linear infinite; animation-delay: var(--v); }
+.flocke b { display: block; width: var(--s); height: var(--s); border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 0 4px rgba(255,255,255,.6);
+  animation: pendeln var(--w) ease-in-out infinite alternate; }
+.hell .flocke b { background: #fff; box-shadow: 0 0 3px rgba(80,100,130,.5); }
+@keyframes schneien { to { transform: translateY(950px); } }
+@keyframes pendeln { from { transform: translateX(-10px); } to { transform: translateX(10px); } }
+.schwade { left: -40%; width: 180%; height: 140px; background: radial-gradient(ellipse at center, rgba(225,232,240,.4), transparent 70%); filter: blur(12px);
+  animation: ziehen var(--d) ease-in-out infinite alternate; animation-delay: var(--v); }
+@keyframes ziehen { from { transform: translateX(-12%); } to { transform: translateX(12%); } }
+.wolke { left: -60%; width: 340px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.12); filter: blur(28px);
+  animation: wandern var(--d) linear infinite; animation-delay: var(--v); }
+.hell .wolke { background: rgba(255,255,255,.55); }
+@keyframes wandern { to { transform: translateX(260%); } }
+.stern { width: var(--s); height: var(--s); border-radius: 50%; background: #fff; box-shadow: 0 0 4px #fff; animation: funkeln 3.5s ease-in-out infinite; animation-delay: var(--v); }
+.hell .stern { background: #fffbe8; box-shadow: 0 0 4px #7d8fd0; }
+@keyframes funkeln { 50% { opacity: .2; } }
+.strahlen { top: -300px; left: -300px; width: 720px; height: 720px; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255,236,170,.14) 0 6deg, transparent 6deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 12%, transparent 62%); mask: radial-gradient(circle, #000 12%, transparent 62%); animation: drehen 90s linear infinite; }
+@keyframes drehen { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .partikel { display: none; } }
 
 .scroll { position: absolute; inset: 0; overflow-y: auto; }
 .seite { padding: 56px 14px 120px; display: flex; flex-direction: column; gap: 12px; max-width: 1100px; margin: 0 auto; }

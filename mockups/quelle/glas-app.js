@@ -110,16 +110,45 @@ function verbrauch(bereiche, cid, zeitraum) {
   return liste.map(b => eins(b, k)).reduce((a, w) => a.map((v, i) => v + w[i]));
 }
 
+/* ---------- Stimmung: Hintergrund nach Tageszeit (sun.sun) und Wetter (weather.*) ---------- */
+const STIMMUNG = { phase: 'tag', wetter: 'regen' };
+const WETTER_ANZEIGE = { klar: ['sunny', 'Sonnig'], wolkig: ['cloudy', 'Bewölkt'], regen: ['rainy', 'Regen · 6 mm'], nebel: ['fog', 'Nebel'],
+  schnee: ['snowy', 'Schnee · 2 cm'], gewitter: ['lightning-rainy', 'Gewitter · 9 mm'] };
+const wetterJetzt = () => { const [w, t] = WETTER_ANZEIGE[STIMMUNG.wetter]; return [w === 'sunny' && STIMMUNG.phase === 'nacht' ? 'clear-night' : w, w === 'sunny' && STIMMUNG.phase === 'nacht' ? 'Klar' : t]; };
+function partikel(phase, wetter) {
+  const r = zufall(42), z = (a, b) => (a + r() * (b - a)).toFixed(2);
+  const tropfen = n => [...Array(n)].map(() => `<i class="tropfen" style="left:${z(-10, 130)}%;--l:${z(12, 26)}px;--d:${z(.55, 1)}s;--v:-${z(0, 2)}s;opacity:${z(.35, .9)}"></i>`).join('');
+  const teile = [];
+  if (wetter === 'regen') teile.push(tropfen(70));
+  if (wetter === 'gewitter') teile.push(tropfen(120), '<i class="blitzlicht"></i>');
+  if (wetter === 'schnee') teile.push([...Array(60)].map(() => `<i class="flocke" style="left:${z(-5, 105)}%;--d:${z(7, 14)}s;--v:-${z(0, 14)}s"><b style="--s:${z(2, 5)}px;--w:${z(2, 4)}s"></b></i>`).join(''));
+  if (wetter === 'nebel') teile.push([...Array(4)].map((_, k) => `<i class="schwade" style="top:${10 + k * 22}%;--d:${24 + k * 7}s;--v:-${k * 6}s"></i>`).join(''));
+  if (wetter === 'wolkig' || wetter === 'regen' || wetter === 'gewitter') teile.push([...Array(3)].map((_, k) => `<i class="wolke" style="top:${z(-5, 45)}%;--d:${z(50, 80)}s;--v:-${z(0, 60)}s"></i>`).join(''));
+  if (wetter === 'klar' && phase === 'nacht') teile.push([...Array(45)].map(() => `<i class="stern" style="left:${z(0, 100)}%;top:${z(0, 60)}%;--v:-${z(0, 4)}s;--s:${z(1, 2.4)}px"></i>`).join(''));
+  if (wetter === 'klar' && phase !== 'nacht') teile.push('<i class="strahlen"></i>');
+  return teile.join('');
+}
+const APPS = [];
+
 /* ---------- App ---------- */
 class App {
   constructor(root) {
-    this.root = root; this.d = daten();
+    this.root = root; APPS.push(this);
+    root.innerHTML = `<div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui"></div>`;
+    this.bg = root.querySelector('.glas-bg'); this.ui = root.querySelector('.ui'); this.d = daten();
     this.s = { view: 'uebersicht', cid: null, auto: true, sheet: null, chart: 'temp', zeitraum: 'Woche', verlauf: 'aktiv' };
     root.addEventListener('click', e => this.klick(e));
     root.addEventListener('input', e => this.eingabe(e));
     root.addEventListener('pointermove', e => this.hover(e));
     root.addEventListener('pointerleave', () => this.tip(null));
+    this.stimmung(false);
     this.render();
+  }
+  stimmung(neuZeichnen = true) {
+    const { phase, wetter } = STIMMUNG;
+    if (this.bg.dataset.phase !== phase || this.bg.dataset.wetter !== wetter) this.bg.querySelector('.partikel').innerHTML = partikel(phase, wetter);
+    this.bg.dataset.phase = phase; this.bg.dataset.wetter = wetter;
+    if (neuZeichnen) this.render();
   }
   get b() { return this.d.bereiche.find(x => x.id === this.s.cid); }
   gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.sheet = null; this.render(true); }
@@ -129,8 +158,7 @@ class App {
     const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0;
     const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view;
-    this.root.innerHTML = `<div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i></div>
-      <div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this['v_' + this.s.view]()}</div></div>
+    this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this['v_' + this.s.view]()}</div></div>
       <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''}">${t}</button>`).join('')}</nav>
       <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
       <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${this.s.sheet ? this.sheet() : ''}</div>
@@ -148,7 +176,7 @@ class App {
     const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
     return `<div class="glas-kopf glas-panel">
         <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">ÖWG Dobl Zwaring <span class="pfeil">▾</span></div></div>
-          <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon('rainy', 22)}<span>4,2°</span><span class="kw-t">Regen · 6 mm</span></button></div>
+          <button class="kopf-wetter" data-act="sheet" data-s="wetter">${wetterIcon(wetterJetzt()[0], 22)}<span>${STIMMUNG.wetter === 'schnee' ? '−2,1°' : STIMMUNG.phase === 'nacht' ? '1,8°' : '4,2°'}</span><span class="kw-t">${wetterJetzt()[1]}</span></button></div>
         <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
       <div class="glas-chips">
         <button class="glas-panel chip ${this.s.auto ? 'amber' : ''}" data-act="auto">♨ ${this.s.auto ? 'Automatik · aus 17:15' : 'Automatik aus'}</button>
@@ -470,3 +498,6 @@ class App {
 }
 document.querySelectorAll('.app').forEach(el => new App(el));
 document.getElementById('modus').onclick = () => document.body.classList.toggle('hell');
+for (const [id, k] of [['phase', 'phase'], ['wetter', 'wetter']]) {
+  const el = document.getElementById(id); if (el) el.onchange = () => { STIMMUNG[k] = el.value; APPS.forEach(a => a.stimmung()); };
+}
