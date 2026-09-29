@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+# Fachlogik: python3 -m pytest tests/logik (ohne Home Assistant, Python 3.12+)
+# Integration: pytest tests/integration mit pytest-homeassistant-custom-component (Python 3.14+)
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["ignore::pytest.PytestConfigWarning"]

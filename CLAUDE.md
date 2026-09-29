@@ -1,11 +1,19 @@
 # ha-baustelle
 
-Home-Assistant-Projekt für die Baustelle: ein Paket und ein YAML-Dashboard. Zweck, Aufbau und Auslieferung stehen in
-`README.md`.
+Eigene Home-Assistant-Integration `baustelle`: Heizung in Baustellencontainern und Pumpenüberwachung mit Shellys, dazu
+ein YAML-Dashboard. Zweck, Aufbau und Auslieferung stehen in `README.md`; die abgenommene Planung ist
+`mockups/baustelle.html` (Abnahme in `mockups/README.md`).
 
 ## Regeln
 
 - **Quelle der Wahrheit ist dieses Repo.** In `/config` nur über `tools/deploy.sh` ausliefern, dort nie direkt ändern.
+  `custom_components/**` in `/config` ist für Claude gesperrt: Das Einspielen führt Herbert aus
+  (`! /config/projekte/ha-baustelle/tools/deploy.sh`), danach Neustart durch Herbert.
+- **Bewährte Lösungen statt Eigenbau** (Herbert, 29.09.2026): Aufbau nach `integration_blueprint` und den Kern-Helfern
+  (Vorbild `bayesian`: Subentries, Update-Listener mit Reload); eingebaute Integrationen nutzen, wo es sie gibt
+  (Feiertage/`holiday`, lokaler Kalender, `weather.get_forecasts`, `notify.mobile_app_*`, später `history_stats`).
+- **Fachlogik frei von HA-Code** in `custom_components/baustelle/logik/`; Änderungen dort immer mit Test in `tests/logik/`.
+- **Die Automatik startet ausgeschaltet.** Die Integration schaltet Shellys nur, wenn Herbert sie einschaltet.
 - **Neustart nur durch Herbert** oder nach seiner ausdrücklichen Bestätigung, vorher die Konfiguration prüfen.
 - **Geräte steuern** (Shellys, Verbraucher auf der Baustelle) nur auf Auftrag.
 - **Keine Geheimnisse:** Zugangsdaten nur als `!secret <schlüssel>`; keine Koordinaten, Gerätekennungen oder Tokens im
@@ -22,23 +30,24 @@ Home-Assistant-Projekt für die Baustelle: ein Paket und ein YAML-Dashboard. Zwe
 - Branch-Policy: current
 
 ### Checks
-- none
+- logik: python3 -m pytest -q -p no:cacheprovider tests/logik [custom_components/baustelle/logik/**; tests/logik/**]
+- integration: uv run --no-project --python 3.14 --index-strategy unsafe-best-match --with pytest-homeassistant-custom-component python -m pytest -q -p no:cacheprovider tests/integration [custom_components/**; tests/integration/**]
 
 ### Commit
 - Format: [vX.Y.Z] Modul, Typ: Kurztitel
-- Module: Paket=ha/packages; Dashboard=ha/dashboards; Werkzeuge=tools; Doku=*.md
+- Module: Integration=custom_components/**; Dashboard=ha/dashboards/**; Tests=tests/**; Werkzeuge=tools/**, .github/**; Doku=*.md, mockups/**
 - Versionsquelle: changelog:CHANGELOG.md
-- Versionsregel: MINOR nur für eine wirklich neue Funktion; Verbesserungen, Korrekturen und Umbauten sind PATCH; Commits nur an Doku oder Werkzeugen behalten die Nummer
+- Versionsregel: MINOR nur für eine wirklich neue Funktion; Verbesserungen, Korrekturen und Umbauten sind PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit
 - Push-Policy: user-only
-- Pre-Commit-Checks: none
+- Pre-Commit-Checks: logik; integration
 - Doku-Check: none
 
 ### Code
-- Stacks: home-assistant
-- Pflichtkontext: CLAUDE.md; README.md
+- Stacks: python; home-assistant-yaml
+- Pflichtkontext: CLAUDE.md; README.md; mockups/README.md
 - Aufgabenquelle: none
 - Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
-- Tests: none
+- Tests: logik; integration
 - Auslieferung: ref:README.md#Auslieferung
 - Mockup-Policy: none
 - Befund-Ort: none

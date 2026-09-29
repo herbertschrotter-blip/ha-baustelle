@@ -1,0 +1,417 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Neue Baustelle",
+        "description": "Danach legst du die Container und Pumpenschächte an und ordnest die Shellys zu.",
+        "data": {
+          "name": "Name der Baustelle",
+          "beginn": "Beginn",
+          "heizung": "Funktion Heizung",
+          "pumpen": "Funktion Pumpenüberwachung"
+        }
+      }
+    },
+    "error": {
+      "keine_funktion": "Mindestens eine Funktion einschalten."
+    },
+    "abort": {
+      "already_configured": "Diese Baustelle gibt es schon."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Baustelle einstellen",
+        "data": {
+          "status": "Status",
+          "beginn": "Beginn",
+          "ende": "Ende",
+          "heizung": "Funktion Heizung",
+          "pumpen": "Funktion Pumpenüberwachung",
+          "wetter": "Wetter (Vorhersage)",
+          "temp_sensor": "Außentemperatur (Wetterstation)",
+          "regen_sensor": "Regen letzte 24 h (Wetterstation)",
+          "feiertag_kalender": "Feiertage (Kalender)",
+          "urlaub_kalender": "Urlaub / Betriebsruhe (Kalender)",
+          "empfaenger": "Meldungen an",
+          "heizperiode_von": "Heizperiode von",
+          "heizperiode_bis": "Heizperiode bis"
+        },
+        "data_description": {
+          "status": "Abgeschlossen: nichts wird mehr geschaltet, Geräte werden frei, Zahlen bleiben.",
+          "wetter": "Bewährt: Open-Meteo über eine Zone der Baustelle, oder Met.no mit ihren Koordinaten.",
+          "temp_sensor": "Optional; sonst die Temperatur der Wetter-Entität.",
+          "regen_sensor": "Optional; sonst der für heute vorhergesagte Regen.",
+          "feiertag_kalender": "Kalender der Integration „Feiertage“ (Österreich, Bundesland).",
+          "urlaub_kalender": "Lokaler Kalender; Einträge = Urlaub, Weihnachten usw.",
+          "empfaenger": "Benachrichtigungsdienste, z. B. mobile_app_<handy> der Companion App."
+        }
+      }
+    },
+    "error": {
+      "keine_funktion": "Mindestens eine Funktion einschalten.",
+      "geraete_vergeben": "Nicht möglich: Diese Shellys gehören inzwischen einer anderen aktiven Baustelle: {belegt}"
+    }
+  },
+  "config_subentries": {
+    "bereich": {
+      "initiate_flow": {
+        "user": "Container / Bereich hinzufügen"
+      },
+      "entry_type": "Container / Bereich",
+      "step": {
+        "user": {
+          "title": "Container / Bereich",
+          "data": {
+            "name": "Name",
+            "art": "Art",
+            "fuehler": "Thermostat / Temperaturfühler"
+          },
+          "data_description": {
+            "name": "z. B. „Container 2 · Mannschaft“",
+            "fuehler": "Optional. Ohne Fühler: nur Zeitplan, der Heizkörper regelt selbst; kein Frostschutz."
+          }
+        },
+        "reconfigure": {
+          "title": "Container / Bereich",
+          "data": {
+            "name": "Name",
+            "art": "Art",
+            "fuehler": "Thermostat / Temperaturfühler"
+          },
+          "data_description": {
+            "name": "z. B. „Container 2 · Mannschaft“",
+            "fuehler": "Optional. Ohne Fühler: nur Zeitplan, der Heizkörper regelt selbst; kein Frostschutz."
+          }
+        }
+      },
+      "error": {
+        "name_vergeben": "Diesen Namen gibt es schon."
+      },
+      "abort": {
+        "reconfigure_successful": "Gespeichert."
+      }
+    },
+    "geraet": {
+      "initiate_flow": {
+        "user": "Shelly hinzufügen"
+      },
+      "entry_type": "Shelly",
+      "step": {
+        "user": {
+          "title": "Shelly zuordnen",
+          "data": {
+            "bereich": "Container / Bereich",
+            "schalter": "Shelly (Schalter)",
+            "name": "Bezeichnung",
+            "rolle": "Was hängt dran",
+            "typ": "Heizkörper-Typ (nur für den Vergleich)",
+            "leistung": "Leistungssensor",
+            "energie": "Energiesensor"
+          },
+          "data_description": {
+            "schalter": "Das, was geschaltet wird.",
+            "leistung": "Leer lassen: wird am Shelly automatisch gefunden.",
+            "energie": "Leer lassen: wird am Shelly automatisch gefunden."
+          }
+        },
+        "reconfigure": {
+          "title": "Shelly zuordnen",
+          "data": {
+            "bereich": "Container / Bereich",
+            "schalter": "Shelly (Schalter)",
+            "name": "Bezeichnung",
+            "rolle": "Was hängt dran",
+            "typ": "Heizkörper-Typ (nur für den Vergleich)",
+            "leistung": "Leistungssensor",
+            "energie": "Energiesensor"
+          },
+          "data_description": {
+            "schalter": "Das, was geschaltet wird.",
+            "leistung": "Leer lassen: wird am Shelly automatisch gefunden.",
+            "energie": "Leer lassen: wird am Shelly automatisch gefunden."
+          }
+        }
+      },
+      "error": {
+        "schalter_vergeben": "Dieser Shelly ist in dieser Baustelle schon zugeordnet.",
+        "schalter_andere_baustelle": "Dieser Shelly gehört einer anderen aktiven Baustelle. Die erst abschließen.",
+        "kein_bereich": "Zuerst einen Container oder Bereich anlegen.",
+        "rolle_passt_nicht": "Pumpen gehören in einen Pumpenschacht, alles andere in einen Container."
+      },
+      "abort": {
+        "kein_bereich": "Zuerst einen Container oder Bereich anlegen.",
+        "reconfigure_successful": "Gespeichert."
+      }
+    }
+  },
+  "selector": {
+    "status": {
+      "options": {
+        "aktiv": "Aktiv",
+        "abgeschlossen": "Abgeschlossen"
+      }
+    },
+    "art": {
+      "options": {
+        "container": "Container",
+        "pumpenschacht": "Pumpenschacht"
+      }
+    },
+    "rolle": {
+      "options": {
+        "heizkoerper": "Heizkörper",
+        "bautrockner": "Bautrockner",
+        "pumpe": "Pumpe",
+        "steckdose": "Steckdose / Werkzeug"
+      }
+    },
+    "typ": {
+      "options": {
+        "oelradiator": "Ölradiator",
+        "konvektor": "Konvektor"
+      }
+    },
+    "monat": {
+      "options": {
+        "1": "Jänner",
+        "2": "Februar",
+        "3": "März",
+        "4": "April",
+        "5": "Mai",
+        "6": "Juni",
+        "7": "Juli",
+        "8": "August",
+        "9": "September",
+        "10": "Oktober",
+        "11": "November",
+        "12": "Dezember"
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "automatik": {
+        "name": "Automatik"
+      },
+      "heizgrenze_aktiv": {
+        "name": "Heizgrenze"
+      },
+      "frost_aktiv": {
+        "name": "Frostschutz"
+      },
+      "kleidung_trocknen": {
+        "name": "Kleidung trocknen"
+      },
+      "mo_aktiv": {
+        "name": "Montag aktiv"
+      },
+      "di_aktiv": {
+        "name": "Dienstag aktiv"
+      },
+      "mi_aktiv": {
+        "name": "Mittwoch aktiv"
+      },
+      "do_aktiv": {
+        "name": "Donnerstag aktiv"
+      },
+      "fr_aktiv": {
+        "name": "Freitag aktiv"
+      },
+      "sa_aktiv": {
+        "name": "Samstag aktiv"
+      },
+      "so_aktiv": {
+        "name": "Sonntag aktiv"
+      }
+    },
+    "select": {
+      "modus": {
+        "name": "Modus",
+        "state": {
+          "zeitplan": "Zeitplan",
+          "thermostat": "Thermostat",
+          "hand": "Hand",
+          "aus": "Aus"
+        }
+      },
+      "heizgrenze_basis": {
+        "name": "Heizgrenze nach",
+        "state": {
+          "jetzt": "aktueller Temperatur",
+          "tageshoechst": "Tageshöchstwert (Vorhersage)"
+        }
+      },
+      "urlaub_modus": {
+        "name": "Im Urlaub / an Feiertagen",
+        "state": {
+          "frost": "Nur Frostschutz",
+          "absenken": "Absenken",
+          "aus": "Alles aus"
+        }
+      }
+    },
+    "number": {
+      "kaelte_schwelle": {
+        "name": "Kälte: Früh-Prognose unter"
+      },
+      "kaelte_frueher_min": {
+        "name": "Kälte: früher ein um"
+      },
+      "trocknen_ab_mm": {
+        "name": "Kleidung trocknen ab Regen"
+      },
+      "trocknen_laenger_min": {
+        "name": "Kleidung trocknen: abends länger"
+      },
+      "trocknen_frueher_min": {
+        "name": "Kleidung trocknen: früher starten"
+      },
+      "heizgrenze": {
+        "name": "Heizgrenze: aus über"
+      },
+      "frost_ein": {
+        "name": "Frostschutz ein unter"
+      },
+      "frost_aus": {
+        "name": "Frostschutz aus über"
+      },
+      "absenk_temp": {
+        "name": "Absenktemperatur"
+      },
+      "offline_min": {
+        "name": "Meldung nach offline"
+      },
+      "trocken_unter_w": {
+        "name": "Trockenlauf unter"
+      },
+      "dauerlauf_h": {
+        "name": "Dauerlauf länger als"
+      },
+      "preis": {
+        "name": "Strompreis"
+      },
+      "soll": {
+        "name": "Solltemperatur"
+      }
+    },
+    "time": {
+      "mo_ein": {
+        "name": "Montag ein"
+      },
+      "mo_aus": {
+        "name": "Montag aus"
+      },
+      "di_ein": {
+        "name": "Dienstag ein"
+      },
+      "di_aus": {
+        "name": "Dienstag aus"
+      },
+      "mi_ein": {
+        "name": "Mittwoch ein"
+      },
+      "mi_aus": {
+        "name": "Mittwoch aus"
+      },
+      "do_ein": {
+        "name": "Donnerstag ein"
+      },
+      "do_aus": {
+        "name": "Donnerstag aus"
+      },
+      "fr_ein": {
+        "name": "Freitag ein"
+      },
+      "fr_aus": {
+        "name": "Freitag aus"
+      },
+      "sa_ein": {
+        "name": "Samstag ein"
+      },
+      "sa_aus": {
+        "name": "Samstag aus"
+      },
+      "so_ein": {
+        "name": "Sonntag ein"
+      },
+      "so_aus": {
+        "name": "Sonntag aus"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "abgeschlossen": "Abgeschlossen",
+          "nur_pumpen": "Nur Pumpenüberwachung",
+          "automatik_aus": "Automatik aus",
+          "heizgrenze": "Heizgrenze – zu warm",
+          "urlaub": "Urlaub",
+          "feiertag": "Feiertag",
+          "heizt": "Heizt",
+          "bereit": "Bereit"
+        }
+      },
+      "naechste_schaltzeit": {
+        "name": "Nächste Schaltzeit"
+      },
+      "grund": {
+        "name": "Heizung",
+        "state": {
+          "automatik_aus": "Automatik aus",
+          "frostschutz": "Frostschutz",
+          "hand": "Handbetrieb",
+          "modus_aus": "Modus aus",
+          "heizgrenze": "Heizgrenze – zu warm",
+          "urlaub": "Urlaub",
+          "feiertag": "Feiertag",
+          "absenkung": "Abgesenkt (Urlaub)",
+          "ausserhalb": "Außerhalb der Heizzeit",
+          "zeitplan": "Zeitplan",
+          "kaelte_frueher": "Früher wegen Kälte",
+          "kleidung_trocknen": "Kleidung trocknen",
+          "thermostat_heizt": "Thermostat heizt",
+          "thermostat_erreicht": "Solltemperatur erreicht"
+        }
+      },
+      "leistung": {
+        "name": "Leistung"
+      },
+      "aussen": {
+        "name": "Außentemperatur"
+      },
+      "tageshoechst": {
+        "name": "Tageshöchstwert"
+      },
+      "frueh_prognose": {
+        "name": "Früh-Prognose"
+      },
+      "regen": {
+        "name": "Regen"
+      }
+    },
+    "binary_sensor": {
+      "erreichbar": {
+        "name": "Erreichbar"
+      },
+      "problem": {
+        "name": "{geraet} Problem"
+      },
+      "pumpe_laeuft": {
+        "name": "{geraet} läuft"
+      }
+    },
+    "button": {
+      "test_meldung": {
+        "name": "Test-Meldung"
+      }
+    }
+  },
+  "exceptions": {
+    "keine_empfaenger": {
+      "message": "Keine Empfänger eingestellt (Baustelle → Konfigurieren → Meldungen an)."
+    }
+  }
+}

@@ -1,0 +1,417 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "New construction site",
+        "description": "Next you add containers and pump shafts and assign the Shellys.",
+        "data": {
+          "name": "Site name",
+          "beginn": "Start",
+          "heizung": "Heating",
+          "pumpen": "Pump monitoring"
+        }
+      }
+    },
+    "error": {
+      "keine_funktion": "Enable at least one function."
+    },
+    "abort": {
+      "already_configured": "This site already exists."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Site settings",
+        "data": {
+          "status": "Status",
+          "beginn": "Start",
+          "ende": "End",
+          "heizung": "Heating",
+          "pumpen": "Pump monitoring",
+          "wetter": "Weather (forecast)",
+          "temp_sensor": "Outdoor temperature (station)",
+          "regen_sensor": "Rain last 24 h (station)",
+          "feiertag_kalender": "Public holidays (calendar)",
+          "urlaub_kalender": "Breaks (calendar)",
+          "empfaenger": "Send alerts to",
+          "heizperiode_von": "Heating season from",
+          "heizperiode_bis": "Heating season to"
+        },
+        "data_description": {
+          "status": "Completed: nothing is switched, devices are freed, numbers stay.",
+          "wetter": "Tip: Open-Meteo via a zone for the site.",
+          "temp_sensor": "Optional; otherwise the weather entity.",
+          "regen_sensor": "Optional; otherwise today's forecast precipitation.",
+          "feiertag_kalender": "Calendar of the Holiday integration.",
+          "urlaub_kalender": "Local calendar; events = breaks.",
+          "empfaenger": "Notify services, e.g. mobile_app_<phone>."
+        }
+      }
+    },
+    "error": {
+      "keine_funktion": "Enable at least one function.",
+      "geraete_vergeben": "Devices now belong to another active site: {belegt}"
+    }
+  },
+  "config_subentries": {
+    "bereich": {
+      "initiate_flow": {
+        "user": "Add container / area"
+      },
+      "entry_type": "Container / area",
+      "step": {
+        "user": {
+          "title": "Container / area",
+          "data": {
+            "name": "Name",
+            "art": "Type",
+            "fuehler": "Thermostat / temperature sensor"
+          },
+          "data_description": {
+            "name": "e.g. “Container 2 · Crew”",
+            "fuehler": "Optional. Without a sensor: schedule only, no frost protection."
+          }
+        },
+        "reconfigure": {
+          "title": "Container / area",
+          "data": {
+            "name": "Name",
+            "art": "Type",
+            "fuehler": "Thermostat / temperature sensor"
+          },
+          "data_description": {
+            "name": "e.g. “Container 2 · Crew”",
+            "fuehler": "Optional. Without a sensor: schedule only, no frost protection."
+          }
+        }
+      },
+      "error": {
+        "name_vergeben": "Name already in use."
+      },
+      "abort": {
+        "reconfigure_successful": "Saved."
+      }
+    },
+    "geraet": {
+      "initiate_flow": {
+        "user": "Add Shelly"
+      },
+      "entry_type": "Shelly",
+      "step": {
+        "user": {
+          "title": "Assign Shelly",
+          "data": {
+            "bereich": "Container / area",
+            "schalter": "Shelly (switch)",
+            "name": "Label",
+            "rolle": "Connected load",
+            "typ": "Heater type (comparison only)",
+            "leistung": "Power sensor",
+            "energie": "Energy sensor"
+          },
+          "data_description": {
+            "schalter": "What gets switched.",
+            "leistung": "Leave empty to detect it on the Shelly.",
+            "energie": "Leave empty to detect it on the Shelly."
+          }
+        },
+        "reconfigure": {
+          "title": "Assign Shelly",
+          "data": {
+            "bereich": "Container / area",
+            "schalter": "Shelly (switch)",
+            "name": "Label",
+            "rolle": "Connected load",
+            "typ": "Heater type (comparison only)",
+            "leistung": "Power sensor",
+            "energie": "Energy sensor"
+          },
+          "data_description": {
+            "schalter": "What gets switched.",
+            "leistung": "Leave empty to detect it on the Shelly.",
+            "energie": "Leave empty to detect it on the Shelly."
+          }
+        }
+      },
+      "error": {
+        "schalter_vergeben": "This Shelly is already assigned here.",
+        "schalter_andere_baustelle": "This Shelly belongs to another active site.",
+        "kein_bereich": "Add a container or area first.",
+        "rolle_passt_nicht": "Pumps go into a pump shaft, everything else into a container."
+      },
+      "abort": {
+        "kein_bereich": "Add a container or area first.",
+        "reconfigure_successful": "Saved."
+      }
+    }
+  },
+  "selector": {
+    "status": {
+      "options": {
+        "aktiv": "Active",
+        "abgeschlossen": "Completed"
+      }
+    },
+    "art": {
+      "options": {
+        "container": "Container",
+        "pumpenschacht": "Pump shaft"
+      }
+    },
+    "rolle": {
+      "options": {
+        "heizkoerper": "Heater",
+        "bautrockner": "Dehumidifier",
+        "pumpe": "Pump",
+        "steckdose": "Socket / tools"
+      }
+    },
+    "typ": {
+      "options": {
+        "oelradiator": "Oil radiator",
+        "konvektor": "Convector"
+      }
+    },
+    "monat": {
+      "options": {
+        "1": "January",
+        "2": "February",
+        "3": "March",
+        "4": "April",
+        "5": "May",
+        "6": "June",
+        "7": "July",
+        "8": "August",
+        "9": "September",
+        "10": "October",
+        "11": "November",
+        "12": "December"
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "automatik": {
+        "name": "Automation"
+      },
+      "heizgrenze_aktiv": {
+        "name": "Heating limit"
+      },
+      "frost_aktiv": {
+        "name": "Frost protection"
+      },
+      "kleidung_trocknen": {
+        "name": "Dry clothes"
+      },
+      "mo_aktiv": {
+        "name": "Monday active"
+      },
+      "di_aktiv": {
+        "name": "Tuesday active"
+      },
+      "mi_aktiv": {
+        "name": "Wednesday active"
+      },
+      "do_aktiv": {
+        "name": "Thursday active"
+      },
+      "fr_aktiv": {
+        "name": "Friday active"
+      },
+      "sa_aktiv": {
+        "name": "Saturday active"
+      },
+      "so_aktiv": {
+        "name": "Sunday active"
+      }
+    },
+    "select": {
+      "modus": {
+        "name": "Mode",
+        "state": {
+          "zeitplan": "Schedule",
+          "thermostat": "Thermostat",
+          "hand": "Manual",
+          "aus": "Off"
+        }
+      },
+      "heizgrenze_basis": {
+        "name": "Heating limit based on",
+        "state": {
+          "jetzt": "current temperature",
+          "tageshoechst": "daily high (forecast)"
+        }
+      },
+      "urlaub_modus": {
+        "name": "During breaks / holidays",
+        "state": {
+          "frost": "Frost protection only",
+          "absenken": "Setback",
+          "aus": "All off"
+        }
+      }
+    },
+    "number": {
+      "kaelte_schwelle": {
+        "name": "Cold: early forecast below"
+      },
+      "kaelte_frueher_min": {
+        "name": "Cold: start earlier by"
+      },
+      "trocknen_ab_mm": {
+        "name": "Dry clothes from rain"
+      },
+      "trocknen_laenger_min": {
+        "name": "Dry clothes: longer in the evening"
+      },
+      "trocknen_frueher_min": {
+        "name": "Dry clothes: start earlier"
+      },
+      "heizgrenze": {
+        "name": "Heating limit: off above"
+      },
+      "frost_ein": {
+        "name": "Frost protection on below"
+      },
+      "frost_aus": {
+        "name": "Frost protection off above"
+      },
+      "absenk_temp": {
+        "name": "Setback temperature"
+      },
+      "offline_min": {
+        "name": "Alert after offline"
+      },
+      "trocken_unter_w": {
+        "name": "Dry running below"
+      },
+      "dauerlauf_h": {
+        "name": "Continuous run longer than"
+      },
+      "preis": {
+        "name": "Electricity price"
+      },
+      "soll": {
+        "name": "Target temperature"
+      }
+    },
+    "time": {
+      "mo_ein": {
+        "name": "Monday on"
+      },
+      "mo_aus": {
+        "name": "Monday off"
+      },
+      "di_ein": {
+        "name": "Tuesday on"
+      },
+      "di_aus": {
+        "name": "Tuesday off"
+      },
+      "mi_ein": {
+        "name": "Wednesday on"
+      },
+      "mi_aus": {
+        "name": "Wednesday off"
+      },
+      "do_ein": {
+        "name": "Thursday on"
+      },
+      "do_aus": {
+        "name": "Thursday off"
+      },
+      "fr_ein": {
+        "name": "Friday on"
+      },
+      "fr_aus": {
+        "name": "Friday off"
+      },
+      "sa_ein": {
+        "name": "Saturday on"
+      },
+      "sa_aus": {
+        "name": "Saturday off"
+      },
+      "so_ein": {
+        "name": "Sunday on"
+      },
+      "so_aus": {
+        "name": "Sunday off"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "abgeschlossen": "Completed",
+          "nur_pumpen": "Pump monitoring only",
+          "automatik_aus": "Automation off",
+          "heizgrenze": "Too warm",
+          "urlaub": "Holiday break",
+          "feiertag": "Public holiday",
+          "heizt": "Heating",
+          "bereit": "Ready"
+        }
+      },
+      "naechste_schaltzeit": {
+        "name": "Next switching time"
+      },
+      "grund": {
+        "name": "Heating",
+        "state": {
+          "automatik_aus": "Automation off",
+          "frostschutz": "Frost protection",
+          "hand": "Manual",
+          "modus_aus": "Mode off",
+          "heizgrenze": "Too warm",
+          "urlaub": "Holiday break",
+          "feiertag": "Public holiday",
+          "absenkung": "Setback (break)",
+          "ausserhalb": "Outside heating time",
+          "zeitplan": "Schedule",
+          "kaelte_frueher": "Early start (cold)",
+          "kleidung_trocknen": "Drying clothes",
+          "thermostat_heizt": "Thermostat heating",
+          "thermostat_erreicht": "Target reached"
+        }
+      },
+      "leistung": {
+        "name": "Power"
+      },
+      "aussen": {
+        "name": "Outdoor temperature"
+      },
+      "tageshoechst": {
+        "name": "Daily high"
+      },
+      "frueh_prognose": {
+        "name": "Early forecast"
+      },
+      "regen": {
+        "name": "Rain"
+      }
+    },
+    "binary_sensor": {
+      "erreichbar": {
+        "name": "Reachable"
+      },
+      "problem": {
+        "name": "{geraet} problem"
+      },
+      "pumpe_laeuft": {
+        "name": "{geraet} running"
+      }
+    },
+    "button": {
+      "test_meldung": {
+        "name": "Test alert"
+      }
+    }
+  },
+  "exceptions": {
+    "keine_empfaenger": {
+      "message": "No recipients configured."
+    }
+  }
+}

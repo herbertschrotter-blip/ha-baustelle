@@ -1,0 +1,16 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Fachlogik
+        run: uv run --no-project --python 3.12 --with pytest python -m pytest -q -p no:cacheprovider tests/logik
+      - name: Integration gegen Home Assistant
+        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component python -m pytest -q -p no:cacheprovider tests/integration

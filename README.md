@@ -1,47 +1,73 @@
 # ha-baustelle
 
-Home-Assistant-Projekt für die Baustelle: Shellys und andere Geräte anzeigen und schalten, Verbrauch und Messwerte
-(z. B. Temperatur), Warnungen und Automationen, die auch vom Wetter am Ort der Baustelle gesteuert werden.
+Eigene Home-Assistant-Integration **Baustelle**: Heizkörper in Baustellencontainern über Shellys nach Zeitplan und Wetter
+schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und Shellys, die man in HA zuordnet.
+Die abgenommene Planung ist `mockups/baustelle.html` (Abnahme 29.09.2026, `mockups/README.md`).
+
+## Stand 0.2.0 (Stufen 1–3 des Bauplans)
+
+- **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
+  **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (was dranhängt: Heizkörper, Bautrockner, Pumpe,
+  Steckdose; Heizkörper-Typ nur für den Vergleich). Ein Shelly gehört nur einer aktiven Baustelle; „abgeschlossen“ gibt
+  ihn frei. Leistungs- und Energiesensor werden am Shelly automatisch gefunden.
+- **„Konfigurieren“** je Baustelle: Status aktiv/abgeschlossen, Beginn/Ende, Funktionen, Wetter, Wetterstation,
+  Feiertags- und Urlaubskalender, Empfänger der Meldungen, Heizperiode.
+- **Heizung** (Entitäten der Baustelle und der Container): Automatik, Modus je Container (Zeitplan, Thermostat nur mit
+  Fühler, Hand, Aus), Ein/Aus je Wochentag, Kälte-Frühstart, Kleidung trocknen nach Regen (je Container: Schwelle,
+  länger, früher), Heizgrenze, Frostschutz, Urlaub/Feiertag (nur Frostschutz, absenken oder aus).
+  Wer einen Heizkörper in HA von Hand schaltet, stellt seinen Container auf „Hand“.
+- **Pumpen**: läuft (nach Leistung), Probleme offline, Trockenlauf, Dauerlauf, Baustelle nicht erreichbar;
+  Meldung an die gewählten Handys, Knopf „Test-Meldung“. Problem- und Läuft-Sensoren stehen auf der Geräteseite des Shelly.
+- **Noch nicht:** Verbrauch/Kosten/Prognose (Stufe 4), Dashboard und Diagnose (Stufe 5), eigene Karte (Stufe 6).
 
 ## Aufbau
 
 ```
-ha/packages/baustelle.yaml     Paket: Automationen, Skripte, Template-Sensoren, Helfer → /config/packages/
-ha/dashboards/baustelle.yaml   YAML-Dashboard „Baustelle“ → /config/dashboards/
+custom_components/baustelle/   Integration (→ /config/custom_components/baustelle/)
+  logik/                       Fachlogik ohne HA-Code (Heizungsregeln, Pumpen)
+  steuerung.py                 Laufzeit: Zustände lesen, schalten, melden
+  config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät
+  einstellungen.py             Zeitplan, Regeln, Modi (Store unter .storage/, in der Sicherung)
+  translations/, icons.json    Texte de/en, Symbole
+ha/dashboards/baustelle.yaml   YAML-Dashboard (→ /config/dashboards/), noch Platzhalter
+ha/packages/baustelle.yaml     altes leeres Paket aus 0.1.0, wird nicht mehr ausgeliefert
+tests/logik/                   pytest ohne HA (Python 3.12+)
+tests/integration/             pytest-homeassistant-custom-component (Python 3.14+)
 tools/deploy.sh                Auslieferung nach /config
+mockups/                       abgenommener Entwurf
 ```
 
-Quelle der Wahrheit ist dieses Repo (`/config/projekte/ha-baustelle`). `/config` ist nur das Ziel; dort nicht direkt
-ändern.
+Quelle der Wahrheit ist dieses Repo (`/config/projekte/ha-baustelle`). `/config` ist nur das Ziel.
 
-## Voraussetzungen
+## Einrichten in Home Assistant (bewährte Bausteine)
 
-- Die Shellys der Baustelle über die Shelly-Integration einbinden (Oberfläche, kein Teil dieses Repos).
-- Wetter für die Baustelle als eigene Wetter-Integration (z. B. Met.no) mit deren Koordinaten, eingerichtet in der
-  Oberfläche.
-- In `configuration.yaml`: `homeassistant: packages: !include_dir_named packages` (vorhanden) und das Dashboard unter
-  `lovelace: dashboards:`:
+1. **Zone** für die Baustelle anlegen (Einstellungen → Bereiche & Zonen). Die Koordinaten bleiben in HA.
+2. **Wetter:** Integration **Open-Meteo** mit dieser Zone (oder Met.no mit den Koordinaten). Optional eine
+   Wetterstation (z. B. Ecowitt) für gemessene Außentemperatur und Regen.
+3. **Feiertage:** Integration **Feiertage** (Österreich, Bundesland) → Kalender-Entität.
+4. **Urlaub/Betriebsruhe:** Integration **Lokaler Kalender**, z. B. „Baustelle Urlaub“; Einträge = Zeiträume.
+5. **Meldungen:** Companion App am Handy → Dienst `notify.mobile_app_<handy>`.
+6. **Baustelle** hinzufügen, Container/Pumpenschächte und Shellys zuordnen, unter „Konfigurieren“ Wetter, Kalender und
+   Empfänger wählen. Werte (Zeiten, Regeln) an den Entitäten der Baustelle einstellen, dann **Automatik** einschalten.
 
-  ```yaml
-  ha-baustelle:
-    mode: yaml
-    title: Baustelle
-    icon: mdi:crane
-    show_in_sidebar: true
-    filename: dashboards/baustelle.yaml
-  ```
+Ohne Wetterstation nimmt die Integration als „Regen“ den für heute vorhergesagten Niederschlag.
+
+## Tests
+
+```
+python3 -m pytest -q -p no:cacheprovider tests/logik
+uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
+  --with pytest-homeassistant-custom-component python -m pytest -q -p no:cacheprovider tests/integration
+```
 
 ## Auslieferung
 
-1. Änderungen im Repo machen und committen.
-2. `tools/deploy.sh` kopiert Paket und Dashboard nach `/config`.
-3. Konfiguration prüfen (Entwicklerwerkzeuge → YAML → Konfiguration prüfen).
-4. Wirksam machen:
-   - Automationen, Skripte, Template-Entitäten: passende Konfiguration neu laden.
-   - Dashboard: Seite im Browser neu laden.
-   - Neue Helfer-Domänen oder Änderungen an `configuration.yaml`: Neustart, nur durch Herbert.
+1. Änderungen im Repo, Tests grün, committen.
+2. Herbert spielt ein: `! /config/projekte/ha-baustelle/tools/deploy.sh`
+   (kopiert die Integration nach `/config/custom_components/baustelle/` und das Dashboard nach `/config/dashboards/`).
+3. Konfiguration prüfen, dann **Neustart durch Herbert** (neue oder geänderte Integration braucht immer einen Neustart).
+4. Einstellungen → Geräte & Dienste → Baustelle prüfen; Protokoll auf Meldungen von `custom_components.baustelle` ansehen.
 
 ## Nie ins Repo
 
-Zugangsdaten (`!secret` verwenden, Werte trägt Herbert in `/config/secrets.yaml` ein), Koordinaten der Baustelle,
-Gerätekennungen (MAC, Seriennummern), Tokens.
+Zugangsdaten, Koordinaten der Baustelle, Gerätekennungen (MAC, Seriennummern), Tokens, `.storage/`.

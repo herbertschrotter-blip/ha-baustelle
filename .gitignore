@@ -13,3 +13,5 @@ secrets.yaml
 __pycache__/
 *.pyc
 *.bak
+.venv/
+.pytest_cache/

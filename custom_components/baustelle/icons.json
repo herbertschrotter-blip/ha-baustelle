@@ -1,0 +1,171 @@
+{
+  "entity": {
+    "switch": {
+      "automatik": {
+        "default": "mdi:radiator",
+        "state": {
+          "off": "mdi:radiator-off"
+        }
+      },
+      "heizgrenze_aktiv": {
+        "default": "mdi:weather-sunny-alert"
+      },
+      "frost_aktiv": {
+        "default": "mdi:snowflake-thermometer"
+      },
+      "kleidung_trocknen": {
+        "default": "mdi:tshirt-crew"
+      },
+      "mo_aktiv": {
+        "default": "mdi:calendar-check"
+      },
+      "di_aktiv": {
+        "default": "mdi:calendar-check"
+      },
+      "mi_aktiv": {
+        "default": "mdi:calendar-check"
+      },
+      "do_aktiv": {
+        "default": "mdi:calendar-check"
+      },
+      "fr_aktiv": {
+        "default": "mdi:calendar-check"
+      },
+      "sa_aktiv": {
+        "default": "mdi:calendar-check"
+      },
+      "so_aktiv": {
+        "default": "mdi:calendar-check"
+      }
+    },
+    "select": {
+      "modus": {
+        "default": "mdi:tune-variant"
+      },
+      "heizgrenze_basis": {
+        "default": "mdi:thermometer-lines"
+      },
+      "urlaub_modus": {
+        "default": "mdi:beach"
+      }
+    },
+    "number": {
+      "kaelte_schwelle": {
+        "default": "mdi:thermometer-low"
+      },
+      "kaelte_frueher_min": {
+        "default": "mdi:clock-start"
+      },
+      "trocknen_ab_mm": {
+        "default": "mdi:weather-pouring"
+      },
+      "trocknen_laenger_min": {
+        "default": "mdi:clock-end"
+      },
+      "trocknen_frueher_min": {
+        "default": "mdi:clock-start"
+      },
+      "heizgrenze": {
+        "default": "mdi:thermometer-high"
+      },
+      "frost_ein": {
+        "default": "mdi:snowflake"
+      },
+      "frost_aus": {
+        "default": "mdi:snowflake-off"
+      },
+      "absenk_temp": {
+        "default": "mdi:thermometer-minus"
+      },
+      "offline_min": {
+        "default": "mdi:lan-disconnect"
+      },
+      "trocken_unter_w": {
+        "default": "mdi:water-off"
+      },
+      "dauerlauf_h": {
+        "default": "mdi:timer-alert"
+      },
+      "preis": {
+        "default": "mdi:currency-eur"
+      },
+      "soll": {
+        "default": "mdi:thermostat"
+      }
+    },
+    "time": {
+      "mo_ein": {
+        "default": "mdi:clock-outline"
+      },
+      "mo_aus": {
+        "default": "mdi:clock-outline"
+      },
+      "di_ein": {
+        "default": "mdi:clock-outline"
+      },
+      "di_aus": {
+        "default": "mdi:clock-outline"
+      },
+      "mi_ein": {
+        "default": "mdi:clock-outline"
+      },
+      "mi_aus": {
+        "default": "mdi:clock-outline"
+      },
+      "do_ein": {
+        "default": "mdi:clock-outline"
+      },
+      "do_aus": {
+        "default": "mdi:clock-outline"
+      },
+      "fr_ein": {
+        "default": "mdi:clock-outline"
+      },
+      "fr_aus": {
+        "default": "mdi:clock-outline"
+      },
+      "sa_ein": {
+        "default": "mdi:clock-outline"
+      },
+      "sa_aus": {
+        "default": "mdi:clock-outline"
+      },
+      "so_ein": {
+        "default": "mdi:clock-outline"
+      },
+      "so_aus": {
+        "default": "mdi:clock-outline"
+      }
+    },
+    "sensor": {
+      "status": {
+        "default": "mdi:crane"
+      },
+      "naechste_schaltzeit": {
+        "default": "mdi:clock-fast"
+      },
+      "grund": {
+        "default": "mdi:radiator"
+      },
+      "frueh_prognose": {
+        "default": "mdi:weather-night"
+      },
+      "tageshoechst": {
+        "default": "mdi:thermometer-chevron-up"
+      }
+    },
+    "binary_sensor": {
+      "pumpe_laeuft": {
+        "default": "mdi:pump",
+        "state": {
+          "off": "mdi:pump-off"
+        }
+      }
+    },
+    "button": {
+      "test_meldung": {
+        "default": "mdi:message-alert"
+      }
+    }
+  }
+}

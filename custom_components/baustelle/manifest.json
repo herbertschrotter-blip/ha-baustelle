@@ -1,0 +1,13 @@
+{
+  "domain": "baustelle",
+  "name": "Baustelle",
+  "after_dependencies": ["calendar", "holiday", "notify", "weather"],
+  "codeowners": ["@herbertschrotter-blip"],
+  "config_flow": true,
+  "documentation": "https://github.com/herbertschrotter-blip/ha-baustelle",
+  "integration_type": "hub",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/herbertschrotter-blip/ha-baustelle/issues",
+  "requirements": [],
+  "version": "0.2.0"
+}
