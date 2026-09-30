@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 import voluptuous as vol
@@ -57,6 +58,7 @@ from .const import (
     TYP_KONVEKTOR,
     TYPEN,
 )
+from .logik import zeitraum
 
 MONATE = [str(m) for m in range(1, 13)]
 
@@ -133,7 +135,8 @@ class BaustelleConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_HEIZUNG: user_input[CONF_HEIZUNG],
                         CONF_PUMPEN: user_input[CONF_PUMPEN],
                         CONF_STATUS: STATUS_AKTIV,
-                        CONF_BEGINN: user_input[CONF_BEGINN],
+                        # Beginn leer = Tag der Anlage (AN-0002, logik/zeitraum.beginn)
+                        **({CONF_BEGINN: user_input[CONF_BEGINN]} if user_input.get(CONF_BEGINN) else {}),
                         CONF_HEIZPERIODE_VON: "10",
                         CONF_HEIZPERIODE_BIS: "4",
                         CONF_EMPFAENGER: [],
@@ -142,7 +145,7 @@ class BaustelleConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_NAME): selector.TextSelector(),
-                vol.Required(CONF_BEGINN): selector.DateSelector(),
+                vol.Optional(CONF_BEGINN): selector.DateSelector(),
                 vol.Required(CONF_HEIZUNG, default=True): selector.BooleanSelector(),
                 vol.Required(CONF_PUMPEN, default=False): selector.BooleanSelector(),
             }
@@ -190,10 +193,13 @@ class BaustelleOptionsFlow(OptionsFlow):
                 errors["base"] = "geraete_vergeben"
                 self._belegt = ", ".join(sorted(belegt))
             else:
-                if user_input[CONF_STATUS] == STATUS_ABGESCHLOSSEN and not user_input.get(CONF_ENDE):
-                    user_input[CONF_ENDE] = dt_util.now().date().isoformat()
-                if user_input[CONF_STATUS] == STATUS_AKTIV:
-                    user_input.pop(CONF_ENDE, None)
+                # Ende nach logik/zeitraum (AN-0002): beim Abschließen immer heute, geplantes Ende bleibt bei aktiv
+                ende = zeitraum.ende_beim_speichern(
+                    self.config_entry.options.get(CONF_STATUS, STATUS_AKTIV), user_input[CONF_STATUS],
+                    date.fromisoformat(user_input[CONF_ENDE]) if user_input.get(CONF_ENDE) else None, dt_util.now().date())
+                user_input.pop(CONF_ENDE, None)
+                if ende:
+                    user_input[CONF_ENDE] = ende.isoformat()
                 return self.async_create_entry(data=user_input)
 
         o = self.config_entry.options
@@ -201,7 +207,7 @@ class BaustelleOptionsFlow(OptionsFlow):
         schema = vol.Schema(
             {
                 vol.Required(CONF_STATUS): _auswahl([STATUS_AKTIV, STATUS_ABGESCHLOSSEN], CONF_STATUS),
-                vol.Required(CONF_BEGINN): selector.DateSelector(),
+                vol.Optional(CONF_BEGINN): selector.DateSelector(),
                 vol.Optional(CONF_ENDE): selector.DateSelector(),
                 vol.Required(CONF_HEIZUNG): selector.BooleanSelector(),
                 vol.Required(CONF_PUMPEN): selector.BooleanSelector(),

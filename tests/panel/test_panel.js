@@ -768,6 +768,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   eingabe({ bsz: 'ende' }, '2027-05-28'); eingabe({ hp: '1' }, '3'); neu(); await klick({ act: 'bsz-speichern' }, 30);
   { const o = api.find(a => /options\/flow\/F/.test(a[1]));
     erwarte('Beginn/Ende/Heizperiode über den Options-Dialog', o && o[2].ende === '2027-05-28' && o[2].heizperiode_bis === '3' && o[2].heizperiode_von === '10' && o[2].status === 'aktiv'); }
+  { await klick({ act: 'sheet', s: 'zeitraum-bs' }); eingabe({ bsz: 'beginn' }, ''); neu(); await klick({ act: 'bsz-speichern' }, 30);
+    const o = api.find(a => /options\/flow\/F/.test(a[1]));
+    erwarte('AN-0002: Beginn leer → ohne Beginn gespeichert (Tag der Anlage)', o && !('beginn' in o[2])); }
   neu(); await klick({ act: 'e-bool', k: 'erklaer' });
   erwarte('Erklärungen abschalten', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["erklaer"]' && a.wert === false));
   await klick({ act: 'tab', v: 'heizung' }, 20); await klick({ act: 'hz-auf', k: 'regeln' }, 20); erwarte('ohne Erklärungen keine „ⓘ“', !ui.innerHTML.includes('class="erkl"'));
@@ -783,8 +786,18 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   /* AN-0001: im Fenster „Baustelle wählen“ je Baustelle Bearbeiten und Löschen */
   await klick({ act: 'sheet', s: 'baustellen' }); pruefe('Baustelle wählen');
   erwarte('Baustelle wählen: Bearbeiten und Löschen je Baustelle', panel.alle.every(x => ui.innerHTML.includes(`data-act="bs-bearbeiten" data-id="${x.entry}"`) && ui.innerHTML.includes(`data-s="bs-loeschen" data-id="${x.entry}"`)));
-  await klick({ act: 'bs-bearbeiten', id: 'dobl' }, 30);
-  erwarte('Bearbeiten (aktiv) öffnet Einstellungen der Baustelle', panel.s.view === 'einst' && panel.d.entry === 'dobl' && !panel.s.sheet);
+  await klick({ act: 'bs-bearbeiten', id: 'dobl' }, 30); pruefe('Baustelle bearbeiten');
+  /* AN-0002: Bearbeiten zeigt nur die Daten der Baustelle; Unterdialoge kehren dorthin zurück */
+  erwarte('AN-0002: Bearbeiten (aktiv) öffnet „Baustelle bearbeiten“', panel.s.sheet && panel.s.sheet.art === 'bs-bearbeiten' && panel.d.entry === 'dobl'
+    && ['Beginn und Ende', 'Heizperiode', 'Außentemperatur', '+ Container oder Schacht', 'Preis je kWh', '+ Firma hinzufügen', 'Baustelle abschließen', 'Alle Einstellungen'].every(t => ui.innerHTML.includes(t))
+    && !ui.innerHTML.includes('Test-Nachricht senden') && !ui.innerHTML.includes('Staffelung</b>'));
+  for (const ds of [{ act: 'sheet', s: 'name' }, { act: 'sheet', s: 'zeitraum-bs' }, { act: 'sheet', s: 'wetterquelle' }, { act: 'bereich-einst', id: panel.d.bereiche[0].id }, { act: 'firma-auf', id: panel.d.firmen[0].id }]) {
+    await klick(ds); await klick({ act: 'zu' });
+    erwarte(`AN-0002: nach ${ds.s || ds.act} zurück zu „Baustelle bearbeiten“`, panel.s.sheet && panel.s.sheet.art === 'bs-bearbeiten'); }
+  await klick({ act: 'sheet', s: 'abschliessen' }); erwarte('AN-0002: Abschließen nennt das Ende', ui.innerHTML.includes('Als Ende wird heute'));
+  await klick({ act: 'zu' }); await klick({ act: 'zu' }); erwarte('AN-0002: Fertig schließt', !panel.s.sheet);
+  erwarte('AN-0002: Beginn automatisch „(angelegt)“', panel.bsZeit({ beginn: '2026-09-08', beginnAuto: true, ende: null }) === '08.09.2026 (angelegt) – offen');
+  await klick({ act: 'sheet', s: 'bs-bearbeiten' }); await klick({ act: 'tab', v: 'einst' }, 20); erwarte('AN-0002: Alle Einstellungen', panel.s.view === 'einst' && !panel.s.sheet);
   await klick({ act: 'bs-bearbeiten', id: 'lieboch' }, 30);
   erwarte('Bearbeiten (abgeschlossen) öffnet die Detailseite', panel.s.view === 'bsdetail' && panel.s.bs === 'lieboch');
   await klick({ act: 'sheet', s: 'baustellen' }); neu(); await klick({ act: 'sheet', s: 'bs-loeschen', id: 'lieboch' }); pruefe('Baustelle löschen');

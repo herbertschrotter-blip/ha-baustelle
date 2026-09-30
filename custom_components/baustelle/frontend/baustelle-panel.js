@@ -1011,9 +1011,23 @@ function phaseAusSonne(sonne) {
   return 'tag';
 }
 
+/* Einblendungen: Unterdialoge aus „Baustelle bearbeiten“ kehren beim Schließen dorthin zurück (AN-0002);
+   s.leeren() schließt alles (Seitenwechsel, Abschließen) */
+function einblendungen(s) {
+  let jetzt = s.sheet || null, eltern = null;
+  Object.defineProperty(s, 'sheet', { enumerable: true, get: () => jetzt, set: v => {
+    if (v && v.art === 'bs-bearbeiten') eltern = null;
+    else if (v && jetzt && jetzt.art === 'bs-bearbeiten' && v !== jetzt) eltern = jetzt;
+    else if (!v && eltern && jetzt !== eltern) { v = eltern; eltern = null; }
+    else if (!v) eltern = null;
+    jetzt = v || null; } });
+  s.leeren = () => { eltern = null; jetzt = null; };
+  return s;
+}
+
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.7.26';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.7.27';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1022,7 +1036,7 @@ class BaustellePanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this.s = { view: 'uebersicht', cid: null, sheet: null, chart: 'temp', verlauf: 'aktiv' };
+    this.s = einblendungen({ view: 'uebersicht', cid: null, sheet: null, chart: 'temp', verlauf: 'aktiv' });
     this.cache = {}; this.roh = null; this.alle = []; this.d = null; this.bid = null; this.fehler = null;
     this.vorhersage = { daily: null, hourly: null }; this.abos = []; this.changelog = null;
     this.st = { phase: 'tag', wetter: 'wolkig', hell: false };
@@ -1261,9 +1275,11 @@ class BaustellePanel extends HTMLElement {
       warnungen, termine, plan, frei, freiName, abschnitte: lz.abschnitte || {}, staffel: lz.staffel || null, wetter: lz.wetter || {}, heizgrenze: lz.heizgrenze || {},
       status: lz.status || (aktiv ? 'bereit' : 'abgeschlossen'), statusText: lz.status_text || '', jetztBis: lz.jetzt_bis ? this.lokal(lz.jetzt_bis, zone).slice(11, 16) : null,
       protokoll: (lz.protokoll || []).map(p => this.protokollZeile(p, z)), zaehler: zl, termineKal: e0.termine_kalender || null, wetterEid,
-      beginn: opt.beginn || null, ende: opt.ende || null,
+      beginn: bs.beginn || opt.beginn || null, beginnAuto: bs.beginn_auto === true, ende: opt.ende || null,   // Beginn leer = Tag der Anlage (AN-0002)
       hp: [Math.min(12, Math.max(1, parseInt(opt.heizperiode_von, 10) || 10)), Math.min(12, Math.max(1, parseInt(opt.heizperiode_bis, 10) || 4))] };
   }
+  /* Beginn und Ende einer Baustelle als Text; „(angelegt)“ = Beginn automatisch (AN-0002) */
+  bsZeit(x) { return `${x.beginn ? datum(x.beginn) : '–'}${x.beginnAuto ? ' (angelegt)' : ''} – ${x.ende ? datum(x.ende) : 'offen'}`; }
   minSeitAb(iso, jetztMs) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((jetztMs - ms) / 60000)) : null; }
   protokollZeile(p, z) {
     const l = this.lokal(p[0], z.zone) || '', t = l.slice(0, 10);
@@ -1601,7 +1617,7 @@ class BaustellePanel extends HTMLElement {
         <div class="hp-zeile achse"><div></div><div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div><div></div></div></div>`;
   }
   get b() { return this.d && this.d.bereiche.find(x => x.id === this.s.cid); }
-  gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.sheet = null; this.render(true); }
+  gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.leeren(); this.render(true); }
   herunterladen(url, name) {
     if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
     const a = document.createElement('a'); if (!a) return; a.href = url; a.download = name; if (a.click) a.click();
@@ -2217,7 +2233,7 @@ class BaustellePanel extends HTMLElement {
     return `${this.kopf('Einstellungen', esc(d.titel))}
       <div class="glas-panel liste"><div class="gruppe">Baustelle</div>
         <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">${esc(d.titel)} ›</span></button>
-        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende</span><span class="leise">${d.beginn ? datum(d.beginn) : '–'} – ${d.ende ? datum(d.ende) : 'offen'} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende</span><span class="leise">${this.bsZeit(d)} ›</span></button>
         <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Heizperiode</span><span class="leise">${MONATE[d.hp[0] - 1]} – ${MONATE[d.hp[1] - 1]} ›</span></button>
         <button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>
         <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button></div>
@@ -2545,11 +2561,36 @@ class BaustellePanel extends HTMLElement {
       const mon = i => `<select data-hp="${i}">${MONATE.map((m, k) => `<option value="${k + 1}" ${f.hp[i] === k + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select>`;
       return `${griff}<h3>Beginn, Ende, Heizperiode</h3>
       <div class="raster-2"><label class="feld">Beginn<input type="date" value="${esc(f.beginn)}" data-bsz="beginn"></label><label class="feld">Ende (geplant)<input type="date" value="${esc(f.ende)}" data-bsz="ende"></label></div>
-      <div class="leise">Gezählt wird ab Beginn. Das Ende ist nur für die Hochrechnung – abgeschlossen wird mit „Baustelle abschließen“.</div>
+      <div class="leise">Gezählt wird ab Beginn. <b>Beginn leer</b> = automatisch der Tag, an dem die Baustelle angelegt wurde${this.d.beginnAuto && this.d.beginn ? ` (${datum(this.d.beginn)})` : ''}.
+        <b>Ende leer</b> = offen; beim Abschließen wird immer der Tag des Abschließens eingetragen – ein geplantes Ende dient nur der Hochrechnung.</div>
       <div class="raster-2"><label class="feld">Heizperiode von${mon(0)}</label><label class="feld">bis${mon(1)}</label></div>
       <div class="leise">Die Auswertung rechnet Verbrauch und Kosten auf die Heizperiode hoch – bis zum Ende der Baustelle, wenn es früher liegt.</div>
       ${knopf('Speichern', 'bsz-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
-    if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'abschliessen', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    /* AN-0002: ✎ im Dialog „Baustellen“ – nur die Daten dieser Baustelle; Staffelung, Bericht, Meldungen und App bleiben unter Einstellungen */
+    if (s.art === 'bs-bearbeiten') {
+      const e = d.e, o = d.optionen;
+      return `${griff}<div class="block-kopf"><h3>Baustelle bearbeiten</h3><span class="leise">${esc(d.titel)}</span></div>
+        <div class="gruppe-t">Baustelle</div>
+        <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">${esc(d.titel)} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende</span><span class="leise">${this.bsZeit(d)} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Heizperiode</span><span class="leise">${MONATE[d.hp[0] - 1]} – ${MONATE[d.hp[1] - 1]} ›</span></button>
+        <div class="gruppe-t">Ort</div>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Wetter</span><span class="leise">${o.wetter ? esc(this.name(o.wetter)) : 'keins gewählt'} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Außentemperatur</span><span class="leise">${o.temp_sensor ? esc(this.name(o.temp_sensor)) : 'aus der Vorhersage'} ›</span></button>
+        <div class="gruppe-t">Container und Geräte · ${d.bereiche.length}</div>
+        ${d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
+        <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button>
+        <div class="gruppe-t">Strom und Abrechnung</div>
+        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label>
+        ${d.firmen.map(f => { const n = d.bereiche.filter(b => (b.firma || 'eigen') === f.id).length;
+          return `<button class="zeile" data-act="firma-auf" data-id="${esc(f.id)}"><span>${esc(f.name)}${f.eigen ? ' <span class="badge">eigene</span>' : ''}</span><span class="leise">${n} Container ›</span></button>`; }).join('')}
+        <button class="zeile" data-act="firma-auf"><span class="blau">+ Firma hinzufügen</span></button>
+        ${d.aktiv ? '<button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>' : ''}
+        <div class="leise p-fuss">Staffelung, Bericht, Meldungen und App stehen unter Einstellungen.</div>
+        <button class="zeile" data-act="tab" data-v="einst"><span class="blau">Alle Einstellungen</span><span class="chev">›</span></button>
+        ${knopf('Fertig', 'zu', 'amber')}`;
+    }
+    if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Als Ende wird heute (${datum(this.z.HEUTE)}) eingetragen. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'abschliessen', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     if (s.art === 'urlaub') {
       if (!d.optionen.urlaub_kalender) return `${griff}<h3>Urlaub eintragen</h3><div class="leise">Zuerst einen Kalender für den Urlaub wählen.</div>${knopf('Kalender wählen', 'wetterquelle-auf', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
       return `${griff}<h3>Urlaub eintragen</h3><label class="feld">Name<input value="${esc(s.form.name)}" placeholder="z. B. Semesterferien" data-ur="name"></label>
@@ -2641,7 +2682,7 @@ class BaustellePanel extends HTMLElement {
         if (art === 'container-neu') { S.sheet = { art, form: { name: '', art: 'Container', fuehler: '', schalter: '', typ: 'Ölradiator' } }; return neu(); }
         if (art === 'wetterquelle') { const o = d.optionen; S.sheet = { art, form: { wetter: o.wetter || '', temp_sensor: o.temp_sensor || '', regen_sensor: o.regen_sensor || '', urlaub_kalender: o.urlaub_kalender || '', feiertag_kalender: o.feiertag_kalender || '', termine_kalender: d.termineKal || '' } }; return neu(); }
         if (art === 'bs-loeschen') { S.sheet = { art, id: el.dataset.id }; return neu(); }
-        if (art === 'zeitraum-bs') { S.sheet = { art, form: { beginn: d.beginn || '', ende: d.ende || '', hp: [...d.hp] } }; return neu(); }
+        if (art === 'zeitraum-bs') { S.sheet = { art, form: { beginn: d.beginnAuto ? '' : d.beginn || '', ende: d.ende || '', hp: [...d.hp] } }; return neu(); }
         if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
         S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu(); }
       case 'wetterquelle-auf': return this.klick({ target: { closest: () => ({ dataset: { act: 'sheet', s: 'wetterquelle' } }) } });
@@ -2719,9 +2760,9 @@ class BaustellePanel extends HTMLElement {
       case 'p-chart': S.pchart = el.dataset.v; return neu();
       case 'tv': S.tv = el.dataset.v; return neu();
       case 'test-meldung': return this.aktion('test_meldung', {}).then(r => { if (r && r.an) this.toast(r.an.length ? `Test-Nachricht an ${r.an.join(', ')} gesendet` : 'Kein Empfänger – bitte unter Meldungen wählen'); });
-      case 'bsz-speichern': { const f = S.sheet.form; if (!f.beginn || (f.ende && f.ende < f.beginn)) return this.toast('Bitte Beginn und Ende prüfen');
+      case 'bsz-speichern': { const f = S.sheet.form; if (f.ende && f.ende < (f.beginn || (d.beginnAuto ? d.beginn : ''))) return this.toast('Bitte Beginn und Ende prüfen');
         S.sheet = null; neu();
-        return this.einrichten(() => this.optionenSpeichern(d, { beginn: f.beginn, ende: f.ende || null, heizperiode_von: String(f.hp[0]), heizperiode_bis: String(f.hp[1]) }), 'Gespeichert').then(() => this._laden()); }
+        return this.einrichten(() => this.optionenSpeichern(d, { beginn: f.beginn || null, ende: f.ende || null, heizperiode_von: String(f.hp[0]), heizperiode_bis: String(f.hp[1]) }), 'Gespeichert').then(() => this._laden()); }
       case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; return this.setzen(['bereiche', x.id, 'trocknen'], !x.trocknen); }
       case 'geraet': { const g = b.geraete[+el.dataset.i]; return this.aktion('schalten', { geraet: g.id, an: !g.an }, b.auto && d.e.auto ? 'Handbetrieb bis zum nächsten Schaltpunkt' : undefined); }
       case 'chart': S.chart = el.dataset.c; return neu();
@@ -2747,9 +2788,10 @@ class BaustellePanel extends HTMLElement {
       case 'bs-oeffnen': case 'bs-wahl': { const x = this.alle.find(y => y.entry === el.dataset.id); if (!x) return;
         if (x.aktiv) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); S.aw = null; return this.gehe('uebersicht'); }
         S.bs = x.entry; return this.gehe('bsdetail'); }
-      case 'bs-bearbeiten': { const x = this.alle.find(y => y.entry === el.dataset.id); if (!x) return;   // aktiv → Einstellungen › Baustelle, abgeschlossen → Detailseite (wieder aktiv setzen)
+      case 'bs-bearbeiten': { const x = this.alle.find(y => y.entry === el.dataset.id); if (!x) return;   // aktiv → „Baustelle bearbeiten“ (AN-0002), abgeschlossen → Detailseite (wieder aktiv setzen)
         if (!x.aktiv) { S.bs = x.entry; return this.gehe('bsdetail'); }
-        this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); S.aw = null; return this.gehe('einst'); }
+        if (x.entry !== this.bid) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); S.aw = null; }
+        S.sheet = { art: 'bs-bearbeiten' }; return neu(); }
       case 'bs-loeschen': { const x = this.alle.find(y => y.entry === S.sheet.id); S.sheet = null; if (!x) return neu();
         const weg = (d && d.entry === x.entry) || (S.view === 'bsdetail' && S.bs === x.entry); neu();
         return this.einrichten(() => this._hass.callApi('DELETE', `config/config_entries/entry/${x.entry}`), `${x.titel} gelöscht`)
@@ -2842,7 +2884,7 @@ class BaustellePanel extends HTMLElement {
           for (const g of x.geraete) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
           await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: x.id }); return true;
         }, `${x.name} entfernt – Werte bleiben im Verlauf`).then(() => this._laden()); }
-      case 'abschliessen': S.sheet = null; neu();
+      case 'abschliessen': S.leeren(); neu();
         return this.einrichten(() => this.optionenSpeichern(d, { status: 'abgeschlossen' }), 'Abgeschlossen – steht jetzt im Verlauf').then(() => this._laden());
       case 'name-speichern': { const n = S.sheet.form.name.trim(); if (!n) return this.toast('Bitte einen Namen eingeben'); S.sheet = null; neu();
         return this.ws({ type: 'config_entries/update', entry_id: d.entry, title: n }, 'Gespeichert'); }

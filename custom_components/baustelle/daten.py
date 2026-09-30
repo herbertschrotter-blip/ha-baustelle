@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
+from .auswertung import beginn_der_baustelle
 from .const import ART_CONTAINER, CONF_STATUS, STATUS_AKTIV
 from .funktionen import aktive
 from .funktionen.heizung import Heizung
@@ -188,10 +189,13 @@ def struktur(hass: HomeAssistant, entry: ConfigEntry, version: str = "") -> dict
     """Einrichtung, Entitäten (Schlüssel → entity_id), Einstellungen, Zähler und Laufzeit einer Baustelle."""
     registry = er.async_get(hass)
     jetzt = dt_util.now()
+    beginn, beginn_auto = beginn_der_baustelle(entry)
     daten: dict[str, Any] = {
         "baustelle": {
             "entry_id": entry.entry_id, "titel": entry.title,
             "status": entry.options.get(CONF_STATUS, STATUS_AKTIV), "optionen": dict(entry.options),
+            # geltender Beginn (leer = Tag der Anlage, AN-0002) und ob er automatisch gilt
+            "beginn": beginn.isoformat(), "beginn_auto": beginn_auto,
             "geladen": getattr(entry, "runtime_data", None) is not None, "version": version,
             "zeitzone": str(hass.config.time_zone), "heute": jetzt.date().isoformat(), "jetzt": _iso(jetzt),
         },

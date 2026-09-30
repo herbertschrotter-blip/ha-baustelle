@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.27] – 2026-09-30
+
+- Baustelle wählen (AN-0002): ✎ öffnet **„Baustelle bearbeiten“** nur mit den Daten dieser Baustelle – Name, Beginn
+  und Ende, Heizperiode, Ort (Wetter, Außentemperatur), Container und Geräte, Strompreis und Firmen, abschließen; der
+  Rest bleibt unter Einstellungen. Unterdialoge kehren beim Schließen dorthin zurück.
+- **Beginn und Ende automatisch:** Beginn leer = Tag, an dem die Baustelle angelegt wurde (auch in HA freiwillig);
+  beim Abschließen wird immer der Tag des Abschließens als Ende eingetragen.
+- Fehler behoben: Speichern einer aktiven Baustelle löschte das geplante Ende – die Hochrechnung bis zum Ende der
+  Baustelle griff dadurch nie.
+
 ## [0.7.26] – 2026-09-30
 
 - Das Repo ist öffentlich (MIT-Lizenz) und über HACS als benutzerdefiniertes Repository installierbar; Einstellungen ›

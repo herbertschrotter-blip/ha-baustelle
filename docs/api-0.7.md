@@ -11,7 +11,8 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
 ```json
 {
   "baustelle": {"entry_id": "", "titel": "", "status": "aktiv|abgeschlossen", "optionen": {}, "geladen": true,
-                "version": "0.7.0", "zeitzone": "Europe/Vienna", "heute": "2026-09-29", "jetzt": "ISO"},
+                "version": "0.7.0", "zeitzone": "Europe/Vienna", "heute": "2026-09-29", "jetzt": "ISO",
+                "beginn": "2026-09-08", "beginn_auto": false},   // geltender Beginn; auto = ohne `beginn` → Tag der Anlage (AN-0002)
   "entitaeten": {"<unique_id>": "<entity_id>"},
   "bereiche": [{"id": "", "name": "", "art": "container|pumpenschacht", "fuehler": "sensor.x|null", "nr": 0}],
   "geraete": [{"id": "", "name": "", "bereich": "", "schalter": "switch.x", "rolle": "heizung|trockner|pumpe|steckdose",
@@ -145,7 +146,7 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   des Heizplans; heute gelten `laufzeit.wetter`.
 - Wetter/Kalender wählen: Options-Dialog (`wetter`, `temp_sensor`, `regen_sensor`, `urlaub_kalender`,
   `feiertag_kalender`), dazu `setzen termine_kalender`. Name: `config_entries/update {entry_id, title}`.
-  Abschließen/wieder aktiv: Options-Dialog mit `status`. Neue Baustelle: Config-Dialog (`name`, `beginn`,
+  Abschließen/wieder aktiv: Options-Dialog mit `status`. Neue Baustelle: Config-Dialog (`name`, `beginn` freiwillig,
   `heizung`, `pumpen`), der angehängte Dialog für den ersten Container wird verworfen.
 - Diagnose: `auth/sign_path` für `/api/diagnostics/config_entry/<entry_id>`, dann Download.
 - Adressen aus Handy-Nachrichten (§4) wertet die Seite beim Laden und bei `location-changed` aus:
@@ -192,6 +193,8 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus).
 - Bericht (0.7.9): `heiztage` = Tage mit Heizzeit > 0 in einem Container (Statistik `<bid>_heizzeit`), wie `zaehler.heiztage`.
 - Beginn/Ende und Heizperiode: Options-Dialog (`beginn`, `ende`, `heizperiode_von`, `heizperiode_bis` als `"1"`…`"12"`).
+  Beginn leer = Tag der Anlage. Ende (`logik/zeitraum.ende_beim_speichern`): beim Abschließen immer heute, bleibt
+  abgeschlossen → eingetragenes Ende, wieder aktiv → kein Ende, aktiv → geplantes Ende bleibt (AN-0002).
   Die Hochrechnung (`<entry>_prognose_heizperiode…`) zählt nur bis zum geplanten Ende, wenn es in der Heizperiode liegt.
 
 ## 8. Auswertung und Abrechnung von der Integration (0.7.14, Bauplan Module Phase 2)

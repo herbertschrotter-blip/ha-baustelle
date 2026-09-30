@@ -3,9 +3,11 @@
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.baustelle.const import DOMAIN, SUB_BEREICH, SUB_GERAET
+from custom_components.baustelle.daten import struktur
 
 
 async def test_baustelle_anlegen_und_ersten_container(hass: HomeAssistant) -> None:
@@ -112,6 +114,44 @@ async def test_optionen_abschliessen_setzt_ende(hass: HomeAssistant) -> None:
     assert r["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options["status"] == "abgeschlossen"
     assert entry.options["ende"]
+    await hass.async_block_till_done()
+
+
+async def _optionen(hass, entry, **aenderung):
+    r = await hass.config_entries.options.async_init(entry.entry_id)
+    eingabe = {"status": entry.options["status"], "heizung": True, "pumpen": True, "heizperiode_von": "10", "heizperiode_bis": "4"}
+    eingabe.update({k: entry.options[k] for k in ("beginn", "ende") if k in entry.options})
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {**eingabe, **aenderung})
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+
+
+async def test_ende_automatisch(hass: HomeAssistant) -> None:
+    """AN-0002: geplantes Ende bleibt bei aktiv (bis 0.7.26 gelöscht), Abschließen setzt immer heute, wieder aktiv ohne Ende."""
+    heute = dt_util.now().date().isoformat()
+    entry = _entry(hass)
+    await _optionen(hass, entry, ende="2027-05-28")
+    assert entry.options["ende"] == "2027-05-28"
+    await _optionen(hass, entry, status="abgeschlossen")
+    assert entry.options["ende"] == heute
+    await _optionen(hass, entry, ende="2026-09-15")   # bleibt abgeschlossen: Ende korrigierbar
+    assert entry.options["ende"] == "2026-09-15"
+    await _optionen(hass, entry, status="aktiv")
+    assert "ende" not in entry.options
+
+
+async def test_beginn_automatisch(hass: HomeAssistant) -> None:
+    """AN-0002: Beginn freiwillig; leer = Tag der Anlage, die Struktur meldet ihn als automatisch."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"name": "Ohne Beginn", "heizung": True, "pumpen": False})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    entry = result["result"]
+    assert "beginn" not in entry.options
+    bs = struktur(hass, entry)["baustelle"]
+    assert bs["beginn_auto"] is True and bs["beginn"] == dt_util.as_local(entry.created_at).date().isoformat()
+    mit = _entry(hass, title="Mit Beginn")
+    bs = struktur(hass, mit)["baustelle"]
+    assert bs["beginn_auto"] is False and bs["beginn"] == "2026-09-01"
     await hass.async_block_till_done()
 
 

@@ -2,7 +2,7 @@
 const fs = require('fs');
 const html = fs.readFileSync(require('path').join(__dirname, '../../glas.html'), 'utf8');
 let script = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
-const el = () => ({ classList: { add() {}, remove() {}, toggle() {} }, style: {}, dataset: {}, scrollTop: 0, offsetWidth: 100, offsetHeight: 30, innerHTML: '', value: 'Neu', querySelector() { return this.kind ||= el(); } });
+const el = () => ({ classList: { add() {}, remove() {}, toggle() {} }, style: { setProperty() {} }, dataset: {}, scrollTop: 0, offsetWidth: 100, offsetHeight: 30, innerHTML: '', value: 'Neu', querySelector() { return this.kind ||= el(); } });
 class Root { constructor() { this.teile = {}; } set innerHTML(v) {} addEventListener() {} querySelector(s) { return this.teile[s] ||= el(); } querySelectorAll() { return []; } contains() { return true; } getBoundingClientRect() { return { left: 0, top: 0, width: 390 }; } }
 let root; global.document = { querySelectorAll: s => s === '.app' ? [root = new Root()] : [], getElementById: () => ({}), body: { classList: { contains: () => false } } };
 console.warn = () => {};
@@ -18,5 +18,11 @@ if (require.main === module) {
   for (const v of ['uebersicht', 'heizung', 'auswertung', 'verlauf', 'einst']) { klick({ act: 'tab', v }); pr(v); hov(150); }
   for (const b of A.d.bereiche.map(b => b.id)) { klick({ act: 'container', id: b }); pr(b); for (const c of ['temp', 'verbrauch', 'heizzeit', 'pumpzeit', 'zyklen']) { klick({ act: 'chart', c }); pr(b + c); hov(150); } }
   for (const s of ['wetter', 'warnungen', 'baustellen', 'container-neu', 'bereich', 'abschliessen', 'urlaub', 'name', 'baustelle-neu', 'wetterquelle', 'verbrauch', 'heizplan']) { klick({ act: 'sheet', s, i: '1' }); pr('sheet ' + s); }
+  /* AN-0002: ✎ im Dialog Baustellen öffnet „Baustelle bearbeiten“; Unterdialoge kehren dorthin zurück */
+  klick({ act: 'sheet', s: 'baustellen' }); klick({ act: 'sheet', s: 'bs-bearbeiten', i: '0' }); pr('sheet bs-bearbeiten');
+  if (A.s.sheet.art !== 'bs-bearbeiten') f.push('AN-0002: Baustelle bearbeiten öffnet nicht');
+  for (const [act, ds] of [['sheet', { s: 'name' }], ['sheet', { s: 'zeitraum-bs' }], ['sheet', { s: 'wetterquelle' }], ['bereich-einst', { id: A.d.bereiche[0].id }], ['firma-auf', { id: A.d.firmen[0].id }]]) {
+    klick({ act, ...ds }); pr('AN-0002 ' + act); klick({ act: 'zu' }); if (!A.s.sheet || A.s.sheet.art !== 'bs-bearbeiten') f.push('AN-0002: nach ' + act + ' nicht zurück'); }
+  klick({ act: 'zu' }); if (A.s.sheet) f.push('AN-0002: Fertig schließt nicht');
   console.log(f.length ? f.join('\n') : 'Grundprüfung sauber');
 }

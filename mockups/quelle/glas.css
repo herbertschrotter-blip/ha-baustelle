@@ -479,3 +479,7 @@ body.hell { background: #d9dee5; color: #111; }
 .warn-zeile.stoerung b { color: var(--rot); } .warn-zeile.hinweis b { color: var(--amber); } .warn-zeile .leise { display: block; font-size: 12px; margin-top: 2px; }
 .p-schacht { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; margin-bottom: 8px; } .p-illu .bc { max-width: 96px; }
 .tab-scroll { overflow-x: auto; } .je-geraet td, .je-geraet th { white-space: nowrap; padding-left: 8px; } .je-geraet td:first-child { white-space: normal; padding-left: 0; }
+
+/* Baustellen-Dialog: wählen, ✎ bearbeiten (AN-0002) */
+.bs-zeile { gap: 4px; } .bs-zeile .bs-wahl { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.bs-zeile .bs-ic { color: var(--ink2); padding: 4px 8px; font-size: 16px; background: none; border: 0; cursor: pointer; }

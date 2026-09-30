@@ -87,7 +87,7 @@ function daten() {
       az('2026-11-02', 'Winter 2026/27', ['07:30', '16:30'], ['07:30', '12:00']),
     ],
     // Baustelle: Beginn/Ende und Heizperiode (Monate) – neu 0.8
-    bs: { beginn: '2026-09-08', ende: '2027-05-28', hp: [10, 4] },
+    bs: { beginn: null, angelegt: '2026-09-08', ende: '2027-05-28', hp: [10, 4] },   // beginn leer = Tag der Anlage (AN-0002)
     e: { frost_aus: 7, urlaub: 'frost', absenk: 10, offline_min: 5, trocken_w: 30, erklaer: true, preis: 0.28, feiertag_frei: true, boost_min: 30, melden: true,
       staffel: true, nutzbar: 67, max_gleich: 5, min_lauf: 10, min_pause: 5, takt: 15,
       tuer_pause: 3, tuer_melden: 10, knoepfe: true,
@@ -316,6 +316,8 @@ class App {
     this.bg.style.setProperty('--sonne-x', (lauf.uSonnePos[0] * 100).toFixed(1) + '%'); this.bg.style.setProperty('--sonne-y', (lauf.uSonnePos[1] * 100).toFixed(1) + '%');
     if (neuZeichnen) this.render();
   }
+  /* Beginn leer = Tag der Anlage; Ende leer = offen, beim Abschließen gilt der Tag des Abschließens (AN-0002) */
+  bsZeit() { const b = this.d.bs; return `${datum(b.beginn || b.angelegt)}${b.beginn ? '' : ' (angelegt)'} – ${b.ende ? datum(b.ende) : 'offen'}`; }
   get azListe() { return [...this.d.arbeitszeiten].sort((a, b) => a.ab.localeCompare(b.ab)); }
   get azJetzt() { return this.azListe.filter(a => a.ab <= HEUTE).at(-1); }
   /* Heizplan eines Tages aus Arbeitszeit, Vorheizen, Kälte-Frühstart und Kleidung trocknen */
@@ -913,7 +915,7 @@ class App {
     return `${this.kopf('Einstellungen', 'ÖWG DOBL ZWARING')}
       <div class="glas-panel liste"><div class="gruppe">Baustelle</div>
         <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">ÖWG Dobl Zwaring ›</span></button>
-        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende ${NEU}</span><span class="leise">${datum(this.d.bs.beginn)} – ${this.d.bs.ende ? datum(this.d.bs.ende) : 'offen'} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende ${NEU}</span><span class="leise">${this.bsZeit()} ›</span></button>
         <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Heizperiode ${NEU}</span><span class="leise">${MONATE[this.d.bs.hp[0] - 1]} – ${MONATE[this.d.bs.hp[1] - 1]} ›</span></button>
         <button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>
         <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button></div>
@@ -1027,7 +1029,8 @@ class App {
         <button class="zeile" data-act="w-protokoll"><span class="blau">Alle Einträge im Protokoll</span><span class="chev">›</span></button>
         ${knopf('Schließen', 'zu', 'leise-k')}`;
     }
-    if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.d.baustellen.map((b, i) => `<button class="zeile" data-act="zu"><span>${esc(b.name)}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>`).join('')}
+    if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.d.baustellen.map((b, i) => `<div class="zeile bs-zeile"><button class="bs-wahl" data-act="zu"><span>${esc(b.name)}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>
+        <button class="bs-ic" data-act="sheet" data-s="bs-bearbeiten" data-i="${i}" title="Bearbeiten" aria-label="${esc(b.name)} bearbeiten">✎</button></div>`).join('')}
       <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>`;
     if (s.art === 'heizplan') {
       const az = this.azJetzt;
@@ -1169,8 +1172,9 @@ class App {
     if (s.art === 'zeitraum-bs') { const f = s.form ||= { ...this.d.bs, hp: [...this.d.bs.hp] };
       const mon = i => `<select data-hp="${i}">${MONATE.map((m, k) => `<option value="${k + 1}" ${f.hp[i] === k + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select>`;
       return `${griff}<h3>Beginn, Ende, Heizperiode</h3>
-      <div class="raster-2"><label class="feld">Beginn<input type="date" value="${f.beginn}" data-bsz="beginn"></label><label class="feld">Ende (geplant)<input type="date" value="${f.ende}" data-bsz="ende"></label></div>
-      <div class="leise">Gezählt wird ab Beginn. Das Ende ist nur für die Hochrechnung – abgeschlossen wird mit „Baustelle abschließen“.</div>
+      <div class="raster-2"><label class="feld">Beginn<input type="date" value="${f.beginn || ''}" data-bsz="beginn"></label><label class="feld">Ende (geplant)<input type="date" value="${f.ende || ''}" data-bsz="ende"></label></div>
+      <div class="leise">Gezählt wird ab Beginn. <b>Beginn leer</b> = automatisch der Tag, an dem die Baustelle angelegt wurde (${datum(this.d.bs.angelegt)}).
+        <b>Ende leer</b> = offen; beim Abschließen wird immer der Tag des Abschließens eingetragen – ein geplantes Ende dient nur der Hochrechnung.</div>
       <div class="raster-2"><label class="feld">Heizperiode von${mon(0)}</label><label class="feld">bis${mon(1)}</label></div>
       <div class="leise">Die Auswertung rechnet Verbrauch und Kosten auf die Heizperiode hoch – bis zum Ende der Baustelle, wenn es früher liegt.</div>
       ${knopf('Speichern', 'bsz-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
@@ -1206,7 +1210,31 @@ class App {
         <div class="kennz"><div><b>${de(b.kwh, 0)}</b><span>kWh</span></div><div><b>${de(b.eur, 2)} €</b><span>Kosten</span></div><div><b>${b.container}</b><span>Container</span></div></div>
         <div class="chart-wrap">${balken('bs-' + s.i, m.map(() => b.kwh / m.length * (.5 + r())), m, 'kWh', 0)}</div>
         ${b.aktiv ? knopf('Öffnen', 'zu', 'amber') : knopf('Wieder aktiv setzen', 'toast-zu', 'leise-k')}`; }
-    if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'toast-zu', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    /* AN-0002: ✎ im Dialog „Baustellen“ – nur die Daten dieser Baustelle; Technik (Staffelung, Bericht, Meldungen, App) bleibt unter Einstellungen */
+    if (s.art === 'bs-bearbeiten') {
+      const bs = this.d.baustellen[s.i] || this.d.baustellen[0], d = this.d, e = d.e;
+      return `${griff}<div class="block-kopf"><h3>Baustelle bearbeiten</h3><span class="leise">${esc(bs.name)}</span></div>
+        <div class="gruppe-t">Baustelle</div>
+        <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">${esc(bs.name)} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende</span><span class="leise">${this.bsZeit()} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Heizperiode</span><span class="leise">${MONATE[d.bs.hp[0] - 1]} – ${MONATE[d.bs.hp[1] - 1]} ›</span></button>
+        <div class="gruppe-t">Ort</div>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Wetter</span><span class="leise">Open-Meteo · Zone Baustelle ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Außentemperatur</span><span class="leise">aus der Vorhersage ›</span></button>
+        <div class="gruppe-t">Container und Geräte · ${d.bereiche.length}</div>
+        ${d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
+        <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button>
+        <div class="gruppe-t">Strom und Abrechnung</div>
+        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label>
+        ${d.firmen.map(f => { const n = d.bereiche.filter(b => (b.firma || 'eigen') === f.id).length;
+          return `<button class="zeile" data-act="firma-auf" data-id="${f.id}"><span>${esc(f.name)}${f.eigen ? ' <span class="badge">eigene</span>' : ''}</span><span class="leise">${n} Container ›</span></button>`; }).join('')}
+        <button class="zeile" data-act="firma-auf"><span class="blau">+ Firma hinzufügen</span></button>
+        ${bs.aktiv ? '<button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>' : ''}
+        <div class="leise p-fuss">Staffelung, Bericht, Meldungen und App stehen unter Einstellungen.</div>
+        <button class="zeile" data-act="tab" data-v="einst"><span class="blau">Alle Einstellungen</span><span class="chev">›</span></button>
+        ${knopf('Fertig', 'zu', 'amber')}`;
+    }
+    if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Als Ende wird heute (${datum(HEUTE)}) eingetragen. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'toast-zu', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     if (s.art === 'urlaub') return `${griff}<h3>Urlaub eintragen</h3><label class="feld">Name<input value="${esc(s.form.name)}" placeholder="z. B. Semesterferien" data-ur="name"></label>
       <div class="raster-2"><label class="feld">Von<input type="date" value="${s.form.von}" data-ur="von"></label><label class="feld">Bis<input type="date" value="${s.form.bis}" data-ur="bis"></label></div>
       <div class="leise">Wird in den Kalender „Baustelle Urlaub“ eingetragen; in der Zeit läuft nur der Frostschutz.</div>${knopf('Eintragen', 'urlaub-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
@@ -1215,6 +1243,10 @@ class App {
         : `<label class="feld">Name<input value="${s.art === 'name' ? 'ÖWG Dobl Zwaring' : ''}" placeholder="z. B. Wohnbau Kalsdorf"></label>`}
       ${knopf('Speichern', 'toast-zu', 'amber')}`;
   }
+
+  /* Unterdialoge aus „Baustelle bearbeiten“ (AN-0002) kehren beim Schließen dorthin zurück */
+  get merke() { const s = this.s.sheet; return s && (s.art === 'bs-bearbeiten' ? s : s.zurueck) || null; }
+  get zurueck() { const s = this.s.sheet; return (s && s.zurueck) || null; }
 
   /* ---- Aktionen ---- */
   klick(ev) {
@@ -1232,7 +1264,7 @@ class App {
       case 'pmehr': this.s.pmehr = true; return neu();
       case 'sheet': if (el.dataset.s === 'termin') { this.s.sheet = { art: 'termin', form: { b: el.dataset.id || this.s.cid, titel: '', datum: '2026-10-08', von: '09:00', bis: '10:00', wieder: 'einmal', boost: false } }; return neu(); }
       if (el.dataset.s === 'urlaub') { this.s.sheet = { art: 'urlaub', form: { name: '', von: '2027-02-15', bis: '2027-02-19' } }; return neu(); }
-      this.s.sheet = { art: el.dataset.s, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
+      this.s.sheet = { art: el.dataset.s, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag', zurueck: this.merke }; return neu();
       case 'wa': this.s.sheet.wa = el.dataset.v; return neu();
       case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? this.s.aw : this.s.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
       case 'aw-scope': this.s.awScope = el.dataset.v; this.s.aw.auswahl = this.quellen(this.s.aw, 'aw').map(q => q.id); return neu();
@@ -1241,8 +1273,8 @@ class App {
         if (!id) sh.auswahl = []; else if (id === '*') sh.auswahl = this.quellen(sh, el.dataset.ziel || 'sheet').map(q => q.id);
         else sh.auswahl = sh.auswahl.includes(id) ? sh.auswahl.filter(x => x !== id) : [...sh.auswahl, id];
         return neu(); }
-      case 'bereich-einst': this.s.cid = el.dataset.id; this.s.sheet = { art: 'bereich' }; return neu();
-      case 'zu': this.s.sheet = null; return neu();
+      case 'bereich-einst': this.s.cid = el.dataset.id; this.s.sheet = { art: 'bereich', zurueck: this.merke }; return neu();
+      case 'zu': this.s.sheet = this.zurueck; return neu();
       case 'melden': { const namen = { uebersicht: 'Übersicht', container: 'Container', heizung: 'Heizung', auswertung: 'Auswertung', verlauf: 'Verlauf', einst: 'Einstellungen', ueber: 'Über', dev: 'Entwicklung', bsdetail: 'Baustelle (abgeschlossen)' };
         const kontext = [namen[this.s.view] || this.s.view, this.s.view === 'container' && this.b ? this.b.name : '', this.s.sheet ? `Dialog „${this.s.sheet.art}“` : ''].filter(Boolean).join(' · ');
         const geraet = this.root.getBoundingClientRect().width < 700 ? 'Handy' : 'Desktop';
@@ -1262,18 +1294,18 @@ class App {
         return this.toast('baustelle-meldungen.json'); }
       case 'cl': { const i = +el.dataset.i; this.s.cl = this.s.cl === i ? -1 : i; return neu(); }
       case 'toast': return this.toast(el.dataset.t);
-      case 'toast-zu': this.s.sheet = null; neu(); return this.toast('Gespeichert');
+      case 'toast-zu': this.s.sheet = this.zurueck; neu(); return this.toast('Gespeichert');
       case 'auto': this.s.auto = !this.s.auto; neu(); return this.toast(this.s.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
       case 'bedarf-auf': this.s.sheet = { art: 'bedarf', cid: el.dataset.id, boost: false }; return neu();
       case 'bedarf-an': { const x = d.bereiche.find(y => y.id === el.dataset.id), v = el.dataset.v;
         x.bedarfBis = v === 'ende' ? '16:30' : v === 'abend' ? '19:00' : uhr(minu(JETZT) + +v); x.z = 'heizt'; x.boost = !!this.s.sheet?.boost; x.geraete.forEach(g => { if (['Ölradiator', 'Konvektor'].includes(g.typ)) { g.an = 1; g.warte = 0; } });
-        d.protokoll.unshift(['Heute', JETZT, 'schalten', x.id, `nach Bedarf eingeschaltet bis ${x.bedarfBis}`]); this.s.sheet = null; neu(); return this.toast(`${x.name} heizt bis ${x.bedarfBis}`); }
+        d.protokoll.unshift(['Heute', JETZT, 'schalten', x.id, `nach Bedarf eingeschaltet bis ${x.bedarfBis}`]); this.s.sheet = this.zurueck; neu(); return this.toast(`${x.name} heizt bis ${x.bedarfBis}`); }
       case 'bedarf-aus': { const x = d.bereiche.find(y => y.id === el.dataset.id); x.bedarfBis = null; x.boost = false; x.z = 'bereit'; x.geraete.forEach(g => g.an = 0);
         d.protokoll.unshift(['Heute', JETZT, 'schalten', x.id, 'Bedarf beendet – nur Frostschutz']); neu(); return this.toast(`${x.name} aus – nur Frostschutz`); }
       case 'termin-weg': { const t = d.termine.splice(+el.dataset.i, 1)[0]; neu(); return this.toast(`Termin „${t.titel}“ gelöscht`); }
       case 'termin-speichern': { const f = this.s.sheet.form; if (!f.titel.trim() || !f.datum || f.bis <= f.von) return this.toast('Bitte Titel, Tag und Uhrzeit prüfen');
         d.termine.push({ b: f.b, datum: f.datum, wieder: f.wieder, boost: f.boost, von: f.von, bis: f.bis, titel: f.titel.trim() });
-        this.s.sheet = null; neu(); return this.toast(`Eingetragen${f.wieder !== 'einmal' ? ` – ${WIEDER[f.wieder]} am ${wtag(f.datum)}` : ''} – heizt ab ${uhr(minu(f.von) - d.e.vorheizen)}`); }
+        this.s.sheet = this.zurueck; neu(); return this.toast(`Eingetragen${f.wieder !== 'einmal' ? ` – ${WIEDER[f.wieder]} am ${wtag(f.datum)}` : ''} – heizt ab ${uhr(minu(f.von) - d.e.vorheizen)}`); }
       case 'bedarf-boost': this.s.sheet.boost = !this.s.sheet.boost; return neu();
       case 'tm-wieder': this.s.sheet.form.wieder = el.dataset.v; return neu();
       case 'tm-boost': this.s.sheet.form.boost = !this.s.sheet.form.boost; return neu();
@@ -1293,7 +1325,7 @@ class App {
       case 'au-speichern': { const f = this.s.sheet.form; if (!f.datum || (f.art !== 'frei' && f.bis <= f.von)) return this.toast('Bitte Tag und Uhrzeit prüfen');
         d.ausnahmen = d.ausnahmen.filter(x => x.datum !== f.datum); d.ausnahmen.push({ datum: f.datum, art: f.art, von: f.von, bis: f.bis, notiz: f.notiz.trim() });
         d.protokoll.unshift(['Heute', JETZT, 'einstellung', null, `Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)}: ${f.art === 'frei' ? 'frei' : `${f.von}–${f.bis}`}${f.notiz.trim() ? ' – ' + f.notiz.trim() : ''}`]);
-        this.s.sheet = null; neu(); return this.toast(`Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)} gespeichert`); }
+        this.s.sheet = this.zurueck; neu(); return this.toast(`Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)} gespeichert`); }
       case 'ausn-weg': { d.ausnahmen = d.ausnahmen.filter(x => x.datum !== el.dataset.d); neu(); return this.toast('Ausnahme gelöscht – es gilt wieder die Arbeitszeit'); }
       case 'jetzt-an': d.jetztBis = uhr(minu(JETZT) + 60); d.protokoll.unshift(['Heute', JETZT, 'schalten', null, `Alle Container jetzt heizen bis ${d.jetztBis}`]); neu(); return this.toast(`Alle heizen bis ${d.jetztBis}`);
       case 'jetzt-aus': d.jetztBis = null; neu(); return this.toast('Zurück zum Plan');
@@ -1302,8 +1334,8 @@ class App {
       case 'p-chart': this.s.pchart = el.dataset.v; return neu();
       case 'tv': this.s.tv = el.dataset.v; return neu();
       case 'test-meldung': d.protokoll.unshift(['Heute', JETZT, 'nachricht', null, `An ${d.e.empfaenger}: „Test – Nachrichten der Baustelle kommen an“`]); return this.toast(`Test-Nachricht an ${d.e.empfaenger} gesendet`);
-      case 'bsz-speichern': { const f = this.s.sheet.form; if (!f.beginn || (f.ende && f.ende < f.beginn)) return this.toast('Bitte Beginn und Ende prüfen');
-        d.bs = { beginn: f.beginn, ende: f.ende, hp: f.hp.map(Number) }; this.s.sheet = null; neu(); return this.toast('Gespeichert'); }
+      case 'bsz-speichern': { const f = this.s.sheet.form; if (f.ende && f.ende < (f.beginn || d.bs.angelegt)) return this.toast('Bitte Beginn und Ende prüfen');
+        d.bs = { ...d.bs, beginn: f.beginn || null, ende: f.ende || null, hp: f.hp.map(Number) }; this.s.sheet = this.zurueck; neu(); return this.toast('Gespeichert'); }
       case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; x.trocknen = !x.trocknen; return neu(); }
       case 'geraet': { const g = b.geraete[+el.dataset.i]; g.an = g.an ? 0 : 1; g.hand = b.auto;
         const an = b.geraete.some(x => x.an); if (b.pumpe) b.z = b.geraete[0].an ? 'laeuft' : 'aus'; else b.z = an ? (b.z === 'aus' ? 'heizt' : b.z) : 'aus';
@@ -1320,22 +1352,22 @@ class App {
       case 'jc-soll': { const x = d.bereiche.find(y => y.id === el.dataset.id); x.soll = Math.round(((x.soll ?? d.e.soll) + +el.dataset.d) * 2) / 2; return neu(); }
       case 'urlaub-weg': { const u = d.urlaube.splice(+el.dataset.i, 1)[0]; neu(); return this.toast(`${u.name} gelöscht`); }
       case 'urlaub-speichern': { const f = this.s.sheet.form; if (!f.von || !f.bis || f.bis < f.von) return this.toast('Bitte Von und Bis prüfen');
-        d.urlaube.push({ name: f.name.trim() || 'Urlaub', von: f.von, bis: f.bis }); d.urlaube.sort((a, b) => a.von.localeCompare(b.von)); this.s.sheet = null; neu(); return this.toast('Eingetragen – in der Zeit nur Frostschutz'); }
+        d.urlaube.push({ name: f.name.trim() || 'Urlaub', von: f.von, bis: f.bis }); d.urlaube.sort((a, b) => a.von.localeCompare(b.von)); this.s.sheet = this.zurueck; neu(); return this.toast('Eingetragen – in der Zeit nur Frostschutz'); }
       case 'vgl': this.s.vglArt = el.dataset.v; return neu();
       case 'bs-oeffnen': { const i = +el.dataset.i; if (d.baustellen[i].aktiv) return this.gehe('uebersicht'); this.s.bs = i; return this.gehe('bsdetail'); }
       case 'csv': return this.csv(el.dataset.art);
       case 'firma-auf': { const f = el.dataset.id ? this.firma(el.dataset.id) : null;
-        this.s.sheet = { art: 'firma', form: { id: f?.id, name: f?.name || '', neu: [], container: f ? d.bereiche.filter(b => (b.firma || 'eigen') === f.id).map(b => b.id) : [] } }; return neu(); }
+        this.s.sheet = { art: 'firma', zurueck: this.merke, form: { id: f?.id, name: f?.name || '', neu: [], container: f ? d.bereiche.filter(b => (b.firma || 'eigen') === f.id).map(b => b.id) : [] } }; return neu(); }
       case 'firma-c': { const c = this.s.sheet.form.container, id = el.dataset.id; this.s.sheet.form.container = c.includes(id) ? c.filter(x => x !== id) : [...c, id]; return neu(); }
       case 'firma-speichern': { const f = this.s.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
         let id = f.id; if (!id) { id = 'f' + Date.now().toString(36); d.firmen.push({ id, name: f.name.trim() }); } else this.firma(id).name = f.name.trim();
         for (const b of d.bereiche) { if (f.container.includes(b.id)) b.firma = id; else if ((b.firma || 'eigen') === id && id !== 'eigen') b.firma = 'eigen'; }
         const neue = f.neu.filter(c => c.name.trim()); for (const c of neue) this.neuerContainer(c.name.trim(), c.art === 'Schacht', id);
-        this.s.sheet = null; neu(); return this.toast(`${f.name.trim()} gespeichert${neue.length ? ` · ${neue.length} Container angelegt` : ''}`); }
+        this.s.sheet = this.zurueck; neu(); return this.toast(`${f.name.trim()} gespeichert${neue.length ? ` · ${neue.length} Container angelegt` : ''}`); }
       case 'fc-neu': this.s.sheet.form.neu.push({ name: '', art: 'Container' }); return neu();
       case 'fc-weg': this.s.sheet.form.neu.splice(+el.dataset.i, 1); return neu();
       case 'fc-art': this.s.sheet.form.neu[+el.dataset.i].art = el.dataset.v; return neu();
-      case 'firma-weg': { const id = this.s.sheet.form.id; for (const b of d.bereiche) if (b.firma === id) b.firma = 'eigen'; d.firmen = d.firmen.filter(f => f.id !== id); this.s.sheet = null; neu(); return this.toast('Firma gelöscht – Container gehören wieder der eigenen Firma'); }
+      case 'firma-weg': { const id = this.s.sheet.form.id; for (const b of d.bereiche) if (b.firma === id) b.firma = 'eigen'; d.firmen = d.firmen.filter(f => f.id !== id); this.s.sheet = this.zurueck; neu(); return this.toast('Firma gelöscht – Container gehören wieder der eigenen Firma'); }
       case 'e-wert': { const v = el.dataset.v; d.e[el.dataset.k] = isNaN(+v) ? v : +v; return neu(); }
       case 'prio': d.bereiche.find(x => x.id === el.dataset.id).prio = el.dataset.v; return neu();
       case 'n-knopf': d.protokoll.unshift(['Heute', JETZT, 'nachricht', el.dataset.b || null, `Knopf „${el.dataset.t}“ in der Nachricht gedrückt`]); return this.toast(`„${el.dataset.t}“ ausgeführt – steht im Protokoll`);
@@ -1349,32 +1381,32 @@ class App {
         Object.assign(a, { name: f.name.trim(), ampere: f.ampere, phasen: f.phasen, reserve: f.reserve });
         const rest = d.anschluesse.find(x => x !== a) || a;
         for (const b of d.bereiche) { if (f.container.includes(b.id)) b.anschluss = a.id; else if (b.anschluss === a.id && rest !== a) b.anschluss = rest.id; }
-        this.s.sheet = null; neu(); return this.toast(`${a.name} gespeichert`); }
+        this.s.sheet = this.zurueck; neu(); return this.toast(`${a.name} gespeichert`); }
       case 'an-weg': { const id = this.s.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); for (const b of d.bereiche) if (b.anschluss === id) b.anschluss = rest.id;
-        d.anschluesse = d.anschluesse.filter(x => x.id !== id); this.s.sheet = null; neu(); return this.toast(`Gelöscht – Container hängen jetzt an ${rest.name}`); }
+        d.anschluesse = d.anschluesse.filter(x => x.id !== id); this.s.sheet = this.zurueck; neu(); return this.toast(`Gelöscht – Container hängen jetzt an ${rest.name}`); }
       case 'tab-einst': return this.gehe('einst');
       case 'az-alt': this.s.azAlt = !this.s.azAlt; return neu();
       case 'az-heizung': return this.gehe('heizung');
       case 'az-neu': case 'az-vorlage': { const v = a === 'az-vorlage' ? d.arbeitszeiten[this.s.sheet.i] : this.azJetzt;
         this.s.sheet = { art: 'az-neu', form: { ab: '2026-10-05', name: '', tage: JSON.parse(JSON.stringify(v.tage)) } }; return neu(); }
-      case 'az-weg': { const x = d.arbeitszeiten[this.s.sheet.i]; d.arbeitszeiten.splice(this.s.sheet.i, 1); this.s.sheet = null; neu(); return this.toast(`${x.name} gelöscht`); }
+      case 'az-weg': { const x = d.arbeitszeiten[this.s.sheet.i]; d.arbeitszeiten.splice(this.s.sheet.i, 1); this.s.sheet = this.zurueck; neu(); return this.toast(`${x.name} gelöscht`); }
       case 'azn-tag': { const t = el.dataset.t, f = this.s.sheet.form; f.tage[t] = f.tage[t] ? null : [...(f.tage.Mo || ['07:00', '16:30'])]; return neu(); }
       case 'azn-wie-mo': { const f = this.s.sheet.form; for (const t of ['Di', 'Mi', 'Do']) f.tage[t] = f.tage.Mo ? [...f.tage.Mo] : null; return neu(); }
       case 'azn-speichern': { const f = this.s.sheet.form;
         if (!f.ab) return this.toast('Bitte ein Startdatum wählen');
         if (d.arbeitszeiten.some(x => x.ab === f.ab)) return this.toast(`Ab ${datum(f.ab)} gibt es schon eine Arbeitszeit`);
-        d.arbeitszeiten.push({ ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage: f.tage }); this.s.sheet = null; neu();
+        d.arbeitszeiten.push({ ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage: f.tage }); this.s.sheet = this.zurueck; neu();
         return this.toast(f.ab > HEUTE ? `Geplant – gilt ab ${datum(f.ab)}` : `Gilt jetzt – die bisherige bleibt gespeichert`); }
       case 'neu-art': this.s.sheet.neuArt = el.dataset.v; return neu();
       case 'neu-anlegen': { const name = this.root.querySelector('[data-neu="name"]').value.trim() || 'Neuer Container';
-        this.neuerContainer(name, this.s.sheet.neuArt === 'Pumpenschacht', 'eigen'); this.s.sheet = null; neu(); return this.toast(`${name} angelegt`); }
+        this.neuerContainer(name, this.s.sheet.neuArt === 'Pumpenschacht', 'eigen'); this.s.sheet = this.zurueck; neu(); return this.toast(`${name} angelegt`); }
       case 'b-speichern': { const e = this.s.sheet.edit, kw = { Ölradiator: 2, Konvektor: 2, Steckdose: .5, Pumpe: .76 };
         if (e.name.trim()) b.name = e.name.trim();
         b.firma = e.firma; b.anschluss = e.anschluss;
         if (e.bedarf !== !!b.bedarf) { b.modus = e.bedarf ? 'bedarf' : b.t !== null ? 'thermo' : 'plan'; b.bedarf = e.bedarf; b.bedarfBis = null; if (e.bedarf) { b.z = 'bereit'; b.geraete.forEach(g => g.an = 0); } else if (b.z === 'bereit') b.z = 'aus'; } b.tuer = e.tuer ? { sensor: e.tuer, offen: b.tuer?.sensor === e.tuer ? b.tuer.offen : 0 } : undefined;
         const weg = e.geraete.filter(g => g.weg).length;
         b.geraete = e.geraete.filter(g => !g.weg).map(g => g.neu ? { n: g.n || g.shelly.split(' · ')[0], typ: g.typ, kw: kw[g.typ], an: 0, hand: false } : { ...g });
-        this.s.sheet = null; neu(); return this.toast(weg ? `Gespeichert · ${weg} entfernt – Werte bleiben im Verlauf` : 'Gespeichert'); }
+        this.s.sheet = this.zurueck; neu(); return this.toast(weg ? `Gespeichert · ${weg} entfernt – Werte bleiben im Verlauf` : 'Gespeichert'); }
       case 'ge-bedarf': this.s.sheet.edit.bedarf = !this.s.sheet.edit.bedarf; return neu();
       case 'ge-weg': { const g = this.s.sheet.edit.geraete[+el.dataset.i]; if (g.neu) this.s.sheet.edit.geraete.splice(+el.dataset.i, 1); else g.weg = true; return neu(); }
       case 'ge-zurueck': this.s.sheet.edit.geraete[+el.dataset.i].weg = false; return neu();

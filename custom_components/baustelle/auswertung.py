@@ -42,6 +42,7 @@ from .const import (
     TYPEN,
 )
 from .logik import auswertung as a
+from .logik import zeitraum
 from .logik.abrechnung import EIGEN
 
 if TYPE_CHECKING:
@@ -52,6 +53,13 @@ Statistik = dict[str, list[dict[str, Any]]]
 
 # ------------------------------------------------------------------ Quelle: eine Baustelle
 
+
+
+def beginn_der_baustelle(entry: ConfigEntry) -> tuple[date, bool]:
+    """Beginn der Baustelle nach `logik/zeitraum` (leer = Tag der Anlage) und ob er automatisch gilt (AN-0002)."""
+    wert = entry.options.get(CONF_BEGINN)
+    angelegt = dt_util.as_local(entry.created_at).date()
+    return zeitraum.beginn(date.fromisoformat(wert) if wert else None, angelegt), not wert
 
 @dataclass
 class Quelle:
@@ -77,6 +85,10 @@ class Quelle:
     def option_datum(self, key: str) -> date | None:
         wert = self.entry.options.get(key)
         return date.fromisoformat(wert) if wert else None
+
+    @property
+    def beginn(self) -> date:
+        return beginn_der_baustelle(self.entry)[0]
 
     def baustelle(self) -> dict[str, Any]:
         """Baustelle in der Form von `logik/auswertung` (Firmen und Zuordnung für die Abrechnung)."""
@@ -263,7 +275,7 @@ async def async_verlauf(hass: HomeAssistant, q: Quelle) -> dict[str, Any]:
     """Verlauf einer Baustelle: Kennzahlen (kWh, €, gespart, Heiztage, Monate, Vergleich), kWh je Monat, Verbrauch je
     Monat und Container mit CSV (Seite „Verlauf“ und Detailseite)."""
     zone, heute, eid = _zone(), dt_util.now().date(), q.entry.entry_id
-    beginn, ende = q.option_datum(CONF_BEGINN), q.option_datum(CONF_ENDE)
+    beginn, ende = q.beginn, q.option_datum(CONF_ENDE)
     von, bis = a.verlauf_zeitraum(heute, beginn, ende)
     energie = q.eid(eid, "energie")
     heizzeit = {b["id"]: i for b in q.bereiche if b["art"] == ART_CONTAINER and (i := q.eid(b["id"], "heizzeit"))}
