@@ -198,7 +198,10 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
 
 Die Seite rechnet nichts Fachliches mehr: Kennzahlen, Abrechnung nach Firma, CSV, Heizperiode, Heiztage, Verlauf,
 Ölradiator/Konvektor, Wetter-Einfluss und Je Gerät kommen von der Integration (`auswertung.py` holt die
-Langzeitstatistik, `logik/auswertung.py` rechnet). Bericht und CSV-Anhang nehmen dieselben Funktionen – für denselben
+Langzeitstatistik, `logik/auswertung.py` rechnet) – mit € und % dort, wo die Seite sie zeigt. Einzige Ausnahme
+(Bauplan Module §5): Werte, die die Seite selbst aus der Statistik als Diagramm zeigt (Verbrauch-Block mit frei
+gewählten Reihen, „Kosten heute“ eines Containers, Hinweise beim Zeigen auf ein Diagramm, Hochrechnung aus den
+Sensoren), rechnet sie zur Anzeige mit dem Preis der Baustelle (`einstellungen.preis`) in € um. Bericht und CSV-Anhang nehmen dieselben Funktionen – für denselben
 Zeitraum (Vorwoche = `Woche`/`versatz: 1`, Vormonat = `Monat`/`versatz: 1`) dieselben Zahlen. Nur reine
 Diagramm-Reihen (Verbrauch je Container, Temperaturen, Leistung) holt die Seite weiter selbst über
 `recorder/statistics_during_period`.
@@ -219,18 +222,20 @@ Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle
 {"zeitraum": {}, "preis": 0.28,
  "summen": {"kwh": 0, "eur": 0, "heizzeit": 0, "pumpzeit": 0, "ohne": 0,
             "vorher": {"kwh": 0, "heizzeit": 0, "pumpzeit": 0}, "veraenderung": {"kwh": 5, "heizzeit": null, "pumpzeit": null},
-            "ohne_automatik": {"gespart_eur": 0, "prozent": 0} },
+            "ohne_automatik": {"ohne_eur": 0, "gespart_eur": 0, "prozent": 0} },
  "je_geraet": [{"bereich": "<bid>", "geraet": "<gid>", "mittel": 1.98, "kwh": 12.1, "std": 6.1, "eur": 3.39}],
- "wetter": {"punkte": [[4.2, 18.5]], "gerade": {"k": -1.2, "d0": 20, "null0": 16.7}},
+ "wetter": {"punkte": [[4.2, 18.5]], "gerade": {"k": -1.2, "d0": 20, "null0": 16.7, "eur_je_grad": 0.34}},
  "typ": {"oelradiator": {"kwh_h": 1.6, "auf": 2.7, "ab": 2.7, "tag": 3.05}, "konvektor": {}, "weniger": 17},
  "heizperiode": {"ende": "2027-04-30", "bis": "2027-04-30"}, "heiztage": 16}
 ```
 
 - `summen` über `scope`; `heizzeit` nur Container, `pumpzeit` nur Pumpen; `veraenderung` in ganzen % zum Zeitraum davor
-  (`null` ohne Wert davor); `ohne_automatik` `null`, solange „ohne Automatik“ 0 ist.
+  (`null` ohne Wert davor); `ohne_automatik` `null`, solange „ohne Automatik“ 0 ist, sonst mit `ohne_eur` (Kosten im
+  Dauerbetrieb, 0.7.24).
 - `je_geraet`, `wetter`, `typ`, `heizperiode`, `heiztage` immer für die Baustelle `entry_id`. `je_geraet` nach
   Containern geordnet; `mittel` Ø kW im Betrieb (ab 50 W), `std` bei Pumpen gemessen, sonst kWh ÷ Ø kW (Schätzung).
-  `wetter.gerade` `null` unter 5 Heiztagen. `heizperiode.bis` = geplantes Ende, wenn es vor dem Ende der Heizperiode liegt.
+  `wetter.gerade` `null` unter 5 Heiztagen; `eur_je_grad` = −k · Preis (Mehrkosten am Tag je Grad kälter, `null` bei
+  k ≥ 0; 0.7.24). `heizperiode.bis` = geplantes Ende, wenn es vor dem Ende der Heizperiode liegt.
 
 `baustelle/auswertung`, `teil: verlauf` (Reiter Verlauf, Detailseite; `zeitraum`/`scope` ohne Bedeutung):
 
@@ -238,9 +243,13 @@ Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle
 {"kwh": 412, "eur": 115.36, "gespart": 515.2, "container": 7, "heiztage": 16, "monate": 1,
  "vergleich": {"tag": 25.75, "monat": 115.36, "ges": 412},
  "je_monat": {"2026-09": 340.9},
- "monate_je_container": {"labels": ["Sep"], "reihen": [{"bereich": "<bid>", "name": "Polier", "v": [330.9]}]},
+ "monate_je_container": {"labels": ["Sep"], "reihen": [{"bereich": "<bid>", "name": "Polier", "v": [330.9],
+                                                     "kwh": 330.9, "eur": 92.65, "anteil": 97.1}]},
  "csv": "﻿Monat;Baustelle;Container;kWh;Kosten €\r\n…"}
 ```
+
+- `monate_je_container.reihen[]`: `kwh`, `eur` und `anteil` (% an allen Containern) über alle Monate (0.7.24,
+  `auswertung.monate_summen`).
 
 `baustelle/abrechnung` (Reiter Auswertung: Abrechnung nach Firma, Verbrauch gestapelt nach Firma, beide CSV):
 

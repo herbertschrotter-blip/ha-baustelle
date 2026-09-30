@@ -145,8 +145,8 @@ def test_csv_text_wie_seite():
 def test_veraenderung_und_ohne_automatik():
     assert a.veraenderung(115, 100) == 15 and a.veraenderung(99.5, 100) == 0 and a.veraenderung(98.5, 100) == -1
     assert a.veraenderung(5, 0) is None and a.veraenderung(None, 5) is None
-    assert a.ohne_automatik(40, 100, 0.25) == {"gespart_eur": 15.0, "prozent": 60.0}
-    assert a.ohne_automatik(120, 100, 0.25) == {"gespart_eur": 0.0, "prozent": 0.0}
+    assert a.ohne_automatik(40, 100, 0.25) == {"ohne_eur": 25.0, "gespart_eur": 15.0, "prozent": 60.0}
+    assert a.ohne_automatik(120, 100, 0.25) == {"ohne_eur": 25.0, "gespart_eur": 0.0, "prozent": 0.0}
     assert a.ohne_automatik(5, 0, 0.25) is None
 
 
@@ -205,6 +205,15 @@ def test_monate_je_container(fall):
     assert a.csv_monate(e["titel"], e["preis"], daten) == soll["csv"]
 
 
+def test_monate_summen():
+    """Verbrauch je Monat auf der Detailseite: kWh, € und Anteil je Container rechnet die Integration."""
+    reihen = [{"name": "Polier", "v": [30.0, 45.0]}, {"name": "Lager", "v": [25.0, 0.0]}, {"name": "Magazin", "v": [0.0, 0.0]}]
+    assert a.monate_summen(reihen, 0.28) == [{"kwh": 75.0, "eur": pytest.approx(21.0), "anteil": 75.0},
+                                             {"kwh": 25.0, "eur": pytest.approx(7.0), "anteil": 25.0}, {"kwh": 0.0, "eur": 0.0, "anteil": 0.0}]
+    assert a.monate_summen([{"name": "Büro", "v": [0.0]}], 0.28) == [{"kwh": 0.0, "eur": 0.0, "anteil": 0.0}]
+    assert a.monate_summen([], 0.28) == []
+
+
 # ------------------------------------------------------------------ Ölradiator/Konvektor, Wetter, Je Gerät
 
 
@@ -226,6 +235,14 @@ def test_wetter(fall):
         punkte = a.tageswerte(e["statistik"], e["energie"], e["aussen"], heute, zone)
         nahe(punkte, soll["punkte"], "punkte")
     nahe(a.wetter_einfluss(punkte), soll["regression"], "regression")
+
+
+def test_wetter_kosten():
+    """€ je Grad kälter beim Wetter-Einfluss: −k · Preis, nur wenn es mit Kälte mehr wird."""
+    g = {"k": -1.2, "d0": 20.0, "null0": 16.7}
+    assert a.wetter_kosten(g, 0.25) == {**g, "eur_je_grad": pytest.approx(0.3)}
+    assert a.wetter_kosten({"k": 0.0, "d0": 5.0, "null0": None}, 0.25)["eur_je_grad"] is None
+    assert a.wetter_kosten(None, 0.25) is None
 
 
 @pytest.mark.parametrize("fall", faelle("je-geraet"))

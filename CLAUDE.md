@@ -15,7 +15,8 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - **Fachlogik frei von HA-Code** in `custom_components/baustelle/logik/`; Änderungen dort immer mit Test in `tests/logik/`.
 - **Jede Fachregel genau einmal, nur in `logik/`** (mit Test). **Die Seite rechnet nichts Fachliches**: Zahlen, Firmen,
   Heiztage, Auswertung und CSV kommen von der Integration (`baustelle/struktur`, `baustelle/auswertung`,
-  `baustelle/abrechnung`); die Seite zeigt nur an (Bauplan `docs/bauplan-module.md`).
+  `baustelle/abrechnung`), auch € und %, wo die Integration sie liefert; die Seite zeigt nur an (Bauplan
+  `docs/bauplan-module.md`, Ausnahmen nur wie dort in §5 begründet).
 - **Neue Funktion = neues Modul in `funktionen/`** nach der Schnittstelle in `funktionen/basis.py`, eingetragen in
   `funktionen.FUNKTIONEN`; `steuerung.py` (Kern) kennt keine Heizungs- oder Pumpen-Einzelheiten und bleibt dabei
   unverändert. Anleitung: `docs/funktion-anlegen.md`.

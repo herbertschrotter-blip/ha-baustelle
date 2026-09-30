@@ -165,7 +165,9 @@ function fakeAuswertung(m) {
   if (m.teil === 'verlauf') {
     const k = vektorFall('kennzahlen', id), v = vektorFall('verlauf', id), mo = vektorFall('monate', id);
     const kwh = k ? k.erwartet.kwh : zl.energie ?? 0, heiztage = zl.heiztage ?? (k ? k.erwartet.heiztage : 0);
-    const reihen = mo ? mo.erwartet.reihen.map((r, i) => ({ bereich: (b.bereiche[i] || {}).id || null, ...r })) : b.bereiche.map(c => ({ bereich: c.id, name: c.name, v: [50] }));
+    const roh = mo ? mo.erwartet.reihen.map((r, i) => ({ bereich: (b.bereiche[i] || {}).id || null, ...r })) : b.bereiche.map(c => ({ bereich: c.id, name: c.name, v: [50] }));
+    const ges = roh.reduce((a, r) => a + r.v.reduce((x, y) => x + y, 0), 0);   // kWh, € und Anteil je Container wie logik/auswertung.monate_summen
+    const reihen = roh.map(r => { const s = r.v.reduce((x, y) => x + y, 0); return { ...r, kwh: s, eur: s * preis, anteil: ges ? s / ges * 100 : 0 }; });
     return { kwh, eur: k ? k.erwartet.eur : zl.kosten ?? 0, gespart: k ? k.erwartet.gespart : null, container: b.bereiche.length, heiztage, monate: k ? k.erwartet.monate : 1,
       vergleich: k ? k.erwartet.vergleich : { tag: heiztage ? kwh / heiztage : 0, monat: 0, ges: kwh }, je_monat: v ? v.erwartet.je_monat : { '2026-09': 100 },
       monate_je_container: { labels: mo ? mo.erwartet.labels : ['Sep'], reihen },
@@ -176,9 +178,9 @@ function fakeAuswertung(m) {
   const ende = (b.baustelle.optionen || {}).ende;
   return { zeitraum: abr.zeitraum, preis,
     summen: { kwh, eur: kwh * preis, heizzeit: 42.5, pumpzeit: pumpen ? 3.25 : 0, ohne: kwh * 3, vorher: { kwh: kwh * .9, heizzeit: 40, pumpzeit: pumpen ? 3 : 0 },
-      veraenderung: { kwh: kwh ? 11 : null, heizzeit: 6, pumpzeit: pumpen ? 8 : null }, ohne_automatik: kwh ? { gespart_eur: kwh * 2 * preis, prozent: 66.7 } : null },
+      veraenderung: { kwh: kwh ? 11 : null, heizzeit: 6, pumpzeit: pumpen ? 8 : null }, ohne_automatik: kwh ? { ohne_eur: kwh * 3 * preis, gespart_eur: kwh * 2 * preis, prozent: 66.7 } : null },
     je_geraet: (g ? g.erwartet.zeilen : b.geraete.map(x => ({ bereich: x.bereich, geraet: x.id, mittel: null, kwh: 1.5, std: null }))).map(z => ({ ...z, eur: z.kwh === null ? null : z.kwh * preis })),
-    wetter: w ? { punkte: w.erwartet.punkte, gerade: w.erwartet.regression } : { punkte: [], gerade: null },
+    wetter: w ? { punkte: w.erwartet.punkte, gerade: w.erwartet.regression && { ...w.erwartet.regression, eur_je_grad: w.erwartet.regression.k < 0 ? -w.erwartet.regression.k * preis : null } } : { punkte: [], gerade: null },
     typ: tv ? tv.erwartet : { oelradiator: leer, konvektor: leer, weniger: null },
     heizperiode: { ende: '2026-04-30', bis: ende && ende < '2026-04-30' ? ende : '2026-04-30' }, heiztage: zl.heiztage ?? 0 };
 }
@@ -873,6 +875,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('keine eigene Regression (Wetter-Einfluss) in der Seite', !/\(q\[0\] - mx\)/.test(quelle));
   // Grenze der Staffelung (Ampere · 230 V · Phasen · nutzbar %) rechnet nur die Integration (logik/staffel.grenze_kw)
   erwarte('keine eigene Grenze der Staffelung in der Seite', !/\*\s*230\s*\/\s*1000/.test(quelle));
+  // Einzige Rechnung mit 230 V ist die Vorschau im Anschluss-Formular (noch nicht gespeicherte Eingaben, Bauplan §5)
+  const volt = quelle.split('\n').filter(z => /\*\s*(?:0?\.23|230)\s*[*/]/.test(z));
+  erwarte(`Rechnung mit 230 V nur in der Vorschau des Anschluss-Formulars – gefunden in ${volt.length} Zeilen`, volt.length === 1 && volt[0].includes('Anschlussleistung'));
+  // € und % kommen, wo die Integration sie liefert, von ihr (Ohne Automatik, Wetter-Einfluss, Verbrauch je Monat der Detailseite)
+  const nachgerechnet = [/ohne \* preis/, /k \* preis/, /s2 \* x\.e\.preis/, /s2 \/ ges/].filter(r => r.test(quelle)).map(String);
+  erwarte(`€/% der Integration nicht in der Seite nachgerechnet – noch da: ${nachgerechnet.join(', ')}`, !nachgerechnet.length);
   if (process.env.BAUSTELLE_AUFRUFE) fs.writeFileSync(process.env.BAUSTELLE_AUFRUFE, JSON.stringify(alleAufrufe, null, 1));
   if (fehler.length) { console.log(fehler.slice(0, 40).join('\n')); console.log(`${fehler.length} Fehler`); process.exit(1); }
   console.log(`Panel-Test grün (${REFERENZ ? 'Beispiel wie im Mockup' : 'echte Antwort der Integration'}): alle Ansichten, Einblendungen und Aktionen geprüft (${alleAufrufe.length} WS-Aufrufe).`);

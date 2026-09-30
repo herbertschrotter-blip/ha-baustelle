@@ -393,10 +393,10 @@ def veraenderung(jetzt: float | None, vorher: float | None) -> int | None:
 
 
 def ohne_automatik(kwh: float, ohne: float, preis: float) -> dict[str, float] | None:
-    """„Ohne Automatik“: gespart in € und % gegenüber Dauerbetrieb (`ohne` kWh); ohne Wert (0) None."""
+    """„Ohne Automatik“: Kosten im Dauerbetrieb (`ohne` kWh), gespart in € und % dagegen; ohne Wert (0) None."""
     if ohne <= 0:
         return None
-    return {"gespart_eur": max(0.0, ohne - kwh) * preis, "prozent": max(0.0, 1 - kwh / ohne) * 100}
+    return {"ohne_eur": ohne * preis, "gespart_eur": max(0.0, ohne - kwh) * preis, "prozent": max(0.0, 1 - kwh / ohne) * 100}
 
 
 def monate_zeitraum(heute: date, beginn: date | None, ende: date | None) -> tuple[date, date, list[str]]:
@@ -426,6 +426,13 @@ def monate_je_container(
                 werte[monate.index(monat)] += float(p["change"])
         reihen_.append({"name": b["name"], "v": werte})
     return {"labels": [MONATE[int(k[5:7]) - 1] for k in monate], "reihen": reihen_}
+
+
+def monate_summen(reihen_: Sequence[Mapping[str, Any]], preis: float) -> list[dict[str, float]]:
+    """Je Container über alle Monate: kWh, € und Anteil in % am Verbrauch aller Container (alle 0 → 0 %)."""
+    kwh = [summe(r["v"]) for r in reihen_]
+    ges = summe(kwh)
+    return [{"kwh": k, "eur": k * preis, "anteil": k / ges * 100 if ges else 0.0} for k in kwh]
 
 
 def csv_text(zeilen: Sequence[str]) -> str:
@@ -522,6 +529,14 @@ def wetter_einfluss(punkte: Sequence[Sequence[float]]) -> dict[str, float | None
     k = summe((p[0] - mx) * (p[1] - my) for p in punkte) / nn if nn else 0.0
     d0 = my - k * mx
     return {"k": k, "d0": d0, "null0": -d0 / k if k < 0 else None}
+
+
+def wetter_kosten(gerade: Mapping[str, Any] | None, preis: float) -> dict[str, Any] | None:
+    """Gerade des Wetter-Einflusses mit `eur_je_grad`: Mehrkosten am Tag je Grad kälter (nur wenn k < 0, sonst None)."""
+    if gerade is None:
+        return None
+    k = gerade["k"]
+    return {**gerade, "eur_je_grad": -k * preis if k < 0 else None}
 
 
 # ------------------------------------------------------------------ Je Gerät

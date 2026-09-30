@@ -11,7 +11,8 @@ Grundregeln:
 - **Die Funktion ist ein Modul in `funktionen/`** mit der Schnittstelle aus `basis.py`. `steuerung.py` (Kern) wird
   **nicht** geändert – der Test `test_kern_ohne_einzelheiten_der_funktionen` sucht dort nach Funktionsnamen.
 - **Die Staffelung bleibt im Kern**; die Funktion sagt nur, welche Geräte geschaltet werden und mit welchem Vorrang.
-- **Die Seite rechnet nichts**, sie zeigt an, was `baustelle/struktur` liefert.
+- **Die Seite rechnet nichts Fachliches** (auch keine € oder % zu Werten der Integration), sie zeigt an, was
+  `baustelle/struktur` liefert.
 - Umbau-Commits nach der Versionsregel (neue Funktion = MINOR, sonst PATCH), alle drei Prüfungen grün.
 
 ## 1. Bereichsart und Rolle (`const.py`, Einrichtung, Texte)

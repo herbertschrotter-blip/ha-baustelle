@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.24] – 2026-09-30
+
+- Intern (Nachbesserung nach der Prüfung, Bauplan Module): Kosten „ohne (24/7)“, „€ je Grad kälter“ beim
+  Wetter-Einfluss sowie kWh, € und Anteil je Container unter „Verbrauch je Monat“ auf der Detailseite einer Baustelle
+  rechnet jetzt die Integration statt der Seite. Die Zahlen bleiben gleich.
+
 ## [0.7.23] – 2026-09-30
 
 - Intern (Nachbesserung nach der Prüfung, Bauplan Module): Die Regel „alle Geräte offline“ steht jetzt bei den

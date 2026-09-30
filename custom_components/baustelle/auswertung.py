@@ -285,7 +285,9 @@ async def async_verlauf(hass: HomeAssistant, q: Quelle) -> dict[str, Any]:
     return {
         **kennzahlen, "je_monat": vw["je_monat"],
         "monate_je_container": {"labels": je_monat["labels"],
-                                "reihen": [{"bereich": b["id"], **r} for b, r in zip(bereiche, je_monat["reihen"], strict=True)]},
+                                "reihen": [{"bereich": b["id"], **r, **x} for b, r, x in
+                                           zip(bereiche, je_monat["reihen"], a.monate_summen(je_monat["reihen"], q.preis),
+                                               strict=True)]},
         "csv": a.csv_text(a.csv_monate(q.entry.title, q.preis, je_monat)),
     }
 
@@ -332,7 +334,7 @@ async def async_auswertung(
                    "ohne_automatik": a.ohne_automatik(summen["kwh"], summen["ohne"], preis)},
         "je_geraet": [{**z, "eur": z["kwh"] * preis if z["kwh"] is not None else None}
                       for z in a.je_geraet(q.geraete, q.zaehler, roh_g, eigene["pumpzeit_je"])],
-        "wetter": {"punkte": punkte, "gerade": a.wetter_einfluss(punkte)},
+        "wetter": {"punkte": punkte, "gerade": a.wetter_kosten(a.wetter_einfluss(punkte), preis)},
         "typ": typ,
         "heizperiode": {"ende": a.heizperiode_ende(heute, hp_von, hp_bis).isoformat(),
                         "bis": a.heizperiode_bis(heute, hp_von, hp_bis, q.option_datum(CONF_ENDE)).isoformat()},

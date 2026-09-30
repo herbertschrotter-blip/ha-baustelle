@@ -5,7 +5,7 @@ schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und 
 Vorlage der Oberfläche ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`);
 Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
-## Stand 0.7.0
+## Funktionen (Stand 0.7.24)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (auch direkt von der Seite aus). Ein Shelly gehört nur
@@ -25,7 +25,9 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 ## Aufbau
 
 Vier Schichten, der Weg geht nur in eine Richtung: **Fachlogik → Funktionen → Kern → Ausgabe**. Die Seite zeigt an, was
-die Integration liefert, und rechnet nichts Fachliches nach (Bauplan `docs/bauplan-module.md`).
+die Integration liefert, und rechnet nichts Fachliches nach (Bauplan `docs/bauplan-module.md`). Einzige Ausnahme, bewusst
+(Bauplan §5): Verbräuche, die die Seite selbst als Diagramm aus der Statistik zeigt, rechnet sie zur Anzeige mit dem
+Preis der Baustelle in € um; die Vorschau im Anschluss-Formular rechnet mit den noch nicht gespeicherten Eingaben.
 
 | Schicht | Wo | Was |
 |---|---|---|
@@ -33,7 +35,7 @@ die Integration liefert, und rechnet nichts Fachliches nach (Bauplan `docs/baupl
 | Funktionen | `funktionen/` | je Funktion ein Modul mit der Schnittstelle aus `basis.py` (heute `heizung.py`, `pumpen.py`; Liste `FUNKTIONEN` in `__init__.py`): Soll, Anzeige, Warnungen, Zähler, Status, Handbetrieb der Funktion – ruft `logik/` |
 | Kern | `steuerung.py` | Einrichtung, Ereignisse, Wetter, Kalender, **Staffelung** (für alle Funktionen gemeinsam, ein Anschluss), Schalten, Protokoll, Status; ruft nur die Methoden der Funktionen und kennt keine Heizungs- oder Pumpen-Einzelheiten |
 | Ausgabe | `sensor.py`, `binary_sensor.py`, `switch.py`, `daten.py`, `panel.py`, `auswertung.py`, `nachrichten.py` | Entitäten, `baustelle/struktur`, Befehle der Seite (`docs/api-0.7.md`), Auswertung aus der Langzeitstatistik, Nachrichten und Bericht |
-| Seite | `frontend/baustelle-panel.js` | zeigt nur an (Plan, Status, Auswertung, Abrechnung, CSV kommen von der Integration); Reiter nach den eingeschalteten Funktionen |
+| Seite | `frontend/baustelle-panel.js` | zeigt nur an (Plan, Status, Auswertung mit € und %, Abrechnung, CSV kommen von der Integration); Reiter nach den eingeschalteten Funktionen |
 
 Eine neue Funktion (z. B. Kühlung) ist ein neues Modul in `funktionen/`, ohne Eingriff in den Kern:
 `docs/funktion-anlegen.md`.
@@ -148,10 +150,15 @@ Ohne Wetterstation nimmt die Integration als „Regen“ den für heute vorherge
 
 ## Tests und Qualität
 
+Die drei Prüfungen vor jedem Commit (Skill-Profil in `CLAUDE.md`, wie `.github/workflows/tests.yml`), dazu mypy:
+
 ```
 python3 -m pytest -q -p no:cacheprovider tests/logik
 uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
-  --with pytest-homeassistant-custom-component python -m pytest -q -p no:cacheprovider tests/integration
+  --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 \
+  python -m pytest -q -p no:cacheprovider tests/integration
+node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js \
+  custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
 uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
   --with pytest-homeassistant-custom-component --with mypy mypy --strict custom_components/baustelle
 ```

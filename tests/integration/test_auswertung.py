@@ -190,6 +190,7 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
     assert set(s["vorher"]) == {"kwh", "heizzeit", "pumpzeit"} and s["vorher"]["kwh"] > s["kwh"]   # Woche erst angebrochen
     assert s["veraenderung"]["kwh"] == round((s["kwh"] - s["vorher"]["kwh"]) / s["vorher"]["kwh"] * 100)
     assert s["ohne_automatik"]["gespart_eur"] == pytest.approx((s["ohne"] - s["kwh"]) * 0.25)
+    assert s["ohne_automatik"]["ohne_eur"] == pytest.approx(s["ohne"] * 0.25)   # Balken „ohne (24/7)“ der Seite
     # dieselbe Heizzeit wie der Zähler-Sensor in der Statistik (Container, ohne Schacht)
     abr = (await ws("baustelle/abrechnung", zeitraum="Woche"))["result"]
     assert abr["kwh"] == pytest.approx(s["kwh"])
@@ -200,6 +201,8 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
     assert r["heizperiode"] == {"ende": "2026-04-30", "bis": "2026-04-30"} and r["heiztage"] == 20
     punkte = r["wetter"]["punkte"]
     assert 5 <= len(punkte) <= 30 and r["wetter"]["gerade"]["k"] is not None
+    g = r["wetter"]["gerade"]
+    assert g["eur_je_grad"] == (pytest.approx(-g["k"] * 0.25) if g["k"] < 0 else None)
     assert set(r["typ"]) == {"oelradiator", "konvektor", "weniger"}
     alle = (await ws("baustelle/auswertung", zeitraum="Woche", scope="alle"))["result"]
     assert alle["summen"]["kwh"] == pytest.approx(s["kwh"])   # nur eine laufende Baustelle
@@ -211,11 +214,17 @@ async def test_verlauf_auch_ohne_geladene_baustelle(hass: HomeAssistant, baustel
     abgeschlossene Baustelle, die nicht geladen ist (aus der Einrichtung)."""
     st = baustelle.runtime_data
     st.zaehler.update(energie=120.0, kosten=33.6, heiztage=12)
+    st.einstellung_setzen(("preis",), 0.3)
     v = (await ws("baustelle/auswertung", teil="verlauf"))["result"]
     assert (v["kwh"], v["eur"], v["heiztage"], v["container"]) == (120.0, 33.6, 12, 3)
     assert v["vergleich"]["tag"] == pytest.approx(10.0) and v["monate"] == 1   # September seit Beginn 01.09.
     assert "2026-09" in v["je_monat"] and len(v["je_monat"]) == 12
     assert [r["name"] for r in v["monate_je_container"]["reihen"]] == ["Container 1", "Container 2", "Schacht"]
+    reihen = v["monate_je_container"]["reihen"]   # kWh, € und Anteil je Container: Integration, nicht die Seite
+    assert all(r["kwh"] == pytest.approx(sum(r["v"])) and r["eur"] == pytest.approx(r["kwh"] * 0.3) for r in reihen)
+    ges = sum(r["kwh"] for r in reihen)
+    assert ges > 0 and sum(r["anteil"] for r in reihen) == pytest.approx(100)
+    assert all(r["anteil"] == pytest.approx(r["kwh"] / ges * 100) for r in reihen)
     assert v["monate_je_container"]["labels"] == ["Sep"] and v["csv"].startswith("﻿Monat;Baustelle;Container;kWh;Kosten €\r\nSep;B1;Container 1;")
 
     alt = MockConfigEntry(domain=DOMAIN, title="Halle", data={"name": "Halle"}, disabled_by=None,
