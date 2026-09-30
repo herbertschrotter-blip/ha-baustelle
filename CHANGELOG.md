@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.25] – 2026-09-30
+
+- Umbau abgeschlossen (Schlussprüfung Bauplan Module): Die Hochrechnung der Heizperiode (bisher, mit, ohne, gespart)
+  rechnet jetzt die Integration fertig in kWh und €; € und Anteil der Abrechnung stehen nur noch in der Fachlogik.
+  Die Seite zeigt nur an – die Zahlen bleiben gleich.
+
 ## [0.7.24] – 2026-09-30
 
 - Intern (Nachbesserung nach der Prüfung, Bauplan Module): Kosten „ohne (24/7)“, „€ je Grad kälter“ beim

@@ -199,6 +199,10 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
     assert geraete[HK1]["mittel"] == 1.9 and geraete[HK1]["kwh"] is None   # kein Energiezähler am Gerät
     assert geraete[P1]["std"] == pytest.approx(s["pumpzeit"])   # Pumpe: gemessene Pumpzeit
     assert r["heizperiode"] == {"ende": "2026-04-30", "bis": "2026-04-30"} and r["heiztage"] == 20
+    h = r["hochrechnung"]   # kWh und € der Hochrechnung rechnet die Integration (Seite zeigt nur an)
+    assert set(h) == {"bisher_kwh", "bisher_eur", "mit_kwh", "mit_eur", "ohne_kwh", "ohne_eur", "gespart_eur"}
+    if h["mit_kwh"] is not None:
+        assert h["mit_eur"] == pytest.approx(h["mit_kwh"] * 0.25)
     punkte = r["wetter"]["punkte"]
     assert 5 <= len(punkte) <= 30 and r["wetter"]["gerade"]["k"] is not None
     g = r["wetter"]["gerade"]

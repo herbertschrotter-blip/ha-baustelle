@@ -199,9 +199,11 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   zur Anzeige mit dem einen Preis der Baustelle (`einstellungen.preis`) in € um – der Verbrauch-Block (Kennzahl
   „Kosten“ und € je Reihe der frei gewählten, gestapelten Reihen; die Integration kennt die Auswahl nicht),
   „Kosten heute“ auf der Container-Detailseite (kWh heute aus derselben Diagramm-Reihe), die Hinweise beim Zeigen auf
-  ein Diagramm und die Hochrechnung (kWh aus den Sensoren `prognose_heizperiode*` der Integration). Das ist eine
+  ein Diagramm. Die Hochrechnung liefert seit der Schlussprüfung die Integration fertig in kWh und €
+  (`baustelle/auswertung` → `hochrechnung`, `logik/auswertung.hochrechnung_werte`, auch „gespart“). Das ist eine
   Einheitenumrechnung ohne Fachregel (kein Firmenpreis, keine Aufteilung, keine Schätzung); Summen, Firmen,
-  Zeiträume und alle € in Kennzahlen, Abrechnung, Je Gerät, Ohne Automatik, Verlauf und CSV kommen von der Integration.
+  Zeiträume und alle € in Kennzahlen, Abrechnung, Je Gerät, Ohne Automatik, Hochrechnung, Verlauf und CSV kommen von
+  der Integration; € und Anteil der Abrechnung rechnet `logik/auswertung.abrechnung_geld`, € allgemein `logik/auswertung.geld`.
   Die Vorschau im Anschluss-Formular (oben) bleibt die einzige Rechnung mit 230 V; der Panel-Test lässt `* .23 *` bzw.
   `* 230 /` nur in dieser einen Zeile zu.
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
@@ -230,7 +232,9 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   zweite Nachbesserung 0.7.24: € und % von der Integration, Umrechnung der Diagramm-Werte als bewusste Grenze in §5,
   README „Tests und Qualität“ mit allen drei Prüfungen) · Prüfung (Review-Agent) gegen diesen Bauplan: Befunde der
   ersten Prüfung (Kern mit Pumpenmodul, Staffel-Grenze in der Seite) und der zweiten (€/% in der Seite, README-Prüfungen)
-  behoben bzw. als bewusste Grenze begründet; offene Befunde: keine bekannt, Abschlussprüfung nach 0.7.24
+  behoben bzw. als bewusste Grenze begründet. Die Schlussprüfung nach 0.7.24 fand noch drei Punkte (€ und „gespart“
+  der Hochrechnung in der Seite, € und Anteil der Abrechnung außerhalb von logik/, README ≠ §5) – in 0.7.25 behoben:
+  `logik/auswertung.geld`, `abrechnung_geld`, `hochrechnung_werte` (mit Tests), `baustelle/auswertung` → `hochrechnung`.
 
 **Abschluss 30.09.2026:** Umbau fertig, alle drei Prüfungen grün, kein Push, nicht eingespielt. Commits seit Tag
 `vor-module`: `5be9fd9` Phase 0 (0.7.12) · `d5e111f` Phase 1 (0.7.13) · `cc4c330` Phase 2 (0.7.14) · `3e93ff4` Phase 3

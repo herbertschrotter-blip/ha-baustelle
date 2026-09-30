@@ -25,9 +25,11 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 ## Aufbau
 
 Vier Schichten, der Weg geht nur in eine Richtung: **Fachlogik → Funktionen → Kern → Ausgabe**. Die Seite zeigt an, was
-die Integration liefert, und rechnet nichts Fachliches nach (Bauplan `docs/bauplan-module.md`). Einzige Ausnahme, bewusst
-(Bauplan §5): Verbräuche, die die Seite selbst als Diagramm aus der Statistik zeigt, rechnet sie zur Anzeige mit dem
-Preis der Baustelle in € um; die Vorschau im Anschluss-Formular rechnet mit den noch nicht gespeicherten Eingaben.
+die Integration liefert, und rechnet nichts Fachliches nach (Bauplan `docs/bauplan-module.md`). Bewusste Ausnahmen
+(Bauplan §5): Verbräuche, die die Seite selbst als Diagramm aus der Statistik zeigt (Verbrauch-Block mit frei gewählten
+Reihen, „Kosten heute“ am Container, Hinweise beim Zeigen auf ein Diagramm), rechnet sie zur Anzeige mit dem Preis der
+Baustelle in € um; die Vorschau im Anschluss-Formular rechnet mit den noch nicht gespeicherten Eingaben. Alle anderen
+€ und % – Kennzahlen, Abrechnung, Je Gerät, Ohne Automatik, Hochrechnung, Verlauf, CSV – kommen von der Integration.
 
 | Schicht | Wo | Was |
 |---|---|---|

@@ -1013,7 +1013,7 @@ function phaseAusSonne(sonne) {
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.7.24';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.7.25';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -2084,13 +2084,13 @@ class BaustellePanel extends HTMLElement {
       ${erkl(d.e.erklaer, 'Ø kW ist die mittlere Leistung, während das Gerät läuft – so sieht man, ob ein Heizkörper schwächer ist als angegeben. kWh kommen aus dem Zählerstand des Shelly (ohne Energiezähler „–“), Stunden ≈ kWh ÷ Ø kW, bei Pumpen die gemessene Pumpzeit.')}</div>`;
   }
   hochrechnung(A) {
-    const d = this.d, p = d.e.preis, [von, bis] = d.hp, mon = (bis - von + 12) % 12 + 1, hp = A && A.heizperiode;   // Ende der Heizperiode bzw. geplantes Ende: Integration
-    const wert = k => { const x = this.zustand(this.eid(d, d.entry, k)); return x !== null && zahl(x) ? Number(x) : null; };
-    const mit = wert('prognose_heizperiode'), ohne = wert('prognose_heizperiode_ohne'), bisher = zahl(d.zaehler.energie_heizen) ? d.zaehler.energie_heizen : null;
-    const max = Math.max(mit || 0, ohne || 0, bisher || 0) || 1, balkenZ = (t, v, farbe) => `<div class="hbar"><span class="hb-n">${t}</span><span class="hb-spur"><i style="width:${zahl(v) ? v / max * 100 : 0}%;background:${farbe}"></i></span><span class="hb-w">${zahl(v) ? `${de(v * p, 0)} €` : '–'}</span></div>`;
+    // kWh und € rechnet die Integration (baustelle/auswertung → hochrechnung, heizperiode); die Seite zeigt sie nur an
+    const d = this.d, [von, bis] = d.hp, mon = (bis - von + 12) % 12 + 1, hp = A && A.heizperiode, h = A && A.hochrechnung;
+    const max = h ? Math.max(h.bisher_kwh || 0, h.mit_kwh || 0, h.ohne_kwh || 0) || 1 : 1;
+    const balkenZ = (t, kwh, eur, farbe) => `<div class="hbar"><span class="hb-n">${t}</span><span class="hb-spur"><i style="width:${zahl(kwh) ? kwh / max * 100 : 0}%;background:${farbe}"></i></span><span class="hb-w">${zahl(eur) ? `${de(eur, 0)} €` : '–'}</span></div>`;
     return `<div class="glas-panel block"><div class="block-kopf"><b>Hochrechnung Heizperiode</b><span class="leise">${MONATE[von - 1]}–${MONATE[bis - 1]} · ${mon} Monate</span></div>
-      ${!zahl(mit) ? '<div class="leer">Noch zu wenige Tage für eine Hochrechnung</div>' : `${balkenZ('bisher', bisher, 'var(--s3)')}${balkenZ('mit Automatik', mit, 'var(--s1)')}${balkenZ('ohne (24/7)', ohne, 'var(--s2)')}
-      <div class="gespart">bis ${hp && hp.bis !== hp.ende ? datum(hp.bis) : `Ende ${MONATE_LANG[bis - 1]}`} rund <b>${de(mit, 0)} kWh</b> · ${de(mit * p, 0)} €${zahl(ohne) ? ` – gespart ≈ <b>${de(Math.max(0, ohne - mit) * p, 0)} €</b>` : ''}</div>`}
+      ${!A ? LAEDT : !h || !zahl(h.mit_kwh) ? '<div class="leer">Noch zu wenige Tage für eine Hochrechnung</div>' : `${balkenZ('bisher', h.bisher_kwh, h.bisher_eur, 'var(--s3)')}${balkenZ('mit Automatik', h.mit_kwh, h.mit_eur, 'var(--s1)')}${balkenZ('ohne (24/7)', h.ohne_kwh, h.ohne_eur, 'var(--s2)')}
+      <div class="gespart">bis ${hp && hp.bis !== hp.ende ? datum(hp.bis) : `Ende ${MONATE_LANG[bis - 1]}`} rund <b>${de(h.mit_kwh, 0)} kWh</b> · ${de(h.mit_eur, 0)} €${zahl(h.gespart_eur) ? ` – gespart ≈ <b>${de(h.gespart_eur, 0)} €</b>` : ''}</div>`}
       <div class="leise">aus dem bisherigen Verbrauch je Tag hochgerechnet${d.ende ? ` – bis zum geplanten Ende ${datum(d.ende)}, wenn es früher liegt` : ''}. Heizperiode unter Einstellungen › Baustelle.</div>
       ${erkl(d.e.erklaer, 'Die Hochrechnung nimmt den Verbrauch je Tag bisher und rechnet ihn auf die ganze Heizperiode hoch. Endet die Baustelle früher, zählt nur bis zum Ende.')}</div>`;
   }

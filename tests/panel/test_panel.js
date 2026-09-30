@@ -182,7 +182,8 @@ function fakeAuswertung(m) {
     je_geraet: (g ? g.erwartet.zeilen : b.geraete.map(x => ({ bereich: x.bereich, geraet: x.id, mittel: null, kwh: 1.5, std: null }))).map(z => ({ ...z, eur: z.kwh === null ? null : z.kwh * preis })),
     wetter: w ? { punkte: w.erwartet.punkte, gerade: w.erwartet.regression && { ...w.erwartet.regression, eur_je_grad: w.erwartet.regression.k < 0 ? -w.erwartet.regression.k * preis : null } } : { punkte: [], gerade: null },
     typ: tv ? tv.erwartet : { oelradiator: leer, konvektor: leer, weniger: null },
-    heizperiode: { ende: '2026-04-30', bis: ende && ende < '2026-04-30' ? ende : '2026-04-30' }, heiztage: zl.heiztage ?? 0 };
+    heizperiode: { ende: '2026-04-30', bis: ende && ende < '2026-04-30' ? ende : '2026-04-30' }, heiztage: zl.heiztage ?? 0,
+    hochrechnung: { bisher_kwh: 412, bisher_eur: 115.36, mit_kwh: 2310, mit_eur: 646.8, ohne_kwh: 10626, ohne_eur: 2975.28, gespart_eur: 2328.48 } };
 }
 const hass = {
   states, themes: { darkMode: true }, config: { version: '2026.9.4' }, language: 'de',

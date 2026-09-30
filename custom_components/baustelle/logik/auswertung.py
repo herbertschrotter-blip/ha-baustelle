@@ -428,6 +428,30 @@ def monate_je_container(
     return {"labels": [MONATE[int(k[5:7]) - 1] for k in monate], "reihen": reihen_}
 
 
+def geld(kwh: float | None, preis: float) -> float | None:
+    """€ zu einer Energiemenge (kWh × Preis der Baustelle); ohne Wert kein Betrag."""
+    return None if kwh is None else kwh * preis
+
+
+def abrechnung_geld(daten: Sequence[Mapping[str, Any]], preis: float) -> list[dict[str, Any]]:
+    """Abrechnung je Firma: € und Anteil in % am Verbrauch aller Firmen, je Container €."""
+    ges = summe(z["kwh"] for z in daten)
+    return [
+        {**z, "eur": z["kwh"] * preis, "anteil": z["kwh"] / ges * 100 if ges else 0.0,
+         "container": [{**c, "eur": c["kwh"] * preis} for c in z["container"]]}
+        for z in daten
+    ]
+
+
+def hochrechnung_werte(
+    bisher_kwh: float | None, mit_kwh: float | None, ohne_kwh: float | None, preis: float
+) -> dict[str, float | None]:
+    """Hochrechnung der Heizperiode in kWh und €: bisher, mit Automatik, ohne (24/7) und gespart (nie unter 0)."""
+    gespart = None if mit_kwh is None or ohne_kwh is None else max(0.0, ohne_kwh - mit_kwh) * preis
+    return {"bisher_kwh": bisher_kwh, "bisher_eur": geld(bisher_kwh, preis), "mit_kwh": mit_kwh, "mit_eur": geld(mit_kwh, preis),
+            "ohne_kwh": ohne_kwh, "ohne_eur": geld(ohne_kwh, preis), "gespart_eur": gespart}
+
+
 def monate_summen(reihen_: Sequence[Mapping[str, Any]], preis: float) -> list[dict[str, float]]:
     """Je Container über alle Monate: kWh, € und Anteil in % am Verbrauch aller Container (alle 0 → 0 %)."""
     kwh = [summe(r["v"]) for r in reihen_]

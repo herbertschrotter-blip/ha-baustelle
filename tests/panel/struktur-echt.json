@@ -21,7 +21,7 @@
     "urlaub_kalender": "calendar.urlaub"
    },
    "geladen": true,
-   "version": "0.7.24",
+   "version": "0.7.25",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1159,7 +1159,7 @@
     "heizperiode_bis": "4"
    },
    "geladen": true,
-   "version": "0.7.24",
+   "version": "0.7.25",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"

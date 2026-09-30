@@ -256,3 +256,21 @@ def test_statistik_start_in_sekunden_ms_und_text():
     ms = a.mitternacht(date(2026, 9, 29), zone).timestamp() * 1000
     for start in (ms, ms / 1000, "2026-09-29T00:00:00+02:00"):
         assert a.lokal(start, zone) == datetime(2026, 9, 29, tzinfo=zone)
+
+
+def test_geld_und_abrechnung_geld():
+    """€ und Anteil der Abrechnung nur hier (Schlussprüfung Bauplan Module): Seite und Bericht zeigen diese Werte."""
+    assert a.geld(None, 0.28) is None and a.geld(10.0, 0.28) == pytest.approx(2.8)
+    daten = [{"kwh": 30.0, "container": [{"kwh": 30.0}]}, {"kwh": 10.0, "container": [{"kwh": 4.0}, {"kwh": 6.0}]}]
+    g = a.abrechnung_geld(daten, 0.25)
+    assert [z["anteil"] for z in g] == [75.0, 25.0] and g[0]["eur"] == 7.5 and [c["eur"] for c in g[1]["container"]] == [1.0, 1.5]
+    assert a.abrechnung_geld([{"kwh": 0.0, "container": []}], 0.25)[0]["anteil"] == 0.0
+
+
+def test_hochrechnung_werte():
+    h = a.hochrechnung_werte(412.0, 2310.0, 10626.0, 0.28)
+    assert h["mit_eur"] == pytest.approx(646.8) and h["ohne_eur"] == pytest.approx(2975.28) and h["bisher_eur"] == pytest.approx(115.36)
+    assert h["gespart_eur"] == pytest.approx((10626 - 2310) * 0.28)
+    assert a.hochrechnung_werte(None, 100.0, 80.0, 0.28)["gespart_eur"] == 0.0   # nie unter 0
+    assert a.hochrechnung_werte(None, None, None, 0.28) == {"bisher_kwh": None, "bisher_eur": None, "mit_kwh": None, "mit_eur": None,
+                                                            "ohne_kwh": None, "ohne_eur": None, "gespart_eur": None}

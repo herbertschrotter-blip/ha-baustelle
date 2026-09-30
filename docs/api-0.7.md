@@ -226,7 +226,9 @@ Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle
  "je_geraet": [{"bereich": "<bid>", "geraet": "<gid>", "mittel": 1.98, "kwh": 12.1, "std": 6.1, "eur": 3.39}],
  "wetter": {"punkte": [[4.2, 18.5]], "gerade": {"k": -1.2, "d0": 20, "null0": 16.7, "eur_je_grad": 0.34}},
  "typ": {"oelradiator": {"kwh_h": 1.6, "auf": 2.7, "ab": 2.7, "tag": 3.05}, "konvektor": {}, "weniger": 17},
- "heizperiode": {"ende": "2027-04-30", "bis": "2027-04-30"}, "heiztage": 16}
+ "heizperiode": {"ende": "2027-04-30", "bis": "2027-04-30"}, "heiztage": 16,
+ "hochrechnung": {"bisher_kwh": 412, "bisher_eur": 115.36, "mit_kwh": 2310, "mit_eur": 646.8, "ohne_kwh": 10626,
+                  "ohne_eur": 2975.28, "gespart_eur": 2328.48}}
 ```
 
 - `summen` über `scope`; `heizzeit` nur Container, `pumpzeit` nur Pumpen; `veraenderung` in ganzen % zum Zeitraum davor

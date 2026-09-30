@@ -176,15 +176,12 @@ def abrechnung_daten(
 ) -> list[dict[str, Any]]:
     """Abrechnung je Firma und Container mit € und Anteil, Namen der Container und Baustellen (Seite und Bericht)."""
     zone = _zone()
-    daten = a.abrechnung([q.baustelle() for q in quellen], werte, zone)
-    ges = sum(z["kwh"] for z in daten)
+    daten = a.abrechnung_geld(a.abrechnung([q.baustelle() for q in quellen], werte, zone), preis)
     titel = {q.entry.entry_id: q.entry.title for q in quellen}
     namen = {(q.entry.entry_id, b["id"]): b["name"] for q in quellen for b in q.bereiche}
     return [
-        {**z, "id": EIGEN if z["eigen"] else z["firma"], "eur": z["kwh"] * preis,
-         "anteil": z["kwh"] / ges * 100 if ges else 0.0,
-         "container": [{**c, "titel": titel[c["entry"]], "name": namen[(c["entry"], c["bereich"])], "eur": c["kwh"] * preis}
-                       for c in z["container"]]}
+        {**z, "id": EIGEN if z["eigen"] else z["firma"],
+         "container": [{**c, "titel": titel[c["entry"]], "name": namen[(c["entry"], c["bereich"])]} for c in z["container"]]}
         for z in daten
     ]
 
@@ -329,14 +326,18 @@ async def async_auswertung(
     hp_bis = min(12, max(1, int(entry.options.get(CONF_HEIZPERIODE_BIS) or 4)))
     return {
         "zeitraum": _zeitraum_dict(zr), "preis": preis,
-        "summen": {**summen, "eur": summen["kwh"] * preis, "vorher": davor,
+        "summen": {**summen, "eur": a.geld(summen["kwh"], preis), "vorher": davor,
                    "veraenderung": {k: a.veraenderung(summen[k], davor[k]) for k in davor},
                    "ohne_automatik": a.ohne_automatik(summen["kwh"], summen["ohne"], preis)},
-        "je_geraet": [{**z, "eur": z["kwh"] * preis if z["kwh"] is not None else None}
+        "je_geraet": [{**z, "eur": a.geld(z["kwh"], preis)}
                       for z in a.je_geraet(q.geraete, q.zaehler, roh_g, eigene["pumpzeit_je"])],
         "wetter": {"punkte": punkte, "gerade": a.wetter_kosten(a.wetter_einfluss(punkte), preis)},
         "typ": typ,
         "heizperiode": {"ende": a.heizperiode_ende(heute, hp_von, hp_bis).isoformat(),
                         "bis": a.heizperiode_bis(heute, hp_von, hp_bis, q.option_datum(CONF_ENDE)).isoformat()},
         "heiztage": verlauf["heiztage"],
+        # Hochrechnung (Sensoren prognose_heizperiode*, Zähler energie_heizen) in kWh und € – die Seite zeigt sie nur an
+        "hochrechnung": a.hochrechnung_werte(
+            q.zaehler.get("energie_heizen"), _zustand(hass, q.eid(eid, "prognose_heizperiode")),
+            _zustand(hass, q.eid(eid, "prognose_heizperiode_ohne")), preis),
     }

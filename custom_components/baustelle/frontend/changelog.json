@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.25",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Umbau abgeschlossen (Schlussprüfung Bauplan Module): Die Hochrechnung der Heizperiode (bisher, mit, ohne, gespart) rechnet jetzt die Integration fertig in kWh und €; € und Anteil der Abrechnung stehen nur noch in der Fachlogik. Die Seite zeigt nur an – die Zahlen bleiben gleich."
+    ]
+  },
+  {
     "version": "0.7.24",
     "datum": "2026-09-30",
     "punkte": [
