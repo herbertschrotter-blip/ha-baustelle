@@ -1013,7 +1013,7 @@ function phaseAusSonne(sonne) {
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.7.22';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.7.23';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1449,13 +1449,12 @@ class BaustellePanel extends HTMLElement {
   last() {
     const d = this.d, S = d.staffel || {}, e = d.e;
     const alleG = d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g }))), hk = alleG.filter(x => x.g.heizer);
-    const quelle = S.anschluesse && S.anschluesse.length ? S.anschluesse : d.anschluesse.map(a => ({ id: a.id }));
+    // Nur Werte der Integration; solange sie fehlen (vor der ersten Rechnung), gibt es hier keine Anschlüsse
     const n = x => zahl(x) ? Number(x) : 0;
-    const A = quelle.map(a => {
-      const s = d.anschluesse.find(x => x.id === a.id) || {}, voll = zahl(a.voll_kw) ? n(a.voll_kw) : n(s.ampere) * 230 / 1000 * n(s.phasen);
-      const grenze = zahl(a.grenze_kw) ? n(a.grenze_kw) : voll * e.nutzbar / 100, reserve = zahl(a.reserve_kw) ? n(a.reserve_kw) : n(s.reserve);
-      const heiz = n(a.heiz_kw), pumpe = n(a.pumpe_kw), sonst = n(a.sonst_kw);
-      return { id: a.id, name: a.name || s.name || a.id, ampere: s.ampere, phasen: s.phasen, voll, grenze, reserve, heiz, pumpe, sonst, frei: zahl(a.frei_kw) ? n(a.frei_kw) : grenze - reserve - heiz - pumpe - sonst };
+    const A = (S.anschluesse || []).map(a => {
+      const s = d.anschluesse.find(x => x.id === a.id) || {};
+      return { id: a.id, name: a.name || s.name || a.id, ampere: s.ampere, phasen: s.phasen, voll: n(a.voll_kw), grenze: n(a.grenze_kw), reserve: n(a.reserve_kw),
+        heiz: n(a.heiz_kw), pumpe: n(a.pumpe_kw), sonst: n(a.sonst_kw), frei: n(a.frei_kw) };
     });
     const s3 = k => A.reduce((x, a) => x + a[k], 0);
     return { A, heiz: s3('heiz'), pumpe: s3('pumpe'), sonst: s3('sonst'), grenze: s3('grenze'), reserve: s3('reserve'), gesamt: s3('heiz') + s3('pumpe') + s3('sonst'), hk,
@@ -1705,7 +1704,7 @@ class BaustellePanel extends HTMLElement {
     this.pumpenWerte();
     return `<div class="glas-kopf glas-panel">
         <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">${esc(d.titel)} <span class="pfeil">▾</span></div>
-        ${d.e.staffel && d.anschluesse.length ? (() => { const L = this.last(); return `<button class="strom-knopf" data-act="sheet" data-s="strom">${this.stromBalken(L, true)}<span class="strom-t"><b>${de(L.gesamt)} kW</b> · ${L.A.length} ${L.A.length === 1 ? 'Anschluss' : 'Anschlüsse'} · ${L.laufen} Heizkörper an${L.warten ? ` · ${L.warten} wartet` : ''} ›</span></button>`; })() : ''}</div>
+        ${d.e.staffel && this.last().A.length ? (() => { const L = this.last(); return `<button class="strom-knopf" data-act="sheet" data-s="strom">${this.stromBalken(L, true)}<span class="strom-t"><b>${de(L.gesamt)} kW</b> · ${L.A.length} ${L.A.length === 1 ? 'Anschluss' : 'Anschlüsse'} · ${L.laufen} Heizkörper an${L.warten ? ` · ${L.warten} wartet` : ''} ›</span></button>`; })() : ''}</div>
           <button class="kopf-wetter" data-act="sheet" data-s="${d.wetterEid ? 'wetter' : 'wetterquelle'}">${wetterIcon(wz, 22)}<span>${zahl(wtemp) ? de(wtemp) + '°' : '–'}</span><span class="kw-t">${esc(wt)}</span></button></div>
         <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
       <div class="glas-chips">

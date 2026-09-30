@@ -59,8 +59,3 @@ def pruefe(zustand: PumpenZustand, regeln: PumpenRegeln) -> list[Problem]:
         if zustand.laeuft_seit_min >= regeln.dauerlauf_h * 60:
             probleme.append(Problem.DAUERLAUF)
     return probleme
-
-
-def baustelle_offline(erreichbar: list[bool]) -> bool:
-    """Alle Geräte der Baustelle antworten nicht: Stromausfall oder Internet weg."""
-    return bool(erreichbar) and not any(erreichbar)

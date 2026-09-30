@@ -79,7 +79,6 @@ from .funktionen.basis import (
 )
 from .logik import staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import Arbeitszeit, Ausnahme, WetterTag
-from .logik.pumpen import baustelle_offline
 from .logik.zaehlen import energie_zuwachs, leistung_integriert
 from . import texte
 from .texte import GRUND_TEXT
@@ -961,7 +960,7 @@ class Steuerung:
         geraete = self._geraete_zustand(jetzt)
         bereiche = [c for f in self.funktionen if f.aktiv() for c in f.warnungen(jetzt, soll)]
         erreichbar = [g.erreichbar for g in geraete]
-        self.daten.erreichbar = None if not erreichbar else not baustelle_offline(erreichbar)
+        self.daten.erreichbar = None if not erreichbar else not warn_logik.baustelle_offline(erreichbar)
         wetter_da = (
             not any(f.braucht_wetter and f.aktiv() for f in self.funktionen)
             or not self.entry.options.get(CONF_WETTER) or self._prognose_da

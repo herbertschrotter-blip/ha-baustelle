@@ -13,6 +13,7 @@ from logik.warnungen import (
     Typ,
     WarnEinstellungen,
     Warnung,
+    baustelle_offline,
     behalte_seit,
     chip_text,
     gemeldet_merken,
@@ -452,3 +453,10 @@ def test_rundung_wie_mockup():
 def test_aus_store_null_werte_gelten_als_standard():
     einst = WarnEinstellungen.aus_store({"arten": None, "kalt_min": None}, {"frost_grenze": None})
     assert einst == WarnEinstellungen()
+
+
+def test_baustelle_offline():
+    # Regel steht bei den Warnungen (allgemein), nicht bei den Pumpen – der Kern nutzt sie für „erreichbar“
+    assert baustelle_offline([False, False, False])
+    assert not baustelle_offline([False, True])
+    assert not baustelle_offline([])

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.23] – 2026-09-30
+
+- Intern (Nachbesserung nach der Prüfung, Bauplan Module): Die Regel „alle Geräte offline“ steht jetzt bei den
+  Warnungen statt bei den Pumpen, damit der Kern kein Pumpenmodul braucht. Die Seite rechnet die Grenze der
+  Staffelung nicht mehr selbst nach, sondern zeigt nur die Werte der Integration; vor der ersten Rechnung nach dem
+  Start fehlt der Strombalken kurz. Sonst ändert sich nichts.
+
 ## [0.7.22] – 2026-09-30
 
 - Qualität nach der Skala von Home Assistant (Bauplan Module Phase 7), die Seite „Baustelle“ bleibt gleich:

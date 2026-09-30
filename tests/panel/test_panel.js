@@ -871,6 +871,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     .filter(n => new RegExp(`\\b${n}\\s*\\(`).test(quelle));
   erwarte(`keine Fachrechnung in der Seite – noch da: ${entfernt.join(', ')}`, !entfernt.length);
   erwarte('keine eigene Regression (Wetter-Einfluss) in der Seite', !/\(q\[0\] - mx\)/.test(quelle));
+  // Grenze der Staffelung (Ampere · 230 V · Phasen · nutzbar %) rechnet nur die Integration (logik/staffel.grenze_kw)
+  erwarte('keine eigene Grenze der Staffelung in der Seite', !/\*\s*230\s*\/\s*1000/.test(quelle));
   if (process.env.BAUSTELLE_AUFRUFE) fs.writeFileSync(process.env.BAUSTELLE_AUFRUFE, JSON.stringify(alleAufrufe, null, 1));
   if (fehler.length) { console.log(fehler.slice(0, 40).join('\n')); console.log(`${fehler.length} Fehler`); process.exit(1); }
   console.log(`Panel-Test grün (${REFERENZ ? 'Beispiel wie im Mockup' : 'echte Antwort der Integration'}): alle Ansichten, Einblendungen und Aktionen geprüft (${alleAufrufe.length} WS-Aufrufe).`);

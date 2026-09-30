@@ -358,13 +358,18 @@ def _pruefe_container(c: ContainerZustand, einst: WarnEinstellungen, jetzt: date
     return w
 
 
+def baustelle_offline(erreichbar: list[bool]) -> bool:
+    """Alle Geräte der Baustelle antworten nicht: Stromausfall oder Internet weg."""
+    return bool(erreichbar) and not any(erreichbar)
+
+
 def pruefe(zustand: BaustellenZustand, einst: WarnEinstellungen, jetzt: datetime) -> list[Warnung]:
     """Alle offenen Warnungen: zuerst Störungen, dann Hinweise (je in Reihenfolge der Geräte/Container).
 
     Stumm geschaltete Warnungen sind enthalten (sie gehören ins Protokoll); `zu_melden` und `sichtbar` filtern sie.
     """
     geraete = zustand.geraete
-    alle_offline = pumpen.baustelle_offline([g.erreichbar for g in geraete])
+    alle_offline = baustelle_offline([g.erreichbar for g in geraete])
     warnungen: list[Warnung] = []
     # Einzelne Offline-Warnungen weichen erst, wenn `baustelle_offline` wirklich gemeldet wird – sonst verschwänden
     # schon gemeldete Geräte kurz und kämen danach als neues Problem wieder.

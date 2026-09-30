@@ -175,6 +175,18 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   Geräte-Erkennung/Bibliothek, keine eigenen Auslöser und Bedingungen, `entity-unavailable`: Werte werden aus
   HA-Entitäten berechnet). hassfest lokal (script/hassfest aus HA core) ohne Fehler; die HACS-Prüfung läuft erst auf
   GitHub (`validate.yml`), Beschreibung und Themen des Repos setzt Herbert.
+- **Nachbesserung nach der Prüfung (0.7.23):** `baustelle_offline` („alle Geräte antworten nicht“) steht jetzt in
+  `logik/warnungen.py` statt in `logik/pumpen.py`; der Kern importiert kein Pumpen-/Heizungsmodul der Fachlogik mehr
+  (Test `test_kern_ohne_einzelheiten_der_funktionen` sucht auch `logik.pumpen`/`logik.regelung`). Die Seite rechnete die
+  Grenze der Staffelung (Ampere · 230 V · Phasen · nutzbar % − Reserve − Last) ersatzweise selbst, solange
+  `laufzeit.staffel.anschluesse` fehlte; das ist entfernt, sie zeigt nur die Werte der Integration
+  (`logik/staffel.grenze_kw`, Panel-Test sucht `* 230 / 1000`). Sichtbar nur im Übergang: Vor der ersten Rechnung
+  nach dem Start fehlt der Strombalken kurz (bisher stand dort die Schätzung der Seite). Beispiel: nach dem Neustart
+  zeigt die Übersicht für wenige Sekunden keinen Strombalken statt „0,0 kW · 2 Anschlüsse“; danach gleich.
+  **Bewusste Grenze:** Die Einblendung „Anschluss“ zeigt beim Bearbeiten eine Vorschau „Anschlussleistung … kW, davon
+  rechnet die Staffelung mit … % = … kW“ aus den noch **nicht gespeicherten** Eingaben (Absicherung, Art). Die
+  Integration kennt diese Werte erst nach dem Speichern; die Vorschau ist eine Eingabehilfe, keine Anzeige eines
+  Ergebnisses, und bleibt in der Seite (die geltende Grenze kommt immer aus `laufzeit.staffel`).
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
 
 ## 6. Ausführung mit Agenten
@@ -196,11 +208,13 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   Nachbesserung 0.7.20: Kern ohne Heizungs-/Pumpen-Regeln, Funktionen aus `FUNKTIONEN`, Staffelung über die Funktionen) ·
   [x] Phase 5 (0.7.18) · [x] Phase 7 (0.7.21 strenge Typisierung, 0.7.22 Regeln bis Gold,
   `quality_scale.yaml`, Symbol, Prüfläufe, README) · [x] Phase 6 (README „Aufbau“, CLAUDE.md-Regeln,
-  `docs/funktion-anlegen.md`; Nummer bleibt 0.7.22)
+  `docs/funktion-anlegen.md`; Nummer bleibt 0.7.22; Nachbesserung nach der Prüfung 0.7.23: `baustelle_offline` zu
+  den Warnungen, Seite ohne eigene Staffel-Grenze, Vorschau im Anschluss-Formular als bewusste Grenze in §5)
 
 **Abschluss 30.09.2026:** Umbau fertig, alle drei Prüfungen grün, kein Push, nicht eingespielt. Commits seit Tag
 `vor-module`: `5be9fd9` Phase 0 (0.7.12) · `d5e111f` Phase 1 (0.7.13) · `cc4c330` Phase 2 (0.7.14) · `3e93ff4` Phase 3
 (0.7.15) · `d27bbca` Nachbesserung 2/3 (0.7.16) · `309bc45` Phase 4 (0.7.17) · `5c36285` Phase 5 (0.7.18) · `ec7c8e8`,
 `ddcd6d3` Nachbesserung 4 (0.7.19, 0.7.20) · `ac10a8d`, `3222a7c`, `3b5188f`, `ccb4bb4`, `624ce0c` Phase 7 (0.7.21,
-0.7.22) · Phase 6 als Doku-Commit „Aufbau, Regeln und Anleitung Neue Funktion“ (0.7.22). Offen mit Herbert:
+0.7.22) · `d2ec92c` Phase 6 (0.7.22) · Nachbesserung nach der Prüfung (0.7.23, Commit „Kern ohne Pumpenmodul, Seite ohne
+Staffel-Grenze“). Offen mit Herbert:
 HA-Sicherung → Einspielen → Neustart → Sichtprüfung (§6); Push, Releases und Repo-Beschreibung/Themen auf GitHub.

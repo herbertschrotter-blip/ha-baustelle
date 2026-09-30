@@ -716,7 +716,7 @@ def test_kern_ohne_einzelheiten_der_funktionen() -> None:
     verboten = [
         r"funktionen\.(heizung|pumpen)", r"\bHeizung\b", r"\bPumpen\b", r"ROLLE_", "HEIZROLLEN", r"ART_",
         r"\[\"heizung\"\]", r"SollGrund", r"LageContainer", r"frost", r"boost", r"bedarf", r"[Tt]ür", r"tuer",
-        r"heizgrenze", r"termine_kalender",
+        r"heizgrenze", r"termine_kalender", r"logik\.(pumpen|regelung)",
     ]
     treffer = [(m, z) for z in quelle.splitlines() for m in verboten if re.search(m, z)]
     assert treffer == []

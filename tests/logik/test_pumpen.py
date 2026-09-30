@@ -1,6 +1,6 @@
 """Pumpenüberwachung – Fälle aus dem abgenommenen Entwurf."""
 
-from logik.pumpen import Problem, PumpenRegeln, PumpenZustand, baustelle_offline, laeuft, pruefe
+from logik.pumpen import Problem, PumpenRegeln, PumpenZustand, laeuft, pruefe
 
 R = PumpenRegeln()
 
@@ -24,9 +24,3 @@ def test_trockenlauf():
 
 def test_dauerlauf():
     assert pruefe(PumpenZustand(erreichbar=True, leistung=760, laeuft_seit_min=4 * 60), R) == [Problem.DAUERLAUF]
-
-
-def test_baustelle_offline():
-    assert baustelle_offline([False, False, False])
-    assert not baustelle_offline([False, True])
-    assert not baustelle_offline([])
