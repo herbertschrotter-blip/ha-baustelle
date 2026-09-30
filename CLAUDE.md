@@ -13,6 +13,14 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
   (Vorbild `bayesian`: Subentries, Update-Listener mit Reload); eingebaute Integrationen nutzen, wo es sie gibt
   (Feiertage/`holiday`, lokaler Kalender, `weather.get_forecasts`, `notify.mobile_app_*`, später `history_stats`).
 - **Fachlogik frei von HA-Code** in `custom_components/baustelle/logik/`; Änderungen dort immer mit Test in `tests/logik/`.
+- **Jede Fachregel genau einmal, nur in `logik/`** (mit Test). **Die Seite rechnet nichts Fachliches**: Zahlen, Firmen,
+  Heiztage, Auswertung und CSV kommen von der Integration (`baustelle/struktur`, `baustelle/auswertung`,
+  `baustelle/abrechnung`); die Seite zeigt nur an (Bauplan `docs/bauplan-module.md`).
+- **Neue Funktion = neues Modul in `funktionen/`** nach der Schnittstelle in `funktionen/basis.py`, eingetragen in
+  `funktionen.FUNKTIONEN`; `steuerung.py` (Kern) kennt keine Heizungs- oder Pumpen-Einzelheiten und bleibt dabei
+  unverändert. Anleitung: `docs/funktion-anlegen.md`.
+- **Die Staffelung bleibt im Kern** (alle Funktionen teilen sich die Stromanschlüsse); eine Funktion liefert nur
+  `schaltbar`, `standard_kw`, `staffel_vorrang`, `staffel_feld`.
 - **Die Automatik startet ausgeschaltet.** Die Integration schaltet Shellys nur, wenn Herbert sie einschaltet.
 - **Neustart nur durch Herbert** oder nach seiner ausdrücklichen Bestätigung, vorher die Konfiguration prüfen.
 - **Geräte steuern** (Shellys, Verbraucher auf der Baustelle) nur auf Auftrag.

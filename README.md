@@ -24,10 +24,26 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
 ## Aufbau
 
+Vier Schichten, der Weg geht nur in eine Richtung: **Fachlogik → Funktionen → Kern → Ausgabe**. Die Seite zeigt an, was
+die Integration liefert, und rechnet nichts Fachliches nach (Bauplan `docs/bauplan-module.md`).
+
+| Schicht | Wo | Was |
+|---|---|---|
+| Fachlogik | `logik/` | jede Fachregel genau einmal, ohne HA-Code, mit Test in `tests/logik/`: Arbeitszeit/Tagesplan, Regelung (Soll je Container), Staffelung, Pumpen, Warnungen, Zählen, Firma, Auswertung/Abrechnung, Bericht |
+| Funktionen | `funktionen/` | je Funktion ein Modul mit der Schnittstelle aus `basis.py` (heute `heizung.py`, `pumpen.py`; Liste `FUNKTIONEN` in `__init__.py`): Soll, Anzeige, Warnungen, Zähler, Status, Handbetrieb der Funktion – ruft `logik/` |
+| Kern | `steuerung.py` | Einrichtung, Ereignisse, Wetter, Kalender, **Staffelung** (für alle Funktionen gemeinsam, ein Anschluss), Schalten, Protokoll, Status; ruft nur die Methoden der Funktionen und kennt keine Heizungs- oder Pumpen-Einzelheiten |
+| Ausgabe | `sensor.py`, `binary_sensor.py`, `switch.py`, `daten.py`, `panel.py`, `auswertung.py`, `nachrichten.py` | Entitäten, `baustelle/struktur`, Befehle der Seite (`docs/api-0.7.md`), Auswertung aus der Langzeitstatistik, Nachrichten und Bericht |
+| Seite | `frontend/baustelle-panel.js` | zeigt nur an (Plan, Status, Auswertung, Abrechnung, CSV kommen von der Integration); Reiter nach den eingeschalteten Funktionen |
+
+Eine neue Funktion (z. B. Kühlung) ist ein neues Modul in `funktionen/`, ohne Eingriff in den Kern:
+`docs/funktion-anlegen.md`.
+
 ```
 custom_components/baustelle/   Integration (→ /config/custom_components/baustelle/)
-  logik/                       Fachlogik ohne HA-Code (Heizungsregeln, Pumpen, Zählen)
-  steuerung.py                 Laufzeit: Regelung, Staffelung, schalten, Warnungen, Zähler
+  logik/                       Fachlogik ohne HA-Code (je Thema ein Modul)
+  funktionen/                  basis.py (Schnittstelle), heizung.py, pumpen.py; FUNKTIONEN in __init__.py
+  steuerung.py                 Kern: Ereignisse, Wetter, Kalender, Staffelung, Schalten, Protokoll, Status
+  auswertung.py                Langzeitstatistik holen und logik/auswertung rechnen lassen (Seite, Bericht, CSV)
   nachrichten.py               Handy-Nachrichten mit Knöpfen, Frühstart-Hinweis, Wochen-/Monatsbericht
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät
   einstellungen.py             Einstellungen, Protokoll, Meldungen (Store v2 unter .storage/, in der Sicherung)

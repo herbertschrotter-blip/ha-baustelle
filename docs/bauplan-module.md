@@ -195,4 +195,12 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   die Versionsnummer; Nachbesserung 0.7.19: Hand, Heiz-Energie, Status und Modus-Text über die Schnittstelle;
   Nachbesserung 0.7.20: Kern ohne Heizungs-/Pumpen-Regeln, Funktionen aus `FUNKTIONEN`, Staffelung über die Funktionen) ·
   [x] Phase 5 (0.7.18) · [x] Phase 7 (0.7.21 strenge Typisierung, 0.7.22 Regeln bis Gold,
-  `quality_scale.yaml`, Symbol, Prüfläufe, README) · [ ] Phase 6
+  `quality_scale.yaml`, Symbol, Prüfläufe, README) · [x] Phase 6 (README „Aufbau“, CLAUDE.md-Regeln,
+  `docs/funktion-anlegen.md`; Nummer bleibt 0.7.22)
+
+**Abschluss 30.09.2026:** Umbau fertig, alle drei Prüfungen grün, kein Push, nicht eingespielt. Commits seit Tag
+`vor-module`: `5be9fd9` Phase 0 (0.7.12) · `d5e111f` Phase 1 (0.7.13) · `cc4c330` Phase 2 (0.7.14) · `3e93ff4` Phase 3
+(0.7.15) · `d27bbca` Nachbesserung 2/3 (0.7.16) · `309bc45` Phase 4 (0.7.17) · `5c36285` Phase 5 (0.7.18) · `ec7c8e8`,
+`ddcd6d3` Nachbesserung 4 (0.7.19, 0.7.20) · `ac10a8d`, `3222a7c`, `3b5188f`, `ccb4bb4`, `624ce0c` Phase 7 (0.7.21,
+0.7.22) · Phase 6 als Doku-Commit „Aufbau, Regeln und Anleitung Neue Funktion“ (0.7.22). Offen mit Herbert:
+HA-Sicherung → Einspielen → Neustart → Sichtprüfung (§6); Push, Releases und Repo-Beschreibung/Themen auf GitHub.
