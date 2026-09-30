@@ -8,18 +8,26 @@ Leistung, „ohne Automatik“, Aufheiz-/Abkühlrate). Geschaltet wird im Kern �
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import STATE_ON
 from homeassistant.util import dt as dt_util
 
 from ..const import ART_CONTAINER, CONF_HEIZUNG, HEIZROLLEN, ROLLE_HEIZKOERPER, ZIEHT_STROM_W
 from ..logik import warnungen as warn_logik
-from ..logik.arbeitszeit import Plan, StatusArt, bedarf_fenster, im_fenster, status as plan_status, uhrzeit
+from ..logik.arbeitszeit import (
+    AusnahmeArt,
+    Plan,
+    StatusArt,
+    bedarf_fenster,
+    im_fenster,
+    status as plan_status,
+    uhrzeit,
+)
 from ..logik.regelung import LageContainer, Soll, SollGrund, soll_container
 from ..logik.zaehlen import ABKUEHL_MIN_H, AUFHEIZ_MIN_H, gradstunden, mittel, mittel_im_betrieb, rate
 from ..texte import GRUND_TEXT, wochentag
-from .basis import ZAEHLER_SPEICHERN_S, Funktion, minuten_seit, zahl, zeit
+from .basis import ZAEHLER_SPEICHERN_S, Funktion, minuten_seit, mitternacht, zahl, zeit
 
 if TYPE_CHECKING:
     from ..steuerung import BereichInfo, GeraetInfo, Steuerung, WetterWerte
@@ -29,7 +37,8 @@ HEIZ_GRUENDE = {
     SollGrund.FRUEHSTART, SollGrund.VORHEIZEN, SollGrund.ARBEITSZEIT, SollGrund.NACHHEIZEN, SollGrund.TROCKNEN,
     SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN,
 }
-MODI = ("plan", "thermo", "bedarf", "hand", "aus")
+MODUS_TEXT = {"plan": "Zeitplan", "thermo": "Thermostat", "bedarf": "Bei Bedarf", "hand": "Hand", "aus": "Aus"}
+MODI = tuple(MODUS_TEXT)
 
 
 class Heizung(Funktion):
@@ -174,18 +183,22 @@ class Heizung(Funktion):
             if phase != vorher:
                 self.hand_beenden(gid, f"Automatik übernimmt ({GRUND_TEXT.get(s.grund, s.grund)})")
 
-    def hand_setzen(self, g: GeraetInfo, an: bool) -> None:
+    def hand_setzen(self, g: GeraetInfo, an: bool) -> bool:
         """Gerät auf Hand: Heizkörper bis zum nächsten Schaltpunkt, andere, solange sie eingeschaltet sind."""
         hand = self.st.lz["hand"]
         if g.rolle != ROLLE_HEIZKOERPER and not an:
             if hand.pop(g.id, None) is not None:
                 self.st.einstellungen.speichern()
-            return
+            return True
         if g.id not in hand:
             hand[g.id] = dt_util.now().isoformat(timespec="seconds")
             self._hand_phase.pop(g.id, None)
             self.st.einstellungen.speichern()
         self.st.protokoll("schalten", g.bereich, f"{g.name} von Hand {'eingeschaltet' if an else 'ausgeschaltet'}")
+        return True
+
+    def hand_seit(self, g: GeraetInfo) -> datetime | None:
+        return zeit(self.st.lz["hand"].get(g.id))
 
     def hand_beenden(self, gid: str, grund: str = "") -> None:
         if self.st.lz["hand"].pop(gid, None) is not None:
@@ -306,6 +319,44 @@ class Heizung(Funktion):
             return uhrzeit(s.minute)  # Mockup „aus bis 06:15“
         return f"{wochentag(s.tag)} {uhrzeit(s.minute)}"
 
+    # ------------------------------------------------------------------ Status und Protokoll
+    def status(self, jetzt: datetime, zu_warm: bool) -> tuple[str, str, datetime | None] | None:
+        """Status der Baustelle und Text neben dem Automatik-Chip (Mockup `statusText`)."""
+        st = self.st
+        if not st.automatik:
+            return "automatik_aus", "Handbetrieb – nichts wird geschaltet", None
+        heute, minute = jetzt.date(), jetzt.hour * 60 + jetzt.minute
+        jetzt_bis = self.jetzt_bis(jetzt)
+        if jetzt_bis is not None:
+            return "heizt", f"♨ alle heizen bis {jetzt_bis.strftime('%H:%M')}", jetzt_bis
+        s = plan_status(heute, minute, lambda t: st.plan(t, True))
+        naechste = mitternacht(s.tag) + timedelta(minutes=s.minute) if s.minute is not None and s.tag is not None else None
+        heizt = any(z in ("heizt", "trocknen", "frost") for z in st.daten.zustand.values())
+        ausnahme = next((a for a in st.ausnahmen() if a.datum == heute), None)
+        if ausnahme is not None and ausnahme.art == AusnahmeArt.FREI:
+            status = "frei"
+        elif st.ist_frei(heute) and (ausnahme is None or ausnahme.art == AusnahmeArt.FREI):
+            status = st.frei_art(heute) or "frei"
+        elif zu_warm:
+            status = "heizgrenze"
+        else:
+            status = "heizt" if heizt else "bereit"
+        if s.art == StatusArt.HEIZT:
+            text = f"♨ heizt bis {uhrzeit(s.minute or 0)}"
+        elif s.art == StatusArt.START:
+            text = f"Start um {uhrzeit(s.minute or 0)}"
+        elif s.tag is not None:
+            wann = "morgen" if s.tag == heute + timedelta(days=1) else wochentag(s.tag)
+            text = f"aus · {wann} ab {uhrzeit(s.minute or 0)}"
+        else:
+            text = "aus"
+        return status, text, naechste
+
+    def einstellung_text(self, pfad: tuple[str, ...], wert: Any) -> str | None:
+        if pfad[0] == "bereiche" and pfad[-1] == "modus":
+            return f"Modus: {MODUS_TEXT.get(wert, wert)}"
+        return None
+
     # ------------------------------------------------------------------ Zählen
     def zaehlen_geraet(self, g: GeraetInfo, an: bool, leistung: float | None, stunden: float) -> bool:
         """Mittlere Leistung im Betrieb, Heizzeit je Typ; True, wenn das Gerät eingeschaltet ist."""
@@ -326,6 +377,12 @@ class Heizung(Funktion):
             self._heiztag = True
             self.st.zaehler_plus(f"heizzeit:{bid}", stunden)
         self._temperaturverhalten(bid, heizt, jetzt, stunden)
+
+    def energie_buchen(self, g: GeraetInfo, kwh: float) -> None:
+        """Energie fürs Heizen (Ersparnis) und je Heizkörper-Typ (Vergleich Ölradiator/Konvektor)."""
+        self.st.zaehler_plus("energie_heizen", kwh)
+        if g.rolle == ROLLE_HEIZKOERPER:
+            self.st.zaehler_plus(f"energie_typ:{g.typ}", kwh)
 
     def zaehlen_ende(self, jetzt: datetime, stunden: float) -> None:
         """„Ohne Automatik“ (24-h-Dauerbetrieb) und Heiztage."""

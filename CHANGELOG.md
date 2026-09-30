@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.19] – 2026-09-30
+
+- Intern (Umbau „Module je Funktion“, Nachbesserung Phase 4): Handbetrieb, Energiezähler fürs Heizen, der Status der
+  Baustelle und der Protokolltext „Modus: …“ kommen jetzt von der Funktion (Heizung bzw. Pumpen); die Steuerung kennt
+  keine Heizungs- oder Pumpen-Einzelheiten mehr. Sichtbar ändert sich nichts.
+
 ## [0.7.18] – 2026-09-30
 
 - Umbau „Module je Funktion“, Phase 5: Die Integration nennt der Seite die eingeschalteten Funktionen der Baustelle

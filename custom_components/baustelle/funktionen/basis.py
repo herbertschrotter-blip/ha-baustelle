@@ -8,7 +8,11 @@ Eine Funktion (Heizung, Pumpen, später z. B. Kühlung) gehört zu bestimmten Be
 3. `nach_soll` – nur bei eingeschalteter Automatik (z. B. Handbetrieb endet am nächsten Schaltpunkt),
 4. `geraet_warnung` / `warnungen` – Zustände für `logik/warnungen.py` (Bereiche nur aktiver Funktionen),
 5. `anzeige` – Zustand und Text je Bereich (Kacheln),
-6. `zaehlen_geraet` / `zaehlen_bereich` / `zaehlen_ende` – Zähler der Funktion.
+6. `zaehlen_geraet` / `zaehlen_bereich` / `zaehlen_ende` / `energie_buchen` – Zähler der Funktion,
+7. `status` – Status der Baustelle (die erste aktive Funktion bestimmt ihn),
+
+dazu bei Bedarf `hand_setzen` / `hand_seit` (Handbetrieb eines Geräts im Bereich der Funktion) und `einstellung_text`
+(Protokolltext einer Einstellung der Funktion).
 
 `baustelle/struktur` nennt die eingeschalteten Funktionen mit ihrem `name` (`funktionen.aktive`, api-0.7 §8).
 
@@ -18,7 +22,7 @@ geschaltet wird allein über `soll` aktiver Funktionen).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -50,6 +54,10 @@ def zeit(text: Any) -> datetime | None:
         return None
     wert = dt_util.parse_datetime(str(text))
     return dt_util.as_local(wert) if wert is not None else None
+
+
+def mitternacht(tag: date) -> datetime:
+    return datetime.combine(tag, time.min, tzinfo=dt_util.get_default_time_zone())
 
 
 def minuten_seit(seit: datetime | None, jetzt: datetime) -> float:
@@ -84,6 +92,14 @@ class Funktion:
     def nach_soll(self, soll: SollJeBereich) -> None:
         return None
 
+    def hand_setzen(self, g: GeraetInfo, an: bool) -> bool:
+        """Gerät des Bereichs von Hand geschaltet; False, wenn die Funktion keinen Handbetrieb kennt."""
+        return False
+
+    def hand_seit(self, g: GeraetInfo) -> datetime | None:
+        """Seit wann das Gerät auf Hand steht (sonst None)."""
+        return None
+
     def geraet_warnung(
         self, g: GeraetInfo, erreichbar: bool, leistung: float | None, jetzt: datetime
     ) -> tuple[warn_logik.Typ, datetime | None, int]:
@@ -107,4 +123,16 @@ class Funktion:
         return None
 
     def zaehlen_ende(self, jetzt: datetime, stunden: float) -> None:
+        return None
+
+    def energie_buchen(self, g: GeraetInfo, kwh: float) -> None:
+        """Zusätzliche Energiezähler der Funktion für ein Gerät (Energie und Kosten je Bereich bucht der Kern)."""
+        return None
+
+    def status(self, jetzt: datetime, zu_warm: bool) -> tuple[str, str, datetime | None] | None:
+        """(status, text, nächster Schaltpunkt) der Baustelle; None = die nächste Funktion bestimmt ihn."""
+        return None
+
+    def einstellung_text(self, pfad: tuple[str, ...], wert: Any) -> str | None:
+        """Protokolltext einer Einstellung der Funktion; None = allgemeiner Text des Kerns."""
         return None

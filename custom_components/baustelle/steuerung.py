@@ -71,21 +71,24 @@ from .const import (
     ZIEHT_STROM_W,
 )
 from .einstellungen import Einstellungen
-from .funktionen.basis import ZAEHLER_SPEICHERN_S, Funktion, minuten_seit as _minuten_seit, zahl as _zahl, zeit as _zeit
+from .funktionen.basis import (
+    ZAEHLER_SPEICHERN_S,
+    Funktion,
+    minuten_seit as _minuten_seit,
+    mitternacht as _mitternacht,
+    zahl as _zahl,
+    zeit as _zeit,
+)
 from .funktionen.heizung import Heizung
 from .funktionen.pumpen import Pumpen
 from .logik import staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import (
     Arbeitszeit,
     Ausnahme,
-    AusnahmeArt,
     HeizRegeln,
     Plan,
-    StatusArt,
     WetterTag,
-    status as plan_status,
     tagesplan,
-    uhrzeit,
 )
 from .logik.pumpen import baustelle_offline
 from .logik.regelung import LageContainer, Soll, SollGrund
@@ -112,10 +115,6 @@ WARTE_TEXT = {
     "rundlauf": "Rundlauf {takt} min",
     "anlauf": "Anlauf",
 }
-
-
-def _mitternacht(tag: date) -> datetime:
-    return datetime.combine(tag, time.min, tzinfo=dt_util.get_default_time_zone())
 
 
 def morgen_frueh(jetzt: datetime) -> datetime:
@@ -288,6 +287,10 @@ class Steuerung:
     def geraete_in(self, bereich_id: str) -> list[GeraetInfo]:
         return [g for g in self.geraete.values() if g.bereich == bereich_id]
 
+    def funktion_von(self, g: GeraetInfo) -> Funktion:
+        """Die Funktion des Bereichs, in dem das Gerät steckt (Pumpenschacht nur mit Pumpen, Einrichtung)."""
+        return self._je_art[self.bereiche[g.bereich].art]
+
     def container(self) -> list[BereichInfo]:
         return [b for b in self.bereiche.values() if b.art == ART_CONTAINER]
 
@@ -386,7 +389,8 @@ class Steuerung:
         ziel[pfad[-1]] = wert
         self.einstellungen.speichern()
         if protokoll and alt != wert:
-            self.protokoll("einstellung", pfad[1] if pfad[0] == "bereiche" else None, _einstellung_text(pfad, wert))
+            text = next((t for f in self.funktionen if (t := f.einstellung_text(pfad, wert)) is not None), None)
+            self.protokoll("einstellung", pfad[1] if pfad[0] == "bereiche" else None, text or _einstellung_text(pfad, wert))
         if pfad[0] == "bericht":
             self.bericht_planen()
         if pfad[0] == "termine_kalender" or pfad[-1] == "bedarf":
@@ -454,8 +458,8 @@ class Steuerung:
         if kontext.user_id is None or kontext.id in self._eigene_kontexte or kontext.parent_id in self._eigene_kontexte:
             return
         for g in self.geraete.values():
-            if g.schalter == entity_id and g.rolle != ROLLE_PUMPE:
-                self.heizfunktion.hand_setzen(g, neu.state == STATE_ON)
+            if g.schalter == entity_id:
+                self.funktion_von(g).hand_setzen(g, neu.state == STATE_ON)
 
     # ------------------------------------------------------------------ Wetter
     async def _async_prognose(self, _now: datetime | None = None) -> None:
@@ -750,7 +754,7 @@ class Steuerung:
             s_c = soll.get(g.bereich)
             heizer = (
                 g.rolle == ROLLE_HEIZKOERPER and s_c is not None and s_c[0].ein is not None
-                and g.id not in self.lz["hand"] and erreichbar
+                and self.funktion_von(g).hand_seit(g) is None and erreichbar
             )
             if heizer:
                 kw = self.nenn_kw(g)  # vorsichtig: auch wenn der Thermostat gerade nicht zieht
@@ -962,9 +966,7 @@ class Steuerung:
     def geraet_schalten(self, g: GeraetInfo, an: bool) -> None:
         """Gerät von der Seite aus schalten: Handbetrieb bis zum nächsten Schaltpunkt (api §2 `schalten`)."""
         zustand = self.hass.states.get(g.schalter)
-        if self.automatik and g.rolle != ROLLE_PUMPE:
-            self.heizfunktion.hand_setzen(g, an)
-        else:
+        if not (self.automatik and self.funktion_von(g).hand_setzen(g, an)):
             self.protokoll("schalten", g.bereich, f"{g.name} von Hand {'eingeschaltet' if an else 'ausgeschaltet'}")
         self._letzter_befehl.pop(g.id, None)
         if zustand is not None and zustand.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
@@ -1022,44 +1024,14 @@ class Steuerung:
     def _status(self, jetzt: datetime, soll: dict[str, tuple[Soll, LageContainer]], zu_warm: bool) -> None:
         """Status der Baustelle und Text neben dem Automatik-Chip (Mockup `statusText`)."""
         d = self.daten
-        heute, minute = jetzt.date(), jetzt.hour * 60 + jetzt.minute
         d.naechste = None
-        jetzt_bis = self.heizfunktion.jetzt_bis(jetzt)
         if not self.aktiv:
             d.status, d.status_text = "abgeschlossen", "abgeschlossen"
             return
-        if not self.heizung:
-            d.status, d.status_text = "nur_pumpen", ""
-            return
-        if not self.automatik:
-            d.status, d.status_text = "automatik_aus", "Handbetrieb – nichts wird geschaltet"
-            return
-        s = plan_status(heute, minute, lambda t: self.plan(t, True))
-        if s.minute is not None and s.tag is not None:
-            d.naechste = _mitternacht(s.tag) + timedelta(minutes=s.minute)
-        heizt = any(z in ("heizt", "trocknen", "frost") for z in d.zustand.values())
-        ausnahme = next((a for a in self.ausnahmen() if a.datum == heute), None)
-        if jetzt_bis is not None:
-            d.status, d.status_text = "heizt", f"♨ alle heizen bis {jetzt_bis.strftime('%H:%M')}"
-            d.naechste = jetzt_bis
-            return
-        if ausnahme is not None and ausnahme.art == AusnahmeArt.FREI:
-            d.status = "frei"
-        elif self.ist_frei(heute) and (ausnahme is None or ausnahme.art == AusnahmeArt.FREI):
-            d.status = self.frei_art(heute) or "frei"
-        elif zu_warm:
-            d.status = "heizgrenze"
-        else:
-            d.status = "heizt" if heizt else "bereit"
-        if s.art == StatusArt.HEIZT:
-            d.status_text = f"♨ heizt bis {uhrzeit(s.minute or 0)}"
-        elif s.art == StatusArt.START:
-            d.status_text = f"Start um {uhrzeit(s.minute or 0)}"
-        elif s.tag is not None:
-            wann = "morgen" if s.tag == heute + timedelta(days=1) else texte.wochentag(s.tag)
-            d.status_text = f"aus · {wann} ab {uhrzeit(s.minute or 0)}"
-        else:
-            d.status_text = "aus"
+        for f in self.funktionen:
+            if f.aktiv() and (status := f.status(jetzt, zu_warm)) is not None:
+                d.status, d.status_text, d.naechste = status
+                return
 
     # ------------------------------------------------------------------ Warnungen
     def warn_einstellungen(self) -> warn_logik.WarnEinstellungen:
@@ -1095,7 +1067,7 @@ class Steuerung:
                     id=g.id, bereich=g.bereich, typ=typ, name=g.name, erreichbar=erreichbar,
                     offline_seit=self._offline_seit.get(g.id), leistung=leistung, an=an,
                     an_seit=dt_util.as_local(zustand.last_changed) if an and zustand is not None else None,
-                    hand_seit=_zeit(self.lz["hand"].get(g.id)), laeuft_seit=laeuft_seit, zyklen_h=zyklen,
+                    hand_seit=self.funktion_von(g).hand_seit(g), laeuft_seit=laeuft_seit, zyklen_h=zyklen,
                 )
             )
         return liste
@@ -1195,10 +1167,8 @@ class Steuerung:
             self.zaehler_plus(key, kwh)
         for key in ("kosten", f"kosten:{g.bereich}"):
             self.zaehler_plus(key, kwh * preis)
-        if g.rolle in HEIZROLLEN:
-            self.zaehler_plus("energie_heizen", kwh)
-        if g.rolle == ROLLE_HEIZKOERPER:
-            self.zaehler_plus(f"energie_typ:{g.typ}", kwh)
+        if (f := self._je_rolle.get(g.rolle)) is not None:
+            f.energie_buchen(g, kwh)
 
     def _energie_zaehlen(self, g: GeraetInfo, stand: float | None) -> None:
         """Neuer Stand des Energiezählers eines Shelly; der letzte Stand ist gespeichert (übersteht Neustarts)."""
@@ -1246,13 +1216,11 @@ class Steuerung:
         bis_tag = date.fromisoformat(ende) if ende else None   # geplantes Ende der Baustelle (neu 0.7.8)
         return hochrechnung(self.zaehler.get(key, 0.0), tage, tage_heizperiode(von, bis, jahr, bis_tag))
 
-MODUS_TEXT = {"plan": "Zeitplan", "thermo": "Thermostat", "bedarf": "Bei Bedarf", "hand": "Hand", "aus": "Aus"}
+
 def _einstellung_text(pfad: tuple[str, ...], wert: Any) -> str:
-    """Protokolltext einer geänderten Einstellung."""
+    """Protokolltext einer geänderten Einstellung (Einstellungen einer Funktion: `Funktion.einstellung_text`)."""
     if pfad == ("automatik",):
         return "Automatik eingeschaltet" if wert else "Automatik ausgeschaltet"
-    if pfad[0] == "bereiche" and pfad[-1] == "modus":
-        return f"Modus: {MODUS_TEXT.get(wert, wert)}"
     if isinstance(wert, bool):
         wert_text = "ein" if wert else "aus"
     elif wert is None:

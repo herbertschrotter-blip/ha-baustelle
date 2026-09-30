@@ -1,6 +1,6 @@
 """Funktion Pumpen: Grundwasserpumpen in Pumpenschächten überwachen (Bauplan 0.7, Bauplan Module §3).
 
-Pumpen werden nie geschaltet, nur gemessen: läuft (`logik/pumpen.laeuft`), Zyklen (Starts je Stunde und Zähler),
+Pumpen werden nie geschaltet (kein Handbetrieb), nur gemessen: läuft (`logik/pumpen.laeuft`), Zyklen (Starts je Stunde und Zähler),
 Pumpzeit, Anzeige des Schachts und die Zustände für die Pumpen-Warnungen (Trockenlauf, Dauerlauf, Zyklen).
 """
 
@@ -66,3 +66,6 @@ class Pumpen(Funktion):
         if self.st.daten.pumpe_laeuft.get(g.id):
             self.st.zaehler_plus(f"pumpzeit:{g.id}", stunden)
         return False
+
+    def status(self, jetzt: datetime, zu_warm: bool) -> tuple[str, str, datetime | None] | None:
+        return "nur_pumpen", "", None

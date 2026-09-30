@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.19",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Intern (Umbau „Module je Funktion“, Nachbesserung Phase 4): Handbetrieb, Energiezähler fürs Heizen, der Status der Baustelle und der Protokolltext „Modus: …“ kommen jetzt von der Funktion (Heizung bzw. Pumpen); die Steuerung kennt keine Heizungs- oder Pumpen-Einzelheiten mehr. Sichtbar ändert sich nichts."
+    ]
+  },
+  {
     "version": "0.7.18",
     "datum": "2026-09-30",
     "punkte": [

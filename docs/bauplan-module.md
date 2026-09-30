@@ -52,7 +52,8 @@ custom_components/baustelle/
                               Kennzahlen Verlauf, Typvergleich, Wetter-Einfluss, Je Gerät
   funktionen/                 NEU: je Funktion ein Modul mit gleicher Schnittstelle
     basis.py                  Funktion (Protokoll): name, aktiv(), bereiche(), soll(), warnungen(), zaehlen(),
-                              anzeige(), struktur() – der Kern ruft nur diese Methoden
+                              anzeige(), status(), hand_setzen()/hand_seit(), energie_buchen(),
+                              einstellung_text() – der Kern ruft nur diese Methoden
     heizung.py                Soll je Container, Hand, Boost/Bedarf, Anzeige Heizung, Zähler Heizung
     pumpen.py                 Pumpenüberwachung, Zyklen, Pumpzeit, Anzeige Schacht
   steuerung.py                Kern: Einrichtung, Ereignisse, Wetter, Kalender, Staffelung (gemeinsam für alle
@@ -139,6 +140,11 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   mit `pumpen: false` und einem Schacht – Warnung „Trockenlauf“ und Zähler `pumpzeit` wie bisher; neu (Phase 5) fehlt
   dort nur der Reiter Pumpen auf der Seite. Statt einer Methode `struktur()` je Funktion nennt `baustelle/struktur` die
   Namen der aktiven Funktionen (`funktionen.aktive`) – eine Funktion braucht bisher keine eigenen Felder in der Struktur.
+  Nachbesserung (0.7.19): Handbetrieb, Heiz-Energiezähler (`energie_heizen`, `energie_typ:*`), Status der Baustelle
+  (Heizung: Automatik/Plan/„alle jetzt heizen“; Pumpen: `nur_pumpen`) und der Protokolltext „Modus: …“ laufen über
+  die Schnittstelle. Den Handbetrieb bestimmt die Funktion des **Bereichs** (nicht der Rolle), damit Steckdosen und
+  Trockner im Container wie bisher auf Hand gehen; Pumpenschacht und Rolle Pumpe gehören laut Einrichtung immer
+  zusammen, die Pumpen kennen keinen Handbetrieb. Keine sichtbare Abweichung (`struktur-echt*.json` byte-gleich).
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
 
 ## 6. Ausführung mit Agenten
@@ -156,4 +162,5 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 - Freigegeben von Herbert am 30.09.2026 (mit Phase 7).
 - [x] Phase 0 · [x] Phase 1 · [x] Phase 2 · [x] Phase 3 (Nachbesserung nach Prüfung: Firmenregel einmal, Firma je
   Container aus der Struktur, sichtbare Unterschiede in §5) · [x] Phase 4 (0.7.17; `struktur-echt.json` byte-gleich bis auf
-  die Versionsnummer) · [x] Phase 5 (0.7.18) · [ ] Phase 7 · [ ] Phase 6
+  die Versionsnummer; Nachbesserung 0.7.19: Hand, Heiz-Energie, Status und Modus-Text über die Schnittstelle) ·
+  [x] Phase 5 (0.7.18) · [ ] Phase 7 · [ ] Phase 6

@@ -158,6 +158,43 @@ async def test_hand_bis_zum_naechsten_schaltpunkt(hass: HomeAssistant, baustelle
     assert any("Automatik übernimmt" in t for t in _texte(st, "schalten"))
 
 
+async def test_hand_und_energie_nur_ueber_die_funktion(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """Handbetrieb, Heiz-Energiezähler und Status kommen von der Funktion des Bereichs (Bauplan Module §3)."""
+    st = baustelle.runtime_data
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    # Pumpe von Hand geschaltet (HA oder Seite): kein Handbetrieb, nur Protokoll
+    hass.states.async_set("switch.p1", "on", context=Context(user_id="nutzer"))
+    await hass.async_block_till_done()
+    st.geraet_schalten(st.geraete[P1], False)
+    await hass.async_block_till_done()
+    assert P1 not in st.lz["hand"] and st.pumpfunktion.hand_seit(st.geraete[P1]) is None
+    assert "Pumpe 1 von Hand ausgeschaltet" in _texte(st, "schalten")
+    # Heizkörper von der Seite: Handbetrieb der Heizung
+    st.geraet_schalten(st.geraete[HK1], True)
+    await hass.async_block_till_done()
+    assert st.funktion_von(st.geraete[HK1]).hand_seit(st.geraete[HK1]) is not None
+    # Energie: Heizen und Typ nur für Heizkörper, Pumpe nur Energie und Kosten
+    z = st.zaehler
+    vorher = {k: z.get(k, 0.0) for k in ("energie", "energie_heizen", "energie_typ:oelradiator", "energie_typ:konvektor")}
+    st._energie_buchen(st.geraete[HK1], 2.0)
+    st._energie_buchen(st.geraete[P1], 1.0)
+    assert {k: z.get(k, 0.0) - v for k, v in vorher.items()} == {
+        "energie": 3.0, "energie_heizen": 2.0, "energie_typ:oelradiator": 2.0, "energie_typ:konvektor": 0.0,
+    }
+    assert st.daten.status != "nur_pumpen"
+
+
+async def test_nur_pumpen_status_von_der_pumpenfunktion(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    entry = await baustelle_anlegen(hass, freezer, heizung=False)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    st = entry.runtime_data
+    st.auswerten()
+    assert (st.daten.status, st.daten.status_text) == ("nur_pumpen", "")
+
+
 async def test_heizgrenze_schaltet_aus(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
     st = baustelle.runtime_data
     st.e["staffel"]["an"] = False
