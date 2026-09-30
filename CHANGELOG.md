@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.12] – 2026-09-30
+
+- Fehler: Reiter Heizung – die Kacheln flackerten bei jedem Tipp und jeder Einstellung (die Einblend-Animation lief
+  beim Neuzeichnen jedes Mal neu). Jetzt laufen sie nur beim Öffnen des Reiters ein; ein Test findet künftig jede
+  Einblend-Animation ohne diese Sperre.
+
 ## [0.7.11] – 2026-09-30
 
 - Reiter **Heizung übersichtlicher** (Herbert: „sehr unübersichtlich“; Mockup `heizung-varianten.html`, Variante A

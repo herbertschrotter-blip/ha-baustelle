@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.12",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Fehler: Reiter Heizung – die Kacheln flackerten bei jedem Tipp und jeder Einstellung (die Einblend-Animation lief beim Neuzeichnen jedes Mal neu). Jetzt laufen sie nur beim Öffnen des Reiters ein; ein Test findet künftig jede Einblend-Animation ohne diese Sperre."
+    ]
+  },
+  {
     "version": "0.7.11",
     "datum": "2026-09-30",
     "punkte": [

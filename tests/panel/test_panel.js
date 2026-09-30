@@ -224,6 +224,12 @@ const hov = wo => { let t = ''; const alt = panel.tip; panel.tip = (e, h) => { t
   panel.tip = alt; };
 
 /* ---------- allgemeine Prüfung gegen die echte Antwort der Integration (struktur-echt.json) ---------- */
+/* Neuzeichnen (Tipp, Einstellung, neue Werte) darf keine Einblend-Animation neu starten – sonst flackert die Seite
+   (Herbert 30.09.2026, Kacheln im Reiter Heizung): jede Klasse mit einmaliger Animation braucht eine Regel „.still …“ */
+{ const quelle = fs.readFileSync(datei, 'utf8'), still = (quelle.match(/^\.still [^\n]*/m) || [''])[0];
+  const einmal = [...quelle.matchAll(/^(\.[a-z][\w-]*(?: [.\w-]+)?) \{[^}\n]*animation: (?:rein|seite|wachsen) [^}\n]*\}/gm)].map(m => m[1]).filter(k => !k.startsWith('.seite'));
+  const fehlt = einmal.filter(k => !still.includes(`.still ${k}`));
+  erwarte(`kein Flackern beim Neuzeichnen – ohne .still-Regel: ${fehlt.join(', ')}`, einmal.length > 3 && !fehlt.length); }
 const HZ_KACHELN = [['heute'], ['plan'], ['wann'], ['container'], ['az'], ['ausn'], ['regeln'], ['trocknen'], ['urlaub']];
 const ANSICHTEN = ['uebersicht', 'heizung', 'pumpen', 'auswertung', 'verlauf', 'einst', 'ueber', 'dev'];
 const EINBLENDUNGEN = ['verbrauch', 'wetter', 'warnungen', 'baustellen', 'heizplan', 'strom', 'nachrichten', 'bericht', 'container-neu', 'abschliessen', 'urlaub', 'wetterquelle', 'name', 'baustelle-neu', 'termin', 'zeitraum-bs'];
