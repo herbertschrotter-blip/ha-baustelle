@@ -28,6 +28,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from enum import StrEnum
+from typing import Any
 
 TAG_MINUTEN = 24 * 60
 
@@ -79,7 +80,7 @@ class Arbeitszeit:
     tage: dict[int, tuple[int, int] | None] = field(default_factory=dict)
 
     @classmethod
-    def aus_store(cls, daten: dict) -> Arbeitszeit:
+    def aus_store(cls, daten: dict[str, Any]) -> Arbeitszeit:
         """Aus dem Store (`{"ab": "2026-10-05", "name": …, "tage": {"0": ["07:00", "16:30"], …}}`)."""
         tage: dict[int, tuple[int, int] | None] = {}
         for schluessel, zeit in (daten.get("tage") or {}).items():
@@ -98,7 +99,7 @@ class Ausnahme:
     notiz: str = ""
 
     @classmethod
-    def aus_store(cls, daten: dict) -> Ausnahme:
+    def aus_store(cls, daten: dict[str, Any]) -> Ausnahme:
         """Aus dem Store (`{"datum": "2026-10-03", "art": "arbeit", "von": "07:00", "bis": "12:00", "notiz": ""}`)."""
         von, bis = daten.get("von"), daten.get("bis")
         return cls(

@@ -42,7 +42,7 @@ class BaustelleEntity(Entity):
             if self.device_entry is None:
                 self._attr_device_info = DeviceInfo(
                     identifiers={(DOMAIN, geraet_id)}, name=geraet.name, manufacturer=HERSTELLER, model="Shelly",
-                    via_device_id=steuerung.geraet_ids[bereich_id],
+                    via_device_id=steuerung.geraet_ids[geraet.bereich],
                 )
         elif bereich_id is None:
             self._attr_unique_id = f"{entry.entry_id}_{key}"

@@ -39,7 +39,7 @@ def _eintraege(zuordnung: Iterable[Mapping[str, Any]], bereich: str) -> list[tup
     return sorted(liste, key=lambda x: x[0].timestamp())
 
 
-def firma_am(zuordnung: list[dict], bereich: str, zeit: datetime) -> str:
+def firma_am(zuordnung: list[dict[str, Any]], bereich: str, zeit: datetime) -> str:
     """Firma, der der Container `bereich` zum Zeitpunkt `zeit` gehört; ohne Eintrag `eigen`."""
     firma = EIGEN
     for ab, wer in _eintraege(zuordnung, bereich):
@@ -48,7 +48,7 @@ def firma_am(zuordnung: list[dict], bereich: str, zeit: datetime) -> str:
     return firma
 
 
-def firma_von(zuordnung: list[dict], firmen: Iterable[Mapping[str, Any]], bereich: str, zeit: datetime) -> str:
+def firma_von(zuordnung: list[dict[str, Any]], firmen: Iterable[Mapping[str, Any]], bereich: str, zeit: datetime) -> str:
     """Wie `firma_am`, aber eine Firma, die nicht (mehr) in `firmen` steht, zählt zur eigenen Firma."""
     fid = firma_am(zuordnung, bereich, zeit)
     return fid if any(f.get("id") == fid for f in firmen) else EIGEN

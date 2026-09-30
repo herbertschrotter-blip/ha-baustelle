@@ -12,10 +12,10 @@ geladene Baustellen (Verlauf) kommen aus der Einrichtung (Subentries), ohne Eins
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, tzinfo
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -42,6 +42,7 @@ from .const import (
     TYPEN,
 )
 from .logik import auswertung as a
+from .logik.abrechnung import EIGEN
 
 if TYPE_CHECKING:
     from .steuerung import Steuerung
@@ -99,6 +100,8 @@ def quelle(hass: HomeAssistant, entry: ConfigEntry) -> Quelle:
     registry = er.async_get(hass)
     ids = {e.unique_id: e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)}
     st: Steuerung | None = getattr(entry, "runtime_data", None)
+    bereiche: list[dict[str, Any]]
+    geraete: list[dict[str, Any]]
     if st is not None:
         bereiche = [{"id": b.id, "name": b.name, "art": b.art} for b in st.bereiche.values()]
         geraete = [{"id": g.id, "bereich": g.bereich, "rolle": g.rolle, "typ": g.typ, "energie": g.energie}
@@ -129,12 +132,13 @@ async def async_statistik(
     ids = {i for i in ids if i}
     if not ids or "recorder" not in hass.config.components:
         return {}
-    from homeassistant.components.recorder import get_instance  # noqa: PLC0415
     from homeassistant.components.recorder.statistics import statistics_during_period  # noqa: PLC0415
+    from homeassistant.helpers.recorder import get_instance  # noqa: PLC0415
 
-    return await get_instance(hass).async_add_executor_job(
+    daten = await get_instance(hass).async_add_executor_job(
         statistics_during_period, hass, start, ende, ids, periode, None, arten
     )
+    return cast(Statistik, daten)
 
 
 def _zone() -> tzinfo:
@@ -168,7 +172,7 @@ def werte_je_tag(q: Quelle, je_tag: dict[str, dict[date, float]]) -> dict[str, l
 
 
 def abrechnung_daten(
-    quellen: list[Quelle], werte: dict[str, dict[str, list[tuple[Any, float | None]]]], preis: float
+    quellen: list[Quelle], werte: Mapping[str, Mapping[str, Sequence[tuple[Any, float | None]]]], preis: float
 ) -> list[dict[str, Any]]:
     """Abrechnung je Firma und Container mit € und Anteil, Namen der Container und Baustellen (Seite und Bericht)."""
     zone = _zone()
@@ -177,7 +181,7 @@ def abrechnung_daten(
     titel = {q.entry.entry_id: q.entry.title for q in quellen}
     namen = {(q.entry.entry_id, b["id"]): b["name"] for q in quellen for b in q.bereiche}
     return [
-        {**z, "id": a.EIGEN if z["eigen"] else z["firma"], "eur": z["kwh"] * preis,
+        {**z, "id": EIGEN if z["eigen"] else z["firma"], "eur": z["kwh"] * preis,
          "anteil": z["kwh"] / ges * 100 if ges else 0.0,
          "container": [{**c, "titel": titel[c["entry"]], "name": namen[(c["entry"], c["bereich"])], "eur": c["kwh"] * preis}
                        for c in z["container"]]}
@@ -211,7 +215,7 @@ async def async_abrechnung(
         werte[eid], werte_zeitraum[eid] = {}, {}
         for b in q.bereiche:
             teile = q.energie_ids(b["id"])
-            je = {}
+            je: dict[datetime, float] = {}
             for sid in teile:
                 for p in roh.get(sid, []):
                     t = a.zeitpunkt(p["start"])
@@ -241,9 +245,9 @@ async def _summen(hass: HomeAssistant, q: Quelle, zr: a.Zeitraum) -> dict[str, A
     """kWh, Heizzeit (Container), Pumpzeit und „ohne Automatik“ einer Baustelle im Zeitraum; dazu die Pumpzeit je Pumpe."""
     zone, eid = _zone(), q.entry.entry_id
     container = [b for b in q.bereiche if b["art"] == ART_CONTAINER]
-    ids = [*(i for b in q.bereiche for i in q.energie_ids(b["id"])), *(q.eid(b["id"], "heizzeit") for b in container),
-           *(q.eid(g["id"], "pumpzeit") for g in q.pumpen()), q.eid(eid, "energie_ohne_automatik")]
-    ids = [i for i in ids if i]
+    alle = [*(i for b in q.bereiche for i in q.energie_ids(b["id"])), *(q.eid(b["id"], "heizzeit") for b in container),
+            *(q.eid(g["id"], "pumpzeit") for g in q.pumpen()), q.eid(eid, "energie_ohne_automatik")]
+    ids = [i for i in alle if i]
     roh = await async_statistik(hass, ids, a.mitternacht(zr.von, zone), a.mitternacht(zr.bis, zone), zr.periode,
                                 {"change", "mean"})
     w = a.reihen(zr, {i: roh.get(i, []) for i in ids}, zone)

@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.21",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Intern (Qualität, Bauplan Module Phase 7): Die Integration ist jetzt vollständig und streng typisiert (`mypy --strict` ohne Fehler, Einstellungen in `pyproject.toml`). Antworten von Wetter- und Kalenderdiensten werden dabei vorsichtiger gelesen (eine unerwartete Antwort gilt als leer statt als Fehler). Sichtbar ändert sich nichts."
+    ]
+  },
+  {
     "version": "0.7.20",
     "datum": "2026-09-30",
     "punkte": [

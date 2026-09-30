@@ -25,7 +25,7 @@ from calendar import monthrange
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone, tzinfo
-from typing import Any
+from typing import Any, TypeGuard
 
 from .abrechnung import EIGEN, firma_von, zahl as fest
 
@@ -39,7 +39,7 @@ Punkt = Mapping[str, Any]
 Statistik = Mapping[str, Sequence[Punkt]]
 
 
-def ist_zahl(wert: Any) -> bool:
+def ist_zahl(wert: Any) -> TypeGuard[float | int | str]:
     """Endliche Zahl (auch als Text) – wie `zahl()` der Seite."""
     if wert is None or wert == "" or isinstance(wert, bool):
         return False
@@ -61,7 +61,7 @@ def addieren(reihen: Sequence[Sequence[float | None]]) -> list[float]:
     """Reihen stellenweise addieren; Länge der ersten Reihe, fehlende Werte zählen 0."""
     if not reihen:
         return []
-    ergebnis = list(reihen[0])
+    ergebnis = [v or 0.0 for v in reihen[0]]
     for reihe in reihen[1:]:
         ergebnis = [v + (reihe[i] or 0.0 if i < len(reihe) else 0.0) for i, v in enumerate(ergebnis)]
     return ergebnis
@@ -366,11 +366,12 @@ def kennzahlen(
 
     `zustaende`: aktuelle Werte der Sensoren `energie`, `kosten`, `ersparnis` (None ohne Wert) – nur, wenn der Zähler fehlt.
     """
-    kwh = float(zaehler["energie"]) if ist_zahl(zaehler.get("energie")) else (zustaende.get("energie") if zustaende.get("energie") is not None else 0.0)
+    energie, kosten = zustaende.get("energie"), zustaende.get("kosten")
+    kwh = float(zaehler["energie"]) if ist_zahl(zaehler.get("energie")) else (energie if energie is not None else 0.0)
     if ist_zahl(zaehler.get("kosten")):
         eur = float(zaehler["kosten"])
     else:
-        eur = zustaende["kosten"] if zustaende.get("kosten") is not None else kwh * preis
+        eur = kosten if kosten is not None else kwh * preis
     gespart = zustaende.get("ersparnis")
     if gespart is None and ist_zahl(zaehler.get("ohne")) and ist_zahl(zaehler.get("energie_heizen")):
         gespart = max(0.0, float(zaehler["ohne"]) - float(zaehler["energie_heizen"])) * preis

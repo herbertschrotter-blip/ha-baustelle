@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.21] – 2026-09-30
+
+- Intern (Qualität, Bauplan Module Phase 7): Die Integration ist jetzt vollständig und streng typisiert
+  (`mypy --strict` ohne Fehler, Einstellungen in `pyproject.toml`). Antworten von Wetter- und Kalenderdiensten werden
+  dabei vorsichtiger gelesen (eine unerwartete Antwort gilt als leer statt als Fehler). Sichtbar ändert sich nichts.
+
 ## [0.7.20] – 2026-09-30
 
 - Intern (Umbau „Module je Funktion“, zweite Nachbesserung Phase 4): Heizplan, Heizgrenze, freie Tage, Termine der

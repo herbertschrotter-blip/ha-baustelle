@@ -198,7 +198,8 @@ class Einstellungen:
 
     def bereich(self, bereich_id: str) -> dict[str, Any]:
         """Einstellungen eines Bereichs."""
-        return self.daten["bereiche"].setdefault(bereich_id, copy.deepcopy(STANDARD_BEREICH))
+        bereich: dict[str, Any] = self.daten["bereiche"].setdefault(bereich_id, copy.deepcopy(STANDARD_BEREICH))
+        return bereich
 
     def protokoll(self, eintrag: list[Any]) -> None:
         """Eintrag vorne anfügen, höchstens `PROTOKOLL_MAX` behalten."""

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 import uuid
 
 import voluptuous as vol
@@ -22,6 +22,9 @@ from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldung
 from .funktionen.heizung import Heizung
 from .logik.auswertung import ARTEN
 from .logik.warnungen import Art
+
+if TYPE_CHECKING:
+    from .steuerung import Steuerung
 
 URL_PANEL = "baustelle"
 URL_STATISCH = "/baustelle_static"
@@ -162,9 +165,9 @@ async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
         websocket_api.async_register_command(hass, befehl)
 
 
-def _steuerung(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]):
+def _steuerung(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> Steuerung | None:
     entry = hass.config_entries.async_get_entry(msg["entry_id"])
-    st = getattr(entry, "runtime_data", None) if entry is not None and entry.domain == DOMAIN else None
+    st: Steuerung | None = getattr(entry, "runtime_data", None) if entry is not None and entry.domain == DOMAIN else None
     if st is None:
         connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Baustelle nicht gefunden oder nicht geladen")
     return st
@@ -464,7 +467,7 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
             lz["bedarf_bis"][bid] = ende
             if msg.get("boost"):
                 lz["boost_bis"][bid] = min(boost_bis, ende)
-            st.protokoll("schalten", bid, f"{name} heizt bis {dt_util.parse_datetime(ende).strftime('%H:%M')}"
+            st.protokoll("schalten", bid, f"{name} heizt bis {dt_util.parse_datetime(ende, raise_on_error=True).strftime('%H:%M')}"
                          + (" · ⚡ schnell" if msg.get("boost") else ""))
         elif aktion == "bedarf_aus":
             lz["bedarf_bis"].pop(bid, None)
@@ -482,7 +485,7 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
             st.protokoll("schalten", None, f"Alle jetzt heizen bis {(jetzt + timedelta(minutes=msg['minuten'])).strftime('%H:%M')}")
         elif bis:
             lz["jetzt_bis"] = bis
-            st.protokoll("schalten", None, f"Alle jetzt heizen bis {dt_util.parse_datetime(bis).strftime('%H:%M')}")
+            st.protokoll("schalten", None, f"Alle jetzt heizen bis {dt_util.parse_datetime(bis, raise_on_error=True).strftime('%H:%M')}")
         else:
             lz["jetzt_bis"] = None
             st.protokoll("schalten", None, "„Alle jetzt heizen“ beendet")
@@ -542,7 +545,7 @@ async def ws_bericht(hass: HomeAssistant, connection: websocket_api.ActiveConnec
 
 
 # ---------------------------------------------------------------------- auswertung, abrechnung (api-0.7 §8)
-ZEITRAUM = {
+ZEITRAUM: dict[Any, Any] = {
     vol.Required("entry_id"): str,
     vol.Optional("zeitraum", default="Monat"): vol.In(ARTEN),
     vol.Optional("versatz", default=0): vol.All(vol.Coerce(int), vol.Range(0, 100)),

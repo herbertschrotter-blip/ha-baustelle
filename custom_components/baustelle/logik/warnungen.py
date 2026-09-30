@@ -46,6 +46,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
+from typing import Any
 
 from . import pumpen
 
@@ -171,11 +172,11 @@ class WarnEinstellungen:
     trocken_nach_min: float = 1.0
 
     @classmethod
-    def aus_store(cls, meldungen_einst: Mapping, heizung: Mapping) -> WarnEinstellungen:
+    def aus_store(cls, meldungen_einst: Mapping[str, Any], heizung: Mapping[str, Any]) -> WarnEinstellungen:
         """Einstellungen aus den Store-Abschnitten `meldungen_einst` und `heizung` (Bauplan §1)."""
         standard = cls()
 
-        def wert(quelle: Mapping, schluessel: str, vorgabe):
+        def wert(quelle: Mapping[str, Any], schluessel: str, vorgabe: Any) -> Any:
             x = quelle.get(schluessel) if quelle else None
             return vorgabe if x is None else x
 
@@ -220,7 +221,7 @@ class Warnung:
     bereich: str | None
     geraet: str | None
     seit: datetime
-    werte: dict = field(default_factory=dict, compare=True)
+    werte: dict[str, Any] = field(default_factory=dict, compare=True)
 
 
 def warn_key(art: str, bereich: str | None = None, geraet: str | None = None) -> str:
@@ -228,7 +229,7 @@ def warn_key(art: str, bereich: str | None = None, geraet: str | None = None) ->
     return ":".join([str(art), *(x for x in (bereich, geraet) if x)])
 
 
-def _warnung(art: Art, seit: datetime, bereich: str | None = None, geraet: str | None = None, **werte) -> Warnung:
+def _warnung(art: Art, seit: datetime, bereich: str | None = None, geraet: str | None = None, **werte: Any) -> Warnung:
     return Warnung(
         key=warn_key(art, bereich, geraet),
         art=str(art),

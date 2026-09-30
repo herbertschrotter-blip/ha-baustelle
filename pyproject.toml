@@ -4,3 +4,14 @@
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = ["ignore::pytest.PytestConfigWarning"]
+
+[tool.mypy]
+# Platin der Qualitätsskala: strenge Typisierung
+# uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component --with mypy mypy --strict custom_components/baustelle
+python_version = "3.14"
+strict = true
+
+[[tool.mypy.overrides]]
+# Home Assistant selbst reicht Namen ohne `as` weiter (z. B. websocket_api.ActiveConnection)
+module = "homeassistant.*"
+implicit_reexport = true

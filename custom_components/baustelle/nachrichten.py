@@ -73,7 +73,8 @@ class Nachrichten:
 
     @property
     def einst(self) -> dict[str, Any]:
-        return self.st.e["meldungen_einst"]
+        einst: dict[str, Any] = self.st.e["meldungen_einst"]
+        return einst
 
     def _aktion(self, befehl: str, wert: str, titel: str) -> dict[str, str]:
         return {"action": f"{AKTION_PRAEFIX}|{self.st.entry.entry_id}|{befehl}|{wert}", "title": titel}
@@ -152,7 +153,7 @@ class Nachrichten:
         lz["fruehstart_gemeldet"] = morgen.isoformat()
         self.st.einstellungen.speichern()
         temp = self.st.wetter_tag_plan(morgen).frueh_min_temp
-        grad = texte._zahl(temp or 0, 0).replace("-", "−")
+        grad = warn_logik._zahl(temp or 0, 0).replace("-", "−")
         frueher = uhrzeit(max(0, plan.start - FRUEHER_MIN))
         self.melden(
             f"❄ Morgen {grad} °C",

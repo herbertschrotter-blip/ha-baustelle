@@ -317,15 +317,15 @@ class Heizung(Funktion):
             wt = st.wetter_tag_plan(jetzt.date())
             teile = []
             if wt.regen_vortag_mm is not None and wt.regen_vortag_mm >= float(h["trocknen_ab_mm"]):
-                teile.append(f"Regen {texte._zahl(wt.regen_vortag_mm, 0)} mm seit gestern – heute Kleidung trocknen")
+                teile.append(f"Regen {warn_logik._zahl(wt.regen_vortag_mm, 0)} mm seit gestern – heute Kleidung trocknen")
             if wt.frueh_min_temp is not None and h["fruehstart"] and wt.frueh_min_temp < float(h["fruehstart_unter"]):
-                teile.append(f"Kalter Morgen {texte._zahl(wt.frueh_min_temp)} °C – Frühstart {h['fruehstart_min']} min früher")
+                teile.append(f"Kalter Morgen {warn_logik._zahl(wt.frueh_min_temp)} °C – Frühstart {h['fruehstart_min']} min früher")
             bezug = wetter.aussen_max if h["heizgrenze_basis"] == "tageshoechst" else wetter.aussen
             if bezug is not None:
                 was = "Höchstwert" if h["heizgrenze_basis"] == "tageshoechst" else "jetzt"
                 teile.append(
-                    f"Heizgrenze überschritten ({was} {texte._zahl(bezug, 0)} °C) – heute wird nicht geheizt" if zu_warm
-                    else f"Heizgrenze nicht erreicht ({was} {texte._zahl(bezug, 0)} °C) – es wird geheizt"
+                    f"Heizgrenze überschritten ({was} {warn_logik._zahl(bezug, 0)} °C) – heute wird nicht geheizt" if zu_warm
+                    else f"Heizgrenze nicht erreicht ({was} {warn_logik._zahl(bezug, 0)} °C) – es wird geheizt"
                 )
             for text in teile:
                 st.protokoll("wetter", None, text)
@@ -382,7 +382,8 @@ class Heizung(Funktion):
         return (warn_logik.Typ.HEIZUNG if g.rolle == ROLLE_HEIZKOERPER else warn_logik.Typ.SONST), None, 0
 
     def warn_einstellungen(self) -> Mapping[str, Any]:
-        return self.st.e["heizung"]  # Frostschutz, Tür offen
+        heizung: Mapping[str, Any] = self.st.e["heizung"]  # Frostschutz, Tür offen
+        return heizung
 
     def warnung_protokoll(self, w: Warnung) -> tuple[str, str] | None:
         if w.art == warn_logik.Art.TUER_OFFEN:
@@ -396,7 +397,7 @@ class Heizung(Funktion):
             s_c = soll.get(info.id)
             temp = st.temperatur(info.fuehler)
             soll_t = self.soll_temperatur(info.id)
-            in_az = bool(s_c) and s_c[0].grund == SollGrund.ARBEITSZEIT and st.automatik
+            in_az = s_c is not None and s_c[0].grund == SollGrund.ARBEITSZEIT and st.automatik
             if in_az and temp is not None and temp < soll_t - 1.0:
                 self._unter_soll_seit.setdefault(info.id, jetzt)
             else:
@@ -488,7 +489,7 @@ class Heizung(Funktion):
         if e["bedarf"] or not e["auto"] or not self.st.automatik:
             return None
         s = plan_status(jetzt.date(), jetzt.hour * 60 + jetzt.minute, lambda t: self.plan(t, bool(e["trocknen"])))
-        if s.minute is None or s.art == StatusArt.HEIZT:
+        if s.minute is None or s.tag is None or s.art == StatusArt.HEIZT:
             return None
         if s.tag in (jetzt.date(), jetzt.date() + timedelta(days=1)):
             return uhrzeit(s.minute)  # Mockup „aus bis 06:15“
@@ -594,7 +595,7 @@ class Heizung(Funktion):
     def ersparnis_kwh(self) -> float:
         """Was 24-h-Dauerbetrieb mehr verbraucht hätte als tatsächlich geheizt wurde."""
         z = self.st.zaehler
-        return max(0.0, z.get("ohne", 0.0) - z.get("energie_heizen", 0.0))
+        return max(0.0, float(z.get("ohne", 0.0)) - float(z.get("energie_heizen", 0.0)))
 
     def mittel_typ(self, typ: str) -> float | None:
         """Mittlere Leistung im Betrieb aller Heizkörper eines Typs (Vergleich Ölradiator/Konvektor)."""

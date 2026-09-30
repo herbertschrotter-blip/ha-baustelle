@@ -72,7 +72,7 @@ def _auswahl(optionen: list[str], key: str, *, multiple: bool = False) -> select
 def _entitaet(
     domain: str | list[str], device_class: str | None = None, ohne: list[str] | None = None
 ) -> selector.EntitySelector:
-    filt: selector.EntityFilterSelectorConfig = {"domain": domain}
+    filt: selector.EntityWithDeviceFilterSelectorConfig = {"domain": domain}
     if device_class:
         filt["device_class"] = device_class
     konfig = selector.EntitySelectorConfig(filter=filt)

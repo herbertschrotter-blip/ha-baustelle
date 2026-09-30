@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import (
@@ -163,10 +164,25 @@ class Zaehler:
     diagnose: bool = False
 
 
-GELD = {"einheit": None, "klasse": SensorDeviceClass.MONETARY, "art": SensorStateClass.TOTAL, "geld": True}
-STUNDEN = {"einheit": UnitOfTime.HOURS, "klasse": SensorDeviceClass.DURATION, "stellen": 1}
-MITTEL = {"einheit": UnitOfPower.WATT, "klasse": SensorDeviceClass.POWER, "art": SensorStateClass.MEASUREMENT, "stellen": 0, "diagnose": True}
-PROGNOSE = {"art": None, "stellen": 0, "nur_heizung": True}
+class Vorlage(TypedDict, total=False):
+    """Gemeinsame Felder mehrerer Zähler (Geld, Stunden, Mittelwert, Prognose)."""
+
+    einheit: str | None
+    klasse: SensorDeviceClass | None
+    art: SensorStateClass | None
+    stellen: int
+    geld: bool
+    nur_heizung: bool
+    diagnose: bool
+
+
+GELD: Vorlage = {"einheit": None, "klasse": SensorDeviceClass.MONETARY, "art": SensorStateClass.TOTAL, "geld": True}
+STUNDEN: Vorlage = {"einheit": UnitOfTime.HOURS, "klasse": SensorDeviceClass.DURATION, "stellen": 1}
+MITTEL: Vorlage = {"einheit": UnitOfPower.WATT, "klasse": SensorDeviceClass.POWER, "art": SensorStateClass.MEASUREMENT, "stellen": 0, "diagnose": True}
+PROGNOSE: Vorlage = {"art": None, "stellen": 0, "nur_heizung": True}
+GELD_HEIZUNG: Vorlage = {**GELD, "nur_heizung": True}
+GELD_PROGNOSE: Vorlage = {**GELD, "art": None, "nur_heizung": True}
+MITTEL_TYP: Vorlage = {**MITTEL, "diagnose": False}
 
 
 def _preis(st: Steuerung) -> float:
@@ -181,12 +197,12 @@ ZAEHLER_BAUSTELLE = [
     Zaehler("energie", lambda st: st.zaehler.get("energie", 0.0)),
     Zaehler("kosten", lambda st: st.zaehler.get("kosten", 0.0), **GELD),
     Zaehler("energie_ohne_automatik", lambda st: st.zaehler.get("ohne", 0.0), nur_heizung=True),
-    Zaehler("ersparnis", lambda st: Heizung.von(st).ersparnis_kwh() * _preis(st), **{**GELD, "nur_heizung": True}),
+    Zaehler("ersparnis", lambda st: Heizung.von(st).ersparnis_kwh() * _preis(st), **GELD_HEIZUNG),
     Zaehler("prognose_heizperiode", lambda st: Heizung.von(st).hochrechnung_heizperiode("energie_heizen"), **PROGNOSE),
     Zaehler(
         "prognose_heizperiode_kosten",
         lambda st: _mal_preis(Heizung.von(st).hochrechnung_heizperiode("energie_heizen"), st),
-        **{**GELD, "art": None, "nur_heizung": True},
+        **GELD_PROGNOSE,
     ),
     Zaehler("prognose_heizperiode_ohne", lambda st: Heizung.von(st).hochrechnung_heizperiode("ohne"), **PROGNOSE),
 ]
@@ -196,7 +212,7 @@ def _typ_zaehler(typ: str) -> list[Zaehler]:
     return [
         Zaehler(f"energie_{typ}", lambda st: st.zaehler.get(f"energie_typ:{typ}", 0.0)),
         Zaehler(f"heizzeit_{typ}", lambda st: st.zaehler.get(f"heizzeit_typ:{typ}", 0.0), **STUNDEN),
-        Zaehler(f"mittel_{typ}", lambda st: Heizung.von(st).mittel_typ(typ), **{**MITTEL, "diagnose": False}),
+        Zaehler(f"mittel_{typ}", lambda st: Heizung.von(st).mittel_typ(typ), **MITTEL_TYP),
     ]
 
 

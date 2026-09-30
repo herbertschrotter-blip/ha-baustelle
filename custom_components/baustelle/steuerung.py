@@ -26,7 +26,9 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import CALLBACK_TYPE, Context, Event, EventStateChangedData, HomeAssistant, State, callback
+from homeassistant.core import (
+    CALLBACK_TYPE, Context, Event, EventStateChangedData, HomeAssistant, ServiceResponse, State, callback,
+)
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.event import (
@@ -213,7 +215,7 @@ class Steuerung:
     # ------------------------------------------------------------------ Einrichtung
     @property
     def aktiv(self) -> bool:
-        return self.entry.options.get(CONF_STATUS, STATUS_AKTIV) == STATUS_AKTIV
+        return bool(self.entry.options.get(CONF_STATUS, STATUS_AKTIV) == STATUS_AKTIV)
 
     @property
     def e(self) -> dict[str, Any]:
@@ -223,7 +225,8 @@ class Steuerung:
     @property
     def lz(self) -> dict[str, Any]:
         """Laufzeitdaten im Store (der Funktionen, Warnungen, Wetter je Tag)."""
-        return self.einstellungen.daten["laufzeit"]
+        laufzeit: dict[str, Any] = self.einstellungen.daten["laufzeit"]
+        return laufzeit
 
     @property
     def automatik_moeglich(self) -> bool:
@@ -454,7 +457,7 @@ class Steuerung:
             except HomeAssistantError as err:
                 _LOGGER.debug("Vorhersage %s von %s nicht verfügbar: %s", art, wetter, err)
                 continue
-            liste = (antwort or {}).get(wetter, {}).get("forecast") or []
+            liste = _antwort_liste(antwort, wetter, "forecast")
             for tag, werte in _prognose_je_tag(liste, art).items():
                 ziel = tage.setdefault(tag, {})
                 ziel.update({k: v for k, v in werte.items() if v is not None})
@@ -481,7 +484,8 @@ class Steuerung:
         self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
 
     def _wetter_tag(self, tag: date) -> dict[str, Any]:
-        return self.lz.get("wetter_tage", {}).get(tag.isoformat(), {})
+        tag_werte: dict[str, Any] = self.lz.get("wetter_tage", {}).get(tag.isoformat(), {})
+        return tag_werte
 
     def _wetter(self, jetzt: datetime) -> WetterWerte:
         o = self.entry.options
@@ -557,14 +561,14 @@ class Steuerung:
         except (HomeAssistantError, ValueError) as err:
             _LOGGER.debug("Kalender %s nicht lesbar: %s", entity_id, err)
             return []
-        return list((antwort or {}).get(entity_id, {}).get("events") or [])
+        return _antwort_liste(antwort, entity_id, "events")
 
     async def async_event_details(
         self, entity_id: str | None, start: datetime, ende: datetime
     ) -> dict[tuple[str, str], tuple[str, str | None]]:
         """uid und rrule je Kalendereintrag (liefert calendar.get_events nicht) – direkt von der Kalender-Entität."""
         try:
-            from homeassistant.components.calendar import DATA_COMPONENT  # noqa: PLC0415
+            from homeassistant.components.calendar.const import DATA_COMPONENT  # noqa: PLC0415
 
             entity = self.hass.data[DATA_COMPONENT].get_entity(entity_id or "")
             if entity is None:
@@ -590,7 +594,7 @@ class Steuerung:
         return None
 
     def _kalender_an(self, entity_id: str | None) -> bool:
-        return bool(entity_id) and (s := self.hass.states.get(entity_id)) is not None and s.state == STATE_ON
+        return entity_id is not None and (s := self.hass.states.get(entity_id)) is not None and s.state == STATE_ON
 
     # ------------------------------------------------------------------ Arbeitszeit
     def arbeitszeiten(self) -> list[Arbeitszeit]:
@@ -655,17 +659,18 @@ class Steuerung:
             e = self.einstellungen.bereich(g.bereich)
             leistung_w = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
             s_c = soll.get(g.bereich)
+            ein = s_c[0].ein if s_c is not None else None
             f = self._je_rolle.get(g.rolle)
             schaltet = (
-                f is not None and f.schaltbar(g) and s_c is not None and s_c[0].ein is not None
+                f is not None and f.schaltbar(g) and ein is not None
                 and self.funktion_von(g).hand_seit(g) is None and erreichbar
             )
             if schaltet:
                 kw = self.nenn_kw(g)  # vorsichtig: auch wenn das Gerät gerade nicht zieht (Thermostat)
-                ziel[g.id] = bool(s_c[0].ein)
+                ziel[g.id] = bool(ein)
             else:
                 kw = (leistung_w / 1000 if leistung_w is not None else (self.nenn_kw(g) if an else 0.0)) if an else 0.0
-            if schaltet and s_c[0].ein and not an:
+            if schaltet and ein and not an:
                 self._wartet_seit.setdefault(g.id, jetzt)
             else:
                 self._wartet_seit.pop(g.id, None)
@@ -676,7 +681,7 @@ class Steuerung:
             lasten.append(
                 staffel_logik.Last(
                     id=g.id, anschluss=e.get("anschluss") or "", kw=kw, heizer=schaltet, an=an,
-                    will=bool(schaltet and s_c[0].ein), prio=PRIO.get(e.get("prio") or "normal", 1), **vorrang,
+                    will=bool(schaltet and ein), prio=PRIO.get(e.get("prio") or "normal", 1), **vorrang,
                     an_seit_min=_minuten_seit(seit, jetzt) if an else 0.0,
                     aus_seit_min=_minuten_seit(seit, jetzt) if not an else 1e9,
                     wartet_seit_min=_minuten_seit(self._wartet_seit.get(g.id), jetzt) if g.id in self._wartet_seit else 0.0,
@@ -1027,7 +1032,8 @@ class Steuerung:
     @property
     def zaehler(self) -> dict[str, Any]:
         """Dauerhafte Zähler der Baustelle (im Store, in der Sicherung)."""
-        return self.einstellungen.daten["zaehler"]
+        zaehler: dict[str, Any] = self.einstellungen.daten["zaehler"]
+        return zaehler
 
     def zaehler_plus(self, key: str, wert: float) -> None:
         if wert <= 0:
@@ -1111,6 +1117,13 @@ def _sensor_am_geraet(registry: er.EntityRegistry, schalter: str, device_class: 
     stamm = schalter.split(".", 1)[1]
     passend = [k for k in kandidaten if k.split(".", 1)[1].startswith(stamm)]
     return passend[0] if len(passend) == 1 else None
+
+
+def _antwort_liste(antwort: ServiceResponse, entity_id: str, key: str) -> list[dict[str, Any]]:
+    """Liste `key` einer Entität aus der Antwort eines Dienstes (`weather.get_forecasts`, `calendar.get_events`)."""
+    je_entitaet = (antwort or {}).get(entity_id)
+    liste = je_entitaet.get(key) if isinstance(je_entitaet, dict) else None
+    return [x for x in liste if isinstance(x, dict)] if isinstance(liste, list) else []
 
 
 def _prognose_je_tag(liste: list[dict[str, Any]], art: str) -> dict[date, dict[str, float | None]]:

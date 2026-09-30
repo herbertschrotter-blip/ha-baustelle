@@ -50,6 +50,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 SPANNUNG_V = 230
 TOLERANZ_KW = 1e-6  # 1 mW: Rundungsreste der Kommazahlen, keine Messgenauigkeit
@@ -148,7 +149,7 @@ def _stufe(last: Last) -> tuple[bool, bool, int]:
     return (last.frost, last.boost, last.prio)
 
 
-def _rang(last: Last) -> tuple:
+def _rang(last: Last) -> tuple[Any, ...]:
     """Einschalt-Reihenfolge (größer = zuerst): Frost > Boost > Priorität > Defizit > Wartezeit."""
     defizit = last.defizit if last.defizit is not None else 0.0
     return (*_stufe(last), defizit, last.wartet_seit_min)
