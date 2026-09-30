@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.1",
+   "version": "0.8.2",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -130,6 +130,8 @@
     "typ": "oelradiator",
     "leistung": "sensor.polier_r1_leistung",
     "energie": null,
+    "leistung_eigen": "sensor.polier_r1_leistung",
+    "energie_eigen": null,
     "nenn_kw": 1.98
    },
    {
@@ -141,6 +143,8 @@
     "typ": "konvektor",
     "leistung": "sensor.polier_k1_leistung",
     "energie": null,
+    "leistung_eigen": "sensor.polier_k1_leistung",
+    "energie_eigen": null,
     "nenn_kw": 2.01
    },
    {
@@ -152,6 +156,8 @@
     "typ": "konvektor",
     "leistung": "sensor.mannschaft_k1_leistung",
     "energie": null,
+    "leistung_eigen": "sensor.mannschaft_k1_leistung",
+    "energie_eigen": null,
     "nenn_kw": 1.99
    },
    {
@@ -163,6 +169,8 @@
     "typ": "konvektor",
     "leistung": "sensor.mannschaft_k2_leistung",
     "energie": null,
+    "leistung_eigen": "sensor.mannschaft_k2_leistung",
+    "energie_eigen": null,
     "nenn_kw": 2.0
    },
    {
@@ -174,6 +182,8 @@
     "typ": "oelradiator",
     "leistung": "sensor.magazin_r1_leistung",
     "energie": null,
+    "leistung_eigen": "sensor.magazin_r1_leistung",
+    "energie_eigen": null,
     "nenn_kw": 1.5
    },
    {
@@ -185,6 +195,8 @@
     "typ": "konvektor",
     "leistung": "sensor.magazin_t1_leistung",
     "energie": null,
+    "leistung_eigen": "sensor.magazin_t1_leistung",
+    "energie_eigen": null,
     "nenn_kw": 2.0
    },
    {
@@ -196,6 +208,8 @@
     "typ": "konvektor",
     "leistung": "sensor.schacht_p1_leistung",
     "energie": null,
+    "leistung_eigen": "sensor.schacht_p1_leistung",
+    "energie_eigen": null,
     "nenn_kw": 0.0
    }
   ],
@@ -433,7 +447,8 @@
     "tuer_offen:magazin": "2026-09-30T07:00:00+02:00"
    },
    "melden_knopf": true,
-   "erklaer": true
+   "erklaer": true,
+   "geraete": {}
   },
   "zaehler": {
    "gradh:polier": 152.2883333333336,
@@ -576,49 +591,56 @@
      "kw": 1.98,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "aktiv": true
     },
     "polier_k1": {
      "an": false,
      "kw": 0.0,
      "erreichbar": true,
      "hand_seit": "2026-09-29T11:00:00+02:00",
-     "warte": null
+     "warte": null,
+     "aktiv": true
     },
     "mannschaft_k1": {
      "an": false,
      "kw": 0.0,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "aktiv": true
     },
     "mannschaft_k2": {
      "an": false,
      "kw": 0.0,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "aktiv": true
     },
     "magazin_r1": {
      "an": false,
      "kw": 0.0,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "aktiv": true
     },
     "magazin_t1": {
      "an": false,
      "kw": 0.0,
      "erreichbar": false,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "aktiv": true
     },
     "schacht_p1": {
      "an": false,
      "kw": 0.0,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "aktiv": true
     }
    },
    "plan_woche": [
@@ -1209,7 +1231,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.1",
+   "version": "0.8.2",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1267,6 +1289,8 @@
     "typ": "oelradiator",
     "leistung": "sensor.buero_r1_leistung",
     "energie": null,
+    "leistung_eigen": "sensor.buero_r1_leistung",
+    "energie_eigen": null,
     "nenn_kw": 2.0
    }
   ],
@@ -1372,7 +1396,8 @@
    "termine_kalender": null,
    "stumm": {},
    "melden_knopf": true,
-   "erklaer": true
+   "erklaer": true,
+   "geraete": {}
   },
   "zaehler": {
    "energie": 1840.5,
@@ -1412,7 +1437,8 @@
      "kw": 0.0,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "aktiv": true
     }
    },
    "plan_woche": [

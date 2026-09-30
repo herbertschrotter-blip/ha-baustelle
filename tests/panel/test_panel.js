@@ -797,7 +797,28 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Modus über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["bereiche","polier","modus"]' && a.wert === 'plan'));
   await klick({ act: 'container', id: 'magazin' }, 20);
   erwarte('Thermostat ohne Fühler nicht wählbar', /data-v="thermo" class="[^"]*" disabled/.test(ui.innerHTML));
-  await klick({ act: 'chart', c: 'leistung' }, 30); pruefe('Container Leistung'); erwarte('Leistung heute als kW-Kurve', ui.innerHTML.includes('data-chart="kw-magazin"'));
+  /* WU-0004: neue Container-Ansicht – Tagesdiagramm mit geheizten Stunden, Reiter Woche und Heizzeit, ohne Fühler kein Rad */
+  erwarte('WU-0004: Tagesdiagramm und ohne Fühler Leistung statt Rad', ui.innerHTML.includes('c-tag-svg') && ui.innerHTML.includes('LEISTUNG JETZT') && !ui.innerHTML.includes('data-act="c-soll"'));
+  await klick({ act: 'cvd', v: 'woche' }, 30); pruefe('Container Woche'); erwarte('WU-0004: Reiter Woche', ui.innerHTML.includes('data-chart="cw-magazin"'));
+  await klick({ act: 'cvd', v: 'stunden' }, 30); pruefe('Container Heizzeit'); erwarte('WU-0004: Reiter Heizzeit', ui.innerHTML.includes('data-chart="ch-magazin"'));
+  await klick({ act: 'cvd', v: 'heute' });
+  { await klick({ act: 'container', id: 'polier' }, 20); const pol = () => panel.d.bereiche.find(x => x.id === 'polier');
+    pol().modus = 'thermo'; panel.render(); pruefe('Container D Thermostat');
+    erwarte('WU-0004: Thermostat-Rad mit Soll ±', ui.innerHTML.includes('class="c-rad"') && ui.innerHTML.includes('data-act="c-soll"') && /Soll \d/.test(ui.innerHTML));
+    neu(); await klick({ act: 'c-soll', d: '0.5' }, 20);
+    erwarte('WU-0004: Soll + über baustelle/setzen', letzte('baustelle/setzen').some(x => JSON.stringify(x.pfad) === '["bereiche","polier","soll"]' && Number.isFinite(x.wert)));
+    pol().modus = 'plan'; panel.render(); erwarte('WU-0004: im Zeitplan nur Ist, kein Soll ±', ui.innerHTML.includes('class="c-rad"') && !ui.innerHTML.includes('data-act="c-soll"') && /Zeitplan – der Heizkörperthermostat regelt/.test(ui.innerHTML));
+    erwarte('WU-0004: Geräte-Chips mit ⏻, aktiv, ✎', ['data-act="geraet"', 'data-act="g-aktiv"', 'data-act="g-bearbeiten"'].every(t => ui.innerHTML.includes(t)));
+    neu(); await klick({ act: 'g-aktiv', i: '0' }, 20);
+    erwarte('WU-0004: aktiv über baustelle/aktion', letzte('baustelle/aktion').some(x => x.aktion === 'aktiv' && x.geraet === pol().geraete[0].id && x.an === false));
+    await klick({ act: 'g-bearbeiten', i: '0' }); pruefe('Gerät bearbeiten');
+    erwarte('WU-0004: Gerät bearbeiten mit Shelly, Typ, Container, Sensoren, aktiv', ['data-gf="schalter"', 'data-gf="typ"', 'data-gf="bereich"', 'data-gf="leistung"', 'data-gf="energie"', 'data-act="gf-aktiv"'].every(t => ui.innerHTML.includes(t)));
+    neu(); eingabe({ gf: 'n' }, 'Radiator Nord'); await klick({ act: 'gf-speichern' }, 30);
+    { const o = api.find(a => /subentries\/flow/.test(a[1]) && a[2] && a[2].subentry_id); const f = api.find(a => /subentries\/flow\/F/.test(a[1]));
+      erwarte('WU-0004: Gerät bearbeiten über den Subentry-Dialog', o && JSON.stringify(o[2].handler) === '["dobl","geraet"]' && f && f[2].name === 'Radiator Nord'); }
+    await klick({ act: 'sheet', s: 'bereich' }); erwarte('WU-0004: ✎ je Gerät in Bearbeiten', ui.innerHTML.includes('data-act="g-bearbeiten"'));
+    await klick({ act: 'g-bearbeiten', i: '0' }); await klick({ act: 'zu' }); erwarte('WU-0004: zurück zu Bearbeiten', panel.s.sheet && panel.s.sheet.art === 'bereich');
+    await klick({ act: 'zu' }); }
   await klick({ act: 'tab', v: 'heizung' }, 30);
   erwarte('Heizung als Kacheln: Heute-Karte und 8 Kacheln', ui.innerHTML.includes('hz-held') && (ui.innerHTML.match(/class="glas-panel hz-kachel"/g) || []).length === 8);
   const hzOffen = async k => { await klick({ act: 'hz-auf', k }, 20); return ui.innerHTML; };

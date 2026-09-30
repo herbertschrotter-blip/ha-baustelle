@@ -194,6 +194,11 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `{an, zyklen, kint: {wert, start, fort}, kext: {…}, nachlauf: {"oel|lang|kalt": {grad, min, n}, …}, treffer: [Spitze −
   Soll …], anteil (% je Zyklus oder null), erwartet (°C), aus_bei (°C), zyklus_min}`. `baustelle/aktion` `lern_reset`
   mit `bereich` setzt den Lernstand zurück.
+- Gerät aktiv/inaktiv (WU-0004): `baustelle/aktion` `aktiv` mit `geraet` und `an` (bool). Inaktiv: einmal ausschalten,
+  danach schaltet die Automatik es nicht, es zählt nicht in der Staffelung, keine Warnungen; gespeichert unter
+  `einstellungen.geraete.<id>.aktiv`, sichtbar in `laufzeit.geraete.<id>.aktiv`. `geraete[]` hat zusätzlich
+  `leistung_eigen`/`energie_eigen` (selbst gewählter Sensor, sonst `null` = am Shelly automatisch erkannt).
+  Gerät bearbeiten: Subentry-Dialog `geraet` mit `subentry_id` (Bereich, Schalter, Name, Rolle, Typ, Sensoren).
 - `baustelle/setzen`: `erklaer` (Erklärtexte der Seite), `heizung.frost_immer` (0.7.9: Frostschutz auch bei
   ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus).
 - Bericht (0.7.9): `heiztage` = Tage mit Heizzeit > 0 in einem Container (Statistik `<bid>_heizzeit`), wie `zaehler.heiztage`.

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.2] – 2026-09-30
+
+- Neue Container-Ansicht (WU-0004, Mockup glas.html abgenommen): Kopf mit Modus, Schnell aufheizen und
+  **Thermostat-Rad** (Ist groß, Soll mit − +; Soll nur im Modus Thermostat oder Bei Bedarf mit Fühler), Kacheln kW,
+  kWh, Kosten und Heizzeit, **Tagesdiagramm** mit Heizzeit, Innen-/Außentemperatur, Soll-Linie und geheizten
+  Stunden (Reiter Woche und Heizzeit), Geräte als Chips mit **Ein/Aus**, Schalter **aktiv** und ✎.
+- **Gerät bearbeiten**: Name, Shelly, Typ, Container, Leistungs- und Energiesensor (leer = automatisch), aktiv –
+  vorher nur Name und Typ.
+- **Gerät inaktiv**: die Automatik schaltet es einmal aus und dann nicht mehr, es zählt nicht in der Staffelung und
+  meldet nichts (z. B. Heizkörper ausgeliehen oder defekt).
+
 ## [0.8.1] – 2026-09-30
 
 - Wetter nachts (FE-0005): Open-Meteo meldet nachts „sonnig“ bzw. „heiter“ – die Seite zeigt jetzt wie die

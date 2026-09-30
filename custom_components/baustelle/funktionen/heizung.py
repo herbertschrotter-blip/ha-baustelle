@@ -289,7 +289,7 @@ class Heizung(Funktion):
                 del st.lz["boost_bis"][bid]  # Soll erreicht: Boost beendet (Aufrufer, Bauplan §2.2)
                 st.einstellungen.speichern()
                 boost = False
-            heizer = [g for g in st.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER and g.id not in st.lz["hand"]]
+            heizer = [g for g in st.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER and g.id not in st.lz["hand"] and st.geraet_aktiv(g)]
             heizt = any((s := hass.states.get(g.schalter)) is not None and s.state == STATE_ON for g in heizer)
             lage = LageContainer(
                 minute=minute, plan=plan, automatik=st.automatik, auto=bool(e["auto"]), temperatur=temp, soll=soll_t,

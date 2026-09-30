@@ -491,3 +491,66 @@ body.hell { background: #d9dee5; color: #111; }
 .lern-tab > div { display: flex; flex-direction: column; } .lern-tab > b { font-size: 12px; color: var(--ink2); }
 .lern-treffer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; margin: 6px 0 10px; }
 .lern-treffer span { padding: 2px 8px; border-radius: 8px; background: rgba(255,152,0,.18); } .lern-treffer span.gut { background: rgba(76,175,80,.2); }
+
+/* WU-0004: Varianten der Container-Ansicht */
+.cv-soll { display: flex; align-items: center; gap: 10px; } .cv-soll > button { width: 40px; height: 40px; border-radius: 50%; font-size: 22px; color: var(--ink); cursor: pointer; }
+.cv-soll > div { display: flex; flex-direction: column; align-items: center; min-width: 74px; } .cv-soll b { font-size: 26px; } .cv-soll small { font-size: 14px; opacity: .7; }
+.cv-gross { padding: 12px 16px; font-size: 15px; flex: 1; justify-content: center; }
+.cv-a-held { display: grid; grid-template-columns: 140px 1fr auto; gap: 18px; align-items: center; padding: 16px; margin-bottom: 12px; }
+.cv-ring-svg { width: 140px; height: 140px; } .cv-ring-t { font-size: 26px; font-weight: 700; fill: var(--ink); } .cv-ring-k { font-size: 11px; fill: var(--ink2); }
+.cv-a-steuer { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.cv-kacheln { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+.cv-kachel { display: flex; flex-direction: column; align-items: flex-start; padding: 12px; border-radius: 16px; color: var(--ink); cursor: pointer; text-align: left; }
+.cv-kachel span { font-size: 18px; } .cv-kachel b { font-size: 22px; margin-top: 4px; } .cv-kachel small { color: var(--ink2); font-size: 12px; }
+.cv-a-zwei { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; } .cv-a-zwei > .block { margin-bottom: 12px; }
+.cv-chips { display: flex; flex-wrap: wrap; gap: 10px; } .cv-chip { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; }
+.cv-chip span { display: flex; flex-direction: column; } .cv-chip small { color: var(--ink2); font-size: 12px; } .cv-chip.an { box-shadow: inset 0 0 0 1px var(--amber); }
+.cv-b-kopf { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.cv-b-zahlen { display: flex; gap: 18px; } .cv-b-zahlen div { display: flex; flex-direction: column; align-items: flex-end; } .cv-b-zahlen b { font-size: 22px; } .cv-b-zahlen small { color: var(--ink2); font-size: 12px; }
+.cv-tag-svg { width: 100%; height: auto; display: block; } .cv-achse { font-size: 11px; fill: var(--ink2); }
+.cv-legende { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink2); margin-top: 6px; } .cv-legende i { display: inline-block; width: 12px; height: 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.cv-legende i.gestr { background: repeating-linear-gradient(90deg, var(--ink) 0 4px, transparent 4px 7px); }
+.cv-b-leiste { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; } .cv-b-modus { padding: 4px; border-radius: 16px; }
+.cv-auf { padding: 4px 14px; margin-bottom: 10px; border-radius: 16px; } .cv-auf summary { display: flex; justify-content: space-between; padding: 10px 0; cursor: pointer; list-style: none; }
+.cv-c-karte { padding: 16px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.cv-c-oben { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; width: 100%; } .cv-c-illu .bc { max-width: 64px; }
+.cv-c-ist { display: flex; flex-direction: column; align-items: flex-end; } .cv-c-ist b { font-size: 28px; } .cv-c-ist small { color: var(--ink2); }
+.cv-c-knoepfe { display: flex; gap: 10px; margin-bottom: 12px; } .cv-c-wert { color: var(--ink); font-weight: 600; }
+@media (max-width: 700px) { .cv-a-held { grid-template-columns: 110px 1fr; } .cv-ring-svg { width: 110px; height: 110px; } .cv-a-steuer { grid-column: 1 / -1; align-items: stretch; }
+  .cv-kacheln { grid-template-columns: repeat(2, 1fr); } .cv-a-zwei { grid-template-columns: 1fr; } .cv-b-zahlen { width: 100%; justify-content: space-between; } }
+.telefon .cv-a-held { grid-template-columns: 110px 1fr; } .telefon .cv-ring-svg { width: 110px; height: 110px; } .telefon .cv-a-steuer { grid-column: 1 / -1; align-items: stretch; }
+.telefon .cv-kacheln { grid-template-columns: repeat(2, 1fr); } .telefon .cv-a-zwei { grid-template-columns: 1fr; } .telefon .cv-b-zahlen { width: 100%; justify-content: space-between; }
+
+/* WU-0004: D-Kopf und vier Soll/Ist-Designs */
+.cv-d-held { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 16px; margin-bottom: 12px; }
+.cv-d-info { display: flex; flex-direction: column; gap: 14px; } .cv-d-knoepfe { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.cv-pm { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--panel-rand); background: rgba(255,255,255,.08); color: var(--ink); font-size: 24px; line-height: 1; cursor: pointer; backdrop-filter: blur(8px); }
+.cv-pm:active { transform: scale(.94); } .cv-pm.klein { width: 30px; height: 26px; border-radius: 8px; font-size: 12px; } .cv-pm.gross { width: 56px; height: 56px; font-size: 28px; }
+.hell .cv-pm { background: rgba(255,255,255,.6); }
+.cv-rad { position: relative; width: 210px; } .cv-rad svg { width: 210px; height: 210px; display: block; }
+.cv-rad-k { font-size: 11px; letter-spacing: 2px; fill: var(--ink2); } .cv-rad-t { font-size: 38px; font-weight: 700; fill: var(--ink); } .cv-rad-s { font-size: 13px; font-weight: 600; }
+.cv-rad-pm { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; gap: 36px; }
+.cv-boegen { display: flex; flex-direction: column; align-items: center; gap: 8px; } .cv-boegen svg { width: 190px; height: 190px; }
+.cv-pille { display: flex; align-items: center; gap: 14px; padding: 6px 8px; border-radius: 999px; } .cv-pille div { display: flex; flex-direction: column; align-items: center; min-width: 64px; }
+.cv-pille b { font-size: 22px; } .cv-pille small, .cv-skala small, .cv-karten small { font-size: 11px; letter-spacing: 1.5px; color: var(--ink2); }
+.cv-skala { width: 300px; max-width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.cv-sk-zahlen { display: flex; justify-content: space-between; align-items: flex-end; } .cv-sk-zahlen > div { display: flex; flex-direction: column; } .cv-sk-zahlen b { font-size: 34px; line-height: 1.1; }
+.cv-sk-soll { align-items: flex-end; } .cv-sk-soll span { display: flex; gap: 4px; margin-top: 4px; }
+.cv-sk-band { position: relative; height: 14px; border-radius: 7px; margin-top: 22px; background: linear-gradient(90deg, #64a8ff, #30d158 45%, #ffd60a 70%, #ff9f0a); }
+.cv-sk-zeiger { position: absolute; top: -5px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: #fff; border: 4px solid; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.cv-sk-fahne { position: absolute; top: -24px; height: 38px; border-left: 2px dashed var(--ink); } .cv-sk-fahne span { position: absolute; top: -2px; left: 4px; font-size: 11px; color: var(--ink); }
+.cv-sk-achse { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink2); }
+.cv-karten { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; width: 360px; max-width: 100%; }
+.cv-karten > .glas-panel { padding: 12px; border-radius: 18px; display: flex; flex-direction: column; gap: 4px; } .cv-karten b { font-size: 34px; line-height: 1.1; }
+.cv-k-ist svg { width: 100%; height: 30px; } .cv-k-soll div { display: flex; gap: 8px; margin-top: 4px; } .cv-k-mitte { font-size: 12px; font-weight: 600; text-align: center; max-width: 70px; }
+.telefon .cv-d-held { grid-template-columns: 1fr; } .telefon .cv-kern { justify-self: center; }
+@media (max-width: 700px) { .cv-d-held { grid-template-columns: 1fr; } .cv-kern { justify-self: center; } }
+.cv-ohne { padding: 14px 16px; border-radius: 18px; display: flex; flex-direction: column; gap: 4px; min-width: 200px; } .cv-ohne b { font-size: 30px; } .cv-ohne small { font-size: 11px; letter-spacing: 1.5px; color: var(--ink2); }
+.cv-ohne-t { text-align: center; max-width: 220px; margin: 4px auto 0; } .cv-karten.nur-ist { grid-template-columns: 1fr 1fr; }
+.cv-chip { flex: 1 1 260px; } .cv-chip-t { flex: 1; } .cv-chip.inaktiv { opacity: .55; } .cv-chip .link { font-size: 12px; text-align: left; padding: 0; }
+.cv-power { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--panel-rand); background: rgba(255,255,255,.08); color: var(--ink2); font-size: 20px; cursor: pointer; }
+.cv-power.an { background: var(--amber); color: #fff; border-color: transparent; box-shadow: 0 0 14px rgba(255,159,10,.55); } .cv-power:disabled { opacity: .35; cursor: not-allowed; }
+.cv-aktiv { display: flex; flex-direction: column; align-items: center; gap: 2px; } .cv-aktiv small { font-size: 10px; color: var(--ink2); }
+/* runde Knöpfe: Symbol genau mittig */
+.cv-pm, .cv-power { display: inline-flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
+.cv-pm .ic, .cv-power .ic { width: 55%; height: 55%; display: block; } .cv-pm.klein .ic { width: 70%; height: 70%; }

@@ -253,6 +253,10 @@ function verbrauch(bereiche, cid, zeitraum) {
 }
 
 /* ---------- Stimmung: Hintergrund nach Tageszeit (sun.sun) und Wetter (weather.*) ---------- */
+/* Symbole für runde Knöpfe als SVG – Schriftzeichen (−, +, ⏻) sitzen je nach Schrift außermittig */
+const IC_MINUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const IC_PLUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const IC_POWER = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M7.3 7.2a7 7 0 1 0 9.4 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';   // WU-0004: Container-Ansicht bisher / a / b / c (Vorführ-Leiste)
 const STIMMUNG = { phase: 'tag', wetter: 'klar', zeit: Date.now() };
 /* Vorführung: sun.sun für Datum und Uhrzeit nachgebildet (Mitteleuropa, etwa 47° N / 15° O) – im Panel kommt es aus HA */
 function vorfuehrSonne(ms) {
@@ -593,6 +597,7 @@ class App {
   }
 
   v_container() {
+    if (!this.b.pumpe) return this.v_container_d();   // WU-0004: D mit Thermostat-Rad (abgenommen 30.09.2026)
     const b = this.b, tl = this.zeitleiste(b);
     const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['leistung', 'Leistung'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
     if (!tabs.some(t => t[0] === this.s.chart)) this.s.chart = tabs[0][0];
@@ -643,6 +648,126 @@ class App {
         <div class="zeile"><span>Stromausfall / offline (nach ${this.d.e.offline_min} min)</span><span class="ok">● überwacht</span></div>
         <button class="zeile" data-act="tab" data-v="pumpen"><span class="blau">Schwellen im Reiter Pumpen</span><span class="chev">›</span></button></div>` : ''}`;
   }
+
+  /* ================= WU-0004: drei Varianten der Container-Ansicht (Vorführ-Leiste „Container-Ansicht“) ================= */
+  cvSoll(b) { return b.soll ?? this.d.e.soll; }
+  cvDiagramm(b, c) {
+    const mitVb = this.s.tempVb !== false;
+    return c === 'temp' ? (b.t === null ? '<div class="leer">Kein Temperaturfühler</div>'
+        : linie(`cv-t-${b.id}`, [{ name: 'Innen', v: b.innen }, { name: 'Außen', v: this.d.aussen }], '°C', mitVb ? verbrauch(this.d.bereiche, b.id, 'Tag') : null))
+      : c === 'leistung' ? flaeche('cv-kw-' + b.id, [{ name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: verbrauch(this.d.bereiche, b.id, 'Tag') }], STUNDEN, 'kW', 6)
+      : c === 'verbrauch' ? balken('cv-v-' + b.id, b.kwh7, TAGE, 'kWh') : balken('cv-h-' + b.id, b.h7, TAGE, 'h');
+  }
+  cvWerte(b) { return { kw: kwVon(b), kwh: b.kwh7[2], eur: b.kwh7[2] * this.d.e.preis, h: b.h7[2] }; }
+  cvSteller(b) { return `<div class="cv-soll"><button class="glas-panel cv-pm" data-act="c-soll" data-d="-0.5" aria-label="Soll niedriger">${IC_MINUS}</button>
+      <div><b>${de(this.cvSoll(b))}<small> °C</small></b><span class="leise">Soll</span></div>
+      <button class="glas-panel cv-pm" data-act="c-soll" data-d="0.5" aria-label="Soll höher">${IC_PLUS}</button></div>`; }
+  cvModus(b) { return `<div class="seg klein">${MODI.map(([k, t]) => `<button data-act="modus" data-id="${b.id}" data-v="${k}" class="${b.modus === k ? 'on' : ''}" ${k === 'thermo' && b.t === null ? 'disabled' : ''}>${t}</button>`).join('')}</div>`; }
+  cvBoost(b, gross = false) { return `<button class="glas-panel chip ${gross ? 'cv-gross' : ''} ${b.boost ? 'amber' : ''}" data-act="boost" data-id="${b.id}">⚡ ${b.boost ? 'Aufheizen beenden' : 'Schnell aufheizen'}</button>`; }
+  cvGeraete(b, chips = false) {
+    /* Chip: Ein/Aus-Knopf (Hand) und Schalter „aktiv“ nebeneinander (Herbert 30.09.2026); inaktiv = Automatik lässt es aus */
+    return b.geraete.map((g, i) => chips
+      ? `<div class="cv-chip glas-panel ${g.an && !g.inaktiv ? 'an' : ''} ${g.inaktiv ? 'inaktiv' : ''}">
+          <span class="cv-chip-t">${g.typ === 'Steckdose' ? '⏻' : '♨'} <b>${esc(g.n)}</b>
+            <small>${g.inaktiv ? 'inaktiv – die Automatik lässt es aus' : `${g.typ} · ${g.an ? de(g.kw, 2) + ' kW' : 'aus'}`}${g.hand && !g.inaktiv ? ' · <em class="hand">✋ Hand</em>' : ''}</small>
+            ${g.hand && !g.inaktiv ? `<button class="link" data-act="g-automatik" data-i="${i}">Automatik übernehmen</button>` : ''}</span>
+          <button class="cv-power ${g.an && !g.inaktiv ? 'an' : ''}" data-act="geraet" data-i="${i}" ${g.inaktiv ? 'disabled' : ''} aria-label="${esc(g.n)} ${g.an ? 'ausschalten' : 'einschalten'}" title="${g.an ? 'Ausschalten' : 'Einschalten'} (Handbetrieb)">${IC_POWER}</button>
+          <label class="cv-aktiv" title="Gerät aktiv – aus: die Automatik schaltet es nicht, keine Warnungen">${schalter(!g.inaktiv, 'g-aktiv', `data-i="${i}"`)}<small>aktiv</small></label>
+          <button class="bs-ic" data-act="g-bearbeiten" data-i="${i}" title="Gerät bearbeiten" aria-label="${esc(g.n)} bearbeiten">✎</button></div>`
+      : `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">♨</span><div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${g.hand ? ' · <em class="hand">Hand</em>' : ''}</span></div>${schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('');
+  }
+  cvRegelText(b) {
+    if (b.modus === 'thermo' && b.lernen) { const l = this.lernStand(b), soll = this.cvSoll(b);
+      return `🧠 Thermostat · lernend – ${l.anteil} % je 10 min · Nachlauf +${de(l.erwartet)} °C → aus bei ${de(soll - l.erwartet)} °C`; }
+    return b.modus === 'thermo' ? `Thermostat regelt auf ${de(this.cvSoll(b))} °C` : b.modus === 'plan' ? 'Zeitplan – der Heizkörperthermostat regelt'
+      : b.modus === 'hand' ? 'Hand – die Automatik schaltet nicht' : b.modus === 'bedarf' ? 'nur bei Bedarf' : 'Aus – nur Frostschutz';
+  }
+  /* Temperaturring: 5–30 °C, Bogen bis Ist, Marke beim Soll */
+  cvRing(b) {
+    const soll = this.cvSoll(b), t = b.t, w = x => Math.max(0, Math.min(1, (x - 5) / 25)), R = 52, U = 2 * Math.PI * R * .75;
+    const pos = f => { const a = (135 + 270 * f) * Math.PI / 180; return [60 + R * Math.cos(a), 60 + R * Math.sin(a)]; };
+    const [sx, sy] = pos(w(soll)), farbe = t === null ? 'var(--ink2)' : t > soll + .5 ? '#ff9f0a' : t < soll - .5 ? '#64a8ff' : '#30d158';
+    return `<svg viewBox="0 0 120 120" class="cv-ring-svg"><circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--gridc)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${U} 999" transform="rotate(135 60 60)"/>
+      ${t === null ? '' : `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${farbe}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${U * w(t)} 999" transform="rotate(135 60 60)"/>`}
+      <circle cx="${sx}" cy="${sy}" r="5" fill="var(--ink)" stroke="var(--panel-rand)" stroke-width="2"/>
+      <text x="60" y="58" text-anchor="middle" class="cv-ring-t">${t === null ? '–' : de(t)}°</text><text x="60" y="76" text-anchor="middle" class="cv-ring-k">Soll ${de(soll)}°</text></svg>`;
+  }
+  /* Tagesdiagramm: Heizzeit als Band, Innen/Außen, Soll gestrichelt, Heizen als Balken unten, Jetzt-Marke */
+  cvTag(b) {
+    const W = 640, H = 220, L = 34, Rr = 10, T = 12, B = 44, p = this.planTag(HEUTE_TAG, b.trocknen), soll = this.cvSoll(b);
+    const x = h => L + (W - L - Rr) * h / 24, alle = [...b.innen, ...this.d.aussen, soll].filter(v => v !== null);
+    const lo = Math.floor(Math.min(...alle) - 1), hi = Math.ceil(Math.max(...alle) + 1), y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+    const pfad = v => v.map((t, h) => t === null ? '' : `${h && v[h - 1] !== null ? 'L' : 'M'}${x(h + .5).toFixed(1)} ${y(t).toFixed(1)}`).join(' ');
+    const kw = verbrauch(this.d.bereiche, b.id, 'Tag'), kmax = Math.max(1, ...kw), jetzt = +JETZT.slice(0, 2) + +JETZT.slice(3) / 60;
+    const band = p ? `<rect x="${x(p.extra / 60)}" y="${T}" width="${x(p.ende / 60) - x(p.extra / 60)}" height="${H - T - B}" fill="var(--amber)" opacity=".1"/>
+      <rect x="${x(p.a / 60)}" y="${T}" width="${x(p.b / 60) - x(p.a / 60)}" height="${H - T - B}" fill="var(--amber)" opacity=".1"/>` : '';
+    const raster = [lo, Math.round((lo + hi) / 2), hi].map(v => `<line x1="${L}" x2="${W - Rr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--gridc)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" class="cv-achse">${v}°</text>`).join('');
+    const stunden = [0, 6, 12, 18, 24].map(h => `<text x="${x(h)}" y="${H - 4}" text-anchor="middle" class="cv-achse">${String(h).padStart(2, '0')}</text>`).join('');
+    const bars = kw.map((k, h) => k > 0 ? `<rect x="${x(h) + 2}" y="${H - B + 6 + 22 * (1 - k / kmax)}" width="${x(1) - x(0) - 4}" height="${22 * k / kmax}" rx="2" fill="${BEREICH_FARBEN[b.f % BEREICH_FARBEN.length]}" opacity=".8"/>` : '').join('');
+    return `<svg viewBox="0 0 ${W} ${H}" class="cv-tag-svg">${band}${raster}
+      <line x1="${L}" x2="${W - Rr}" y1="${y(soll)}" y2="${y(soll)}" stroke="var(--ink)" stroke-dasharray="5 4" opacity=".6"/><text x="${W - Rr}" y="${y(soll) - 5}" text-anchor="end" class="cv-achse">Soll ${de(soll)}°</text>
+      <path d="${pfad(this.d.aussen)}" fill="none" stroke="var(--ink2)" stroke-width="1.5" opacity=".7"/>
+      ${b.t === null ? '' : `<path d="${pfad(b.innen)}" fill="none" stroke="#ff9f0a" stroke-width="2.6"/>`}
+      ${bars}<line x1="${x(jetzt)}" x2="${x(jetzt)}" y1="${T}" y2="${H - B + 28}" stroke="var(--ink)" opacity=".5"/>${stunden}</svg>
+      <div class="cv-legende"><span><i style="background:#ff9f0a"></i>innen</span><span><i style="background:var(--ink2)"></i>außen</span><span><i class="gestr"></i>Soll</span><span><i style="background:var(--amber);opacity:.35"></i>Heizzeit</span><span><i style="background:${BEREICH_FARBEN[b.f % BEREICH_FARBEN.length]}"></i>geheizt (kWh je Stunde)</span></div>`;
+  }
+  cvZurueck() { return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button><button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>`; }
+  cvExtras(b) {
+    return `${b.tuer ? `<div class="zeile"><div><b>🚪 ${esc(b.tuer.sensor)}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min` : 'zu'}</div></div></div>` : ''}
+      ${b.t === null ? '' : `<div class="zeile"><div><b>🧠 Lernende Regelung</b>${b.lernen ? ' · <button class="link" data-act="sheet" data-s="lernen">Lernstand ›</button>' : ''}</div>${schalter(b.lernen, 'b-lernen')}</div>`}
+      <div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`;
+  }
+
+  /* D – gewählte Mischung (Herbert 30.09.2026: „mir gefällt A, aber das Diagramm aus B“): Kopf und Kacheln aus A,
+     in der Mitte das Tagesdiagramm aus B (Reiter Heute/Woche/Heizzeit), Geräte als Chips */
+  v_container_d() {
+    const b = this.b, w = this.cvWerte(b), c = ['heute', 'woche', 'stunden'].includes(this.s.cvd) ? this.s.cvd : 'heute';
+    const inhalt = c === 'heute' ? this.cvTag(b) : c === 'woche' ? balken('cv-dw-' + b.id, b.kwh7, TAGE, 'kWh') : balken('cv-dh-' + b.id, b.h7, TAGE, 'h');
+    return `${this.cvZurueck()}
+      <div class="glas-panel cv-d-held ${b.z}" style="--c:${FARBE[b.z]}">
+        <div class="cv-d-info"><div><div class="glas-klein">CONTAINER</div><div class="glas-titel">${esc(b.name)}</div>
+          <div class="glas-status"><span class="glas-dot"></span>${TEXT(b)}</div><div class="leise">${this.cvRegelText(b)}</div></div>
+          <div class="cv-d-knoepfe">${this.cvModus(b)}${this.cvBoost(b)}</div></div>
+        <div class="cv-kern cv-kern-1">${b.t === null ? this.cvOhneFuehler(b) : this.cvKern1(b, this.cvSollAktiv(b))}</div>
+      </div>
+      <div class="cv-kacheln">${[['⚡', de(w.kw), 'kW jetzt'], ['🔋', de(w.kwh), 'kWh heute'], ['€', de(w.eur, 2), 'Kosten heute'], ['⏱', de(w.h), 'h Heizzeit']].map(([i, v, t]) =>
+        `<button class="glas-panel cv-kachel" data-act="sheet" data-s="verbrauch" data-id="${b.id}"><span>${i}</span><b>${v}</b><small>${t}</small></button>`).join('')}</div>
+      <div class="glas-panel block cv-b-tag"><div class="block-kopf"><div class="seg klein">${[['heute', 'Heute'], ['woche', 'Woche'], ['stunden', 'Heizzeit']].map(([k, t]) => `<button data-act="cvd" data-v="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <span class="leise">${c === 'heute' ? this.zeitleisteText(b) : c === 'woche' ? 'kWh je Tag' : 'Stunden geheizt je Tag'}</span></div>
+        <div class="chart-wrap">${inhalt}</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Geräte</b><span class="leise">Schalten = Handbetrieb</span></div><div class="cv-chips">${this.cvGeraete(b, true)}</div></div>
+      <div class="glas-panel liste">${this.cvExtras(b)}</div>`;
+  }
+
+  /* ---- WU-0004: vier Designs für Ist/Soll mit Steuerung (Leiste „Soll/Ist-Design“) ---- */
+  cvLage(b) {   // Farbe und Text je Abstand Ist ↔ Soll
+    const soll = this.cvSoll(b), t = b.t, d = t - soll;
+    return { soll, t, d, farbe: d > .5 ? '#ff9f0a' : d < -.5 ? '#64a8ff' : '#30d158',
+      text: Math.abs(d) <= .5 ? 'am Soll' : `${de(Math.abs(d))}° ${d > 0 ? 'über' : 'unter'} Soll`,
+      trend: b.innen.filter(v => v !== null).slice(-3) };
+  }
+  /* Soll gilt nur, wenn die Integration selbst nach dem Fühler regelt: Thermostat oder Bei Bedarf (mit Fühler) */
+  cvSollAktiv(b) { return b.t !== null && ['thermo', 'bedarf'].includes(b.modus); }
+  cvOhneSollText(b) { return { plan: 'Zeitplan – der Heizkörperthermostat regelt', hand: 'Hand – kein Soll', aus: 'Aus – nur Frostschutz' }[b.modus] || ''; }
+  cvOhneFuehler(b) { return `<div class="cv-ohne glas-panel"><small>LEISTUNG JETZT</small><b>${de(kwVon(b))}<small> kW</small></b><span class="leise">kein Fühler – der Heizkörperthermostat regelt</span></div>`; }
+  cvPlusMinus(klasse = '') { return [`<button class="cv-pm ${klasse}" data-act="c-soll" data-d="-0.5" aria-label="Soll niedriger">${IC_MINUS}</button>`, `<button class="cv-pm ${klasse}" data-act="c-soll" data-d="0.5" aria-label="Soll höher">${IC_PLUS}</button>`]; }
+  /* 1 · Thermostat-Rad: Strichkranz 5–30 °C, zwischen Ist und Soll farbig, Soll-Knopf, − + in der Öffnung unten */
+  cvKern1(b, mitSoll = true) {
+    const l = this.cvLage(b), w = x => Math.max(0, Math.min(1, (x - 5) / 25)), R = 78, ang = f => (135 + 270 * f) * Math.PI / 180;
+    if (!mitSoll) l.farbe = 'var(--ink)';
+    const [von, bis] = mitSoll ? [Math.min(w(l.t), w(l.soll)), Math.max(w(l.t), w(l.soll))] : [0, w(l.t)];
+    const striche = [...Array(61)].map((_, i) => { const f = i / 60, a = ang(f), an = f >= von - .001 && f <= bis + .001, lang = i % 10 === 0;
+      return `<line x1="${100 + (R - (lang ? 14 : 9)) * Math.cos(a)}" y1="${100 + (R - (lang ? 14 : 9)) * Math.sin(a)}" x2="${100 + R * Math.cos(a)}" y2="${100 + R * Math.sin(a)}" stroke="${an ? l.farbe : 'var(--ink2)'}" stroke-width="${an ? 3 : 1.6}" stroke-linecap="round" opacity="${an ? 1 : .35}"/>`; }).join('');
+    const ks = ang(w(l.soll)), [m, p] = this.cvPlusMinus('rund');
+    return `<div class="cv-rad"><svg viewBox="0 0 200 200"><defs><radialGradient id="cvRadG" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="rgba(255,255,255,.16)"/><stop offset="1" stop-color="rgba(255,255,255,.02)"/></radialGradient></defs>
+      <circle cx="100" cy="100" r="${R - 20}" fill="url(#cvRadG)" stroke="var(--panel-rand)"/>${striche}
+      ${mitSoll ? `<circle cx="${100 + R * Math.cos(ks)}" cy="${100 + R * Math.sin(ks)}" r="8" fill="#fff" stroke="${l.farbe}" stroke-width="3"/>` : ''}
+      <text x="100" y="80" text-anchor="middle" class="cv-rad-k">IST</text><text x="100" y="112" text-anchor="middle" class="cv-rad-t">${de(l.t)}°</text>
+      ${mitSoll ? `<text x="100" y="134" text-anchor="middle" class="cv-rad-s" fill="${l.farbe}">Soll ${de(l.soll)}°</text>` : ''}</svg>
+      ${mitSoll ? `<div class="cv-rad-pm">${m}${p}</div>` : `<div class="leise cv-ohne-t">${this.cvOhneSollText(b)}</div>`}</div>`;
+  }
+  zeitleisteText(b) { const p = this.planTag(HEUTE_TAG, b.trocknen); return p ? `Heizzeit ${uhr(p.extra)}–${uhr(p.ende)} · Arbeitszeit ${uhr(p.a)}–${uhr(p.b)}` : 'heute frei'; }
+
   zeitleiste(b) {
     const p = this.planTag(HEUTE_TAG, b.trocknen);
     return `<div class="tl">${this.zeitstrahl(p, true)}<div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div></div>
@@ -1217,10 +1342,25 @@ class App {
           : `<div class="ge-zeile"><div class="ge-felder">
             ${g.neu ? `<select data-ge="shelly" data-i="${i}">${['Heizung 03 · Shelly Plug S', 'Heizung 04 · Shelly Plug S', 'Pumpe 3 · Shelly Plus 1PM'].map(x => `<option ${g.shelly === x ? 'selected' : ''}>${x}</option>`).join('')}</select>` : `<span class="leise ge-shelly">${esc(g.shelly || g.n.toLowerCase().replace(/[^a-z0-9]+/g, '_'))} · Shelly Plug S</span>`}
             <div class="ge-zwei"><input value="${esc(g.n)}" data-ge="n" data-i="${i}" placeholder="Name">${wahl(i, g)}</div></div>
-            <button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
+            ${g.neu ? '' : `<button class="bs-ic" data-act="g-bearbeiten" data-i="${i}" title="Gerät bearbeiten" aria-label="${esc(g.n)} bearbeiten">✎</button>`}<button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
         <button class="zeile" data-act="ge-neu"><span class="blau">+ Gerät hinzufügen</span></button>
         <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
         ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'geraet-edit') {   // WU-0004: jedes Gerät bearbeiten (Name, Shelly, Typ, Sensoren, Container, aktiv)
+      const b = this.b, g = b.geraete[s.i], f = s.form ||= { n: g.n, typ: g.typ, shelly: g.shelly || `${g.n} · Shelly Plug S`, leistung: 'auto', energie: 'auto', bereich: b.id, aktiv: !g.inaktiv };
+      const opt = (liste, wert) => liste.map(([v, t]) => `<option value="${esc(v)}" ${v === wert ? 'selected' : ''}>${esc(t)}</option>`).join('');
+      const stamm = f.shelly.split(' · ')[0].toLowerCase().replace(/\s+/g, '_');
+      return `${griff}<div class="block-kopf"><h3>Gerät bearbeiten</h3><span class="leise">${esc(b.name)}</span></div>
+        <label class="feld">Name<input value="${esc(f.n)}" data-gf="n"></label>
+        <label class="feld">Shelly (Schalter)<select data-gf="shelly">${opt([f.shelly, 'Heizung 03 · Shelly Plug S', 'Heizung 04 · Shelly Plug S'].map(x => [x, x]), f.shelly)}</select></label>
+        <div class="raster-2"><label class="feld">Typ<select data-gf="typ">${opt(['Ölradiator', 'Konvektor', 'Steckdose'].map(x => [x, x]), f.typ)}</select></label>
+          <label class="feld">Container<select data-gf="bereich">${opt(this.d.bereiche.filter(x => !x.pumpe).map(x => [x.id, x.name]), f.bereich)}</select></label></div>
+        <label class="feld">Leistungssensor<select data-gf="leistung">${opt([['auto', `automatisch · sensor.${stamm}_leistung`], ['w', `sensor.${stamm}_leistung`]], f.leistung)}</select></label>
+        <label class="feld">Energiesensor<select data-gf="energie">${opt([['auto', `automatisch · sensor.${stamm}_energie`], ['e1', `sensor.${stamm}_energie`], ['e2', `sensor.${stamm}_energieverbrauch`]], f.energie)}</select></label>
+        <div class="zeile"><div><b>Aktiv</b><div class="leise">aus: die Automatik schaltet das Gerät nicht, es zählt nicht in der Staffelung, keine Warnungen</div></div>${schalter(f.aktiv, 'gf-aktiv')}</div>
+        <div class="leise">Neuer Shelly: die Werte des alten bleiben im Verlauf. Anderer Container: Verbrauch zählt ab jetzt dort.</div>
+        ${knopf('Speichern', 'gf-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'lernen') {
       const b = this.b, l = this.lernStand(b), kalt = (s.lk || 'kalt') === 'kalt', soll = b.soll ?? this.d.e.soll;
@@ -1420,6 +1560,16 @@ class App {
       case 'an-weg': { const id = this.s.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); for (const b of d.bereiche) if (b.anschluss === id) b.anschluss = rest.id;
         d.anschluesse = d.anschluesse.filter(x => x.id !== id); this.s.sheet = this.zurueck; neu(); return this.toast(`Gelöscht – Container hängen jetzt an ${rest.name}`); }
       case 'tab-einst': return this.gehe('einst');
+      case 'g-bearbeiten': this.s.sheet = { art: 'geraet-edit', i: +el.dataset.i, zurueck: this.s.sheet && this.s.sheet.art === 'bereich' ? this.s.sheet : null }; return neu();
+      case 'gf-aktiv': this.s.sheet.form.aktiv = !this.s.sheet.form.aktiv; return neu();
+      case 'gf-speichern': { const f = this.s.sheet.form, g = b.geraete[this.s.sheet.i]; Object.assign(g, { n: f.n.trim() || g.n, typ: f.typ, shelly: f.shelly, inaktiv: !f.aktiv });
+        if (!f.aktiv) { g.an = 0; g.hand = false; }
+        this.s.sheet = this.zurueck; neu(); return this.toast(`${g.n} gespeichert`); }
+      case 'g-aktiv': { const g = b.geraete[+el.dataset.i]; g.inaktiv = !g.inaktiv; if (g.inaktiv) { g.an = 0; g.hand = false; }
+        neu(); return this.toast(g.inaktiv ? `${g.n} inaktiv – die Automatik lässt es aus` : `${g.n} wieder aktiv`); }
+      case 'g-automatik': { const g = b.geraete[+el.dataset.i]; g.hand = false; neu(); return this.toast(`${g.n}: Automatik übernimmt`); }
+      case 'cvd': this.s.cvd = el.dataset.v; return neu();
+      case 'c-soll': b.soll = Math.max(5, Math.min(30, this.cvSoll(b) + +el.dataset.d)); return neu();
       case 'b-lernen': b.lernen = !b.lernen; neu(); return this.toast(b.lernen ? `${b.name}: lernende Regelung ein – lernt ab dem nächsten Heizzyklus` : `${b.name}: lernende Regelung aus – Lernstand bleibt`);
       case 'lern-k': this.s.sheet.lk = el.dataset.v; return neu();
       case 'lern-reset': this.s.sheet = this.zurueck; neu(); return this.toast(`${b.name}: Lernstand zurückgesetzt`);
@@ -1463,6 +1613,7 @@ class App {
     const el = ev.target;
     if (el.dataset.k === 'preis') this.d.e.preis = +el.value || 0;
     if (el.dataset.azn) this.s.sheet.form[el.dataset.azn] = el.value;
+    if (el.dataset.gf) this.s.sheet.form[el.dataset.gf] = el.value;
     if (el.dataset.ur) this.s.sheet.form[el.dataset.ur] = el.value;
     if (el.dataset.tm) this.s.sheet.form[el.dataset.tm] = el.value;
     if (el.dataset.au) { this.s.sheet.form[el.dataset.au] = el.value; if (el.dataset.au === 'datum') this.render(); }

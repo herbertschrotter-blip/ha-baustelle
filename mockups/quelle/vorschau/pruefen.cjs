@@ -38,5 +38,15 @@ if (require.main === module) {
     klick({ act: 'b-lernen' }); pr('lernen an'); if (!/Thermostat · lernend/.test(ui())) f.push('Lernen: Regelungszeile fehlt');
     klick({ act: 'sheet', s: 'lernen' }); pr('lernstand'); klick({ act: 'lern-k', v: 'mild' }); pr('lernstand mild'); klick({ act: 'zu' }); }
   klick({ act: 'zu' });
+  /* WU-0004: Container-Ansicht D mit Thermostat-Rad */
+  { const c = A.d.bereiche.find(x => !x.pumpe && x.t !== null); klick({ act: 'container', id: c.id }); A.b.modus = 'thermo'; A.render(); pr('container d');
+    if (!ui().includes('cv-kern-1') || !ui().includes('data-act="c-soll"')) f.push('D: Rad/Soll fehlt');
+    const vorher = A.cvSoll(A.b); klick({ act: 'c-soll', d: '0.5' }); if (A.cvSoll(A.b) !== vorher + .5) f.push('D: Soll +');
+    A.b.modus = 'plan'; A.render(); if (ui().includes('data-act="c-soll"')) f.push('D: Soll im Zeitplan'); A.b.modus = 'thermo';
+    for (const k of ['heute', 'woche', 'stunden']) { klick({ act: 'cvd', v: k }); pr(`d ${k}`); }
+    const g = A.b.geraete[0]; klick({ act: 'g-aktiv', i: '0' }); if (!g.inaktiv) f.push('D: inaktiv'); klick({ act: 'g-aktiv', i: '0' });
+    klick({ act: 'sheet', s: 'bereich' }); klick({ act: 'g-bearbeiten', i: '0' }); pr('gerät bearbeiten'); eing({ gf: 'n' }, 'Radiator neu'); klick({ act: 'gf-speichern' });
+    if (g.n !== 'Radiator neu' || !A.s.sheet || A.s.sheet.art !== 'bereich') f.push('D: Gerät bearbeiten'); klick({ act: 'zu' });
+    for (const x of A.d.bereiche.filter(y => !y.pumpe)) { klick({ act: 'container', id: x.id }); pr(`d ${x.id}`); } }
   console.log(f.length ? f.join('\n') : 'Grundprüfung sauber');
 }

@@ -673,7 +673,7 @@ class Steuerung:
             f = self._je_rolle.get(g.rolle)
             schaltet = (
                 f is not None and f.schaltbar(g) and ein is not None
-                and self.funktion_von(g).hand_seit(g) is None and erreichbar
+                and self.funktion_von(g).hand_seit(g) is None and erreichbar and self.geraet_aktiv(g)
             )
             if schaltet:
                 kw = self.nenn_kw(g)  # vorsichtig: auch wenn das Gerät gerade nicht zieht (Thermostat)
@@ -879,6 +879,27 @@ class Steuerung:
         )
         return True
 
+    def geraet_aktiv(self, g: GeraetInfo) -> bool:
+        """Inaktive Geräte (z. B. ausgeliehen oder defekt) schaltet die Automatik nicht, sie zählen nicht in der
+        Staffelung und melden nichts (WU-0004)."""
+        return (self.e.get("geraete") or {}).get(g.id, {}).get("aktiv", True) is not False
+
+    def geraet_aktiv_setzen(self, g: GeraetInfo, aktiv: bool) -> None:
+        """Aktiv/inaktiv setzen; beim Deaktivieren einmal ausschalten und den Handbetrieb beenden."""
+        self.e.setdefault("geraete", {}).setdefault(g.id, {})["aktiv"] = aktiv
+        self.lz["hand"].pop(g.id, None)
+        self.protokoll("einstellung", g.bereich, f"{g.name}: {'aktiv' if aktiv else 'inaktiv – die Automatik lässt es aus'}")
+        zustand = self.hass.states.get(g.schalter)
+        if not aktiv and zustand is not None and zustand.state == STATE_ON:
+            kontext = Context()
+            self._eigene_kontexte.append(kontext.id)
+            self.hass.async_create_task(
+                self.hass.services.async_call("switch", "turn_off", {"entity_id": g.schalter}, context=kontext),
+                f"baustelle_inaktiv_{g.schalter}", eager_start=False,
+            )
+        self.einstellungen.speichern()
+        self.auswerten()
+
     def geraet_schalten(self, g: GeraetInfo, an: bool) -> None:
         """Gerät von der Seite aus schalten: Handbetrieb bis zum nächsten Schaltpunkt (api §2 `schalten`)."""
         zustand = self.hass.states.get(g.schalter)
@@ -942,6 +963,8 @@ class Steuerung:
     def _geraete_zustand(self, jetzt: datetime) -> list[warn_logik.GeraetZustand]:
         liste = []
         for g in self.geraete.values():
+            if not self.geraet_aktiv(g):
+                continue   # inaktiv: keine Warnungen (WU-0004)
             zustand = self.hass.states.get(g.schalter)
             erreichbar = zustand is not None and zustand.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
             # Protokoll von HA einmal beim Ausfall und einmal, wenn der Shelly wieder antwortet

@@ -651,6 +651,29 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .lern-tab > div { display: flex; flex-direction: column; } .lern-tab > b { font-size: 12px; color: var(--ink2); }
 .lern-treffer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; margin: 6px 0 10px; }
 .lern-treffer span { padding: 2px 8px; border-radius: 8px; background: rgba(255,152,0,.18); } .lern-treffer span.gut { background: rgba(76,175,80,.2); }
+/* Container-Ansicht (WU-0004): Kopf mit Thermostat-Rad, Kacheln, Tagesdiagramm, Geräte-Chips */
+.c-d-held { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 16px; margin-bottom: 12px; }
+.c-d-info { display: flex; flex-direction: column; gap: 14px; } .c-d-knoepfe { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.c-rad { position: relative; width: 210px; } .c-rad svg { width: 210px; height: 210px; display: block; }
+.c-rad-k { font-size: 11px; letter-spacing: 2px; fill: var(--ink2); } .c-rad-t { font-size: 38px; font-weight: 700; fill: var(--ink); } .c-rad-s { font-size: 13px; font-weight: 600; }
+.c-rad-pm { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; gap: 36px; }
+.c-pm, .c-power { display: inline-flex; align-items: center; justify-content: center; padding: 0; line-height: 1; border-radius: 50%; border: 1px solid var(--panel-rand); background: rgba(255,255,255,.08); color: var(--ink); cursor: pointer; backdrop-filter: blur(8px); }
+.c-pm { width: 44px; height: 44px; } .c-pm:active, .c-power:active { transform: scale(.94); } .c-pm .ic, .c-power .ic { width: 55%; height: 55%; display: block; }
+.wurzel.hell .c-pm, .wurzel.hell .c-power { background: rgba(255,255,255,.6); }
+.c-ohne-t { text-align: center; max-width: 220px; margin: 4px auto 0; }
+.c-ohne { padding: 14px 16px; border-radius: 18px; display: flex; flex-direction: column; gap: 4px; min-width: 200px; } .c-ohne b { font-size: 30px; } .c-ohne small { font-size: 11px; letter-spacing: 1.5px; color: var(--ink2); }
+.c-kacheln { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+.c-kachel { display: flex; flex-direction: column; align-items: flex-start; padding: 12px; border-radius: 16px; color: var(--ink); cursor: pointer; text-align: left; font: inherit; }
+.c-kachel span { font-size: 18px; } .c-kachel b { font-size: 22px; margin-top: 4px; } .c-kachel small { color: var(--ink2); font-size: 12px; }
+.c-tag-svg { width: 100%; height: auto; display: block; } .c-achse { font-size: 11px; fill: var(--ink2); }
+.c-legende { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink2); margin-top: 6px; } .c-legende i { display: inline-block; width: 12px; height: 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.c-legende i.gestr { background: repeating-linear-gradient(90deg, var(--ink) 0 4px, transparent 4px 7px); }
+.c-chips { display: flex; flex-wrap: wrap; gap: 10px; } .c-chip { flex: 1 1 260px; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; }
+.c-chip-t { flex: 1; display: flex; flex-direction: column; } .c-chip-t small { color: var(--ink2); font-size: 12px; } .c-chip-t .link { font-size: 12px; text-align: left; padding: 0; }
+.c-chip.an { box-shadow: inset 0 0 0 1px var(--amber); } .c-chip.inaktiv { opacity: .55; }
+.c-power { width: 42px; height: 42px; color: var(--ink2); } .c-power.an { background: var(--amber); color: #fff; border-color: transparent; box-shadow: 0 0 14px rgba(255,159,10,.55); }
+.c-power:disabled { opacity: .35; cursor: not-allowed; } .c-aktiv { display: flex; flex-direction: column; align-items: center; gap: 2px; } .c-aktiv small { font-size: 10px; color: var(--ink2); }
+@media (max-width: 700px) { .c-d-held { grid-template-columns: 1fr; } .c-kern { justify-self: center; } .c-kacheln { grid-template-columns: repeat(2, 1fr); } }
 .tab-scroll { overflow-x: auto; } .je-geraet td, .je-geraet th { white-space: nowrap; padding-left: 8px; } .je-geraet td:first-child { white-space: normal; padding-left: 0; }
 /* 0.7.11 – Reiter Heizung als Kacheln (Mockup heizung-varianten.html, Variante A) */
 .hz-held { padding: 14px 16px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; }
@@ -1024,7 +1047,7 @@ function einblendungen(s) {
   let jetzt = s.sheet || null, eltern = null;
   Object.defineProperty(s, 'sheet', { enumerable: true, get: () => jetzt, set: v => {
     if (v && v.art === 'bs-bearbeiten') eltern = null;
-    else if (v && jetzt && jetzt.art === 'bs-bearbeiten' && v !== jetzt) eltern = jetzt;
+    else if (v && jetzt && ['bs-bearbeiten', 'bereich'].includes(jetzt.art) && v !== jetzt && v.art !== jetzt.art) eltern = jetzt;
     else if (!v && eltern && jetzt !== eltern) { v = eltern; eltern = null; }
     else if (!v) eltern = null;
     jetzt = v || null; } });
@@ -1032,9 +1055,14 @@ function einblendungen(s) {
   return s;
 }
 
+/* Symbole für runde Knöpfe als SVG – Schriftzeichen (−, +, ⏻) sitzen je nach Schrift außermittig (WU-0004) */
+const IC_MINUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const IC_PLUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const IC_POWER = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M7.3 7.2a7 7 0 1 0 9.4 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.1';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.2';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1251,7 +1279,8 @@ class BaustellePanel extends HTMLElement {
       const eb = ebAlle[b.id] || {}, c = cAlle[b.id] || {}, pumpe = b.art === 'pumpenschacht';
       const geraete = (r.geraete || []).filter(g => g.bereich === b.id).map(g => { const x = gAlle[g.id] || {};
         return { id: g.id, n: g.name || g.id, typ: TYP_TEXT(g), rolle: g.rolle, gtyp: g.typ, heizer: HEIZER(g), kw: v(g.nenn_kw, 0), kwJetzt: x.kw, an: !!x.an,
-          hand: !!x.hand_seit, hand_seit: x.hand_seit || null, warte: x.warte || null, erreichbar: x.erreichbar !== false, schalter: g.schalter, leistung: g.leistung, energie: g.energie }; });
+          hand: !!x.hand_seit, hand_seit: x.hand_seit || null, warte: x.warte || null, erreichbar: x.erreichbar !== false, schalter: g.schalter, leistung: g.leistung, energie: g.energie,
+          aktiv: x.aktiv !== false, leistungEigen: g.leistung_eigen || null, energieEigen: g.energie_eigen || null }; });
       let zst = c.zustand in FARBE ? c.zustand : (pumpe ? 'aus' : 'aus');
       const offline = zst === 'offline' || (geraete.length > 0 && geraete.every(g => !g.erreichbar));
       if (offline) zst = 'offline';
@@ -1826,11 +1855,15 @@ class BaustellePanel extends HTMLElement {
     const wrap = this.root && this.root.querySelector('.c-live .chart-wrap'), knopf = this.root && this.root.querySelector('.c-live-kennz');
     if (this.s.view !== 'container' || !this.b || !wrap || !knopf) return this._auffrischen();
     if (this.s.sheet || (this.root.querySelector('.tip') || { classList: { contains: () => false } }).classList.contains('an')) return;   // später wieder
-    const { chart, kennz } = this.containerLive(this.b);
-    wrap.innerHTML = chart; knopf.innerHTML = this.kennzHtml(kennz);
+    if (this.b.pumpe) { const { chart, kennz } = this.containerLive(this.b); wrap.innerHTML = chart; knopf.innerHTML = this.kennzHtml(kennz); return; }
+    const { chart, kacheln } = this.containerTeile(this.b);
+    wrap.innerHTML = chart; knopf.innerHTML = kacheln;
   }
 
   v_container() {
+    return this.b.pumpe ? this.v_schacht() : this.v_container_d();
+  }
+  v_schacht() {
     const d = this.d, b = this.b, tl = this.zeitleiste(b);
     const { tabs, c, mitVb, chart, kennz } = this.containerLive(b);
     const soll = b.soll ?? d.e.soll;
@@ -1874,6 +1907,99 @@ class BaustellePanel extends HTMLElement {
         <div class="zeile"><span>Stromausfall / offline (nach ${de(d.e.offline_min, 0)} min)</span><span class="ok">${d.e.m_offline ? '● überwacht' : '○ aus'}</span></div>
         <button class="zeile" data-act="tab" data-v="pumpen"><span class="blau">Schwellen im Reiter Pumpen</span><span class="chev">›</span></button></div>` : ''}`;
   }
+
+  /* ============ Container-Ansicht (WU-0004, Mockup glas.html „D mit Thermostat-Rad“, abgenommen 30.09.2026) ============ */
+  sollAktiv(b) { return !!b.fuehler && b.t !== null && ['thermo', 'bedarf'].includes(b.modus); }   // Soll gilt nur, wenn die Integration nach dem Fühler regelt
+  cRegelText(b) {
+    const soll = b.soll ?? this.d.e.soll;
+    if (b.modus === 'thermo' && b.lern && b.lern.an) return `🧠 Thermostat · lernend – ${b.lern.anteil !== null ? `${b.lern.anteil} % je ${b.lern.zyklus_min} min · ` : ''}Nachlauf +${de(b.lern.erwartet)} °C → aus bei ${de(b.lern.aus_bei)} °C`;
+    return { thermo: `Thermostat regelt in der Heizzeit auf ${de(soll)} °C`, plan: 'Zeitplan – der Heizkörperthermostat regelt', hand: 'Hand – die Automatik schaltet nicht',
+      bedarf: `nur bei Bedarf${b.fuehler ? ` · regelt auf ${de(soll)} °C` : ''}`, aus: 'Aus – nur Frostschutz' }[b.modus] || '';
+  }
+  /* Thermostat-Rad: Strichkranz 5–30 °C, zwischen Ist und Soll farbig, Soll-Knopf, − + in der Öffnung unten */
+  cRad(b) {
+    const mitSoll = this.sollAktiv(b), soll = b.soll ?? this.d.e.soll, t = b.t, dd = t - soll;
+    const farbe = !mitSoll ? 'var(--ink)' : dd > .5 ? '#ff9f0a' : dd < -.5 ? '#64a8ff' : '#30d158';
+    const w = x => Math.max(0, Math.min(1, (x - 5) / 25)), R = 78, ang = f => (135 + 270 * f) * Math.PI / 180;
+    const [von, bis] = mitSoll ? [Math.min(w(t), w(soll)), Math.max(w(t), w(soll))] : [0, w(t)];
+    const striche = [...Array(61)].map((_, i) => { const f = i / 60, a = ang(f), an = f >= von - .001 && f <= bis + .001, lang = i % 10 === 0;
+      return `<line x1="${(100 + (R - (lang ? 14 : 9)) * Math.cos(a)).toFixed(1)}" y1="${(100 + (R - (lang ? 14 : 9)) * Math.sin(a)).toFixed(1)}" x2="${(100 + R * Math.cos(a)).toFixed(1)}" y2="${(100 + R * Math.sin(a)).toFixed(1)}" stroke="${an ? farbe : 'var(--ink2)'}" stroke-width="${an ? 3 : 1.6}" stroke-linecap="round" opacity="${an ? 1 : .35}"/>`; }).join('');
+    const ks = ang(w(soll)), ohne = { plan: 'Zeitplan – der Heizkörperthermostat regelt', hand: 'Hand – kein Soll', aus: 'Aus – nur Frostschutz' }[b.modus] || '';
+    return `<div class="c-rad"><svg viewBox="0 0 200 200" role="img" aria-label="Ist ${de(t)} °C${mitSoll ? `, Soll ${de(soll)} °C` : ''}"><defs><radialGradient id="cRadG" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="rgba(255,255,255,.16)"/><stop offset="1" stop-color="rgba(255,255,255,.02)"/></radialGradient></defs>
+      <circle cx="100" cy="100" r="${R - 20}" fill="url(#cRadG)" stroke="var(--panel-rand)"/>${striche}
+      ${mitSoll ? `<circle cx="${(100 + R * Math.cos(ks)).toFixed(1)}" cy="${(100 + R * Math.sin(ks)).toFixed(1)}" r="8" fill="#fff" stroke="${farbe}" stroke-width="3"/>` : ''}
+      <text x="100" y="80" text-anchor="middle" class="c-rad-k">IST</text><text x="100" y="112" text-anchor="middle" class="c-rad-t">${de(t)}°</text>
+      ${mitSoll ? `<text x="100" y="134" text-anchor="middle" class="c-rad-s" fill="${farbe}">Soll ${de(soll)}°</text>` : ''}</svg>
+      ${mitSoll ? `<div class="c-rad-pm"><button class="c-pm" data-act="c-soll" data-d="-0.5" aria-label="Soll niedriger">${IC_MINUS}</button><button class="c-pm" data-act="c-soll" data-d="0.5" aria-label="Soll höher">${IC_PLUS}</button></div>`
+        : `<div class="leise c-ohne-t">${ohne}</div>`}</div>`;
+  }
+  cOhneFuehler(b) { return `<div class="c-ohne glas-panel"><small>LEISTUNG JETZT</small><b>${de(kwVon(b))}<small> kW</small></b><span class="leise">kein Fühler – der Heizkörperthermostat regelt</span></div>`; }
+  /* Tagesdiagramm: Heizzeit als Band, innen/außen, Soll gestrichelt, geheizte Stunden als Balken, Jetzt-Marke */
+  cTag(b) {
+    const d = this.d, innen = b.fuehler ? this.reihe(d, b.fuehler, 'Tag') : [], aussen = this.reihe(d, this.eid(d, d.entry, 'aussen'), 'Tag'), kw = this.verbrauch(d, b.id, 'Tag');
+    if (!aussen || !kw || !innen) return LAEDT;
+    const W = 640, H = 220, L = 34, Rr = 10, T = 12, B = 44, mitSoll = this.sollAktiv(b), soll = b.soll ?? d.e.soll, farbe = BEREICH_FARBEN[b.f % BEREICH_FARBEN.length];
+    const x = h => L + (W - L - Rr) * h / 24, alle = [...innen, ...aussen, ...(mitSoll ? [soll] : [])].filter(zahl);
+    const lo = Math.floor(Math.min(...(alle.length ? alle : [15])) - 1), hi = Math.ceil(Math.max(...(alle.length ? alle : [25])) + 1), y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+    const pfad = v => v.map((t, h) => !zahl(t) ? '' : `${h && zahl(v[h - 1]) ? 'L' : 'M'}${x(h + .5).toFixed(1)} ${y(t).toFixed(1)}`).join(' ');
+    const kmax = Math.max(1, ...kw), jm = this.z.JETZT.split(':'), jetzt = +jm[0] + +jm[1] / 60;
+    const band = this.heizzeiten(b, this.z.HEUTE_TAG).map(([von, bis]) => `<rect x="${x(von / 60).toFixed(1)}" y="${T}" width="${(x(bis / 60) - x(von / 60)).toFixed(1)}" height="${H - T - B}" fill="var(--amber)" opacity=".12"/>`).join('');
+    const raster = [lo, Math.round((lo + hi) / 2), hi].map(v => `<line x1="${L}" x2="${W - Rr}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--gridc)"/><text x="${L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" class="c-achse">${v}°</text>`).join('');
+    const stunden = [0, 6, 12, 18, 24].map(h => `<text x="${x(h).toFixed(1)}" y="${H - 4}" text-anchor="middle" class="c-achse">${String(h).padStart(2, '0')}</text>`).join('');
+    const bars = kw.map((k, h) => k > 0 ? `<rect x="${(x(h) + 2).toFixed(1)}" y="${(H - B + 6 + 22 * (1 - k / kmax)).toFixed(1)}" width="${(x(1) - x(0) - 4).toFixed(1)}" height="${(22 * k / kmax).toFixed(1)}" rx="2" fill="${farbe}" opacity=".8"><title>${String(h).padStart(2, '0')}:00 · ${de(k, 2)} kWh</title></rect>` : '').join('');
+    return `<svg viewBox="0 0 ${W} ${H}" class="c-tag-svg">${band}${raster}
+      ${mitSoll ? `<line x1="${L}" x2="${W - Rr}" y1="${y(soll).toFixed(1)}" y2="${y(soll).toFixed(1)}" stroke="var(--ink)" stroke-dasharray="5 4" opacity=".6"/><text x="${W - Rr}" y="${(y(soll) - 5).toFixed(1)}" text-anchor="end" class="c-achse">Soll ${de(soll)}°</text>` : ''}
+      <path d="${pfad(aussen)}" fill="none" stroke="var(--ink2)" stroke-width="1.5" opacity=".7"/>${b.fuehler ? `<path d="${pfad(innen)}" fill="none" stroke="#ff9f0a" stroke-width="2.6"/>` : ''}
+      ${bars}<line x1="${x(jetzt).toFixed(1)}" x2="${x(jetzt).toFixed(1)}" y1="${T}" y2="${H - B + 28}" stroke="var(--ink)" opacity=".5"/>${stunden}</svg>
+      <div class="c-legende">${b.fuehler ? '<span><i style="background:#ff9f0a"></i>innen</span>' : ''}<span><i style="background:var(--ink2)"></i>außen</span>${mitSoll ? '<span><i class="gestr"></i>Soll</span>' : ''}<span><i style="background:var(--amber);opacity:.4"></i>Heizzeit</span><span><i style="background:${farbe}"></i>geheizt (kWh je Stunde)</span></div>`;
+  }
+  /* Diagramm und Kacheln – auch für das Live-Tauschen neuer Sensorwerte (WU-0002) */
+  containerTeile(b) {
+    const d = this.d, heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), kwh7 = this.verbrauch(d, b.id, 'Woche'), h7 = this.heizStunden(d, b, 'Woche');
+    const c = ['heute', 'woche', 'stunden'].includes(this.s.cvd) ? this.s.cvd : 'heute';
+    const chart = c === 'heute' ? this.cTag(b) : c === 'woche' ? (kwh7 ? balken('cw-' + b.id, kwh7, TAGE, 'kWh') : LAEDT) : (h7 ? balken('ch-' + b.id, h7, TAGE, 'h') : LAEDT);
+    const kwh = kwh7 ? kwh7[heuteNr] : null, h = h7 ? h7[heuteNr] : null;
+    const kacheln = [['⚡', de(kwVon(b)), 'kW jetzt'], ['🔋', zahl(kwh) ? de(kwh) : '–', 'kWh heute'], ['€', zahl(kwh) ? de(kwh * d.e.preis, 2) : '–', 'Kosten heute'], ['⏱', zahl(h) ? de(h) : '–', 'h Heizzeit']]
+      .map(([i, v, t]) => `<button class="glas-panel c-kachel" data-act="sheet" data-s="verbrauch" data-id="${b.id}"><span>${i}</span><b>${v}</b><small>${t}</small></button>`).join('');
+    return { c, chart, kacheln };
+  }
+  /* Geräte-Chips: Ein/Aus (Handbetrieb), Schalter „aktiv“, ✎ Gerät bearbeiten */
+  cGeraete(b) {
+    const d = this.d;
+    return b.geraete.map((g, i) => { const off = b.offline || !g.erreichbar, an = g.an && g.aktiv;
+      const info = !g.aktiv ? 'inaktiv – die Automatik lässt es aus' : off ? '<span class="rot-t">offline</span>' : `${g.typ} · ${an ? de(zahl(g.kwJetzt) ? g.kwJetzt : g.kw, 2) + ' kW' : 'aus'}`;
+      return `<div class="c-chip glas-panel ${an ? 'an' : ''} ${g.aktiv ? '' : 'inaktiv'}">
+        <span class="c-chip-t">${g.typ === 'Steckdose' || g.typ === 'Bautrockner' ? '⏻' : '♨'} <b>${esc(g.n)}</b><small>${info}${g.hand && g.aktiv ? ' · <em class="hand">✋ Hand</em>' : ''}${g.warte && g.aktiv ? ` · <em class="warte">wartet – ${esc((d.anschluesse.find(a => a.id === b.anschluss) || {}).name || 'Anschluss')} ausgelastet</em>` : ''}</small>
+          ${g.hand && g.aktiv ? `<button class="link" data-act="g-automatik" data-i="${i}">Automatik übernehmen</button>` : ''}</span>
+        <button class="c-power ${an ? 'an' : ''}" data-act="geraet" data-i="${i}" ${!g.aktiv || off ? 'disabled' : ''} aria-label="${esc(g.n)} ${g.an ? 'ausschalten' : 'einschalten'}" title="${g.an ? 'Ausschalten' : 'Einschalten'} (Handbetrieb)">${IC_POWER}</button>
+        <label class="c-aktiv" title="Gerät aktiv – aus: die Automatik schaltet es nicht, keine Warnungen">${schalter(g.aktiv, 'g-aktiv', `data-i="${i}"`)}<small>aktiv</small></label>
+        <button class="bs-ic" data-act="g-bearbeiten" data-i="${i}" title="Gerät bearbeiten" aria-label="${esc(g.n)} bearbeiten">✎</button></div>`; }).join('');
+  }
+  v_container_d() {
+    const d = this.d, b = this.b, { c, chart, kacheln } = this.containerTeile(b);
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
+        <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
+      <div class="glas-panel c-d-held ${b.z}" style="--c:${FARBE[b.z]}">
+        <div class="c-d-info"><div><div class="glas-klein">CONTAINER</div><div class="glas-titel">${esc(b.name)}</div>
+          <div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b))}</div><div class="leise">${esc(this.cRegelText(b))}</div></div>
+          <div class="c-d-knoepfe"><div class="seg klein">${MODI.map(([k, t]) => `<button data-act="modus" data-id="${b.id}" data-v="${k}" class="${b.modus === k ? 'on' : ''}" ${k === 'thermo' && !b.fuehler ? 'disabled title="kein Temperaturfühler"' : ''}>${t}</button>`).join('')}</div>
+            <button class="glas-panel chip ${b.boost ? 'amber' : ''}" data-act="boost" data-id="${b.id}">⚡ ${b.boost ? 'Aufheizen beenden' : 'Schnell aufheizen'}</button></div></div>
+        <div class="c-kern">${b.fuehler && b.t !== null ? this.cRad(b) : this.cOhneFuehler(b)}</div>
+      </div>
+      <div class="c-kacheln c-live-kennz">${kacheln}</div>
+      ${b.bedarf ? this.bedarfBlock(b) : ''}
+      <div class="glas-panel block c-live"><div class="block-kopf"><div class="seg klein">${[['heute', 'Heute'], ['woche', 'Woche'], ['stunden', 'Heizzeit']].map(([k, t]) => `<button data-act="cvd" data-v="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <span class="leise">${c === 'heute' ? this.heuteText(b) : c === 'woche' ? 'kWh je Tag' : 'Stunden geheizt je Tag'}</span></div>
+        <div class="chart-wrap">${chart}</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Geräte</b><span class="leise">⏻ = Handbetrieb · aktiv aus = die Automatik lässt es aus</span></div>
+        ${b.geraete.length ? `<div class="c-chips">${this.cGeraete(b)}</div>` : '<div class="leise">Noch kein Gerät</div>'}</div>
+      <div class="glas-panel liste">
+        ${b.tuer ? `<div class="zeile"><div><b>🚪 ${esc(b.tuer.sensor)}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min – Heizung pausiert nach ${d.e.tuer_pause} min, Meldung nach ${d.e.tuer_melden} min` : 'zu'}</div></div></div>` : ''}
+        ${!b.fuehler || !b.lern ? '' : `<div class="zeile"><div><b>🧠 Lernende Regelung</b><div class="leise">${['thermo', 'bedarf'].includes(b.modus) ? 'lernt, wie lange der Raum nach dem Ausschalten nachheizt, und schaltet früher ab' : 'wirkt nur im Modus Thermostat oder Bei Bedarf'}${b.lern.an ? ' · <button class="link" data-act="sheet" data-s="lernen">Lernstand ›</button>' : ''}</div></div>${schalter(b.lern.an, 'b-lernen')}</div>`}
+        <div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>
+      </div>`;
+  }
+  heuteText(b) { const seg = this.heizzeiten(b, this.z.HEUTE_TAG); return seg.length ? `Heizzeit ${uhr(seg[0][0])}–${uhr(Math.max(...seg.map(q => q[1])))}` : this.freiText(this.z.HEUTE) || 'heute keine Heizzeit'; }
   minBis(iso) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((ms - this.jetztMs()) / 60000)) : null; }
   zeitleiste(b) {
     const seg = this.heizzeiten(b, this.z.HEUTE_TAG), p = this.planTag(this.z.HEUTE_TAG);
@@ -2627,7 +2753,7 @@ class BaustellePanel extends HTMLElement {
           : `<div class="ge-zeile"><div class="ge-felder">
             ${g.neu ? `<select data-ge="schalter" data-i="${i}">${this.optionen(this.freieSchalter().map(([v, n]) => [v, `${n} (${v})`]), g.schalter, '– Shelly wählen –')}</select>` : `<span class="leise ge-shelly">${esc(this.name(g.schalter))} · ${esc(g.schalter)}</span>`}
             <div class="ge-zwei"><input value="${esc(g.n)}" data-ge="n" data-i="${i}" placeholder="Name">${wahl(i, g)}</div></div>
-            <button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
+            ${g.neu ? '' : `<button class="bs-ic" data-act="g-bearbeiten" data-i="${i}" title="Gerät bearbeiten" aria-label="${esc(g.n)} bearbeiten">✎</button>`}<button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
         <button class="zeile" data-act="ge-neu"><span class="blau">+ Gerät hinzufügen</span></button>
         <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
         ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
@@ -2642,6 +2768,24 @@ class BaustellePanel extends HTMLElement {
       <div class="leise">Die Auswertung rechnet Verbrauch und Kosten auf die Heizperiode hoch – bis zum Ende der Baustelle, wenn es früher liegt.</div>
       ${knopf('Speichern', 'bsz-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
     /* AN-0002: ✎ im Dialog „Baustellen“ – nur die Daten dieser Baustelle; Staffelung, Bericht, Meldungen und App bleiben unter Einstellungen */
+    /* WU-0004: Gerät bearbeiten – Name, Shelly, Typ, Container, Leistungs-/Energiesensor (leer = automatisch), aktiv */
+    if (s.art === 'geraet-edit') {
+      const b = this.b, g = b && b.geraete[s.i]; if (!g) { this.s.sheet = null; return ''; }
+      const f = s.form, typen = ['Ölradiator', 'Konvektor', 'Bautrockner', 'Steckdose'];
+      const leistung = this.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'power');
+      const energie = this.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'energy');
+      const auto = (eid, eigen) => `automatisch${!eigen && eid ? ` · ${this.name(eid) || eid}` : ''}`;
+      return `${griff}<div class="block-kopf"><h3>Gerät bearbeiten</h3><span class="leise">${esc(b.name)}</span></div>
+        <label class="feld">Name<input value="${esc(f.n)}" data-gf="n"></label>
+        <label class="feld">Shelly (Schalter)<select data-gf="schalter">${this.optionen(this.freieSchalter(g.schalter).map(([v, n]) => [v, `${n} (${v})`]), f.schalter)}</select></label>
+        <div class="raster-2"><label class="feld">Typ<select data-gf="typ">${typen.map(t => `<option ${f.typ === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+          <label class="feld">Container<select data-gf="bereich">${this.optionen(d.bereiche.filter(x => !x.pumpe).map(x => [x.id, x.name]), f.bereich)}</select></label></div>
+        <label class="feld">Leistungssensor<select data-gf="leistung">${this.optionen(leistung, f.leistung, auto(g.leistung, g.leistungEigen))}</select></label>
+        <label class="feld">Energiesensor<select data-gf="energie">${this.optionen(energie, f.energie, auto(g.energie, g.energieEigen))}</select></label>
+        <div class="zeile"><div><b>Aktiv</b><div class="leise">aus: die Automatik schaltet das Gerät nicht, es zählt nicht in der Staffelung, keine Warnungen</div></div>${schalter(f.aktiv, 'gf-aktiv')}</div>
+        <div class="leise">Neuer Shelly: die Werte des alten bleiben im Verlauf. Anderer Container: der Verbrauch zählt ab jetzt dort.</div>
+        ${knopf('Speichern', 'gf-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
     /* Lernende Regelung (0.8): Lernstand eines Containers (Mockup glas.html, abgenommen 30.09.2026) */
     if (s.art === 'lernen') {
       const b = this.b, l = b && b.lern; if (!l) { this.s.sheet = null; return ''; }
@@ -2859,6 +3003,24 @@ class BaustellePanel extends HTMLElement {
       case 'bsz-speichern': { const f = S.sheet.form; if (f.ende && f.ende < (f.beginn || (d.beginnAuto ? d.beginn : ''))) return this.toast('Bitte Beginn und Ende prüfen');
         S.sheet = null; neu();
         return this.einrichten(() => this.optionenSpeichern(d, { beginn: f.beginn || null, ende: f.ende || null, heizperiode_von: String(f.hp[0]), heizperiode_bis: String(f.hp[1]) }), 'Gespeichert').then(() => this._laden()); }
+      case 'c-soll': { const x = b, soll = Math.max(5, Math.min(30, (x.soll ?? d.e.soll) + +el.dataset.d)); return this.setzen(['bereiche', x.id, 'soll'], soll); }
+      case 'cvd': S.cvd = el.dataset.v; return neu();
+      case 'g-aktiv': { const g = b.geraete[+el.dataset.i]; return this.aktion('aktiv', { geraet: g.id, an: !g.aktiv }, g.aktiv ? `${g.n} inaktiv – die Automatik lässt es aus` : `${g.n} wieder aktiv`); }
+      case 'g-automatik': { const g = b.geraete[+el.dataset.i]; return this.aktion('automatik', { geraet: g.id }, `${g.n}: Automatik übernimmt`); }
+      case 'g-bearbeiten': { const g = b.geraete[+el.dataset.i];
+        S.sheet = { art: 'geraet-edit', i: +el.dataset.i, form: { n: g.n, schalter: g.schalter, typ: g.typ, bereich: b.id, leistung: g.leistungEigen || '', energie: g.energieEigen || '', aktiv: g.aktiv } }; return neu(); }
+      case 'gf-aktiv': S.sheet.form.aktiv = !S.sheet.form.aktiv; return neu();
+      case 'gf-speichern': { const f = S.sheet.form, g = b.geraete[S.sheet.i], x = b; if (!f.n.trim() || !f.schalter) return this.toast('Bitte Name und Shelly wählen');
+        S.sheet = null; neu();
+        const geaendert = f.n.trim() !== g.n || f.schalter !== g.schalter || f.typ !== g.typ || f.bereich !== x.id || f.leistung !== (g.leistungEigen || '') || f.energie !== (g.energieEigen || '');
+        return this.einrichten(async () => {
+          if (geaendert) {
+            const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id },
+              this.geraetDaten(f.bereich, { n: f.n.trim(), typ: f.typ, schalter: f.schalter, leistung: f.leistung || undefined, energie: f.energie || undefined }));
+            if (this.flowFehler(r)) return r; }
+          if (f.aktiv !== g.aktiv) await this._hass.callWS({ type: 'baustelle/aktion', entry_id: d.entry, aktion: 'aktiv', geraet: g.id, an: f.aktiv });
+          return true;
+        }, `${f.n.trim()} gespeichert`).then(() => this._laden()); }
       case 'b-lernen': return this.setzen(['bereiche', b.id, 'lernen'], !(b.lern && b.lern.an));
       case 'lern-k': S.sheet.lk = el.dataset.v; return neu();
       case 'lern-reset': { const x = b; S.sheet = null; neu(); return this.aktion('lern_reset', { bereich: x.id }, `${x.name}: Lernstand zurückgesetzt`); }
@@ -3028,6 +3190,7 @@ class BaustellePanel extends HTMLElement {
     if (ds.wq) sh.form[ds.wq] = el.value;
     if (ds.nm) sh.form.name = el.value;
     if (ds.bsz) sh.form[ds.bsz] = el.value;
+    if (ds.gf) sh.form[ds.gf] = el.value;
     if (ds.hp) sh.form.hp[+ds.hp] = +el.value;
   }
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */

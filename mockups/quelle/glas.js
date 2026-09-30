@@ -30,6 +30,7 @@ ${css}</style></head>
 <div class="bar"><b>Baustelle · Glas · klickbarer Prototyp</b><button id="modus">Hell / Dunkel</button>
 <label>Datum <input type="date" id="datum"></label>
 <label>Uhrzeit <input type="range" id="uhr" min="0" max="1435" step="5"> <span id="uhr-text"></span></label><button id="raffer">▶ Zeitraffer</button>
+
 <button id="az-auto" title="FE-0002: nur die automatisch angelegte Arbeitszeit">Arbeitszeit wie neue Baustelle</button>
 <label>Wetter <select id="wetter"><option value="klar" selected>klar</option><option value="wolkig">bewölkt</option><option value="regen">Regen</option><option value="gewitter">Gewitter</option><option value="nebel">Nebel</option><option value="schnee">Schnee</option></select></label>
 <span class="leise">Vorführung: Sonnenstand wie sun.sun (hier nachgebildet für etwa 47° N), Mondphase aus dem Datum, Wetter aus der Wetter-Entität</span></div>

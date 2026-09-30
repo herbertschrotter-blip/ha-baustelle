@@ -89,6 +89,7 @@ STANDARD: dict[str, Any] = {
     "stumm": {},
     "melden_knopf": True,
     "erklaer": True,          # Erklärtexte „ⓘ“ auf der Seite (0.7.8)
+    "geraete": {},            # je Gerät {"aktiv": False} = inaktiv: Automatik lässt es aus, keine Warnungen (WU-0004)
     "protokoll": [],
     # Zähler wie 0.6: Energie, Kosten, Zeiten, Zyklen, Mittel; „stand:<gerät>“ = letzter Zählerstand des Shelly
     "zaehler": {},

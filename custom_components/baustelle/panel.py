@@ -431,7 +431,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Required("entry_id"): str,
     vol.Required("aktion"): vol.In(
         ["bedarf", "bedarf_aus", "boost", "jetzt_heizen", "schalten", "automatik", "warnung_stumm", "bericht_senden",
-         "test_meldung", "lern_reset"]
+         "test_meldung", "lern_reset", "aktiv"]
     ),
     vol.Optional("bereich"): str,
     vol.Optional("geraet"): str,
@@ -492,6 +492,14 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         else:
             lz["jetzt_bis"] = None
             st.protokoll("schalten", None, "„Alle jetzt heizen“ beendet")
+    elif aktion == "aktiv":
+        g = st.geraete.get(msg.get("geraet") or "")
+        if g is None or "an" not in msg:
+            connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Gerät nicht gefunden")
+            return
+        st.geraet_aktiv_setzen(g, bool(msg["an"]))
+        connection.send_result(msg["id"], {"ok": True})
+        return
     elif aktion in ("schalten", "automatik"):
         g = st.geraete.get(msg.get("geraet") or "")
         if g is None:

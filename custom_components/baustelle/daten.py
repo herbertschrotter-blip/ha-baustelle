@@ -12,7 +12,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .auswertung import beginn_der_baustelle
-from .const import ART_CONTAINER, CONF_STATUS, STATUS_AKTIV
+from .const import ART_CONTAINER, CONF_ENERGIE, CONF_LEISTUNG, CONF_STATUS, STATUS_AKTIV
 from .funktionen import aktive
 from .funktionen.heizung import Heizung
 from .funktionen.pumpen import Pumpen
@@ -151,6 +151,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "erreichbar": s is not None and s.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN),
             "hand_seit": lz["hand"].get(gid),
             "warte": d.warte.get(gid),
+            "aktiv": st.geraet_aktiv(g),   # WU-0004
         }
     stumm = st.e["stumm"]
     tuer_melden = st.e["heizung"]["tuer_melden_min"]
@@ -212,6 +213,9 @@ def struktur(hass: HomeAssistant, entry: ConfigEntry, version: str = "") -> dict
         geraete=[
             {"id": g.id, "name": g.name, "bereich": g.bereich, "schalter": g.schalter,
              "rolle": ROLLE_API.get(g.rolle, g.rolle), "typ": g.typ, "leistung": g.leistung, "energie": g.energie,
+             # selbst gewählt (sonst automatisch am Shelly erkannt) – für „Gerät bearbeiten“ (WU-0004)
+             "leistung_eigen": (s.data.get(CONF_LEISTUNG) if (s := entry.subentries.get(g.id)) else None) or None,
+             "energie_eigen": (s.data.get(CONF_ENERGIE) if (s := entry.subentries.get(g.id)) else None) or None,
              "nenn_kw": st.nenn_kw(g)}
             for g in st.geraete.values()
         ],

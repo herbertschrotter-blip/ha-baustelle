@@ -849,3 +849,27 @@ async def test_lernende_regelung_lernt_nachlauf(hass: HomeAssistant, baustelle, 
     # zurücksetzen
     st.lz["lernen"].pop(C1)
     assert struktur(hass, baustelle)["laufzeit"]["container"][C1]["lernen"]["zyklen"] == 0
+
+
+async def test_geraet_inaktiv(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """WU-0004: inaktives Gerät wird einmal ausgeschaltet, dann schaltet die Automatik es nicht mehr und es meldet nichts."""
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk1").state == "on"
+    st.geraet_aktiv_setzen(st.geraete[HK1], False)
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk1").state == "off"
+    await _zu(hass, freezer, "2026-09-29 10:10:00+02:00", st)
+    assert hass.states.get("switch.hk1").state == "off"          # Arbeitszeit, aber inaktiv: bleibt aus
+    assert struktur(hass, baustelle)["laufzeit"]["geraete"][HK1]["aktiv"] is False
+    hass.states.async_set("switch.hk1", "unavailable")
+    await _zu(hass, freezer, "2026-09-29 10:40:00+02:00", st)
+    assert not any(w.geraet == HK1 for w in st.daten.warnungen)   # offline, aber inaktiv: keine Warnung
+    hass.states.async_set("switch.hk1", "off")
+    st.geraet_aktiv_setzen(st.geraete[HK1], True)
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk1").state == "on"
+    assert any("inaktiv" in t for t in _texte(st, "einstellung"))
