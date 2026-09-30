@@ -81,7 +81,7 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 | **3 Seite umstellen** | Seite holt die Werte über die neuen Befehle; `abrechnungDaten`, `firmaAm`, `bucketMs`, `heizperiodeEnde`, `typVergleich`, `kennzahlen`/`verlaufWerte` (Rechnung), Regression, `jeGeraet` (Rechnung) entfallen; CSV kommt von der Integration | `baustelle-panel.js`, `tests/panel/test_panel.js` | Panel-Tests grün, Seite zeigt die Vektor-Zahlen; kein Fachcode mehr in der Seite (Test sucht die entfernten Namen) |
 | **4 Funktionen-Module** | `funktionen/basis.py`, `heizung.py`, `pumpen.py`; Heizungs- und Pumpenteile aus `steuerung.py` dorthin; Kern ruft die aktiven Funktionen (Optionen `heizung`/`pumpen`) | `funktionen/*`, `steuerung.py`, `daten.py`, `sensor.py` (nur Importe) | **Verhalten gleich:** alle Integrationstests grün, `tests/panel/struktur-echt.json` aus dem Abgleich **byte-gleich** wie vorher; `steuerung.py` deutlich kürzer |
 | **5 Seite nach Funktionen** | `struktur` liefert `funktionen: ["heizung", "pumpen"]`; Reiter Heizung/Pumpen nach Funktionen (heute: Pumpen nur mit Schächten) | `daten.py`, `baustelle-panel.js`, api §8 | Baustelle nur mit Pumpen zeigt keinen Heizungsreiter und umgekehrt (Test) |
-| **7 Qualität (HACS, Platin)** | `quality_scale.yaml` mit jeder Regel (done/todo/exempt + Grund); fehlende Bronze–Gold-Regeln umsetzen, soweit sie zutreffen (z. B. Entitäts-Kategorien, Neu-Einrichten, übersetzte Fehlertexte, verwaiste Geräte entfernen, Protokoll einmal je Fehler); Platin: strenge Typisierung (`mypy --strict` für `custom_components/baustelle`), keine blockierenden Aufrufe; GitHub-Prüfläufe `hassfest` und `hacs/action` in `.github/workflows/`; Symbol `brand/icon.png` (+ `icon@2x.png`); README-Abschnitte, die die Skala verlangt. **Releases** und Repo-Beschreibung/Themen auf GitHub macht Herbert | `quality_scale.yaml`, `.github/workflows/validate.yml`, `pyproject.toml`, alle `.py` (Typen), `README.md` | `mypy --strict` ohne Fehler; hassfest lokal bzw. Prüfschritte grün, soweit ohne GitHub möglich; jede Regel in `quality_scale.yaml` begründet; alle Tests grün |
+| **7 Qualität (HACS, Platin)** | `quality_scale.yaml` mit jeder Regel (done/todo/exempt + Grund); fehlende Bronze–Gold-Regeln umsetzen, soweit sie zutreffen (z. B. Entitäts-Kategorien, Neu-Einrichten, übersetzte Fehlertexte, verwaiste Geräte entfernen, Protokoll einmal je Fehler); Platin: strenge Typisierung (`mypy --strict` für `custom_components/baustelle`), keine blockierenden Aufrufe; GitHub-Prüfläufe `hassfest` und `hacs/action` in `.github/workflows/`; Symbol `custom_components/baustelle/brand/icon.png` (+ `icon@2x.png`, Ort für eigene Integrationen); README-Abschnitte, die die Skala verlangt. **Releases** und Repo-Beschreibung/Themen auf GitHub macht Herbert | `quality_scale.yaml`, `.github/workflows/validate.yml`, `pyproject.toml`, alle `.py` (Typen), `README.md` | `mypy --strict` ohne Fehler; hassfest lokal bzw. Prüfschritte grün, soweit ohne GitHub möglich; jede Regel in `quality_scale.yaml` begründet; alle Tests grün |
 | **6 Doku und Prüfung** | README „Aufbau“, CLAUDE.md Regeln, Anleitung „Neue Funktion anlegen (Beispiel Kühlung)“ in `docs/funktion-anlegen.md`; unabhängige Prüfung (Review-Agent) gegen diesen Bauplan | `README.md`, `CLAUDE.md`, `docs/` | Review ohne offene Befunde; Bauplan-Häkchen gesetzt |
 
 ## 5. Entscheidungen und Grenzen
@@ -165,6 +165,16 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   `pumpe_laeuft`; `panel.py`/`nachrichten.py`: Hand beenden, „Trotzdem heizen“, „Noch früher“, Frühstart;
   `sensor.py`/`binary_sensor.py`: Ersparnis, Hochrechnung, Mittel je Typ, Pumpe läuft; `entity.MODELL` braucht das
   Gerätemodell einer neuen Bereichsart). Eine neue Funktion mit eigener Anzeige braucht dort eigene Stellen.
+- **Qualität (Phase 7, 0.7.21–0.7.22):** Seite und Zahlen unverändert. Sichtbar nur in den Einstellungen von HA:
+  „Neu konfigurieren“ benennt die Baustelle um; „Erreichbar“ steht unter Diagnose; Tageshöchstwert, Früh-Prognose und
+  Regen sind bei **neu** eingerichteten Baustellen zunächst ausgeschaltet (bestehende Entitäten bleiben, wie sie sind;
+  die Seite nimmt diese Werte aus `baustelle/struktur`, nicht aus den Sensoren). Verwaiste Geräte (Kennung ohne Bereich
+  oder Shelly) räumt der Start weg; Ausfall und Rückkehr eines Shelly stehen je einmal im Protokoll von HA (info).
+  Beispiel `struktur-echt`: im Abgleich fehlen nur die Zustände `sensor.*_daily_high`, `*_early_forecast`, `*_rain`.
+  `quality_scale.yaml` führt alle 54 Regeln von hassfest (Stand 2026-09-30, inkl. `docs-triggers`/`docs-conditions`); Regeln, die nicht zutreffen, stehen dort mit Grund (exempt: keine Verbindung/Zugangsdaten/
+  Geräte-Erkennung/Bibliothek, keine eigenen Auslöser und Bedingungen, `entity-unavailable`: Werte werden aus
+  HA-Entitäten berechnet). hassfest lokal (script/hassfest aus HA core) ohne Fehler; die HACS-Prüfung läuft erst auf
+  GitHub (`validate.yml`), Beschreibung und Themen des Repos setzt Herbert.
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
 
 ## 6. Ausführung mit Agenten
@@ -184,4 +194,5 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   Container aus der Struktur, sichtbare Unterschiede in §5) · [x] Phase 4 (0.7.17; `struktur-echt.json` byte-gleich bis auf
   die Versionsnummer; Nachbesserung 0.7.19: Hand, Heiz-Energie, Status und Modus-Text über die Schnittstelle;
   Nachbesserung 0.7.20: Kern ohne Heizungs-/Pumpen-Regeln, Funktionen aus `FUNKTIONEN`, Staffelung über die Funktionen) ·
-  [x] Phase 5 (0.7.18) · [ ] Phase 7 · [ ] Phase 6
+  [x] Phase 5 (0.7.18) · [x] Phase 7 (0.7.21 strenge Typisierung, 0.7.22 Regeln bis Gold,
+  `quality_scale.yaml`, Symbol, Prüfläufe, README) · [ ] Phase 6

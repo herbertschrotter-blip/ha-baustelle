@@ -36,6 +36,7 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   panel.py, daten.py           Seite anmelden, WebSocket-Befehle (docs/api-0.7.md)
   logbook.py                   Protokoll im HA-Logbuch
   translations/, icons.json    Texte de/en, Symbole
+  brand/icon.png, icon@2x.png  Symbol der Integration (256/512 px, tools/symbol.py)
 tests/logik/                   pytest ohne HA (Python 3.12+)
 tests/integration/             pytest-homeassistant-custom-component (Python 3.14+)
 tests/panel/                   Seite in Node rendern (ohne Browser)
@@ -44,6 +45,77 @@ mockups/                       abgenommener Entwurf
 ```
 
 Quelle der Wahrheit ist dieses Repo (`/config/projekte/ha-baustelle`). `/config` ist nur das Ziel.
+
+## Installation über HACS
+
+1. HACS → Integrationen → ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/herbertschrotter-blip/ha-baustelle`,
+   Kategorie **Integration**.
+2. **Baustelle** herunterladen, Home Assistant neu starten (ab 2026.9).
+3. Einstellungen → Geräte & Dienste → **Integration hinzufügen** → Baustelle.
+
+Ohne HACS: Ordner `custom_components/baustelle` nach `/config/custom_components/` kopieren (hier: `tools/deploy.sh`,
+siehe Auslieferung), dann neu starten.
+
+## Einrichtung
+
+- **Anlegen:** Name (jeder nur einmal), Beginn (ab dann zeigt der Verlauf Verbrauch und Heiztage), Funktionen Heizung
+  und/oder Pumpenüberwachung. Danach gleich den ersten Container anlegen.
+- **Container / Pumpenschacht** (Unter-Eintrag): Name, Art, optional Thermostat oder Temperaturfühler.
+- **Shelly** (Unter-Eintrag): Bereich, Schalter, Name, Rolle (Heizkörper, Bautrockner, Pumpe, Steckdose), Typ
+  (Ölradiator, Konvektor), optional Leistungs- und Energiesensor (sonst am selben Gerät gesucht). Ein Schalter gehört nur
+  einer aktiven Baustelle; eine Pumpe nur in einen Pumpenschacht.
+- **Konfigurieren** (Optionen): Status aktiv/abgeschlossen, Beginn/Ende, Funktionen, Wetter, Außentemperatur, Regen,
+  Kalender für Feiertage und Urlaub, Empfänger der Meldungen, Heizperiode (Monate).
+- **Neu konfigurieren:** Baustelle umbenennen; Container und Shellys über ihren Unter-Eintrag.
+- Alles Übrige (Arbeitszeiten, Regeln, Anschlüsse, Firmen, Bericht, Automatik) auf der Seite **Baustelle**.
+
+## Was die Integration liefert
+
+- **Seite „Baustelle“** in der Seitenleiste (Übersicht, Heizung, Pumpen, Auswertung, Protokoll, Einstellungen).
+- **Entitäten** je Baustelle: Schalter Automatik, Status, nächste Schaltzeit, Leistung, Zähler für Energie, Kosten,
+  Ersparnis und Hochrechnung, Wetterwerte (Diagnose; Tageshöchst, Früh-Prognose und Regen zunächst aus), Erreichbar
+  (Diagnose). Je Container Grund, Leistung, Energie, Kosten, Heizzeit; je Shelly Problem, Ø Leistung, bei Pumpen Pumpzeit,
+  Zyklen und „läuft“.
+- **Aktion** `baustelle.ticket`: Ticket aus dem Melden-Knopf ändern (`ticket`, optional `status`, `notiz`, `version`,
+  `commit`, `von`); unbekanntes Ticket → Fehler.
+- **Geräte:** Shellys oder jeder andere Schalter in HA (`switch.*`); Messwerte aus Leistungs-/Energiesensoren (W, kWh).
+  Fühler: Temperatursensor oder Thermostat (`climate`).
+- **Aktualisierung:** ohne Abfrage im Takt – bei jeder Zustandsänderung der zugeordneten Entitäten, mindestens jede
+  Minute; Wettervorhersage alle 30 min, Kalender alle 15 min.
+
+## Beispiele
+
+- **Container nach Arbeitszeit heizen:** Container mit Fühler, Heizkörper-Shelly zuordnen, auf der Seite Arbeitszeit
+  Mo–Do 07:00–16:30 und Vorheizen 45 min einstellen, Automatik ein.
+- **Nur Pumpen überwachen:** Baustelle mit Funktion Pumpenüberwachung, Pumpenschacht, Shelly mit Rolle Pumpe;
+  Meldung bei Trockenlauf, Dauerlauf oder Ausfall aufs Handy.
+- **Eigene Automation:** Auslöser „Binärsensor Erreichbar der Baustelle wird aus“ → z. B. Licht im Büro rot schalten.
+
+## Bekannte Grenzen
+
+- Geschaltet werden nur Schalter-Entitäten; Heizkörper ohne Fühler regeln über ihr eigenes Thermostat.
+- Ohne Leistungs- oder Energiesensor zählt die Integration keinen Verbrauch und erkennt kein „zieht keinen Strom“.
+- Den CSV-Anhang im Bericht kann nur der SMTP-Dienst von HA mitschicken.
+- Handy-Knöpfe nur mit der Companion App (`notify.mobile_app_*`).
+- Kühlung und andere Funktionen gibt es noch nicht (Platz dafür ist vorgesehen).
+
+## Fehlerbehebung
+
+- **Reparatur-Hinweis „Entität fehlt“:** ein zugeordneter Shelly, Fühler, Wetter oder Kalender ist weg bzw. umbenannt –
+  im Unter-Eintrag oder unter Konfigurieren neu wählen.
+- **Nichts wird geschaltet:** Automatik aus (startet aus), Baustelle abgeschlossen, Heizgrenze, Feiertag/Urlaub oder
+  Handbetrieb – Status und Grund stehen auf der Seite und im Protokoll.
+- **Shelly nicht erreichbar:** steht einmal im Protokoll von HA (`custom_components.baustelle`) und als Warnung auf der
+  Seite; ist er zurück, ebenfalls.
+- **Mehr sehen:** Diagnose herunterladen (Geräte & Dienste → Baustelle → ⋮ → Diagnose) oder Debug-Protokoll
+  einschalten.
+
+## Entfernen
+
+1. Einstellungen → Geräte & Dienste → Baustelle → ⋮ → **Löschen** (je Baustelle). Einstellungen und Reparatur-Hinweise
+   der Baustelle werden gelöscht; die Langzeitstatistik der Zähler bleibt in HA.
+2. Bei HACS: Baustelle in HACS entfernen, sonst den Ordner `/config/custom_components/baustelle` löschen.
+3. Home Assistant neu starten (die Seite verschwindet aus der Seitenleiste).
 
 ## Einrichten in Home Assistant (bewährte Bausteine)
 
@@ -58,13 +130,19 @@ Quelle der Wahrheit ist dieses Repo (`/config/projekte/ha-baustelle`). `/config`
 
 Ohne Wetterstation nimmt die Integration als „Regen“ den für heute vorhergesagten Niederschlag.
 
-## Tests
+## Tests und Qualität
 
 ```
 python3 -m pytest -q -p no:cacheprovider tests/logik
 uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
   --with pytest-homeassistant-custom-component python -m pytest -q -p no:cacheprovider tests/integration
+uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
+  --with pytest-homeassistant-custom-component --with mypy mypy --strict custom_components/baustelle
 ```
+
+Qualitätsskala von Home Assistant: `custom_components/baustelle/quality_scale.yaml` (jede Regel mit Stand und Grund).
+Auf GitHub prüfen `.github/workflows/tests.yml` und `validate.yml` (hassfest, HACS, mypy; Versionen fest angeheftet).
+Symbol: `custom_components/baustelle/brand/icon.png` (+ `icon@2x.png`), gezeichnet mit `tools/symbol.py`.
 
 ## Auslieferung
 
