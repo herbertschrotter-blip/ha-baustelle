@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.13] – 2026-09-30
+
+- Intern (Umbau „Module je Funktion“, Phase 1): Die Auswertung – Abrechnung nach Firma mit CSV, Heizperiode, Heiztage,
+  Kennzahlen im Verlauf, Verbrauch je Monat, Ölradiator/Konvektor, Wetter-Einfluss, Je Gerät – gibt es jetzt als
+  geprüfte Fachlogik in der Integration, damit Seite, Bericht und CSV bald dieselben Zahlen zeigen. Sichtbar ändert sich
+  noch nichts; die Seite rechnet vorerst weiter selbst.
+
 ## [0.7.12] – 2026-09-30
 
 - Fehler: Reiter Heizung – die Kacheln flackerten bei jedem Tipp und jeder Einstellung (die Einblend-Animation lief

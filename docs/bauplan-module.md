@@ -91,6 +91,22 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   zählen wäre ein neuer Zähler – nicht Teil dieses Umbaus.
 - **Kein Umzug der Store-Daten**, keine neuen Entitäten, keine geänderten entity_ids; die Befehle aus api-0.7 §1–§7
   bleiben unverändert (nur neue kommen dazu).
+- **Abweichungen der Seite** (Phase 0/1, Referenzwerte `tests/vektoren/auswertung-*.json` mit `abweichung`; es gilt
+  `logik/auswertung.py`):
+  - **Firma je Tag statt je Stunde (Zeitraum „Tag“, Tabelle und CSV):** Die Seite ordnete jede Stunde der Firma zu dieser
+    Stunde zu, Woche/Monat und Bericht aber den ganzen Tag der Firma zu Tagesbeginn. Beispiel `struktur-echt`,
+    Wohnbau, Magazin ab 29.09. 05:30 bei Huber: Seite „Tag“ Eigene Firma 42,20 kWh + Huber 11,24 kWh, „Woche“ am selben
+    Tag alles Eigene Firma; jetzt überall Eigene Firma 53,44 kWh, Huber ab 30.09. (wie `abrechnung.aufteilen`).
+  - **Firma je Tag statt je Monat (Zeitraum „Jahr“):** Die Seite gab den ganzen Monat der Firma am Monatsersten.
+    Beispiel `struktur-0.7`, Dobl, Jahr 2026 (Magazin ab 08.09. Huber, Lager ab 15.09. Leitner): Seite alles Eigene
+    Firma 29 756,99 kWh; richtig Eigene Firma 29 330,50 + Huber 257,56 + Leitner 168,93 kWh – dieselben Firmenwerte wie
+    im Monat September. `abrechnung()` bekommt beim Jahr deshalb Werte je Tag (Phase 2: Recorder mit `period: day`).
+    Das CSV „Verbrauch“ bleibt je Monat eine Zeile mit der Firma am Monatsersten.
+  - **Heiztage ohne Zähler (Verlauf, Detailseite, Kosten je Tag im Typvergleich):** Die Seite zählte Tage mit mehr als
+    0,5 kWh der ganzen Baustelle (auch Pumpen, Bereitschaft am Wochenende); richtig sind Tage ab Beginn mit Heizzeit
+    eines Containers wie Zähler `heiztage` und Bericht (0.7.9); Monate = Monate mit einem Heiztag. Beispiel
+    `struktur-0.7`, Dobl (kein Zähler `heiztage`): Seite 22 Heiztage, richtig 16; Kalsdorf 9 → 7. Mit Zähler (z. B.
+    `struktur-echt`, Halle 96) gleich. Die Regel steht einmal in `auswertung.heiztag_daten`; `bericht.heiztage` nutzt sie.
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
 
 ## 6. Ausführung mit Agenten
@@ -106,4 +122,4 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 ## 7. Status
 
 - Freigegeben von Herbert am 30.09.2026 (mit Phase 7).
-- [x] Phase 0 · [ ] Phase 1 · [ ] Phase 2 · [ ] Phase 3 · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6
+- [x] Phase 0 · [x] Phase 1 · [ ] Phase 2 · [ ] Phase 3 · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6

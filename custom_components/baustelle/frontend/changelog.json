@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.13",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Intern (Umbau „Module je Funktion“, Phase 1): Die Auswertung – Abrechnung nach Firma mit CSV, Heizperiode, Heiztage, Kennzahlen im Verlauf, Verbrauch je Monat, Ölradiator/Konvektor, Wetter-Einfluss, Je Gerät – gibt es jetzt als geprüfte Fachlogik in der Integration, damit Seite, Bericht und CSV bald dieselben Zahlen zeigen. Sichtbar ändert sich noch nichts; die Seite rechnet vorerst weiter selbst."
+    ]
+  },
+  {
     "version": "0.7.12",
     "datum": "2026-09-30",
     "punkte": [

@@ -40,6 +40,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
 from typing import Any
 
+from .auswertung import heiztag_daten
+
 BERICHT_UHRZEIT = time(7, 0)
 
 MONATE = [
@@ -154,10 +156,7 @@ def heiztage(kwh_je_bereich_und_tag: dict[str, dict[date, float]], von: date, bi
     Der Bericht gibt die Heizstunden je Container und Tag hinein – so zählt er wie der Zähler `heiztage` der Integration
     (Tage, an denen ein Heizkörper geheizt hat); Pumpenschächte sind nicht dabei.
     """
-    tage = {
-        t for je_tag in kwh_je_bereich_und_tag.values() for t, kwh in je_tag.items() if (kwh or 0) > 0 and von <= t <= bis
-    }
-    return len(tage)
+    return len(heiztag_daten({b: je_tag.items() for b, je_tag in kwh_je_bereich_und_tag.items()}, von, bis))
 
 
 def _runden(wert: float, stellen: int) -> Decimal:
