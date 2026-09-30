@@ -204,6 +204,11 @@ function pruefe(wo, { laedtErlaubt = false } = {}) {
   if (!laedtErlaubt && /Lädt …/.test(h)) fehler.push(`${wo}: bleibt bei „Lädt …“`);
   if (/Fehler: /.test(panel.letzterToast || '')) { fehler.push(`${wo}: Toast ${panel.letzterToast}`); panel.letzterToast = ''; }
   svgPruefen(h, wo);
+  // Aufbau: jeder geöffnete Block wird wieder geschlossen (sonst rutschen Folgeelemente in die falsche Zeile)
+  for (const tag of ['div', 'span', 'button', 'label', 'nav']) {
+    const auf = (h.match(new RegExp(`<${tag}[\\s>]`, 'g')) || []).length, zu = (h.match(new RegExp(`</${tag}>`, 'g')) || []).length;
+    if (auf !== zu) fehler.push(`${wo}: <${tag}> ${auf}× geöffnet, ${zu}× geschlossen`);
+  }
   return h;
 }
 const klick = async (ds, n) => { panel.klick({ target: { closest: () => ({ dataset: ds }) } }); await ruhe(n); };

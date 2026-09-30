@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.7.1",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Seite, Container › Bearbeiten: Gerätezeile war nicht geschlossen – „+ Gerät hinzufügen“, Hinweis und Knöpfe standen nebeneinander über der Liste. Test prüft jetzt in jeder Ansicht und Einblendung, dass alle Blöcke geschlossen sind.",
+      "Seite: Melden-Knopf sitzt in einer Einblendung oben rechts in der Einblendung, statt schwebend über deren Kopf."
+    ]
+  },
+  {
     "version": "0.7.0",
     "datum": "2026-09-30",
     "punkte": [
