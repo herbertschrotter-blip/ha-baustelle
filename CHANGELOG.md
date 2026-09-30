@@ -7,6 +7,12 @@
   Aus (nur Frostschutz); **Frostschutz** mit eigenem Aus-Wert; **Urlaub und freie Feiertage** nur Frostschutz,
   absenken (mit Fühler) oder alles aus; Hochrechnung der Heizperiode nur bis zum geplanten Ende der Baustelle;
   Test-Nachricht an alle Empfänger.
+- Seite: Reiter **Pumpen** (nur mit Pumpenschächten) mit Überwachung – offline nach … min, Trockenlauf unter … W,
+  Dauerlauf, schaltet oft; **Modus** am Container und unter Heizung › Je Container; Frostschutz „ein unter“/„aus über“;
+  Urlaub und freie Feiertage; Einstellungen › Baustelle **Beginn und Ende** und **Heizperiode**; Auswertung
+  **Leistung heute** (kW), **Temperaturen** (alle Container und außen, heute/7/30 Tage), **Je Gerät** (Ø kW, Stunden,
+  kWh, €), **Hochrechnung Heizperiode**; Container-Diagramm „Leistung“; **Test-Nachricht**; **Erklärungen** „ⓘ“,
+  abschaltbar unter Einstellungen › App.
 
 ## [0.7.7] – 2026-09-30
 

@@ -224,8 +224,8 @@ const hov = wo => { let t = ''; const alt = panel.tip; panel.tip = (e, h) => { t
   panel.tip = alt; };
 
 /* ---------- allgemeine Prüfung gegen die echte Antwort der Integration (struktur-echt.json) ---------- */
-const ANSICHTEN = ['uebersicht', 'heizung', 'auswertung', 'verlauf', 'einst', 'ueber', 'dev'];
-const EINBLENDUNGEN = ['verbrauch', 'wetter', 'warnungen', 'baustellen', 'heizplan', 'strom', 'nachrichten', 'bericht', 'container-neu', 'abschliessen', 'urlaub', 'wetterquelle', 'name', 'baustelle-neu', 'termin'];
+const ANSICHTEN = ['uebersicht', 'heizung', 'pumpen', 'auswertung', 'verlauf', 'einst', 'ueber', 'dev'];
+const EINBLENDUNGEN = ['verbrauch', 'wetter', 'warnungen', 'baustellen', 'heizplan', 'strom', 'nachrichten', 'bericht', 'container-neu', 'abschliessen', 'urlaub', 'wetterquelle', 'name', 'baustelle-neu', 'termin', 'zeitraum-bs'];
 async function allgemein() {
   const aktive = STRUKTUR.filter(b => (b.baustelle.status || 'aktiv') !== 'abgeschlossen'), fertige = STRUKTUR.filter(b => b.baustelle.status === 'abgeschlossen');
   erwarte('echte Antwort mit mindestens einer laufenden Baustelle', aktive.length > 0);
@@ -465,7 +465,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
 
   /* Einblendungen */
   await klick({ act: 'bs-wahl', id: 'dobl' }, 30);
-  const sheets = ['verbrauch', 'wetter', 'warnungen', 'baustellen', 'heizplan', 'strom', 'nachrichten', 'bericht', 'container-neu', 'abschliessen', 'urlaub', 'wetterquelle', 'name', 'baustelle-neu', 'termin'];
+  const sheets = ['verbrauch', 'wetter', 'warnungen', 'baustellen', 'heizplan', 'strom', 'nachrichten', 'bericht', 'container-neu', 'abschliessen', 'urlaub', 'wetterquelle', 'name', 'baustelle-neu', 'termin', 'zeitraum-bs'];
   for (const s of sheets) { await klick({ act: 'sheet', s, id: s === 'termin' ? 'besprechung' : undefined }, 30); const h = pruefe(`Einblendung ${s}`); erwarte(`Einblendung ${s} offen`, /class="sheet glas-panel an"/.test(h)); hov(`Einblendung ${s}`); }
   await klick({ act: 'sheet', s: 'wetter' }, 20); for (const wa of ['std', 'tag', '3']) { await klick({ act: 'wa', v: wa }, 20); const h = pruefe(`Wetter ${wa}`); erwarte(`Wetter ${wa} mit Symbolen`, (h.match(/<svg class="wi wr"/g) || []).length >= 4); }
   await klick({ act: 'sheet', s: 'verbrauch' }, 20);
@@ -628,6 +628,52 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'neu-laden' }, 20);
     erwarte('Neu laden: Datei am Speicher vorbei holen, dann neu laden', neu_geladen && geholt.some(g => g[0].includes('baustelle-panel.js') && g[1] === 'reload'));
     global.fetch = holen; global.location = { search: '' }; panel.neueVersion = null; panel.render(); }
+  /* 0.7.8: Punkte aus 0.6.3 zurück (Mockup glas.html, api §7) */
+  await klick({ act: 'bs-wahl', id: 'dobl' }, 30);
+  await klick({ act: 'tab', v: 'uebersicht' }, 20);
+  erwarte('Reiter Pumpen, weil die Baustelle einen Schacht hat', ui.innerHTML.includes('data-v="pumpen"') && ui.innerHTML.includes('glas-nav glas-panel sechs'));
+  await klick({ act: 'tab', v: 'pumpen' }, 30); pruefe('Pumpen');
+  erwarte('Pumpen: Schacht, Diagramm, Überwachung', ui.innerHTML.includes('Pumpenschacht Nord') && ui.innerHTML.includes('Überwachung') && ui.innerHTML.includes('data-k="trocken_w"'));
+  for (const v of ['zyklen', 'verbrauch', 'pumpzeit']) { await klick({ act: 'p-chart', v }, 20); pruefe('Pumpen ' + v); }
+  neu(); await klick({ act: 'st', k: 'trocken_w', d: '5' }); await klick({ act: 'st', k: 'offline_min', d: '1' });
+  erwarte('Pumpen-Schwellen über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["meldungen_einst","trocken_unter_w"]' && a.wert === 35)
+    && letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["meldungen_einst","offline_min"]' && a.wert === 6));
+  await klick({ act: 'container', id: 'polier' }, 30);
+  erwarte('Container: Modus-Auswahl statt Automatik-Schalter', ui.innerHTML.includes('data-act="modus"') && !ui.innerHTML.includes('Automatik für diesen Container'));
+  neu(); await klick({ act: 'modus', id: 'polier', v: 'plan' });
+  erwarte('Modus über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["bereiche","polier","modus"]' && a.wert === 'plan'));
+  await klick({ act: 'container', id: 'magazin' }, 20);
+  erwarte('Thermostat ohne Fühler nicht wählbar', /data-v="thermo" class="[^"]*" disabled/.test(ui.innerHTML));
+  await klick({ act: 'chart', c: 'leistung' }, 30); pruefe('Container Leistung'); erwarte('Leistung heute als kW-Kurve', ui.innerHTML.includes('data-chart="kw-magazin"'));
+  await klick({ act: 'tab', v: 'heizung' }, 30);
+  erwarte('Heizung: Frostschutz ein/aus, Urlaub-Auswahl, Modus je Container', ui.innerHTML.includes('aus über') && ui.innerHTML.includes('data-k="urlaub"') && ui.innerHTML.includes('data-jm="polier"'));
+  neu(); await klick({ act: 'st', k: 'frost_aus', d: '0.5' }); await klick({ act: 'e-wert', k: 'urlaub', v: 'absenk' });
+  erwarte('Frostschutz aus und Urlaub über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frost_aus"]' && a.wert === 7.5)
+    && letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frei_modus"]' && a.wert === 'absenk'));
+  pruefe('Heizung absenken'); erwarte('absenken auf … °C', ui.innerHTML.includes('data-k="absenk"'));
+  neu(); panel.aenderung({ target: { dataset: { jm: 'sanitaer' }, value: 'aus' } }); await ruhe(10);
+  erwarte('Modus je Container (Auswahlliste)', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["bereiche","sanitaer","modus"]' && a.wert === 'aus'));
+  neu(); panel.d.e.frost_aus = 5.5; await klick({ act: 'st', k: 'frost_temp', d: '0.5' });
+  erwarte('„ein unter“ nicht über „aus über“', !letzte('baustelle/setzen').length);
+  await klick({ act: 'tab', v: 'auswertung' }, 30);
+  erwarte('Auswertung: Leistung heute, Temperaturen, Je Gerät, Hochrechnung', ['Leistung heute', 'Temperaturen', 'Je Gerät', 'Hochrechnung Heizperiode'].every(t => ui.innerHTML.includes(t)));
+  for (const v of ['7', '30', 'heute']) { await klick({ act: 'tv', v }, 30); pruefe('Temperaturen ' + v); }
+  erwarte('Temperaturen: alle Container mit Fühler und außen', ['Poliercontainer', 'Mannschaft', 'Außen'].every(t => ui.innerHTML.includes(t)) && ui.innerHTML.includes('data-chart="tp-heute"'));
+  await klick({ act: 'aw-scope', v: 'alle' }, 30); pruefe('Auswertung alle');
+  erwarte('Alle laufenden: ohne Je Gerät und Temperaturen', !ui.innerHTML.includes('Je Gerät') && !ui.innerHTML.includes('data-act="tv"'));
+  await klick({ act: 'aw-scope', v: 'diese' }, 30);
+  await klick({ act: 'tab', v: 'einst' }, 30);
+  erwarte('Einstellungen: Beginn/Ende, Heizperiode, Erklärungen, Test-Nachricht', ['Beginn und Ende', 'Heizperiode', 'Erklärungen anzeigen', 'Test-Nachricht senden'].every(t => ui.innerHTML.includes(t)));
+  neu(); await klick({ act: 'test-meldung' }, 20);
+  erwarte('Test-Nachricht über baustelle/aktion', letzte('baustelle/aktion').some(a => a.aktion === 'test_meldung'));
+  await klick({ act: 'sheet', s: 'zeitraum-bs' }); pruefe('Beginn, Ende, Heizperiode');
+  eingabe({ bsz: 'ende' }, '2027-05-28'); eingabe({ hp: '1' }, '3'); neu(); await klick({ act: 'bsz-speichern' }, 30);
+  { const o = api.find(a => /options\/flow\/F/.test(a[1]));
+    erwarte('Beginn/Ende/Heizperiode über den Options-Dialog', o && o[2].ende === '2027-05-28' && o[2].heizperiode_bis === '3' && o[2].heizperiode_von === '10' && o[2].status === 'aktiv'); }
+  neu(); await klick({ act: 'e-bool', k: 'erklaer' });
+  erwarte('Erklärungen abschalten', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["erklaer"]' && a.wert === false));
+  await klick({ act: 'tab', v: 'heizung' }, 20); erwarte('ohne Erklärungen keine „ⓘ“', !ui.innerHTML.includes('class="erkl"'));
+  await klick({ act: 'e-bool', k: 'erklaer' }); await klick({ act: 'tab', v: 'heizung' }, 20); erwarte('mit Erklärungen „ⓘ“', ui.innerHTML.includes('class="erkl"'));
   /* AN-0001: im Fenster „Baustelle wählen“ je Baustelle Bearbeiten und Löschen */
   await klick({ act: 'sheet', s: 'baustellen' }); pruefe('Baustelle wählen');
   erwarte('Baustelle wählen: Bearbeiten und Löschen je Baustelle', panel.alle.every(x => ui.innerHTML.includes(`data-act="bs-bearbeiten" data-id="${x.entry}"`) && ui.innerHTML.includes(`data-s="bs-loeschen" data-id="${x.entry}"`)));

@@ -405,6 +405,8 @@ async def test_modus_frostschutz_urlaub_setzen(hass: HomeAssistant, baustelle, w
     # Pumpen-Schwellen (gab es schon, jetzt auf der Seite)
     assert (await ws.rufe("baustelle/setzen", pfad=["meldungen_einst", "trocken_unter_w"], wert=40))["success"]
     assert (await ws.rufe("baustelle/setzen", pfad=["meldungen_einst", "offline_min"], wert=10))["success"]
+    assert st.e["erklaer"] is True
+    assert (await ws.rufe("baustelle/setzen", pfad=["erklaer"], wert=False))["success"] and st.e["erklaer"] is False
 
 
 async def test_aktion_test_meldung(hass: HomeAssistant, baustelle, ws, nachrichten) -> None:

@@ -38,6 +38,7 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("automatik",): cv.boolean,
     ("preis",): vol.All(ZAHL, vol.Range(min=0, max=10)),
     ("melden_knopf",): cv.boolean,
+    ("erklaer",): cv.boolean,
     ("termine_kalender",): vol.Any(None, cv.entity_domain("calendar")),
     ("heizung", "vorheizen_min"): vol.All(GANZ, vol.Range(0, 240)),
     ("heizung", "nachheizen_min"): vol.All(GANZ, vol.Range(0, 240)),

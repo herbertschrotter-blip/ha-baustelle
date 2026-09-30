@@ -86,6 +86,7 @@ STANDARD: dict[str, Any] = {
     "termine_kalender": None,
     "stumm": {},
     "melden_knopf": True,
+    "erklaer": True,          # Erklärtexte „ⓘ“ auf der Seite (0.7.8)
     "protokoll": [],
     # Zähler wie 0.6: Energie, Kosten, Zeiten, Zyklen, Mittel; „stand:<gerät>“ = letzter Zählerstand des Shelly
     "zaehler": {},

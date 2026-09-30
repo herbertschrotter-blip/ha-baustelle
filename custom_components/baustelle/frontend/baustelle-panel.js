@@ -633,6 +633,18 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 @keyframes wachsen { from { transform: scaleX(0); } }
 @keyframes toast { 0% { opacity: 0; transform: translate(-50%, 20px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 10px); } }
 @media (prefers-reduced-motion: reduce) { .app *, .app *::before { animation: none !important; transition: none !important; } }
+/* 0.7.8 – Punkte aus 0.6.3 zurück (Mockup glas.html) */
+.erkl { font-size: 12px; color: var(--ink2); background: rgba(255,255,255,.06); border-radius: 10px; padding: 8px 10px; margin-top: 8px; line-height: 1.45; }
+.hell .erkl { background: rgba(0,0,0,.04); }
+.glas-nav.sechs button { font-size: 12px; padding-left: 1px; padding-right: 1px; } .glas-nav.sechs button.nav-ic { flex-basis: 40px; }
+.modus-z { flex-wrap: wrap; } .modus-z > div:first-child { flex: 1 1 200px; } .modus-z .seg { flex: 1 1 100%; }
+.seg button[disabled] { opacity: .35; cursor: not-allowed; }
+.jc-modus { font: inherit; font-size: 12px; color: var(--ink); background: rgba(255,255,255,.1); border: 1px solid var(--gridc); border-radius: 9px; padding: 4px 6px; }
+.hell .jc-modus { background: rgba(255,255,255,.7); }
+.warn-zeile { display: block; width: 100%; text-align: left; padding: 10px 14px; margin-bottom: 10px; }
+.warn-zeile.stoerung b { color: var(--rot); } .warn-zeile.hinweis b { color: var(--amber); } .warn-zeile .leise { display: block; font-size: 12px; margin-top: 2px; }
+.p-schacht { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; margin-bottom: 8px; } .p-illu .bc { max-width: 96px; }
+.tab-scroll { overflow-x: auto; } .je-geraet td, .je-geraet th { white-space: nowrap; padding-left: 8px; } .je-geraet td:first-child { white-space: normal; padding-left: 0; }
 `;
 
 /* Himmel hinter Glas (mockups/quelle/himmel.frag + himmel.js) */
@@ -778,12 +790,24 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
   soll: ['heizung', 'soll'], grenze: ['heizung', 'heizgrenze'], basis: ['heizung', 'heizgrenze_basis'], fruehstart: ['heizung', 'fruehstart'],
   frueh_temp: ['heizung', 'fruehstart_unter'], frueh_min: ['heizung', 'fruehstart_min'], frost: ['heizung', 'frost'], frost_temp: ['heizung', 'frost_grenze'],
   tr_mm: ['heizung', 'trocknen_ab_mm'], tr_laenger: ['heizung', 'trocknen_laenger_min'], tr_frueher: ['heizung', 'trocknen_frueher_min'],
-  dauer_min: ['meldungen_einst', 'dauerlauf_min'], kalt_min: ['meldungen_einst', 'kalt_min'], hand_h: ['meldungen_einst', 'hand_h'], zyklen_h: ['meldungen_einst', 'zyklen_h'] };
+  dauer_min: ['meldungen_einst', 'dauerlauf_min'], kalt_min: ['meldungen_einst', 'kalt_min'], hand_h: ['meldungen_einst', 'hand_h'], zyklen_h: ['meldungen_einst', 'zyklen_h'],
+  // aus 0.6.3 zurück (0.7.8, api §7)
+  frost_aus: ['heizung', 'frost_aus'], urlaub: ['heizung', 'frei_modus'], absenk: ['heizung', 'absenk'], offline_min: ['meldungen_einst', 'offline_min'],
+  trocken_w: ['meldungen_einst', 'trocken_unter_w'], erklaer: ['erklaer'] };
 /* Grenzen der Stepper: Untergrenze wie im Mockup, sonst die erlaubten Werte der Integration (panel.py SETZEN) –
    so schickt die Seite nie einen Wert, den die Integration ablehnt */
 const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], min_pause: [0, 120], takt: [5, 240], tuer_pause: [1, 120], tuer_melden: [1, 240],
   vorheizen: [0, 240], nachheizen: [0, 240], soll: [5, 30], grenze: [0, 30], frueh_temp: [0, 20], frueh_min: [0, 240], frost_temp: [0, 15],
-  tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480] };
+  tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480],
+  frost_aus: [1, 20], absenk: [5, 20], offline_min: [1, 1440], trocken_w: [5, 5000], dauer_min: [5, 1440], zyklen_h: [2, 200] };
+/* Modus je Container (0.7.8): wie im Mockup, Thermostat nur mit Fühler */
+const MODI = [['plan', 'Zeitplan'], ['thermo', 'Thermostat'], ['bedarf', 'Bei Bedarf'], ['hand', 'Hand'], ['aus', 'Aus']];
+const MODUS_TEXT = { plan: 'an in der Heizzeit – der Thermostat am Heizkörper regelt', thermo: 'in der Heizzeit auf das Soll nach dem Fühler',
+  bedarf: 'nur per Schalter oder Termin, sonst Frostschutz', hand: 'die Automatik schaltet nicht – Schalter unten', aus: 'alles aus, Frostschutz bleibt' };
+const FREI_TEXT = { frost: 'nur Frostschutz', absenk: 'abgesenkt', aus: 'alles aus' };
+/* Erklärtexte „ⓘ“ (abschaltbar unter Einstellungen › App) */
+const erkl = (an, text) => an ? `<div class="erkl">ⓘ ${text}</div>` : '';
+const STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, '0'));
 const ARTEN = { m_offline: 'offline', m_trocken: 'trockenlauf', m_dauer: 'dauerlauf', m_zyklen: 'zyklen_oft', m_leistung: 'keine_leistung', m_frost: 'frostgefahr',
   m_kalt: 'zu_kalt', m_fuehler: 'fuehler_fehlt', m_wetter: 'kein_wetter', m_hand: 'hand_zu_lange' };
 /* Abschnitte der Integration → Klassen der Zeitleiste im Mockup */
@@ -837,6 +861,21 @@ function linie(id, reihen, einheit, vb = null) {
   CHARTS[id] = { art: 'linie', x0: L, x1: W - R, W, n: 25, reihen, einheit, y, vb, yv, unten: H - U };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${flaeche}${pfade}${vb ? links + rechts : ''}<g class="hover"></g></svg>
     <div class="legende">${reihen.map((s, k) => `<span><i style="background:var(--s${k + 1})"></i>${s.name} (°C, links)</span>`).join('')}${vb ? `<span><i style="background:var(--s${reihen.length + 1})"></i>Verbrauch (kWh je Stunde, rechts)</span>` : ''}</div>`;
+}
+/* Mehrere Temperaturlinien über Stunden oder Tage: alle Container und außen in einem Diagramm (0.7.8) */
+function linien(id, reihen, labels, jedes, titel) {
+  const W = 320, H = 170, L = 28, R = 8, T = 16, U = 22, n = labels.length;
+  const alle = reihen.flatMap(s => s.v.filter(zahl));
+  if (!alle.length) return '<div class="leer">Noch keine Werte</div>';
+  const lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.max(lo + 5, Math.ceil(Math.max(...alle) / 5) * 5);
+  const x = i => L + i / Math.max(1, n - 1) * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U);
+  const raster = [...Array((hi - lo) / 5 + 1)].map((_, k) => lo + k * 5).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}°</text>`).join('');
+  const achse = labels.map((t, i) => i % jedes ? '' : `<text x="${x(i)}" y="${H - 6}" class="ax" text-anchor="middle">${t}</text>`).join('');
+  const pfade = reihen.map(s => `<path d="${s.v.map((v, i) => !zahl(v) ? '' : `${i && zahl(s.v[i - 1]) ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('')}" fill="none" stroke="${s.farbe}" stroke-width="${s.aussen ? 1.5 : 2}" ${s.aussen ? 'stroke-dasharray="4 4"' : ''} stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+  CHARTS[id] = { art: 'linien', x0: L, x1: W - R, W, n, reihen, y, unten: H - U, titel };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}<text x="${L - 5}" y="${T - 7}" class="ax ax-e" text-anchor="end">°C</text><g class="hover"></g></svg>
+    <div class="legende">${reihen.map(s => `<span><i style="background:${s.farbe}"></i>${esc(s.name)}</span>`).join('')}</div>`;
 }
 function balken(id, werte, labels, einheit, d = 1) {
   werte = werte.map(v => zahl(v) ? Number(v) : 0);
@@ -1114,7 +1153,9 @@ class BaustellePanel extends HTMLElement {
       tr_mm: v(h.trocknen_ab_mm, 2), tr_laenger: v(h.trocknen_laenger_min, 45), tr_frueher: v(h.trocknen_frueher_min, 15),
       empfaenger: (me.empfaenger || opt.empfaenger || []).map(namen).join(', ') || 'keiner gewählt',
       dauer_min: v(me.dauerlauf_min, 20), kalt_min: v(me.kalt_min, 60), hand_h: v(me.hand_h, 8), zyklen_h: v(me.zyklen_h, 10), trocken_w: v(me.trocken_unter_w, 30),
-      auto: !!e0.automatik };
+      auto: !!e0.automatik,
+      frost_aus: v(h.frost_aus, v(h.frost_grenze, 5) + 2), urlaub: FREI_TEXT[h.frei_modus] ? h.frei_modus : 'frost', absenk: v(h.absenk, 10),
+      offline_min: v(me.offline_min, 5), erklaer: e0.erklaer !== false };
     for (const [k, art] of Object.entries(ARTEN)) e[k] = ar[art] !== false;
     const anschluesse = (e0.anschluesse || []).map(a => ({ id: a.id, name: a.name || a.id, ampere: v(a.ampere, 16), phasen: v(a.phasen, 3), reserve: v(a.reserve_kw, 0) }));
     const firmen = (e0.firmen && e0.firmen.length ? e0.firmen : [{ id: 'eigen', name: 'Eigene Firma', eigen: true }]).map(f => ({ ...f }));
@@ -1136,7 +1177,8 @@ class BaustellePanel extends HTMLElement {
         auto: eb.auto !== false, trocknen: !!eb.trocknen, soll: zahl(eb.soll) ? Number(eb.soll) : undefined, bedarf: !!eb.bedarf, prio: eb.prio || 'normal',
         anschluss: eb.anschluss || (anschluesse[0] && anschluesse[0].id) || null, firma: firmaVon(b.id), tuer, offline,
         bedarfBisIso: c.bedarf_bis || null, bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
-        boost: !!c.boost_bis, boostBis: c.boost_bis || null };
+        boost: !!c.boost_bis, boostBis: c.boost_bis || null,
+        modus: pumpe ? null : MODI.some(m => m[0] === c.modus) ? c.modus : eb.bedarf ? 'bedarf' : eb.auto === false ? 'hand' : b.fuehler ? 'thermo' : 'plan' };
     });
     const plan = {}, frei = {};
     const freiName = {};
@@ -1156,7 +1198,8 @@ class BaustellePanel extends HTMLElement {
       warnungen, termine, plan, frei, freiName, abschnitte: lz.abschnitte || {}, staffel: lz.staffel || null, wetter: lz.wetter || {}, heizgrenze: lz.heizgrenze || {},
       status: lz.status || (aktiv ? 'bereit' : 'abgeschlossen'), statusText: lz.status_text || '', jetztBis: lz.jetzt_bis ? this.lokal(lz.jetzt_bis, zone).slice(11, 16) : null,
       protokoll: (lz.protokoll || []).map(p => this.protokollZeile(p, z)), zaehler: zl, termineKal: e0.termine_kalender || null, wetterEid,
-      beginn: opt.beginn || null, ende: opt.ende || null };
+      beginn: opt.beginn || null, ende: opt.ende || null,
+      hp: [Math.min(12, Math.max(1, parseInt(opt.heizperiode_von, 10) || 10)), Math.min(12, Math.max(1, parseInt(opt.heizperiode_bis, 10) || 4))] };
   }
   minSeitAb(iso, jetztMs) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((jetztMs - ms) / 60000)) : null; }
   protokollZeile(p, z) {
@@ -1560,8 +1603,11 @@ class BaustellePanel extends HTMLElement {
     const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0, sh = this.root.querySelector('.sheet'), shPos = sh && this.s.sheet && this._sheetArt === this.s.sheet.art ? sh.scrollTop : 0;
     this.ui.classList.toggle('still', !neu && this._view === this.s.view);   // Neuzeichnen ohne Einblend-Animationen
     this._view = this.s.view; this._sheetArt = this.s.sheet && this.s.sheet.art;
-    const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
+    // Reiter Pumpen nur, wenn die Baustelle Pumpenschächte hat (0.7.8, wie 0.6.3)
+    const mitPumpen = !!(this.d && this.d.bereiche.some(b => b.pumpe));
+    const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ...(mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(this.s.view)) this.s.view = 'uebersicht';
+    if (this.s.view === 'pumpen' && !mitPumpen) this.s.view = 'uebersicht';
     if (this.s.view === 'container' && !this.b) this.s.view = 'uebersicht';
     const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(this.s.view) ? 'einst' : this.s.view;
     let seite;
@@ -1573,7 +1619,7 @@ class BaustellePanel extends HTMLElement {
     if (this.s.sheet) { try { sheet = this.sheet(); } catch (e) { this.s.sheet = null; sheet = ''; } }
     this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this.versionHinweis()}${seite}</div></div>
       ${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
-      <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
+      <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
       <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
       <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${melden && this.roh && this.s.sheet && this.s.sheet.art !== 'melden' ? `<button class="melden-knopf im-sheet" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}${sheet}</div>
       <div class="tip"></div><div class="toast glas-panel"></div>
@@ -1635,7 +1681,7 @@ class BaustellePanel extends HTMLElement {
   /* ---- Container ---- */
   v_container() {
     const d = this.d, b = this.b, tl = this.zeitleiste(b), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG);
-    const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
+    const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['leistung', 'Leistung'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
     if (!tabs.some(t => t[0] === this.s.chart)) this.s.chart = tabs[0][0];
     const c = this.s.chart, mitVb = this.s.tempVb !== false;
     const kwh7 = this.verbrauch(d, b.id, 'Woche'), h7 = this.heizStunden(d, b, 'Woche'), zyk7 = b.pumpe ? this.zyklen(d, b, 'Woche') : null;
@@ -1646,6 +1692,8 @@ class BaustellePanel extends HTMLElement {
         if (!st) chart = LAEDT;
         else { const inn = [...(st.werte[b.fuehler] || []), null], aussen = [...(st.werte[this.eid(d, d.entry, 'aussen')] || []), null];
           chart = linie(`t-${b.id}-${mitVb ? 'vb' : ''}`, [{ name: 'Innen', v: inn }, { name: 'Außen', v: aussen }], '°C', mitVb ? this.verbrauch(d, b.id, 'Tag') : null); } }
+    } else if (c === 'leistung') { const kw = this.verbrauch(d, b.id, 'Tag');   // kWh je Stunde = mittlere kW
+      chart = kw ? flaeche('kw-' + b.id, [{ name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: kw }], STUNDEN, 'kW', 6) + '<div class="leise">Leistung heute in kW, Stundenmittel</div>' : LAEDT;
     } else if (c === 'verbrauch') chart = kwh7 ? balken('v-' + b.id, kwh7, TAGE, 'kWh') : LAEDT;
     else if (c === 'zyklen') chart = zyk7 ? balken('z-' + b.id, zyk7, TAGE, 'Zyklen', 0) : LAEDT;
     else chart = h7 ? balken('h-' + b.id, h7, TAGE, 'h') : LAEDT;
@@ -1670,13 +1718,17 @@ class BaustellePanel extends HTMLElement {
         <div class="chart-wrap">${chart}</div></div>
       ${b.bedarf ? this.bedarfBlock(b) : ''}
       ${b.pumpe || b.bedarf ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Vorheizen · Arbeitszeit · Nachheizen · Kleidung trocknen</span></div>${tl}
-        <div class="regelung">${b.fuehler ? `<b>🌡 Mit Fühler</b><span>regelt in der Arbeitszeit auf ${de(soll)} °C (jetzt ${b.t !== null ? de(b.t) + ' °C' : '–'})</span>`
-          : `<b>Ohne Fühler</b><span>Heizung bleibt in der Arbeitszeit an, der Thermostat am Heizkörper regelt</span>`}</div></div>`}
+        <div class="regelung">${b.modus === 'thermo' ? `<b>🌡 Thermostat</b><span>regelt in der Heizzeit auf ${de(soll)} °C (jetzt ${b.t !== null ? de(b.t) + ' °C' : '–'})</span>`
+          : b.modus === 'plan' ? `<b>Zeitplan</b><span>Heizung bleibt in der Heizzeit an, der Thermostat am Heizkörper regelt</span>`
+          : b.modus === 'hand' ? `<b>Hand</b><span>die Automatik schaltet diesen Container nicht</span>`
+          : `<b>Aus</b><span>nur Frostschutz (ein unter ${de(d.e.frost_temp)} °C, aus über ${de(d.e.frost_aus)} °C)</span>`}</div></div>`}
       <div class="glas-panel liste">
         ${b.tuer ? `<div class="zeile"><div><b>🚪 ${esc(b.tuer.sensor)}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min – Heizung pausiert nach ${d.e.tuer_pause} min, Meldung nach ${d.e.tuer_melden} min` : 'zu'}</div></div><span class="tuer-z ${b.tuer.offen ? 'offen' : ''}">${b.tuer.offen ? 'offen' : 'zu'}</span></div>` : ''}
         ${b.pumpe ? '' : `<div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">${b.boost ? `läuft – alle Heizkörper an, ${b.fuehler ? `bis ${de(soll)} °C` : `noch ${this.minBis(b.boostBis) ?? d.e.boost_min} min`}` : `alle Heizkörper zugleich, Vorrang in der Staffelung`}</div></div>
           <button class="chip glas-panel ${b.boost ? 'amber' : ''}" data-act="boost" data-id="${b.id}">${b.boost ? 'Beenden' : 'Start'}</button></div>`}
-        <div class="zeile"><span>♨ Automatik für ${b.pumpe ? 'diesen Schacht' : 'diesen Container'}</span>${schalter(b.auto, 'b-auto')}</div>
+        ${b.pumpe ? `<div class="zeile"><span>♨ Automatik für diesen Schacht</span>${schalter(b.auto, 'b-auto')}</div>`
+          : `<div class="zeile modus-z"><div><b>Modus</b><div class="leise">${MODUS_TEXT[b.modus]}</div></div>
+            <div class="seg klein">${MODI.map(([k, t]) => `<button data-act="modus" data-id="${b.id}" data-v="${k}" class="${b.modus === k ? 'on' : ''}" ${k === 'thermo' && !b.fuehler ? 'disabled title="kein Temperaturfühler"' : ''}>${t}</button>`).join('')}</div></div>`}
         ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
       </div>
       <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
@@ -1687,7 +1739,8 @@ class BaustellePanel extends HTMLElement {
         <button class="zeile" data-act="sheet" data-s="bereich"><span class="blau">Geräte bearbeiten</span><span class="chev">›</span></button></div>
       ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter ${de(d.e.trocken_w, 0)} W beim Laufen)</span><span class="ok">${d.e.m_trocken ? '● überwacht' : '○ aus'}</span></div>
         <div class="zeile"><span>Dauerlauf über ${d.e.dauer_min} min</span><span class="ok">${d.e.m_dauer ? '● überwacht' : '○ aus'}</span></div>
-        <div class="zeile"><span>Stromausfall / offline</span><span class="ok">${d.e.m_offline ? '● überwacht' : '○ aus'}</span></div></div>` : ''}`;
+        <div class="zeile"><span>Stromausfall / offline (nach ${de(d.e.offline_min, 0)} min)</span><span class="ok">${d.e.m_offline ? '● überwacht' : '○ aus'}</span></div>
+        <button class="zeile" data-act="tab" data-v="pumpen"><span class="blau">Schwellen im Reiter Pumpen</span><span class="chev">›</span></button></div>` : ''}`;
   }
   minBis(iso) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((ms - this.jetztMs()) / 60000)) : null; }
   zeitleiste(b) {
@@ -1711,7 +1764,8 @@ class BaustellePanel extends HTMLElement {
     const morgen = plusTage(this.z.HEUTE, 1), wm = this.wetterTag(morgen), pm = this.d.plan[morgen];
     const regel = (ic, titel, text, an) => `<div class="hr-zeile ${an ? 'an' : ''}"><span class="hr-ic">${ic}</span><div><b>${titel}</b><div class="leise">${text}</div></div><span class="hr-an">${an ? '●' : '○'}</span></div>`;
     const C = d.bereiche.filter(b => !b.pumpe), ur = this.urlaube();
-    const frei = { urlaub: ['Urlaub', 'heute nur Frostschutz'], feiertag: ['Feiertag', 'heute nur Frostschutz'] }[d.status];
+    const freiT = e.urlaub === 'absenk' ? `heute abgesenkt auf ${de(e.absenk)} °C (mit Fühler), sonst Frostschutz` : e.urlaub === 'aus' ? 'heute alles aus – auch kein Frostschutz' : 'heute nur Frostschutz';
+    const frei = { urlaub: ['Urlaub', freiT], feiertag: ['Feiertag', freiT] }[d.status];
     const urlaubsKal = d.optionen.urlaub_kalender, feiertagsKal = d.optionen.feiertag_kalender;
     return `${this.kopf('Heizung', esc(d.titel), `<div>${schalter(e.auto, 'auto')}</div>`)}
       <div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">welche Regeln greifen</span></div>
@@ -1737,21 +1791,27 @@ class BaustellePanel extends HTMLElement {
         <div class="zeile"><div><b>Kälte-Frühstart</b><div class="leise">unter ${de(e.frueh_temp, 0)} °C zusätzlich früher</div></div>${schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"')}</div>
         ${e.fruehstart ? `<div class="zeile unter"><span>so viel früher</span>${st('frueh_min', 5, min)}</div>` : ''}
         <div class="zeile"><div><b>Frostschutz</b><div class="leise">hält jeden Container über der Grenze, auch außerhalb der Arbeitszeit</div></div>${schalter(e.frost, 'e-bool', 'data-k="frost"')}</div>
-        ${e.frost ? `<div class="zeile unter"><span>Frostgrenze</span>${st('frost_temp', .5, grad)}</div>` : ''}</div>
+        ${e.frost ? `<div class="zeile unter"><span>ein unter</span>${st('frost_temp', .5, grad)}</div>
+        <div class="zeile unter"><span>aus über</span>${st('frost_aus', .5, grad)}</div>` : ''}
+        ${erkl(e.erklaer, 'Vorheizen und Nachheizen gelten jeden Arbeitstag. Die Heizgrenze verhindert Heizen an warmen Tagen. Der Frostschutz springt unter „ein“ an und hört erst über „aus“ wieder auf, damit der Heizkörper nicht dauernd ein- und ausschaltet. Ohne Fühler kennt die Integration keine Innentemperatur – der Frostschutz braucht einen Fühler.')}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen zusätzlich zum Nachheizen</span></div>
         <div class="zeile"><span>ab Regen (seit gestern)</span>${st('tr_mm', .5, mm)}</div>
         <div class="zeile"><span>zusätzlich nach dem Nachheizen</span>${st('tr_laenger', 5, min)}</div>
         <div class="zeile"><span>am nächsten Morgen früher</span>${st('tr_frueher', 5, min)}</div></div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">Automatik · Trocknen · Soll</span></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">Modus · Trocknen · Soll</span></div>
         ${C.map(b => { const soll = b.soll ?? e.soll;
           return `<div class="jc"><div class="jc-name"><b>${esc(b.name)}</b><span class="leise">${b.offline ? 'offline' : b.t !== null ? `🌡 ${de(b.t)} °C` : 'ohne Fühler'}</span></div>
-            <div class="jc-ctrl">${b.bedarf ? `<span class="badge">bei Bedarf</span>` : `<span class="jc-l">Auto</span>${schalter(b.auto, 'jc-auto', `data-id="${b.id}"`).replace('class="sw', 'class="sw klein')}`}
+            <div class="jc-ctrl"><select class="jc-modus" data-jm="${b.id}" title="Modus" aria-label="Modus ${esc(b.name)}">${MODI.map(([k, t]) => `<option value="${k}" ${b.modus === k ? 'selected' : ''} ${k === 'thermo' && !b.fuehler ? 'disabled' : ''}>${t}</option>`).join('')}</select>
               <span class="jc-l">👕</span>${schalter(b.trocknen, 'tr-b', `data-id="${b.id}"`).replace('class="sw', 'class="sw klein')}
               ${b.fuehler ? `<span class="stepper klein"><button data-act="jc-soll" data-id="${b.id}" data-d="-0.5">−</button><b class="${b.soll !== undefined ? 'eigen' : ''}">${de(soll)}°</b><button data-act="jc-soll" data-id="${b.id}" data-d="0.5">+</button></span>`
                 : '<span class="leise jc-th">Thermostat</span>'}</div></div>`; }).join('')}
-        <div class="leise">Ein eigener Sollwert (bernstein) gilt nur für diesen Container, sonst gilt ${de(e.soll)} °C.</div></div>
+        <div class="leise">Ein eigener Sollwert (bernstein) gilt nur für diesen Container, sonst gilt ${de(e.soll)} °C.</div>
+        ${erkl(e.erklaer, 'Zeitplan: an in der Heizzeit, der Heizkörper regelt selbst. Thermostat: in der Heizzeit nach dem Fühler auf das Soll (nur mit Fühler). Bei Bedarf: nur per Schalter oder Termin. Hand: die Automatik schaltet nicht. Aus: nur Frostschutz.')}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Urlaub &amp; Feiertage</b></div>
-        <div class="zeile"><div><b>An Feiertagen nur Frostschutz</b><div class="leise">${feiertagsKal ? `Feiertage aus dem Kalender „${esc(this.name(feiertagsKal))}“` : 'noch kein Feiertagskalender gewählt'}</div></div>${schalter(e.feiertag_frei, 'e-bool', 'data-k="feiertag_frei"')}</div>
+        <div class="zeile"><div><b>An Feiertagen frei</b><div class="leise">${feiertagsKal ? `Feiertage aus dem Kalender „${esc(this.name(feiertagsKal))}“` : 'noch kein Feiertagskalender gewählt'}</div></div>${schalter(e.feiertag_frei, 'e-bool', 'data-k="feiertag_frei"')}</div>
+        <div class="zeile modus-z"><div><b>Im Urlaub und an freien Feiertagen</b><div class="leise">${{ frost: 'nur Frostschutz', absenk: `mit Fühler auf ${de(e.absenk)} °C halten, ohne Fühler nur Frostschutz`, aus: 'alles aus – auch kein Frostschutz. Nur, wenn nichts einfrieren kann.' }[e.urlaub]}</div></div>
+          <div class="seg klein">${[['frost', 'nur Frostschutz'], ['absenk', 'absenken'], ['aus', 'alles aus']].map(([k, t]) => `<button data-act="e-wert" data-k="urlaub" data-v="${k}" class="${e.urlaub === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+        ${e.urlaub === 'absenk' ? `<div class="zeile unter"><span>absenken auf</span>${st('absenk', .5, grad)}</div>` : ''}
         ${ft === null ? '<div class="leise">Lädt …</div>' : ft.slice(0, 4).map(f => { const t = wtag(f.von), we = t === 'Sa' || t === 'So';
           return `<div class="zeile unter"><span><b class="ft-d">${t} ${kurzDatum(f.von)}</b> ${esc(f.name)}</span><span class="leise">${we ? 'Wochenende' : 'frei'}</span></div>`; }).join('')}
         <div class="gruppe-t">Urlaub · ${urlaubsKal ? `Kalender „${esc(this.name(urlaubsKal))}“` : 'kein Kalender gewählt'}</div>
@@ -1847,14 +1907,19 @@ class BaustellePanel extends HTMLElement {
       <div class="glas-panel kennz vier">${kz(zahl(kwh) ? de(kwh, 0) : '–', 'kWh', delta(kwh, kwh0))}${kz(zahl(kwh) ? `${de(kwh * preis, 0)} €` : '–', 'Kosten', delta(kwh, kwh0))}${kz(zahl(hz) ? `${de(hz, 0)} h` : '–', 'Heizzeit', delta(hz, hz0))}${kz(zahl(pz) ? `${de(pz, 1)} h` : '–', 'Pumpzeit', delta(pz, pz0))}</div>
       <div class="leise vgl">Pfeile: im Vergleich zu ${vgl}</div>
       <div class="glas-panel block">${this.verbrauchInhalt(aw, 'aw', false)}</div>
+      ${alle ? '' : this.leistungHeute()}
+      ${alle ? '' : this.temperaturen()}
       ${this.abrechnung(z)}
+      ${alle ? '' : this.jeGeraet(z)}
       <div class="glas-panel block"><div class="block-kopf"><b>Wetter-Einfluss</b><span class="leise">letzte 30 Heiztage · kWh je Tag gegen Außentemperatur</span></div>
         ${streuHtml}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
         ${!zahl(ohne) || !zahl(kwh) ? (ohne === null || kwh === null ? LAEDT : '<div class="leer">Noch keine Werte</div>') : ohne <= 0 ? '<div class="leer">Noch keine Werte</div>' : `
         <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${Math.min(100, kwh / ohne * 100)}%;background:var(--s1)"></i></span><span class="hb-w">${de(kwh * preis, 0)} €</span></div>
         <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(ohne * preis, 0)} €</span></div>
-        <div class="gespart">gespart <b>${de(Math.max(0, ohne - kwh) * preis, 2)} €</b> · ${de(Math.max(0, 1 - kwh / ohne) * 100, 0)} %</div>`}</div>
+        <div class="gespart">gespart <b>${de(Math.max(0, ohne - kwh) * preis, 2)} €</b> · ${de(Math.max(0, 1 - kwh / ohne) * 100, 0)} %</div>`}
+        ${erkl(d.e.erklaer, '„Ohne Automatik“ rechnet mit der gemessenen Leistung je Heizkörper, als liefe er rund um die Uhr – so, wie es ohne Steuerung oft ist.')}</div>
+      ${alle ? '' : this.hochrechnung()}
       <div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
         <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
           ${zeile('kWh je Heizstunde', 'kwhH', true, v => de(v, 2))}
@@ -1862,6 +1927,103 @@ class BaustellePanel extends HTMLElement {
           ${zeile('Abkühlen nach Aus', 'ab', true, v => `${de(v, 1)} °C/h`)}
           ${zeile('Kosten je Tag', 'tag', null, v => `${de(v, 2)} €`)}</table>
         <div class="leise fuss">${fussSatz}</div></div>`;
+  }
+
+  /* ---- Pumpen (0.7.8, wie 0.6.3 eigener Reiter) ---- */
+  v_pumpen() {
+    const d = this.d, e = d.e, P = d.bereiche.filter(b => b.pumpe), pc = this.s.pchart || 'pumpzeit', st = (k, s, fmt) => this.stepper(k, s, fmt);
+    const heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), pumpen = P.flatMap(b => b.geraete.filter(g => g.rolle === 'pumpe'));
+    const W = d.warnungen.filter(w => !w.stumm && P.some(b => b.id === w.b));
+    const je = P.map(b => ({ b, h7: this.heizStunden(d, b, 'Woche'), z7: this.zyklen(d, b, 'Woche'), v7: this.verbrauch(d, b.id, 'Woche') }));
+    const zyk = je.every(x => x.z7) ? summe(je.map(x => x.z7[heuteNr] || 0)) : null, lauf = je.every(x => x.h7) ? summe(je.map(x => x.h7[heuteNr] || 0)) : null;
+    return `${this.kopf('Pumpen', esc(d.titel))}
+      <div class="glas-panel kennz">${[['Zyklen heute', zahl(zyk) ? zyk : '–'], ['Laufzeit heute', stdMin(lauf)], ['Pumpen an', `${pumpen.filter(g => g.an).length} von ${pumpen.length}`]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>
+      ${W.map(w => `<button class="glas-panel warn-zeile ${w.stufe}" data-act="w-hin" data-id="${esc(w.b)}"><b>⚠ ${esc(this.bName(w.b))}: ${esc(w.titel)}</b><span class="leise">${esc(this.seitText(w.seitIso))}${w.hilfe ? ` · ${esc(w.hilfe)}` : ''}</span></button>`).join('')}
+      ${je.map(({ b, h7, z7, v7 }) => { const r = pc === 'zyklen' ? z7 : pc === 'verbrauch' ? v7 : h7;
+        return `<div class="glas-panel block"><div class="block-kopf"><b>${esc(b.name)}</b><button class="chip glas-panel" data-act="container" data-id="${b.id}">öffnen ›</button></div>
+        <div class="p-schacht"><div class="p-illu">${illu(b)}</div><div>${b.geraete.map(g => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">💧</span><div class="g-t"><b>${esc(g.n)}</b><span class="leise">${!g.erreichbar ? 'offline' : g.an ? `läuft${zahl(g.kwJetzt) ? ` · ${de(g.kwJetzt, 2)} kW` : ''}` : 'aus'}</span></div></div>`).join('') || '<div class="leise">Noch keine Pumpe</div>'}
+          <div class="leise">heute ${z7 ? z7[heuteNr] : '–'} Zyklen · ${stdMin(h7 ? h7[heuteNr] : null)} gelaufen</div></div></div>
+        <div class="seg">${[['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']].map(([k, t]) => `<button data-act="p-chart" data-v="${k}" class="${k === pc ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <div class="chart-wrap">${r ? balken(`p${pc}-${b.id}`, r, TAGE, pc === 'zyklen' ? 'Zyklen' : pc === 'verbrauch' ? 'kWh' : 'h', pc === 'zyklen' ? 0 : 1) : LAEDT}</div></div>`; }).join('')}
+      <div class="glas-panel block"><div class="block-kopf"><b>Überwachung</b><span class="leise">wann eine Pumpe gemeldet wird</span></div>
+        <div class="zeile"><div><b>Offline</b><div class="leise">Shelly antwortet nicht (Stromausfall?) – melden nach</div></div>${st('offline_min', 1, v => `${de(v, 0)} min`)}</div>
+        <div class="zeile"><div><b>Trockenlauf</b><div class="leise">Pumpe läuft, zieht aber weniger als</div></div>${st('trocken_w', 5, v => `${de(v, 0)} W`)}</div>
+        <div class="zeile"><div><b>Dauerlauf</b><div class="leise">läuft ohne Pause länger als</div></div>${st('dauer_min', 5, v => `${v} min`)}</div>
+        <div class="zeile"><div><b>Schaltet oft</b><div class="leise">mehr Zyklen je Stunde als</div></div>${st('zyklen_h', 1, v => `${v}`)}</div>
+        <button class="zeile" data-act="tab-einst"><span class="blau">Welche Meldungen aufs Handy gehen</span><span class="chev">Einstellungen ›</span></button>
+        ${erkl(e.erklaer, 'Pumpen werden nie geschaltet, nur überwacht. Ein Zyklus ist einmal an und wieder aus. Viele Zyklen je Stunde deuten auf einen hängenden Schwimmer oder steigendes Grundwasser, Trockenlauf auf einen leeren Schacht oder eine verstopfte Pumpe.')}</div>`;
+  }
+  /* ---- Auswertung: Leistung heute, Temperaturen, je Gerät, Hochrechnung (0.7.8) ---- */
+  leistungHeute() {
+    const d = this.d, Q = d.bereiche.map(b => ({ name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: this.verbrauch(d, b.id, 'Tag') }));
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Leistung heute</b><span class="leise">kW je Stunde (Mittel)</span></div>
+      <div class="chart-wrap">${Q.some(q => !q.v) ? LAEDT : Q.length ? flaeche('kw-heute', Q, STUNDEN, 'kW', 6) : '<div class="leer">Noch keine Container</div>'}</div>
+      <div class="leise">gestapelt nach Container – oben die ganze Baustelle</div></div>`;
+  }
+  /* Tagesmittel der Fühler und außen, letzte n Tage */
+  tempTage(n) {
+    const d = this.d, ids = [...new Set([...d.bereiche.filter(b => b.fuehler).map(b => b.fuehler), this.eid(d, d.entry, 'aussen')].filter(Boolean))].sort();
+    const bis = plusTage(d.z.HEUTE, 1), von = plusTage(bis, -n), tage = [...Array(n)].map((_, k) => plusTage(von, k));
+    if (!ids.length) return { tage, werte: {} };
+    const roh = this._holen(`t:${d.entry}:${n}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
+      start_time: new Date(this.zoneMs(von, '00:00', d.z.zone)).toISOString(), end_time: new Date(this.zoneMs(bis, '00:00', d.z.zone)).toISOString(),
+      statistic_ids: ids, period: 'day', types: ['mean'], units: {} }));
+    if (roh === undefined) return null;
+    const werte = {};
+    for (const id of ids) { const arr = Array(n).fill(null);
+      for (const p of (roh || {})[id] || []) { const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), i = tage.indexOf(this.lokal(ms, d.z.zone).slice(0, 10)); if (i >= 0 && zahl(p.mean)) arr[i] = Number(p.mean); }
+      werte[id] = arr; }
+    return { tage, werte };
+  }
+  temperaturen() {
+    const d = this.d, tv = this.s.tv || 'heute', C = d.bereiche.filter(b => !b.pumpe && b.fuehler), aid = this.eid(d, d.entry, 'aussen');
+    const farbe = b => BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], aussen = { name: 'Außen', farbe: 'var(--ink2)', aussen: true };
+    let inhalt;
+    if (tv === 'heute') { const st = this.statistik('Tag');
+      inhalt = !st ? LAEDT : linien('tp-heute', [...C.map(b => ({ name: b.name, farbe: farbe(b), v: [...(st.werte[b.fuehler] || []), null] })), ...(aid ? [{ ...aussen, v: [...(st.werte[aid] || []), null] }] : [])],
+        [...STUNDEN, '24'], 6, i => `${String(i).padStart(2, '0')}:00`);
+    } else { const n = tv === '7' ? 7 : 30, t = this.tempTage(n);
+      inhalt = !t ? LAEDT : linien(`tp-${n}`, [...C.map(b => ({ name: b.name, farbe: farbe(b), v: t.werte[b.fuehler] || Array(n).fill(null) })), ...(aid ? [{ ...aussen, v: t.werte[aid] || Array(n).fill(null) }] : [])],
+        t.tage.map(kurzDatum), n === 7 ? 1 : 5, i => `${wtag(t.tage[i])} ${kurzDatum(t.tage[i])} · Tagesmittel`); }
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Temperaturen</b><span class="leise">alle Container mit Fühler</span></div>
+      <div class="seg">${[['heute', 'Heute'], ['7', '7 Tage'], ['30', '30 Tage']].map(([k, t]) => `<button data-act="tv" data-v="${k}" class="${tv === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <div class="chart-wrap">${C.length ? inhalt : '<div class="leer">Kein Container mit Temperaturfühler</div>'}</div>
+      <div class="leise">${tv === 'heute' ? 'Stundenmittel, gestrichelt außen.' : 'Tagesmittel je Container, gestrichelt außen.'}${d.bereiche.some(b => !b.pumpe && !b.fuehler) ? ' Container ohne Fühler fehlen.' : ''}</div></div>`;
+  }
+  /* Je Gerät: Ø kW im Betrieb (Zähler mittel:<gid>), kWh aus dem Zählerstand des Shelly, Stunden ≈ kWh ÷ Ø kW (Pumpen: Pumpzeit) */
+  jeGeraet(z) {
+    const d = this.d, zr = this.zeitraum(z), ids = [...new Set(d.bereiche.flatMap(b => b.geraete.map(g => g.energie)).filter(Boolean))].sort();
+    const roh = ids.length ? this._holen(`g:${d.entry}:${z}:${zr.von}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
+      start_time: new Date(this.zoneMs(zr.von, '00:00', d.z.zone)).toISOString(), end_time: new Date(this.zoneMs(zr.bis, '00:00', d.z.zone)).toISOString(),
+      statistic_ids: ids, period: zr.periode, types: ['change'], units: {} })) : {};
+    if (roh === undefined) return `<div class="glas-panel block"><div class="block-kopf"><b>Je Gerät</b></div>${LAEDT}</div>`;
+    const kwhVon = id => id && (roh || {})[id] ? summe(roh[id].map(p => zahl(p.change) ? Number(p.change) : 0)) : null;
+    const zeilen = d.bereiche.flatMap(b => b.geraete.map(g => { const mw = d.zaehler[`mittel:${g.id}`], mittel = zahl(mw) && mw > 50 ? mw / 1000 : null, kwh = kwhVon(g.energie);
+      const pz = g.rolle === 'pumpe' ? this.reihe(d, this.eid(d, g.id, 'pumpzeit'), z) : null;
+      const std = g.rolle === 'pumpe' ? (pz ? summe(pz.map(v => v || 0)) : null) : zahl(kwh) && zahl(mittel) ? kwh / mittel : null;
+      return { b, g, mittel, kwh, std }; }));
+    const f = (v, k) => zahl(v) ? de(v, k) : '–';
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Je Gerät</b><span class="leise">${{ Tag: 'heute', Woche: 'diese Woche', Monat: 'dieser Monat', Jahr: 'dieses Jahr' }[z]}</span></div>
+      ${zeilen.length ? `<div class="tab-scroll"><table class="vergleich je-geraet"><tr><th>Gerät</th><th>Ø kW</th><th>Stunden</th><th>kWh</th><th>€</th></tr>
+        ${zeilen.map(({ b, g, mittel, kwh, std }) => `<tr><td><b>${esc(g.n)}</b><div class="leise">${esc(b.name)} · ${esc(g.typ)}</div></td><td>${f(mittel, 2)}</td><td>${f(std, 1)}</td><td>${f(kwh, 1)}</td><td>${zahl(kwh) ? de(kwh * d.e.preis, 2) : '–'}</td></tr>`).join('')}</table></div>`
+        : '<div class="leer">Noch keine Geräte</div>'}
+      ${erkl(d.e.erklaer, 'Ø kW ist die mittlere Leistung, während das Gerät läuft – so sieht man, ob ein Heizkörper schwächer ist als angegeben. kWh kommen aus dem Zählerstand des Shelly (ohne Energiezähler „–“), Stunden ≈ kWh ÷ Ø kW, bei Pumpen die gemessene Pumpzeit.')}</div>`;
+  }
+  /* letzter Tag der laufenden Heizperiode (ISO), wie die Integration (steuerung.hochrechnung_heizperiode) */
+  heizperiodeEnde() {
+    const [von, bis] = this.d.hp, J = +this.z.HEUTE.slice(0, 4), M = +this.z.HEUTE.slice(5, 7), jahr = M >= von ? J : J - 1, ej = bis >= von ? jahr : jahr + 1;
+    return new Date(Date.UTC(ej, bis, 0)).toISOString().slice(0, 10);
+  }
+  hochrechnung() {
+    const d = this.d, p = d.e.preis, [von, bis] = d.hp, mon = (bis - von + 12) % 12 + 1;
+    const wert = k => { const x = this.zustand(this.eid(d, d.entry, k)); return x !== null && zahl(x) ? Number(x) : null; };
+    const mit = wert('prognose_heizperiode'), ohne = wert('prognose_heizperiode_ohne'), bisher = zahl(d.zaehler.energie_heizen) ? d.zaehler.energie_heizen : null;
+    const max = Math.max(mit || 0, ohne || 0, bisher || 0) || 1, balkenZ = (t, v, farbe) => `<div class="hbar"><span class="hb-n">${t}</span><span class="hb-spur"><i style="width:${zahl(v) ? v / max * 100 : 0}%;background:${farbe}"></i></span><span class="hb-w">${zahl(v) ? `${de(v * p, 0)} €` : '–'}</span></div>`;
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Hochrechnung Heizperiode</b><span class="leise">${MONATE[von - 1]}–${MONATE[bis - 1]} · ${mon} Monate</span></div>
+      ${!zahl(mit) ? '<div class="leer">Noch zu wenige Tage für eine Hochrechnung</div>' : `${balkenZ('bisher', bisher, 'var(--s3)')}${balkenZ('mit Automatik', mit, 'var(--s1)')}${balkenZ('ohne (24/7)', ohne, 'var(--s2)')}
+      <div class="gespart">bis ${d.ende && d.ende < this.heizperiodeEnde() ? datum(d.ende) : `Ende ${MONATE_LANG[bis - 1]}`} rund <b>${de(mit, 0)} kWh</b> · ${de(mit * p, 0)} €${zahl(ohne) ? ` – gespart ≈ <b>${de(Math.max(0, ohne - mit) * p, 0)} €</b>` : ''}</div>`}
+      <div class="leise">aus dem bisherigen Verbrauch je Tag hochgerechnet${d.ende ? ` – bis zum geplanten Ende ${datum(d.ende)}, wenn es früher liegt` : ''}. Heizperiode unter Einstellungen › Baustelle.</div>
+      ${erkl(d.e.erklaer, 'Die Hochrechnung nimmt den Verbrauch je Tag bisher und rechnet ihn auf die ganze Heizperiode hoch. Endet die Baustelle früher, zählt nur bis zum Ende.')}</div>`;
   }
 
   /* ---- Verlauf ---- */
@@ -2020,10 +2182,13 @@ class BaustellePanel extends HTMLElement {
     return `${this.kopf('Einstellungen', esc(d.titel))}
       <div class="glas-panel liste"><div class="gruppe">Baustelle</div>
         <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">${esc(d.titel)} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende</span><span class="leise">${d.beginn ? datum(d.beginn) : '–'} – ${d.ende ? datum(d.ende) : 'offen'} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Heizperiode</span><span class="leise">${MONATE[d.hp[0] - 1]} – ${MONATE[d.hp[1] - 1]} ›</span></button>
         <button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>
         <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button></div>
       <div class="glas-panel liste"><div class="gruppe">App</div>
         <button class="zeile" data-act="tab" data-v="ueber"><span>Über</span><span class="leise">Version ${esc(this.version)} ›</span></button>
+        <div class="zeile"><div><b>Erklärungen anzeigen</b><div class="leise">kurze Texte „ⓘ“ unter Heizung, Pumpen und Auswertung</div></div>${schalter(e.erklaer, 'e-bool', 'data-k="erklaer"')}</div>
         <div class="zeile"><div><b>Melden-Knopf</b><div class="leise">kleiner Knopf in jedem Fenster für Fehler, Wünsche und Anregungen</div></div>${schalter(e.melden, 'e-bool', 'data-k="melden"')}</div>
         <button class="zeile" data-act="tab" data-v="dev"><span>Entwicklung</span><span class="leise">${M === null ? '–' : M.filter(m => this.meldungOffen(m)).length} offene Meldungen ›</span></button></div>
       <div class="glas-panel liste"><div class="gruppe">Firmen · für die Abrechnung</div>
@@ -2067,8 +2232,9 @@ class BaustellePanel extends HTMLElement {
         <div class="zeile"><span>Empfänger</span><span class="leise">${esc(e.empfaenger)}</span></div>
         <div class="zeile"><div><b>Knöpfe in der Nachricht</b><div class="leise">direkt aus der Nachricht reagieren, z. B. „bis morgen stumm“</div></div>${schalter(e.knoepfe, 'e-bool', 'data-k="knoepfe"')}</div>
         <button class="zeile" data-act="sheet" data-s="nachrichten"><span class="blau">Beispiele ansehen</span><span class="chev">›</span></button>
-        <div class="zeile"><span>Stromausfall / offline</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
-        <div class="zeile"><span>Pumpe Trockenlauf</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
+        <button class="zeile" data-act="test-meldung"><span class="blau">Test-Nachricht senden</span></button>
+        <div class="zeile"><span>Stromausfall / offline (nach ${de(e.offline_min, 0)} min)</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
+        <div class="zeile"><span>Pumpe Trockenlauf (unter ${de(e.trocken_w, 0)} W)</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
         <div class="zeile"><span>Pumpe Dauerlauf über ${e.dauer_min} min</span>${schalter(e.m_dauer, 'e-bool', 'data-k="m_dauer"')}</div>
         <div class="zeile"><span>Pumpe schaltet oft (ab ${e.zyklen_h} je Stunde)</span>${schalter(e.m_zyklen, 'e-bool', 'data-k="m_zyklen"')}</div>
         <div class="zeile"><span>Heizkörper zieht keinen Strom</span>${schalter(e.m_leistung, 'e-bool', 'data-k="m_leistung"')}</div>
@@ -2337,6 +2503,14 @@ class BaustellePanel extends HTMLElement {
         <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
         ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
+    if (s.art === 'zeitraum-bs') { const f = s.form;
+      const mon = i => `<select data-hp="${i}">${MONATE.map((m, k) => `<option value="${k + 1}" ${f.hp[i] === k + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select>`;
+      return `${griff}<h3>Beginn, Ende, Heizperiode</h3>
+      <div class="raster-2"><label class="feld">Beginn<input type="date" value="${esc(f.beginn)}" data-bsz="beginn"></label><label class="feld">Ende (geplant)<input type="date" value="${esc(f.ende)}" data-bsz="ende"></label></div>
+      <div class="leise">Gezählt wird ab Beginn. Das Ende ist nur für die Hochrechnung – abgeschlossen wird mit „Baustelle abschließen“.</div>
+      <div class="raster-2"><label class="feld">Heizperiode von${mon(0)}</label><label class="feld">bis${mon(1)}</label></div>
+      <div class="leise">Die Auswertung rechnet Verbrauch und Kosten auf die Heizperiode hoch – bis zum Ende der Baustelle, wenn es früher liegt.</div>
+      ${knopf('Speichern', 'bsz-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
     if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'abschliessen', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     if (s.art === 'urlaub') {
       if (!d.optionen.urlaub_kalender) return `${griff}<h3>Urlaub eintragen</h3><div class="leise">Zuerst einen Kalender für den Urlaub wählen.</div>${knopf('Kalender wählen', 'wetterquelle-auf', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
@@ -2429,6 +2603,7 @@ class BaustellePanel extends HTMLElement {
         if (art === 'container-neu') { S.sheet = { art, form: { name: '', art: 'Container', fuehler: '', schalter: '', typ: 'Ölradiator' } }; return neu(); }
         if (art === 'wetterquelle') { const o = d.optionen; S.sheet = { art, form: { wetter: o.wetter || '', temp_sensor: o.temp_sensor || '', regen_sensor: o.regen_sensor || '', urlaub_kalender: o.urlaub_kalender || '', feiertag_kalender: o.feiertag_kalender || '', termine_kalender: d.termineKal || '' } }; return neu(); }
         if (art === 'bs-loeschen') { S.sheet = { art, id: el.dataset.id }; return neu(); }
+        if (art === 'zeitraum-bs') { S.sheet = { art, form: { beginn: d.beginn || '', ende: d.ende || '', hp: [...d.hp] } }; return neu(); }
         if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
         S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu(); }
       case 'wetterquelle-auf': return this.klick({ target: { closest: () => ({ dataset: { act: 'sheet', s: 'wetterquelle' } }) } });
@@ -2500,6 +2675,14 @@ class BaustellePanel extends HTMLElement {
       case 'jetzt-an': return this.aktion('jetzt_heizen', { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`);
       case 'jetzt-aus': return this.aktion('jetzt_heizen', { minuten: null }, 'Zurück zum Plan');
       case 'b-auto': return this.setzen(['bereiche', b.id, 'auto'], !b.auto);
+      case 'modus': { const x = d.bereiche.find(y => y.id === el.dataset.id), m = el.dataset.v; if (!x || x.modus === m) return undefined;
+        return this.setzen(['bereiche', x.id, 'modus'], m, `${x.name}: ${(MODI.find(q => q[0] === m) || [m, m])[1]}`); }
+      case 'p-chart': S.pchart = el.dataset.v; return neu();
+      case 'tv': S.tv = el.dataset.v; return neu();
+      case 'test-meldung': return this.aktion('test_meldung', {}).then(r => { if (r && r.an) this.toast(r.an.length ? `Test-Nachricht an ${r.an.join(', ')} gesendet` : 'Kein Empfänger – bitte unter Meldungen wählen'); });
+      case 'bsz-speichern': { const f = S.sheet.form; if (!f.beginn || (f.ende && f.ende < f.beginn)) return this.toast('Bitte Beginn und Ende prüfen');
+        S.sheet = null; neu();
+        return this.einrichten(() => this.optionenSpeichern(d, { beginn: f.beginn, ende: f.ende || null, heizperiode_von: String(f.hp[0]), heizperiode_bis: String(f.hp[1]) }), 'Gespeichert').then(() => this._laden()); }
       case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; return this.setzen(['bereiche', x.id, 'trocknen'], !x.trocknen); }
       case 'geraet': { const g = b.geraete[+el.dataset.i]; return this.aktion('schalten', { geraet: g.id, an: !g.an }, b.auto && d.e.auto ? 'Handbetrieb bis zum nächsten Schaltpunkt' : undefined); }
       case 'chart': S.chart = el.dataset.c; return neu();
@@ -2509,7 +2692,10 @@ class BaustellePanel extends HTMLElement {
         if (ARTEN[k]) return this.setzen(['meldungen_einst', 'arten', ARTEN[k]], !d.e[k]);
         return this.setzen(PFAD[k], !d.e[k]); }
       case 'st': { const k = el.dataset.k, [min, max] = GRENZEN[k] || [0, 1e9];
-        const wert = Math.min(max, Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10)); if (wert === d.e[k]) return undefined; return this.setzen(PFAD[k], wert); }
+        const wert = Math.min(max, Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10)); if (wert === d.e[k]) return undefined;
+        if (k === 'frost_aus' && wert <= d.e.frost_temp) return this.toast('„aus über“ muss über „ein unter“ liegen');
+        if (k === 'frost_temp' && wert >= d.e.frost_aus) return this.toast('„ein unter“ muss unter „aus über“ liegen');
+        return this.setzen(PFAD[k], wert); }
       case 'jc-auto': { const x = d.bereiche.find(y => y.id === el.dataset.id); return this.setzen(['bereiche', x.id, 'auto'], !x.auto); }
       case 'jc-soll': { const x = d.bereiche.find(y => y.id === el.dataset.id), [min, max] = GRENZEN.soll;
         return this.setzen(['bereiche', x.id, 'soll'], Math.min(max, Math.max(min, Math.round(((x.soll ?? d.e.soll) + +el.dataset.d) * 2) / 2))); }
@@ -2656,12 +2842,17 @@ class BaustellePanel extends HTMLElement {
     if (ds.neu) sh.form[ds.neu] = el.value;
     if (ds.wq) sh.form[ds.wq] = el.value;
     if (ds.nm) sh.form.name = el.value;
+    if (ds.bsz) sh.form[ds.bsz] = el.value;
+    if (ds.hp) sh.form.hp[+ds.hp] = +el.value;
   }
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
   aenderung(ev) {
     const el = ev.target, k = el && el.dataset && el.dataset.k;
     if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
     if (k === 'mail') return this.setzen(PFAD.mail, String(el.value).trim(), 'Gespeichert');
+    const jm = el && el.dataset && el.dataset.jm;
+    if (jm) { const x = this.d.bereiche.find(y => y.id === jm); if (!x || x.modus === el.value) return undefined;
+      return this.setzen(['bereiche', jm, 'modus'], el.value, `${x.name}: ${(MODI.find(q => q[0] === el.value) || [el.value, el.value])[1]}`); }
     return undefined;
   }
   hover(ev) {
@@ -2678,11 +2869,18 @@ class BaustellePanel extends HTMLElement {
     }
     if (c.art === 'flaeche') {
       const vx = fx * c.W, i = Math.max(0, Math.min(c.n - 1, Math.round((vx - c.x0) / (c.x1 - c.x0) * (c.n - 1)))), x = c.x0 + i / Math.max(1, c.n - 1) * (c.x1 - c.x0);
-      const h = c.einheit === 'kWh/h', sum = c.reihen.reduce((a, q) => a + q.v[i], 0);
+      const h = c.einheit === 'kWh/h' || c.einheit === 'kW', sum = c.reihen.reduce((a, q) => a + q.v[i], 0);
+      if (c.einheit === 'kW') { svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(q => `<circle cx="${x}" cy="${c.y(q.o[i])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join('');
+        return this.tip(ev, `<b>${c.labels[i]}:00</b>` + (c.reihen.length > 1 ? [...c.reihen].reverse().map(q => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i], 2)} kW</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kW</b></div>` : `<div>${de(sum, 2)} kW</div>`)); }
       svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(q => `<circle cx="${x}" cy="${c.y(q.o[i])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join('');
       return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (c.reihen.length > 1
         ? [...c.reihen].reverse().map(q => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i], 2)} kWh</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p, 2)} €</div>`
         : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p, 2)} €</div>`));
+    }
+    if (c.art === 'linien') {
+      const vx = fx * c.W, i = Math.max(0, Math.min(c.n - 1, Math.round((vx - c.x0) / (c.x1 - c.x0) * (c.n - 1)))), x = c.x0 + i / Math.max(1, c.n - 1) * (c.x1 - c.x0);
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="${c.unten}" class="kreuz"/>` + c.reihen.map(q => !zahl(q.v[i]) ? '' : `<circle cx="${x}" cy="${c.y(q.v[i])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join('');
+      return this.tip(ev, `<b>${c.titel(i)}</b>${c.reihen.map(q => !zahl(q.v[i]) ? '' : `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i])} °C</b></div>`).join('')}`);
     }
     if (c.art === 'linie') {
       const vx = fx * c.W, i = Math.max(0, Math.min(24, Math.round((vx - c.x0) / (c.x1 - c.x0) * 24))), x = c.x0 + i / 24 * (c.x1 - c.x0);

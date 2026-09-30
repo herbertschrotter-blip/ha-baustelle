@@ -267,6 +267,11 @@ Abweichungen vom Mockup auf der Seite (Stufe 3, 30.09.2026 – was das echte Sys
   Baustelle, abgeschlossene → Detailseite) und ✕ Löschen mit Abfrage „Endgültig löschen“ (REST
   `config/config_entries/entry/<id>` wie Geräte & Dienste; Zähler und Einstellungen weg, Langzeitstatistik der Shellys
   bleibt). Im Mockup gab es dort nur Wechseln und „+ Neue Baustelle“.
+- 0.7.8 (Mockup glas.html, Erweiterung abgenommen 30.09.2026): „Je Gerät“ – Stunden ≈ kWh ÷ Ø kW (die Integration
+  zählt Heizstunden je Container, nicht je Gerät), bei Pumpen die gemessene Pumpzeit; kWh aus dem Energiezähler des
+  Shelly (ohne Zähler „–“). Modus-Standard ohne gesetzten Wert wie 0.7: mit Fühler Thermostat, sonst Zeitplan.
+  Frostschutz „aus über“ ohne gesetzten Wert = Grenze + 2 °C. „Alles aus“ im Urlaub schaltet auch den Frostschutz ab
+  (Mockup-Text). Die Stepper „ein unter“/„aus über“ lassen sich nicht übereinander schieben.
 - Versions-Hinweis (Herbert 30.09.2026, nicht im Mockup): oben auf der Seite „Neue Version … – bitte neu laden“ mit
   Knopf, wenn die Version von HA (`baustelle/struktur`) oder die neueste in `changelog.json` auf der Platte (höchstens
   alle 10 min, am Speicher vorbei) neuer ist als `SEITE_VERSION` der geladenen Seite. „Neu laden“ holt
@@ -304,7 +309,7 @@ Melden-Knopf: `python3 tools/ticket.py liste` (Ticket-Profil in CLAUDE.md).
 - [x] **AN-0001** (Anregung): „Wie kann ich Baustellen bearbeiten oder löschen?“ – in 0.7.6 Bearbeiten und Löschen im
       Fenster „Baustelle wählen“ (§5).
 - [x] **Versions-Hinweis auf der Seite:** in 0.7.7 (§5).
-- [ ] **Aus der Seite 0.6.3 fehlt in 0.7** – Herbert 30.09.2026: **alle Punkte kommen zurück**; zuerst ins Mockup
+- [x] **Aus der Seite 0.6.3 fehlt in 0.7** – in 0.7.8 gebaut (api §7). Herbert 30.09.2026: **alle Punkte kommen zurück**; zuerst ins Mockup
       (`mockups/glas.html`, **abgenommen 30.09.2026**, mockups/README.md), nach Abnahme bauen (Seite, dann neue Logik für Modus je Container, Urlaub/Feiertag
       absenken/aus, Frostschutz Ein/Aus). Punkte: eigener Reiter Pumpen; offline-Zeit
       und Trockenlauf-Schwelle einstellbar; Urlaub/Feiertag „absenken“ oder „aus“; Frostschutz mit Ein-/Aus-Wert; Modus

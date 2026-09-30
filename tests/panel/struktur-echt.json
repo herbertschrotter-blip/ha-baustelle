@@ -421,7 +421,8 @@
    "stumm": {
     "tuer_offen:magazin": "2026-09-30T07:00:00+02:00"
    },
-   "melden_knopf": true
+   "melden_knopf": true,
+   "erklaer": true
   },
   "zaehler": {
    "gradh:polier": 152.2883333333336,
@@ -1306,7 +1307,8 @@
    },
    "termine_kalender": null,
    "stumm": {},
-   "melden_knopf": true
+   "melden_knopf": true,
+   "erklaer": true
   },
   "zaehler": {
    "energie": 1840.5,
