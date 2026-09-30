@@ -1,0 +1,30 @@
+name: Prüfen (hassfest, HACS, Typen)
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 4 * * 1"   # montags: neue Regeln von hassfest und HACS
+  workflow_dispatch:
+
+jobs:
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+
+  typen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: mypy --strict (Platin, Einstellungen in pyproject.toml)
+        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component --with mypy mypy --strict custom_components/baustelle

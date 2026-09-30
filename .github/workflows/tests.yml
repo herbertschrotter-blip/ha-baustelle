@@ -18,4 +18,4 @@ jobs:
         with:
           node-version: 22
       - name: Seite (Panel)
-        run: node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/diagnose-beispiel.json
+        run: node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
