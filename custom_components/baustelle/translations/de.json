@@ -231,7 +231,9 @@
           "arbeitszeit": "Arbeitszeit",
           "nachheizen": "Nachheizen",
           "trocknen": "Kleidung trocknen",
-          "ausserhalb": "Außerhalb der Heizzeit"
+          "ausserhalb": "Außerhalb der Heizzeit",
+          "aus": "Aus – nur Frostschutz",
+          "absenken": "Abgesenkt"
         }
       },
       "leistung": {

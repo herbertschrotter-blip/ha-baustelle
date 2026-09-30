@@ -41,6 +41,7 @@ from .const import (
     CONF_ART,
     CONF_BEREICH,
     CONF_EMPFAENGER,
+    CONF_ENDE,
     CONF_ENERGIE,
     CONF_FEIERTAG_KALENDER,
     CONF_FUEHLER,
@@ -116,8 +117,9 @@ PRIO = {"niedrig": staffel_logik.Prio.NIEDRIG, "normal": staffel_logik.Prio.NORM
 ROLLE_API = {"heizkoerper": "heizung", "bautrockner": "trockner", "pumpe": "pumpe", "steckdose": "steckdose"}
 HEIZ_GRUENDE = {
     SollGrund.FRUEHSTART, SollGrund.VORHEIZEN, SollGrund.ARBEITSZEIT, SollGrund.NACHHEIZEN, SollGrund.TROCKNEN,
-    SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST,
+    SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN,
 }
+MODI = ("plan", "thermo", "bedarf", "hand", "aus")
 GRUND_TEXT = {
     SollGrund.FRUEHSTART: "Frühstart",
     SollGrund.VORHEIZEN: "Vorheizen",
@@ -132,6 +134,8 @@ GRUND_TEXT = {
     SollGrund.FREI: "Frei",
     SollGrund.HEIZGRENZE: "Heizgrenze",
     SollGrund.AUSSERHALB: "Heizzeit vorbei",
+    SollGrund.AUS: "Aus – nur Frostschutz",
+    SollGrund.ABSENKEN: "Abgesenkt",
 }
 WARTE_TEXT = {
     "anschluss_voll": "Anschluss voll",
@@ -778,6 +782,18 @@ class Steuerung:
             return float(wert) if isinstance(wert, (int, float)) else None
         return _zahl(s)
 
+    def modus(self, bid: str) -> str:
+        """Modus eines Containers (neu 0.7.8): gesetzt oder wie bisher aus `auto`, `bedarf` und dem Fühler abgeleitet."""
+        e = self.einstellungen.bereich(bid)
+        if e.get("modus") in MODI:
+            return str(e["modus"])
+        if e["bedarf"]:
+            return "bedarf"
+        if not e["auto"]:
+            return "hand"
+        info = self.bereiche.get(bid)
+        return "thermo" if info is not None and info.fuehler else "plan"
+
     def soll_temperatur(self, bid: str) -> float:
         b = self.einstellungen.bereich(bid)
         return float(b["soll"] if b.get("soll") is not None else self.e["heizung"]["soll"])
@@ -868,6 +884,8 @@ class Steuerung:
                 frost=bool(h["frost"]), frost_grenze=float(h["frost_grenze"]), zu_warm=warm, frei=frei,
                 tuer_offen_min=tuer_min, bedarf=bool(e["bedarf"]), bedarf_aktiv=bedarf_aktiv, boost=boost,
                 heizt_gerade=heizt, toleranz=float(h["toleranz"]), frost_vorher=self._frost.get(bid, False),
+                modus=self.modus(bid), frost_aus=None if h.get("frost_aus") is None else float(h["frost_aus"]),
+                frei_modus=str(h.get("frei_modus") or "frost"), absenk=float(h.get("absenk") or 10.0),
             )
             soll = soll_container(lage, int(h["tuer_pause_min"]))
             self._frost[bid] = soll.grund == SollGrund.FROST
@@ -1205,6 +1223,8 @@ class Steuerung:
                 zustand, text = "heizt", "⚡ schnell aufheizen"
             elif grund == SollGrund.BEREIT:
                 zustand, text = "bereit", "bei Bedarf · nur Frostschutz"
+            elif grund == SollGrund.AUS and not heizer_an:
+                zustand, text = "aus", "aus · nur Frostschutz"
             elif heizer_an and grund == SollGrund.TROCKNEN:
                 zustand, text = "trocknen", "Kleidung trocknen"
             elif heizer_an:
@@ -1216,6 +1236,8 @@ class Steuerung:
                     text = "an · Thermostat regelt"
                 elif grund == SollGrund.HAND or not e["auto"]:
                     text = "heizt · Hand"
+                elif grund == SollGrund.ABSENKEN:
+                    text = "heizt · abgesenkt"
                 else:
                     text = "heizt · Arbeitszeit"
             else:
@@ -1562,7 +1584,9 @@ class Steuerung:
         bis = int(self.entry.options.get(CONF_HEIZPERIODE_BIS, 4))
         jahr = jetzt.year if jetzt.month >= von else jetzt.year - 1
         tage = (jetzt - seit).total_seconds() / 86400
-        return hochrechnung(self.zaehler.get(key, 0.0), tage, tage_heizperiode(von, bis, jahr))
+        ende = self.entry.options.get(CONF_ENDE)
+        bis_tag = date.fromisoformat(ende) if ende else None   # geplantes Ende der Baustelle (neu 0.7.8)
+        return hochrechnung(self.zaehler.get(key, 0.0), tage, tage_heizperiode(von, bis, jahr, bis_tag))
 
     def mittel_typ(self, typ: str) -> float | None:
         """Mittlere Leistung im Betrieb aller Heizkörper eines Typs (Vergleich Ölradiator/Konvektor)."""
@@ -1574,6 +1598,7 @@ class Steuerung:
         return sum(werte) / len(werte) if werte else None
 
 
+MODUS_TEXT = {"plan": "Zeitplan", "thermo": "Thermostat", "bedarf": "Bei Bedarf", "hand": "Hand", "aus": "Aus"}
 TAGE_KURZ = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
@@ -1585,6 +1610,8 @@ def _einstellung_text(pfad: tuple[str, ...], wert: Any) -> str:
     """Protokolltext einer geänderten Einstellung."""
     if pfad == ("automatik",):
         return "Automatik eingeschaltet" if wert else "Automatik ausgeschaltet"
+    if pfad[0] == "bereiche" and pfad[-1] == "modus":
+        return f"Modus: {MODUS_TEXT.get(wert, wert)}"
     if isinstance(wert, bool):
         wert_text = "ein" if wert else "aus"
     elif wert is None:

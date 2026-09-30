@@ -148,3 +148,54 @@ def test_bedarf_ohne_plan_und_hysterese():
     assert soll(bedarf=True, bedarf_aktiv=True, plan=None) == Soll(True, SollGrund.BEDARF)
     assert soll(bedarf=True, plan=None, minute=t(10)) == Soll(False, SollGrund.BEREIT)
     assert soll(bedarf=True, bedarf_aktiv=True, temperatur=20.0, heizt_gerade=True) == Soll(True, SollGrund.BEDARF)
+
+
+# ---- aus 0.6.3 zurück (Herbert 30.09.2026): Modus je Container, Frostschutz ein/aus, Urlaub/Feiertag
+def test_modus_zeitplan_heizt_mit_fuehler_ueber_soll():
+    """Zeitplan: in der Heizzeit an, auch wenn der Fühler das Soll schon erreicht hat (Heizkörper regelt selbst)."""
+    assert soll(temperatur=22.0, modus="plan") == Soll(True, SollGrund.ARBEITSZEIT)
+    assert soll(temperatur=22.0, modus="thermo") == Soll(False, SollGrund.ARBEITSZEIT)
+
+
+def test_modus_zeitplan_ausserhalb_aus():
+    assert soll(minute=t(20), temperatur=12.0, modus="plan") == Soll(False, SollGrund.AUSSERHALB)
+
+
+def test_modus_aus_nur_frostschutz():
+    assert soll(temperatur=12.0, modus="aus") == Soll(False, SollGrund.AUS)
+    assert soll(temperatur=3.0, modus="aus") == Soll(True, SollGrund.FROST)
+
+
+def test_modus_aus_laesst_schnell_aufheizen_zu():
+    assert soll(temperatur=12.0, modus="aus", boost=True) == Soll(True, SollGrund.BOOST)
+
+
+def test_frostschutz_aus_ueber_eigenem_wert():
+    assert soll(minute=t(22), temperatur=6.5, frost_vorher=True, frost_aus=8.0) == Soll(True, SollGrund.FROST)
+    assert soll(minute=t(22), temperatur=8.0, frost_vorher=True, frost_aus=8.0) == Soll(False, SollGrund.AUSSERHALB)
+    assert soll(minute=t(22), temperatur=6.0, frost_aus=8.0) == Soll(False, SollGrund.AUSSERHALB)
+
+
+def test_frostschutz_aus_unter_grenze_gilt_grenze_plus_2():
+    assert soll(minute=t(22), temperatur=6.9, frost_vorher=True, frost_aus=4.0) == Soll(True, SollGrund.FROST)
+    assert soll(minute=t(22), temperatur=7.0, frost_vorher=True, frost_aus=4.0) == Soll(False, SollGrund.AUSSERHALB)
+
+
+def test_urlaub_nur_frostschutz():
+    assert soll(frei=True, temperatur=8.0) == Soll(False, SollGrund.FREI)
+    assert soll(frei=True, temperatur=4.0) == Soll(True, SollGrund.FROST)
+
+
+def test_urlaub_absenken_mit_fuehler():
+    assert soll(frei=True, frei_modus="absenk", absenk=10.0, temperatur=9.0) == Soll(True, SollGrund.ABSENKEN)
+    assert soll(frei=True, frei_modus="absenk", absenk=10.0, temperatur=10.5) == Soll(False, SollGrund.ABSENKEN)
+    assert soll(frei=True, frei_modus="absenk", absenk=10.0, temperatur=10.1, heizt_gerade=True) == Soll(True, SollGrund.ABSENKEN)
+
+
+def test_urlaub_absenken_ohne_fuehler_nur_frostschutz():
+    assert soll(frei=True, frei_modus="absenk", temperatur=None) == Soll(False, SollGrund.FREI)
+
+
+def test_urlaub_alles_aus_auch_kein_frostschutz():
+    assert soll(frei=True, frei_modus="aus", temperatur=2.0) == Soll(False, SollGrund.FREI)
+    assert soll(frei=False, frei_modus="aus", temperatur=2.0) == Soll(True, SollGrund.FROST)

@@ -50,6 +50,9 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("heizung", "fruehstart_min"): vol.All(GANZ, vol.Range(0, 240)),
     ("heizung", "frost"): cv.boolean,
     ("heizung", "frost_grenze"): vol.All(ZAHL, vol.Range(-5, 15)),
+    ("heizung", "frost_aus"): vol.Any(None, vol.All(ZAHL, vol.Range(-3, 20))),
+    ("heizung", "frei_modus"): vol.In(["frost", "absenk", "aus"]),
+    ("heizung", "absenk"): vol.All(ZAHL, vol.Range(5, 20)),
     ("heizung", "trocknen_ab_mm"): vol.All(ZAHL, vol.Range(0, 100)),
     ("heizung", "trocknen_laenger_min"): vol.All(GANZ, vol.Range(0, 480)),
     ("heizung", "trocknen_frueher_min"): vol.All(GANZ, vol.Range(0, 240)),
@@ -88,6 +91,7 @@ SETZEN_BEREICH: dict[str, Any] = {
     "prio": vol.In(["niedrig", "normal", "hoch"]),
     "anschluss": cv.string,
     "tuer": vol.Any(None, cv.entity_domain("binary_sensor")),
+    "modus": vol.In(["plan", "thermo", "bedarf", "hand", "aus"]),
 }
 
 ARBEITSZEIT = vol.Schema({
@@ -187,6 +191,19 @@ def pruefe_setzen(st: Any, pfad: list[str], wert: Any) -> Any:
         wert = SETZEN_BEREICH[pfad[2]](wert)
         if pfad[2] == "anschluss" and wert not in {a["id"] for a in st.e["anschluesse"]}:
             raise vol.Invalid(f"Unbekannter Anschluss {wert}")
+        if pfad[2] == "modus" and wert == "thermo" and not st.bereiche[pfad[1]].fuehler:
+            raise vol.Invalid("Thermostat braucht einen Temperaturfühler")
+        return wert
+    if schluessel == ("heizung", "frost_aus"):
+        wert = SETZEN[schluessel](wert)
+        if wert is not None and wert <= float(st.e["heizung"]["frost_grenze"]):
+            raise vol.Invalid("Frostschutz „aus über“ muss über „ein unter“ liegen")
+        return wert
+    if schluessel == ("heizung", "frost_grenze"):
+        wert = SETZEN[schluessel](wert)
+        aus = st.e["heizung"].get("frost_aus")
+        if aus is not None and wert >= float(aus):
+            raise vol.Invalid("Frostschutz „ein unter“ muss unter „aus über“ liegen")
         return wert
     if schluessel not in SETZEN:
         raise vol.Invalid(f"Pfad {'.'.join(pfad)} ist nicht erlaubt")
@@ -210,7 +227,20 @@ def ws_setzen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
         _fehler(connection, msg, str(err))
         return
     pfad = list(msg["pfad"])
-    if pfad[:2] == ["meldungen_einst", "arten"] and len(pfad) == 3:
+    if pfad[0] == "bereiche" and pfad[2] in ("modus", "auto", "bedarf"):
+        # Modus (neu 0.7.8) und die bisherigen Felder auto/bedarf passend halten: Modus setzt beide, auto/bedarf allein
+        # heben einen gesetzten Modus auf (dann wird er wieder abgeleitet)
+        b = st.einstellungen.bereich(pfad[1])
+        if pfad[2] == "modus":
+            b["auto"], b["bedarf"] = wert != "hand", wert == "bedarf"
+            if wert != "bedarf":
+                st.lz["bedarf_bis"].pop(pfad[1], None)
+        else:
+            b["modus"] = None
+        st.einstellung_setzen(pfad, wert)
+        if pfad[2] == "modus":
+            st.entry.async_create_background_task(hass, st._async_kalender(), "baustelle_kalender")
+    elif pfad[:2] == ["meldungen_einst", "arten"] and len(pfad) == 3:
         st.e["meldungen_einst"]["arten"][pfad[2]] = wert
         st.einstellungen.speichern()
         st.auswerten()
@@ -388,7 +418,8 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Required("type"): "baustelle/aktion",
     vol.Required("entry_id"): str,
     vol.Required("aktion"): vol.In(
-        ["bedarf", "bedarf_aus", "boost", "jetzt_heizen", "schalten", "automatik", "warnung_stumm", "bericht_senden"]
+        ["bedarf", "bedarf_aus", "boost", "jetzt_heizen", "schalten", "automatik", "warnung_stumm", "bericht_senden",
+         "test_meldung"]
     ),
     vol.Optional("bereich"): str,
     vol.Optional("geraet"): str,
@@ -476,6 +507,11 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         else:
             st.e["stumm"][key] = bis or morgen_frueh(jetzt).isoformat(timespec="seconds")
             st.protokoll("einstellung", w.bereich if w else None, f"Stumm bis {_datum(st.e['stumm'][key][:10])}: {titel(w) if w else key}")
+    elif aktion == "test_meldung":
+        # Test-Nachricht an alle Empfänger (wie der Knopf „Test-Meldung“ in 0.6)
+        an = st.nachrichten.melden("🔔 Test", f"{st.entry.title}: Nachrichten der Baustelle kommen an.", tag="baustelle_test")
+        connection.send_result(msg["id"], {"ok": True, "an": an})
+        return
     elif aktion == "bericht_senden":
         await st.nachrichten.async_bericht_senden(msg.get("art") or "woche")
         connection.send_result(msg["id"], {"ok": True})

@@ -127,6 +127,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "temperatur": d.temperatur.get(bid), "kw": round(kw, 3),
             "bedarf_bis": _iso(st.bis("bedarf_bis", bid, jetzt)), "boost_bis": _iso(st.bis("boost_bis", bid, jetzt)),
             "tuer": tuer,
+            "modus": st.modus(bid) if info.art == ART_CONTAINER else None,
         }
     geraete: dict[str, Any] = {}
     for gid, g in st.geraete.items():

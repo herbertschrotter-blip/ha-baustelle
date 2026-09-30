@@ -374,3 +374,58 @@ async def test_alte_meldungen_werden_nummeriert(hass: HomeAssistant, hass_storag
     liste = await mel.async_laden()
     assert [(m["id"], m["ticket"], m["status"]) for m in liste] == [("m2", "FE-0002", "geschlossen"), ("m1", "FE-0001", "neu")]
     assert mel.neue_nummer("fehler") == "FE-0003"
+
+
+async def test_modus_frostschutz_urlaub_setzen(hass: HomeAssistant, baustelle, ws) -> None:
+    """Aus 0.6.3 zurück (0.7.8): Modus je Container, Frostschutz ein/aus, Urlaub/Feiertag, Pumpen-Schwellen."""
+    st = baustelle.runtime_data
+    lz = (await ws.rufe("baustelle/struktur", mit_entry=False))["result"][0]["laufzeit"]
+    assert lz["container"][C1]["modus"] == "thermo" and lz["container"][C2]["modus"] == "plan"   # abgeleitet (Fühler)
+    assert lz["container"][SCHACHT]["modus"] is None
+    assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C2, "modus"], wert="bedarf"))["success"]
+    assert st.e["bereiche"][C2]["bedarf"] is True and st.e["bereiche"][C2]["auto"] is True and st.modus(C2) == "bedarf"
+    assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C2, "modus"], wert="hand"))["success"]
+    assert st.e["bereiche"][C2]["auto"] is False and st.e["bereiche"][C2]["bedarf"] is False
+    assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C1, "modus"], wert="aus"))["success"]
+    assert st.modus(C1) == "aus" and "Modus: Aus" in [p[3] for p in st.e["protokoll"]]
+    # auto/bedarf allein heben den Modus auf
+    assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C1, "auto"], wert=True))["success"]
+    assert st.e["bereiche"][C1]["modus"] is None and st.modus(C1) == "thermo"
+    # Thermostat nur mit Fühler
+    msg = await ws.rufe("baustelle/setzen", pfad=["bereiche", C2, "modus"], wert="thermo")
+    assert msg["error"]["code"] == "invalid_format"
+    # Frostschutz ein/aus, Urlaub
+    assert (await ws.rufe("baustelle/setzen", pfad=["heizung", "frost_aus"], wert=8.0))["success"]
+    assert (await ws.rufe("baustelle/setzen", pfad=["heizung", "frost_aus"], wert=4.0))["error"]["code"] == "invalid_format"
+    assert (await ws.rufe("baustelle/setzen", pfad=["heizung", "frost_grenze"], wert=8.0))["error"]["code"] == "invalid_format"
+    assert (await ws.rufe("baustelle/setzen", pfad=["heizung", "frei_modus"], wert="absenk"))["success"]
+    assert (await ws.rufe("baustelle/setzen", pfad=["heizung", "absenk"], wert=12.0))["success"]
+    assert (await ws.rufe("baustelle/setzen", pfad=["heizung", "frei_modus"], wert="kalt"))["error"]["code"] == "invalid_format"
+    assert st.e["heizung"]["frost_aus"] == 8.0 and st.e["heizung"]["frei_modus"] == "absenk" and st.e["heizung"]["absenk"] == 12.0
+    # Pumpen-Schwellen (gab es schon, jetzt auf der Seite)
+    assert (await ws.rufe("baustelle/setzen", pfad=["meldungen_einst", "trocken_unter_w"], wert=40))["success"]
+    assert (await ws.rufe("baustelle/setzen", pfad=["meldungen_einst", "offline_min"], wert=10))["success"]
+
+
+async def test_aktion_test_meldung(hass: HomeAssistant, baustelle, ws, nachrichten) -> None:
+    st = baustelle.runtime_data
+    st.einstellung_setzen(("meldungen_einst", "empfaenger"), ["mobile_app_test"])
+    antwort = await ws.rufe("baustelle/aktion", aktion="test_meldung")
+    assert antwort["result"]["ok"] and antwort["result"]["an"]
+    assert nachrichten[-1].data["title"] == "🔔 Test" and "kommen an" in nachrichten[-1].data["message"]
+
+
+async def test_modus_schaltet(hass: HomeAssistant, baustelle, ws, shellys, freezer) -> None:
+    """In der Arbeitszeit: Modus Aus schaltet ab (nur Frostschutz), Zeitplan heizt wieder."""
+    st = baustelle.runtime_data
+    freezer.move_to("2026-09-29 10:00:00+02:00")
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert "switch.hk1" in shellys.ein()
+    assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C1, "modus"], wert="aus"))["success"]
+    assert hass.states.get("switch.hk1").state == "off" and st.daten.grund[C1] == "aus"
+    freezer.tick(timedelta(minutes=10))   # Mindestpause
+    assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C1, "modus"], wert="plan"))["success"]
+    # heizt wieder nach Plan; ob Heizkörper 1 gleich läuft, entscheidet die Staffelung (Heizkörper 2 hat den Platz
+    # am kleinen Anschluss inzwischen bekommen)
+    assert st.daten.grund[C1] == "arbeitszeit" and "switch.hk2" in shellys.ein()

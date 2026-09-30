@@ -51,6 +51,9 @@ STANDARD: dict[str, Any] = {
         "fruehstart_min": 30,
         "frost": True,
         "frost_grenze": 5.0,
+        "frost_aus": None,        # Frostschutz aus über … °C; None = Grenze + 2 °C (neu 0.7.8)
+        "frei_modus": "frost",    # Urlaub und freie Feiertage: frost | absenk | aus (neu 0.7.8)
+        "absenk": 10.0,
         "trocknen_ab_mm": 2.0,
         "trocknen_laenger_min": 45,
         "trocknen_frueher_min": 15,
@@ -96,6 +99,8 @@ STANDARD_BEREICH: dict[str, Any] = {
     "prio": "normal",
     "anschluss": ANSCHLUSS_STANDARD,
     "tuer": None,
+    # Modus (neu 0.7.8): plan | thermo | bedarf | hand | aus; None = aus `auto`/`bedarf` und Fühler abgeleitet
+    "modus": None,
 }
 
 

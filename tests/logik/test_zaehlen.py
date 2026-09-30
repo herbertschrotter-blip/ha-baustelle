@@ -41,6 +41,13 @@ def test_tage_heizperiode():
     assert tage_heizperiode(1, 12, 2027) == 365
 
 
+def test_tage_heizperiode_bis_ende_der_baustelle():
+    from datetime import date
+    assert tage_heizperiode(10, 4, 2026, date(2027, 1, 31)) == 123  # 1.10.2026–31.1.2027
+    assert tage_heizperiode(10, 4, 2026, date(2027, 6, 30)) == 212  # Ende nach der Heizperiode: ganze Periode
+    assert tage_heizperiode(10, 4, 2026, date(2026, 9, 1)) == 0     # schon vorher zu Ende
+
+
 def test_hochrechnung():
     assert hochrechnung(100, 0.5, 30) is None
     assert hochrechnung(100, 10, 30) == pytest.approx(300)

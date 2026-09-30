@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.8] – 2026-09-30
+
+- Aus der Seite 0.6.3 zurück (Mockup `glas.html` abgenommen), Regelung: **Modus je Container** Zeitplan (Heizung in der
+  Heizzeit an, der Thermostat am Heizkörper regelt) / Thermostat (auf das Soll nach dem Fühler) / Bei Bedarf / Hand /
+  Aus (nur Frostschutz); **Frostschutz** mit eigenem Aus-Wert; **Urlaub und freie Feiertage** nur Frostschutz,
+  absenken (mit Fühler) oder alles aus; Hochrechnung der Heizperiode nur bis zum geplanten Ende der Baustelle;
+  Test-Nachricht an alle Empfänger.
+
 ## [0.7.7] – 2026-09-30
 
 - Seite: **Hinweis auf neue Version**. Ist in HA eine neuere Version geladen (nach einem Neustart) oder eine neuere

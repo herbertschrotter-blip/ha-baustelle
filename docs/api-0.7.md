@@ -172,3 +172,18 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   zusammen; `calendar/event/delete` mit dieser `uid` (ohne `recurrence_id`) löscht die ganze Serie.
 - `zaehler.heiztage` (Tage, an denen eine Heizung lief) ist die Zahl, die die Seite als „Heiztage“ zeigt.
 - Werte für `baustelle/setzen` aus den Steppern der Seite bleiben in den Bereichen von `panel.py` `SETZEN`.
+
+## 7. Aus 0.6.3 zurück (0.7.8, Mockup glas.html abgenommen 30.09.2026)
+
+- `baustelle/setzen`:
+  - `bereiche.<bid>.modus` = `plan|thermo|bedarf|hand|aus` (Thermostat nur mit Fühler, sonst `invalid_format`). Setzt
+    `auto` (= nicht `hand`) und `bedarf` (= `bedarf`) mit; `auto` oder `bedarf` allein setzen den Modus auf `null`
+    (abgeleitet).
+  - `heizung.frost_aus` (Frostschutz aus über … °C, `null` = Grenze + 2 °C; muss über `frost_grenze` liegen, sonst
+    `invalid_format`), `heizung.frei_modus` = `frost|absenk|aus` (Urlaub und freie Feiertage), `heizung.absenk` (°C).
+- `laufzeit.container[bid].modus`: wirksamer Modus (gesetzt oder abgeleitet: `bedarf` wenn Bedarf, `hand` wenn nicht
+  auto, sonst `thermo` mit Fühler bzw. `plan`); `null` bei Pumpenschächten. Neue Gründe: `aus` (Modus Aus),
+  `absenken` (Urlaub/Feiertag abgesenkt).
+- `baustelle/aktion`: `test_meldung` → Test-Nachricht an alle Empfänger, Antwort `{ok, an: [Namen]}`.
+- Beginn/Ende und Heizperiode: Options-Dialog (`beginn`, `ende`, `heizperiode_von`, `heizperiode_bis` als `"1"`…`"12"`).
+  Die Hochrechnung (`<entry>_prognose_heizperiode…`) zählt nur bis zum geplanten Ende, wenn es in der Heizperiode liegt.

@@ -1,8 +1,9 @@
 """Soll-Zustand je Container – reine Fachlogik ohne Home-Assistant-Code.
 
 Bauplan 0.7 Abschnitt 2.2. Reihenfolge (fachlich festgelegt):
-Automatik aus → Frostschutz → Tür offen → Container-Automatik aus (Hand) → Boost → Bedarfs-Container →
-frei → Heizgrenze → Plan-Fenster (Thermostat bzw. ein) → außerhalb.
+Automatik aus → Frostschutz → Tür offen → Container-Automatik aus (Hand) → Boost → Modus „aus“ → Bedarfs-Container →
+frei (Urlaub/Feiertag: nur Frostschutz, absenken oder alles aus) → Heizgrenze → Plan-Fenster (Thermostat bzw. ein) →
+außerhalb.
 
 Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
 - Frostschutz hält „bis +2 °C“: ein unter `frost_grenze`, weiter ein bis `frost_grenze + 2`, wenn er schon
@@ -14,6 +15,13 @@ Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
   „bedarf“. Bedarf geht wie im Bauplan vor frei und Heizgrenze (ausdrücklich angefordert).
 - Im Plan-Fenster ist der Grund der Abschnitt (`fruehstart`, `vorheizen`, `arbeitszeit`, `nachheizen`, `trocknen`),
   auch wenn der Thermostat gerade ausschaltet.
+
+Aus 0.6.3 zurück (Herbert 30.09.2026, Mockup glas.html):
+- Modus je Container (`modus`): `thermo` regelt mit Fühler auf das Soll, `plan` lässt die Heizung in der Heizzeit an
+  (der Thermostat am Heizkörper regelt), `aus` heizt nur im Frostschutz; Hand und Bei Bedarf bleiben `auto`/`bedarf`.
+- Frostschutz ein unter `frost_grenze`, aus erst über `frost_aus` (ohne Wert: Grenze + 2 °C).
+- Urlaub und freie Feiertage (`frei`): `frei_modus` `frost` (nur Frostschutz), `absenk` (mit Fühler auf `absenk`, ohne
+  Fühler nur Frostschutz) oder `aus` (alles aus, auch kein Frostschutz).
 """
 
 from __future__ import annotations
@@ -44,6 +52,8 @@ class SollGrund(StrEnum):
     NACHHEIZEN = "nachheizen"
     TROCKNEN = "trocknen"
     AUSSERHALB = "ausserhalb"
+    AUS = "aus"
+    ABSENKEN = "absenken"
 
 
 @dataclass(frozen=True)
@@ -73,6 +83,10 @@ class LageContainer:
     heizt_gerade: bool
     toleranz: float = 0.3
     frost_vorher: bool = False
+    modus: str = "thermo"
+    frost_aus: float | None = None
+    frei_modus: str = "frost"
+    absenk: float = 10.0
 
 
 @dataclass(frozen=True)
@@ -93,18 +107,25 @@ def thermostat(temperatur: float, soll: float, toleranz: float, war_ein: bool) -
     return temperatur <= round(soll - toleranz, 3)
 
 
+def frost_aus(lage: LageContainer) -> float:
+    """Ab dieser Temperatur hört der Frostschutz auf: `frost_aus`, wenn er über der Grenze liegt, sonst Grenze + 2 °C."""
+    if lage.frost_aus is not None and lage.frost_aus > lage.frost_grenze:
+        return lage.frost_aus
+    return lage.frost_grenze + FROST_SPANNE
+
+
 def frostschutz(lage: LageContainer) -> bool:
-    """Frostschutz: ein unter der Grenze, aus erst ab Grenze + 2 °C."""
-    if not lage.frost or lage.temperatur is None:
+    """Frostschutz: ein unter der Grenze, aus erst ab `frost_aus`; im Urlaub mit „alles aus“ gar nicht."""
+    if not lage.frost or lage.temperatur is None or (lage.frei and lage.frei_modus == "aus"):
         return False
     if lage.frost_vorher:
-        return lage.temperatur < round(lage.frost_grenze + FROST_SPANNE, 3)
+        return lage.temperatur < round(frost_aus(lage), 3)
     return lage.temperatur < lage.frost_grenze
 
 
 def _heizen(lage: LageContainer) -> bool:
-    """Mit Fühler Thermostat, ohne Fühler einfach ein."""
-    if lage.temperatur is None:
+    """Mit Fühler Thermostat, ohne Fühler (oder im Modus Zeitplan) einfach ein."""
+    if lage.temperatur is None or lage.modus == "plan":
         return True
     return thermostat(lage.temperatur, lage.soll, lage.toleranz, lage.heizt_gerade)
 
@@ -121,11 +142,15 @@ def soll_container(lage: LageContainer, tuer_pause_min: int) -> Soll:
         return Soll(None, SollGrund.HAND)
     if lage.boost and (lage.temperatur is None or lage.temperatur < lage.soll):
         return Soll(True, SollGrund.BOOST)
+    if lage.modus == "aus":
+        return Soll(False, SollGrund.AUS)
     if lage.bedarf:
         if lage.bedarf_aktiv:
             return Soll(_heizen(lage), SollGrund.BEDARF)
         return Soll(False, SollGrund.BEREIT)
     if lage.frei:
+        if lage.frei_modus == "absenk" and lage.temperatur is not None:
+            return Soll(thermostat(lage.temperatur, lage.absenk, lage.toleranz, lage.heizt_gerade), SollGrund.ABSENKEN)
         return Soll(False, SollGrund.FREI)
     if lage.zu_warm:
         return Soll(False, SollGrund.HEIZGRENZE)

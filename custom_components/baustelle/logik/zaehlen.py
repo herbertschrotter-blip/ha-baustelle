@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 # Sprung eines Zählerstands, den wir nicht glauben (z. B. falscher Sensor gewählt), in kWh
 MAX_SPRUNG_KWH = 50.0
@@ -40,11 +40,16 @@ def mittel_im_betrieb(bisher: float | None, leistung_w: float | None) -> float |
     return bisher + MITTEL_GEWICHT * (leistung_w - bisher)
 
 
-def tage_heizperiode(von_monat: int, bis_monat: int, jahr_beginn: int) -> int:
-    """Tage einer Heizperiode, z. B. Oktober bis April (über den Jahreswechsel)."""
+def tage_heizperiode(von_monat: int, bis_monat: int, jahr_beginn: int, bis_tag: date | None = None) -> int:
+    """Tage einer Heizperiode, z. B. Oktober bis April (über den Jahreswechsel).
+
+    `bis_tag`: geplantes Ende der Baustelle – liegt es in der Heizperiode, zählt sie nur bis dahin (einschließlich).
+    """
     beginn = date(jahr_beginn, von_monat, 1)
     ende_jahr = jahr_beginn if bis_monat >= von_monat else jahr_beginn + 1
     ende = date(ende_jahr + (bis_monat == 12), 1 if bis_monat == 12 else bis_monat + 1, 1)
+    if bis_tag is not None and bis_tag < ende:
+        ende = max(beginn, bis_tag + timedelta(days=1))
     return (ende - beginn).days
 
 

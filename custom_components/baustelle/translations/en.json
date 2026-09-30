@@ -231,7 +231,9 @@
           "arbeitszeit": "Working hours",
           "nachheizen": "Post-heating",
           "trocknen": "Drying clothes",
-          "ausserhalb": "Outside heating time"
+          "ausserhalb": "Outside heating time",
+          "aus": "Off – frost protection only",
+          "absenken": "Setback"
         }
       },
       "leistung": {

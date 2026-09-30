@@ -21,7 +21,7 @@
     "urlaub_kalender": "calendar.urlaub"
    },
    "geladen": true,
-   "version": "0.7.7",
+   "version": "0.7.8",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -282,6 +282,9 @@
     "fruehstart_min": 30,
     "frost": true,
     "frost_grenze": 5.0,
+    "frost_aus": null,
+    "frei_modus": "frost",
+    "absenk": 10.0,
     "trocknen_ab_mm": 2.0,
     "trocknen_laenger_min": 45,
     "trocknen_frueher_min": 15,
@@ -346,7 +349,8 @@
      "bedarf": false,
      "prio": "hoch",
      "anschluss": "a1",
-     "tuer": null
+     "tuer": null,
+     "modus": null
     },
     "mannschaft": {
      "auto": true,
@@ -355,7 +359,8 @@
      "bedarf": true,
      "prio": "normal",
      "anschluss": "a1",
-     "tuer": null
+     "tuer": null,
+     "modus": null
     },
     "magazin": {
      "auto": true,
@@ -364,7 +369,8 @@
      "bedarf": false,
      "prio": "normal",
      "anschluss": "sued",
-     "tuer": "binary_sensor.tuer_magazin"
+     "tuer": "binary_sensor.tuer_magazin",
+     "modus": null
     },
     "schacht": {
      "auto": true,
@@ -373,7 +379,8 @@
      "bedarf": false,
      "prio": "normal",
      "anschluss": "sued",
-     "tuer": null
+     "tuer": null,
+     "modus": null
     }
    },
    "meldungen_einst": {
@@ -465,7 +472,8 @@
      "kw": 1.98,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "modus": "thermo"
     },
     "mannschaft": {
      "zustand": "bereit",
@@ -475,7 +483,8 @@
      "kw": 0,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "modus": "bedarf"
     },
     "magazin": {
      "zustand": "pause",
@@ -488,7 +497,8 @@
      "tuer": {
       "offen": true,
       "seit": "2026-09-29T16:05:00+02:00"
-     }
+     },
+     "modus": "thermo"
     },
     "schacht": {
      "zustand": "aus",
@@ -498,7 +508,8 @@
      "kw": 0,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "modus": null
     }
    },
    "geraete": {
@@ -1138,7 +1149,7 @@
     "heizperiode_bis": "4"
    },
    "geladen": true,
-   "version": "0.7.7",
+   "version": "0.7.8",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1213,6 +1224,9 @@
     "fruehstart_min": 30,
     "frost": true,
     "frost_grenze": 5.0,
+    "frost_aus": null,
+    "frei_modus": "frost",
+    "absenk": 10.0,
     "trocknen_ab_mm": 2.0,
     "trocknen_laenger_min": 45,
     "trocknen_frueher_min": 15,
@@ -1254,7 +1268,8 @@
      "bedarf": false,
      "prio": "normal",
      "anschluss": "a1",
-     "tuer": null
+     "tuer": null,
+     "modus": null
     }
    },
    "meldungen_einst": {
@@ -1319,7 +1334,8 @@
      "kw": 0,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "modus": "plan"
     }
    },
    "geraete": {
