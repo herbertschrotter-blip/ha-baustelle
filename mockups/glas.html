@@ -515,6 +515,19 @@ body.hell { background: #d9dee5; color: #111; }
 @keyframes wachsen { from { transform: scaleX(0); } }
 @keyframes toast { 0% { opacity: 0; transform: translate(-50%, 20px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 10px); } }
 @media (prefers-reduced-motion: reduce) { .app *, .app *::before { animation: none !important; transition: none !important; } }
+/* neu 0.8 – Punkte aus 0.6.3 zurück (Herbert 30.09.2026) */
+.badge.neu08 { background: color-mix(in srgb, var(--blau) 22%, transparent); color: var(--blau); font-size: 10px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+.erkl { font-size: 12px; color: var(--ink2); background: rgba(255,255,255,.06); border-radius: 10px; padding: 8px 10px; margin-top: 8px; line-height: 1.45; }
+.hell .erkl { background: rgba(0,0,0,.04); }
+.glas-nav.sechs button { font-size: 12px; padding-left: 1px; padding-right: 1px; } .glas-nav.sechs button.nav-ic { flex-basis: 40px; }
+.modus-z { flex-wrap: wrap; } .modus-z > div:first-child { flex: 1 1 200px; } .modus-z .seg { flex: 1 1 100%; }
+.seg button[disabled] { opacity: .35; cursor: not-allowed; }
+.jc-modus { font: inherit; font-size: 12px; color: var(--ink); background: rgba(255,255,255,.1); border: 1px solid var(--gridc); border-radius: 9px; padding: 4px 6px; }
+.hell .jc-modus { background: rgba(255,255,255,.7); }
+.warn-zeile { display: block; width: 100%; text-align: left; padding: 10px 14px; margin-bottom: 10px; }
+.warn-zeile.stoerung b { color: var(--rot); } .warn-zeile.hinweis b { color: var(--amber); } .warn-zeile .leise { display: block; font-size: 12px; margin-top: 2px; }
+.p-schacht { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; margin-bottom: 8px; } .p-illu .bc { max-width: 96px; }
+.tab-scroll { overflow-x: auto; } .je-geraet td, .je-geraet th { white-space: nowrap; padding-left: 8px; } .je-geraet td:first-child { white-space: normal; padding-left: 0; }
 </style></head>
 <body>
 <div class="bar"><b>Baustelle · Glas · klickbarer Prototyp</b><button id="modus">Hell / Dunkel</button>
@@ -727,7 +740,7 @@ class Himmel {
   }
 }
 
-const CHANGELOG = [{"version":"0.7.0","datum":"2026-09-30","punkte":["Neue Seite im Glas-Stil nach dem abgenommenen Mockup (`mockups/glas.html`): Himmel nach Tageszeit und Wetter (WebGL, Tropfen auf Glas, Wolken, Nebel, Schnee, Sonne, Nacht, Gewitter), Container-Kacheln glühen beim Heizen, Handy und Desktop.","Heizung nach **Arbeitszeiten mit Startdatum** (frühere bleiben gespeichert), Vor- und Nachheizen, Kleidung trocknen extra, Kälte-Frühstart, Einmal-Ausnahmen (Samstag arbeiten, heute länger, frei), „alle jetzt heizen“; mit Fühler auf Soll, ohne Fühler bleibt die Heizung an und der Heizkörperthermostat regelt. Heizplan der Woche und Übersicht „Wann welche Heizung heizt“ nach gemessener Leistung.","**Staffelung** je Stromanschluss (Absicherung, Reserve, nutzbarer Anteil): geschaltet werden nur Heizkörper, Mindestlauf und -pause, Rundlauf, Vorrang je Container, Heizkörper gehen nacheinander an.","Container **nur bei Bedarf** (z. B. Besprechung) mit Schalter auf der Kachel und Terminen aus einem Kalender, auch als Serie; **schnell aufheizen**; **Türkontakt** pausiert die Heizung.","**Firmen** je Container und **Abrechnung** nach Firma (CSV); Auswertung auch über alle laufenden Baustellen; Vergleich der Baustellen, letzte 12 Monate, Ansicht abgeschlossener Baustellen.","**Warnungen** mit Störungen und Hinweisen (u. a. zu kalt, Frostgefahr, Fühler, kein Wetter, Handbetrieb, Tür, Pumpe schaltet oft), stummschaltbar; dauerhaftes **Protokoll** (auch im HA-Logbuch); **Handy-Nachrichten mit Knöpfen**; **Wochen-/Monatsbericht** per Handy und E-Mail.","Einstellungen nur noch auf der Seite: die Einstellungs-Entitäten (Zeitplan je Wochentag, Regeln, Modus) entfallen, Automatik-Schalter und Sensoren bleiben. Einstellungen starten neu, **Zähler bleiben erhalten**.","Einstellungen › Über (Version, Verlauf) und Melden-Knopf in jedem Fenster mit Entwicklermenü."]},{"version":"0.6.3","datum":"2026-09-29","punkte":["Seite, Übersicht neu (Herberts Wahl): Baustellen-Kachel (Container, Pumpenschächte, Geräte, Leistung, heute) mit Chips für Heizung, nächste Schaltzeit, Wetter (klappt die Wetterkarte auf) und Warnungen; darunter je Container bzw. Pumpenschacht eine Kachel mit gezeichnetem 3D-Baucontainer bzw. Schacht, der den Zustand zeigt (heizt, Kleidung trocknen, aus, Frostschutz, nicht erreichbar; Pumpe läuft), Temperatur, Leistung, Gerätezahl.","Klick auf eine Kachel öffnet die Container-Ansicht: Geräte mit Schaltern, Einstellungen, Zeitleiste, Leistung und Temperatur heute, Energie/Heizzeit (bzw. Pumpzeit/Zyklen) je Tag.","Nebel-Symbol im Dunkelmodus heller."]},{"version":"0.6.2","datum":"2026-09-29","punkte":["Seite: realistische animierte Wettersymbole (Herberts Wahl aus drei Varianten): Sonne mit Glut und Strahlen, flauschige Wolken, Regenschlieren, drehende Schneekristalle, leuchtender Blitz, wabernder Nebel, Mond mit Kratern."]},{"version":"0.6.1","datum":"2026-09-29","punkte":["Fehler: Eigene Sensoren der Integration ließen sich als Wetterstation wählen (Kreis – „Außen“ blieb stehen, „Regen“ leer). Sie werden jetzt aus den Optionen entfernt und nicht mehr angeboten (Seite und HA-Dialog).","Fehler: Nach dem HA-Start kam die Vorhersage erst nach 30 min (Wetter lädt nach uns) – jetzt sofort, sobald die Wetter-Entität da ist.","Seite: neue Wetterkarte mit eigenen animierten Wettersymbolen (Sonne, Wolken, Regen, Schnee, Gewitter, Nebel, Nacht, Wind), 4 Tage mit „Heute/Morgen“, Frost-Tiefstwerte blau, Regen nur wenn welcher fällt."]},{"version":"0.6.0","datum":"2026-09-29","punkte":["Seite, Einstellungen: Baustellen anlegen, Status/Optionen ändern, Container/Pumpenschächte und Shellys anlegen, ändern und entfernen, Wetter, Kalender und Empfänger wählen – direkt auf der Seite, über dieselben Einrichtungs-Dialoge wie in HA (REST `config_entries/…/flow`, Prüfungen der Integration gelten weiter).","Seite: Wettervorhersage 3 Tage (`weather/subscribe_forecast`), „Kleidung trocknen“ schraffiert in der Zeitleiste, Temperatur-Tagesmittel (7/30 Tage, Heizperiode), Pumpzyklen je Tag, Ereignisse je Baustelle aus dem Logbuch.","Vergleich Ölradiator/Konvektor: Aufheiz- und Abkühlrate (°C/h) und kWh je Tag und Grad innen/außen – gemessen je Container mit Fühler."]},{"version":"0.5.1","datum":"2026-09-29","punkte":["Seite: Diagramm-Farben fehlten (Balken schwarz, Legende ohne Farben) – Palette wieder drin, im Test geprüft.","Seite am Handy: Tabellen scrollen in ihrer Karte statt über den Rand, Tabs kompakt (⚙ = Einstellungen), Zeitleiste zeigt den Gerätenamen.","Nächste Schaltzeit auch über Mitternacht hinaus (nächster aktiver Tag laut Plan).","Aufgeräumt: altes YAML-Dashboard samt Generator und leeres Paket aus 0.1.0 entfernt; die Seite ersetzt sie."]},{"version":"0.5.0","datum":"2026-09-29","punkte":["Stufe 6 vorgezogen – eigene Seite „Baustelle“ in der Seitenleiste (wie Alarmo/HACS), gebaut nach dem abgenommenen Entwurf: Übersicht, Heizung, Pumpen, Auswertung, Verlauf, Einstellungen; Baustellen-Umschalter; Animationen (Ölradiator/Konvektor, Trockner, Pumpe); Zeitleiste, Säulen- und Liniendiagramme mit Tooltips; Wochenplan mit Balken; Urlaub direkt im Urlaubskalender eintragen/löschen. Echte Daten über den WebSocket-Befehl `baustelle/struktur`, Verlauf über `history`/`recorder`, Bedienung über die normalen HA-Dienste.","Anlegen/Zuordnen (Baustellen, Container, Shellys, Wetter, Kalender, Empfänger) weiter über die Dialoge der Integration – die Seite verlinkt direkt dorthin.","Tests: Seite wird in Node mit nachgebildetem HA gerendert (alle Ansichten, gültige SVGs, Dienstaufrufe)."]},{"version":"0.4.0","datum":"2026-09-29","punkte":["Stufe 5 – Dashboard: Generator `tools/dashboard.py` erzeugt das YAML-Dashboard aus den Diagnose-Downloads (Übersicht, Heizung, Pumpen, Auswertung je aktive Baustelle, Verlauf über alle Baustellen) – nur eingebaute Karten (tile mit Features, heading, entities, statistic, statistics-graph, history-graph, weather-forecast).","Diagnose-Download je Baustelle (Einrichtung, Einstellungen, Zähler, Laufzeit, Entitäten; Empfänger geschwärzt).","Reparatur-Hinweis, wenn eine eingestellte Entität länger als 10 Minuten fehlt."]},{"version":"0.3.0","datum":"2026-09-29","punkte":["Stufe 4 – Verbrauch und Kosten: Zähler je Baustelle und Container (Energie kWh, Kosten zum jeweiligen Preis), Heizzeit je Container, Pumpzeit und Pumpzyklen je Pumpe; Energie aus dem Zählerstand des Shelly (übersteht Neustarts) oder aus Leistung × Zeit. Gezählt wird nur, solange die Baustelle aktiv ist.","„Ohne Automatik“: mittlere Leistung im Betrieb je Heizgerät, Zähler für 24-h-Dauerbetrieb, Ersparnis, Hochrechnung auf die Heizperiode (mit und ohne Automatik, Kosten).","Vergleich Ölradiator/Konvektor: Energie, Heizzeit und mittlere Leistung je Typ."]},{"version":"0.2.1","datum":"2026-09-29","punkte":["Geräte über `via_device_id` verknüpft (statt veraltetem `via_device`, Warnung von HA 2026.9).","„Zieht keinen Strom“ nur noch, wenn ein Heizkörper seit dem Einschalten 10 min nie geheizt hat; 0 W durch den eigenen Thermostat des Heizkörpers ist kein Fehler mehr."]},{"version":"0.2.0","datum":"2026-09-29","punkte":["Umstellung auf eine eigene Integration `baustelle` (vorher Paket + YAML-Dashboard).","Einrichtung: Baustelle mit Status aktiv/abgeschlossen, Optionen (Wetter, Wetterstation, Feiertags-/Urlaubskalender, Empfänger, Heizperiode); Container/Pumpenschächte und Shellys als Subentries, ein Shelly nur in einer aktiven Baustelle.","Heizung: Automatik, Modus je Container, Zeitplan je Wochentag, Kälte-Frühstart, Kleidung trocknen nach Regen, Heizgrenze, Frostschutz mit Schaltabstand, Urlaub/Feiertag, Thermostat mit Toleranz; Handbedienung → Handbetrieb.","Pumpen: läuft, offline, Trockenlauf, Dauerlauf, Baustelle nicht erreichbar; Meldungen und Test-Meldung.","Fachlogik ohne HA-Code mit Tests; Integrationstests gegen HA 2026.9.4."]},{"version":"0.1.0","datum":"2026-09-29","punkte":["Gerüst angelegt: Paket `baustelle`, YAML-Dashboard „Baustelle“, Auslieferung `tools/deploy.sh`.","Dashboard-Entwurf v4 abgenommen (`mockups/baustelle.html`)."]}];
+const CHANGELOG = [{"version":"0.7.7","datum":"2026-09-30","punkte":["Seite: **Hinweis auf neue Version**. Ist in HA eine neuere Version geladen (nach einem Neustart) oder eine neuere eingespielt (ohne Neustart), steht oben „Neue Version … – bitte neu laden“ mit Knopf „Neu laden“; der Knopf holt die Seite am Browser-Speicher vorbei (Strg+F5 ist nicht mehr nötig). `tools/changelog.py` setzt die Version der Seite."]},{"version":"0.7.6","datum":"2026-09-30","punkte":["Anregung AN-0001 („Wie kann ich Baustellen bearbeiten oder löschen?“): Im Fenster „Baustelle wählen“ hat jede Baustelle jetzt **✎ Bearbeiten** (laufende → Einstellungen › Baustelle, abgeschlossene → Detailseite mit „wieder aktiv setzen“) und **✕ Löschen** mit Sicherheitsabfrage; Löschen entfernt die Baustelle wie in HA unter Geräte & Dienste."]},{"version":"0.7.5","datum":"2026-09-30","punkte":["Tickets: Knopf „An Claude übergeben“ entfernt (öffnete eine nicht vorhandene Terminal-Adresse). Die Integration sammelt die Tickets nur; Herbert lässt sie in Claude Code mit „Tickets prüfen“ abarbeiten, Claude setzt sie bei Erfolg auf erledigt. `tools/ticket.py` verlangt dafür Version, Commit und Notiz."]},{"version":"0.7.4","datum":"2026-09-30","punkte":["Meldungen werden **Tickets**: Nummer je Art (FE Fehler, WU Wunsch, AN Anregung, ab 0001), Status neu → angenommen → in Arbeit → gelöst → geschlossen oder verworfen, mit Verlauf und Notizen; ältere Meldungen werden beim Start nummeriert.","Neuer Dienst `baustelle.ticket` (Status, Notiz, Version, Commit) und `tools/ticket.py` für die Bearbeitung in Claude Code.","Seite › Entwicklung: Ticketnummer und Status, „An Claude übergeben“ (kopiert `ticket FE-0001`, öffnet das Claude Terminal), „Schließen“/„wieder öffnen“; nach dem Melden steht die Ticketnummer im Hinweis.","`tools/tickets-fenster.sh`: eigenes Fenster „baustelle“ im Claude Terminal mit Claude Code im Projekt."]},{"version":"0.7.3","datum":"2026-09-30","punkte":["Fehler (Meldung m_9a9e95cb): Container zeigte „heizt“ mit Glühen und Flammen, obwohl der Heizkörper keinen Strom zog. „heizt“, „Kleidung trocknen“, „Frostschutz“ und „schnell aufheizen“ gelten jetzt nur bei echtem Verbrauch (über 50 W, ohne Leistungssensor zählt der Schalter); sonst „aus“ mit „an · zieht keinen Strom“."]},{"version":"0.7.2","datum":"2026-09-30","punkte":["Meldungen aus dem Melden-Knopf zusätzlich lesbar unter `<config>/baustelle/meldungen.md` und `meldungen.json` (beim Start und nach jeder Änderung neu geschrieben) und neue Meldungen im HA-Logbuch – so lassen sie sich ohne Zugriff auf den Speicher der Integration lesen und beheben."]},{"version":"0.7.1","datum":"2026-09-30","punkte":["Seite, Container › Bearbeiten: Gerätezeile war nicht geschlossen – „+ Gerät hinzufügen“, Hinweis und Knöpfe standen nebeneinander über der Liste. Test prüft jetzt in jeder Ansicht und Einblendung, dass alle Blöcke geschlossen sind.","Seite: Melden-Knopf sitzt in einer Einblendung oben rechts in der Einblendung, statt schwebend über deren Kopf."]},{"version":"0.7.0","datum":"2026-09-30","punkte":["Neue Seite im Glas-Stil nach dem abgenommenen Mockup (`mockups/glas.html`): Himmel nach Tageszeit und Wetter (WebGL, Tropfen auf Glas, Wolken, Nebel, Schnee, Sonne, Nacht, Gewitter), Container-Kacheln glühen beim Heizen, Handy und Desktop.","Heizung nach **Arbeitszeiten mit Startdatum** (frühere bleiben gespeichert), Vor- und Nachheizen, Kleidung trocknen extra, Kälte-Frühstart, Einmal-Ausnahmen (Samstag arbeiten, heute länger, frei), „alle jetzt heizen“; mit Fühler auf Soll, ohne Fühler bleibt die Heizung an und der Heizkörperthermostat regelt. Heizplan der Woche und Übersicht „Wann welche Heizung heizt“ nach gemessener Leistung.","**Staffelung** je Stromanschluss (Absicherung, Reserve, nutzbarer Anteil): geschaltet werden nur Heizkörper, Mindestlauf und -pause, Rundlauf, Vorrang je Container, Heizkörper gehen nacheinander an.","Container **nur bei Bedarf** (z. B. Besprechung) mit Schalter auf der Kachel und Terminen aus einem Kalender, auch als Serie; **schnell aufheizen**; **Türkontakt** pausiert die Heizung.","**Firmen** je Container und **Abrechnung** nach Firma (CSV); Auswertung auch über alle laufenden Baustellen; Vergleich der Baustellen, letzte 12 Monate, Ansicht abgeschlossener Baustellen.","**Warnungen** mit Störungen und Hinweisen (u. a. zu kalt, Frostgefahr, Fühler, kein Wetter, Handbetrieb, Tür, Pumpe schaltet oft), stummschaltbar; dauerhaftes **Protokoll** (auch im HA-Logbuch); **Handy-Nachrichten mit Knöpfen**; **Wochen-/Monatsbericht** per Handy und E-Mail.","Einstellungen nur noch auf der Seite: die Einstellungs-Entitäten (Zeitplan je Wochentag, Regeln, Modus) entfallen, Automatik-Schalter und Sensoren bleiben. Einstellungen starten neu, **Zähler bleiben erhalten**.","Einstellungen › Über (Version, Verlauf) und Melden-Knopf in jedem Fenster mit Entwicklermenü."]},{"version":"0.6.3","datum":"2026-09-29","punkte":["Seite, Übersicht neu (Herberts Wahl): Baustellen-Kachel (Container, Pumpenschächte, Geräte, Leistung, heute) mit Chips für Heizung, nächste Schaltzeit, Wetter (klappt die Wetterkarte auf) und Warnungen; darunter je Container bzw. Pumpenschacht eine Kachel mit gezeichnetem 3D-Baucontainer bzw. Schacht, der den Zustand zeigt (heizt, Kleidung trocknen, aus, Frostschutz, nicht erreichbar; Pumpe läuft), Temperatur, Leistung, Gerätezahl.","Klick auf eine Kachel öffnet die Container-Ansicht: Geräte mit Schaltern, Einstellungen, Zeitleiste, Leistung und Temperatur heute, Energie/Heizzeit (bzw. Pumpzeit/Zyklen) je Tag.","Nebel-Symbol im Dunkelmodus heller."]},{"version":"0.6.2","datum":"2026-09-29","punkte":["Seite: realistische animierte Wettersymbole (Herberts Wahl aus drei Varianten): Sonne mit Glut und Strahlen, flauschige Wolken, Regenschlieren, drehende Schneekristalle, leuchtender Blitz, wabernder Nebel, Mond mit Kratern."]},{"version":"0.6.1","datum":"2026-09-29","punkte":["Fehler: Eigene Sensoren der Integration ließen sich als Wetterstation wählen (Kreis – „Außen“ blieb stehen, „Regen“ leer). Sie werden jetzt aus den Optionen entfernt und nicht mehr angeboten (Seite und HA-Dialog).","Fehler: Nach dem HA-Start kam die Vorhersage erst nach 30 min (Wetter lädt nach uns) – jetzt sofort, sobald die Wetter-Entität da ist.","Seite: neue Wetterkarte mit eigenen animierten Wettersymbolen (Sonne, Wolken, Regen, Schnee, Gewitter, Nebel, Nacht, Wind), 4 Tage mit „Heute/Morgen“, Frost-Tiefstwerte blau, Regen nur wenn welcher fällt."]},{"version":"0.6.0","datum":"2026-09-29","punkte":["Seite, Einstellungen: Baustellen anlegen, Status/Optionen ändern, Container/Pumpenschächte und Shellys anlegen, ändern und entfernen, Wetter, Kalender und Empfänger wählen – direkt auf der Seite, über dieselben Einrichtungs-Dialoge wie in HA (REST `config_entries/…/flow`, Prüfungen der Integration gelten weiter).","Seite: Wettervorhersage 3 Tage (`weather/subscribe_forecast`), „Kleidung trocknen“ schraffiert in der Zeitleiste, Temperatur-Tagesmittel (7/30 Tage, Heizperiode), Pumpzyklen je Tag, Ereignisse je Baustelle aus dem Logbuch.","Vergleich Ölradiator/Konvektor: Aufheiz- und Abkühlrate (°C/h) und kWh je Tag und Grad innen/außen – gemessen je Container mit Fühler."]},{"version":"0.5.1","datum":"2026-09-29","punkte":["Seite: Diagramm-Farben fehlten (Balken schwarz, Legende ohne Farben) – Palette wieder drin, im Test geprüft.","Seite am Handy: Tabellen scrollen in ihrer Karte statt über den Rand, Tabs kompakt (⚙ = Einstellungen), Zeitleiste zeigt den Gerätenamen.","Nächste Schaltzeit auch über Mitternacht hinaus (nächster aktiver Tag laut Plan).","Aufgeräumt: altes YAML-Dashboard samt Generator und leeres Paket aus 0.1.0 entfernt; die Seite ersetzt sie."]},{"version":"0.5.0","datum":"2026-09-29","punkte":["Stufe 6 vorgezogen – eigene Seite „Baustelle“ in der Seitenleiste (wie Alarmo/HACS), gebaut nach dem abgenommenen Entwurf: Übersicht, Heizung, Pumpen, Auswertung, Verlauf, Einstellungen; Baustellen-Umschalter; Animationen (Ölradiator/Konvektor, Trockner, Pumpe); Zeitleiste, Säulen- und Liniendiagramme mit Tooltips; Wochenplan mit Balken; Urlaub direkt im Urlaubskalender eintragen/löschen. Echte Daten über den WebSocket-Befehl `baustelle/struktur`, Verlauf über `history`/`recorder`, Bedienung über die normalen HA-Dienste.","Anlegen/Zuordnen (Baustellen, Container, Shellys, Wetter, Kalender, Empfänger) weiter über die Dialoge der Integration – die Seite verlinkt direkt dorthin.","Tests: Seite wird in Node mit nachgebildetem HA gerendert (alle Ansichten, gültige SVGs, Dienstaufrufe)."]},{"version":"0.4.0","datum":"2026-09-29","punkte":["Stufe 5 – Dashboard: Generator `tools/dashboard.py` erzeugt das YAML-Dashboard aus den Diagnose-Downloads (Übersicht, Heizung, Pumpen, Auswertung je aktive Baustelle, Verlauf über alle Baustellen) – nur eingebaute Karten (tile mit Features, heading, entities, statistic, statistics-graph, history-graph, weather-forecast).","Diagnose-Download je Baustelle (Einrichtung, Einstellungen, Zähler, Laufzeit, Entitäten; Empfänger geschwärzt).","Reparatur-Hinweis, wenn eine eingestellte Entität länger als 10 Minuten fehlt."]},{"version":"0.3.0","datum":"2026-09-29","punkte":["Stufe 4 – Verbrauch und Kosten: Zähler je Baustelle und Container (Energie kWh, Kosten zum jeweiligen Preis), Heizzeit je Container, Pumpzeit und Pumpzyklen je Pumpe; Energie aus dem Zählerstand des Shelly (übersteht Neustarts) oder aus Leistung × Zeit. Gezählt wird nur, solange die Baustelle aktiv ist.","„Ohne Automatik“: mittlere Leistung im Betrieb je Heizgerät, Zähler für 24-h-Dauerbetrieb, Ersparnis, Hochrechnung auf die Heizperiode (mit und ohne Automatik, Kosten).","Vergleich Ölradiator/Konvektor: Energie, Heizzeit und mittlere Leistung je Typ."]},{"version":"0.2.1","datum":"2026-09-29","punkte":["Geräte über `via_device_id` verknüpft (statt veraltetem `via_device`, Warnung von HA 2026.9).","„Zieht keinen Strom“ nur noch, wenn ein Heizkörper seit dem Einschalten 10 min nie geheizt hat; 0 W durch den eigenen Thermostat des Heizkörpers ist kein Fehler mehr."]},{"version":"0.2.0","datum":"2026-09-29","punkte":["Umstellung auf eine eigene Integration `baustelle` (vorher Paket + YAML-Dashboard).","Einrichtung: Baustelle mit Status aktiv/abgeschlossen, Optionen (Wetter, Wetterstation, Feiertags-/Urlaubskalender, Empfänger, Heizperiode); Container/Pumpenschächte und Shellys als Subentries, ein Shelly nur in einer aktiven Baustelle.","Heizung: Automatik, Modus je Container, Zeitplan je Wochentag, Kälte-Frühstart, Kleidung trocknen nach Regen, Heizgrenze, Frostschutz mit Schaltabstand, Urlaub/Feiertag, Thermostat mit Toleranz; Handbedienung → Handbetrieb.","Pumpen: läuft, offline, Trockenlauf, Dauerlauf, Baustelle nicht erreichbar; Meldungen und Test-Meldung.","Fachlogik ohne HA-Code mit Tests; Integrationstests gegen HA 2026.9.4."]},{"version":"0.1.0","datum":"2026-09-29","punkte":["Gerüst angelegt: Paket `baustelle`, YAML-Dashboard „Baustelle“, Auslieferung `tools/deploy.sh`.","Dashboard-Entwurf v4 abgenommen (`mockups/baustelle.html`)."]}];
 /* Klickbarer Prototyp der Baustellen-Seite im Glas-Stil (Beispieldaten, keine Verbindung zu HA). */
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 const de = (x, d = 1) => Number(x).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -750,6 +763,12 @@ const tageZwischen = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(
 /* Liegt ein (wiederkehrender) Termin auf diesem Tag? */
 const terminAm = (t, iso) => { const d = tageZwischen(t.datum, iso); return t.wieder === 'einmal' ? d === 0 : d >= 0 && d % (t.wieder === '2wochen' ? 14 : 7) === 0; };
 const naechsterTermin = (t, ab) => { for (let k = 0; k < 28; k++) { const d = new Date(ab + 'T12:00:00'); d.setDate(d.getDate() + k); const iso = d.toISOString().slice(0, 10); if (terminAm(t, iso)) return iso; } return null; };
+/* neu 0.8 (aus 0.6.3 zurück, Herbert 30.09.2026) */
+const NEU = '<span class="badge neu08">neu</span>';
+const MODI = [['plan', 'Zeitplan'], ['thermo', 'Thermostat'], ['bedarf', 'Bei Bedarf'], ['hand', 'Hand'], ['aus', 'Aus']];
+const MODUS_TEXT = { plan: 'an in der Heizzeit – der Thermostat am Heizkörper regelt', thermo: 'in der Heizzeit auf das Soll nach dem Fühler',
+  bedarf: 'nur per Schalter oder Termin, sonst Frostschutz', hand: 'die Automatik schaltet nicht – Schalter unten', aus: 'alles aus, Frostschutz bleibt' };
+const erkl = (an, text) => an ? `<div class="erkl">ⓘ ${text}</div>` : '';
 const AUSNAHME = { arbeit: 'zusätzlich arbeiten', zeiten: 'andere Zeiten', frei: 'frei' };
 const kurzDatum = iso => iso.split('-').reverse().slice(0, 2).join('.') + '.';
 const wtag = iso => ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date(iso + 'T12:00:00').getDay()];
@@ -789,17 +808,17 @@ function daten() {
     firmen: [{ id: 'eigen', name: 'Eigene Firma', eigen: true }, { id: 'huber', name: 'Elektro Huber GmbH' }, { id: 'leitner', name: 'Installateur Leitner' }],
     // zweite laufende Baustelle (nur für die Auswertung „Alle laufenden“)
     kalsdorf: [
-      bereich('k-polier', 'Polier Kalsdorf', 6, 'heizt', 20.1, [g('Radiator', 'Ölradiator', 2.0, 1)], { firma: 'eigen' }),
-      bereich('k-mannschaft', 'Mannschaft Kalsdorf', 7, 'heizt', 18.9, [g('Radiator 1', 'Konvektor', 2.0, 1), g('Radiator 2', 'Konvektor', 2.0, 1)], { firma: 'eigen' }),
-      bereich('k-lager', 'Lager Kalsdorf', 8, 'aus', null, [g('Radiator', 'Ölradiator', 1.5, 0)], { firma: 'huber' }),
+      bereich('k-polier', 'Polier Kalsdorf', 6, 'heizt', 20.1, [g('Radiator', 'Ölradiator', 2.0, 1)], { firma: 'eigen', modus: 'thermo' }),
+      bereich('k-mannschaft', 'Mannschaft Kalsdorf', 7, 'heizt', 18.9, [g('Radiator 1', 'Konvektor', 2.0, 1), g('Radiator 2', 'Konvektor', 2.0, 1)], { firma: 'eigen', modus: 'thermo' }),
+      bereich('k-lager', 'Lager Kalsdorf', 8, 'aus', null, [g('Radiator', 'Ölradiator', 1.5, 0)], { firma: 'huber', modus: 'plan' }),
     ],
     bereiche: anschliessen([
-      bereich('polier', 'Poliercontainer', 0, 'heizt', 19.4, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Radiator 2', 'Konvektor', 1.99, 1)], { trocknen: true, firma: 'eigen', tuer: { sensor: 'Tür Polier', offen: 0 } }),
-      bereich('mannschaft', 'Mannschaft', 1, 'trocknen', 17.8, [g('Radiator 1', 'Ölradiator', 2.0, 1), { ...g('Konvektor', 'Konvektor', 2.0, 0), warte: 6 }, g('Trockner', 'Steckdose', 1.79, 1)], { trocknen: true, firma: 'eigen', prio: 'hoch' }),
-      bereich('magazin', 'Magazin', 2, 'pause', null, [g('Radiator', 'Ölradiator', 1.5, 0), g('Steckdose', 'Steckdose', 0.4, 0)], { firma: 'huber', prio: 'niedrig', tuer: { sensor: 'Tür Magazin', offen: 6 } }),
-      bereich('sanitaer', 'Sanitär', 3, 'frost', 4.2, [g('Frostwächter', 'Konvektor', 2.0, 1)], { firma: 'eigen' }),
-      bereich('lager', 'Lager Süd', 4, 'offline', null, [g('Radiator', 'Ölradiator', 2.0, 0)], { offline: true, firma: 'leitner' }),
-      bereich('besprechung', 'Besprechung', 3, 'bereit', 11.6, [g('Radiator', 'Ölradiator', 2.0, 0)], { firma: 'eigen', bedarf: true, bedarfBis: null }),
+      bereich('polier', 'Poliercontainer', 0, 'heizt', 19.4, [g('Radiator 1', 'Ölradiator', 2.0, 1), g('Radiator 2', 'Konvektor', 1.99, 1)], { trocknen: true, firma: 'eigen', modus: 'thermo', tuer: { sensor: 'Tür Polier', offen: 0 } }),
+      bereich('mannschaft', 'Mannschaft', 1, 'trocknen', 17.8, [g('Radiator 1', 'Ölradiator', 2.0, 1), { ...g('Konvektor', 'Konvektor', 2.0, 0), warte: 6 }, g('Trockner', 'Steckdose', 1.79, 1)], { trocknen: true, firma: 'eigen', prio: 'hoch', modus: 'thermo' }),
+      bereich('magazin', 'Magazin', 2, 'pause', null, [g('Radiator', 'Ölradiator', 1.5, 0), g('Steckdose', 'Steckdose', 0.4, 0)], { firma: 'huber', prio: 'niedrig', modus: 'plan', tuer: { sensor: 'Tür Magazin', offen: 6 } }),
+      bereich('sanitaer', 'Sanitär', 3, 'frost', 4.2, [g('Frostwächter', 'Konvektor', 2.0, 1)], { firma: 'eigen', modus: 'aus', auto: true }),
+      bereich('lager', 'Lager Süd', 4, 'offline', null, [g('Radiator', 'Ölradiator', 2.0, 0)], { offline: true, firma: 'leitner', modus: 'plan' }),
+      bereich('besprechung', 'Besprechung', 3, 'bereit', 11.6, [g('Radiator', 'Ölradiator', 2.0, 0)], { firma: 'eigen', bedarf: true, bedarfBis: null, modus: 'bedarf' }),
       bereich('schacht', 'Pumpenschacht Nord', 5, 'laeuft', null, [g('Pumpe 1', 'Pumpe', 0.76, 1), g('Pumpe 2 (Reserve)', 'Pumpe', 0.76, 0)],
         { pumpe: true, firma: 'eigen', zyklen: 36, lauf: '1 h 12 min', laengster: '4 min', kwh7: reihe(7, 0.6, 1.4), h7: reihe(7, 0.8, 1.8), zyk7: reihe(7, 20, 44).map(Math.round) }),
     ]),
@@ -810,7 +829,9 @@ function daten() {
       az('2026-09-28', 'Herbst 2026', ['07:00', '16:30'], ['07:00', '12:30']),
       az('2026-11-02', 'Winter 2026/27', ['07:30', '16:30'], ['07:30', '12:00']),
     ],
-    e: { preis: 0.28, feiertag_frei: true, boost_min: 30, melden: true,
+    // Baustelle: Beginn/Ende und Heizperiode (Monate) – neu 0.8
+    bs: { beginn: '2026-09-08', ende: '2027-05-28', hp: [10, 4] },
+    e: { frost_aus: 7, urlaub: 'frost', absenk: 10, offline_min: 5, trocken_w: 30, erklaer: true, preis: 0.28, feiertag_frei: true, boost_min: 30, melden: true,
       staffel: true, nutzbar: 67, max_gleich: 5, min_lauf: 10, min_pause: 5, takt: 15,
       tuer_pause: 3, tuer_melden: 10, knoepfe: true,
       bericht: 'woche', bericht_handy: true, bericht_mail: true, mail: 'herbert@example.at', bericht_csv: true, vorheizen: 45, nachheizen: 15, soll: 20, grenze: 15, basis: 'Tageshöchstwert', fruehstart: true, frueh_temp: 0, frueh_min: 30, frost: true, frost_temp: 5,
@@ -944,6 +965,21 @@ function flaeche(id, reihen, labels, einheit, jedes) {
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${raster}${achse}${flaechen}${kanten}${oben}<g class="hover"></g></svg>
     ${viele ? `<div class="legende">${[...lagen].reverse().map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}</div>` : ''}`;
 }
+const STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, '0'));
+/* Mehrere Temperaturlinien über Stunden oder Tage (neu 0.8): alle Container und außen in einem Diagramm */
+function linien(id, reihen, labels, jedes, titel) {
+  const W = 320, H = 170, L = 28, R = 8, T = 16, U = 22, n = labels.length;
+  const alle = reihen.flatMap(s => s.v.filter(v => v !== null));
+  const lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.ceil(Math.max(...alle) / 5) * 5 || lo + 5;
+  const x = i => L + i / (n - 1) * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U);
+  const raster = [...Array((hi - lo) / 5 + 1)].map((_, k) => lo + k * 5).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}°</text>`).join('');
+  const achse = labels.map((t, i) => i % jedes ? '' : `<text x="${x(i)}" y="${H - 6}" class="ax" text-anchor="middle">${t}</text>`).join('');
+  const pfade = reihen.map(s => `<path d="${s.v.map((v, i) => v === null ? '' : `${i && s.v[i - 1] !== null ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('')}" fill="none" stroke="${s.farbe}" stroke-width="${s.aussen ? 1.5 : 2}" ${s.aussen ? 'stroke-dasharray="4 4"' : ''} stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+  CHARTS[id] = { art: 'linien', x0: L, x1: W - R, W, n, reihen, y, unten: H - U, titel };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}<text x="${L - 5}" y="${T - 7}" class="ax ax-e" text-anchor="end">°C</text><g class="hover"></g></svg>
+    <div class="legende">${reihen.map(s => `<span><i style="background:${s.farbe}"></i>${esc(s.name)}</span>`).join('')}</div>`;
+}
 const MONATE = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 /* Verbrauch in kWh je Stunde (Tag), je Tag (Monat) oder je Monat (Jahr); Baustelle = Summe der Container */
 function verbrauch(bereiche, cid, zeitraum) {
@@ -1074,7 +1110,7 @@ class App {
       if (t === HEUTE_TAG && b.bedarfBis) seg.push([minu(JETZT), minu(b.bedarfBis), 'termin']);
       return seg;
     }
-    if (!b.auto) return [];
+    if (!b.auto || b.modus === 'hand' || b.modus === 'aus') return [];
     const p = this.planTag(t, b.trocknen); if (!p) return [];
     return [[p.extra, p.vor, 'extra'], [p.vor, p.a, 'vor'], [p.a, p.b, 'heiz'], [p.b, p.nach, 'vor'], [p.nach, p.ende, 'trock']].filter(x => x[1] > x[0]);
   }
@@ -1114,7 +1150,7 @@ class App {
       inhalt = `<div class="vb-wer">${WOCHE.map(([t, d]) => `<button data-act="hz-tag" data-v="${t}" class="${t === tag ? 'on' : ''}">${t === HEUTE_TAG ? 'heute' : t} ${d.slice(0, 2)}.</button>`).join('')}</div>
         <div class="leise">${zukunft ? 'Noch nichts gemessen – blass der Plan.' : heute ? 'Bis jetzt gemessen, danach blass der Plan.' : 'Gemessen an der Leistung: kräftig = zieht Strom (über 50 W).'}</div>
         <div class="hz-tag">${C.map(b => { const plan = this.heizzeiten(b, tag), ph = std(plan);
-          return `<div class="hz-c"><span class="hz-cn">${esc(b.name)}${b.bedarf ? ' <span class="leise">bei Bedarf</span>' : ''}${b.offline ? ' <span class="rot-t">offline</span>' : ''}</span><span class="leise hz-cp">${ph ? `${de(ph)} h geplant` : b.bedarf ? 'kein Termin' : !b.auto ? 'Hand' : 'frei'}</span></div>
+          return `<div class="hz-c"><span class="hz-cn">${esc(b.name)}${b.bedarf ? ' <span class="leise">bei Bedarf</span>' : ''}${b.offline ? ' <span class="rot-t">offline</span>' : ''}</span><span class="leise hz-cp">${ph ? `${de(ph)} h geplant` : b.bedarf ? 'kein Termin' : b.modus === 'aus' ? 'aus' : !b.auto || b.modus === 'hand' ? 'Hand' : 'frei'}</span></div>
             ${HZ(b).map(g => { const a = this.aktiv(b, g, tag), ah = std(a.an), mess = heute ? Math.min(jetzt, 24 * 60) : 24 * 60;
               return `<div class="hz-zeile"><span class="hz-n hz-g">${esc(g.n)}</span>
                 <div class="tl-spur hz">${plan.map(q => `<i class="hz-plan ${!zukunft && (!heute || q[1] <= jetzt) ? 'vorbei' : ''}" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
@@ -1223,10 +1259,11 @@ class App {
 
   render(neu = false) {
     const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0;
-    const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
+    // Reiter Pumpen nur, wenn die Baustelle Pumpenschächte hat (neu 0.8)
+    const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ...(this.d.bereiche.some(b => b.pumpe) ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(this.s.view) ? 'einst' : this.s.view;
     this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this['v_' + this.s.view]()}</div></div>
-      <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
+      <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
       <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
       <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${this.s.sheet ? this.sheet() : ''}</div>
       <div class="tip"></div><div class="toast glas-panel"></div>
@@ -1268,11 +1305,13 @@ class App {
   /* ---- Container ---- */
   v_container() {
     const b = this.b, tl = this.zeitleiste(b);
-    const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
+    const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['leistung', 'Leistung'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
     if (!tabs.some(t => t[0] === this.s.chart)) this.s.chart = tabs[0][0];
     const c = this.s.chart, tage = TAGE, mitVb = this.s.tempVb !== false;
     const chart = c === 'temp' ? (b.t === null ? '<div class="leer">Kein Temperaturfühler zugeordnet · <button class="link" data-act="tab" data-v="einst">zuordnen</button></div>'
         : linie(`t-${b.id}-${mitVb ? 'vb' : ''}`, [{ name: 'Innen', v: b.innen }, { name: 'Außen', v: this.d.aussen }], '°C', mitVb ? verbrauch(this.d.bereiche, b.id, 'Tag') : null))
+      : c === 'leistung' ? flaeche('kw-' + b.id, [{ name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: verbrauch(this.d.bereiche, b.id, 'Tag') }], STUNDEN, 'kW', 6)
+        + `<div class="leise">Leistung heute in kW, Stundenmittel ${NEU}</div>`
       : c === 'verbrauch' ? balken('v-' + b.id, b.kwh7, tage, 'kWh') : c === 'zyklen' ? balken('z-' + b.id, b.zyk7, tage, 'Zyklen', 0) : balken('h-' + b.id, b.h7, tage, 'h');
     const kennz = b.pumpe ? [['Zyklen heute', b.zyklen], ['Laufzeit', b.lauf], ['Längster Lauf', b.laengster]]
       : [['kWh heute', de(b.kwh7[2])], ['Kosten', `${de(b.kwh7[2] * this.d.e.preis, 2)} €`], ['Heizzeit', `${de(b.h7[2])} h`]];
@@ -1290,13 +1329,16 @@ class App {
         <div class="chart-wrap">${chart}</div></div>
       ${b.bedarf ? this.bedarfBlock(b) : ''}
       ${b.pumpe || b.bedarf ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Vorheizen · Arbeitszeit · Nachheizen · Kleidung trocknen</span></div>${tl}
-        <div class="regelung">${b.t !== null ? `<b>🌡 Mit Fühler</b><span>regelt in der Arbeitszeit auf ${de(this.d.e.soll)} °C (jetzt ${de(b.t)} °C)</span>`
-          : `<b>Ohne Fühler</b><span>Heizung bleibt in der Arbeitszeit an, der Thermostat am Heizkörper regelt</span>`}</div></div>`}
+        <div class="regelung">${b.modus === 'thermo' ? `<b>🌡 Thermostat</b><span>regelt in der Heizzeit auf ${de(b.soll ?? this.d.e.soll)} °C (jetzt ${de(b.t)} °C)</span>`
+          : b.modus === 'plan' ? `<b>Zeitplan</b><span>Heizung bleibt in der Heizzeit an, der Thermostat am Heizkörper regelt</span>`
+          : b.modus === 'hand' ? `<b>Hand</b><span>die Automatik schaltet diesen Container nicht</span>` : `<b>Aus</b><span>nur Frostschutz (ein unter ${de(this.d.e.frost_temp)} °C, aus über ${de(this.d.e.frost_aus)} °C)</span>`}</div></div>`}
       <div class="glas-panel liste">
         ${b.tuer ? `<div class="zeile"><div><b>🚪 ${esc(b.tuer.sensor)}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min – Heizung pausiert nach ${this.d.e.tuer_pause} min, Meldung nach ${this.d.e.tuer_melden} min` : 'zu'}</div></div><span class="tuer-z ${b.tuer.offen ? 'offen' : ''}">${b.tuer.offen ? 'offen' : 'zu'}</span></div>` : ''}
         ${b.pumpe ? '' : `<div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">${b.boost ? `läuft – alle Heizkörper an, ${b.t !== null ? `bis ${de(b.soll ?? this.d.e.soll)} °C` : `noch ${this.d.e.boost_min} min`}` : `alle Heizkörper zugleich, Vorrang in der Staffelung`}</div></div>
           <button class="chip glas-panel ${b.boost ? 'amber' : ''}" data-act="boost" data-id="${b.id}">${b.boost ? 'Beenden' : 'Start'}</button></div>`}
-        <div class="zeile"><span>♨ Automatik für ${b.pumpe ? 'diesen Schacht' : 'diesen Container'}</span>${schalter(b.auto, 'b-auto')}</div>
+        ${b.pumpe ? `<div class="zeile"><span>♨ Automatik für diesen Schacht</span>${schalter(b.auto, 'b-auto')}</div>`
+          : `<div class="zeile modus-z"><div><b>Modus</b> ${NEU}<div class="leise">${MODUS_TEXT[b.modus]}</div></div>
+            <div class="seg klein">${MODI.map(([k, t]) => `<button data-act="modus" data-id="${b.id}" data-v="${k}" class="${b.modus === k ? 'on' : ''}" ${k === 'thermo' && b.t === null ? 'disabled title="kein Temperaturfühler"' : ''}>${t}</button>`).join('')}</div></div>`}
         ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
       </div>
       <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
@@ -1304,9 +1346,10 @@ class App {
           <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${g.hand ? ' · <em class="hand">Hand</em>' : ''}${g.warte ? ` · <em class="warte">wartet – ${esc(this.anschluss(b.anschluss).name)} ausgelastet, dran in ${g.warte} min</em>` : ''}${b.z === 'pause' && ['Ölradiator', 'Konvektor'].includes(g.typ) ? ' · <em class="warte">pausiert – Tür offen</em>' : ''}</span></div>
           ${b.offline ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}
         <button class="zeile" data-act="sheet" data-s="bereich"><span class="blau">Geräte bearbeiten</span><span class="chev">›</span></button></div>
-      ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter 30 W beim Laufen)</span><span class="ok">● überwacht</span></div>
+      ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter ${this.d.e.trocken_w} W beim Laufen)</span><span class="ok">● überwacht</span></div>
         <div class="zeile"><span>Dauerlauf über ${this.d.e.dauer_min} min</span><span class="ok">● überwacht</span></div>
-        <div class="zeile"><span>Stromausfall / offline</span><span class="ok">● überwacht</span></div></div>` : ''}`;
+        <div class="zeile"><span>Stromausfall / offline (nach ${this.d.e.offline_min} min)</span><span class="ok">● überwacht</span></div>
+        <button class="zeile" data-act="tab" data-v="pumpen"><span class="blau">Schwellen im Reiter Pumpen</span><span class="chev">›</span></button></div>` : ''}`;
   }
   zeitleiste(b) {
     const p = this.planTag(HEUTE_TAG, b.trocknen);
@@ -1346,21 +1389,27 @@ class App {
         <div class="zeile"><div><b>Kälte-Frühstart</b><div class="leise">unter ${de(e.frueh_temp, 0)} °C zusätzlich früher</div></div>${schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"')}</div>
         ${e.fruehstart ? `<div class="zeile unter"><span>so viel früher</span>${st('frueh_min', 5, min)}</div>` : ''}
         <div class="zeile"><div><b>Frostschutz</b><div class="leise">hält jeden Container über der Grenze, auch außerhalb der Arbeitszeit</div></div>${schalter(e.frost, 'e-bool', 'data-k="frost"')}</div>
-        ${e.frost ? `<div class="zeile unter"><span>Frostgrenze</span>${st('frost_temp', .5, grad)}</div>` : ''}</div>
+        ${e.frost ? `<div class="zeile unter"><span>ein unter ${NEU}</span>${st('frost_temp', .5, grad)}</div>
+        <div class="zeile unter"><span>aus über</span>${st('frost_aus', .5, grad)}</div>` : ''}
+        ${erkl(e.erklaer, 'Vorheizen und Nachheizen gelten jeden Arbeitstag. Die Heizgrenze verhindert Heizen an warmen Tagen. Der Frostschutz springt unter „ein“ an und hört erst über „aus“ wieder auf, damit der Heizkörper nicht dauernd ein- und ausschaltet. Ohne Fühler kennt die Seite keine Innentemperatur – dann gilt die Außentemperatur.')}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen zusätzlich zum Nachheizen</span></div>
         <div class="zeile"><span>ab Regen (seit gestern)</span>${st('tr_mm', .5, mm)}</div>
         <div class="zeile"><span>zusätzlich nach dem Nachheizen</span>${st('tr_laenger', 5, min)}</div>
         <div class="zeile"><span>am nächsten Morgen früher</span>${st('tr_frueher', 5, min)}</div></div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">Automatik · Trocknen · Soll</span></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">Modus · Trocknen · Soll</span></div>
         ${C.map(b => { const soll = b.soll ?? e.soll;
           return `<div class="jc"><div class="jc-name"><b>${esc(b.name)}</b><span class="leise">${b.offline ? 'offline' : b.t !== null ? `🌡 ${de(b.t)} °C` : 'ohne Fühler'}</span></div>
-            <div class="jc-ctrl">${b.bedarf ? `<span class="badge">bei Bedarf</span>` : `<span class="jc-l">Auto</span>${schalter(b.auto, 'jc-auto', `data-id="${b.id}"`).replace('class="sw', 'class="sw klein')}`}
+            <div class="jc-ctrl"><select class="jc-modus" data-jm="${b.id}" title="Modus">${MODI.map(([k, t]) => `<option value="${k}" ${b.modus === k ? 'selected' : ''} ${k === 'thermo' && b.t === null ? 'disabled' : ''}>${t}</option>`).join('')}</select>
               <span class="jc-l">👕</span>${schalter(b.trocknen, 'tr-b', `data-id="${b.id}"`).replace('class="sw', 'class="sw klein')}
               ${b.t !== null ? `<span class="stepper klein"><button data-act="jc-soll" data-id="${b.id}" data-d="-0.5">−</button><b class="${b.soll !== undefined ? 'eigen' : ''}">${de(soll)}°</b><button data-act="jc-soll" data-id="${b.id}" data-d="0.5">+</button></span>`
                 : '<span class="leise jc-th">Thermostat</span>'}</div></div>`; }).join('')}
-        <div class="leise">Ein eigener Sollwert (bernstein) gilt nur für diesen Container, sonst gilt ${de(e.soll)} °C.</div></div>
+        <div class="leise">Ein eigener Sollwert (bernstein) gilt nur für diesen Container, sonst gilt ${de(e.soll)} °C. Modus ${NEU}</div>
+        ${erkl(e.erklaer, 'Zeitplan: an in der Heizzeit, der Heizkörper regelt selbst. Thermostat: in der Heizzeit nach dem Fühler auf das Soll (nur mit Fühler). Bei Bedarf: nur per Schalter oder Termin. Hand: die Automatik schaltet nicht. Aus: nur Frostschutz.')}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Urlaub &amp; Feiertage</b></div>
-        <div class="zeile"><div><b>An Feiertagen nur Frostschutz</b><div class="leise">Feiertage aus dem Kalender „Feiertage“ – Österreich, jedes Jahr neu berechnet</div></div>${schalter(e.feiertag_frei, 'e-bool', 'data-k="feiertag_frei"')}</div>
+        <div class="zeile"><div><b>An Feiertagen frei</b><div class="leise">Feiertage aus dem Kalender „Feiertage“ – Österreich, jedes Jahr neu berechnet</div></div>${schalter(e.feiertag_frei, 'e-bool', 'data-k="feiertag_frei"')}</div>
+        <div class="zeile modus-z"><div><b>Im Urlaub und an freien Feiertagen</b> ${NEU}<div class="leise">${{ frost: 'nur Frostschutz', absenk: `mit Fühler auf ${de(e.absenk)} °C halten, ohne Fühler nur Frostschutz`, aus: 'alles aus – auch kein Frostschutz. Nur, wenn nichts einfrieren kann.' }[e.urlaub]}</div></div>
+          <div class="seg klein">${[['frost', 'nur Frostschutz'], ['absenk', 'absenken'], ['aus', 'alles aus']].map(([k, t]) => `<button data-act="e-wert" data-k="urlaub" data-v="${k}" class="${e.urlaub === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+        ${e.urlaub === 'absenk' ? `<div class="zeile unter"><span>absenken auf</span>${st('absenk', .5, grad)}</div>` : ''}
         ${this.d.feiertage.filter(f => f[0] > HEUTE).slice(0, 4).map(f => { const t = wtag(f[0]), we = t === 'Sa' || t === 'So';
           return `<div class="zeile unter"><span><b class="ft-d">${t} ${kurzDatum(f[0])}</b> ${f[1]}</span><span class="leise">${we ? 'Wochenende' : 'frei'}</span></div>`; }).join('')}
         <div class="gruppe-t">Urlaub · Kalender „Baustelle Urlaub“</div>
@@ -1405,14 +1454,19 @@ class App {
       <div class="glas-panel kennz vier">${kz(de(kwh, 0), 'kWh', vergleich[1])}${kz(`${de(kwh * preis, 0)} €`, 'Kosten', vergleich[1])}${kz(`${de(kwh / 11, 0)} h`, 'Heizzeit', vergleich[2])}${kz(`${de(kwh / 90, 1)} h`, 'Pumpzeit', vergleich[3])}</div>
       <div class="leise vgl">Pfeile: im Vergleich zu ${vergleich[0]}</div>
       <div class="glas-panel block">${this.verbrauchInhalt(aw, 'aw', false)}</div>
+      ${alle ? '' : this.leistungHeute()}
+      ${alle ? '' : this.temperaturen()}
       ${this.abrechnung(z)}
+      ${alle ? '' : this.jeGeraet(z)}
       <div class="glas-panel block"><div class="block-kopf"><b>Wetter-Einfluss</b><span class="leise">letzte 30 Heiztage · kWh je Tag gegen Außentemperatur</span></div>
         <div class="chart-wrap">${streu('streu', pkt, k, d0)}</div>
         <div class="hinweis-k">Je Grad kälter <b>≈ +${de(-k, 1)} kWh</b> am Tag (${de(-k * preis, 2)} €). Ab etwa <b>${de(null0, 0)} °C</b> wird kaum mehr geheizt – die Heizgrenze steht auf ${de(this.d.e.grenze, 0)} °C.</div></div>
       <div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
         <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${kwh / ohne * 100}%;background:var(--s1)"></i></span><span class="hb-w">${de(kwh * preis, 0)} €</span></div>
         <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(ohne * preis, 0)} €</span></div>
-        <div class="gespart">gespart <b>${de((ohne - kwh) * preis, 2)} €</b> · ${de((1 - kwh / ohne) * 100, 0)} %</div></div>
+        <div class="gespart">gespart <b>${de((ohne - kwh) * preis, 2)} €</b> · ${de((1 - kwh / ohne) * 100, 0)} %</div>
+        ${erkl(this.d.e.erklaer, '„Ohne Automatik“ rechnet mit der gemessenen Leistung je Heizkörper, als liefe er rund um die Uhr – so, wie es ohne Steuerung oft ist.')}</div>
+      ${alle ? '' : this.hochrechnung(412)}
       <div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
         <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
           <tr><td>kWh je Heizstunde</td><td>1,62</td><td><b>1,94</b></td></tr>
@@ -1420,6 +1474,70 @@ class App {
           <tr><td>Abkühlen nach Aus</td><td>2,1 °C/h</td><td><b>3,4 °C/h</b></td></tr>
           <tr><td>Kosten je Tag</td><td>2,72 €</td><td>3,26 €</td></tr></table>
         <div class="leise fuss">Der Ölradiator braucht länger, hält die Wärme aber besser und verbraucht rund 16 % weniger.</div></div>`;
+  }
+
+  /* ---- Pumpen (neu 0.8, wie 0.6.3 eigener Reiter) ---- */
+  v_pumpen() {
+    const P = this.d.bereiche.filter(b => b.pumpe), e = this.d.e, pc = this.s.pchart || 'pumpzeit';
+    const st = (k, d, fmt) => `<span class="stepper"><button data-act="st" data-k="${k}" data-d="${-d}">−</button><b>${fmt(e[k])}</b><button data-act="st" data-k="${k}" data-d="${d}">+</button></span>`;
+    const pumpen = P.flatMap(b => b.geraete), W = this.d.warnungen.filter(w => !w.stumm && P.some(b => b.id === w.b));
+    return `${this.kopf('Pumpen', 'ÖWG DOBL ZWARING', NEU)}
+      <div class="glas-panel kennz">${[['Zyklen heute', P.reduce((a, b) => a + b.zyklen, 0)], ['Laufzeit', P[0].lauf], ['Pumpen an', `${pumpen.filter(g => g.an).length} von ${pumpen.length}`]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>
+      ${W.map(w => `<button class="glas-panel warn-zeile ${w.stufe}" data-act="w-hin" data-id="${w.b}"><b>⚠ ${esc(this.bName(w.b))}: ${esc(w.titel)}</b><span class="leise">${w.seit} · ${esc(w.hilfe)}</span></button>`).join('')}
+      ${P.map(b => `<div class="glas-panel block"><div class="block-kopf"><b>${esc(b.name)}</b><button class="chip glas-panel" data-act="container" data-id="${b.id}">öffnen ›</button></div>
+        <div class="p-schacht"><div class="p-illu">${illu(b)}</div><div>${b.geraete.map(g => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">💧</span><div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.an ? `läuft · ${de(g.kw, 2)} kW` : 'aus'}</span></div></div>`).join('')}
+          <div class="leise">heute ${b.zyklen} Zyklen · ${b.lauf} gelaufen · längster Lauf ${b.laengster}</div></div></div>
+        <div class="seg">${[['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']].map(([k, t]) => `<button data-act="p-chart" data-v="${k}" class="${k === pc ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <div class="chart-wrap">${pc === 'zyklen' ? balken('pz-' + b.id, b.zyk7, TAGE, 'Zyklen', 0) : pc === 'verbrauch' ? balken('pv-' + b.id, b.kwh7, TAGE, 'kWh') : balken('ph-' + b.id, b.h7, TAGE, 'h')}</div></div>`).join('')}
+      <div class="glas-panel block"><div class="block-kopf"><b>Überwachung</b><span class="leise">wann eine Pumpe gemeldet wird</span></div>
+        <div class="zeile"><div><b>Offline</b><div class="leise">Shelly antwortet nicht (Stromausfall?) – melden nach</div></div>${st('offline_min', 1, v => `${v} min`)}</div>
+        <div class="zeile"><div><b>Trockenlauf</b><div class="leise">Pumpe läuft, zieht aber weniger als</div></div>${st('trocken_w', 5, v => `${v} W`)}</div>
+        <div class="zeile"><div><b>Dauerlauf</b><div class="leise">läuft ohne Pause länger als</div></div>${st('dauer_min', 5, v => `${v} min`)}</div>
+        <div class="zeile"><div><b>Schaltet oft</b><div class="leise">mehr Zyklen je Stunde als</div></div>${st('zyklen_h', 1, v => `${v}`)}</div>
+        <button class="zeile" data-act="tab-einst"><span class="blau">Welche Meldungen aufs Handy gehen</span><span class="chev">Einstellungen ›</span></button>
+        ${erkl(e.erklaer, 'Pumpen werden nie geschaltet, nur überwacht. Ein Zyklus ist einmal an und wieder aus. Viele Zyklen je Stunde deuten auf einen hängenden Schwimmer oder steigendes Grundwasser, Trockenlauf auf einen leeren Schacht oder eine verstopfte Pumpe.')}</div>`;
+  }
+  /* Temperaturen: heute stündlich, 7/30 Tage als Tagesmittel – alle Container mit Fühler und außen (neu 0.8) */
+  temperaturen() {
+    const tv = this.s.tv || 'heute', C = this.d.bereiche.filter(b => !b.pumpe && b.t !== null && !b.offline), r = zufall(23);
+    const farbe = b => BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], aussen = { name: 'Außen', farbe: 'var(--ink2)', aussen: true };
+    let inhalt;
+    if (tv === 'heute') inhalt = linien('tp-heute', [...C.map(b => ({ name: b.name, farbe: farbe(b), v: b.innen })), { ...aussen, v: this.d.aussen }], [...STUNDEN, '24'], 6, i => `${String(i).padStart(2, '0')}:00`);
+    else {
+      const n = tv === '7' ? 7 : 30, tage = [...Array(n)].map((_, k) => { const d = new Date(HEUTE + 'T12:00:00'); d.setDate(d.getDate() - n + 1 + k); return d.toISOString().slice(0, 10); });
+      const aussenM = tage.map((_, k) => 8 - k * (n === 7 ? .5 : .18) + (r() - .5) * 3);
+      const reihen = C.map(b => ({ name: b.name, farbe: farbe(b), v: aussenM.map(a => Math.max(a + 3, (b.soll ?? this.d.e.soll) - 3.2 + (r() - .5) * 1.4)) }));
+      inhalt = linien(`tp-${n}`, [...reihen, { ...aussen, v: aussenM }], tage.map(kurzDatum), n === 7 ? 1 : 5, i => `${wtag(tage[i])} ${kurzDatum(tage[i])} · Tagesmittel`);
+    }
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Temperaturen</b>${NEU}</div>
+      <div class="seg">${[['heute', 'Heute'], ['7', '7 Tage'], ['30', '30 Tage']].map(([k, t]) => `<button data-act="tv" data-v="${k}" class="${tv === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <div class="chart-wrap">${inhalt}</div>
+      <div class="leise">${tv === 'heute' ? 'Alle Container mit Fühler, gestrichelt außen.' : 'Tagesmittel je Container, gestrichelt außen.'} Container ohne Fühler fehlen.</div></div>`;
+  }
+  leistungHeute() {
+    const Q = this.d.bereiche.map(b => ({ name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: verbrauch(this.d.bereiche, b.id, 'Tag') }));
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Leistung heute</b>${NEU}</div>
+      <div class="chart-wrap">${flaeche('kw-heute', Q, STUNDEN, 'kW', 6)}</div><div class="leise">kW je Stunde (Mittel), gestapelt nach Container – oben die ganze Baustelle.</div></div>`;
+  }
+  jeGeraet(z) {
+    const h = { Tag: 1, Woche: 7, Monat: 30, Jahr: 150 }[z], zeilen = this.d.bereiche.flatMap(b => b.geraete.map((g, k) => {
+      const r = zufall(b.f * 31 + k * 7 + 1), mittel = g.kw * (g.typ === 'Pumpe' ? .95 : .82 + r() * .1), std = (g.typ === 'Pumpe' ? 1.2 : g.typ === 'Steckdose' ? 2.5 : 6.5) * h * (.8 + r() * .4) * (b.offline ? .4 : 1);
+      return { b, g, mittel, std, kwh: mittel * std }; }));
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Je Gerät</b>${NEU}<span class="leise">${z === 'Tag' ? 'heute' : `dieser ${z === 'Woche' ? 'Woche' : z === 'Monat' ? 'Monat' : 'Jahr'}`}</span></div>
+      <div class="tab-scroll"><table class="vergleich je-geraet"><tr><th>Gerät</th><th>Ø kW</th><th>Stunden</th><th>kWh</th><th>€</th></tr>
+        ${zeilen.map(({ b, g, mittel, std, kwh }) => `<tr><td><b>${esc(g.n)}</b><div class="leise">${esc(b.name)} · ${g.typ}</div></td><td>${de(mittel, 2)}</td><td>${de(std, 1)}</td><td>${de(kwh, 1)}</td><td>${de(kwh * this.d.e.preis, 2)}</td></tr>`).join('')}</table></div>
+      ${erkl(this.d.e.erklaer, 'Ø kW ist die mittlere Leistung, während das Gerät läuft – so sieht man, ob ein Heizkörper schwächer ist als angegeben. Stunden = Zeit mit mehr als 50 W.')}</div>`;
+  }
+  hochrechnung(kwhBisher) {
+    const bs = this.d.bs, p = this.d.e.preis, [von, bis] = bs.hp, mon = (bis - von + 12) % 12 + 1;
+    const bisher = 0.75, rest = mon - bisher, mit = kwhBisher / bisher * mon * 1.35, ohne = mit * 4.6;
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Hochrechnung Heizperiode</b>${NEU}<span class="leise">${MONATE[von - 1]}–${MONATE[bis - 1]} · ${mon} Monate</span></div>
+      <div class="hbar"><span class="hb-n">bisher</span><span class="hb-spur"><i style="width:${kwhBisher / ohne * 100}%;background:var(--s3)"></i></span><span class="hb-w">${de(kwhBisher * p, 0)} €</span></div>
+      <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${mit / ohne * 100}%;background:var(--s1)"></i></span><span class="hb-w">${de(mit * p, 0)} €</span></div>
+      <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(ohne * p, 0)} €</span></div>
+      <div class="gespart">bis ${MONATE[bis - 1]} rund <b>${de(mit, 0)} kWh</b> · ${de(mit * p, 0)} € – gespart ≈ <b>${de((ohne - mit) * p, 0)} €</b></div>
+      <div class="leise">noch ${de(rest, 1)} Monate · aus dem bisherigen Verbrauch je Heiztag und der Kälte der Monate (kältere Monate zählen mehr). Heizperiode unter Einstellungen › Baustelle.</div>
+      ${erkl(this.d.e.erklaer, 'Die Hochrechnung nimmt den Verbrauch je Heiztag bisher und rechnet ihn auf die Heizperiode hoch. Endet die Baustelle früher, zählt nur bis zum Ende.')}</div>`;
   }
 
   v_verlauf() {
@@ -1517,10 +1635,13 @@ class App {
     return `${this.kopf('Einstellungen', 'ÖWG DOBL ZWARING')}
       <div class="glas-panel liste"><div class="gruppe">Baustelle</div>
         <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">ÖWG Dobl Zwaring ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende ${NEU}</span><span class="leise">${datum(this.d.bs.beginn)} – ${this.d.bs.ende ? datum(this.d.bs.ende) : 'offen'} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Heizperiode ${NEU}</span><span class="leise">${MONATE[this.d.bs.hp[0] - 1]} – ${MONATE[this.d.bs.hp[1] - 1]} ›</span></button>
         <button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>
         <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button></div>
       <div class="glas-panel liste"><div class="gruppe">App</div>
         <button class="zeile" data-act="tab" data-v="ueber"><span>Über</span><span class="leise">Version ${VERSION} ›</span></button>
+        <div class="zeile"><div><b>Erklärungen anzeigen</b> ${NEU}<div class="leise">kurze Texte „ⓘ“ unter Heizung, Pumpen und Auswertung</div></div>${schalter(e.erklaer, 'e-bool', 'data-k="erklaer"')}</div>
         <div class="zeile"><div><b>Melden-Knopf</b><div class="leise">kleiner Knopf in jedem Fenster für Fehler, Wünsche und Anregungen</div></div>${schalter(e.melden, 'e-bool', 'data-k="melden"')}</div>
         <button class="zeile" data-act="tab" data-v="dev"><span>Entwicklung</span><span class="leise">${this.d.meldungen.filter(m => m.status === 'offen').length} offene Meldungen ›</span></button></div>
       <div class="glas-panel liste"><div class="gruppe">Firmen · für die Abrechnung</div>
@@ -1564,8 +1685,9 @@ class App {
         <div class="zeile"><span>Empfänger</span><span class="leise">${e.empfaenger}</span></div>
         <div class="zeile"><div><b>Knöpfe in der Nachricht</b><div class="leise">direkt aus der Nachricht reagieren, z. B. „bis morgen stumm“</div></div>${schalter(e.knoepfe, 'e-bool', 'data-k="knoepfe"')}</div>
         <button class="zeile" data-act="sheet" data-s="nachrichten"><span class="blau">Beispiele ansehen</span><span class="chev">›</span></button>
-        <div class="zeile"><span>Stromausfall / offline</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
-        <div class="zeile"><span>Pumpe Trockenlauf</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
+        <button class="zeile" data-act="test-meldung"><span class="blau">Test-Nachricht senden</span>${NEU}</button>
+        <div class="zeile"><span>Stromausfall / offline (nach ${e.offline_min} min)</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
+        <div class="zeile"><span>Pumpe Trockenlauf (unter ${e.trocken_w} W)</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
         <div class="zeile"><span>Pumpe Dauerlauf über ${e.dauer_min} min</span>${schalter(e.m_dauer, 'e-bool', 'data-k="m_dauer"')}</div>
         <div class="zeile"><span>Pumpe schaltet oft (ab ${e.zyklen_h} je Stunde)</span>${schalter(e.m_zyklen, 'e-bool', 'data-k="m_zyklen"')}</div>
         <div class="zeile"><span>Heizkörper zieht keinen Strom</span>${schalter(e.m_leistung, 'e-bool', 'data-k="m_leistung"')}</div>
@@ -1766,6 +1888,14 @@ class App {
         <div class="leise">Die bisherige Arbeitszeit bleibt gespeichert. Liegt das Datum in der Zukunft, gilt die neue automatisch ab diesem Tag.</div>
         ${knopf('Speichern', 'azn-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
+    if (s.art === 'zeitraum-bs') { const f = s.form ||= { ...this.d.bs, hp: [...this.d.bs.hp] };
+      const mon = i => `<select data-hp="${i}">${MONATE.map((m, k) => `<option value="${k + 1}" ${f.hp[i] === k + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select>`;
+      return `${griff}<h3>Beginn, Ende, Heizperiode</h3>
+      <div class="raster-2"><label class="feld">Beginn<input type="date" value="${f.beginn}" data-bsz="beginn"></label><label class="feld">Ende (geplant)<input type="date" value="${f.ende}" data-bsz="ende"></label></div>
+      <div class="leise">Gezählt wird ab Beginn. Das Ende ist nur für die Hochrechnung – abgeschlossen wird mit „Baustelle abschließen“.</div>
+      <div class="raster-2"><label class="feld">Heizperiode von${mon(0)}</label><label class="feld">bis${mon(1)}</label></div>
+      <div class="leise">Die Auswertung rechnet Verbrauch und Kosten auf die Heizperiode hoch – bis zum Ende der Baustelle, wenn es früher liegt.</div>
+      ${knopf('Speichern', 'bsz-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
     if (s.art === 'container-neu') return `${griff}<h3>Neuer Container</h3>
       <label class="feld">Name<input value="" placeholder="z. B. Lager Nord" data-neu="name"></label>
       <div class="feld">Art<div class="seg klein">${['Container', 'Pumpenschacht'].map(v => `<button data-act="neu-art" data-v="${v}" class="${(s.neuArt || 'Container') === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
@@ -1890,6 +2020,12 @@ class App {
       case 'jetzt-an': d.jetztBis = uhr(minu(JETZT) + 60); d.protokoll.unshift(['Heute', JETZT, 'schalten', null, `Alle Container jetzt heizen bis ${d.jetztBis}`]); neu(); return this.toast(`Alle heizen bis ${d.jetztBis}`);
       case 'jetzt-aus': d.jetztBis = null; neu(); return this.toast('Zurück zum Plan');
       case 'b-auto': b.auto = !b.auto; return neu();
+      case 'modus': { const x = d.bereiche.find(y => y.id === el.dataset.id); this.modus(x, el.dataset.v); neu(); return this.toast(`${x.name}: ${MODI.find(m => m[0] === x.modus)[1]}`); }
+      case 'p-chart': this.s.pchart = el.dataset.v; return neu();
+      case 'tv': this.s.tv = el.dataset.v; return neu();
+      case 'test-meldung': d.protokoll.unshift(['Heute', JETZT, 'nachricht', null, `An ${d.e.empfaenger}: „Test – Nachrichten der Baustelle kommen an“`]); return this.toast(`Test-Nachricht an ${d.e.empfaenger} gesendet`);
+      case 'bsz-speichern': { const f = this.s.sheet.form; if (!f.beginn || (f.ende && f.ende < f.beginn)) return this.toast('Bitte Beginn und Ende prüfen');
+        d.bs = { beginn: f.beginn, ende: f.ende, hp: f.hp.map(Number) }; this.s.sheet = null; neu(); return this.toast('Gespeichert'); }
       case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; x.trocknen = !x.trocknen; return neu(); }
       case 'geraet': { const g = b.geraete[+el.dataset.i]; g.an = g.an ? 0 : 1; g.hand = b.auto;
         const an = b.geraete.some(x => x.an); if (b.pumpe) b.z = b.geraete[0].an ? 'laeuft' : 'aus'; else b.z = an ? (b.z === 'aus' ? 'heizt' : b.z) : 'aus';
@@ -1899,7 +2035,9 @@ class App {
       case 'verlauf': this.s.verlauf = el.dataset.v; return neu();
       case 'basis': d.e.basis = el.dataset.v; return neu();
       case 'e-bool': d.e[el.dataset.k] = !d.e[el.dataset.k]; return neu();
-      case 'st': { const k = el.dataset.k, min = { nutzbar: 30, max_gleich: 1, min_lauf: 1, takt: 5, tuer_pause: 1, tuer_melden: 1 }[k] || 0; d.e[k] = Math.min(k === 'nutzbar' ? 100 : 1e9, Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10)); return neu(); }
+      case 'st': { const k = el.dataset.k, min = { nutzbar: 30, max_gleich: 1, min_lauf: 1, takt: 5, tuer_pause: 1, tuer_melden: 1, offline_min: 1, trocken_w: 5, dauer_min: 5, zyklen_h: 2 }[k] || 0;
+        if (k === 'frost_aus' && d.e.frost_aus + +el.dataset.d <= d.e.frost_temp) return this.toast('„aus über“ muss über „ein unter“ liegen');
+        if (k === 'frost_temp' && d.e.frost_temp + +el.dataset.d >= d.e.frost_aus) return this.toast('„ein unter“ muss unter „aus über“ liegen'); d.e[k] = Math.min(k === 'nutzbar' ? 100 : 1e9, Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10)); return neu(); }
       case 'jc-auto': { const x = d.bereiche.find(y => y.id === el.dataset.id); x.auto = !x.auto; return neu(); }
       case 'jc-soll': { const x = d.bereiche.find(y => y.id === el.dataset.id); x.soll = Math.round(((x.soll ?? d.e.soll) + +el.dataset.d) * 2) / 2; return neu(); }
       case 'urlaub-weg': { const u = d.urlaube.splice(+el.dataset.i, 1)[0]; neu(); return this.toast(`${u.name} gelöscht`); }
@@ -1955,7 +2093,7 @@ class App {
       case 'b-speichern': { const e = this.s.sheet.edit, kw = { Ölradiator: 2, Konvektor: 2, Steckdose: .5, Pumpe: .76 };
         if (e.name.trim()) b.name = e.name.trim();
         b.firma = e.firma; b.anschluss = e.anschluss;
-        if (e.bedarf !== !!b.bedarf) { b.bedarf = e.bedarf; b.bedarfBis = null; if (e.bedarf) { b.z = 'bereit'; b.geraete.forEach(g => g.an = 0); } else if (b.z === 'bereit') b.z = 'aus'; } b.tuer = e.tuer ? { sensor: e.tuer, offen: b.tuer?.sensor === e.tuer ? b.tuer.offen : 0 } : undefined;
+        if (e.bedarf !== !!b.bedarf) { b.modus = e.bedarf ? 'bedarf' : b.t !== null ? 'thermo' : 'plan'; b.bedarf = e.bedarf; b.bedarfBis = null; if (e.bedarf) { b.z = 'bereit'; b.geraete.forEach(g => g.an = 0); } else if (b.z === 'bereit') b.z = 'aus'; } b.tuer = e.tuer ? { sensor: e.tuer, offen: b.tuer?.sensor === e.tuer ? b.tuer.offen : 0 } : undefined;
         const weg = e.geraete.filter(g => g.weg).length;
         b.geraete = e.geraete.filter(g => !g.weg).map(g => g.neu ? { n: g.n || g.shelly.split(' · ')[0], typ: g.typ, kw: kw[g.typ], an: 0, hand: false } : { ...g });
         this.s.sheet = null; neu(); return this.toast(weg ? `Gespeichert · ${weg} entfernt – Werte bleiben im Verlauf` : 'Gespeichert'); }
@@ -1985,6 +2123,16 @@ class App {
     if (el.dataset.fnc !== undefined) this.s.sheet.form.neu[+el.dataset.fnc].name = el.value;
     if (el.dataset.b === 'name' && this.s.sheet?.edit) this.s.sheet.edit.name = el.value;
     if (el.dataset.azt) this.s.sheet.form.tage[el.dataset.azt][+el.dataset.p] = el.value;
+    if (el.dataset.jm) { const x = this.d.bereiche.find(y => y.id === el.dataset.jm); this.modus(x, el.value); this.render(); this.toast(`${x.name}: ${MODI.find(m => m[0] === x.modus)[1]}`); }
+    if (el.dataset.bsz) this.s.sheet.form[el.dataset.bsz] = el.value;
+    if (el.dataset.hp) this.s.sheet.form.hp[+el.dataset.hp] = +el.value;
+  }
+  /* Modus je Container (neu 0.8): Zeitplan/Thermostat/Bei Bedarf/Hand/Aus */
+  modus(b, m) {
+    b.modus = m; b.auto = m !== 'hand'; b.bedarf = m === 'bedarf'; b.boost = false;
+    if (m === 'bedarf') { b.bedarfBis = null; b.z = 'bereit'; b.geraete.forEach(g => g.an = 0); }
+    else if (m === 'aus') { b.z = b.t !== null && b.t < this.d.e.frost_temp ? 'frost' : 'aus'; b.geraete.forEach(g => g.an = b.z === 'frost' ? 1 : 0); }
+    else if (b.z === 'bereit' || b.z === 'aus') { b.z = 'heizt'; b.geraete.forEach(g => { if (['Ölradiator', 'Konvektor'].includes(g.typ)) g.an = 1; }); }
   }
   hover(ev) {
     const svg = ev.target.closest('svg.chart'); if (!svg) return this.tip(null);
@@ -1999,11 +2147,18 @@ class App {
     }
     if (c.art === 'flaeche') {
       const vx = fx * c.W, i = Math.max(0, Math.min(c.n - 1, Math.round((vx - c.x0) / (c.x1 - c.x0) * (c.n - 1)))), x = c.x0 + i / (c.n - 1) * (c.x1 - c.x0);
-      const h = c.einheit === 'kWh/h', sum = c.reihen.reduce((a, r) => a + r.v[i], 0), p = this.d.e.preis;
+      const h = c.einheit === 'kWh/h' || c.einheit === 'kW', sum = c.reihen.reduce((a, r) => a + r.v[i], 0), p = this.d.e.preis, eh = c.einheit === 'kW' ? 'kW' : 'kWh';
+      if (c.einheit === 'kW') { svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(r => `<circle cx="${x}" cy="${c.y(r.o[i])}" r="3.5" fill="${r.farbe}" class="punkt"/>`).join('');
+        return this.tip(ev, `<b>${c.labels[i]}:00</b>` + (c.reihen.length > 1 ? [...c.reihen].reverse().map(r => `<div><i style="background:${r.farbe}"></i>${esc(r.name)} <b>${de(r.v[i], 2)} ${eh}</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} ${eh}</b></div>` : `<div>${de(sum, 2)} ${eh}</div>`)); }
       svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(r => `<circle cx="${x}" cy="${c.y(r.o[i])}" r="3.5" fill="${r.farbe}" class="punkt"/>`).join('');
       return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (c.reihen.length > 1
         ? [...c.reihen].reverse().map(r => `<div><i style="background:${r.farbe}"></i>${esc(r.name)} <b>${de(r.v[i], 2)} kWh</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p, 2)} €</div>`
         : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p, 2)} €</div>`));
+    }
+    if (c.art === 'linien') {
+      const vx = fx * c.W, i = Math.max(0, Math.min(c.n - 1, Math.round((vx - c.x0) / (c.x1 - c.x0) * (c.n - 1)))), x = c.x0 + i / (c.n - 1) * (c.x1 - c.x0);
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="${c.unten}" class="kreuz"/>` + c.reihen.map(s => s.v[i] === null ? '' : `<circle cx="${x}" cy="${c.y(s.v[i])}" r="3.5" fill="${s.farbe}" class="punkt"/>`).join('');
+      return this.tip(ev, `<b>${c.titel(i)}</b>${c.reihen.map(s => s.v[i] === null ? '' : `<div><i style="background:${s.farbe}"></i>${esc(s.name)} <b>${de(s.v[i])} °C</b></div>`).join('')}`);
     }
     if (c.art === 'linie') {
       const vx = fx * c.W, i = Math.max(0, Math.min(24, Math.round((vx - c.x0) / (c.x1 - c.x0) * 24))), x = c.x0 + i / 24 * (c.x1 - c.x0);

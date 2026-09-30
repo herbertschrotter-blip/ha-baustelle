@@ -304,7 +304,9 @@ Melden-Knopf: `python3 tools/ticket.py liste` (Ticket-Profil in CLAUDE.md).
 - [x] **AN-0001** (Anregung): „Wie kann ich Baustellen bearbeiten oder löschen?“ – in 0.7.6 Bearbeiten und Löschen im
       Fenster „Baustelle wählen“ (§5).
 - [x] **Versions-Hinweis auf der Seite:** in 0.7.7 (§5).
-- [ ] **Aus der Seite 0.6.3 fehlt in 0.7** (Herbert entscheidet, was zurückkommt): eigener Reiter Pumpen; offline-Zeit
+- [ ] **Aus der Seite 0.6.3 fehlt in 0.7** – Herbert 30.09.2026: **alle Punkte kommen zurück**; zuerst ins Mockup
+      (`mockups/glas.html`, **abgenommen 30.09.2026**, mockups/README.md), nach Abnahme bauen (Seite, dann neue Logik für Modus je Container, Urlaub/Feiertag
+      absenken/aus, Frostschutz Ein/Aus). Punkte: eigener Reiter Pumpen; offline-Zeit
       und Trockenlauf-Schwelle einstellbar; Urlaub/Feiertag „absenken“ oder „aus“; Frostschutz mit Ein-/Aus-Wert; Modus
       je Container (Zeitplan/Thermostat/Hand/Aus); Beginn/Ende der Baustelle; Heizperiode samt Hochrechnung;
       Temperatur-Tagesmittel und alle Container in einem Temperaturdiagramm; Leistung heute als kW-Kurve; Tabelle
