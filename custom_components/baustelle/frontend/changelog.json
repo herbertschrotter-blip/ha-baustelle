@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.7.30",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Diagramme und „kWh heute“ sind aktuell (WU-0002): HA schreibt eine Stunde erst nach ihrem Ende in die Stundenstatistik – die laufende Stunde kommt jetzt aus der 5-Minuten-Statistik plus dem Zählerstand bis jetzt; vorher fehlte alles seit der letzten vollen Stunde (bis zu gut einer Stunde).",
+      "Container-Ansicht: neue Sensorwerte tauschen nur Diagramm und Kennzahlen (höchstens alle 10 s), ein offener Tooltip oder eine Einblendung bleibt."
+    ]
+  },
+  {
     "version": "0.7.29",
     "datum": "2026-09-30",
     "punkte": [

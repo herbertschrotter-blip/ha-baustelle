@@ -506,6 +506,24 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   Date.now = echtJetzt;
   erwarte('WU-0001: Mondphase Vollmond/Neumond/zunehmende Sichel', mVoll.uMondK < -.98 && mNeu.uMondK > .98 && mSichel.uMondK > .3 && mSichel.uMondSeite === 1);
   panel.hass = hass; await ruhe();
+  /* WU-0002: laufende Stunde aus der 5-Minuten-Statistik plus Zählerstand bis jetzt (HA schreibt die Stunde erst nach ihrem Ende) */
+  { const dd = panel.d, en = panel.eid(dd, 'polier', 'energie'), jetzt = Date.parse(`${dd.z.HEUTE}T19:30:00+02:00`), echt = Date.now;
+    const um = hhmm => Date.parse(`${dd.z.HEUTE}T${hhmm}:00+02:00`);
+    const roh = { [en]: [{ start: um('18:00'), change: 1.0, state: 10.0 }] };
+    const kurz = { [en]: ['19:00', '19:05', '19:10', '19:15', '19:20'].map((t, k) => ({ start: um(t), change: .15, state: 10.15 + .15 * k })) };
+    panel.cache[`s:${dd.entry}:Tag:${dd.z.HEUTE}`] = { daten: roh, zeit: jetzt, laeuft: false };
+    panel.cache[`k:${dd.entry}:Tag:${dd.z.HEUTE}:${um('19:00')}`] = { daten: kurz, zeit: jetzt, laeuft: false };
+    const zustand = panel._hass.states[en]; panel._hass.states[en] = { entity_id: en, state: '10.9', attributes: {} };
+    Date.now = () => jetzt; const kw = panel.verbrauch(dd, 'polier', 'Tag'); Date.now = echt;
+    panel._hass.states[en] = zustand; delete panel.cache[`s:${dd.entry}:Tag:${dd.z.HEUTE}`];
+    erwarte(`WU-0002: Stunde 19 = 5-Minuten-Werte + Rest bis jetzt (${kw && kw[19]})`, kw && Math.abs(kw[18] - 1.0) < 1e-9 && Math.abs(kw[19] - (.75 + .15)) < 1e-9); }
+  /* WU-0002: neue Sensorwerte tauschen in der Container-Ansicht nur Diagramm und Kennzahlen */
+  { await klick({ act: 'container', id: 'polier' }, 20);
+    const wrap = panel.root.querySelector('.c-live .chart-wrap'), knopf = panel.root.querySelector('.c-live-kennz'), vorher = ui.innerHTML;
+    wrap.innerHTML = 'ALT'; knopf.innerHTML = 'ALT'; panel.s.sheet = null; panel._liveNeu();
+    erwarte('WU-0002: nur Diagramm und Kennzahlen getauscht', wrap.innerHTML !== 'ALT' && /kWh heute/.test(knopf.innerHTML) && ui.innerHTML === vorher);
+    panel.s.sheet = { art: 'verbrauch' }; wrap.innerHTML = 'ALT'; panel._liveNeu(); erwarte('WU-0002: mit offener Einblendung nichts tauschen', wrap.innerHTML === 'ALT');
+    panel.s.sheet = null; }
   erwarte('Changelog geladen', Array.isArray(panel.changelog) && panel.changelog.length === 2);
 
   if (!REFERENZ) await allgemein(); else {

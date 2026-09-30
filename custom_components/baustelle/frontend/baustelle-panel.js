@@ -1027,7 +1027,7 @@ function einblendungen(s) {
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.7.29';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.7.30';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1093,6 +1093,8 @@ class BaustellePanel extends HTMLElement {
     if (this._alt) for (const id of ids) if (h.states[id] !== this._alt[id]) { neu = true; break; }
     this._alt = Object.fromEntries(ids.map(id => [id, h.states[id]]));
     if (neu && this._alt && ids.length && !this._nachladen) this._nachladen = setTimeout(() => { this._nachladen = null; this._laden(); }, 3000);
+    // WU-0002: Diagramme und „kWh heute“ rechnen bis zum aktuellen Zählerstand – bei neuen Werten neu zeichnen (höchstens alle 10 s)
+    if (neu && this.d && Date.now() - (this._liveGezeichnet || 0) > 10000) { this._liveGezeichnet = Date.now(); this._liveNeu(); }
   }
 
   async _laden() {
@@ -1342,17 +1344,44 @@ class BaustellePanel extends HTMLElement {
     if (!d) return null;
     const zr = this.zeitraum(z, versatz, d), ids = this.statIds(d, z === 'Tag');
     if (!ids.length) return { ...zr, werte: {} };
+    const vonMs = this.zoneMs(zr.von, '00:00', d.z.zone), bisMs = this.zoneMs(zr.bis, '00:00', d.z.zone), jetztMs = Date.now();
+    const laufend = jetztMs >= vonMs && jetztMs < bisMs, frisch = laufend ? 60000 : undefined;   // enthält „jetzt“: nach 1 min neu holen
     const roh = this._holen(`s:${d.entry}:${z}:${zr.von}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
-      start_time: new Date(this.zoneMs(zr.von, '00:00', d.z.zone)).toISOString(), end_time: new Date(this.zoneMs(zr.bis, '00:00', d.z.zone)).toISOString(),
-      statistic_ids: ids, period: zr.periode, types: ['change', 'mean'], units: {} }));
+      start_time: new Date(vonMs).toISOString(), end_time: new Date(bisMs).toISOString(),
+      statistic_ids: ids, period: zr.periode, types: ['change', 'mean', 'state'], units: {} }), frisch);
     if (roh === undefined) return null;
+    /* WU-0002: HA schreibt eine Stunde erst nach ihrem Ende in die Stundenstatistik – die laufende Stunde (kurz nach der
+       vollen Stunde auch die vorige, bis HA sie eingetragen hat) kommt aus der 5-Minuten-Statistik */
+    let kurz = null, kurzAb = 0;
+    if (laufend) {
+      const stunde = Math.floor(jetztMs / 36e5) * 36e5; kurzAb = Math.max(vonMs, jetztMs - stunde < 60000 ? stunde - 36e5 : stunde);
+      kurz = this._holen(`k:${d.entry}:${z}:${zr.von}:${kurzAb}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
+        start_time: new Date(kurzAb).toISOString(), statistic_ids: ids, period: '5minute', types: ['change', 'mean', 'state'], units: {} }), 60000) || null;
+    }
+    const ms = p => typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start);
     const werte = {};
     for (const id of ids) {
       const arr = Array(zr.n).fill(null);
       for (const p of (roh || {})[id] || []) {
-        const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), i = zr.index(this.lokal(ms, d.z.zone));
+        const i = zr.index(this.lokal(ms(p), d.z.zone));
         if (i < 0 || i >= zr.n) continue;
         if (zahl(p.change)) arr[i] = (arr[i] || 0) + Number(p.change); else if (zahl(p.mean)) arr[i] = Number(p.mean);
+      }
+      const mittel = {};   // Index → 5-Minuten-Mittelwerte (Temperatur)
+      for (const p of (kurz || {})[id] || []) {
+        const t = ms(p); if (t < kurzAb) continue;
+        const i = zr.index(this.lokal(t, d.z.zone)); if (i < 0 || i >= zr.n) continue;
+        const hatStunde = ((roh || {})[id] || []).some(q => zr.periode === 'hour' && ms(q) === Math.floor(t / 36e5) * 36e5);
+        if (hatStunde) continue;   // diese Stunde hat HA schon eingetragen
+        if (zahl(p.change)) arr[i] = (arr[i] || 0) + Number(p.change); else if (zahl(p.mean)) (mittel[i] ||= []).push(Number(p.mean));
+      }
+      for (const [i, v] of Object.entries(mittel)) if (arr[i] === null) arr[i] = v.reduce((x, y) => x + y, 0) / v.length;
+      // bis „jetzt“ genau: was der Zähler seit dem letzten Statistikwert dazugezählt hat (aktueller Zustand − Stand dort)
+      if (laufend) {
+        const letzte = [...((roh || {})[id] || []), ...((kurz || {})[id] || [])].filter(q => zahl(q.change) && zahl(q.state)).sort((x, y) => ms(x) - ms(y)).at(-1);
+        const jetzt = this._hass && this._hass.states[id], i = zr.index(this.lokal(jetztMs, d.z.zone));
+        const dazu = letzte && jetzt && zahl(jetzt.state) ? Number(jetzt.state) - Number(letzte.state) : 0;
+        if (dazu > 0 && i >= 0 && i < zr.n) arr[i] = (arr[i] || 0) + dazu;   // kleiner = Zähler neu gestartet: nichts dazu
       }
       werte[id] = arr;
     }
@@ -1741,8 +1770,9 @@ class BaustellePanel extends HTMLElement {
   }
 
   /* ---- Container ---- */
-  v_container() {
-    const d = this.d, b = this.b, tl = this.zeitleiste(b), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG);
+  /* Diagramm und Kennzahlen der Container-Ansicht – eigene Funktion, damit neue Sensorwerte nur diese zwei Stellen tauschen (WU-0002) */
+  containerLive(b) {
+    const d = this.d, heuteNr = TAGE.indexOf(this.z.HEUTE_TAG);
     const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['leistung', 'Leistung'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
     if (!tabs.some(t => t[0] === this.s.chart)) this.s.chart = tabs[0][0];
     const c = this.s.chart, mitVb = this.s.tempVb !== false;
@@ -1765,6 +1795,22 @@ class BaustellePanel extends HTMLElement {
       kennz = [['Zyklen heute', zyk7 ? zyk7[heuteNr] : '–'], ['Laufzeit', stdMin(pz)], ['Längster Lauf', zahl(laengster) ? `${Math.round(laengster)} min` : '–']];
     } else kennz = [['kWh heute', kwh7 ? de(kwh7[heuteNr]) : '–'], ['Kosten', kwh7 ? `${de(kwh7[heuteNr] * d.e.preis, 2)} €` : '–'], ['Heizzeit', h7 ? `${de(h7[heuteNr])} h` : '–']];
     b.zyklen = zyk7 ? zyk7[heuteNr] : null;
+    return { tabs, c, mitVb, chart, kennz };
+  }
+  kennzHtml(kennz) { return kennz.map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('') + '<span class="kennz-mehr">Verbrauch ›</span>'; }
+  /* Neue Sensorwerte: in der Container-Ansicht nur Diagramm und Kennzahlen tauschen (Tooltip und Einblendung bleiben),
+     sonst die Ansicht neu zeichnen wie bisher */
+  _liveNeu() {
+    const wrap = this.root && this.root.querySelector('.c-live .chart-wrap'), knopf = this.root && this.root.querySelector('.c-live-kennz');
+    if (this.s.view !== 'container' || !this.b || !wrap || !knopf) return this._auffrischen();
+    if (this.s.sheet || (this.root.querySelector('.tip') || { classList: { contains: () => false } }).classList.contains('an')) return;   // später wieder
+    const { chart, kennz } = this.containerLive(this.b);
+    wrap.innerHTML = chart; knopf.innerHTML = this.kennzHtml(kennz);
+  }
+
+  v_container() {
+    const d = this.d, b = this.b, tl = this.zeitleiste(b);
+    const { tabs, c, mitVb, chart, kennz } = this.containerLive(b);
     const soll = b.soll ?? d.e.soll;
     return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
         <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
@@ -1774,8 +1820,8 @@ class BaustellePanel extends HTMLElement {
           <div class="c-wert">${wertHtml(b)}</div><div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b))}</div>
           <div class="c-kw">⚡ ${de(kwVon(b))} kW jetzt</div></div>
       </div>
-      <button class="glas-panel kennz kennz-knopf" data-act="sheet" data-s="verbrauch" data-id="${b.id}">${kennz.map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}<span class="kennz-mehr">Verbrauch ›</span></button>
-      <div class="glas-panel block"><div class="seg">${tabs.map(([k, t]) => `<button data-act="chart" data-c="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <button class="glas-panel kennz kennz-knopf c-live-kennz" data-act="sheet" data-s="verbrauch" data-id="${b.id}">${this.kennzHtml(kennz)}</button>
+      <div class="glas-panel block c-live"><div class="seg">${tabs.map(([k, t]) => `<button data-act="chart" data-c="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
         ${c === 'temp' && b.fuehler ? `<div class="chart-optionen"><button class="chip auto-chip ${mitVb ? 'on' : ''}" data-act="temp-vb"><span class="mini-sw"><i></i></span>Verbrauch einblenden</button></div>` : ''}
         <div class="chart-wrap">${chart}</div></div>
       ${b.bedarf ? this.bedarfBlock(b) : ''}

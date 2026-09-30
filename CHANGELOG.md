@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.30] – 2026-09-30
+
+- Diagramme und „kWh heute“ sind aktuell (WU-0002): HA schreibt eine Stunde erst nach ihrem Ende in die
+  Stundenstatistik – die laufende Stunde kommt jetzt aus der 5-Minuten-Statistik plus dem Zählerstand bis jetzt; vorher
+  fehlte alles seit der letzten vollen Stunde (bis zu gut einer Stunde).
+- Container-Ansicht: neue Sensorwerte tauschen nur Diagramm und Kennzahlen (höchstens alle 10 s), ein offener
+  Tooltip oder eine Einblendung bleibt.
+
 ## [0.7.29] – 2026-09-30
 
 - Verbrauch (FE-0003): Container zählten keine Leistung und keinen Verbrauch, wenn am Shelly mehrere passende
