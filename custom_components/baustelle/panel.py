@@ -1,4 +1,4 @@
-"""Eigene Seite „Baustelle“ in der Seitenleiste (wie Alarmo/HACS) und die WebSocket-Befehle dafür (api-0.7 §1–§2)."""
+"""Eigene Seite „Baustelle“ in der Seitenleiste (wie Alarmo/HACS) und die WebSocket-Befehle dafür (api-0.7 §1–§2, §8)."""
 
 from __future__ import annotations
 
@@ -15,9 +15,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
+from . import auswertung
 from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
 from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldungen
+from .logik.auswertung import ARTEN
 from .logik.warnungen import Art
 
 URL_PANEL = "baustelle"
@@ -154,7 +156,8 @@ async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
     hass.data[DATA_VERSION] = version
     hass.data[DATA_MELDUNGEN] = Meldungen(hass)
     hass.async_create_task(hass.data[DATA_MELDUNGEN].async_laden(), "baustelle_meldungen_laden")  # lesbare Kopie beim Start
-    for befehl in (ws_struktur, ws_setzen, ws_liste, ws_aktion, ws_bericht, ws_protokoll, ws_meldungen, ws_meldung):
+    for befehl in (ws_struktur, ws_setzen, ws_liste, ws_aktion, ws_bericht, ws_protokoll, ws_meldungen, ws_meldung,
+                   ws_auswertung, ws_abrechnung):
         websocket_api.async_register_command(hass, befehl)
 
 
@@ -535,6 +538,49 @@ async def ws_bericht(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     if (st := _steuerung(hass, connection, msg)) is None:
         return
     connection.send_result(msg["id"], await st.nachrichten.async_bericht_vorschau(msg["art"]))
+
+
+# ---------------------------------------------------------------------- auswertung, abrechnung (api-0.7 §8)
+ZEITRAUM = {
+    vol.Required("entry_id"): str,
+    vol.Optional("zeitraum", default="Monat"): vol.In(ARTEN),
+    vol.Optional("versatz", default=0): vol.All(vol.Coerce(int), vol.Range(0, 100)),
+    vol.Optional("scope", default="diese"): vol.In(["diese", "alle"]),
+}
+
+
+def _eintrag(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> Any:
+    """Baustelle auch abgeschlossen oder nicht geladen (Verlauf); unbekannt → Fehler `not_found`."""
+    entry = hass.config_entries.async_get_entry(msg["entry_id"])
+    if entry is None or entry.domain != DOMAIN:
+        connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Baustelle nicht gefunden")
+        return None
+    return entry
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "baustelle/auswertung", **ZEITRAUM,
+    vol.Optional("teil", default="zeitraum"): vol.In(["zeitraum", "verlauf"]),
+})
+@websocket_api.async_response
+async def ws_auswertung(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Auswertung eines Zeitraums bzw. Verlauf einer Baustelle – gerechnet von der Integration, die Seite zeigt nur an."""
+    if (entry := _eintrag(hass, connection, msg)) is None:
+        return
+    if msg["teil"] == "verlauf":
+        ergebnis = await auswertung.async_verlauf(hass, auswertung.quelle(hass, entry))
+    else:
+        ergebnis = await auswertung.async_auswertung(hass, entry, msg["zeitraum"], msg["versatz"], msg["scope"])
+    connection.send_result(msg["id"], ergebnis)
+
+
+@websocket_api.websocket_command({vol.Required("type"): "baustelle/abrechnung", **ZEITRAUM})
+@websocket_api.async_response
+async def ws_abrechnung(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Abrechnung nach Firma (Tabelle, Verbrauch je Firma und Periode) und beide CSV wie bisher auf der Seite."""
+    if (entry := _eintrag(hass, connection, msg)) is None:
+        return
+    connection.send_result(msg["id"], await auswertung.async_abrechnung(hass, entry, msg["zeitraum"], msg["versatz"], msg["scope"]))
 
 
 # ---------------------------------------------------------------------- protokoll

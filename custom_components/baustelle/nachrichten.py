@@ -9,7 +9,8 @@ Aktionskennung: `BAUSTELLE|<entry_id>|<befehl>|<wert>`; „Zum Container“ und 
 die Seite (`/baustelle?baustelle=<entry_id>&container=<bid>` bzw. `&ansicht=auswertung`).
 
 Bericht: `logik/bericht.py` (Zeitpunkt, Zeitraum, Texte), Verbrauch je Container und Tag aus der Langzeitstatistik
-(Recorder) der Energie-Sensoren je Container, Aufteilung nach Firma mit `logik/abrechnung.py`. Die E-Mail geht über
+(Recorder) der Energie-Sensoren je Container, Abrechnung nach Firma und CSV mit denselben Funktionen wie die Seite
+(`auswertung.py`, `logik/auswertung.py`). Die E-Mail geht über
 `notify.<bericht.mail_dienst>`. Einen CSV-Anhang kann in HA nur der SMTP-Dienst mitschicken (Datei im Medienordner,
 `data.images`); bei anderen Diensten steht in der Mail ein Hinweis, dass die CSV auf der Seite zu holen ist.
 """
@@ -26,7 +27,8 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import AKTION_PRAEFIX, DOMAIN, EVENT_NACHRICHT_AKTION, URL_SEITE
-from .logik import abrechnung, bericht as bericht_logik, warnungen as warn_logik
+from . import auswertung
+from .logik import bericht as bericht_logik, warnungen as warn_logik
 from .logik.arbeitszeit import AusnahmeArt, uhrzeit
 from . import texte
 
@@ -245,16 +247,16 @@ class Nachrichten:
         davor = sum(k for tage in je_tag.values() for t, k in tage.items() if vorher_von <= t <= vorher_bis)
         preis = float(st.e["preis"])
         kwh = sum(sum(t.values()) for t in im.values())
-        firmen = st.e["firmen"]
-        aufteilung = abrechnung.aufteilen(im, st.e["zuordnung"], preis, firmen=firmen)
-        namen_firma = {f["id"]: f["name"] for f in firmen}
+        # Abrechnung nach Firma wie auf der Seite (baustelle/abrechnung): Firma je Tag, dieselbe CSV
+        q = auswertung.quelle(self.hass, st.entry)
+        firmen = auswertung.abrechnung_daten([q], {st.entry.entry_id: auswertung.werte_je_tag(q, im)}, preis)
         namen = {bid: info.name for bid, info in st.bereiche.items()}
         stumm = {k: z for k, v in st.e["stumm"].items() if (z := dt_util.parse_datetime(str(v))) is not None}
         offen = warn_logik.sichtbar(st.daten.warnungen, stumm, dt_util.now())
         daten = {
             "baustelle": st.entry.title, "art": art, "von": von, "bis": bis, "kwh": kwh, "eur": kwh * preis,
             "vergleich_prozent": (kwh - davor) / davor * 100 if davor > 0 else None,
-            "firmen": [{"name": namen_firma.get(f, f), "kwh": x["kwh"], "eur": x["eur"]} for f, x in aufteilung.items()],
+            "firmen": [{"name": f["firma"], "kwh": f["kwh"], "eur": f["eur"]} for f in firmen],
             # wie Mockup „Bericht · Beispiel“: alle Container und Pumpenschächte der Baustelle
             "container": [{"name": namen[bid], "kwh": sum(im.get(bid, {}).values())} for bid in namen],
             # wie Zähler `heiztage` und Seite: Tage, an denen ein Heizkörper geheizt hat (Pumpen zählen nicht)
@@ -263,7 +265,7 @@ class Nachrichten:
             "warnungen": [{"bereich": namen.get(w.bereich) if w.bereich else None, "titel": warn_logik.titel(w)}
                           for w in offen],
         }
-        return {"daten": daten, "aufteilung": aufteilung, "namen": namen, "preis": preis}
+        return {"daten": daten, "firmen": firmen, "quelle": q, "preis": preis}
 
     async def async_bericht_vorschau(self, art: str, zeitpunkt: datetime | None = None) -> dict[str, Any]:
         """Bericht, wie er jetzt ginge (Seite: Einstellungen › Bericht › Beispiel ansehen) – ohne zu senden."""
@@ -286,8 +288,8 @@ class Nachrichten:
         st = self.st
         b = st.e["bericht"]
         teile = await self.async_bericht_daten(art, zeitpunkt)
-        daten, aufteilung, namen, preis = teile["daten"], teile["aufteilung"], teile["namen"], teile["preis"]
-        von, bis, firmen = daten["von"], daten["bis"], st.e["firmen"]
+        daten, preis = teile["daten"], teile["preis"]
+        von, bis = daten["von"], daten["bis"]
         zeitraum = bericht_logik.zeitraum_text(art, von, bis)
         ergebnis: dict[str, Any] = {"betreff": bericht_logik.betreff(daten), "handy": [], "mail": None, "anhang": None}
         if b.get("handy"):
@@ -303,11 +305,7 @@ class Nachrichten:
             if b.get("mail_an"):
                 aufruf["target"] = [x.strip() for x in str(b["mail_an"]).replace(";", ",").split(",") if x.strip()]
             if b.get("csv"):
-                zeilen = abrechnung.abrechnung_zeilen(
-                    aufteilung, zeitraum=zeitraum, baustelle=st.entry.title, firmen=firmen,
-                    container_namen=namen, preis=preis,
-                )
-                text = abrechnung.csv_zeilen(abrechnung.CSV_KOPF_FIRMA, zeilen)
+                text = auswertung.csv_abrechnung([teile["quelle"]], teile["firmen"], zeitraum, preis)
                 pfad = await self._async_anhang(dienst, bericht_logik.anhang_name(art, von), text)
                 if pfad:
                     aufruf["data"] = {"images": [pfad]}
@@ -361,19 +359,6 @@ class Nachrichten:
                 ids[key] = entity_id
         return ids
 
-    async def _async_statistik(self, entity_ids: list[str], von: date, bis: date) -> dict[str, list[dict]]:
-        if not entity_ids or "recorder" not in self.hass.config.components:
-            return {}
-        from homeassistant.components.recorder import get_instance  # noqa: PLC0415
-        from homeassistant.components.recorder.statistics import statistics_during_period  # noqa: PLC0415
-
-        from .steuerung import _mitternacht  # noqa: PLC0415
-
-        start, ende = _mitternacht(von), _mitternacht(bis + timedelta(days=1))
-        return await get_instance(self.hass).async_add_executor_job(
-            statistics_during_period, self.hass, start, ende, set(entity_ids), "day", None, {"change"}
-        )
-
     async def async_verbrauch_je_tag(self, von: date, bis: date) -> dict[str, dict[date, float]]:
         """kWh je Container und Tag aus der Langzeitstatistik der Energie-Sensoren je Container."""
         return await self._async_je_tag({bid: f"{bid}_energie" for bid in self.st.bereiche}, von, bis)
@@ -383,21 +368,9 @@ class Nachrichten:
         return await self._async_je_tag({b.id: f"{b.id}_heizzeit" for b in self.st.container()}, von, bis)
 
     async def _async_je_tag(self, schluessel: dict[str, str], von: date, bis: date) -> dict[str, dict[date, float]]:
-        ids = self._statistik_ids(schluessel)
-        roh = await self._async_statistik(list(ids.values()), von, bis)
-        ergebnis: dict[str, dict[date, float]] = {}
-        for bid, entity_id in ids.items():
-            for zeile in roh.get(entity_id, []):
-                start = zeile.get("start")
-                tag = dt_util.as_local(
-                    dt_util.utc_from_timestamp(start) if isinstance(start, (int, float)) else start
-                ).date()
-                ergebnis.setdefault(bid, {})[tag] = float(zeile.get("change") or 0.0)
-        return ergebnis
+        return await auswertung.async_je_tag(self.hass, self._statistik_ids(schluessel), von, bis)
 
     async def async_gespart(self, von: date, bis: date) -> float | None:
         """€, die die Automatik im Zeitraum gespart hat (Änderung des Sensors „Ersparnis“)."""
-        ids = self._statistik_ids({"ersparnis": f"{self.st.entry.entry_id}_ersparnis"})
-        roh = await self._async_statistik(list(ids.values()), von, bis)
-        werte = [float(z.get("change") or 0.0) for z in roh.get(ids.get("ersparnis", ""), [])]
-        return sum(werte) if werte else None
+        werte = (await self._async_je_tag({"ersparnis": f"{self.st.entry.entry_id}_ersparnis"}, von, bis)).get("ersparnis")
+        return sum(werte.values()) if werte else None

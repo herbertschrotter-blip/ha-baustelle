@@ -190,3 +190,68 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
 - Bericht (0.7.9): `heiztage` = Tage mit Heizzeit > 0 in einem Container (Statistik `<bid>_heizzeit`), wie `zaehler.heiztage`.
 - Beginn/Ende und Heizperiode: Options-Dialog (`beginn`, `ende`, `heizperiode_von`, `heizperiode_bis` als `"1"`…`"12"`).
   Die Hochrechnung (`<entry>_prognose_heizperiode…`) zählt nur bis zum geplanten Ende, wenn es in der Heizperiode liegt.
+
+## 8. Auswertung und Abrechnung von der Integration (0.7.14, Bauplan Module Phase 2)
+
+Die Seite rechnet nichts Fachliches mehr: Kennzahlen, Abrechnung nach Firma, CSV, Heizperiode, Heiztage, Verlauf,
+Ölradiator/Konvektor, Wetter-Einfluss und Je Gerät kommen von der Integration (`auswertung.py` holt die
+Langzeitstatistik, `logik/auswertung.py` rechnet). Bericht und CSV-Anhang nehmen dieselben Funktionen – für denselben
+Zeitraum (Vorwoche = `Woche`/`versatz: 1`, Vormonat = `Monat`/`versatz: 1`) dieselben Zahlen. Nur reine
+Diagramm-Reihen (Verbrauch je Container, Temperaturen, Leistung) holt die Seite weiter selbst über
+`recorder/statistics_during_period`.
+
+Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle; unbekannt → `not_found`),
+`zeitraum: Tag|Woche|Monat|Jahr` (Standard `Monat`), `versatz` (0 = laufender, 1 = der davor …), `scope: diese|alle`
+(`alle` = alle laufenden Baustellen; Preis der Baustelle `entry_id`). Zeitraum in der Antwort:
+`{"art", "von", "bis" (erster Tag danach), "periode": "hour|day|month", "n", "labels", "monat" (1–12|null), "jahr"}`.
+
+| type | Felder | Antwort |
+|---|---|---|
+| `baustelle/auswertung` | gemeinsame, `teil: zeitraum\|verlauf` (Standard `zeitraum`) | siehe unten |
+| `baustelle/abrechnung` | gemeinsame | siehe unten |
+
+`baustelle/auswertung`, `teil: zeitraum` (Reiter Auswertung):
+
+```json
+{"zeitraum": {}, "preis": 0.28,
+ "summen": {"kwh": 0, "eur": 0, "heizzeit": 0, "pumpzeit": 0, "ohne": 0,
+            "vorher": {"kwh": 0, "heizzeit": 0, "pumpzeit": 0}, "veraenderung": {"kwh": 5, "heizzeit": null, "pumpzeit": null},
+            "ohne_automatik": {"gespart_eur": 0, "prozent": 0} },
+ "je_geraet": [{"bereich": "<bid>", "geraet": "<gid>", "mittel": 1.98, "kwh": 12.1, "std": 6.1, "eur": 3.39}],
+ "wetter": {"punkte": [[4.2, 18.5]], "gerade": {"k": -1.2, "d0": 20, "null0": 16.7}},
+ "typ": {"oelradiator": {"kwh_h": 1.6, "auf": 2.7, "ab": 2.7, "tag": 3.05}, "konvektor": {}, "weniger": 17},
+ "heizperiode": {"ende": "2027-04-30", "bis": "2027-04-30"}, "heiztage": 16}
+```
+
+- `summen` über `scope`; `heizzeit` nur Container, `pumpzeit` nur Pumpen; `veraenderung` in ganzen % zum Zeitraum davor
+  (`null` ohne Wert davor); `ohne_automatik` `null`, solange „ohne Automatik“ 0 ist.
+- `je_geraet`, `wetter`, `typ`, `heizperiode`, `heiztage` immer für die Baustelle `entry_id`. `je_geraet` nach
+  Containern geordnet; `mittel` Ø kW im Betrieb (ab 50 W), `std` bei Pumpen gemessen, sonst kWh ÷ Ø kW (Schätzung).
+  `wetter.gerade` `null` unter 5 Heiztagen. `heizperiode.bis` = geplantes Ende, wenn es vor dem Ende der Heizperiode liegt.
+
+`baustelle/auswertung`, `teil: verlauf` (Reiter Verlauf, Detailseite; `zeitraum`/`scope` ohne Bedeutung):
+
+```json
+{"kwh": 412, "eur": 115.36, "gespart": 515.2, "container": 7, "heiztage": 16, "monate": 1,
+ "vergleich": {"tag": 25.75, "monat": 115.36, "ges": 412},
+ "je_monat": {"2026-09": 340.9},
+ "monate_je_container": {"labels": ["Sep"], "reihen": [{"bereich": "<bid>", "name": "Polier", "v": [330.9]}]},
+ "csv": "﻿Monat;Baustelle;Container;kWh;Kosten €\r\n…"}
+```
+
+`baustelle/abrechnung` (Reiter Auswertung: Abrechnung nach Firma, Verbrauch gestapelt nach Firma, beide CSV):
+
+```json
+{"zeitraum": {}, "preis": 0.28, "kwh": 81.0,
+ "firmen": [{"id": "eigen|<Firmenname>", "firma": "Eigene Firma", "eigen": true, "kwh": 68.0, "eur": 19.04, "anteil": 84.0,
+             "container": [{"entry": "", "titel": "", "bereich": "<bid>", "name": "", "kwh": 14.4, "eur": 4.04}]}],
+ "reihen": {"eigen": [0.2, 1.4], "Elektro Huber GmbH": [0, 0.5]},
+ "csv": {"firma": "﻿Zeitraum;Firma;Baustelle;Container;kWh;Preis €/kWh;Betrag €\r\n…",
+         "verbrauch": "﻿Zeit;Baustelle;Firma;Container;kWh;Kosten €\r\n…"}}
+```
+
+- Firma je Tag: der Verbrauch eines Tages gehört der Firma, der der Container zu Tagesbeginn gehört (auch beim Tag je
+  Stunde und beim Jahr); Firmen mit gleichem Namen auf verschiedenen Baustellen sind eine Zeile, eigene Firma zuerst.
+- `reihen`: kWh je Firma und Periode des Zeitraums (Firmen ohne Verbrauch fehlen).
+- CSV wie bisher auf der Seite: BOM, Semikolon, Dezimalkomma ohne Tausendertrennung, CRLF, Felder mit `;`, `"` oder
+  Zeilenumbruch in Anführungszeichen (RFC 4180). „Verbrauch“ je Periode eine Zeile (Firma zu Beginn der Periode).

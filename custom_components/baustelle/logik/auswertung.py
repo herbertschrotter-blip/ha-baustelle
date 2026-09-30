@@ -225,6 +225,29 @@ def abrechnung(
     ]
 
 
+def firmen_reihen(
+    baustellen: Sequence[Mapping[str, Any]],
+    werte: Mapping[str, Mapping[str, Sequence[tuple[Any, float | None]]]],
+    zr: Zeitraum,
+    zone: tzinfo,
+) -> dict[str, list[float]]:
+    """kWh je Firma und Periode des Zeitraums (Verbrauch gestapelt nach Firma): `{"eigen" bzw. Firmenname: [kWh, …]}`.
+
+    Firma je Tag wie `abrechnung` (dieselben `werte`, je Stunde oder Tag); die Periode kommt aus dem Beginn, beim Jahr
+    zählen so die Tage eines Monats je nach ihrer Firma. Firmen ohne Verbrauch fehlen.
+    """
+    ergebnis: dict[str, list[float]] = {}
+    for b in baustellen:
+        for bereich in b["bereiche"]:
+            for beginn, kwh in werte[b["entry"]][bereich["id"]]:
+                i = zr.index(lokal(beginn, zone))
+                if not kwh or i < 0 or i >= zr.n:
+                    continue
+                f = firma_am_tag(b, bereich["id"], zeitpunkt(beginn), zone)
+                ergebnis.setdefault(EIGEN if f.get("eigen") else f["name"], [0.0] * zr.n)[i] += kwh
+    return ergebnis
+
+
 def _feld(wert: Any) -> str:
     """CSV-Feld; mit Semikolon, Anführungszeichen oder Zeilenumbruch in Anführungszeichen."""
     text = str(wert)
@@ -362,6 +385,20 @@ def kennzahlen(
     }
 
 
+def veraenderung(jetzt: float | None, vorher: float | None) -> int | None:
+    """Veränderung zum Zeitraum davor in ganzen % (Pfeile der Auswertung); ohne Wert davor None."""
+    if jetzt is None or vorher is None or vorher <= 0:
+        return None
+    return js_runden((jetzt - vorher) / vorher * 100)
+
+
+def ohne_automatik(kwh: float, ohne: float, preis: float) -> dict[str, float] | None:
+    """„Ohne Automatik“: gespart in € und % gegenüber Dauerbetrieb (`ohne` kWh); ohne Wert (0) None."""
+    if ohne <= 0:
+        return None
+    return {"gespart_eur": max(0.0, ohne - kwh) * preis, "prozent": max(0.0, 1 - kwh / ohne) * 100}
+
+
 def monate_zeitraum(heute: date, beginn: date | None, ende: date | None) -> tuple[date, date, list[str]]:
     """Verbrauch je Monat: erster Tag der Anfrage, Tag danach und die Monate `JJJJ-MM` (höchstens 36)."""
     von = beginn or heute - timedelta(days=365)
@@ -389,6 +426,11 @@ def monate_je_container(
                 werte[monate.index(monat)] += float(p["change"])
         reihen_.append({"name": b["name"], "v": werte})
     return {"labels": [MONATE[int(k[5:7]) - 1] for k in monate], "reihen": reihen_}
+
+
+def csv_text(zeilen: Sequence[str]) -> str:
+    """CSV-Datei wie die Seite sie speichert: BOM (Excel erkennt UTF-8), Zeilen mit CRLF, keine Zeilenumschaltung am Ende."""
+    return "\ufeff" + "\r\n".join(zeilen)
 
 
 def csv_monate(titel: str, preis: float, daten: Mapping[str, Any]) -> list[str]:

@@ -467,6 +467,17 @@ async def test_seite_gegen_echte_struktur(hass: HomeAssistant, echte_baustelle) 
     assert len(lz["staffel"]["anschluesse"]) == 2 and [p for p in lz["plan_woche"] if p["frei"] == "urlaub"]
     assert next(b for b in struktur if b["baustelle"]["entry_id"] == HALLE)["baustelle"]["status"] == "abgeschlossen"
 
+    # Auswertung und Abrechnung (api §8): die echte Baustelle ohne Recorder liefert leere, aber vollständige Antworten
+    for b in struktur:
+        v = await rufe("baustelle/auswertung", entry_id=b["baustelle"]["entry_id"], teil="verlauf")
+        assert {"kwh", "heiztage", "vergleich", "je_monat", "monate_je_container", "csv"} <= set(v)
+    for z in ("Tag", "Woche", "Monat", "Jahr"):
+        for scope in ("diese", "alle"):
+            aw = await rufe("baustelle/auswertung", entry_id=WOHNBAU, zeitraum=z, versatz=0, scope=scope)
+            abr = await rufe("baustelle/abrechnung", entry_id=WOHNBAU, zeitraum=z, versatz=0, scope=scope)
+            assert aw["zeitraum"] == abr["zeitraum"] and aw["summen"]["kwh"] == abr["kwh"] == 0
+            assert abr["csv"]["firma"] == "\ufeffZeitraum;Firma;Baustelle;Container;kWh;Preis €/kWh;Betrag €"
+
     # dieselben Schlüssel und Typen wie das Beispiel, gegen das die Seite im Einzelnen getestet wird (api §1)
     beispiel = json.loads(BEISPIEL.read_text(encoding="utf-8"))
     for echt in struktur:

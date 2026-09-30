@@ -30,7 +30,7 @@ Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
     heiztage: int; gespart_eur: float | None
     warnungen: list[{"bereich": str | None, "titel": str}]  (nur offene, nicht stumme)
 
-Empfänger und CSV-Anhang (`anhang_name`, `abrechnung.csv_zeilen`) setzt der Aufrufer beim Versand.
+Empfänger und CSV-Anhang (`anhang_name`, `auswertung.csv_abrechnung`) setzt der Aufrufer beim Versand.
 """
 
 from __future__ import annotations

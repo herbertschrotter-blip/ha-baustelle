@@ -107,6 +107,10 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
     eines Containers wie Zähler `heiztage` und Bericht (0.7.9); Monate = Monate mit einem Heiztag. Beispiel
     `struktur-0.7`, Dobl (kein Zähler `heiztage`): Seite 22 Heiztage, richtig 16; Kalsdorf 9 → 7. Mit Zähler (z. B.
     `struktur-echt`, Halle 96) gleich. Die Regel steht einmal in `auswertung.heiztag_daten`; `bericht.heiztage` nutzt sie.
+- **Reihenfolge der Firmen im Bericht (Phase 2):** Bericht, Mail und CSV-Anhang nehmen dieselbe Abrechnung wie die Seite
+  (`auswertung.abrechnung_daten`) – eigene Firma zuerst, dann die Firmen in der Reihenfolge ihres ersten Verbrauchs
+  (bisher im Bericht in der Reihenfolge der Firmenliste). Beispiel: Firmenliste Eigene Firma, Maier, Huber, Huber
+  verbraucht im Zeitraum vor Maier → Bericht jetzt Eigene Firma, Huber, Maier (Zahlen gleich).
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
 
 ## 6. Ausführung mit Agenten
@@ -122,4 +126,4 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 ## 7. Status
 
 - Freigegeben von Herbert am 30.09.2026 (mit Phase 7).
-- [x] Phase 0 · [x] Phase 1 · [ ] Phase 2 · [ ] Phase 3 · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6
+- [x] Phase 0 · [x] Phase 1 · [x] Phase 2 · [ ] Phase 3 · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6

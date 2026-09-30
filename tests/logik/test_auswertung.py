@@ -111,6 +111,45 @@ def test_abrechnung_wechsel_mitten_am_tag_gilt_ab_folgetag():
     assert [(z["firma"], z["kwh"]) for z in daten] == [("Eigene Firma", 24.0), ("Huber", 2.0)]
 
 
+@pytest.mark.parametrize("fall", faelle("abrechnung"))
+def test_firmen_reihen_wie_abrechnung(fall):
+    """Verbrauch gestapelt nach Firma: je Firma dieselbe Summe wie die Abrechnung (Firma je Tag), je Periode verteilt."""
+    e, zone = fall["eingabe"], ZoneInfo(fall["eingabe"]["zone"])
+    zr = a.zeitraum(e["art"], date.fromisoformat(e["heute"]))
+    werte = paare(e.get("werte_tag") or e["werte"])
+    reihen = a.firmen_reihen(e["baustellen"], werte, zr, zone)
+    daten = a.abrechnung(e["baustellen"], werte, zone)
+    assert set(reihen) == {"eigen" if z["eigen"] else z["firma"] for z in daten}
+    for z in daten:
+        v = reihen["eigen" if z["eigen"] else z["firma"]]
+        assert len(v) == zr.n and math.isclose(sum(v), z["kwh"], rel_tol=1e-9)
+    # alle Firmen zusammen = Verbrauch je Periode
+    summe = [sum(r[i] for r in reihen.values()) for i in range(zr.n)]
+    je = a.addieren([[k or 0.0 for _, k in liste] for bs in paare(e["werte"]).values() for liste in bs.values()])
+    nahe(summe, je, "summe") if e["art"] != "Jahr" else nahe(sum(summe), sum(je), "summe")
+
+
+def test_firmen_reihen_wechsel_am_folgetag():
+    zone = ZoneInfo("Europe/Vienna")
+    b = {"entry": "x", "titel": "X", "firmen": [a.EIGENE_FIRMA, {"id": "huber", "name": "Huber"}],
+         "zuordnung": [{"bereich": "c", "firma": "huber", "ab": "2026-09-29T10:30:00+02:00"}], "bereiche": [{"id": "c", "name": "C"}]}
+    zr = a.zeitraum("Woche", date(2026, 9, 29))
+    tage = [(a.mitternacht(date(2026, 9, 28) + timedelta(days=i), zone), 2.0) for i in range(3)]
+    assert a.firmen_reihen([b], {"x": {"c": tage}}, zr, zone) == {"eigen": [2.0, 2.0, 0, 0, 0, 0, 0], "Huber": [0, 0, 2.0, 0, 0, 0, 0]}
+
+
+def test_csv_text_wie_seite():
+    assert a.csv_text(["a;b", "1,00;2"]) == "\ufeffa;b\r\n1,00;2"
+
+
+def test_veraenderung_und_ohne_automatik():
+    assert a.veraenderung(115, 100) == 15 and a.veraenderung(99.5, 100) == 0 and a.veraenderung(98.5, 100) == -1
+    assert a.veraenderung(5, 0) is None and a.veraenderung(None, 5) is None
+    assert a.ohne_automatik(40, 100, 0.25) == {"gespart_eur": 15.0, "prozent": 60.0}
+    assert a.ohne_automatik(120, 100, 0.25) == {"gespart_eur": 0.0, "prozent": 0.0}
+    assert a.ohne_automatik(5, 0, 0.25) is None
+
+
 # ------------------------------------------------------------------ Heizperiode
 
 

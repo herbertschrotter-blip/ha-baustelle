@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.14] – 2026-09-30
+
+- Intern (Umbau „Module je Funktion“, Phase 2): Die Integration liefert die Auswertung und die Abrechnung nach Firma
+  jetzt selbst an die Seite (neue Befehle, samt CSV). Bericht und CSV-Anhang nehmen dieselben Rechnungen – für denselben
+  Zeitraum dieselben Zahlen wie auf der Seite. Im Bericht steht die eigene Firma zuerst, danach die Firmen in der
+  Reihenfolge ihres ersten Verbrauchs (wie auf der Seite). Die Seite rechnet vorerst noch selbst.
+
 ## [0.7.13] – 2026-09-30
 
 - Intern (Umbau „Module je Funktion“, Phase 1): Die Auswertung – Abrechnung nach Firma mit CSV, Heizperiode, Heiztage,
