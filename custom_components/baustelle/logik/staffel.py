@@ -158,6 +158,11 @@ def _reihenfolge(lasten: list[Last]) -> list[Last]:
     return sorted(sorted(lasten, key=lambda l: l.id), key=_rang, reverse=True)
 
 
+def anlauf_folge(lasten: list[Last]) -> list[Last]:
+    """Anlaufstaffel des Aufrufers (einer nach dem anderen): Frost > Boost > Priorität, bei Gleichstand nach id."""
+    return sorted(lasten, key=lambda l: (not l.frost, not l.boost, -l.prio, l.id))
+
+
 def _abschalt_reihenfolge(lasten: list[Last]) -> list[Last]:
     """Zuerst normale, dann Boost, zuletzt Frost; jeweils der zuletzt eingeschaltete zuerst."""
     return sorted(lasten, key=lambda l: (l.frost, l.boost, l.an_seit_min, l.id))

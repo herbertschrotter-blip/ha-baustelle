@@ -19,6 +19,7 @@ from . import auswertung
 from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
 from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldungen
+from .funktionen.heizung import Heizung
 from .logik.auswertung import ARTEN
 from .logik.warnungen import Art
 
@@ -404,7 +405,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     """Eintrag einer Liste anlegen, ändern oder löschen."""
     if (st := _steuerung(hass, connection, msg)) is None:
         return
-    st.plan_neu()
+    Heizung.von(st).plan_neu()
     try:
         ergebnis = _liste_aendern(st, msg["liste"], msg["aktion"], msg["eintrag"])
     except vol.Invalid as err:
@@ -491,7 +492,7 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
             connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Gerät nicht gefunden")
             return
         if aktion == "automatik":
-            st.heizfunktion.hand_beenden(g.id, "wieder auf Automatik")
+            Heizung.von(st).hand_beenden(g.id, "wieder auf Automatik")
         elif "an" not in msg:
             _fehler(connection, msg, "schalten braucht an")
             return

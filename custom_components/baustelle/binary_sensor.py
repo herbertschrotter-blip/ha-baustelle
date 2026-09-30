@@ -11,6 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import BaustelleConfigEntry
 from .const import ROLLE_PUMPE
 from .entity import BaustelleEntity
+from .funktionen.pumpen import Pumpen
 from .steuerung import Steuerung
 
 PARALLEL_UPDATES = 0
@@ -68,4 +69,4 @@ class PumpeLaeuftSensor(BaustelleEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        return self.steuerung.daten.pumpe_laeuft.get(self.geraet_id or "")
+        return Pumpen.von(self.steuerung).pumpe_laeuft.get(self.geraet_id or "")

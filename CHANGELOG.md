@@ -1,10 +1,18 @@
 # Changelog
 
+## [0.7.20] – 2026-09-30
+
+- Intern (Umbau „Module je Funktion“, zweite Nachbesserung Phase 4): Heizplan, Heizgrenze, freie Tage, Termine der
+  Bedarfs-Container, Frostschutz bei Automatik aus, Wetter-Einträge im Protokoll, „Tür offen“ und die Hochrechnung auf
+  die Heizperiode gehören jetzt zur Funktion Heizung. Die Steuerung legt die Funktionen aus einer Liste an und fragt
+  sie auch in der Staffelung (welche Geräte geschaltet werden, Leistung ohne Messung, Vorrang, Anzeige je Anschluss);
+  eine neue Funktion braucht keine Änderung an der Steuerung mehr. Sichtbar ändert sich nichts.
+
 ## [0.7.19] – 2026-09-30
 
 - Intern (Umbau „Module je Funktion“, Nachbesserung Phase 4): Handbetrieb, Energiezähler fürs Heizen, der Status der
-  Baustelle und der Protokolltext „Modus: …“ kommen jetzt von der Funktion (Heizung bzw. Pumpen); die Steuerung kennt
-  keine Heizungs- oder Pumpen-Einzelheiten mehr. Sichtbar ändert sich nichts.
+  Baustelle und der Protokolltext „Modus: …“ kommen jetzt von der Funktion (Heizung bzw. Pumpen). Sichtbar ändert
+  sich nichts. (Weitere Heizungsregeln lagen noch in der Steuerung – ausgelagert in 0.7.20.)
 
 ## [0.7.18] – 2026-09-30
 

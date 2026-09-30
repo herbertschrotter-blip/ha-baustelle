@@ -1,35 +1,63 @@
 """Funktion Heizung: Container nach Plan, Wetter und Bedarf heizen (Bauplan 0.7 §2, Bauplan Module §3).
 
-Soll je Container (`logik/regelung.soll_container`), Modus, Handbetrieb, Bedarf/Boost/„alle jetzt heizen“, Tür offen,
-Anzeige der Container, Warnungs-Zustände der Container und die Zähler der Heizung (Heizzeit, Heiztage, mittlere
-Leistung, „ohne Automatik“, Aufheiz-/Abkühlrate). Geschaltet wird im Kern über die Staffelung.
+Heizplan je Tag (`logik/arbeitszeit.tagesplan` mit Vor-/Nachheizen, Frühstart, Kleidung trocknen, „Noch früher“),
+Heizgrenze, freie Tage, Soll je Container (`logik/regelung.soll_container`), Modus, Handbetrieb, Bedarf/Boost/„alle
+jetzt heizen“, Termine der Bedarfs-Container aus `termine_kalender`, Tür offen, Frostschutz bei Automatik aus, Vorrang
+in der Staffelung, Wetter-Entscheidung im Protokoll, Anzeige der Container, Warnungs-Zustände der Container und die
+Zähler der Heizung (Heizzeit, Heiztage, mittlere Leistung, „ohne Automatik“, Aufheiz-/Abkühlrate, Hochrechnung auf die
+Heizperiode). Geschaltet wird im Kern über die Staffelung: nur Heizkörper; Bautrockner zählen nur mit.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from dataclasses import replace
+from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import STATE_ON
 from homeassistant.util import dt as dt_util
 
-from ..const import ART_CONTAINER, CONF_HEIZUNG, HEIZROLLEN, ROLLE_HEIZKOERPER, ZIEHT_STROM_W
+from ..const import (
+    ART_CONTAINER,
+    CONF_ENDE,
+    CONF_HEIZPERIODE_BIS,
+    CONF_HEIZPERIODE_VON,
+    CONF_HEIZUNG,
+    HEIZROLLEN,
+    ROLLE_HEIZKOERPER,
+    ZIEHT_STROM_W,
+)
+from .. import texte
 from ..logik import warnungen as warn_logik
 from ..logik.arbeitszeit import (
     AusnahmeArt,
+    HeizRegeln,
     Plan,
     StatusArt,
     bedarf_fenster,
     im_fenster,
     status as plan_status,
+    tagesplan,
     uhrzeit,
 )
 from ..logik.regelung import LageContainer, Soll, SollGrund, soll_container
-from ..logik.zaehlen import ABKUEHL_MIN_H, AUFHEIZ_MIN_H, gradstunden, mittel, mittel_im_betrieb, rate
+from ..logik.zaehlen import (
+    ABKUEHL_MIN_H,
+    AUFHEIZ_MIN_H,
+    gradstunden,
+    hochrechnung,
+    mittel,
+    mittel_im_betrieb,
+    rate,
+    tage_heizperiode,
+)
 from ..texte import GRUND_TEXT, wochentag
-from .basis import ZAEHLER_SPEICHERN_S, Funktion, minuten_seit, mitternacht, zahl, zeit
+from .basis import ZAEHLER_SPEICHERN_S, Funktion, ev_zeit, minuten_seit, mitternacht, zahl, zeit
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from ..logik.warnungen import Warnung
     from ..steuerung import BereichInfo, GeraetInfo, Steuerung, WetterWerte
     from .basis import SollJeBereich
 
@@ -39,6 +67,10 @@ HEIZ_GRUENDE = {
 }
 MODUS_TEXT = {"plan": "Zeitplan", "thermo": "Thermostat", "bedarf": "Bei Bedarf", "hand": "Hand", "aus": "Aus"}
 MODI = tuple(MODUS_TEXT)
+STANDARD_HEIZ_KW = 2.0  # Heizkörper ohne Messung (Mockup: 2,0 kW)
+FRUEHSTART_NACHRICHT = time(18, 0)  # Abend vorher: „Morgen −4 °C – Vorheizen startet schon um …“
+FRUEHER_MIN = 30  # Knopf „Noch früher“
+WETTER_PROTOKOLL_AB = time(5, 0)  # Mockup: „05:00 wetter …“
 
 
 class Heizung(Funktion):
@@ -49,9 +81,17 @@ class Heizung(Funktion):
     standard = True
     arten = (ART_CONTAINER,)
     rollen = HEIZROLLEN
+    schaltet = True
+    braucht_wetter = True
+    standard_kw = STANDARD_HEIZ_KW
+    staffel_feld = "heiz_kw"
 
     def __init__(self, st: Steuerung) -> None:
         super().__init__(st)
+        self.termine: list[dict[str, Any]] = []  # Termine der Bedarfs-Container (api-0.7 §1 `termine`)
+        self.plaene: dict[str, Plan | None] = {}  # Heizplan je Container von heute (letzte Auswertung)
+        self._plan_cache: dict[tuple[date, bool], Plan | None] = {}
+        self._zu_warm_vorher: bool | None = None
         self.tuer_trotzdem: set[str] = set()  # Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist
         self._frost: dict[str, bool] = {}
         self._unter_soll_seit: dict[str, datetime] = {}
@@ -87,6 +127,7 @@ class Heizung(Funktion):
 
     def aufraeumen(self, jetzt: datetime) -> bool:
         st, lz = self.st, self.st.lz
+        self._plan_cache.clear()
         geaendert = False
         for art in ("bedarf_bis", "boost_bis"):
             for bid, bis in list(lz[art].items()):
@@ -103,30 +144,109 @@ class Heizung(Funktion):
         for gid in [g for g in lz["hand"] if g not in st.geraete]:
             del lz["hand"][gid]
             geaendert = True
+        grenze = (jetzt.date() - timedelta(days=1)).isoformat()
+        for iso in [k for k in lz.get("frueher", {}) if k < grenze]:
+            del lz["frueher"][iso]
         return geaendert
 
     def _termin_fenster(self, bid: str) -> list[tuple[datetime, datetime, bool]]:
         """Termine eines Bedarfs-Containers als (von, bis, boost)."""
         return [
             (von, bis, bool(t.get("boost")))
-            for t in self.st.termine
+            for t in self.termine
             if t["bereich"] == bid and (von := zeit(t["von"])) is not None and (bis := zeit(t["bis"])) is not None
         ]
 
+    # ------------------------------------------------------------------ Einrichtung und Kalender
+    def entitaeten(self) -> set[str]:
+        """Türkontakte der Container."""
+        return {t for b in self.bereiche() if (t := self.st.einstellungen.bereich(b.id).get("tuer"))}
+
+    def kalender_neu(self, pfad: tuple[str, ...]) -> bool:
+        # Termine gehören nur zu Bedarfs-Containern: nach dem Umstellen gleich neu zuordnen, nicht erst in 15 min
+        return pfad[0] == "termine_kalender" or pfad[-1] == "bedarf"
+
+    async def async_kalender(self, start: datetime, ende: datetime) -> None:
+        """Termine der Bedarfs-Container aus `termine_kalender` (Serien löst der Kalender auf)."""
+        st = self.st
+        kalender = st.e.get("termine_kalender")
+        events = await st.async_events(kalender, start, ende)
+        details = await st.async_event_details(kalender, start, ende) if events else {}
+        bedarf = [b for b in self.bereiche() if st.einstellungen.bereich(b.id).get("bedarf")]
+        termine: list[dict[str, Any]] = []
+        for ev in events:
+            von, bis = ev_zeit(ev.get("start")), ev_zeit(ev.get("end"))
+            if von is None or bis is None:
+                continue
+            bid = _termin_bereich(ev, bedarf)
+            if bid is None:
+                continue
+            uid, rrule = details.get((von.isoformat(), str(ev.get("summary") or "")), ("", None))
+            termine.append({
+                "bereich": bid, "von": von.isoformat(), "bis": bis.isoformat(),
+                "titel": str(ev.get("summary") or ""), "uid": uid, "rrule": rrule,
+                "wiederholung": _wiederholung(rrule), "boost": "boost" in str(ev.get("description") or "").lower(),
+            })
+        self.termine = sorted(termine, key=lambda t: t["von"])
+
+    # ------------------------------------------------------------------ Plan
+    def heiz_regeln(self) -> HeizRegeln:
+        h = self.st.e["heizung"]
+        return HeizRegeln(
+            vorheizen_min=int(h["vorheizen_min"]), nachheizen_min=int(h["nachheizen_min"]),
+            fruehstart=bool(h["fruehstart"]), fruehstart_unter=float(h["fruehstart_unter"]),
+            fruehstart_min=int(h["fruehstart_min"]), trocknen_ab_mm=float(h["trocknen_ab_mm"]),
+            trocknen_laenger_min=int(h["trocknen_laenger_min"]), trocknen_frueher_min=int(h["trocknen_frueher_min"]),
+        )
+
+    def ist_frei(self, tag: date) -> bool:
+        """Urlaub immer, Feiertag nur mit „Feiertage frei“."""
+        art = self.st.frei_art(tag)
+        return art == "urlaub" or (art == "feiertag" and bool(self.st.e["heizung"]["feiertag_frei"]))
+
+    def plan(self, tag: date, trocknen: bool) -> Plan | None:
+        """Heizplan eines Tages (logik/arbeitszeit.tagesplan), dazu „Noch früher“ aus der Nachricht.
+
+        Je Auswertung zwischengespeichert (sie läuft bei jeder Zustandsänderung, z. B. jedem Leistungswert).
+        """
+        if (tag, trocknen) in self._plan_cache:
+            return self._plan_cache[(tag, trocknen)]
+        st = self.st
+        p = tagesplan(
+            tag, st.arbeitszeiten(), st.ausnahmen(), self.heiz_regeln(), st.wetter_tag_plan(tag), trocknen,
+            frei=self.ist_frei(tag),
+        )
+        extra = int(st.lz.get("frueher", {}).get(tag.isoformat()) or 0)
+        if p is not None and extra:
+            p = replace(p, start=max(0, p.start - extra))
+        self._plan_cache[(tag, trocknen)] = p
+        return p
+
+    def plan_neu(self) -> None:
+        """Nach einer Änderung an Arbeitszeit, Ausnahmen oder „Noch früher“ neu rechnen."""
+        self._plan_cache.clear()
+
+    def zu_warm(self, wetter: WetterWerte) -> bool:
+        """Heizgrenze überschritten (Tageshöchstwert oder Wert von jetzt, Einstellung `heizgrenze_basis`)."""
+        h = self.st.e["heizung"]
+        wert = wetter.aussen_max if h["heizgrenze_basis"] == "tageshoechst" else wetter.aussen
+        return wert is not None and wert > float(h["heizgrenze"])
+
     # ------------------------------------------------------------------ Soll
-    def soll(self, jetzt: datetime, wetter: WetterWerte, zu_warm: bool) -> SollJeBereich:
+    def soll(self, jetzt: datetime, wetter: WetterWerte) -> SollJeBereich:
         st = self.st
         hass = st.hass
         heute, minute = jetzt.date(), jetzt.hour * 60 + jetzt.minute
         h = st.e["heizung"]
         jetzt_bis = self.jetzt_bis(jetzt)
-        frei_heute = st.ist_frei(heute)
+        frei_heute = self.ist_frei(heute)
+        zu_warm = self.zu_warm(wetter)
         ergebnis: dict[str, tuple[Soll, LageContainer]] = {}
-        for info in st.container():
+        for info in self.bereiche():
             bid = info.id
             e = st.einstellungen.bereich(bid)
-            plan = st.plan(heute, bool(e["trocknen"]))
-            st.daten.plaene[bid] = plan
+            plan = self.plan(heute, bool(e["trocknen"]))
+            self.plaene[bid] = plan
             frei, warm = frei_heute, zu_warm
             if jetzt_bis is not None:
                 # „alle jetzt heizen“: wie in der Arbeitszeit, auch an freien Tagen und über der Heizgrenze (§5)
@@ -167,6 +287,53 @@ class Heizung(Funktion):
             self._frost[bid] = soll.grund == SollGrund.FROST
             ergebnis[bid] = (soll, lage)
         return ergebnis
+
+    # ------------------------------------------------------------------ Staffelung und Schalten
+    def schaltbar(self, g: GeraetInfo) -> bool:
+        """Geschaltet werden nur Heizkörper (Mockup „geschaltet werden nur Heizungen“)."""
+        return g.rolle == ROLLE_HEIZKOERPER
+
+    def staffel_vorrang(self, soll: tuple[Soll, LageContainer], schaltet: bool) -> dict[str, Any]:
+        """Frostschutz und Boost zuerst, dann wer am weitesten unter dem Soll ist."""
+        s, lage = soll
+        return {
+            "frost": schaltet and s.grund == SollGrund.FROST,
+            "boost": schaltet and s.grund == SollGrund.BOOST,
+            "defizit": (lage.soll - lage.temperatur) if lage.temperatur is not None else None,
+        }
+
+    def schaltet_ohne_automatik(self) -> bool:
+        """„Frostschutz auch bei Automatik aus“: `soll` will dann nur Frost-Container schalten."""
+        return bool(self.st.e["heizung"].get("frost_immer"))
+
+    def nach_schalten(self, jetzt: datetime, wetter: WetterWerte) -> None:
+        """Einmal am Morgen die Wetter-Entscheidung ins Protokoll (Mockup „05:00 wetter …“), dazu jeder Wechsel."""
+        st = self.st
+        zu_warm = self.zu_warm(wetter)
+        heute = jetzt.date().isoformat()
+        h = st.e["heizung"]
+        if jetzt.time() >= WETTER_PROTOKOLL_AB and st.lz.get("wetter_protokoll") != heute:
+            st.lz["wetter_protokoll"] = heute
+            wt = st.wetter_tag_plan(jetzt.date())
+            teile = []
+            if wt.regen_vortag_mm is not None and wt.regen_vortag_mm >= float(h["trocknen_ab_mm"]):
+                teile.append(f"Regen {texte._zahl(wt.regen_vortag_mm, 0)} mm seit gestern – heute Kleidung trocknen")
+            if wt.frueh_min_temp is not None and h["fruehstart"] and wt.frueh_min_temp < float(h["fruehstart_unter"]):
+                teile.append(f"Kalter Morgen {texte._zahl(wt.frueh_min_temp)} °C – Frühstart {h['fruehstart_min']} min früher")
+            bezug = wetter.aussen_max if h["heizgrenze_basis"] == "tageshoechst" else wetter.aussen
+            if bezug is not None:
+                was = "Höchstwert" if h["heizgrenze_basis"] == "tageshoechst" else "jetzt"
+                teile.append(
+                    f"Heizgrenze überschritten ({was} {texte._zahl(bezug, 0)} °C) – heute wird nicht geheizt" if zu_warm
+                    else f"Heizgrenze nicht erreicht ({was} {texte._zahl(bezug, 0)} °C) – es wird geheizt"
+                )
+            for text in teile:
+                st.protokoll("wetter", None, text)
+            self._zu_warm_vorher = zu_warm
+            st.einstellungen.speichern()
+        elif self._zu_warm_vorher is not None and zu_warm != self._zu_warm_vorher:
+            st.protokoll("wetter", None, "Heizgrenze überschritten – Heizung aus" if zu_warm else "Heizgrenze unterschritten – es wird wieder geheizt")
+        self._zu_warm_vorher = zu_warm
 
     # ------------------------------------------------------------------ Hand
     def nach_soll(self, soll: SollJeBereich) -> None:
@@ -214,10 +381,18 @@ class Heizung(Funktion):
     ) -> tuple[warn_logik.Typ, datetime | None, int]:
         return (warn_logik.Typ.HEIZUNG if g.rolle == ROLLE_HEIZKOERPER else warn_logik.Typ.SONST), None, 0
 
+    def warn_einstellungen(self) -> Mapping[str, Any]:
+        return self.st.e["heizung"]  # Frostschutz, Tür offen
+
+    def warnung_protokoll(self, w: Warnung) -> tuple[str, str] | None:
+        if w.art == warn_logik.Art.TUER_OFFEN:
+            return "schalten", "Tür offen – Heizung pausiert"
+        return None
+
     def warnungen(self, jetzt: datetime, soll: SollJeBereich) -> list[warn_logik.ContainerZustand]:
         st = self.st
         liste = []
-        for info in st.container():
+        for info in self.bereiche():
             s_c = soll.get(info.id)
             temp = st.temperatur(info.fuehler)
             soll_t = self.soll_temperatur(info.id)
@@ -312,7 +487,7 @@ class Heizung(Funktion):
         e = self.st.einstellungen.bereich(bid)
         if e["bedarf"] or not e["auto"] or not self.st.automatik:
             return None
-        s = plan_status(jetzt.date(), jetzt.hour * 60 + jetzt.minute, lambda t: self.st.plan(t, bool(e["trocknen"])))
+        s = plan_status(jetzt.date(), jetzt.hour * 60 + jetzt.minute, lambda t: self.plan(t, bool(e["trocknen"])))
         if s.minute is None or s.art == StatusArt.HEIZT:
             return None
         if s.tag in (jetzt.date(), jetzt.date() + timedelta(days=1)):
@@ -320,7 +495,7 @@ class Heizung(Funktion):
         return f"{wochentag(s.tag)} {uhrzeit(s.minute)}"
 
     # ------------------------------------------------------------------ Status und Protokoll
-    def status(self, jetzt: datetime, zu_warm: bool) -> tuple[str, str, datetime | None] | None:
+    def status(self, jetzt: datetime) -> tuple[str, str, datetime | None] | None:
         """Status der Baustelle und Text neben dem Automatik-Chip (Mockup `statusText`)."""
         st = self.st
         if not st.automatik:
@@ -329,15 +504,15 @@ class Heizung(Funktion):
         jetzt_bis = self.jetzt_bis(jetzt)
         if jetzt_bis is not None:
             return "heizt", f"♨ alle heizen bis {jetzt_bis.strftime('%H:%M')}", jetzt_bis
-        s = plan_status(heute, minute, lambda t: st.plan(t, True))
+        s = plan_status(heute, minute, lambda t: self.plan(t, True))
         naechste = mitternacht(s.tag) + timedelta(minutes=s.minute) if s.minute is not None and s.tag is not None else None
         heizt = any(z in ("heizt", "trocknen", "frost") for z in st.daten.zustand.values())
         ausnahme = next((a for a in st.ausnahmen() if a.datum == heute), None)
         if ausnahme is not None and ausnahme.art == AusnahmeArt.FREI:
             status = "frei"
-        elif st.ist_frei(heute) and (ausnahme is None or ausnahme.art == AusnahmeArt.FREI):
+        elif self.ist_frei(heute) and (ausnahme is None or ausnahme.art == AusnahmeArt.FREI):
             status = st.frei_art(heute) or "frei"
-        elif zu_warm:
+        elif self.zu_warm(st.daten.wetter):
             status = "heizgrenze"
         else:
             status = "heizt" if heizt else "bereit"
@@ -430,3 +605,42 @@ class Heizung(Funktion):
             if g.rolle == ROLLE_HEIZKOERPER and g.typ == typ and f"mittel:{g.id}" in z
         ]
         return sum(werte) / len(werte) if werte else None
+
+    def hochrechnung_heizperiode(self, key: str) -> float | None:
+        """Tagesschnitt seit Zählbeginn auf die ganze Heizperiode hochgerechnet (kWh)."""
+        st = self.st
+        seit = dt_util.parse_datetime(st.zaehler["seit"]) if st.zaehler.get("seit") else None
+        if seit is None:
+            return None
+        jetzt = dt_util.now()
+        von = int(st.entry.options.get(CONF_HEIZPERIODE_VON, 10))
+        bis = int(st.entry.options.get(CONF_HEIZPERIODE_BIS, 4))
+        jahr = jetzt.year if jetzt.month >= von else jetzt.year - 1
+        tage = (jetzt - seit).total_seconds() / 86400
+        ende = st.entry.options.get(CONF_ENDE)
+        bis_tag = date.fromisoformat(ende) if ende else None   # geplantes Ende der Baustelle (neu 0.7.8)
+        return hochrechnung(st.zaehler.get(key, 0.0), tage, tage_heizperiode(von, bis, jahr, bis_tag))
+
+
+def _termin_bereich(ev: dict[str, Any], bedarf: list[BereichInfo]) -> str | None:
+    """Container eines Termins: `baustelle:<bid>` in der Beschreibung, sonst der Name im Titel/Ort, sonst der einzige
+    Bedarfs-Container (api-0.7 §1 `termine`)."""
+    beschreibung = str(ev.get("description") or "")
+    for b in bedarf:
+        if f"baustelle:{b.id}" in beschreibung:
+            return b.id
+    for feld in ("location", "summary"):
+        text = str(ev.get(feld) or "").lower()
+        for b in bedarf:
+            if b.name.lower() and b.name.lower() in text:
+                return b.id
+    return bedarf[0].id if len(bedarf) == 1 else None
+
+
+def _wiederholung(rrule: str | None) -> str:
+    if not rrule:
+        return "einmal"
+    teile = dict(t.split("=", 1) for t in rrule.split(";") if "=" in t)
+    if teile.get("FREQ") == "WEEKLY":
+        return "2wochen" if teile.get("INTERVAL") == "2" else "woche"
+    return "einmal"

@@ -169,7 +169,7 @@ async def test_hand_und_energie_nur_ueber_die_funktion(hass: HomeAssistant, baus
     await hass.async_block_till_done()
     st.geraet_schalten(st.geraete[P1], False)
     await hass.async_block_till_done()
-    assert P1 not in st.lz["hand"] and st.pumpfunktion.hand_seit(st.geraete[P1]) is None
+    assert P1 not in st.lz["hand"] and st.funktion("pumpen").hand_seit(st.geraete[P1]) is None
     assert "Pumpe 1 von Hand ausgeschaltet" in _texte(st, "schalten")
     # Heizkörper von der Seite: Handbetrieb der Heizung
     st.geraet_schalten(st.geraete[HK1], True)
@@ -277,7 +277,7 @@ async def test_bedarf_mit_termin_aus_dem_kalender(hass: HomeAssistant, baustelle
     st.einstellung_setzen(("termine_kalender",), "calendar.besprechungen")
     st.einstellung_setzen(("automatik",), True)
     await hass.async_block_till_done()
-    assert st.termine[0]["titel"] == "Baubesprechung" and st.termine[0]["wiederholung"] == "einmal"
+    assert st.funktion("heizung").termine[0]["titel"] == "Baubesprechung" and st.funktion("heizung").termine[0]["wiederholung"] == "einmal"
     assert hass.states.get("switch.hk2").state == "off" and st.daten.grund[C2] == "bereit"
     assert st.daten.text[C2] == "bei Bedarf · nur Frostschutz"
     await _zu(hass, freezer, "2026-09-29 10:16:00+02:00", st)  # 45 min Vorheizen vor 11:00
@@ -360,9 +360,9 @@ async def test_fruehstart_nachricht_am_vorabend(hass: HomeAssistant, baustelle, 
     st._takt(dt_util.now())  # noqa: SLF001
     assert len([x for x in nachrichten if x.data["title"].startswith("❄")]) == 1  # einmal je Tag
     await _knopf(hass, st, "frueher", "2026-09-30")
-    assert st.plan(date(2026, 9, 30), True).start == 5 * 60 + 15
+    assert st.funktion("heizung").plan(date(2026, 9, 30), True).start == 5 * 60 + 15
     await _knopf(hass, st, "frei", "2026-09-30")
-    assert st.plan(date(2026, 9, 30), True) is None
+    assert st.funktion("heizung").plan(date(2026, 9, 30), True) is None
     assert {"datum": "2026-09-30", "art": "frei"}.items() <= st.e["ausnahmen"][0].items()
 
 
@@ -598,13 +598,13 @@ async def test_neuer_tuerkontakt_wird_beobachtet(hass: HomeAssistant, baustelle,
     hass.states.async_set("binary_sensor.tuer_c2", "on")
     freezer.move_to(ZEHN_UHR)
     st.einstellung_setzen(("automatik",), True)
-    st.heizfunktion.tuer_trotzdem.add(C2)  # heizt trotz offener Tür
+    st.funktion("heizung").tuer_trotzdem.add(C2)  # heizt trotz offener Tür
     st.einstellung_setzen(("bereiche", C2, "tuer"), "binary_sensor.tuer_c2")
     await hass.async_block_till_done()
     assert hass.states.get("switch.hk2").state == "on"
     hass.states.async_set("binary_sensor.tuer_c2", "off")  # zu → „trotzdem“ ist vorbei
     await hass.async_block_till_done()
-    assert C2 not in st.heizfunktion.tuer_trotzdem
+    assert C2 not in st.funktion("heizung").tuer_trotzdem
 
 
 async def test_anlauf_ohne_protokoll_eintrag(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
@@ -645,3 +645,78 @@ async def test_heizt_nur_bei_verbrauch(hass: HomeAssistant, baustelle, freezer, 
     hass.states.async_set("sensor.hk1_power", "1800")
     await hass.async_block_till_done()
     assert struktur(hass, baustelle)["laufzeit"]["container"][C1]["zustand"] == "heizt"
+
+
+# ---------------------------------------------------------------------- Kern und Funktionen (Bauplan Module §1.2, §3)
+async def test_neue_funktion_ohne_eingriff_in_den_kern(hass: HomeAssistant, freezer, shellys, nachrichten, monkeypatch) -> None:
+    """Eine neue Funktion (Probe „Kühlung“) kommt allein über `funktionen.FUNKTIONEN` in Automatik, Staffelung,
+    Schalten, Anzeige und Status – ohne Änderung an `steuerung.py` (nur das Gerätemodell der neuen Bereichsart kommt
+    in `entity.MODELL` dazu)."""
+    from custom_components.baustelle import entity, funktionen, steuerung
+    from custom_components.baustelle.funktionen.basis import Funktion
+    from custom_components.baustelle.logik.regelung import Soll
+
+    class Kuehlung(Funktion):
+        name = option = "kuehlung"
+        standard = True
+        arten = ("kuehlraum",)
+        rollen = ("kuehlgeraet",)
+        schaltet = True
+        standard_kw = 1.5
+        staffel_feld = "kuehl_kw"
+
+        def soll(self, jetzt, wetter):
+            return {b.id: (Soll(True, "arbeitszeit"), None) for b in self.bereiche()}
+
+        def schaltbar(self, g):
+            return True
+
+        def anzeige(self, bid, info, jetzt, soll, offline, an):
+            return ("kuehlt" if an else "aus"), "", "arbeitszeit"
+
+        def status(self, jetzt):
+            return "bereit", "kühlt", None  # Status aus der Liste des Status-Sensors
+
+    monkeypatch.setattr(steuerung, "FUNKTIONEN", (*funktionen.FUNKTIONEN, Kuehlung))
+    monkeypatch.setitem(entity.MODELL, "kuehlraum", "Kühlraum")
+    await hass.config.async_set_time_zone("Europe/Vienna")
+    freezer.move_to("2026-09-29 09:00:00+02:00")
+    hass.states.async_set("switch.kuehl", "off")  # seit einer Stunde aus (Mindestpause vorbei)
+    freezer.move_to(ZEHN_UHR)
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="K", data={"name": "K"},
+        options={"heizung": False, "pumpen": False, "status": "aktiv", "beginn": "2026-09-01"},
+        subentries_data=[
+            sub("kr", "bereich", "Kühlraum", {"name": "Kühlraum", "art": "kuehlraum"}),
+            sub("kg", "geraet", "Kühlgerät", {"bereich": "kr", "schalter": "switch.kuehl", "name": "Kühlgerät",
+                                             "rolle": "kuehlgeraet", "typ": "konvektor"}),
+        ],
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    shellys.anmelden()
+    st = entry.runtime_data
+    assert st.automatik_moeglich and not st.automatik
+    assert shellys.aufrufe == []
+    st.einstellung_setzen(("automatik",), True)
+    await _zu(hass, freezer, "2026-09-29 10:00:30+02:00", st)  # nach dem Anlauf (ANLAUF_S)
+    assert shellys.ein() == ["switch.kuehl"]
+    assert st.daten.staffel["laufen"] == 1
+    assert st.daten.staffel["anschluesse"][0]["kuehl_kw"] == 1.5
+    assert (st.daten.status_text, st.daten.zustand["kr"]) == ("kühlt", "kuehlt")
+
+
+def test_kern_ohne_einzelheiten_der_funktionen() -> None:
+    """Bauplan Module §3: `steuerung.py` nennt keine Funktion, Rolle oder Einstellung von Heizung und Pumpen."""
+    import re
+    from pathlib import Path
+
+    quelle = (Path(__file__).parents[2] / "custom_components" / "baustelle" / "steuerung.py").read_text()
+    verboten = [
+        r"funktionen\.(heizung|pumpen)", r"\bHeizung\b", r"\bPumpen\b", r"ROLLE_", "HEIZROLLEN", r"ART_",
+        r"\[\"heizung\"\]", r"SollGrund", r"LageContainer", r"frost", r"boost", r"bedarf", r"[Tt]ür", r"tuer",
+        r"heizgrenze", r"termine_kalender",
+    ]
+    treffer = [(m, z) for z in quelle.splitlines() for m in verboten if re.search(m, z)]
+    assert treffer == []

@@ -19,7 +19,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: BaustelleConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     st = entry.runtime_data
-    if st.heizung:
+    if st.automatik_moeglich:
         async_add_entities([AutomatikSwitch(st)])
 
 

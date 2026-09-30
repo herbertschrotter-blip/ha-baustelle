@@ -28,9 +28,11 @@ class Pumpen(Funktion):
     standard = False
     arten = (ART_PUMPENSCHACHT,)
     rollen = (ROLLE_PUMPE,)
+    staffel_feld = "pumpe_kw"
 
     def __init__(self, st: Steuerung) -> None:
         super().__init__(st)
+        self.pumpe_laeuft: dict[str, bool] = {}  # Pumpe → läuft (Binärsensor „Pumpe läuft“, Struktur `pumpe_laeuft`)
         self._laeuft_seit: dict[str, datetime] = {}
         self._starts: dict[str, deque[datetime]] = {}
 
@@ -44,12 +46,12 @@ class Pumpen(Funktion):
         if laeuft_jetzt:
             if g.id not in self._laeuft_seit:
                 self._laeuft_seit[g.id] = jetzt
-                if st.daten.pumpe_laeuft.get(g.id) is False and st.aktiv:
+                if self.pumpe_laeuft.get(g.id) is False and st.aktiv:
                     st.zaehler_plus(f"zyklen:{g.id}", 1)
                     self._starts.setdefault(g.id, deque()).append(jetzt)
         else:
             self._laeuft_seit.pop(g.id, None)
-        st.daten.pumpe_laeuft[g.id] = laeuft_jetzt
+        self.pumpe_laeuft[g.id] = laeuft_jetzt
         starts = self._starts.get(g.id, deque())
         while starts and (jetzt - starts[0]) > timedelta(hours=1):
             starts.popleft()
@@ -58,14 +60,14 @@ class Pumpen(Funktion):
     def anzeige(
         self, bid: str, info: BereichInfo, jetzt: datetime, soll: SollJeBereich, offline: bool, an: bool
     ) -> tuple[str, str, str]:
-        laeuft_jetzt = any(self.st.daten.pumpe_laeuft.get(g.id) for g in self.st.geraete_in(bid))
+        laeuft_jetzt = any(self.pumpe_laeuft.get(g.id) for g in self.st.geraete_in(bid))
         zustand = "offline" if offline else ("laeuft" if laeuft_jetzt else "aus")
         return zustand, {"offline": "nicht erreichbar", "laeuft": "Pumpe läuft", "aus": "Pumpe aus"}[zustand], zustand
 
     def zaehlen_geraet(self, g: GeraetInfo, an: bool, leistung: float | None, stunden: float) -> bool:
-        if self.st.daten.pumpe_laeuft.get(g.id):
+        if self.pumpe_laeuft.get(g.id):
             self.st.zaehler_plus(f"pumpzeit:{g.id}", stunden)
         return False
 
-    def status(self, jetzt: datetime, zu_warm: bool) -> tuple[str, str, datetime | None] | None:
+    def status(self, jetzt: datetime) -> tuple[str, str, datetime | None] | None:
         return "nur_pumpen", "", None

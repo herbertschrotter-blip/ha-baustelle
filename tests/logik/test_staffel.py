@@ -8,6 +8,7 @@ from logik.staffel import (
     Prio,
     StaffelRegeln,
     Warten,
+    anlauf_folge,
     anschluss,
     frei_je_anschluss,
     grenze_kw,
@@ -296,3 +297,11 @@ def test_unbekannter_anschluss_zaehlt_nicht_bei_max_gleichzeitig():
     lasten = [hz("x", anschluss="fehlt", an=True), hz("n", kw=1.0)]
     e = staffeln([klein(10)], lasten, StaffelRegeln(max_gleichzeitig=1))
     assert e.an == {"x", "n"}
+
+
+def test_anlauf_folge_frost_boost_prio_id():
+    lasten = [
+        hz("d", prio=Prio.HOCH), hz("c"), hz("b", boost=True), hz("a", frost=True), hz("e", prio=Prio.HOCH),
+        hz("f", boost=True, frost=True, prio=Prio.NIEDRIG),
+    ]
+    assert [l.id for l in anlauf_folge(lasten)] == ["f", "a", "b", "d", "e", "c"]

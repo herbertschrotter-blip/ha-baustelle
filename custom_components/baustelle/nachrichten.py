@@ -28,6 +28,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import AKTION_PRAEFIX, DOMAIN, EVENT_NACHRICHT_AKTION, URL_SEITE
 from . import auswertung
+from .funktionen.heizung import FRUEHER_MIN, FRUEHSTART_NACHRICHT, Heizung
 from .logik import bericht as bericht_logik, warnungen as warn_logik
 from .logik.arbeitszeit import AusnahmeArt, uhrzeit
 from . import texte
@@ -136,8 +137,6 @@ class Nachrichten:
     @callback
     def fruehstart_pruefen(self, jetzt: datetime) -> None:
         """Um 18:00: kommt morgen der Kälte-Frühstart, eine Nachricht mit „Morgen nicht heizen“ / „Noch früher“."""
-        from .steuerung import FRUEHER_MIN, FRUEHSTART_NACHRICHT  # noqa: PLC0415
-
         morgen = jetzt.date() + timedelta(days=1)
         lz = self.st.lz
         if (
@@ -147,7 +146,7 @@ class Nachrichten:
             or not self.einst.get("arten", {}).get("fruehstart", True)
         ):
             return
-        plan = self.st.plan(morgen, True)
+        plan = Heizung.von(self.st).plan(morgen, True)
         if plan is None or "fruehstart" not in plan.gruende:
             return
         lz["fruehstart_gemeldet"] = morgen.isoformat()
@@ -188,11 +187,11 @@ class Nachrichten:
             st.protokoll("nachricht", w.bereich if w else None,
                          f"Knopf „{texte_bis}“: {warn_logik.titel(w) if w else wert}")
         elif befehl == "trotzdem" and wert in st.bereiche:
-            st.heizfunktion.tuer_trotzdem.add(wert)
+            Heizung.von(st).tuer_trotzdem.add(wert)
             st.protokoll("nachricht", wert, "Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist")
         elif befehl == "automatik" and wert in st.geraete:
             g = st.geraete[wert]
-            st.heizfunktion.hand_beenden(wert)
+            Heizung.von(st).hand_beenden(wert)
             st.protokoll("nachricht", g.bereich, f"Knopf „Automatik übernehmen“: {g.name} wieder auf Automatik")
         elif befehl in ("frei", "frueher") and not _ist_datum(wert):
             _LOGGER.debug("Knopf %s mit ungültigem Datum %s", befehl, wert)
@@ -204,12 +203,11 @@ class Nachrichten:
                                       "notiz": "Morgen nicht heizen (Nachricht)"})
             st.protokoll("nachricht", None, f"Knopf „Morgen nicht heizen“: {tag.strftime('%d.%m.%Y')} frei")
         elif befehl == "frueher":
-            from .steuerung import FRUEHER_MIN  # noqa: PLC0415
-
             frueher = st.lz.setdefault("frueher", {})
             frueher[wert] = int(frueher.get(wert) or 0) + FRUEHER_MIN
-            st.plan_neu()
-            plan = st.plan(date.fromisoformat(wert), True)
+            heizung = Heizung.von(st)
+            heizung.plan_neu()
+            plan = heizung.plan(date.fromisoformat(wert), True)
             wann = uhrzeit(plan.start) if plan else "–"
             st.protokoll("nachricht", None, f"Knopf „Noch früher“: Start um {wann}")
         else:
@@ -365,7 +363,7 @@ class Nachrichten:
 
     async def async_heizzeit_je_tag(self, von: date, bis: date) -> dict[str, dict[date, float]]:
         """Heizstunden je Container (ohne Pumpenschächte) und Tag – für die Heiztage wie der Zähler `heiztage`."""
-        return await self._async_je_tag({b.id: f"{b.id}_heizzeit" for b in self.st.container()}, von, bis)
+        return await self._async_je_tag({b.id: f"{b.id}_heizzeit" for b in Heizung.von(self.st).bereiche()}, von, bis)
 
     async def _async_je_tag(self, schluessel: dict[str, str], von: date, bis: date) -> dict[str, dict[date, float]]:
         return await auswertung.async_je_tag(self.hass, self._statistik_ids(schluessel), von, bis)

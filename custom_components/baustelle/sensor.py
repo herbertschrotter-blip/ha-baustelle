@@ -21,6 +21,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import BaustelleConfigEntry
 from .const import ART_CONTAINER, HEIZROLLEN, ROLLE_PUMPE, TYPEN
 from .entity import BaustelleEntity
+from .funktionen.heizung import Heizung
 from .logik.regelung import SollGrund
 from .steuerung import Steuerung
 
@@ -49,18 +50,19 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: BaustelleConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     st = entry.runtime_data
+    heizung = Heizung.von(st).aktiv()
     liste: list[SensorEntity] = [StatusSensor(st), LeistungSensor(st)]
-    if st.heizung:
+    if heizung:
         liste += [NaechsteSchaltzeitSensor(st), *(WetterSensor(st, w) for w in WETTER)]
-    liste += [ZaehlerSensor(st, z) for z in ZAEHLER_BAUSTELLE if st.heizung or not z.nur_heizung]
-    if st.heizung:
+    liste += [ZaehlerSensor(st, z) for z in ZAEHLER_BAUSTELLE if heizung or not z.nur_heizung]
+    if heizung:
         for typ in TYPEN:
             liste += [ZaehlerSensor(st, z) for z in _typ_zaehler(typ)]
     async_add_entities(liste)
     for bid, info in st.bereiche.items():
         bereich: list[SensorEntity] = [LeistungSensor(st, bid)]
         bereich += [ZaehlerSensor(st, z, bereich_id=bid) for z in _bereich_zaehler(bid)]
-        if st.heizung and info.art == ART_CONTAINER:
+        if heizung and info.art == ART_CONTAINER:
             bereich += [GrundSensor(st, bid), ZaehlerSensor(st, _heizzeit(bid), bereich_id=bid)]
         async_add_entities(bereich, config_subentry_id=bid)
     for gid, g in st.geraete.items():
@@ -179,14 +181,14 @@ ZAEHLER_BAUSTELLE = [
     Zaehler("energie", lambda st: st.zaehler.get("energie", 0.0)),
     Zaehler("kosten", lambda st: st.zaehler.get("kosten", 0.0), **GELD),
     Zaehler("energie_ohne_automatik", lambda st: st.zaehler.get("ohne", 0.0), nur_heizung=True),
-    Zaehler("ersparnis", lambda st: st.heizfunktion.ersparnis_kwh() * _preis(st), **{**GELD, "nur_heizung": True}),
-    Zaehler("prognose_heizperiode", lambda st: st.hochrechnung_heizperiode("energie_heizen"), **PROGNOSE),
+    Zaehler("ersparnis", lambda st: Heizung.von(st).ersparnis_kwh() * _preis(st), **{**GELD, "nur_heizung": True}),
+    Zaehler("prognose_heizperiode", lambda st: Heizung.von(st).hochrechnung_heizperiode("energie_heizen"), **PROGNOSE),
     Zaehler(
         "prognose_heizperiode_kosten",
-        lambda st: _mal_preis(st.hochrechnung_heizperiode("energie_heizen"), st),
+        lambda st: _mal_preis(Heizung.von(st).hochrechnung_heizperiode("energie_heizen"), st),
         **{**GELD, "art": None, "nur_heizung": True},
     ),
-    Zaehler("prognose_heizperiode_ohne", lambda st: st.hochrechnung_heizperiode("ohne"), **PROGNOSE),
+    Zaehler("prognose_heizperiode_ohne", lambda st: Heizung.von(st).hochrechnung_heizperiode("ohne"), **PROGNOSE),
 ]
 
 
@@ -194,7 +196,7 @@ def _typ_zaehler(typ: str) -> list[Zaehler]:
     return [
         Zaehler(f"energie_{typ}", lambda st: st.zaehler.get(f"energie_typ:{typ}", 0.0)),
         Zaehler(f"heizzeit_{typ}", lambda st: st.zaehler.get(f"heizzeit_typ:{typ}", 0.0), **STUNDEN),
-        Zaehler(f"mittel_{typ}", lambda st: st.heizfunktion.mittel_typ(typ), **{**MITTEL, "diagnose": False}),
+        Zaehler(f"mittel_{typ}", lambda st: Heizung.von(st).mittel_typ(typ), **{**MITTEL, "diagnose": False}),
     ]
 
 

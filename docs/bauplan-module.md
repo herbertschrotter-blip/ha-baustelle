@@ -145,6 +145,26 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   die Schnittstelle. Den Handbetrieb bestimmt die Funktion des **Bereichs** (nicht der Rolle), damit Steckdosen und
   Trockner im Container wie bisher auf Hand gehen; Pumpenschacht und Rolle Pumpe gehören laut Einrichtung immer
   zusammen, die Pumpen kennen keinen Handbetrieb. Keine sichtbare Abweichung (`struktur-echt*.json` byte-gleich).
+  Zweite Nachbesserung (0.7.20, nach Prüfung): Der Kern legt die Funktionen aus `funktionen.FUNKTIONEN` an
+  (`st.funktion(name)`, außerhalb `Heizung.von(st)`), statt sie von Hand zu verdrahten. Zur Heizung gezogen:
+  Heizgrenze (`zu_warm`), Heizplan (`plan`, `heiz_regeln`, `ist_frei`, „Noch früher“), Termine der Bedarfs-Container
+  (`async_kalender`, `kalender_neu`), Frostschutz bei Automatik aus (`schaltet_ohne_automatik`), Wetter-Einträge im
+  Protokoll (`nach_schalten`), Protokolltext „Tür offen“ (`warnung_protokoll`), Einstellungen für die Warnungen
+  (`warn_einstellungen`), Türkontakte (`entitaeten`), Hochrechnung auf die Heizperiode; `pumpe_laeuft` zu den Pumpen.
+  Die Automatik gibt es, sobald eine aktive Funktion `schaltet` (heute nur Heizung, wie bisher); die Warnung „keine
+  Wettervorhersage“ nur mit einer aktiven Funktion, die `braucht_wetter`. Die Staffelung fragt die Funktion der Rolle
+  (`schaltbar`, `standard_kw`, `staffel_feld`) und des Bereichs (`staffel_vorrang`: Frost, Boost, Defizit); die
+  Anlauf-Reihenfolge steht in `logik/staffel.anlauf_folge`. Test: Probe-Funktion „Kühlung“ nur über `FUNKTIONEN`
+  (Automatik, Staffelung, Schalten, Anzeige, Status) und ein Test, der Heizungs-/Pumpen-Namen in `steuerung.py` sucht.
+  Im Kern bleiben nur die Feldnamen von `logik/staffel.Last` (`heizer`) und `logik/warnungen` (`container`) sowie der
+  Protokolltext „… – alle Container ein/aus“. Kleine unsichtbare Änderungen: ein Türkontakt wird nur noch einmal
+  beobachtet (bisher bei jedem Setzen erneut), und nur Türkontakte von Containern. Keine sichtbare Abweichung
+  (`struktur-echt*.json` byte-gleich bis auf die Versionsnummer).
+  **Für die Anleitung (Phase 6) festhalten:** Außerhalb des Kerns greifen Seite, Nachrichten und Entitäten weiter
+  direkt auf die Heizung bzw. die Pumpen zu (`daten.py`: Plan, Termine, Bedarf/Boost, Modus, Heizgrenze,
+  `pumpe_laeuft`; `panel.py`/`nachrichten.py`: Hand beenden, „Trotzdem heizen“, „Noch früher“, Frühstart;
+  `sensor.py`/`binary_sensor.py`: Ersparnis, Hochrechnung, Mittel je Typ, Pumpe läuft; `entity.MODELL` braucht das
+  Gerätemodell einer neuen Bereichsart). Eine neue Funktion mit eigener Anzeige braucht dort eigene Stellen.
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
 
 ## 6. Ausführung mit Agenten
@@ -162,5 +182,6 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 - Freigegeben von Herbert am 30.09.2026 (mit Phase 7).
 - [x] Phase 0 · [x] Phase 1 · [x] Phase 2 · [x] Phase 3 (Nachbesserung nach Prüfung: Firmenregel einmal, Firma je
   Container aus der Struktur, sichtbare Unterschiede in §5) · [x] Phase 4 (0.7.17; `struktur-echt.json` byte-gleich bis auf
-  die Versionsnummer; Nachbesserung 0.7.19: Hand, Heiz-Energie, Status und Modus-Text über die Schnittstelle) ·
+  die Versionsnummer; Nachbesserung 0.7.19: Hand, Heiz-Energie, Status und Modus-Text über die Schnittstelle;
+  Nachbesserung 0.7.20: Kern ohne Heizungs-/Pumpen-Regeln, Funktionen aus `FUNKTIONEN`, Staffelung über die Funktionen) ·
   [x] Phase 5 (0.7.18) · [ ] Phase 7 · [ ] Phase 6

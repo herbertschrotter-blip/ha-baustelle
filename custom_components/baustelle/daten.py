@@ -13,6 +13,8 @@ from homeassistant.util import dt as dt_util
 
 from .const import ART_CONTAINER, CONF_STATUS, STATUS_AKTIV
 from .funktionen import aktive
+from .funktionen.heizung import Heizung
+from .funktionen.pumpen import Pumpen
 from .logik.abrechnung import EIGEN, firma_von
 from .logik.arbeitszeit import Plan, uhrzeit
 from .logik.warnungen import titel as warn_titel
@@ -23,6 +25,7 @@ if TYPE_CHECKING:
 
 PROTOKOLL_IN_STRUKTUR = 20
 NICHT_IN_EINSTELLUNGEN = ("zaehler", "protokoll", "meldungen", "laufzeit")
+ROLLE_API = {"heizkoerper": "heizung", "bautrockner": "trockner", "pumpe": "pumpe", "steckdose": "steckdose"}
 
 
 def _iso(zeit: datetime | None) -> str | None:
@@ -53,7 +56,7 @@ def _plan_woche(st: Steuerung, heute: date) -> list[dict[str, Any]]:
     for tag in _woche(heute):
         ausnahme = next((a for a in st.ausnahmen() if a.datum == tag), None)
         frei = "ausnahme" if ausnahme is not None and str(ausnahme.art) == "frei" else st.frei_art(tag)
-        eintrag: dict[str, Any] = {"datum": tag.isoformat(), "plan": plan_dict(st.plan(tag, True)), "frei": frei}
+        eintrag: dict[str, Any] = {"datum": tag.isoformat(), "plan": plan_dict(Heizung.von(st).plan(tag, True)), "frei": frei}
         if frei == "feiertag" and tag in st.kalender_namen:
             eintrag["name"] = st.kalender_namen[tag]
         tage.append(eintrag)
@@ -70,15 +73,16 @@ def _minute_im_tag(zeit: datetime, tag: date) -> int:
 
 def _abschnitte(st: Steuerung, heute: date, jetzt: datetime) -> dict[str, dict[str, list[list[Any]]]]:
     """Heizzeiten je Container und Tag der Woche (Mockup `heizzeiten`); Termine als „vorheizen“ + „termin“."""
+    heizung = Heizung.von(st)
     vorheizen = timedelta(minutes=int(st.e["heizung"]["vorheizen_min"]))
     ergebnis: dict[str, dict[str, list[list[Any]]]] = {}
-    for info in st.container():
+    for info in heizung.bereiche():
         e = st.einstellungen.bereich(info.id)
         je_tag: dict[str, list[list[Any]]] = {}
         for tag in _woche(heute):
             teile: list[list[Any]] = []
             if e["bedarf"]:
-                for t in st.termine:
+                for t in heizung.termine:
                     von, bis = dt_util.parse_datetime(t["von"]), dt_util.parse_datetime(t["bis"])
                     if t["bereich"] != info.id or von is None or bis is None:
                         continue
@@ -87,10 +91,10 @@ def _abschnitte(st: Steuerung, heute: date, jetzt: datetime) -> dict[str, dict[s
                         continue
                     teile.append([_minute_im_tag(von - vorheizen, tag), _minute_im_tag(von, tag), "vorheizen"])
                     teile.append([_minute_im_tag(von, tag), _minute_im_tag(bis, tag), "termin"])
-                if tag == heute and (bis := st.heizfunktion.bis("bedarf_bis", info.id, jetzt)) is not None:
+                if tag == heute and (bis := heizung.bis("bedarf_bis", info.id, jetzt)) is not None:
                     teile.append([_minute_im_tag(jetzt, tag), _minute_im_tag(bis, tag), "termin"])
             elif e["auto"]:
-                plan = st.plan(tag, bool(e["trocknen"]))
+                plan = heizung.plan(tag, bool(e["trocknen"]))
                 teile = [[von, bis, str(art)] for von, bis, art in plan.abschnitte()] if plan else []
             je_tag[tag.isoformat()] = [x for x in teile if x[1] > x[0]]
         ergebnis[info.id] = je_tag
@@ -113,6 +117,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
     heute = jetzt.date()
     d = st.daten
     lz = st.lz
+    heizung, pumpen = Heizung.von(st), Pumpen.von(st)
     container: dict[str, Any] = {}
     for bid, info in st.bereiche.items():
         kw = sum(
@@ -127,10 +132,10 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
         container[bid] = {
             "zustand": d.zustand.get(bid, "aus"), "grund": d.grund.get(bid), "text": d.text.get(bid, ""),
             "temperatur": d.temperatur.get(bid), "kw": round(kw, 3),
-            "bedarf_bis": _iso(st.heizfunktion.bis("bedarf_bis", bid, jetzt)),
-            "boost_bis": _iso(st.heizfunktion.bis("boost_bis", bid, jetzt)),
+            "bedarf_bis": _iso(heizung.bis("bedarf_bis", bid, jetzt)),
+            "boost_bis": _iso(heizung.bis("boost_bis", bid, jetzt)),
             "tuer": tuer,
-            "modus": st.heizfunktion.modus(bid) if info.art == ART_CONTAINER else None,
+            "modus": heizung.modus(bid) if info.art == ART_CONTAINER else None,
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}
@@ -159,22 +164,22 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
         "status": d.status,
         "status_text": d.status_text,
         "naechste": _iso(d.naechste),
-        "jetzt_bis": _iso(st.heizfunktion.jetzt_bis(jetzt)),
+        "jetzt_bis": _iso(heizung.jetzt_bis(jetzt)),
         "container": container,
         "geraete": geraete,
-        "plan_woche": _plan_woche(st, heute) if st.heizung else [],
-        "abschnitte": _abschnitte(st, heute, jetzt) if st.heizung else {},
+        "plan_woche": _plan_woche(st, heute) if heizung.aktiv() else [],
+        "abschnitte": _abschnitte(st, heute, jetzt) if heizung.aktiv() else {},
         "staffel": d.staffel,
         "warnungen": warnungen,
         "wetter": {"aussen": w.aussen, "aussen_max": w.aussen_max, "frueh_min": w.frueh, "regen_vortag": w.regen_vortag,
                    "regen_heute": w.regen_heute, "zustand": w.zustand},
         "heizgrenze": {"bezug": w.aussen_max if h["heizgrenze_basis"] == "tageshoechst" else w.aussen,
-                       "zu_warm": d.zu_warm},
-        "termine": list(st.termine),
+                       "zu_warm": heizung.zu_warm(w)},
+        "termine": list(heizung.termine),
         "protokoll": st.e["protokoll"][:PROTOKOLL_IN_STRUKTUR],
         # wie 0.6 (Entitäten, Diagnose)
         "probleme": d.probleme,
-        "pumpe_laeuft": d.pumpe_laeuft,
+        "pumpe_laeuft": pumpen.pumpe_laeuft,
         "erreichbar": d.erreichbar,
     }
 
@@ -197,8 +202,6 @@ def struktur(hass: HomeAssistant, entry: ConfigEntry, version: str = "") -> dict
     if st is None:
         daten.update(bereiche=[], geraete=[], einstellungen={}, zaehler={}, laufzeit={})
         return daten
-    from .steuerung import ROLLE_API  # noqa: PLC0415
-
     daten.update(
         bereiche=[{"id": b.id, "name": b.name, "art": b.art, "fuehler": b.fuehler, "nr": b.nr} for b in st.bereiche.values()],
         geraete=[
