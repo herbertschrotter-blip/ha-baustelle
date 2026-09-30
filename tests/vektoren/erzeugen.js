@@ -4,6 +4,8 @@
 //
 // Aufruf: node tests/vektoren/erzeugen.js [baustelle-panel.js]           schreibt die Vektoren
 //         node tests/vektoren/erzeugen.js --pruefen [baustelle-panel.js] vergleicht nur (Exit 1 bei Abweichung)
+// Ohne Datei nimmt es die Seite vom Git-Tag `vor-module`: seit Phase 3 rechnet die Seite nicht mehr selbst (die
+// Rechnungen, die hier nachgerechnet werden, gibt es nur noch in der Seite vor dem Umbau).
 //
 // Reproduzierbar: feste Uhrzeit (29.09.2026 16:20), Statistik aus einer Hash-Funktion statt Zufall, keine Uhr des Rechners.
 // Wo die Seite heute anders rechnet als die Integration (Firma je Tag statt je Stunde/Monat, Heiztage aus der Heizzeit),
@@ -14,7 +16,7 @@ const path = require('path');
 
 const argumente = process.argv.slice(2), pruefen = argumente.includes('--pruefen');
 const REPO = path.resolve(__dirname, '..', '..');
-const datei = argumente.find(a => a !== '--pruefen') || path.join(REPO, 'custom_components/baustelle/frontend/baustelle-panel.js');
+const datei = argumente.find(a => a !== '--pruefen');
 const ZIEL = __dirname;
 const STRUKTUREN = ['struktur-0.7.json', 'struktur-echt.json'].map(n => path.join(REPO, 'tests/panel', n));
 
@@ -32,7 +34,9 @@ global.document = { createElement: () => ({ click() {} }) };
 global.setInterval = () => 1; global.clearInterval = () => {};
 console.warn = () => {};
 // Die Hilfen der Seite (summe, zahl, …) liegen im eval-Bereich; __methode baut dort eine Funktion aus Quelltext der Seite
-eval(fs.readFileSync(datei, 'utf8') + '\n;globalThis.__methode = q => eval("(" + q + ")");');
+const seite = datei ? fs.readFileSync(datei, 'utf8')
+  : require('child_process').execFileSync('git', ['show', 'vor-module:custom_components/baustelle/frontend/baustelle-panel.js'], { cwd: REPO, encoding: 'utf8' });
+eval(seite + '\n;globalThis.__methode = q => eval("(" + q + ")");');
 const P = registry['baustelle-panel'];
 if (!P) { console.error('baustelle-panel wurde nicht registriert'); process.exit(1); }
 const quelle = name => { const q = P.prototype[name].toString(); return q.startsWith('function') ? q : 'function ' + q; };

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.15] – 2026-09-30
+
+- Intern (Umbau „Module je Funktion“, Phase 3): Die Seite rechnet nichts mehr selbst – Auswertung, Abrechnung nach
+  Firma, CSV, Verlauf, Heiztage, Ölradiator/Konvektor, Wetter-Einfluss und Je Gerät kommen von der Integration. Seite,
+  Bericht und CSV zeigen damit dieselben Zahlen. Wo die Seite bisher anders rechnete, gilt jetzt die Integration: der
+  Verbrauch eines Tages gehört der Firma zu Tagesbeginn (auch bei „Tag“ und „Jahr“), Heiztage ohne Zähler zählen nur
+  Tage, an denen ein Container geheizt hat.
+
 ## [0.7.14] – 2026-09-30
 
 - Intern (Umbau „Module je Funktion“, Phase 2): Die Integration liefert die Auswertung und die Abrechnung nach Firma

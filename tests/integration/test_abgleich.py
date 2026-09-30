@@ -500,7 +500,7 @@ async def test_seite_gegen_echte_struktur(hass: HomeAssistant, echte_baustelle) 
     # 3. Jeden Befehl so an HA schicken, wie die Seite ihn sendet
     typen = {m["type"] for m in aufrufe}
     for erwartet in ("baustelle/setzen", "baustelle/liste", "baustelle/aktion", "baustelle/protokoll",
-                     "baustelle/bericht", "baustelle/meldung", "baustelle/meldungen", "calendar/event/create",
+                     "baustelle/bericht", "baustelle/auswertung", "baustelle/abrechnung", "baustelle/meldung", "baustelle/meldungen", "calendar/event/create",
                      "calendar/event/delete", "auth/sign_path", "config_entries/update",
                      "config_entries/subentries/delete", "rest"):
         assert erwartet in typen, f"Seite sendet {erwartet} nicht (gesendet: {sorted(typen)})"
@@ -514,6 +514,8 @@ async def test_seite_gegen_echte_struktur(hass: HomeAssistant, echte_baustelle) 
         for v in [m["daten"].get("bereich")] if isinstance(v, str) and v.startswith("neu-")))
     for m in aufrufe:
         m = {k: v for k, v in m.items() if k not in ("id",)}
+        if m.get("entry_id") == "leer" and m["type"] in ("baustelle/auswertung", "baustelle/abrechnung"):
+            continue  # Baustelle, die nur der Node-Test erfindet (nicht geladen) – die echte HA kennt sie nicht: not_found
         if m["type"] == "rest":
             await dialoge.rufe(m, fehler)
             geschickt += 1

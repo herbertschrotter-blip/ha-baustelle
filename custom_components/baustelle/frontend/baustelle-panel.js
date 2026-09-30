@@ -1013,7 +1013,7 @@ function phaseAusSonne(sonne) {
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.7.14';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.7.15';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1356,6 +1356,21 @@ class BaustellePanel extends HTMLElement {
     const r = this.reihe(d, this.eid(d, b.id, 'heizzeit'), z, versatz); return r && r.map(v => v || 0);
   }
   zyklen(d, b, z) { const r = b.geraete.filter(g => g.rolle === 'pumpe').map(g => this.reihe(d, this.eid(d, g.id, 'pumpzyklen'), z)); if (r.some(x => !x)) return null; return addieren(r.map(x => x.map(v => Math.round(v || 0)))); }
+  /* Auswertung, Abrechnung und Verlauf rechnet die Integration (api §8), die Seite zeigt nur an: null = lädt noch, {} = Fehler */
+  awDaten(z, versatz = 0, scope = this.s.awScope || 'diese', d = this.d) {
+    if (!d) return null;
+    const r = this._holen(`aw:${d.entry}:${z}:${versatz}:${scope}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'baustelle/auswertung', entry_id: d.entry, zeitraum: z, versatz, scope }));
+    return r === undefined ? null : r || {};
+  }
+  abDaten(z, scope = this.s.awScope || 'diese', d = this.d) {
+    if (!d) return null;
+    const r = this._holen(`ab:${d.entry}:${z}:${scope}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'baustelle/abrechnung', entry_id: d.entry, zeitraum: z, versatz: 0, scope }));
+    return r === undefined ? null : r || {};
+  }
+  verlaufDaten(x) {
+    const r = this._holen(`v:${x.entry}:${x.z.HEUTE}`, () => this._hass.callWS({ type: 'baustelle/auswertung', entry_id: x.entry, teil: 'verlauf' }), 900000);
+    return r === undefined ? null : r || {};
+  }
 
   /* Gemessen: wann zieht ein Gerät Strom (Leistung über 50 W) – Verlauf der Leistungssensoren seit Montag */
   messung(d = this.d) {
@@ -1524,22 +1539,13 @@ class BaustellePanel extends HTMLElement {
   anschluss(id) { return this.d.anschluesse.find(a => a.id === id) || this.d.anschluesse[0] || { id: null, name: 'kein Anschluss', ampere: 0, phasen: 3, reserve: 0 }; }
   laufende() { return this.alle.filter(x => x.aktiv); }
   firma(id, d = this.d) { return d.firmen.find(f => f.id === id) || d.firmen[0]; }
-  /* Firma eines Containers zu einem Zeitpunkt (Verlauf der Zuordnung) */
-  firmaAm(d, bid, ms) { let f = 'eigen', ab = -Infinity; for (const x of d.zuordnung) { const t = Date.parse(x.ab); if (x.bereich === bid && t <= ms && t >= ab) { f = x.firma; ab = t; } } return d.firmen.some(y => y.id === f) ? f : 'eigen'; }
-  bucketMs(zr, i, d = this.d) {
-    if (zr.periode === 'hour') return this.zoneMs(zr.von, '00:00', d.z.zone) + i * 36e5;
-    if (zr.periode === 'day') return this.zoneMs(plusTage(zr.von, i), '00:00', d.z.zone);
-    return this.zoneMs(`${zr.jahr}-${String(i + 1).padStart(2, '0')}-01`, '00:00', d.z.zone);
-  }
   /* Was im Verbrauch gestapelt wird: Container dieser Baustelle, laufende Baustellen oder Firmen */
   quellen(st, ziel) {
     const alle = ziel === 'aw' && this.s.awScope === 'alle', lauf = alle ? this.laufende() : [this.d];
-    const nichts = z => { for (const l of lauf) if (!this.verbrauch(l, null, z)) return true; return false; };
-    if (st.gruppe === 'firma') {
+    if (st.gruppe === 'firma') {   // kWh je Firma und Periode rechnet die Integration (Firma je Tag)
       const namen = [...new Map(lauf.flatMap(l => l.firmen.map(f => [f.eigen ? 'eigen' : f.name, f]))).values()];
-      return namen.map((f, k) => ({ id: f.eigen ? 'eigen' : f.name, name: f.name, farbe: `var(--s${(k % 6) + 1})`, v: z => { if (nichts(z)) return null; const zr = this.zeitraum(z);
-        return addieren(lauf.flatMap(l => l.bereiche.map(b => { const v = this.verbrauch(l, b.id, z); return v.map((x, i) => { const fid = this.firmaAm(l, b.id, this.bucketMs(zr, i, l)), ff = this.firma(fid, l);
-          return (ff.eigen ? 'eigen' : ff.name) === (f.eigen ? 'eigen' : f.name) ? x : 0; }); }))); } }));
+      return namen.map((f, k) => ({ id: f.eigen ? 'eigen' : f.name, name: f.name, farbe: `var(--s${(k % 6) + 1})`, v: z => { const a = this.abDaten(z, alle ? 'alle' : 'diese'); if (!a) return null;
+        return (a.reihen || {})[f.eigen ? 'eigen' : f.name] || Array(this.zeitraum(z).n).fill(0); } }));
     }
     if (alle) return lauf.map((l, k) => ({ id: l.entry, name: l.titel, farbe: `var(--s${(k % 6) + 1})`, v: z => this.verbrauch(l, null, z) }));
     return this.d.bereiche.map(b => ({ id: b.id, name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: z => this.verbrauch(this.d, b.id, z) }));
@@ -1570,27 +1576,13 @@ class BaustellePanel extends HTMLElement {
       ${reihen.length > 1 ? `<div class="vb-je">${reihen.map(r => { const su = summe(r.v), sp = Math.max(...r.v, 0);
           return `<div><i style="background:${r.farbe}"></i><span class="n">${esc(r.name)}</span><b>${de(su, su < 100 ? 1 : 0)} kWh</b><span>${de(su * p, 2)} €</span><span class="leise">Spitze ${su > 0 ? labels[r.v.indexOf(sp)] : '–'}</span></div>`; }).join('')}</div>` : ''}`;
   }
-  /* Abrechnung: je Firma die Container mit kWh und Kosten im gewählten Zeitraum (Firma je Stunde/Tag nach dem Verlauf der Zuordnung) */
-  abrechnungDaten(z) {
-    const lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], zr = this.zeitraum(z), zeilen = new Map();
-    for (const l of lauf) {
-      for (const b of l.bereiche) {
-        const v = this.verbrauch(l, b.id, z); if (!v) return null;
-        v.forEach((x, i) => { if (!x) return; const f = this.firma(this.firmaAm(l, b.id, this.bucketMs(zr, i, l)), l), key = f.eigen ? 'eigen' : f.name;
-          if (!zeilen.has(key)) zeilen.set(key, { f, c: new Map(), kwh: 0 });
-          const zeile = zeilen.get(key), ck = `${l.entry}|${b.id}`; zeile.kwh += x;
-          if (!zeile.c.has(ck)) zeile.c.set(ck, { l, b, kwh: 0 }); zeile.c.get(ck).kwh += x; });
-      }
-    }
-    return [...zeilen.values()].sort((a, b) => (b.f.eigen ? 1 : 0) - (a.f.eigen ? 1 : 0)).map(x => ({ ...x, c: [...x.c.values()] }));
-  }
+  /* Abrechnung: je Firma die Container mit kWh und Kosten im gewählten Zeitraum (rechnet die Integration, Firma je Tag) */
   abrechnung(z) {
-    const lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], p = this.d.e.preis, zr = this.zeitraum(z), zeilen = this.abrechnungDaten(z);
-    const ges = zeilen ? zeilen.reduce((a, x) => a + x.kwh, 0) : 0;
+    const lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], p = this.d.e.preis, zr = this.zeitraum(z), a = this.abDaten(z), zeilen = a && (a.firmen || []);
     const wann = { Tag: 'heute', Woche: 'diese Woche', Monat: `${MONATE_LANG[zr.monat ?? 0]} ${zr.jahr ?? ''}`, Jahr: String(zr.jahr ?? '') }[z];
     return `<div class="glas-panel block"><div class="block-kopf"><b>Abrechnung nach Firma</b><span class="leise">${wann} · ${de(p, 2)} € je kWh</span></div>
-      ${!zeilen ? LAEDT : !zeilen.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : zeilen.map(({ f, c, kwh }) => `<div class="ab-firma ${f.eigen ? 'eigen' : ''}"><div class="ab-kopf"><b>${esc(f.name)}</b><span><b>${de(kwh * p, 2)} €</b> <span class="leise">${de(kwh, 0)} kWh · ${de(ges ? kwh / ges * 100 : 0, 0)} %</span></span></div>
-        ${c.map(x => `<div class="ab-c"><span>${esc(x.b.name)}${lauf.length > 1 ? ` <span class="leise">· ${esc(x.l.titel)}</span>` : ''}</span><span class="leise">${de(x.kwh, 0)} kWh · ${de(x.kwh * p, 2)} €</span></div>`).join('')}</div>`).join('')}
+      ${!zeilen ? LAEDT : !zeilen.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : zeilen.map(f => `<div class="ab-firma ${f.eigen ? 'eigen' : ''}"><div class="ab-kopf"><b>${esc(f.firma)}</b><span><b>${de(f.eur, 2)} €</b> <span class="leise">${de(f.kwh, 0)} kWh · ${de(f.anteil, 0)} %</span></span></div>
+        ${(f.container || []).map(x => `<div class="ab-c"><span>${esc(x.name)}${lauf.length > 1 ? ` <span class="leise">· ${esc(x.titel)}</span>` : ''}</span><span class="leise">${de(x.kwh, 0)} kWh · ${de(x.eur, 2)} €</span></div>`).join('')}</div>`).join('')}
       <button class="knopf" data-act="csv" data-art="firma">⇩ Abrechnung als CSV</button></div>`;
   }
   freiText(iso) {
@@ -1620,31 +1612,20 @@ class BaustellePanel extends HTMLElement {
     this.herunterladen(URL.createObjectURL(new Blob([inhalt], { type: typ })), name);
   }
   csv(art) {
-    // Export (Semikolon, deutsches Komma – öffnet direkt in Excel). art 'firma': Abrechnung je Firma und Container
-    const zeilen = [], zz = (v, d) => (zahl(v) ? Number(v) : 0).toFixed(d).replace('.', ',');   // ohne Tausendertrennung, damit Excel es als Zahl liest
-    const feld = s => /[;"\n]/.test(String(s)) ? `"${String(s).replace(/"/g, '""')}"` : String(s);
-    let name;
+    // Export (Semikolon, deutsches Komma – öffnet direkt in Excel); die CSV baut die Integration (api §8). art 'firma': Abrechnung je Firma und Container
+    let text, name;
     if (this.s.view === 'bsdetail') {
-      const x = this.alle.find(y => y.entry === this.s.bs), m = x && this.monateJeContainer(x);
-      if (!m) return this.toast('Werte laden noch …');
-      zeilen.push(['Monat', 'Baustelle', 'Container', 'kWh', 'Kosten €'].join(';'));
-      for (const r of m.reihen) r.v.forEach((v, i) => zeilen.push([m.labels[i], x.titel, r.name, zz(v, 2), zz(v * x.e.preis, 2)].map(feld).join(';')));
-      name = `baustelle-verbrauch-${x.titel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`;
+      const x = this.alle.find(y => y.entry === this.s.bs), v = x && this.verlaufDaten(x);
+      if (!v || !v.csv) return this.toast('Werte laden noch …');
+      text = v.csv; name = `baustelle-verbrauch-${x.titel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`;
     } else {
-      const z = (this.s.aw || { zeitraum: 'Monat' }).zeitraum, p = this.d.e.preis, lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], zr = this.zeitraum(z);
-      if (art === 'firma') {
-        const daten = this.abrechnungDaten(z); if (!daten) return this.toast('Werte laden noch …');
-        zeilen.push(['Zeitraum', 'Firma', 'Baustelle', 'Container', 'kWh', 'Preis €/kWh', 'Betrag €'].join(';'));
-        for (const { f, c } of daten) for (const x of c) zeilen.push([z, f.name, x.l.titel, x.b.name, zz(x.kwh, 2), zz(p, 2), zz(x.kwh * p, 2)].map(feld).join(';'));
-      } else {
-        const labels = z === 'Tag' ? zr.labels.map(h => `${h}:00`) : z === 'Jahr' ? MONATE.map(m => `${m} ${zr.jahr}`) : zr.labels.map((_, i) => datum(plusTage(zr.von, i)));
-        zeilen.push(['Zeit', 'Baustelle', 'Firma', 'Container', 'kWh', 'Kosten €'].join(';'));
-        for (const l of lauf) for (const b of l.bereiche) { const v = this.verbrauch(l, b.id, z); if (!v) return this.toast('Werte laden noch …');
-          v.forEach((w, i) => zeilen.push([labels[i], l.titel, this.firma(this.firmaAm(l, b.id, this.bucketMs(zr, i, l)), l).name, b.name, zz(w, 3), zz(w * p, 2)].map(feld).join(';'))); }
-      }
+      const z = (this.s.aw || { zeitraum: 'Monat' }).zeitraum, lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], a = this.abDaten(z);
+      if (!a || !a.csv) return this.toast('Werte laden noch …');
+      text = a.csv[art === 'firma' ? 'firma' : 'verbrauch'];
       name = `baustelle-${art === 'firma' ? 'abrechnung' : 'verbrauch'}-${lauf.length > 1 ? 'alle' : this.d.titel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${z.toLowerCase()}.csv`;
     }
-    this.datei('﻿' + zeilen.join('\r\n'), name, 'text/csv;charset=utf-8');
+    const zeilen = text.replace(/^\ufeff/, '').split('\r\n');
+    this.datei(text, name, 'text/csv;charset=utf-8');
     this.toast(`${name} · ${zeilen.length - 1} Zeilen`);
     return zeilen;
   }
@@ -1970,58 +1951,30 @@ class BaustellePanel extends HTMLElement {
   }
 
   /* ---- Auswertung ---- */
-  /* Tageswerte der letzten Wochen: kWh der Baustelle und Tagesmittel außen (Wetter-Einfluss) */
-  tageswerte(d = this.d) {
-    const bis = plusTage(d.z.HEUTE, 1), von = plusTage(d.z.HEUTE, -45), aussen = this.eid(d, d.entry, 'aussen');
-    const en = d.bereiche.map(b => this.eid(d, b.id, 'energie')).filter(Boolean), ids = [...new Set([...en, aussen].filter(Boolean))].sort();
-    if (!ids.length || !aussen) return [];
-    const roh = this._holen(`t:${d.entry}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(this.zoneMs(von, '00:00', d.z.zone)).toISOString(),
-      end_time: new Date(this.zoneMs(bis, '00:00', d.z.zone)).toISOString(), statistic_ids: ids, period: 'day', types: ['change', 'mean'], units: {} }));
-    if (roh === undefined) return null;
-    const tage = {};
-    for (const id of ids) for (const p of (roh || {})[id] || []) {
-      const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), t = this.lokal(ms, d.z.zone).slice(0, 10);
-      const x = tage[t] ||= { kwh: 0, aussen: null };
-      if (id === aussen) { if (zahl(p.mean)) x.aussen = Number(p.mean); } else if (zahl(p.change)) x.kwh += Number(p.change);
-    }
-    return Object.entries(tage).filter(([t, x]) => t < d.z.HEUTE && x.kwh > .5 && zahl(x.aussen)).sort().slice(-30).map(([, x]) => [x.aussen, x.kwh]);
-  }
-  typVergleich() {
-    const d = this.d, s = k => { const x = this.zustand(this.eid(d, d.entry, k)); return x && zahl(x.state) ? Number(x.state) : null; }, p = d.e.preis;
-    const heiztage = this.verlaufWerte(d).heiztage;
-    const rate = (typ, art) => { const w = d.bereiche.filter(b => b.geraete.some(g => g.heizer && (g.gtyp || 'oelradiator') === typ)).map(b => d.zaehler[`${art}:${b.id}`]).filter(zahl);
-      return w.length ? summe(w) / w.length : null; };
-    return ['oelradiator', 'konvektor'].map(typ => { const en = s(`energie_${typ}`), hz = s(`heizzeit_${typ}`);
-      return { kwhH: en !== null && hz ? en / hz : null, auf: rate(typ, 'aufheiz'), ab: rate(typ, 'abkuehl'), tag: en !== null && heiztage ? en / heiztage * p : null }; });
-  }
   v_auswertung() {
     const d = this.d, aw = this.s.aw ||= { zeitraum: 'Monat', auswahl: d.bereiche.map(b => b.id) }, z = aw.zeitraum, preis = d.e.preis;
-    const alle = this.s.awScope === 'alle', lauf = alle ? this.laufende() : [d];
-    const sum = (f, versatz) => { let s = 0; for (const l of lauf) { const w = f(l, versatz); if (!w) return null; s += summe(w); } return s; };
-    const kwhF = (l, v) => this.verbrauch(l, null, z, v);
-    const hzF = (l, v) => { const r = l.bereiche.filter(b => !b.pumpe).map(b => this.heizStunden(l, b, z, v)); return r.some(x => !x) ? null : addieren(r); };
-    const pzF = (l, v) => { const r = l.bereiche.filter(b => b.pumpe).map(b => this.heizStunden(l, b, z, v)); return r.some(x => !x) ? null : r.length ? addieren(r) : [0]; };
-    const ohneF = (l, v) => this.reihe(l, this.eid(l, l.entry, 'energie_ohne_automatik'), z, v);
-    const kwh = sum(kwhF, 0), kwh0 = sum(kwhF, 1), hz = sum(hzF, 0), hz0 = sum(hzF, 1), pz = sum(pzF, 0), pz0 = sum(pzF, 1), ohne = sum(ohneF, 0);
+    const alle = this.s.awScope === 'alle';
+    // Kennzahlen, Vergleich zum Zeitraum davor, Ohne Automatik, Wetter, Ölradiator/Konvektor, Je Gerät: von der Integration (api §8)
+    const A = this.awDaten(z), S = (A && A.summen) || {}, vd = k => (S.veraenderung || {})[k] ?? null, oa = S.ohne_automatik || null;
+    const kwh = A ? S.kwh : null, hz = A ? S.heizzeit : null, pz = A ? S.pumpzeit : null, ohne = A ? S.ohne : null;
     const vgl = { Tag: 'gestern', Woche: 'Vorwoche', Monat: 'Vormonat', Jahr: String(this.zeitraum('Jahr', 1).jahr) }[z];
-    const delta = (a, b) => zahl(a) && zahl(b) && b > 0 ? Math.round((a - b) / b * 100) : null;
     const kz = (wert, text, dl) => `<div><b>${wert}</b><span>${text}</span>${dl !== null ? `<em class="${dl > 0 ? 'mehr' : 'weniger'}">${dl > 0 ? '▲' : '▼'} ${Math.abs(dl)} %</em>` : ''}</div>`;
-    // Wetter-Einfluss: letzte 30 Heiztage, kWh je Tag gegen Tagesmittel außen
-    const pkt = this.tageswerte();
+    // Wetter-Einfluss: letzte 30 Heiztage, kWh je Tag gegen Tagesmittel außen, mit Gerade der Integration
+    const W = A ? A.wetter || {} : null, pkt = W && (W.punkte || []), gerade = W && W.gerade;
     let streuHtml;
-    if (pkt === null) streuHtml = LAEDT;
-    else if (pkt.length < 5) streuHtml = '<div class="leer">Noch zu wenige Heiztage für einen Vergleich</div>';
+    if (!W) streuHtml = LAEDT;
+    else if (!gerade) streuHtml = '<div class="leer">Noch zu wenige Heiztage für einen Vergleich</div>';
     else {
-      const mx = summe(pkt.map(q => q[0])) / pkt.length, my = summe(pkt.map(q => q[1])) / pkt.length, nn = summe(pkt.map(q => (q[0] - mx) ** 2));
-      const k = nn ? summe(pkt.map(q => (q[0] - mx) * (q[1] - my))) / nn : 0, d0 = my - k * mx, null0 = k < 0 ? -d0 / k : null;
+      const { k, d0, null0 } = gerade;
       streuHtml = `<div class="chart-wrap">${streu('streu', pkt, k, d0)}</div>
         <div class="hinweis-k">${k < 0 ? `Je Grad kälter <b>≈ +${de(-k, 1)} kWh</b> am Tag (${de(-k * preis, 2)} €).${zahl(null0) ? ` Ab etwa <b>${de(null0, 0)} °C</b> wird kaum mehr geheizt – ` : ' '}` : 'Noch kein klarer Zusammenhang mit der Außentemperatur. '}die Heizgrenze steht auf ${de(d.e.grenze, 0)} °C.</div>`;
     }
-    const T = this.typVergleich(), f = (v, fn) => zahl(v) ? fn(v) : '–';
+    const T = ['oelradiator', 'konvektor'].map(t => { const x = (A && A.typ && A.typ[t]) || {}; return { kwhH: x.kwh_h ?? null, auf: x.auf ?? null, ab: x.ab ?? null, tag: x.tag ?? null }; });
+    const f = (v, fn) => zahl(v) ? fn(v) : '–';
     // wie Mockup: fett ist der Nachteil (mehr kWh, langsamer aufheizen, schneller abkühlen); Kosten ohne Hervorhebung
     const nachteil = (i, hoch) => { const a = T[0][i], b = T[1][i]; if (hoch === null || !zahl(a) || !zahl(b) || a === b) return [false, false]; return hoch ? [a > b, b > a] : [a < b, b < a]; };
     const zeile = (titel, i, hoch, fn) => { const [x, y] = nachteil(i, hoch); return `<tr><td>${titel}</td><td>${x ? '<b>' : ''}${f(T[0][i], fn)}${x ? '</b>' : ''}</td><td>${y ? '<b>' : ''}${f(T[1][i], fn)}${y ? '</b>' : ''}</td></tr>`; };
-    const weniger = zahl(T[0].kwhH) && zahl(T[1].kwhH) && T[1].kwhH > 0 ? Math.round((1 - T[0].kwhH / T[1].kwhH) * 100) : null;
+    const weniger = (A && A.typ && A.typ.weniger) ?? null;
     const cmp = i => zahl(T[0][i]) && zahl(T[1][i]) && T[0][i] !== T[1][i] ? Math.sign(T[0][i] - T[1][i]) : 0;
     // Fußsatz aus den Messwerten, gebaut wie im Mockup („braucht länger, hält die Wärme aber besser und verbraucht rund 16 % weniger“)
     const auf = cmp('auf') < 0 ? 'braucht länger' : cmp('auf') > 0 ? 'heizt schneller auf' : '';
@@ -2030,22 +1983,22 @@ class BaustellePanel extends HTMLElement {
     const teile = [auf, ab, vb].filter(Boolean), fussSatz = teile.length ? `Der Ölradiator ${teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile.at(-1)}` : teile[0]}.` : 'Noch zu wenige Messungen für einen Vergleich.';
     return `${this.kopf('Auswertung', alle ? 'ALLE LAUFENDEN BAUSTELLEN' : esc(d.titel), `<button class="glas-panel chip" data-act="csv">⇩ CSV</button>`)}
       <div class="seg glas-panel">${[['diese', 'Diese Baustelle'], ['alle', `Alle laufenden (${this.laufende().length})`]].map(([k, t]) => `<button data-act="aw-scope" data-v="${k}" class="${(this.s.awScope || 'diese') === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-      <div class="glas-panel kennz vier">${kz(zahl(kwh) ? de(kwh, 0) : '–', 'kWh', delta(kwh, kwh0))}${kz(zahl(kwh) ? `${de(kwh * preis, 0)} €` : '–', 'Kosten', delta(kwh, kwh0))}${kz(zahl(hz) ? `${de(hz, 0)} h` : '–', 'Heizzeit', delta(hz, hz0))}${kz(zahl(pz) ? `${de(pz, 1)} h` : '–', 'Pumpzeit', delta(pz, pz0))}</div>
+      <div class="glas-panel kennz vier">${kz(zahl(kwh) ? de(kwh, 0) : '–', 'kWh', vd('kwh'))}${kz(zahl(kwh) ? `${de(S.eur, 0)} €` : '–', 'Kosten', vd('kwh'))}${kz(zahl(hz) ? `${de(hz, 0)} h` : '–', 'Heizzeit', vd('heizzeit'))}${kz(zahl(pz) ? `${de(pz, 1)} h` : '–', 'Pumpzeit', vd('pumpzeit'))}</div>
       <div class="leise vgl">Pfeile: im Vergleich zu ${vgl}</div>
       <div class="glas-panel block">${this.verbrauchInhalt(aw, 'aw', false)}</div>
       ${alle ? '' : this.leistungHeute()}
       ${alle ? '' : this.temperaturen()}
       ${this.abrechnung(z)}
-      ${alle ? '' : this.jeGeraet(z)}
+      ${alle ? '' : this.geraeteBlock(z, A)}
       <div class="glas-panel block"><div class="block-kopf"><b>Wetter-Einfluss</b><span class="leise">letzte 30 Heiztage · kWh je Tag gegen Außentemperatur</span></div>
         ${streuHtml}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
-        ${!zahl(ohne) || !zahl(kwh) ? (ohne === null || kwh === null ? LAEDT : '<div class="leer">Noch keine Werte</div>') : ohne <= 0 ? '<div class="leer">Noch keine Werte</div>' : `
-        <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${Math.min(100, kwh / ohne * 100)}%;background:var(--s1)"></i></span><span class="hb-w">${de(kwh * preis, 0)} €</span></div>
+        ${!zahl(ohne) || !zahl(kwh) ? (ohne === null || kwh === null ? LAEDT : '<div class="leer">Noch keine Werte</div>') : !oa ? '<div class="leer">Noch keine Werte</div>' : `
+        <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${Math.min(100, kwh / ohne * 100)}%;background:var(--s1)"></i></span><span class="hb-w">${de(S.eur, 0)} €</span></div>
         <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(ohne * preis, 0)} €</span></div>
-        <div class="gespart">gespart <b>${de(Math.max(0, ohne - kwh) * preis, 2)} €</b> · ${de(Math.max(0, 1 - kwh / ohne) * 100, 0)} %</div>`}
+        <div class="gespart">gespart <b>${de(oa.gespart_eur, 2)} €</b> · ${de(oa.prozent, 0)} %</div>`}
         ${erkl(d.e.erklaer, '„Ohne Automatik“ rechnet mit der gemessenen Leistung je Heizkörper, als liefe er rund um die Uhr – so, wie es ohne Steuerung oft ist.')}</div>
-      ${alle ? '' : this.hochrechnung()}
+      ${alle ? '' : this.hochrechnung(A)}
       <div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
         <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
           ${zeile('kWh je Heizstunde', 'kwhH', true, v => de(v, 2))}
@@ -2116,75 +2069,42 @@ class BaustellePanel extends HTMLElement {
       <div class="chart-wrap">${C.length ? inhalt : '<div class="leer">Kein Container mit Temperaturfühler</div>'}</div>
       <div class="leise">${tv === 'heute' ? 'Stundenmittel, gestrichelt außen.' : 'Tagesmittel je Container, gestrichelt außen.'}${d.bereiche.some(b => !b.pumpe && !b.fuehler) ? ' Container ohne Fühler fehlen.' : ''}</div></div>`;
   }
-  /* Je Gerät: Ø kW im Betrieb (Zähler mittel:<gid>), kWh aus dem Zählerstand des Shelly, Stunden ≈ kWh ÷ Ø kW (Pumpen: Pumpzeit) */
-  jeGeraet(z) {
-    const d = this.d, zr = this.zeitraum(z), ids = [...new Set(d.bereiche.flatMap(b => b.geraete.map(g => g.energie)).filter(Boolean))].sort();
-    const roh = ids.length ? this._holen(`g:${d.entry}:${z}:${zr.von}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
-      start_time: new Date(this.zoneMs(zr.von, '00:00', d.z.zone)).toISOString(), end_time: new Date(this.zoneMs(zr.bis, '00:00', d.z.zone)).toISOString(),
-      statistic_ids: ids, period: zr.periode, types: ['change'], units: {} })) : {};
-    if (roh === undefined) return `<div class="glas-panel block"><div class="block-kopf"><b>Je Gerät</b></div>${LAEDT}</div>`;
-    const kwhVon = id => id && (roh || {})[id] ? summe(roh[id].map(p => zahl(p.change) ? Number(p.change) : 0)) : null;
-    const zeilen = d.bereiche.flatMap(b => b.geraete.map(g => { const mw = d.zaehler[`mittel:${g.id}`], mittel = zahl(mw) && mw > 50 ? mw / 1000 : null, kwh = kwhVon(g.energie);
-      const pz = g.rolle === 'pumpe' ? this.reihe(d, this.eid(d, g.id, 'pumpzeit'), z) : null;
-      const std = g.rolle === 'pumpe' ? (pz ? summe(pz.map(v => v || 0)) : null) : zahl(kwh) && zahl(mittel) ? kwh / mittel : null;
-      return { b, g, mittel, kwh, std }; }));
+  /* Je Gerät: Ø kW im Betrieb (Zähler mittel:<gid>), kWh aus dem Zählerstand des Shelly, Stunden ≈ kWh ÷ Ø kW (Pumpen: Pumpzeit) – rechnet die Integration */
+  geraeteBlock(z, A) {
+    const d = this.d;
+    if (!A) return `<div class="glas-panel block"><div class="block-kopf"><b>Je Gerät</b></div>${LAEDT}</div>`;
+    const zeilen = (A.je_geraet || []).map(r => { const b = d.bereiche.find(x => x.id === r.bereich), g = b && b.geraete.find(x => x.id === r.geraet); return g ? { ...r, b, g } : null; }).filter(Boolean);
     const f = (v, k) => zahl(v) ? de(v, k) : '–';
     return `<div class="glas-panel block"><div class="block-kopf"><b>Je Gerät</b><span class="leise">${{ Tag: 'heute', Woche: 'diese Woche', Monat: 'dieser Monat', Jahr: 'dieses Jahr' }[z]}</span></div>
       ${zeilen.length ? `<div class="tab-scroll"><table class="vergleich je-geraet"><tr><th>Gerät</th><th>Ø kW</th><th>Stunden</th><th>kWh</th><th>€</th></tr>
-        ${zeilen.map(({ b, g, mittel, kwh, std }) => `<tr><td><b>${esc(g.n)}</b><div class="leise">${esc(b.name)} · ${esc(g.typ)}</div></td><td>${f(mittel, 2)}</td><td>${f(std, 1)}</td><td>${f(kwh, 1)}</td><td>${zahl(kwh) ? de(kwh * d.e.preis, 2) : '–'}</td></tr>`).join('')}</table></div>`
+        ${zeilen.map(({ b, g, mittel, kwh, std, eur }) => `<tr><td><b>${esc(g.n)}</b><div class="leise">${esc(b.name)} · ${esc(g.typ)}</div></td><td>${f(mittel, 2)}</td><td>${f(std, 1)}</td><td>${f(kwh, 1)}</td><td>${zahl(kwh) ? de(eur, 2) : '–'}</td></tr>`).join('')}</table></div>`
         : '<div class="leer">Noch keine Geräte</div>'}
       ${erkl(d.e.erklaer, 'Ø kW ist die mittlere Leistung, während das Gerät läuft – so sieht man, ob ein Heizkörper schwächer ist als angegeben. kWh kommen aus dem Zählerstand des Shelly (ohne Energiezähler „–“), Stunden ≈ kWh ÷ Ø kW, bei Pumpen die gemessene Pumpzeit.')}</div>`;
   }
-  /* letzter Tag der laufenden Heizperiode (ISO), wie die Integration (steuerung.hochrechnung_heizperiode) */
-  heizperiodeEnde() {
-    const [von, bis] = this.d.hp, J = +this.z.HEUTE.slice(0, 4), M = +this.z.HEUTE.slice(5, 7), jahr = M >= von ? J : J - 1, ej = bis >= von ? jahr : jahr + 1;
-    return new Date(Date.UTC(ej, bis, 0)).toISOString().slice(0, 10);
-  }
-  hochrechnung() {
-    const d = this.d, p = d.e.preis, [von, bis] = d.hp, mon = (bis - von + 12) % 12 + 1;
+  hochrechnung(A) {
+    const d = this.d, p = d.e.preis, [von, bis] = d.hp, mon = (bis - von + 12) % 12 + 1, hp = A && A.heizperiode;   // Ende der Heizperiode bzw. geplantes Ende: Integration
     const wert = k => { const x = this.zustand(this.eid(d, d.entry, k)); return x !== null && zahl(x) ? Number(x) : null; };
     const mit = wert('prognose_heizperiode'), ohne = wert('prognose_heizperiode_ohne'), bisher = zahl(d.zaehler.energie_heizen) ? d.zaehler.energie_heizen : null;
     const max = Math.max(mit || 0, ohne || 0, bisher || 0) || 1, balkenZ = (t, v, farbe) => `<div class="hbar"><span class="hb-n">${t}</span><span class="hb-spur"><i style="width:${zahl(v) ? v / max * 100 : 0}%;background:${farbe}"></i></span><span class="hb-w">${zahl(v) ? `${de(v * p, 0)} €` : '–'}</span></div>`;
     return `<div class="glas-panel block"><div class="block-kopf"><b>Hochrechnung Heizperiode</b><span class="leise">${MONATE[von - 1]}–${MONATE[bis - 1]} · ${mon} Monate</span></div>
       ${!zahl(mit) ? '<div class="leer">Noch zu wenige Tage für eine Hochrechnung</div>' : `${balkenZ('bisher', bisher, 'var(--s3)')}${balkenZ('mit Automatik', mit, 'var(--s1)')}${balkenZ('ohne (24/7)', ohne, 'var(--s2)')}
-      <div class="gespart">bis ${d.ende && d.ende < this.heizperiodeEnde() ? datum(d.ende) : `Ende ${MONATE_LANG[bis - 1]}`} rund <b>${de(mit, 0)} kWh</b> · ${de(mit * p, 0)} €${zahl(ohne) ? ` – gespart ≈ <b>${de(Math.max(0, ohne - mit) * p, 0)} €</b>` : ''}</div>`}
+      <div class="gespart">bis ${hp && hp.bis !== hp.ende ? datum(hp.bis) : `Ende ${MONATE_LANG[bis - 1]}`} rund <b>${de(mit, 0)} kWh</b> · ${de(mit * p, 0)} €${zahl(ohne) ? ` – gespart ≈ <b>${de(Math.max(0, ohne - mit) * p, 0)} €</b>` : ''}</div>`}
       <div class="leise">aus dem bisherigen Verbrauch je Tag hochgerechnet${d.ende ? ` – bis zum geplanten Ende ${datum(d.ende)}, wenn es früher liegt` : ''}. Heizperiode unter Einstellungen › Baustelle.</div>
       ${erkl(d.e.erklaer, 'Die Hochrechnung nimmt den Verbrauch je Tag bisher und rechnet ihn auf die ganze Heizperiode hoch. Endet die Baustelle früher, zählt nur bis zum Ende.')}</div>`;
   }
 
   /* ---- Verlauf ---- */
-  /* Tageswerte einer Baustelle seit Beginn (bzw. der letzten 12 Monate): Heiztage, Monate, kWh je Monat */
-  verlaufWerte(x) {
-    const id = this.eid(x, x.entry, 'energie'), heute = x.z.HEUTE, j = +heute.slice(0, 4), m = +heute.slice(5, 7) - 1;
-    const vor12 = `${m >= 11 ? j : j - 1}-${String(((m + 1) % 12) + 1).padStart(2, '0')}-01`;
-    const beginn = x.beginn || vor12, von = beginn < vor12 ? beginn : vor12, bis = x.ende ? plusTage(x.ende, 1) : plusTage(heute, 1);
-    // Heiztage zählt die Integration (zaehler.heiztage: Tage, an denen eine Heizung lief) – dieselbe Zahl wie ihr Sensor;
-    // aus der Statistik nur, wenn der Zähler fehlt
-    const hz = x.zaehler && zahl(x.zaehler.heiztage) ? Number(x.zaehler.heiztage) : null;
-    const leer = { heiztage: hz ?? 0, monate: 0, jeMonat: {}, laedt: false };
-    if (!id) return leer;
-    const roh = this._holen(`v:${x.entry}:${heute}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(this.zoneMs(von, '00:00', x.z.zone)).toISOString(),
-      end_time: new Date(this.zoneMs(bis, '00:00', x.z.zone)).toISOString(), statistic_ids: [id], period: 'day', types: ['change'], units: {} }), 900000);
-    if (roh === undefined) return { ...leer, laedt: hz === null };
-    const jeMonat = {}, monate = new Set(); let heiztage = 0;
-    for (const p of (roh || {})[id] || []) {
-      const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), t = this.lokal(ms, x.z.zone).slice(0, 10), v = zahl(p.change) ? Number(p.change) : 0;
-      jeMonat[t.slice(0, 7)] = (jeMonat[t.slice(0, 7)] || 0) + v;
-      if (v > .5 && (!x.beginn || t >= x.beginn)) { heiztage++; monate.add(t.slice(0, 7)); }
-    }
-    return { heiztage: hz ?? heiztage, monate: monate.size, jeMonat, laedt: false };
-  }
-  kennzahlen(x) {
-    const zl = x.zaehler || {}, st = k => { const s = this.zustand(this.eid(x, x.entry, k)); return s && zahl(s.state) ? Number(s.state) : null; };
-    const kwh = zahl(zl.energie) ? Number(zl.energie) : st('energie') ?? 0, eur = zahl(zl.kosten) ? Number(zl.kosten) : st('kosten') ?? kwh * x.e.preis;
-    const gespart = st('ersparnis') ?? (zahl(zl.ohne) && zahl(zl.energie_heizen) ? Math.max(0, zl.ohne - zl.energie_heizen) * x.e.preis : null);
-    const zeit = x.aktiv ? (x.beginn ? `seit ${datum(x.beginn)}` : 'laufend') : `${x.beginn ? datum(x.beginn) : '–'} – ${x.ende ? datum(x.ende) : '–'}`;
-    return { kwh, eur, gespart, zeit, container: x.bereiche.length, ...this.verlaufWerte(x) };
+  /* Kennzahlen einer Baustelle im Verlauf (kWh, €, gespart, Heiztage, Vergleich, kWh je Monat) – rechnet die Integration */
+  kennz(x) {
+    const v = this.verlaufDaten(x), zeit = x.aktiv ? (x.beginn ? `seit ${datum(x.beginn)}` : 'laufend') : `${x.beginn ? datum(x.beginn) : '–'} – ${x.ende ? datum(x.ende) : '–'}`;
+    if (!v) return { zeit, kwh: null, eur: null, gespart: null, heiztage: null, container: x.bereiche.length, vergleich: {}, jeMonat: {}, monate: null, laedt: true };
+    return { zeit, kwh: v.kwh ?? 0, eur: v.eur ?? 0, gespart: v.gespart ?? null, heiztage: v.heiztage ?? 0, container: v.container ?? x.bereiche.length,
+      vergleich: v.vergleich || {}, jeMonat: v.je_monat || {}, monate: v.monate_je_container || { labels: [], reihen: [] }, laedt: false };
   }
   v_verlauf() {
     const BS = this.alle, liste = BS.filter(b => b.aktiv === (this.s.verlauf === 'aktiv')), m = this.s.vglArt || 'tag';
-    const K = new Map(BS.map(b => [b.entry, this.kennzahlen(b)]));
-    const wert = b => { const k = K.get(b.entry); return m === 'tag' ? (k.heiztage ? k.kwh / k.heiztage : 0) : m === 'monat' ? (k.monate ? k.eur / k.monate : 0) : k.kwh; };
+    const K = new Map(BS.map(b => [b.entry, this.kennz(b)]));
+    const wert = b => K.get(b.entry).vergleich[m] || 0;   // kWh je Heiztag, € je Monat mit Heizung, gesamt (Integration)
     const fmt = v => m === 'tag' ? `${de(v, 1)} kWh` : m === 'monat' ? `${de(v, 0)} €` : `${de(v, 0)} kWh`, max = Math.max(...BS.map(wert), 0) || 1;
     const heute = (this.d || BS[0] || { z: { HEUTE: new Date().toISOString().slice(0, 10) } }).z.HEUTE, j = +heute.slice(0, 4), mo = +heute.slice(5, 7) - 1;
     const MONK = [...Array(12)].map((_, k) => { const mm = mo - 11 + k, jj = mm < 0 ? j - 1 : j; return `${jj}-${String(((mm % 12) + 12) % 12 + 1).padStart(2, '0')}`; });
@@ -2250,24 +2170,11 @@ class BaustellePanel extends HTMLElement {
         <div class="zeile"><span>Melden-Knopf in jedem Fenster</span>${schalter(this.d.e.melden, 'e-bool', 'data-k="melden"')}</div>
         <div class="zeile"><span>Version</span><span class="leise">${esc(this.version)}${(this.changelog || []).find(c => c.version === this.version) ? ' · ' + (this.changelog.find(c => c.version === this.version).datum || '').slice(0, 7) : ''}</span></div></div>`;
   }
-  /* Abgeschlossene Baustelle: Verbrauch je Monat und Container (Recorder-Statistik) */
-  monateJeContainer(x) {
-    const ids = x.bereiche.map(b => this.eid(x, b.id, 'energie')).filter(Boolean);
-    const von = x.beginn || plusTage(x.z.HEUTE, -365), bis = x.ende ? plusTage(x.ende, 1) : plusTage(x.z.HEUTE, 1);
-    const roh = ids.length ? this._holen(`bm:${x.entry}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(this.zoneMs(von.slice(0, 8) + '01', '00:00', x.z.zone)).toISOString(),
-      end_time: new Date(this.zoneMs(bis, '00:00', x.z.zone)).toISOString(), statistic_ids: ids, period: 'month', types: ['change'], units: {} }), 900000) : {};
-    if (roh === undefined) return null;
-    const monate = []; for (let k = von.slice(0, 7); k <= bis.slice(0, 7) && monate.length < 36; ) { monate.push(k); const [j, m] = k.split('-').map(Number); k = m === 12 ? `${j + 1}-01` : `${j}-${String(m + 1).padStart(2, '0')}`; }
-    if (bis.slice(8, 10) === '01' && monate.length > 1) monate.pop();
-    const reihen = x.bereiche.map((b, k) => { const id = this.eid(x, b.id, 'energie'), v = monate.map(() => 0);
-      for (const p of (roh || {})[id] || []) { const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), i = monate.indexOf(this.lokal(ms, x.z.zone).slice(0, 7)); if (i >= 0 && zahl(p.change)) v[i] += Number(p.change); }
-      return { name: b.name, v, farbe: BEREICH_FARBEN[(zahl(b.f) ? b.f : k) % BEREICH_FARBEN.length] }; });
-    return { labels: monate.map(k => MONATE[+k.slice(5, 7) - 1]), reihen };
-  }
   v_bsdetail() {
     const x = this.alle.find(y => y.entry === this.s.bs);
     if (!x) return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button></div><div class="glas-panel block"><div class="leer">Baustelle nicht gefunden</div></div>`;
-    const k = this.kennzahlen(x), m = this.monateJeContainer(x);
+    const k = this.kennz(x), m = k.monate && { labels: k.monate.labels, reihen: k.monate.reihen.map((r, i) => { const b = x.bereiche.find(y => y.id === r.bereich);   // Verbrauch je Monat und Container: Integration
+      return { name: r.name, v: r.v, farbe: BEREICH_FARBEN[(b && zahl(b.f) ? b.f : i) % BEREICH_FARBEN.length] }; }) };
     const prot = !x.geladen ? [] : this._holen(`bp:${x.entry}`, () => this._hass.callWS({ type: 'baustelle/protokoll', entry_id: x.entry, filter: 'alle', vor: null, limit: 5 }), 300000);   // nicht geladen: die Integration kennt sie nicht
     const ART = { einstellung: '⚙', warnung: '⚠', ok: '✓', schalten: '⏻', wetter: '☁', nachricht: '✉' };
     const eintraege = prot === undefined ? null : (Array.isArray(prot) ? prot : (prot && prot.eintraege) || []).slice(0, 5);

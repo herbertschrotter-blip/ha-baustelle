@@ -131,6 +131,57 @@ if (REFERENZ) {
 const vorhersage = art => art === 'daily'
   ? ['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03'].map((t, i) => ({ datetime: `${t}T12:00:00+02:00`, condition: ['rainy', 'fog', 'partlycloudy', 'rainy', 'sunny'][i], temperature: [9, 7.1, 9.4, 8.2, 11][i], templow: [2, -1.2, 1.8, 4.1, 3][i], precipitation: [6, 0, 0, 5.5, 0][i], precipitation_probability: [90, 10, 15, 80, 5][i] }))
   : [...Array(30)].map((_, i) => ({ datetime: new Date(JETZT + (i + 1) * 36e5 - 20 * 6e4).toISOString(), condition: i < 2 ? 'rainy' : i < 5 ? 'cloudy' : 'clear-night', temperature: 3.8 - i * .3, precipitation: i < 2 ? .8 - i * .4 : 0, precipitation_probability: Math.max(0, 70 - i * 15) }));
+/* ---------- Auswertung und Abrechnung wie die Integration (api §8) ----------
+   Die Seite rechnet nichts Fachliches mehr. Für die Beispiel-Welten nimmt der Fake die Werte, die logik/auswertung.py für
+   genau diese Baustellen liefert (tests/vektoren/auswertung-*.json, `erwartet`), sonst einfache erfundene Werte. */
+const VEKTOR = Object.fromEntries(['abrechnung', 'je-geraet', 'typvergleich', 'wetter', 'kennzahlen', 'verlauf', 'monate'].map(n => {
+  const f = path.join(__dirname, '..', 'vektoren', `auswertung-${n}.json`);
+  return [n, fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).faelle : []];
+}));
+const WELT = REFERENZ ? 'struktur-0.7' : path.basename(strukturDatei) === 'struktur-echt.json' ? 'struktur-echt' : null;
+const vektorFall = (art, name) => WELT ? VEKTOR[art].find(f => f.name === `${WELT} ${name}`) : undefined;
+const zz = (v, d) => Number(v).toFixed(d).replace('.', ',');
+const csvText = zeilen => '\ufeff' + zeilen.join('\r\n');
+function perioden(z, heute) { const [j, m] = heute.split('-').map(Number); return { Tag: 24, Woche: 7, Monat: new Date(Date.UTC(j, m, 0)).getUTCDate(), Jahr: 12 }[z]; }
+function fakeAbrechnung(m) {
+  const b = struktur.find(x => x.baustelle.entry_id === m.entry_id), preis = (b.einstellungen || {}).preis ?? 0;
+  const lauf = m.scope === 'alle' ? struktur.filter(x => (x.baustelle.status || 'aktiv') !== 'abgeschlossen') : [b];
+  const f = vektorFall('abrechnung', `${m.entry_id} ${m.scope} ${m.zeitraum}`);
+  const titel = e => (struktur.find(x => x.baustelle.entry_id === e) || { baustelle: { titel: e } }).baustelle.titel;
+  const name = (e, bid) => ((struktur.find(x => x.baustelle.entry_id === e) || { bereiche: [] }).bereiche.find(x => x.id === bid) || { name: bid }).name;
+  const zeilen = f ? f.erwartet.zeilen : [{ firma: 'Eigene Firma', eigen: true, kwh: 0, container: lauf.flatMap(l => l.bereiche.map((c, i) => ({ entry: l.baustelle.entry_id, bereich: c.id, kwh: 10 + i }))) }];
+  if (!f) zeilen[0].kwh = zeilen[0].container.reduce((a, c) => a + c.kwh, 0);
+  const ges = zeilen.reduce((a, z) => a + z.kwh, 0), n = perioden(m.zeitraum, b.baustelle.heute || '2026-09-29');
+  const csvFirma = f ? f.erwartet.csv_firma : ['Zeitraum;Firma;Baustelle;Container;kWh;Preis €/kWh;Betrag €', ...zeilen.flatMap(z => z.container.map(c => [m.zeitraum, z.firma, titel(c.entry), name(c.entry, c.bereich), zz(c.kwh, 2), zz(preis, 2), zz(c.kwh * preis, 2)].join(';')))];
+  const csvVerbrauch = f ? f.erwartet.csv_verbrauch : ['Zeit;Baustelle;Firma;Container;kWh;Kosten €', ...zeilen[0].container.flatMap(c => [...Array(n)].map((_, i) => [`${i + 1}.`, titel(c.entry), 'Eigene Firma', name(c.entry, c.bereich), zz(c.kwh / n, 3), zz(c.kwh / n * preis, 2)].join(';')))];
+  return { zeitraum: { art: m.zeitraum, n }, preis, kwh: ges,
+    firmen: zeilen.map(z => ({ id: z.eigen ? 'eigen' : z.firma, firma: z.firma, eigen: z.eigen, kwh: z.kwh, eur: z.kwh * preis, anteil: ges ? z.kwh / ges * 100 : 0,
+      container: z.container.map(c => ({ ...c, titel: titel(c.entry), name: name(c.entry, c.bereich), eur: c.kwh * preis })) })),
+    reihen: Object.fromEntries(zeilen.filter(z => z.kwh).map(z => [z.eigen ? 'eigen' : z.firma, Array(n).fill(z.kwh / n)])),
+    csv: { firma: csvText(csvFirma), verbrauch: csvText(csvVerbrauch) } };
+}
+function fakeAuswertung(m) {
+  const b = struktur.find(x => x.baustelle.entry_id === m.entry_id), id = m.entry_id, zl = b.zaehler || {}, preis = (b.einstellungen || {}).preis ?? 0;
+  if (m.teil === 'verlauf') {
+    const k = vektorFall('kennzahlen', id), v = vektorFall('verlauf', id), mo = vektorFall('monate', id);
+    const kwh = k ? k.erwartet.kwh : zl.energie ?? 0, heiztage = zl.heiztage ?? (k ? k.erwartet.heiztage : 0);
+    const reihen = mo ? mo.erwartet.reihen.map((r, i) => ({ bereich: (b.bereiche[i] || {}).id || null, ...r })) : b.bereiche.map(c => ({ bereich: c.id, name: c.name, v: [50] }));
+    return { kwh, eur: k ? k.erwartet.eur : zl.kosten ?? 0, gespart: k ? k.erwartet.gespart : null, container: b.bereiche.length, heiztage, monate: k ? k.erwartet.monate : 1,
+      vergleich: k ? k.erwartet.vergleich : { tag: heiztage ? kwh / heiztage : 0, monat: 0, ges: kwh }, je_monat: v ? v.erwartet.je_monat : { '2026-09': 100 },
+      monate_je_container: { labels: mo ? mo.erwartet.labels : ['Sep'], reihen },
+      csv: csvText(mo ? mo.erwartet.csv : ['Monat;Baustelle;Container;kWh;Kosten €', ...reihen.map(r => ['Sep', b.baustelle.titel, r.name, zz(r.v[0], 2), zz(r.v[0] * preis, 2)].join(';'))]) };
+  }
+  const abr = fakeAbrechnung({ ...m, versatz: 0 }), kwh = abr.kwh, pumpen = b.geraete.some(g => g.rolle === 'pumpe');
+  const tv = vektorFall('typvergleich', id), w = vektorFall('wetter', id), g = vektorFall('je-geraet', `${id} ${m.zeitraum}`), leer = { kwh_h: null, auf: null, ab: null, tag: null };
+  const ende = (b.baustelle.optionen || {}).ende;
+  return { zeitraum: abr.zeitraum, preis,
+    summen: { kwh, eur: kwh * preis, heizzeit: 42.5, pumpzeit: pumpen ? 3.25 : 0, ohne: kwh * 3, vorher: { kwh: kwh * .9, heizzeit: 40, pumpzeit: pumpen ? 3 : 0 },
+      veraenderung: { kwh: kwh ? 11 : null, heizzeit: 6, pumpzeit: pumpen ? 8 : null }, ohne_automatik: kwh ? { gespart_eur: kwh * 2 * preis, prozent: 66.7 } : null },
+    je_geraet: (g ? g.erwartet.zeilen : b.geraete.map(x => ({ bereich: x.bereich, geraet: x.id, mittel: null, kwh: 1.5, std: null }))).map(z => ({ ...z, eur: z.kwh === null ? null : z.kwh * preis })),
+    wetter: w ? { punkte: w.erwartet.punkte, gerade: w.erwartet.regression } : { punkte: [], gerade: null },
+    typ: tv ? tv.erwartet : { oelradiator: leer, konvektor: leer, weniger: null },
+    heizperiode: { ende: '2026-04-30', bis: ende && ende < '2026-04-30' ? ende : '2026-04-30' }, heiztage: zl.heiztage ?? 0 };
+}
 const hass = {
   states, themes: { darkMode: true }, config: { version: '2026.9.4' }, language: 'de',
   connection: { subscribeMessage: (cb, msg) => { cb({ type: msg.forecast_type, forecast: vorhersage(msg.forecast_type) }); return Promise.resolve(() => {}); } },
@@ -139,6 +190,8 @@ const hass = {
     switch (m.type) {
       case 'baustelle/struktur': if (strukturFehler) throw { code: 'unknown_command', message: 'Unknown command.' }; if (strukturHaengt) return new Promise(() => {}); return JSON.parse(JSON.stringify(struktur));
       case 'recorder/statistics_during_period': return statistik(m);
+      case 'baustelle/auswertung': return fakeAuswertung(m);
+      case 'baustelle/abrechnung': return fakeAbrechnung(m);
       case 'history/history_during_period': return verlauf(m);
       case 'baustelle/protokoll': { const b = struktur.find(x => x.baustelle.entry_id === m.entry_id); const p = b.laufzeit.protokoll.length ? b.laufzeit.protokoll : [['2026-04-17T12:00:00+02:00', 'einstellung', null, 'Baustelle abgeschlossen – Heizung aus, Werte gespeichert'], ['2026-03-03T06:00:00+02:00', 'warnung', `${m.entry_id}-3`, 'Frostgefahr 3,8 °C trotz Frostschutz'], ['2026-03-02T11:00:00+02:00', 'ok', `${m.entry_id}-3`, 'wieder über 5 °C']];
         return [...p, ...p.map(e => [e[0].replace('2026-09-2', '2026-09-1'), ...e.slice(1)])].slice(0, m.limit); }
@@ -735,6 +788,32 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Strombalken sitzt wie im Mockup im Baustellen-Kopf (.klickbar)', /<div class="klickbar"[^]*?class="strom-knopf"[^]*?<\/button><\/div>\s*<button class="kopf-wetter"/.test(ui.innerHTML));
   await klick({ act: 'tab', v: 'auswertung' }, 40); const aw = ui.innerHTML;
   erwarte('Ölradiator/Konvektor: Fußsatz wie im Mockup, Kosten nicht fett', /Der Ölradiator [^<]*(braucht länger|heizt schneller auf|verbraucht rund)/.test(aw) && !/<td><b>[^<]*€<\/b><\/td>/.test(aw));
+
+  /* Auswertung, Abrechnung, Verlauf: die Seite zeigt die Zahlen der Integration (api §8, Werte aus tests/vektoren) */
+  { const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const deT = (x, d = 1) => Number(x).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d });
+    const fall = (art, name) => VEKTOR[art].find(f => f.name === `struktur-0.7 ${name}`).erwartet;
+    await klick({ act: 'aw-scope', v: 'diese' }); await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 40); const h = ui.innerHTML;
+    erwarte('Auswertung über baustelle/auswertung (Zeitraum, Versatz, Scope)', letzte('baustelle/auswertung').some(a => a.entry_id === 'dobl' && a.zeitraum === 'Monat' && a.versatz === 0 && a.scope === 'diese'));
+    erwarte('Abrechnung über baustelle/abrechnung', letzte('baustelle/abrechnung').some(a => a.entry_id === 'dobl' && a.zeitraum === 'Monat' && a.scope === 'diese'));
+    const T = fall('typvergleich', 'dobl');
+    erwarte('Ölradiator/Konvektor: Werte der Integration', h.includes(`<td>${deT(T.oelradiator.kwh_h, 2)}</td>`) && h.includes(`${deT(T.konvektor.kwh_h, 2)}`) && h.includes(`verbraucht rund ${T.weniger} % weniger`));
+    const Z = fall('abrechnung', 'dobl diese Monat').zeilen;
+    erwarte('Abrechnung nach Firma: Firmen und kWh der Integration', Z.length > 1 && Z.every(z => h.includes(`<b>${esc(z.firma)}</b>`) && h.includes(`${deT(z.kwh, 0)} kWh · `)));
+    const G = fall('je-geraet', 'dobl Monat').zeilen.filter(z => z.kwh !== null);
+    erwarte('Je Gerät: kWh der Integration', G.length && G.every(z => h.includes(`<td>${deT(z.kwh, 1)}</td>`)));
+    const R = fall('wetter', 'dobl').regression;
+    erwarte('Wetter-Einfluss: Gerade der Integration', R && (R.k < 0 ? h.includes(`≈ +${deT(-R.k, 1)} kWh`) : h.includes('Noch kein klarer Zusammenhang')));
+    const A = fall('abrechnung', 'dobl diese Monat');
+    erwarte('CSV Abrechnung = CSV der Integration', JSON.stringify(panel.csv('firma')) === JSON.stringify(A.csv_firma));
+    erwarte('CSV Verbrauch = CSV der Integration', JSON.stringify(panel.csv()) === JSON.stringify(A.csv_verbrauch));
+    await klick({ act: 'tab', v: 'verlauf' }, 40); await klick({ act: 'vgl', v: 'tag' }, 20); const vl = ui.innerHTML, K = fall('kennzahlen', 'dobl');
+    erwarte('Verlauf über baustelle/auswertung (teil verlauf) je Baustelle', ['dobl', 'kalsdorf', 'lieboch', 'wundschuh'].every(e => alleAufrufe.some(a => a.type === 'baustelle/auswertung' && a.entry_id === e && a.teil === 'verlauf')));
+    erwarte('Verlauf: Kennzahlen und Vergleich der Integration', vl.includes(`<b>${deT(K.kwh, 0)}</b> kWh`) && vl.includes(`<b>${deT(K.eur, 2)}</b> €`) && vl.includes(`${deT(K.vergleich.tag, 1)} kWh</span>`));
+    await klick({ act: 'bs-oeffnen', id: 'lieboch' }, 40); const bd = ui.innerHTML, L = fall('kennzahlen', 'lieboch'), M = fall('monate', 'lieboch');
+    erwarte('Detailseite: Kennzahlen und Verbrauch je Monat der Integration', bd.includes(`<b>${deT(L.kwh, 0)}</b><span>kWh`) && M.reihen.every(r => bd.includes(`<span class="n">${esc(r.name)}</span>`)));
+    erwarte('Detailseite: CSV der Integration', JSON.stringify(panel.csv()) === JSON.stringify(M.csv));
+    await klick({ act: 'tab', v: 'auswertung' }, 30); }
   await klick({ act: 'sheet', s: 'nachrichten' }, 20); erwarte('„Noch früher (hh:mm)“ wie im Mockup', /Noch früher \(\d\d:\d\d\)/.test(ui.innerHTML));
   erwarte('Nachricht „nicht erreichbar“ mit dem Container, der offline ist', /⚠ Lager Süd nicht erreichbar/.test(ui.innerHTML));
   await klick({ act: 'sheet', s: 'wetter' }, 20); await klick({ act: 'wa', v: 'tag' }, 20);
@@ -768,6 +847,11 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   const quelle = fs.readFileSync(datei, 'utf8');
   erwarte('Glas-CSS, Wettersymbole, Container-Grafiken und Himmel eingebaut', ['--s1:', '.glas-panel', 'function wetterIcon', 'function bcContainer', 'function bcSchacht', 'HIMMEL_FS', 'class Himmel'].every(x => quelle.includes(x)));
   erwarte('keine Vorführ-Leiste', !/id="modus"|id="phase"|id="wetter"/.test(quelle));
+  // Fachlogik nur in der Integration (Bauplan Module, Phase 3): die früheren Rechnungen der Seite gibt es nicht mehr
+  const entfernt = ['abrechnungDaten', 'firmaAm', 'bucketMs', 'heizperiodeEnde', 'typVergleich', 'verlaufWerte', 'kennzahlen', 'monateJeContainer', 'tageswerte', 'jeGeraet']
+    .filter(n => new RegExp(`\\b${n}\\s*\\(`).test(quelle));
+  erwarte(`keine Fachrechnung in der Seite – noch da: ${entfernt.join(', ')}`, !entfernt.length);
+  erwarte('keine eigene Regression (Wetter-Einfluss) in der Seite', !/\(q\[0\] - mx\)/.test(quelle));
   if (process.env.BAUSTELLE_AUFRUFE) fs.writeFileSync(process.env.BAUSTELLE_AUFRUFE, JSON.stringify(alleAufrufe, null, 1));
   if (fehler.length) { console.log(fehler.slice(0, 40).join('\n')); console.log(`${fehler.length} Fehler`); process.exit(1); }
   console.log(`Panel-Test grün (${REFERENZ ? 'Beispiel wie im Mockup' : 'echte Antwort der Integration'}): alle Ansichten, Einblendungen und Aktionen geprüft (${alleAufrufe.length} WS-Aufrufe).`);
