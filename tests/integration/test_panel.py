@@ -144,6 +144,9 @@ async def test_liste_anschluesse_und_firmen(hass: HomeAssistant, baustelle, ws) 
     fid = msg["result"]["id"]
     assert [f["name"] for f in st.e["firmen"]] == ["Eigene Firma", "Elektro Huber GmbH"]
     assert st.e["zuordnung"][-1]["bereich"] == C2 and st.e["zuordnung"][-1]["firma"] == fid
+    # die Seite nimmt die Firma je Container aus der Struktur (rechnet die Zuordnung nicht selbst nach)
+    lz = (await ws.rufe("baustelle/struktur", mit_entry=False))["result"][0]["laufzeit"]
+    assert lz["container"][C2]["firma"] == fid and lz["container"][C1]["firma"] == "eigen"
     # Container abwählen → zurück zur eigenen Firma
     assert (await ws.rufe("baustelle/liste", liste="firmen", aktion="speichern",
                           eintrag={"id": fid, "name": "Huber", "container": []}))["success"]
@@ -152,6 +155,10 @@ async def test_liste_anschluesse_und_firmen(hass: HomeAssistant, baustelle, ws) 
     assert not (await ws.rufe("baustelle/liste", liste="firmen", aktion="loeschen", eintrag={"id": "eigen"}))["success"]
     assert (await ws.rufe("baustelle/liste", liste="firmen", aktion="loeschen", eintrag={"id": fid}))["success"]
     assert [f["id"] for f in st.e["firmen"]] == ["eigen"]
+    # Zuordnung auf eine gelöschte Firma → eigene Firma
+    st.e["zuordnung"].append({"bereich": C1, "firma": fid, "ab": "2020-01-01T00:00:00+01:00"})
+    lz = (await ws.rufe("baustelle/struktur", mit_entry=False))["result"][0]["laufzeit"]
+    assert lz["container"][C1]["firma"] == "eigen"
 
 
 async def test_aktionen(hass: HomeAssistant, baustelle, ws, shellys, freezer) -> None:

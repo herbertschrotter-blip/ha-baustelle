@@ -11,7 +11,7 @@ und `change` bzw. `mean`; `start` als Zeitstempel in s oder ms, ISO-Text oder da
 
 Abweichend von der Seite (fachlich richtig, wie Bericht und Zähler der Integration – docs/bauplan-module.md §5):
 
-- **Firma je Tag:** Verbrauch gehört der Firma, der der Container zu Tagesbeginn gehört (`abrechnung.aufteilen`); ein
+- **Firma je Tag:** Verbrauch gehört der Firma, der der Container zu Tagesbeginn gehört (`firma_am_tag`); ein
   Wechsel mitten am Tag gilt ab dem Folgetag. Die Seite nahm bei „Tag“ die Firma je Stunde und beim „Jahr“ die Firma am
   Monatsersten für den ganzen Monat – für das Jahr bekommt `abrechnung` deshalb Werte je Tag.
 - **Heiztage ohne Zähler:** Tage ab Beginn, an denen ein Container geheizt hat (Heizzeit > 0, wie Zähler `heiztage` und
@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone, tzinfo
 from typing import Any
 
-from .abrechnung import EIGEN, firma_am, zahl as fest
+from .abrechnung import EIGEN, firma_von, zahl as fest
 
 ARTEN = ("Tag", "Woche", "Monat", "Jahr")
 TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
@@ -191,9 +191,8 @@ def _firma(firmen: Sequence[Mapping[str, Any]], fid: str) -> Mapping[str, Any]:
 def firma_am_tag(baustelle: Mapping[str, Any], bereich: str, zeit: datetime, zone: tzinfo) -> Mapping[str, Any]:
     """Firma, der der Container am Tag von `zeit` gehört (zu Tagesbeginn); gelöschte Firma → eigene Firma."""
     firmen = baustelle.get("firmen") or [EIGENE_FIRMA]
-    beginn = mitternacht(zeit.astimezone(zone).date(), zone)
-    fid = firma_am(list(baustelle.get("zuordnung") or []), bereich, beginn)
-    return _firma(firmen, fid if any(f.get("id") == fid for f in firmen) else EIGEN)
+    beginn = mitternacht(zeit.astimezone(zone).date(), zone).astimezone(zone)  # in der Zone: `ab` ohne Zone gilt dort
+    return _firma(firmen, firma_von(list(baustelle.get("zuordnung") or []), firmen, bereich, beginn))
 
 
 def abrechnung(

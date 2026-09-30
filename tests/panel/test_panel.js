@@ -832,6 +832,13 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
 
   }
 
+  /* Firma je Container kommt von der Integration (laufzeit.container[bid].firma), die Seite rechnet die Zuordnung nicht nach */
+  { const alt = struktur; struktur = JSON.parse(JSON.stringify(alt)); const b0 = struktur[0], bid = Object.keys((b0.laufzeit || {}).container || {})[0], fx = ((b0.einstellungen || {}).firmen || []).find(f => !f.eigen);
+    if (bid && fx) { b0.einstellungen.zuordnung = []; b0.laufzeit.container[bid].firma = fx.id;
+      global.location = { search: `?baustelle=${b0.baustelle.entry_id}` }; panel.cache = {}; await panel._laden(); panel._adresse(); await ruhe(30);
+      erwarte('Firma je Container von der Integration, nicht aus der Zuordnung', panel.d.bereiche.find(b => b.id === bid).firma === fx.id); }
+    struktur = alt; }
+
   /* Fast leere Baustelle (frisch angelegt, noch nicht geladen): nirgends undefined/NaN */
   struktur = [{ baustelle: { entry_id: 'leer', titel: 'Neu', optionen: {}, geladen: false }, entitaeten: {}, bereiche: [{ id: 'c1', name: 'Container 1', art: 'container', fuehler: null }],
     geraete: [], einstellungen: {}, zaehler: {}, laufzeit: {} }];
@@ -848,7 +855,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Glas-CSS, Wettersymbole, Container-Grafiken und Himmel eingebaut', ['--s1:', '.glas-panel', 'function wetterIcon', 'function bcContainer', 'function bcSchacht', 'HIMMEL_FS', 'class Himmel'].every(x => quelle.includes(x)));
   erwarte('keine Vorführ-Leiste', !/id="modus"|id="phase"|id="wetter"/.test(quelle));
   // Fachlogik nur in der Integration (Bauplan Module, Phase 3): die früheren Rechnungen der Seite gibt es nicht mehr
-  const entfernt = ['abrechnungDaten', 'firmaAm', 'bucketMs', 'heizperiodeEnde', 'typVergleich', 'verlaufWerte', 'kennzahlen', 'monateJeContainer', 'tageswerte', 'jeGeraet']
+  const entfernt = ['abrechnungDaten', 'firmaAm', 'firmaVon', 'bucketMs', 'heizperiodeEnde', 'typVergleich', 'verlaufWerte', 'kennzahlen', 'monateJeContainer', 'tageswerte', 'jeGeraet']
     .filter(n => new RegExp(`\\b${n}\\s*\\(`).test(quelle));
   erwarte(`keine Fachrechnung in der Seite – noch da: ${entfernt.join(', ')}`, !entfernt.length);
   erwarte('keine eigene Regression (Wetter-Einfluss) in der Seite', !/\(q\[0\] - mx\)/.test(quelle));

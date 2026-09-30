@@ -201,7 +201,7 @@ function vektorReihen(W) {
 }
 
 /* ---------- 3 Abrechnung nach Firma (Tabelle, CSV) ---------- */
-/* fachlich richtig (wie logik/abrechnung.aufteilen): ein Tag gehört der Firma, der der Container zu Tagesbeginn gehört */
+/* fachlich richtig (wie logik/auswertung.firma_am_tag, früher abrechnung.aufteilen): ein Tag gehört der Firma, der der Container zu Tagesbeginn gehört */
 function firmaTag(l, bid, ms) { return panel.firma(panel.firmaAm(l, bid, mitternacht(lokal(ms).slice(0, 10))), l); }
 function abrechnungRichtig(lauf, werte) {
   const zeilen = new Map();

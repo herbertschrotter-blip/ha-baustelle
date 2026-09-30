@@ -625,7 +625,8 @@
      "tuer": {
       "offen": false,
       "seit": null
-     }
+     },
+     "firma": "eigen"
     },
     "mannschaft": {
      "zustand": "trocknen",
@@ -635,7 +636,8 @@
      "kw": 3.79,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "firma": "eigen"
     },
     "magazin": {
      "zustand": "pause",
@@ -648,7 +650,8 @@
      "tuer": {
       "offen": true,
       "seit": "2026-09-29T16:14:00+02:00"
-     }
+     },
+     "firma": "huber"
     },
     "sanitaer": {
      "zustand": "frost",
@@ -658,7 +661,8 @@
      "kw": 2,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "firma": "eigen"
     },
     "lager": {
      "zustand": "offline",
@@ -668,7 +672,8 @@
      "kw": 0,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "firma": "leitner"
     },
     "besprechung": {
      "zustand": "bereit",
@@ -678,7 +683,8 @@
      "kw": 0,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "firma": "eigen"
     },
     "schacht": {
      "zustand": "laeuft",
@@ -688,7 +694,8 @@
      "kw": 0.76,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "firma": "eigen"
     }
    },
    "geraete": {
@@ -2057,7 +2064,8 @@
      "kw": 2,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "firma": "eigen"
     },
     "k-mannschaft": {
      "zustand": "heizt",
@@ -2067,7 +2075,8 @@
      "kw": 4,
      "bedarf_bis": null,
      "boost_bis": "2026-09-29T16:50:00+02:00",
-     "tuer": null
+     "tuer": null,
+     "firma": "eigen"
     },
     "k-lager": {
      "zustand": "aus",
@@ -2077,7 +2086,8 @@
      "kw": 0,
      "bedarf_bis": null,
      "boost_bis": null,
-     "tuer": null
+     "tuer": null,
+     "firma": "huber"
     }
    },
    "geraete": {

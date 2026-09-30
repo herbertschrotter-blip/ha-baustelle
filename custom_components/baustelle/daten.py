@@ -12,6 +12,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import ART_CONTAINER, CONF_STATUS, STATUS_AKTIV
+from .logik.abrechnung import EIGEN, firma_von
 from .logik.arbeitszeit import Plan, uhrzeit
 from .logik.warnungen import titel as warn_titel
 from . import texte
@@ -128,6 +129,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "bedarf_bis": _iso(st.bis("bedarf_bis", bid, jetzt)), "boost_bis": _iso(st.bis("boost_bis", bid, jetzt)),
             "tuer": tuer,
             "modus": st.modus(bid) if info.art == ART_CONTAINER else None,
+            "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}
     for gid, g in st.geraete.items():

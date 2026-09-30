@@ -184,6 +184,9 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
 - `laufzeit.container[bid].modus`: wirksamer Modus (gesetzt oder abgeleitet: `bedarf` wenn Bedarf, `hand` wenn nicht
   auto, sonst `thermo` mit Fühler bzw. `plan`); `null` bei Pumpenschächten. Neue Gründe: `aus` (Modus Aus),
   `absenken` (Urlaub/Feiertag abgesenkt).
+- `laufzeit.container[bid].firma` (Bauplan Module): Firmen-ID, der der Container jetzt gehört (letzter
+  `zuordnung`-Eintrag mit `ab <= jetzt`, gelöschte Firma → `eigen`; `logik/abrechnung.firma_von`). Die Seite rechnet
+  die Zuordnung nicht selbst nach.
 - `baustelle/aktion`: `test_meldung` → Test-Nachricht an alle Empfänger, Antwort `{ok, an: [Namen]}`.
 - `baustelle/setzen`: `erklaer` (Erklärtexte der Seite), `heizung.frost_immer` (0.7.9: Frostschutz auch bei
   ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus).

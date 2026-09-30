@@ -96,7 +96,8 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   - **Firma je Tag statt je Stunde (Zeitraum „Tag“, Tabelle und CSV):** Die Seite ordnete jede Stunde der Firma zu dieser
     Stunde zu, Woche/Monat und Bericht aber den ganzen Tag der Firma zu Tagesbeginn. Beispiel `struktur-echt`,
     Wohnbau, Magazin ab 29.09. 05:30 bei Huber: Seite „Tag“ Eigene Firma 42,20 kWh + Huber 11,24 kWh, „Woche“ am selben
-    Tag alles Eigene Firma; jetzt überall Eigene Firma 53,44 kWh, Huber ab 30.09. (wie `abrechnung.aufteilen`).
+    Tag alles Eigene Firma; jetzt überall Eigene Firma 53,44 kWh, Huber ab 30.09. (`auswertung.firma_am_tag`, wie
+    bisher der Bericht).
   - **Firma je Tag statt je Monat (Zeitraum „Jahr“):** Die Seite gab den ganzen Monat der Firma am Monatsersten.
     Beispiel `struktur-0.7`, Dobl, Jahr 2026 (Magazin ab 08.09. Huber, Lager ab 15.09. Leitner): Seite alles Eigene
     Firma 29 756,99 kWh; richtig Eigene Firma 29 330,50 + Huber 257,56 + Leitner 168,93 kWh – dieselben Firmenwerte wie
@@ -111,6 +112,26 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
   (`auswertung.abrechnung_daten`) – eigene Firma zuerst, dann die Firmen in der Reihenfolge ihres ersten Verbrauchs
   (bisher im Bericht in der Reihenfolge der Firmenliste). Beispiel: Firmenliste Eigene Firma, Maier, Huber, Huber
   verbraucht im Zeitraum vor Maier → Bericht jetzt Eigene Firma, Huber, Maier (Zahlen gleich).
+- **Firmenregel einmal (Nachbesserung Phase 2/3):** Die Regel „Firma je Tag“ und der Firmen-CSV-Bau stehen nur noch in
+  `logik/auswertung.py` (`firma_am_tag`, `abrechnung`, `csv_firma`). Die frühere zweite Kopie in `logik/abrechnung.py`
+  (`aufteilen`, `csv_zeilen`, `abrechnung_zeilen`) ist entfernt, ihre Testfälle laufen jetzt gegen `auswertung.abrechnung`;
+  `logik/abrechnung.py` behält nur `firma_am`/`firma_von` (Firma zu einem Zeitpunkt, gelöschte Firma → eigene) und
+  `zahl`. Ein `ab` ohne Zeitzone (z. B. „2026-09-15“) gilt in der Zone der Baustelle, wie früher in `aufteilen`.
+- **Firma je Container „jetzt“ (Nachbesserung Phase 3):** Die Seite rechnete sie noch selbst aus der Zuordnung
+  (`firmaVon`, derselbe Nachbau wie `firmaAm`). Jetzt liefert `baustelle/struktur` sie als
+  `laufzeit.container[bid].firma` (`abrechnung.firma_von`, api-0.7); die Seite zeigt sie nur an. Sichtbar gleich.
+- **Sichtbare Unterschiede der Seite durch Phase 3** (alle ohne andere Zahlen):
+  - **Lade-Zustand:** Solange die Antwort von `baustelle/auswertung` fehlt, zeigen Verlauf (Karten der Baustellen) und
+    Detailseite kWh, € und Heiztage als „–“ bzw. „Lädt …“, die Tabelle „Ölradiator oder Konvektor“ „–“. Bisher standen
+    dort sofort Werte aus Zählern und Sensorzuständen, die danach von der Statistik-Rechnung überschrieben werden
+    konnten. Beispiel `struktur-0.7`: Verlauf öffnen, Dobl zeigt kurz „–“ kWh, dann 412 kWh; vorher stand der
+    Zählerstand 412 kWh sofort da. Die
+    Seite nimmt keinen Ersatzwert mehr, damit nur eine Zahl erscheint – die der Integration.
+  - **Nicht geladene Baustellen im Verlauf und auf der Detailseite:** Die Anzahl Container und die Liste „Verbrauch je
+    Monat“ kommen jetzt aus der Einrichtung der Baustelle (Subentries, wie in `baustelle/auswertung`); bisher war sie
+    bei einer nicht geladenen Baustelle leer (0 Container), weil `baustelle/struktur` dort keine Bereiche liefert.
+  - **„Ohne Automatik“ – „Noch keine Werte“:** Bedingung unverändert (Dauerbetrieb-Wert ≤ 0); die Regel steht jetzt in
+    `auswertung.ohne_automatik` (liefert dann `null`), die Seite prüft nur noch auf `null`.
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
 
 ## 6. Ausführung mit Agenten
@@ -126,4 +147,5 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 ## 7. Status
 
 - Freigegeben von Herbert am 30.09.2026 (mit Phase 7).
-- [x] Phase 0 · [x] Phase 1 · [x] Phase 2 · [x] Phase 3 · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6
+- [x] Phase 0 · [x] Phase 1 · [x] Phase 2 · [x] Phase 3 (Nachbesserung nach Prüfung: Firmenregel einmal, Firma je
+  Container aus der Struktur, sichtbare Unterschiede in §5) · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6

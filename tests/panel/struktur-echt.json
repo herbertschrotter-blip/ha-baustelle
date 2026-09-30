@@ -21,7 +21,7 @@
     "urlaub_kalender": "calendar.urlaub"
    },
    "geladen": true,
-   "version": "0.7.15",
+   "version": "0.7.16",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -475,7 +475,8 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "modus": "thermo"
+     "modus": "thermo",
+     "firma": "eigen"
     },
     "mannschaft": {
      "zustand": "bereit",
@@ -486,7 +487,8 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "modus": "bedarf"
+     "modus": "bedarf",
+     "firma": "eigen"
     },
     "magazin": {
      "zustand": "pause",
@@ -500,7 +502,8 @@
       "offen": true,
       "seit": "2026-09-29T16:05:00+02:00"
      },
-     "modus": "thermo"
+     "modus": "thermo",
+     "firma": "huber"
     },
     "schacht": {
      "zustand": "aus",
@@ -511,7 +514,8 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "modus": null
+     "modus": null,
+     "firma": "eigen"
     }
    },
    "geraete": {
@@ -1151,7 +1155,7 @@
     "heizperiode_bis": "4"
    },
    "geladen": true,
-   "version": "0.7.15",
+   "version": "0.7.16",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1339,7 +1343,8 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "modus": "plan"
+     "modus": "plan",
+     "firma": "eigen"
     }
    },
    "geraete": {

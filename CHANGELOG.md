@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.16] – 2026-09-30
+
+- Intern (Umbau „Module je Funktion“, Nachbesserung Phase 2/3): Die Regel „Firma je Tag“ und die Firmen-CSV gibt es
+  nur noch einmal (Auswertung der Integration); die alte zweite Fassung ist entfernt. Welche Firma ein Container gerade
+  hat, liefert jetzt die Integration mit der Struktur (`laufzeit.container[…].firma`), die Seite rechnet es nicht mehr
+  selbst. Sichtbar seit 0.7.15: Verlauf und Detailseite zeigen beim Laden kurz „–“ bzw. „Lädt …“ statt sofort der
+  Zählerwerte; nicht geladene Baustellen zeigen im Verlauf ihre Container aus der Einrichtung.
+
 ## [0.7.15] – 2026-09-30
 
 - Intern (Umbau „Module je Funktion“, Phase 3): Die Seite rechnet nichts mehr selbst – Auswertung, Abrechnung nach
