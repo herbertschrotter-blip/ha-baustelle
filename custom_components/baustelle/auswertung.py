@@ -268,6 +268,10 @@ async def _summen(hass: HomeAssistant, q: Quelle, zr: a.Zeitraum) -> dict[str, A
         "pumpzeit": sum(a.summe(v) for v in pumpzeit.values()),
         "ohne": a.summe(w.get(q.eid(eid, "energie_ohne_automatik") or "", leer)),
         "pumpzeit_je": pumpzeit,
+        # je Container (Rangliste der Auswertung, WU-0005)
+        "je_container": [{"bereich": b["id"], "name": b["name"], "baustelle": q.entry.title,
+                          "kwh": a.summe(a.verbrauch(w, q.energie_ids(b["id"]), zr.n)),
+                          "heizzeit": a.summe(w.get(q.eid(b["id"], "heizzeit") or "", leer))} for b in container],
     }
 
 
@@ -334,16 +338,23 @@ async def async_auswertung(
         {t: _zustand(hass, q.eid(eid, f"energie_{t}")) for t in TYPEN},
         {t: _zustand(hass, q.eid(eid, f"heizzeit_{t}")) for t in TYPEN}, verlauf["heiztage"], preis,
     )
+    rang = a.rangliste([c for s in jetzt for c in s["je_container"]], preis)
+    gerade = a.wetter_kosten(a.wetter_einfluss(punkte), preis)
+    oa = a.ohne_automatik(summen["kwh"], summen["ohne"], preis)
     hp_von = min(12, max(1, int(entry.options.get(CONF_HEIZPERIODE_VON) or 10)))
     hp_bis = min(12, max(1, int(entry.options.get(CONF_HEIZPERIODE_BIS) or 4)))
     return {
         "zeitraum": _zeitraum_dict(zr), "preis": preis,
         "summen": {**summen, "eur": a.geld(summen["kwh"], preis), "vorher": davor,
                    "veraenderung": {k: a.veraenderung(summen[k], davor[k]) for k in davor},
-                   "ohne_automatik": a.ohne_automatik(summen["kwh"], summen["ohne"], preis)},
+                   "ohne_automatik": oa},
+        # Rangliste der Container und „Was fällt auf“ (WU-0005, logik/auswertung) – über `scope`
+        "rangliste": rang,
+        "erkenntnisse": a.erkenntnisse(rang, ohne=oa, gerade=gerade, veraenderung_kwh=a.veraenderung(summen["kwh"], davor["kwh"]),
+                                       typ_weniger=typ.get("weniger") if isinstance(typ, dict) else None),
         "je_geraet": [{**z, "eur": a.geld(z["kwh"], preis)}
                       for z in a.je_geraet(q.geraete, q.zaehler, roh_g, eigene["pumpzeit_je"])],
-        "wetter": {"punkte": punkte, "gerade": a.wetter_kosten(a.wetter_einfluss(punkte), preis)},
+        "wetter": {"punkte": punkte, "gerade": gerade},
         "typ": typ,
         "heizperiode": {"ende": a.heizperiode_ende(heute, hp_von, hp_bis).isoformat(),
                         "bis": a.heizperiode_bis(heute, hp_von, hp_bis, q.option_datum(CONF_ENDE)).isoformat()},

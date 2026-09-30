@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.3] – 2026-09-30
+
+- Auswertung neu (WU-0005, Mockup glas.html abgenommen): **aus Bausteinen selbst zusammenstellen** – Vorlagen
+  „Kacheln“, „Kosten im Fokus“, „Wer verbraucht was“, „Verlauf mit Erkenntnissen“ und „Mischform“ (Vorschlag);
+  unter „✎ Anpassen“ Bausteine ein/aus, Reihenfolge und Größe; unter „✥ Layout“ Kacheln per Drag and Drop verschieben
+  und die Größe im Raster ziehen. Gemerkt je Browser.
+- Neu: **Rangliste der Container** (kWh, €, Heizzeit, kWh je Heizstunde) und **„Was fällt auf“** – beides rechnet
+  die Integration (`logik/auswertung`), die Seite zeigt nur an.
+
 ## [0.8.2] – 2026-09-30
 
 - Neue Container-Ansicht (WU-0004, Mockup glas.html abgenommen): Kopf mit Modus, Schnell aufheizen und

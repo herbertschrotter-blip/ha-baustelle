@@ -48,5 +48,19 @@ if (require.main === module) {
     klick({ act: 'sheet', s: 'bereich' }); klick({ act: 'g-bearbeiten', i: '0' }); pr('gerät bearbeiten'); eing({ gf: 'n' }, 'Radiator neu'); klick({ act: 'gf-speichern' });
     if (g.n !== 'Radiator neu' || !A.s.sheet || A.s.sheet.art !== 'bereich') f.push('D: Gerät bearbeiten'); klick({ act: 'zu' });
     for (const x of A.d.bereiche.filter(y => !y.pumpe)) { klick({ act: 'container', id: x.id }); pr(`d ${x.id}`); } }
+  /* WU-0005: Auswertung aus Bausteinen – alle Zeiträume, beide Umfänge, alle Details */
+  for (const sc of ['diese', 'alle']) for (const z of ['Tag', 'Woche', 'Monat', 'Jahr']) { klick({ act: 'tab', v: 'auswertung' }); klick({ act: 'aw-scope', v: sc }); klick({ act: 'vb-zeitraum', ziel: 'aw', v: z }); pr(`auswertung ${sc} ${z}`); }
+  for (const k of ['verbrauch', 'abrechnung', 'geraete', 'temperaturen', 'wetter', 'ohne', 'hochrechnung', 'vergleich']) { klick({ act: 'aw-detail', k }); pr(`aw-detail ${k}`); if (!A.s.sheet) f.push('aw-detail ' + k); klick({ act: 'zu' }); }
+  /* Variante 6: alle Bausteine einschalten, verschieben, Breite, zurücksetzen */
+  klick({ act: 'tab', v: 'auswertung' }); klick({ act: 'aw-bearb' }); pr('aw anpassen');
+  A.awAuswahl().forEach((x, i) => { if (!x.an) klick({ act: 'aw-an', i: String(i) }); }); klick({ act: 'aw-hoch', i: '3' }); klick({ act: 'aw-gr', i: '0', k: 'w', d: '-1' }); klick({ act: 'aw-gr', i: '0', k: 'h', d: '1' }); klick({ act: 'aw-bearb' }); pr('aw alle bausteine');
+  if (A.awAuswahl()[0].w !== 3 || A.awAuswahl()[0].h !== 3) f.push('Variante 6: Größe');
+  klick({ act: 'aw-layout' }); pr('aw layout'); if (!ui().includes('data-zug="move"') || !ui().includes('data-zug="size"')) f.push('Variante 6: Layout-Griffe'); klick({ act: 'aw-weg', i: '0' }); if (A.awAuswahl()[0].an) f.push('Variante 6: ausblenden'); klick({ act: 'aw-an', i: '0' }); klick({ act: 'aw-layout' });
+  if (!A.awAuswahl().every(x => x.an)) f.push('Variante 6: einschalten'); for (const k of Object.keys(A.awAuswahl().reduce((o, x) => (o[x.k] = 1, o), {}))) if (!ui().length) f.push(k);
+  klick({ act: 'aw-bearb' }); klick({ act: 'aw-standard' }); klick({ act: 'aw-bearb' }); pr('aw standard');
+  klick({ act: 'aw-bearb' }); if (!ui().includes('data-act="aw-vorlage"')) f.push('Variante 6: Vorlagen fehlen');
+  for (const v of ['kacheln', 'kosten', 'wer', 'verlauf', 'misch']) { klick({ act: 'aw-vorlage', v }); if (!A.awAuswahl()[0].an) f.push('Vorlage ' + v); }
+  klick({ act: 'aw-vorlage', v: 'wer' }); klick({ act: 'aw-bearb' }); pr('aw vorlage wer'); if (!ui().includes('aw-tab-zeile')) f.push('Vorlage wer: Rangliste fehlt');
+  klick({ act: 'aw-scope', v: 'diese' });
   console.log(f.length ? f.join('\n') : 'Grundprüfung sauber');
 }

@@ -592,3 +592,51 @@ def je_geraet(
             std = kwh / mittel if kwh is not None and mittel is not None else None
         zeilen.append({"bereich": g["bereich"], "geraet": g["id"], "mittel": mittel, "kwh": kwh, "std": std})
     return zeilen
+
+
+# ---------------------------------------------------------------- Rangliste und Erkenntnisse (WU-0005, Auswertung 6)
+ERKENNTNIS_AB_PROZENT = 15      # so viel mehr/weniger als der Zeitraum davor ist eine Erkenntnis wert
+TYP_AB_PROZENT = 5              # Ölradiator/Konvektor: ab so viel Unterschied
+SPARSAM_AB_H = 1.0              # kWh je Heizstunde erst ab so viel Heizzeit vergleichen
+ERKENNTNISSE_MAX = 5
+
+
+def rangliste(container: Iterable[Mapping[str, Any]], preis: float) -> list[dict[str, Any]]:
+    """Container nach Verbrauch: `container` = [{bereich, name, kwh, heizzeit[, baustelle]}] → dazu €, kWh je
+    Heizstunde (ohne Heizzeit None) und Anteil in % an allen; absteigend nach kWh, bei Gleichstand nach Name."""
+    liste = [dict(c) for c in container]
+    ges = sum(float(c.get("kwh") or 0) for c in liste)
+    for c in liste:
+        kwh, h = float(c.get("kwh") or 0), float(c.get("heizzeit") or 0)
+        c.update(kwh=kwh, heizzeit=h, eur=geld(kwh, preis), kwh_h=kwh / h if h > 0 else None,
+                 anteil=kwh / ges * 100 if ges > 0 else 0.0)
+    return sorted(liste, key=lambda c: (-c["kwh"], str(c.get("name") or "")))
+
+
+def erkenntnisse(
+    rang: list[Mapping[str, Any]], *, ohne: Mapping[str, float] | None, gerade: Mapping[str, Any] | None,
+    veraenderung_kwh: int | None, typ_weniger: float | None,
+) -> list[dict[str, Any]]:
+    """Was fällt auf – höchstens `ERKENNTNISSE_MAX`, in dieser Reihenfolge: gespart gegenüber Dauerbetrieb, größter
+    Verbraucher (ab zwei Containern mit Verbrauch), sparsamster Container (kWh je Heizstunde, ab zwei Containern mit
+    mindestens `SPARSAM_AB_H` h, nicht der größte), Wetter je Grad kälter, deutlich mehr/weniger als davor, Ölradiator
+    gegen Konvektor. Nur Daten – den Text macht die Seite."""
+    liste: list[dict[str, Any]] = []
+    if ohne and ohne.get("gespart_eur", 0) > 0:
+        liste.append({"art": "gespart", "eur": ohne["gespart_eur"], "prozent": ohne.get("prozent")})
+    mit = [c for c in rang if c["kwh"] > 0]
+    if len(mit) >= 2:
+        g = mit[0]
+        liste.append({"art": "groesster", "bereich": g.get("bereich"), "name": g.get("name"), "kwh": g["kwh"], "anteil": g["anteil"]})
+        vgl = [c for c in mit if c["heizzeit"] >= SPARSAM_AB_H and c["kwh_h"] is not None]
+        if len(vgl) >= 2:
+            s = min(vgl, key=lambda c: c["kwh_h"])
+            if s is not g:
+                liste.append({"art": "sparsamster", "bereich": s.get("bereich"), "name": s.get("name"), "kwh_h": s["kwh_h"]})
+    if gerade and gerade.get("k") is not None and gerade["k"] < 0:
+        liste.append({"art": "wetter", "kwh_je_grad": -gerade["k"], "eur_je_grad": gerade.get("eur_je_grad"), "null0": gerade.get("null0")})
+    if veraenderung_kwh is not None and abs(veraenderung_kwh) >= ERKENNTNIS_AB_PROZENT:
+        liste.append({"art": "mehr" if veraenderung_kwh > 0 else "weniger", "prozent": abs(veraenderung_kwh)})
+    if typ_weniger is not None and abs(typ_weniger) >= TYP_AB_PROZENT:
+        liste.append({"art": "typ", "weniger": typ_weniger})
+    return liste[:ERKENNTNISSE_MAX]

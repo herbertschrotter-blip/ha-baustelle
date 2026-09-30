@@ -241,9 +241,13 @@ Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle
  "typ": {"oelradiator": {"kwh_h": 1.6, "auf": 2.7, "ab": 2.7, "tag": 3.05}, "konvektor": {}, "weniger": 17},
  "heizperiode": {"ende": "2027-04-30", "bis": "2027-04-30"}, "heiztage": 16,
  "hochrechnung": {"bisher_kwh": 412, "bisher_eur": 115.36, "mit_kwh": 2310, "mit_eur": 646.8, "ohne_kwh": 10626,
-                  "ohne_eur": 2975.28, "gespart_eur": 2328.48}}
+                  "ohne_eur": 2975.28, "gespart_eur": 2328.48},
+ "rangliste": [{"bereich": "<bid>", "name": "Polier", "baustelle": "…", "kwh": 60, "heizzeit": 25, "eur": 16.8, "kwh_h": 2.4, "anteil": 60}],
+ "erkenntnisse": [{"art": "gespart|groesster|sparsamster|wetter|mehr|weniger|typ", "…": "Werte je Art"}]}
 ```
 
+- `rangliste` (Container über `scope`, absteigend nach kWh; `kwh_h` ohne Heizzeit `null`) und `erkenntnisse` (höchstens 5,
+  Regeln in `logik/auswertung.erkenntnisse`; nur Daten, den Text macht die Seite) – WU-0005.
 - `summen` über `scope`; `heizzeit` nur Container, `pumpzeit` nur Pumpen; `veraenderung` in ganzen % zum Zeitraum davor
   (`null` ohne Wert davor); `ohne_automatik` `null`, solange „ohne Automatik“ 0 ist, sonst mit `ohne_eur` (Kosten im
   Dauerbetrieb, 0.7.24).

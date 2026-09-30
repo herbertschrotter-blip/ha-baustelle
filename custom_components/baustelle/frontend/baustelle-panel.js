@@ -674,6 +674,39 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .c-power { width: 42px; height: 42px; color: var(--ink2); } .c-power.an { background: var(--amber); color: #fff; border-color: transparent; box-shadow: 0 0 14px rgba(255,159,10,.55); }
 .c-power:disabled { opacity: .35; cursor: not-allowed; } .c-aktiv { display: flex; flex-direction: column; align-items: center; gap: 2px; } .c-aktiv small { font-size: 10px; color: var(--ink2); }
 @media (max-width: 700px) { .c-d-held { grid-template-columns: 1fr; } .c-kern { justify-self: center; } .c-kacheln { grid-template-columns: repeat(2, 1fr); } }
+/* Auswertung aus Bausteinen (WU-0005) */
+.aw-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; } .aw-hinweis { margin: -4px 2px 10px; }
+.aw-leiste { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; } .aw-leiste .seg { margin: 0; }
+.aw-delta { font-style: normal; font-size: 12px; margin-left: 6px; } .aw-delta.mehr { color: #ff9f0a; } .aw-delta.weniger { color: #30d158; } .gruen-t { color: #30d158; }
+.aw-raster { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 110px; gap: 12px; grid-auto-flow: dense; }
+.aw-frei-s { grid-column: span min(var(--w), 4); grid-row: span var(--h); position: relative; min-width: 0; }
+.aw-inhalt { height: 100%; overflow: auto; border-radius: 18px; } .aw-inhalt > .glas-panel, .aw-inhalt > .aw-karten { margin: 0; min-height: 100%; box-sizing: border-box; } .aw-inhalt > .aw-k { width: 100%; height: 100%; }
+.aw-raster.layout .aw-inhalt { pointer-events: none; opacity: .8; }
+.aw-ueber { position: absolute; inset: 0; border: 2px dashed var(--amber); border-radius: 18px; touch-action: none; }
+.aw-griff { position: absolute; top: 6px; left: 6px; width: 30px; height: 30px; border-radius: 10px; background: var(--amber); color: #fff; display: flex; align-items: center; justify-content: center; cursor: grab; font-size: 18px; touch-action: none; }
+.aw-name { position: absolute; top: 10px; left: 44px; font-size: 12px; background: var(--sheet); padding: 2px 8px; border-radius: 8px; max-width: calc(100% - 90px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aw-x { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--sheet); color: var(--ink); cursor: pointer; }
+.aw-groesse { position: absolute; right: 4px; bottom: 4px; width: 30px; height: 30px; display: flex; align-items: flex-end; justify-content: flex-end; color: var(--amber); font-size: 20px; cursor: nwse-resize; touch-action: none; }
+.aw-frei-s.zieht { z-index: 5; opacity: .85; box-shadow: 0 12px 30px rgba(0,0,0,.4); border-radius: 18px; } .aw-frei-s.ziel .aw-ueber { border-style: solid; background: rgba(255,159,10,.12); }
+.aw-k { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: 18px; color: var(--ink); text-align: left; cursor: pointer; font: inherit; box-sizing: border-box; }
+.aw-k small, .aw-betrag small { font-size: 11px; letter-spacing: 1.5px; color: var(--ink2); } .aw-k b { font-size: 28px; } .aw-k span { font-size: 13px; color: var(--ink2); }
+.aw-rang { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; width: 100%; font-size: 13px; } .aw-rang i { display: block; height: 8px; border-radius: 4px; } .aw-rang em { font-style: normal; color: var(--ink2); font-size: 12px; }
+.aw-zeile { display: flex; justify-content: space-between; width: 100%; font-size: 14px; } .aw-zeile b { font-size: 14px; }
+.aw-betrag { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 18px; } .aw-betrag small { display: block; }
+.aw-betrag > div > b { font-size: 46px; display: block; line-height: 1.1; margin: 4px 0; } .aw-betrag-r { display: flex; flex-direction: column; gap: 12px; } .aw-betrag-r b { font-size: 24px; }
+.aw-tab-kopf, .aw-tab-zeile { display: grid; grid-template-columns: 1fr 56px 64px 64px 56px 48px; gap: 8px; align-items: center; font-size: 13px; }
+.aw-tab-kopf { color: var(--ink2); font-size: 11px; padding: 0 0 6px; text-align: right; } .aw-tab-kopf span:first-child { text-align: left; }
+.aw-tab-zeile { width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--gridc); background: none; color: var(--ink); font: inherit; cursor: pointer; text-align: right; }
+.aw-tab-name { text-align: left; display: flex; flex-direction: column; gap: 4px; } .aw-tab-name em { font-style: normal; color: var(--ink2); margin-right: 6px; }
+.aw-tab-name i { display: block; height: 6px; border-radius: 3px; } .aw-tab-name small { color: var(--ink2); font-size: 11px; }
+.aw-karten { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.aw-karte { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: 18px; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.aw-karte span { font-size: 22px; } .aw-karte b { font-size: 15px; } .aw-karte small { color: var(--ink2); font-size: 12px; }
+.aw-vorlagen { margin-bottom: 12px; } .aw-vorlagen-k { display: flex; flex-wrap: wrap; gap: 8px; }
+.aw-wahl .zeile { gap: 12px; } .aw-wahl-k { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; } .aw-wahl-k .chip { min-width: 34px; justify-content: center; }
+.aw-gr { display: inline-flex; align-items: center; gap: 4px; } .aw-gr small { font-size: 11px; color: var(--ink2); } .aw-gr b { min-width: 14px; text-align: center; }
+@media (max-width: 700px) { .aw-raster { grid-template-columns: repeat(2, 1fr); } .aw-frei-s { grid-column: span min(var(--w), 2); }
+  .aw-tab-kopf, .aw-tab-zeile { grid-template-columns: 1fr 44px 56px 44px; } .aw-tab-kopf span:nth-child(n+5), .aw-tab-zeile > span:nth-child(n+5) { display: none; } }
 .tab-scroll { overflow-x: auto; } .je-geraet td, .je-geraet th { white-space: nowrap; padding-left: 8px; } .je-geraet td:first-child { white-space: normal; padding-left: 0; }
 /* 0.7.11 – Reiter Heizung als Kacheln (Mockup heizung-varianten.html, Variante A) */
 .hz-held { padding: 14px 16px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; }
@@ -1060,9 +1093,31 @@ const IC_MINUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d
 const IC_PLUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const IC_POWER = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M7.3 7.2a7 7 0 1 0 9.4 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 
+/* WU-0005: Auswertung aus Bausteinen (Mockup glas.html Variante 6, abgenommen 30.09.2026) – [Name, Beschreibung] */
+const AW_BAUSTEINE = {
+  betrag: ['Kosten groß', 'Betrag des Zeitraums, Vergleich, Gespart, Hochrechnung'], kennzahlen: ['Kennzahlen', 'kWh, Kosten, Heizzeit, Pumpzeit mit Vergleich'],
+  rangliste: ['Wer verbraucht was', 'Rangliste der Container'], verlauf: ['Verbrauchsdiagramm', 'gestapelt nach Container, Baustelle oder Firma'],
+  erkenntnisse: ['Was fällt auf', 'Erkenntnisse der Integration'], abrechnung: ['Abrechnung nach Firma', 'mit CSV'],
+  'k-kosten': ['Kachel Kosten', 'kurz'], 'k-gespart': ['Kachel Gespart', 'kurz'], 'k-hoch': ['Kachel Hochrechnung', 'kurz'], 'k-wer': ['Kachel Wer verbraucht', 'Top 4 als Balken'],
+  'k-firmen': ['Kachel Firmen', 'Betrag je Firma'], 'k-wetter': ['Kachel Wetter', 'kWh je Grad kälter'], 'k-oel': ['Kachel Ölradiator', 'Vergleich kurz'], 'k-temp': ['Kachel Temperaturen', 'jetzt je Container'],
+  geraete: ['Je Gerät', 'Tabelle je Gerät'], temperaturen: ['Temperaturen', 'Diagramm heute/7/30 Tage'], wetter: ['Wetter-Einfluss', 'Streudiagramm'],
+  ohne: ['Ohne Automatik', 'Vergleich mit Dauerbetrieb'], hochrechnung: ['Hochrechnung Heizperiode', 'bis Ende der Heizperiode'], vergleich: ['Ölradiator oder Konvektor', 'Tabelle'],
+  leistung: ['Leistung heute', 'Diagramm heute'], links: ['Weitere Auswertungen', 'Liste zum Antippen'],
+};
+const AW_HOEHE = { betrag: 2, kennzahlen: 2, rangliste: 4, verlauf: 4, erkenntnisse: 2, abrechnung: 4, links: 3, geraete: 4, temperaturen: 4, wetter: 4, ohne: 2, hochrechnung: 3, vergleich: 3, leistung: 3 };
+/* Vorlagen = die Varianten 1–5 des Mockups [Schlüssel, Breite 1–4, Höhe 1–6] */
+const AW_VORLAGEN = {
+  kacheln: ['1 · Kacheln', [['k-kosten', 2, 2], ['k-gespart', 1, 2], ['k-hoch', 1, 2], ['verlauf', 4, 4], ['k-wer', 2, 2], ['k-firmen', 2, 2], ['k-wetter', 1, 2], ['k-oel', 1, 2], ['k-temp', 2, 2]]],
+  kosten: ['2 · Kosten im Fokus', [['betrag', 4, 2], ['abrechnung', 4, 4], ['verlauf', 4, 4], ['links', 4, 3]]],
+  wer: ['3 · Wer verbraucht was', [['kennzahlen', 4, 2], ['rangliste', 4, 4], ['erkenntnisse', 4, 2]]],
+  verlauf: ['4 · Verlauf mit Erkenntnissen', [['verlauf', 4, 4], ['erkenntnisse', 4, 2], ['kennzahlen', 4, 2], ['links', 4, 3]]],
+  misch: ['5 · Mischform (Vorschlag)', [['betrag', 4, 2], ['rangliste', 4, 4], ['verlauf', 4, 4], ['erkenntnisse', 4, 2], ['k-wetter', 2, 2], ['k-oel', 2, 2], ['links', 4, 3]]],
+};
+const AW_SPEICHER = 'baustelle-aw-bausteine';
+
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.2';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.3';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1114,6 +1169,7 @@ class BaustellePanel extends HTMLElement {
     sr.addEventListener('input', e => this.eingabe(e));
     sr.addEventListener('change', e => this.aenderung(e));
     sr.addEventListener('pointermove', e => this.hover(e));
+    sr.addEventListener('pointerdown', e => this.zugStart(e));   // WU-0005: Layout der Auswertung (ziehen, Größe)
     sr.addEventListener('pointerleave', () => this.tip(null));
     if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('location-changed', () => { this._adresseFertig = null; setTimeout(() => this._adresse(), 0); });
     sr.addEventListener('focusout', () => { if (this._wartet) { this._wartet = false; setTimeout(() => this._auffrischen(), 0); } });
@@ -2197,31 +2253,153 @@ class BaustellePanel extends HTMLElement {
     const ab = cmp('ab') < 0 ? `hält die Wärme ${auf === 'braucht länger' ? 'aber ' : ''}besser` : cmp('ab') > 0 ? 'kühlt schneller ab' : '';
     const vb = weniger > 0 ? `verbraucht rund ${weniger} % weniger` : weniger < 0 ? `verbraucht rund ${-weniger} % mehr` : '';
     const teile = [auf, ab, vb].filter(Boolean), fussSatz = teile.length ? `Der Ölradiator ${teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile.at(-1)}` : teile[0]}.` : 'Noch zu wenige Messungen für einen Vergleich.';
-    return `${this.kopf('Auswertung', alle ? 'ALLE LAUFENDEN BAUSTELLEN' : esc(d.titel), `<button class="glas-panel chip" data-act="csv">⇩ CSV</button>`)}
-      <div class="seg glas-panel">${[['diese', 'Diese Baustelle'], ['alle', `Alle laufenden (${this.laufende().length})`]].map(([k, t]) => `<button data-act="aw-scope" data-v="${k}" class="${(this.s.awScope || 'diese') === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-      <div class="glas-panel kennz vier">${kz(zahl(kwh) ? de(kwh, 0) : '–', 'kWh', vd('kwh'))}${kz(zahl(kwh) ? `${de(S.eur, 0)} €` : '–', 'Kosten', vd('kwh'))}${kz(zahl(hz) ? `${de(hz, 0)} h` : '–', 'Heizzeit', vd('heizzeit'))}${kz(zahl(pz) ? `${de(pz, 1)} h` : '–', 'Pumpzeit', vd('pumpzeit'))}</div>
-      <div class="leise vgl">Pfeile: im Vergleich zu ${vgl}</div>
-      <div class="glas-panel block">${this.verbrauchInhalt(aw, 'aw', false)}</div>
-      ${alle ? '' : this.leistungHeute()}
-      ${alle ? '' : this.temperaturen()}
-      ${this.abrechnung(z)}
-      ${alle ? '' : this.geraeteBlock(z, A)}
-      <div class="glas-panel block"><div class="block-kopf"><b>Wetter-Einfluss</b><span class="leise">letzte 30 Heiztage · kWh je Tag gegen Außentemperatur</span></div>
-        ${streuHtml}</div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
+    /* WU-0005: Bausteine der Auswertung – die Seite ordnet sie nach dem eigenen Layout an (Variante 6) */
+    const B = {
+      kennzahlen: `<div class="glas-panel kennz vier">${kz(zahl(kwh) ? de(kwh, 0) : '–', 'kWh', vd('kwh'))}${kz(zahl(kwh) ? `${de(S.eur, 0)} €` : '–', 'Kosten', vd('kwh'))}${kz(zahl(hz) ? `${de(hz, 0)} h` : '–', 'Heizzeit', vd('heizzeit'))}${kz(zahl(pz) ? `${de(pz, 1)} h` : '–', 'Pumpzeit', vd('pumpzeit'))}</div>
+      <div class="leise vgl">Pfeile: im Vergleich zu ${vgl}</div>`,
+      verlauf: `<div class="glas-panel block">${this.verbrauchInhalt(aw, 'aw', false)}</div>`,
+      leistung: alle ? '' : this.leistungHeute(),
+      temperaturen: alle ? '' : this.temperaturen(),
+      abrechnung: this.abrechnung(z),
+      geraete: alle ? '' : this.geraeteBlock(z, A),
+      wetter: `<div class="glas-panel block"><div class="block-kopf"><b>Wetter-Einfluss</b><span class="leise">letzte 30 Heiztage · kWh je Tag gegen Außentemperatur</span></div>
+        ${streuHtml}</div>`,
+      ohne: `<div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
         ${!zahl(ohne) || !zahl(kwh) ? (ohne === null || kwh === null ? LAEDT : '<div class="leer">Noch keine Werte</div>') : !oa ? '<div class="leer">Noch keine Werte</div>' : `
         <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${Math.min(100, kwh / ohne * 100)}%;background:var(--s1)"></i></span><span class="hb-w">${de(S.eur, 0)} €</span></div>
         <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(oa.ohne_eur, 0)} €</span></div>
         <div class="gespart">gespart <b>${de(oa.gespart_eur, 2)} €</b> · ${de(oa.prozent, 0)} %</div>`}
-        ${erkl(d.e.erklaer, '„Ohne Automatik“ rechnet mit der gemessenen Leistung je Heizkörper, als liefe er rund um die Uhr – so, wie es ohne Steuerung oft ist.')}</div>
-      ${alle ? '' : this.hochrechnung(A)}
-      <div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
+        ${erkl(d.e.erklaer, '„Ohne Automatik“ rechnet mit der gemessenen Leistung je Heizkörper, als liefe er rund um die Uhr – so, wie es ohne Steuerung oft ist.')}</div>`,
+      hochrechnung: alle ? '' : this.hochrechnung(A),
+      vergleich: `<div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
         <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
           ${zeile('kWh je Heizstunde', 'kwhH', true, v => de(v, 2))}
           ${zeile('Aufheizen', 'auf', false, v => `${de(v, 1)} °C/h`)}
           ${zeile('Abkühlen nach Aus', 'ab', true, v => `${de(v, 1)} °C/h`)}
           ${zeile('Kosten je Tag', 'tag', null, v => `${de(v, 2)} €`)}</table>
-        <div class="leise fuss">${fussSatz}</div></div>`;
+        <div class="leise fuss">${fussSatz}</div></div>`,
+    };
+    return this.awSeite(B, A, z, alle);
+  }
+
+
+  /* ============ Auswertung aus Bausteinen (WU-0005): Vorlagen, Anpassen, Layout mit Ziehen – gemerkt je Browser ============ */
+  awVgl(z) { return { Tag: 'gestern', Woche: 'Vorwoche', Monat: 'Vormonat', Jahr: String(this.zeitraum('Jahr', 1).jahr) }[z]; }
+  awDelta(dl) { return dl === null || dl === undefined ? '' : `<em class="aw-delta ${dl > 0 ? 'mehr' : 'weniger'}">${dl > 0 ? '▲' : '▼'} ${Math.abs(dl)} %</em>`; }
+  awAuswahl() {
+    if (!this.s.awListe) { let l = null; try { l = JSON.parse(localStorage.getItem(AW_SPEICHER) || 'null'); } catch (e) { l = null; }
+      if (!Array.isArray(l)) this.awVorlage('misch', false);
+      else { const bekannt = l.filter(x => x && AW_BAUSTEINE[x.k]).map(x => ({ k: x.k, an: !!x.an, w: Math.min(4, Math.max(1, +x.w || 2)), h: Math.min(6, Math.max(1, +x.h || 2)) }));
+        this.s.awListe = [...bekannt, ...Object.keys(AW_BAUSTEINE).filter(k => !bekannt.some(x => x.k === k)).map(k => ({ k, an: false, w: 4, h: AW_HOEHE[k] || 2 }))]; } }
+    return this.s.awListe;
+  }
+  awVorlage(name, merken = true) {
+    const v = AW_VORLAGEN[name][1], rest = Object.keys(AW_BAUSTEINE).filter(k => !v.some(x => x[0] === k));
+    this.s.awListe = [...v.map(([k, w, h]) => ({ k, an: true, w, h })), ...rest.map(k => ({ k, an: false, w: 4, h: AW_HOEHE[k] || 2 }))];
+    if (merken) this.awMerken();
+  }
+  awMerken() { try { localStorage.setItem(AW_SPEICHER, JSON.stringify(this.s.awListe)); } catch (e) { /* egal */ } }
+  /* „Was fällt auf“: die Integration wählt aus (logik/auswertung.erkenntnisse), die Seite macht nur den Text */
+  awErkenntnisse(A, z) {
+    return ((A && A.erkenntnisse) || []).map(x => ({
+      gespart: ['💶', `${de(x.eur, 0)} € gespart`, `Die Automatik spart ${de(x.prozent, 0)} % gegenüber Dauerbetrieb.`, 'ohne'],
+      groesster: ['🔥', `${esc(x.name)} verbraucht am meisten`, `${de(x.kwh, 0)} kWh · ${de(x.anteil, 0)} % des Verbrauchs.`, 'geraete'],
+      sparsamster: ['⚙', `${esc(x.name)} heizt am sparsamsten`, `${de(x.kwh_h, 2)} kWh je Heizstunde.`, 'vergleich'],
+      wetter: ['🌡', `Je Grad kälter +${de(x.kwh_je_grad, 1)} kWh am Tag`, [zahl(x.eur_je_grad) ? `≈ ${de(x.eur_je_grad, 2)} € je Grad` : '', zahl(x.null0) ? `unter ${de(x.null0, 0)} °C außen wird geheizt` : ''].filter(Boolean).join(' · '), 'wetter'],
+      mehr: ['📈', `${x.prozent} % mehr als ${this.awVgl(z)}`, 'Verbrauch im Vergleich zum Zeitraum davor.', 'verlauf'],
+      weniger: ['📉', `${x.prozent} % weniger als ${this.awVgl(z)}`, 'Verbrauch im Vergleich zum Zeitraum davor.', 'verlauf'],
+      typ: ['⚖', x.weniger > 0 ? `Ölradiator ${de(x.weniger, 0)} % sparsamer` : `Konvektor ${de(-x.weniger, 0)} % sparsamer`, 'aus eigenen Messungen je Heizstunde.', 'vergleich'],
+    })[x.art]).filter(Boolean);
+  }
+  awStueck(k, B, A, z) {
+    const d = this.d, S = (A && A.summen) || {}, oa = S.ohne_automatik, h = A && A.hochrechnung, rang = (A && A.rangliste) || [], p = d.e.preis;
+    const kachel = (kk, inhalt) => `<button class="glas-panel aw-k" data-act="aw-detail" data-k="${kk}">${inhalt}</button>`, laed = !A;
+    const eur = zahl(S.eur) ? `${de(S.eur, 2)} €` : '–', max = Math.max(1, ...rang.map(c => c.kwh || 0)), wann = { Tag: 'HEUTE', Woche: 'DIESE WOCHE', Monat: 'DIESER MONAT', Jahr: 'DIESES JAHR' }[z];
+    const temp = id => { const b = d.bereiche.find(x => x.id === id); return b && b.t !== null ? `${de(b.t)}°` : '–'; };
+    switch (k) {
+      case 'betrag': return laed ? `<div class="glas-panel block">${LAEDT}</div>` : `<div class="glas-panel aw-betrag"><div><small>KOSTEN · ${wann}</small><b>${eur}</b>
+          <span>${zahl(S.kwh) ? de(S.kwh, 0) : '–'} kWh ${this.awDelta((S.veraenderung || {}).kwh)} <span class="leise">zu ${this.awVgl(z)}</span></span></div>
+        <div class="aw-betrag-r"><div><small>GESPART DURCH AUTOMATIK</small><b class="gruen-t">${oa ? `${de(oa.gespart_eur, 0)} €` : '–'}</b></div>
+          <div><small>HOCHRECHNUNG HEIZPERIODE</small><b>${h && zahl(h.mit_eur) ? `≈ ${de(h.mit_eur, 0)} €` : '–'}</b></div></div></div>`;
+      case 'rangliste': return `<div class="glas-panel block"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">antippen öffnet den Container</span></div>
+        ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : `<div class="aw-tab-kopf"><span></span><span>kWh</span><span>€</span><span>Heizzeit</span><span>kWh/h</span><span>jetzt</span></div>
+        ${rang.map((c, i) => { const hier = d.bereiche.find(b => b.id === c.bereich), farbe = hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : 'var(--ink2)';
+          return `<button class="aw-tab-zeile" ${hier ? `data-act="container" data-id="${esc(c.bereich)}"` : 'disabled'}><span class="aw-tab-name"><span><em>${i + 1}</em>${esc(c.name)}</span>${this.s.awScope === 'alle' ? `<small>${esc(c.baustelle || '')}</small>` : ''}
+            <i style="width:${(c.kwh || 0) / max * 100}%;background:${farbe}"></i></span><b>${de(c.kwh, 0)}</b><span>${de(c.eur, 2)}</span><span>${de(c.heizzeit, 1)} h</span><span>${zahl(c.kwh_h) ? de(c.kwh_h, 2) : '–'}</span><span>${hier ? temp(c.bereich) : '–'}</span></button>`; }).join('')}`}</div>`;
+      case 'erkenntnisse': { const E = this.awErkenntnisse(A, z);
+        return laed ? `<div class="glas-panel block">${LAEDT}</div>` : !E.length ? '<div class="glas-panel block"><div class="block-kopf"><b>Was fällt auf</b></div><div class="leer">Noch nichts Auffälliges</div></div>'
+          : `<div class="aw-karten">${E.map(([i, t, x, kk]) => `<button class="glas-panel aw-karte" data-act="aw-detail" data-k="${kk}"><span>${i}</span><b>${t}</b><small>${x}</small></button>`).join('')}</div>`; }
+      case 'k-kosten': return kachel('abrechnung', `<small>KOSTEN · ${wann}</small><b>${eur}</b><span>${zahl(S.kwh) ? de(S.kwh, 0) : '–'} kWh ${this.awDelta((S.veraenderung || {}).kwh)}</span>`);
+      case 'k-gespart': return kachel('ohne', `<small>GESPART</small><b class="gruen-t">${oa ? `${de(oa.gespart_eur, 0)} €` : '–'}</b><span>${oa ? `${de(oa.prozent, 0)} % durch Automatik` : 'noch keine Werte'}</span>`);
+      case 'k-hoch': return kachel('hochrechnung', `<small>HOCHRECHNUNG</small><b>${h && zahl(h.mit_eur) ? `${de(h.mit_eur, 0)} €` : '–'}</b><span>bis Ende Heizperiode</span>`);
+      case 'k-wer': return kachel('geraete', `<small>WER VERBRAUCHT</small>${rang.slice(0, 4).map(c => { const hier = d.bereiche.find(b => b.id === c.bereich);
+        return `<div class="aw-rang"><span>${esc(c.name)}</span><i style="width:${(c.kwh || 0) / max * 100}%;background:${hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : 'var(--ink2)'}"></i><em>${de(c.kwh, 0)} kWh</em></div>`; }).join('') || '<span>–</span>'}`);
+      case 'k-firmen': { const ab = this.abDaten(z), F = (ab && ab.firmen) || [];
+        return kachel('abrechnung', `<small>FIRMEN</small>${F.map(f => `<div class="aw-zeile"><span>${esc(f.firma)}</span><b>${de(f.eur ?? (f.kwh || 0) * p, 2)} €</b></div>`).join('') || '<span>–</span>'}`); }
+      case 'k-wetter': { const g = A && A.wetter && A.wetter.gerade; return kachel('wetter', `<small>WETTER</small><b>${g && g.k < 0 ? `+${de(-g.k, 1)}` : '–'}</b><span>kWh je Grad kälter</span>`); }
+      case 'k-oel': { const w = A && A.typ && A.typ.weniger; return kachel('vergleich', `<small>ÖLRADIATOR</small><b>${zahl(w) ? `${w > 0 ? '−' : '+'}${de(Math.abs(w), 0)} %` : '–'}</b><span>gegenüber Konvektor</span>`); }
+      case 'k-temp': return kachel('temperaturen', `<small>TEMPERATUREN JETZT</small>${d.bereiche.filter(b => !b.pumpe && b.t !== null).slice(0, 4).map(b => `<div class="aw-zeile"><span>${esc(b.name)}</span><b>${de(b.t)} °C</b></div>`).join('') || '<span>kein Fühler</span>'}`);
+      case 'links': return `<div class="glas-panel liste">${[['abrechnung', '💶 Abrechnung nach Firma'], ['geraete', '♨ Je Gerät'], ['temperaturen', '🌡 Temperaturen'], ['wetter', '🌦 Wetter-Einfluss'], ['vergleich', '⚖ Ölradiator oder Konvektor'], ['hochrechnung', '📅 Hochrechnung Heizperiode']]
+        .filter(([kk]) => B[kk]).map(([kk, t]) => `<button class="zeile" data-act="aw-detail" data-k="${kk}"><span>${t}</span><span class="chev">›</span></button>`).join('')}</div>`;
+      default: return B[k] || '';
+    }
+  }
+  awSeite(B, A, z, alle) {
+    const d = this.d, L = this.awAuswahl(), bearb = this.s.awBearb, layout = this.s.awLayout;
+    this._awTeile = { B, A, z };   // für die Detail-Einblendung
+    const kopf = this.kopf('Auswertung', alle ? 'ALLE LAUFENDEN BAUSTELLEN' : esc(d.titel), `<span class="aw-knoepfe"><button class="glas-panel chip ${layout ? 'amber' : ''}" data-act="aw-layout">${layout ? '✓ Fertig' : '✥ Layout'}</button>
+        <button class="glas-panel chip ${bearb ? 'amber' : ''}" data-act="aw-bearb">${bearb ? '✓ Fertig' : '✎ Anpassen'}</button><button class="glas-panel chip" data-act="csv">⇩ CSV</button></span>`);
+    const leiste = `<div class="aw-leiste"><div class="seg glas-panel">${['Tag', 'Woche', 'Monat', 'Jahr'].map(t => `<button data-act="vb-zeitraum" data-ziel="aw" data-v="${t}" class="${z === t ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <div class="seg glas-panel">${[['diese', 'Diese Baustelle'], ['alle', `Alle laufenden (${this.laufende().length})`]].map(([k, t]) => `<button data-act="aw-scope" data-v="${k}" class="${(this.s.awScope || 'diese') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
+    if (bearb) {
+      const gr = (i, x, k, max) => `<span class="aw-gr"><small>${k === 'w' ? 'Breite' : 'Höhe'}</small><button class="glas-panel chip" data-act="aw-gr" data-i="${i}" data-k="${k}" data-d="-1" ${x[k] <= 1 ? 'disabled' : ''}>−</button><b>${x[k]}</b><button class="glas-panel chip" data-act="aw-gr" data-i="${i}" data-k="${k}" data-d="1" ${x[k] >= max ? 'disabled' : ''}>+</button></span>`;
+      return `${kopf}${leiste}
+        <div class="glas-panel block aw-vorlagen"><div class="block-kopf"><b>Vorlage</b><span class="leise">stellt Bausteine, Reihenfolge und Größe ein – danach frei anpassbar</span></div>
+          <div class="aw-vorlagen-k">${Object.entries(AW_VORLAGEN).map(([k, [t]]) => `<button class="glas-panel chip" data-act="aw-vorlage" data-v="${k}">${t}</button>`).join('')}</div></div>
+        <div class="glas-panel liste aw-wahl"><div class="gruppe">Bausteine · ein/aus, Reihenfolge, Größe im Raster (Breite 1–4, Höhe 1–6)</div>
+          ${L.map((x, i) => `<div class="zeile"><div><b>${AW_BAUSTEINE[x.k][0]}</b><div class="leise">${AW_BAUSTEINE[x.k][1]}${alle && !B[x.k] && B[x.k] !== undefined ? ' · nur für diese Baustelle' : ''}</div></div>
+            <div class="aw-wahl-k"><button class="glas-panel chip" data-act="aw-hoch" data-i="${i}" ${i ? '' : 'disabled'} aria-label="nach oben">↑</button><button class="glas-panel chip" data-act="aw-runter" data-i="${i}" ${i < L.length - 1 ? '' : 'disabled'} aria-label="nach unten">↓</button>
+              ${gr(i, x, 'w', 4)}${gr(i, x, 'h', 6)}${schalter(x.an, 'aw-an', `data-i="${i}"`)}</div></div>`).join('')}
+          <button class="zeile" data-act="aw-vorlage" data-v="misch"><span class="blau">Auf Vorschlag zurücksetzen</span></button></div>`;
+    }
+    const an = L.filter(x => x.an), teile = an.map((x, i) => ({ x, i, html: this.awStueck(x.k, B, A, z) })).filter(t => t.html);
+    return `${kopf}${leiste}
+      ${layout ? '<div class="leise aw-hinweis">Kachel am Griff ⠿ ziehen zum Verschieben · am Griff ◢ ziehen für die Größe (rastet im Raster ein) · ✕ blendet aus</div>' : ''}
+      ${teile.length ? `<div class="aw-raster ${layout ? 'layout' : ''}">${teile.map(({ x, i, html }) => `<div class="aw-frei-s" data-i="${i}" style="--w:${x.w};--h:${x.h}"><div class="aw-inhalt">${html}</div>
+          ${layout ? `<div class="aw-ueber"><span class="aw-griff" data-zug="move" title="verschieben">⠿</span><span class="aw-name">${AW_BAUSTEINE[x.k][0]} · <b class="aw-mass">${x.w}×${x.h}</b></span>
+            <button class="aw-x" data-act="aw-weg" data-i="${i}" aria-label="ausblenden">✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : ''}</div>`).join('')}</div>`
+        : '<div class="leer">Nichts ausgewählt – „✎ Anpassen“</div>'}`;
+  }
+  /* Layout: Kachel ziehen (Reihenfolge) und Größe ziehen (rastet im Raster ein) – Maus und Finger */
+  zugStart(ev) {
+    const griff = ev.target && ev.target.closest && ev.target.closest('[data-zug]'); if (!griff) return;
+    const kachel = griff.closest('.aw-frei-s'), raster = kachel && kachel.parentElement; if (!raster) return;
+    const art = griff.dataset.zug, an = this.awAuswahl().filter(x => x.an), item = an[+kachel.dataset.i]; if (!item) return;
+    ev.preventDefault();
+    const cs = getComputedStyle(raster), spalten = cs.gridTemplateColumns.split(' ').length, luecke = parseFloat(cs.columnGap) || 12;
+    const breite = (raster.getBoundingClientRect().width - luecke * (spalten - 1)) / spalten, hoehe = parseFloat(cs.gridAutoRows) || 110;
+    const x0 = ev.clientX, y0 = ev.clientY, w0 = item.w, h0 = item.h, mass = kachel.querySelector('.aw-mass'), wurzel = this.shadowRoot;
+    kachel.classList.add(art === 'move' ? 'zieht' : 'waechst');
+    let ziel = null;
+    const bewegt = e => {
+      if (art === 'size') {
+        item.w = Math.max(1, Math.min(4, Math.round(w0 + (e.clientX - x0) / (breite + luecke))));
+        item.h = Math.max(1, Math.min(6, Math.round(h0 + (e.clientY - y0) / (hoehe + luecke))));
+        kachel.style.setProperty('--w', item.w); kachel.style.setProperty('--h', item.h); if (mass) mass.textContent = `${item.w}×${item.h}`;
+      } else {
+        kachel.style.transform = `translate(${e.clientX - x0}px, ${e.clientY - y0}px)`; kachel.style.pointerEvents = 'none';
+        const unter = (wurzel.elementFromPoint ? wurzel : document).elementFromPoint(e.clientX, e.clientY), k = unter && unter.closest && unter.closest('.aw-frei-s');
+        raster.querySelectorAll('.aw-frei-s.ziel').forEach(x => x.classList.remove('ziel'));
+        ziel = k && k !== kachel && raster.contains(k) ? k : null; if (ziel) ziel.classList.add('ziel');
+      }
+    };
+    const fertig = () => {
+      window.removeEventListener('pointermove', bewegt); window.removeEventListener('pointerup', fertig); window.removeEventListener('pointercancel', fertig);
+      if (art === 'move' && ziel) { const Lg = this.awAuswahl(), nach = an[+ziel.dataset.i], von = Lg.indexOf(item);
+        Lg.splice(von, 1); Lg.splice(Lg.indexOf(nach) + (+ziel.dataset.i > +kachel.dataset.i ? 1 : 0), 0, item); }
+      this.awMerken(); this.render();
+    };
+    window.addEventListener('pointermove', bewegt); window.addEventListener('pointerup', fertig); window.addEventListener('pointercancel', fertig);
   }
 
   /* ---- Pumpen (0.7.8, wie 0.6.3 eigener Reiter) ---- */
@@ -2768,6 +2946,10 @@ class BaustellePanel extends HTMLElement {
       <div class="leise">Die Auswertung rechnet Verbrauch und Kosten auf die Heizperiode hoch – bis zum Ende der Baustelle, wenn es früher liegt.</div>
       ${knopf('Speichern', 'bsz-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
     /* AN-0002: ✎ im Dialog „Baustellen“ – nur die Daten dieser Baustelle; Staffelung, Bericht, Meldungen und App bleiben unter Einstellungen */
+    if (s.art === 'aw-detail') {   // WU-0005: Details einer Kachel/Karte der Auswertung
+      const T = this._awTeile, html = T ? this.awStueck(s.k, T.B, T.A, T.z) : '';
+      return `${griff}<div class="aw-detail">${html || '<div class="leer">Nur für diese Baustelle</div>'}</div>${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
     /* WU-0004: Gerät bearbeiten – Name, Shelly, Typ, Container, Leistungs-/Energiesensor (leer = automatisch), aktiv */
     if (s.art === 'geraet-edit') {
       const b = this.b, g = b && b.geraete[s.i]; if (!g) { this.s.sheet = null; return ''; }
@@ -3003,6 +3185,14 @@ class BaustellePanel extends HTMLElement {
       case 'bsz-speichern': { const f = S.sheet.form; if (f.ende && f.ende < (f.beginn || (d.beginnAuto ? d.beginn : ''))) return this.toast('Bitte Beginn und Ende prüfen');
         S.sheet = null; neu();
         return this.einrichten(() => this.optionenSpeichern(d, { beginn: f.beginn || null, ende: f.ende || null, heizperiode_von: String(f.hp[0]), heizperiode_bis: String(f.hp[1]) }), 'Gespeichert').then(() => this._laden()); }
+      case 'aw-bearb': S.awBearb = !S.awBearb; S.awLayout = false; return neu();
+      case 'aw-layout': S.awLayout = !S.awLayout; S.awBearb = false; return neu();
+      case 'aw-an': { const x = this.awAuswahl()[+el.dataset.i]; x.an = !x.an; this.awMerken(); return neu(); }
+      case 'aw-weg': { const x = this.awAuswahl().filter(y => y.an)[+el.dataset.i]; if (x) x.an = false; this.awMerken(); return neu(); }
+      case 'aw-gr': { const x = this.awAuswahl()[+el.dataset.i], k = el.dataset.k; x[k] = Math.max(1, Math.min(k === 'w' ? 4 : 6, x[k] + +el.dataset.d)); this.awMerken(); return neu(); }
+      case 'aw-hoch': case 'aw-runter': { const Lg = this.awAuswahl(), i = +el.dataset.i, j = a === 'aw-hoch' ? i - 1 : i + 1; if (j < 0 || j >= Lg.length) return; [Lg[i], Lg[j]] = [Lg[j], Lg[i]]; this.awMerken(); return neu(); }
+      case 'aw-vorlage': this.awVorlage(el.dataset.v); neu(); return this.toast(`Vorlage „${AW_VORLAGEN[el.dataset.v][0]}“ übernommen`);
+      case 'aw-detail': S.sheet = { art: 'aw-detail', k: el.dataset.k }; return neu();
       case 'c-soll': { const x = b, soll = Math.max(5, Math.min(30, (x.soll ?? d.e.soll) + +el.dataset.d)); return this.setzen(['bereiche', x.id, 'soll'], soll); }
       case 'cvd': S.cvd = el.dataset.v; return neu();
       case 'g-aktiv': { const g = b.geraete[+el.dataset.i]; return this.aktion('aktiv', { geraet: g.id, an: !g.aktiv }, g.aktiv ? `${g.n} inaktiv – die Automatik lässt es aus` : `${g.n} wieder aktiv`); }

@@ -183,7 +183,10 @@ function fakeAuswertung(m) {
     wetter: w ? { punkte: w.erwartet.punkte, gerade: w.erwartet.regression && { ...w.erwartet.regression, eur_je_grad: w.erwartet.regression.k < 0 ? -w.erwartet.regression.k * preis : null } } : { punkte: [], gerade: null },
     typ: tv ? tv.erwartet : { oelradiator: leer, konvektor: leer, weniger: null },
     heizperiode: { ende: '2026-04-30', bis: ende && ende < '2026-04-30' ? ende : '2026-04-30' }, heiztage: zl.heiztage ?? 0,
-    hochrechnung: { bisher_kwh: 412, bisher_eur: 115.36, mit_kwh: 2310, mit_eur: 646.8, ohne_kwh: 10626, ohne_eur: 2975.28, gespart_eur: 2328.48 } };
+    hochrechnung: { bisher_kwh: 412, bisher_eur: 115.36, mit_kwh: 2310, mit_eur: 646.8, ohne_kwh: 10626, ohne_eur: 2975.28, gespart_eur: 2328.48 },
+    // WU-0005: Rangliste und Erkenntnisse (wie logik/auswertung.rangliste/erkenntnisse)
+    rangliste: b.bereiche.filter(c => c.art !== 'pumpenschacht').map((c, i) => ({ bereich: c.id, name: c.name, baustelle: b.baustelle.titel, kwh: 40 - i * 5, heizzeit: 20 - i, eur: (40 - i * 5) * preis, kwh_h: (40 - i * 5) / (20 - i), anteil: 0 })),
+    erkenntnisse: kwh ? [{ art: 'gespart', eur: kwh * 2 * preis, prozent: 66.7 }, { art: 'groesster', bereich: b.bereiche[0].id, name: b.bereiche[0].name, kwh: 40, anteil: 38 }, { art: 'wetter', kwh_je_grad: 7.2, eur_je_grad: 2, null0: 15.5 }, { art: 'mehr', prozent: 18 }] : [] };
 }
 const hass = {
   states, themes: { darkMode: true }, config: { version: '2026.9.4' }, language: 'de',
@@ -831,6 +834,21 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Modus je Container (Auswahlliste)', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["bereiche","sanitaer","modus"]' && a.wert === 'aus'));
   neu(); panel.d.e.frost_aus = 5.5; await klick({ act: 'st', k: 'frost_temp', d: '0.5' });
   erwarte('„ein unter“ nicht über „aus über“', !letzte('baustelle/setzen').length);
+  /* WU-0005: Auswertung aus Bausteinen – Vorschlag Mischform, Vorlagen, Anpassen, Layout, Rangliste, Was fällt auf, Details */
+  { panel.s.awListe = null; await klick({ act: 'tab', v: 'auswertung' }, 30); pruefe('Auswertung Mischform');
+    erwarte('WU-0005: Vorschlag Mischform mit Kosten groß, Rangliste, Was fällt auf', ['aw-betrag', 'Wer verbraucht was', 'aw-tab-zeile', 'aw-karte', 'Weitere Auswertungen'.slice(0, 0)].every(t => ui.innerHTML.includes(t)) && /€ gespart/.test(ui.innerHTML));
+    await klick({ act: 'aw-bearb' }); pruefe('Auswertung anpassen');
+    erwarte('WU-0005: Anpassen mit Vorlagen 1–5 und Größe', (ui.innerHTML.match(/data-act="aw-vorlage"/g) || []).length >= 5 && ui.innerHTML.includes('data-act="aw-gr"'));
+    await klick({ act: 'aw-vorlage', v: 'kacheln' }); erwarte('WU-0005: Vorlage Kacheln', panel.awAuswahl()[0].k === 'k-kosten' && panel.awAuswahl().filter(x => x.an).length === 9);
+    await klick({ act: 'aw-gr', i: '0', k: 'h', d: '1' }); erwarte('WU-0005: Größe per −/+', panel.awAuswahl()[0].h === 3);
+    await klick({ act: 'aw-runter', i: '0' }); erwarte('WU-0005: Reihenfolge', panel.awAuswahl()[1].k === 'k-kosten');
+    await klick({ act: 'aw-layout' }); pruefe('Auswertung Layout');
+    erwarte('WU-0005: Layout mit Griffen', ui.innerHTML.includes('data-zug="move"') && ui.innerHTML.includes('data-zug="size"') && ui.innerHTML.includes('aw-raster layout'));
+    await klick({ act: 'aw-weg', i: '0' }); erwarte('WU-0005: ✕ blendet aus', panel.awAuswahl().filter(x => x.an).length === 8);
+    await klick({ act: 'aw-layout' });
+    for (const k of ['abrechnung', 'geraete', 'temperaturen', 'wetter', 'ohne', 'hochrechnung', 'vergleich']) { await klick({ act: 'aw-detail', k }); pruefe(`Auswertung Detail ${k}`); erwarte(`WU-0005: Detail ${k}`, panel.s.sheet && panel.s.sheet.art === 'aw-detail' && !/Nur für diese Baustelle/.test(ui.innerHTML)); await klick({ act: 'zu' }); }
+    await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' }); await klick({ act: 'aw-bearb' }); }
+  panel.awAuswahl().forEach(x => { x.an = true; });   // WU-0005: alle Bausteine zeigen – die Inhalte prüfen die folgenden Tests
   await klick({ act: 'tab', v: 'auswertung' }, 30);
   erwarte('Auswertung: Leistung heute, Temperaturen, Je Gerät, Hochrechnung', ['Leistung heute', 'Temperaturen', 'Je Gerät', 'Hochrechnung Heizperiode'].every(t => ui.innerHTML.includes(t)));
   for (const v of ['7', '30', 'heute']) { await klick({ act: 'tv', v }, 30); pruefe('Temperaturen ' + v); }

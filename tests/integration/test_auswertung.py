@@ -208,6 +208,12 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
     g = r["wetter"]["gerade"]
     assert g["eur_je_grad"] == (pytest.approx(-g["k"] * 0.25) if g["k"] < 0 else None)
     assert set(r["typ"]) == {"oelradiator", "konvektor", "weniger"}
+    # WU-0005: Rangliste je Container (Summe = kWh der Container) und „Was fällt auf“
+    rang = r["rangliste"]
+    assert [c["bereich"] for c in rang] and all(c["baustelle"] == baustelle.title for c in rang)
+    assert [c["kwh"] for c in rang] == sorted((c["kwh"] for c in rang), reverse=True)
+    assert sum(c["anteil"] for c in rang) == pytest.approx(100) and all(c["eur"] == pytest.approx(c["kwh"] * 0.25) for c in rang)
+    assert r["erkenntnisse"] and r["erkenntnisse"][0]["art"] == "gespart" and len(r["erkenntnisse"]) <= 5
     alle = (await ws("baustelle/auswertung", zeitraum="Woche", scope="alle"))["result"]
     assert alle["summen"]["kwh"] == pytest.approx(s["kwh"])   # nur eine laufende Baustelle
     assert (await ws("baustelle/auswertung", entry_id="falsch"))["error"]["code"] == "not_found"

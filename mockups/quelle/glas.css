@@ -554,3 +554,55 @@ body.hell { background: #d9dee5; color: #111; }
 /* runde Knöpfe: Symbol genau mittig */
 .cv-pm, .cv-power { display: inline-flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
 .cv-pm .ic, .cv-power .ic { width: 55%; height: 55%; display: block; } .cv-pm.klein .ic { width: 70%; height: 70%; }
+
+/* WU-0005: Varianten der Auswertung */
+.aw-leiste { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; } .aw-leiste .seg { margin: 0; }
+.aw-delta { font-style: normal; font-size: 12px; margin-left: 6px; } .aw-delta.mehr { color: #ff9f0a; } .aw-delta.weniger { color: #30d158; } .gruen-t { color: #30d158; }
+.aw-bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.aw-k { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: 18px; color: var(--ink); text-align: left; cursor: pointer; font: inherit; min-height: 110px; }
+.aw-k.b2 { grid-column: span 2; } .aw-k.b4 { grid-column: span 4; cursor: default; } .aw-k small { font-size: 11px; letter-spacing: 1.5px; color: var(--ink2); }
+.aw-k b { font-size: 28px; } .aw-k.gross b { font-size: 40px; } .aw-k span { font-size: 13px; color: var(--ink2); }
+.aw-rang { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; width: 100%; font-size: 13px; }
+.aw-rang i { display: block; height: 8px; border-radius: 4px; } .aw-rang em { font-style: normal; color: var(--ink2); font-size: 12px; }
+.aw-zeile { display: flex; justify-content: space-between; width: 100%; font-size: 14px; } .aw-zeile b { font-size: 14px; }
+.aw-betrag { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 18px; margin-bottom: 12px; }
+.aw-betrag small { font-size: 11px; letter-spacing: 1.5px; color: var(--ink2); display: block; } .aw-betrag > div > b { font-size: 46px; display: block; line-height: 1.1; margin: 4px 0; }
+.aw-betrag-r { display: flex; flex-direction: column; gap: 12px; } .aw-betrag-r b { font-size: 24px; }
+.aw-r-firma { padding: 8px 0; border-bottom: 1px solid var(--gridc); } .aw-r-kopf { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.aw-r-zeile { display: grid; grid-template-columns: 1fr auto 80px; gap: 10px; font-size: 13px; padding: 2px 0 2px 12px; } .aw-r-zeile > span:last-child { text-align: right; }
+.aw-r-summe { display: flex; justify-content: space-between; padding-top: 10px; font-size: 16px; } .aw-r-knoepfe { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.aw-auf { padding: 4px 14px; margin-bottom: 10px; border-radius: 16px; } .aw-auf summary { display: flex; justify-content: space-between; padding: 10px 0; cursor: pointer; list-style: none; }
+.aw-auf .glas-panel { background: none; border: 0; backdrop-filter: none; padding: 0; }
+.aw-tab-kopf, .aw-tab-zeile { display: grid; grid-template-columns: 1fr 56px 64px 64px 56px 48px; gap: 8px; align-items: center; font-size: 13px; }
+.aw-tab-kopf { color: var(--ink2); font-size: 11px; padding: 0 0 6px; text-align: right; } .aw-tab-kopf span:first-child { text-align: left; }
+.aw-tab-zeile { width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--gridc); background: none; color: var(--ink); font: inherit; cursor: pointer; text-align: right; }
+.aw-tab-name { text-align: left; display: flex; flex-direction: column; gap: 4px; } .aw-tab-name em { font-style: normal; color: var(--ink2); margin-right: 6px; }
+.aw-tab-name i { display: block; height: 6px; border-radius: 3px; } .aw-tab-name small { color: var(--ink2); font-size: 11px; }
+.aw-karten { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.aw-karte { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: 18px; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.aw-karte span { font-size: 22px; } .aw-karte b { font-size: 15px; } .aw-karte small { color: var(--ink2); font-size: 12px; } .aw-t { margin: 4px 2px 8px; }
+.aw-held .chart-wrap { min-height: 260px; }
+.telefon .aw-bento { grid-template-columns: repeat(2, 1fr); } .telefon .aw-k.b4 { grid-column: span 2; }
+.telefon .aw-tab-kopf, .telefon .aw-tab-zeile { grid-template-columns: 1fr 44px 56px 44px; } .telefon .aw-tab-kopf span:nth-child(n+5), .telefon .aw-tab-zeile > span:nth-child(n+5) { display: none; }
+@media (max-width: 700px) { .aw-bento { grid-template-columns: repeat(2, 1fr); } .aw-k.b4 { grid-column: span 2; } }
+.aw-frei { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-items: start; } .aw-frei-s.breit { grid-column: span 2; }
+.aw-frei-s > .glas-panel, .aw-frei-s > .aw-karten { margin-bottom: 0; } .aw-frei-s > .aw-k { width: 100%; }
+.aw-wahl .zeile { gap: 12px; } .aw-wahl-k { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; } .aw-wahl-k .chip { min-width: 34px; justify-content: center; }
+.telefon .aw-frei { grid-template-columns: 1fr; } .telefon .aw-frei-s.breit { grid-column: auto; }
+@media (max-width: 700px) { .aw-frei { grid-template-columns: 1fr; } .aw-frei-s.breit { grid-column: auto; } }
+/* WU-0005 Variante 6: Raster mit Layout-Modus (ziehen, Größe) */
+.aw-knoepfe { display: flex; gap: 8px; } .aw-hinweis { margin: -4px 2px 10px; }
+.aw-raster { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 110px; gap: 12px; grid-auto-flow: dense; }
+.aw-frei-s { grid-column: span min(var(--w), 4); grid-row: span var(--h); position: relative; min-width: 0; }
+.aw-inhalt { height: 100%; overflow: auto; border-radius: 18px; } .aw-inhalt > .glas-panel, .aw-inhalt > .aw-karten { margin: 0; min-height: 100%; } .aw-inhalt > .aw-k { width: 100%; height: 100%; }
+.aw-raster.layout .aw-inhalt { pointer-events: none; opacity: .8; }
+.aw-ueber { position: absolute; inset: 0; border: 2px dashed var(--amber); border-radius: 18px; touch-action: none; }
+.aw-griff { position: absolute; top: 6px; left: 6px; width: 30px; height: 30px; border-radius: 10px; background: var(--amber); color: #fff; display: flex; align-items: center; justify-content: center; cursor: grab; font-size: 18px; touch-action: none; }
+.aw-name { position: absolute; top: 10px; left: 44px; right: 40px; font-size: 12px; background: var(--sheet); padding: 2px 8px; border-radius: 8px; width: fit-content; max-width: calc(100% - 90px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aw-x { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--sheet); color: var(--ink); cursor: pointer; }
+.aw-groesse { position: absolute; right: 4px; bottom: 4px; width: 30px; height: 30px; display: flex; align-items: flex-end; justify-content: flex-end; color: var(--amber); font-size: 20px; cursor: nwse-resize; touch-action: none; }
+.aw-frei-s.zieht { z-index: 5; opacity: .85; box-shadow: 0 12px 30px rgba(0,0,0,.4); border-radius: 18px; } .aw-frei-s.ziel .aw-ueber { border-style: solid; background: rgba(255,159,10,.12); }
+.aw-gr { display: inline-flex; align-items: center; gap: 4px; } .aw-gr small { font-size: 11px; color: var(--ink2); } .aw-gr b { min-width: 14px; text-align: center; }
+.telefon .aw-raster { grid-template-columns: repeat(2, 1fr); } .telefon .aw-frei-s { grid-column: span min(var(--w), 2); }
+@media (max-width: 700px) { .aw-raster { grid-template-columns: repeat(2, 1fr); } .aw-frei-s { grid-column: span min(var(--w), 2); } }
+.aw-vorlagen { margin-bottom: 12px; } .aw-vorlagen-k { display: flex; flex-wrap: wrap; gap: 8px; }

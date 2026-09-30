@@ -274,3 +274,28 @@ def test_hochrechnung_werte():
     assert a.hochrechnung_werte(None, 100.0, 80.0, 0.28)["gespart_eur"] == 0.0   # nie unter 0
     assert a.hochrechnung_werte(None, None, None, 0.28) == {"bisher_kwh": None, "bisher_eur": None, "mit_kwh": None, "mit_eur": None,
                                                             "ohne_kwh": None, "ohne_eur": None, "gespart_eur": None}
+
+
+# ---------------------------------------------------------------- WU-0005: Rangliste und Erkenntnisse
+from logik.auswertung import erkenntnisse, rangliste  # noqa: E402
+
+
+def test_rangliste_sortiert_mit_eur_anteil_und_kwh_je_stunde():
+    r = rangliste([{"bereich": "a", "name": "Polier", "kwh": 30, "heizzeit": 20}, {"bereich": "b", "name": "Magazin", "kwh": 60, "heizzeit": 25},
+                   {"bereich": "c", "name": "Lager", "kwh": 10, "heizzeit": 0}], 0.3)
+    assert [c["name"] for c in r] == ["Magazin", "Polier", "Lager"]
+    assert r[0]["eur"] == pytest.approx(18) and r[0]["anteil"] == pytest.approx(60) and r[0]["kwh_h"] == pytest.approx(2.4)
+    assert r[2]["kwh_h"] is None
+    assert rangliste([], 0.3) == []
+
+
+def test_erkenntnisse_reihenfolge_und_schwellen():
+    r = rangliste([{"bereich": "a", "name": "Polier", "kwh": 30, "heizzeit": 20}, {"bereich": "b", "name": "Magazin", "kwh": 60, "heizzeit": 25}], 0.3)
+    e = erkenntnisse(r, ohne={"gespart_eur": 120.0, "prozent": 78.0}, gerade={"k": -7.2, "eur_je_grad": 2.0, "null0": 15.5},
+                     veraenderung_kwh=31, typ_weniger=16)
+    assert [x["art"] for x in e] == ["gespart", "groesster", "sparsamster", "wetter", "mehr"]      # höchstens 5
+    assert e[1]["name"] == "Magazin" and e[2]["name"] == "Polier" and e[2]["kwh_h"] == pytest.approx(1.5)
+    # unter den Schwellen: nichts Auffälliges
+    ruhig = erkenntnisse(r[:1], ohne=None, gerade={"k": 0.4}, veraenderung_kwh=-10, typ_weniger=3)
+    assert ruhig == []
+    assert [x["art"] for x in erkenntnisse(r, ohne=None, gerade=None, veraenderung_kwh=-20, typ_weniger=-8)] == ["groesster", "sparsamster", "weniger", "typ"]
