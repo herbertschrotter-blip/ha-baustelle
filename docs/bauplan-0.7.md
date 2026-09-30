@@ -286,3 +286,24 @@ Fake-Shellys, Tür, Anschlüssen, Firmen, Arbeitszeit, Ausnahmen, Terminen, Warn
   Integration kennt sie nicht und antwortet `not_found`).
 - **Nachrichten · Beispiele:** „nicht erreichbar“ nimmt den Container der Warnung (auch wenn im Container noch ein
   anderes Gerät erreichbar ist), „auf Hand“ das Gerät, das wirklich auf Hand steht (auch eine Heizung).
+
+## 6. Offen nach 0.7.5 (Stand 30.09.2026)
+
+Eingespielt ist 0.7.5; Sicherung vor dem Umstieg: HA-Backup „vor Baustelle 0.7.0“ (ID 304b1b2d). Tickets aus dem
+Melden-Knopf: `python3 tools/ticket.py liste` (Ticket-Profil in CLAUDE.md).
+
+- [ ] **AN-0001** (Anregung): „Wie kann ich Baustellen bearbeiten oder löschen?“ – Seite bietet Name ändern und
+      „abschließen“; Löschen nur in HA (Geräte & Dienste). Klären und ggf. auf der Seite ergänzen.
+- [ ] **Versions-Hinweis auf der Seite:** meldet HA eine neuere Version als die geladene Seite (nach Neustart ohne
+      Neuladen des Browsers), oben „Neue Version – bitte neu laden“ mit Knopf. Vorgeschlagen, noch nicht entschieden.
+- [ ] **Aus der Seite 0.6.3 fehlt in 0.7** (Herbert entscheidet, was zurückkommt): eigener Reiter Pumpen; offline-Zeit
+      und Trockenlauf-Schwelle einstellbar; Urlaub/Feiertag „absenken“ oder „aus“; Frostschutz mit Ein-/Aus-Wert; Modus
+      je Container (Zeitplan/Thermostat/Hand/Aus); Beginn/Ende der Baustelle; Heizperiode samt Hochrechnung;
+      Temperatur-Tagesmittel und alle Container in einem Temperaturdiagramm; Leistung heute als kW-Kurve; Tabelle
+      „Je Gerät“ (Ø Leistung); Test-Meldung; Erklärtexte.
+- [ ] **Im Echtbetrieb prüfen:** WebGL-Himmel, Glas-Blur, Animationen (Handy + Desktop gegen `mockups/glas.html`);
+      Recorder-Statistik im Bericht; uid/rrule der Termine aus dem lokalen Kalender; CSV-Anhang (nur SMTP).
+- [ ] Kleinigkeiten: „Heiztage“ zählt der Bericht anders als Integration/Seite; doppelte Entitäts-Namen bei gleich
+      benannten Geräten in verschiedenen Containern; Frostschutz wirkt nur bei eingeschalteter Automatik (wie Mockup –
+      bestätigen lassen); Kälte-Frühstart auf der Seite nicht unter 0 °C einstellbar.
+- [ ] Push nach GitHub durch Herbert (Push-Policy user-only), der Zweig `v0.7.0` ist in `main` zusammengeführt.
