@@ -1515,19 +1515,6 @@ class BaustellePanel extends HTMLElement {
     const ART = { fehler: 'Fehler', wunsch: 'Wunsch', anregung: 'Anregung' };
     return (this.meldungen() || []).map(m => `- [${this.meldungOffen(m) ? ' ' : 'x'}] **${m.ticket ? m.ticket + ' ' : ''}${ART[m.art] || m.art}** (${TICKET_STATUS[m.status] || m.status}, ${this.meldungZeit(m)}, v${m.version || '–'}, ${m.geraet || '–'}, ${m.kontext || '–'}): ${m.text}`).join('\n');
   }
-  /* Ticket an Claude Code übergeben: „ticket FE-0001“ in die Zwischenablage, Claude Terminal (Add-on) öffnen */
-  async anClaude(m) {
-    const text = `ticket ${m.ticket}`;
-    try { if (navigator.clipboard) await navigator.clipboard.writeText(text); } catch (e) { /* ohne Zwischenablage: Text steht im Hinweis */ }
-    let slug = this._claudeSlug;
-    if (slug === undefined) {
-      try { const r = await this._hass.callWS({ type: 'supervisor/api', endpoint: '/addons', method: 'get' });
-        const a = ((r && r.addons) || []).find(x => /claude/i.test(`${x.slug} ${x.name}`) && x.state === 'started') || ((r && r.addons) || []).find(x => /claude/i.test(`${x.slug} ${x.name}`));
-        slug = this._claudeSlug = a ? a.slug : null; } catch (e) { slug = this._claudeSlug = null; }
-    }
-    if (slug && typeof window !== 'undefined' && window.open) window.open(`/hassio/ingress/${slug}`, '_blank');
-    this.toast(slug ? `„${text}“ kopiert – im Claude Terminal (Fenster „baustelle“) einfügen` : `„${text}“ kopiert – Claude Terminal nicht gefunden, bitte selbst öffnen`);
-  }
   meldungen() { const r = this._holen('meldungen', () => this._hass.callWS({ type: 'baustelle/meldungen', entry_id: this.d ? this.d.entry : undefined }), 60000); return r === undefined ? null : Array.isArray(r) ? r : (r && r.meldungen) || []; }
   meldungZeit(m) { const l = this.lokal(m.zeit); return l ? `${wtag(l)} ${kurzDatum(l)} ${l.slice(11, 16)}` : '–'; }
   toast(t, wieder = false) {
@@ -1934,10 +1921,10 @@ class BaustellePanel extends HTMLElement {
           return `<div class="ml ${this.meldungOffen(m) ? 'offen' : 'erledigt'}"><div class="ml-kopf"><span><b class="ml-nr">${esc(m.ticket || '')}</b> <span class="badge ${(ART[m.art] || ART.wunsch)[1]}">${(ART[m.art] || ART.wunsch)[0]}</span> <span class="badge st-${esc(m.status)}">${esc(TICKET_STATUS[m.status] || m.status)}</span></span><span class="leise">${this.meldungZeit(m)} · ${esc(m.geraet || '–')} · v${esc(m.version || '–')}</span></div>
           <div class="ml-text">${esc(m.text)}</div><div class="leise">📍 ${esc(m.kontext || '–')}</div>
           ${letzte ? `<div class="leise ml-notiz">↳ ${esc(letzte.von || '')}: ${esc([letzte.version ? 'v' + letzte.version : '', letzte.notiz || ''].filter(Boolean).join(' · '))}</div>` : ''}
-          <div class="wk-knoepfe">${this.meldungOffen(m) ? `<button class="chip glas-panel amber" data-act="m-claude" data-id="${esc(m.id)}">An Claude übergeben</button>` : ''}<button class="chip glas-panel" data-act="m-status" data-id="${esc(m.id)}">${this.meldungOffen(m) ? '✓ Schließen' : '↺ wieder öffnen'}</button><button class="chip glas-panel" data-act="m-weg" data-id="${esc(m.id)}">Löschen</button></div></div>`; }).join('')
+          <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-status" data-id="${esc(m.id)}">${this.meldungOffen(m) ? '✓ Schließen' : '↺ wieder öffnen'}</button><button class="chip glas-panel" data-act="m-weg" data-id="${esc(m.id)}">Löschen</button></div></div>`; }).join('')
           : '<div class="leer">Keine Meldungen</div>'}
         <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-md">Als Markdown kopieren</button><button class="chip glas-panel" data-act="m-json">Als JSON herunterladen</button></div>
-        <div class="leise">Jede Meldung ist ein Ticket (FE Fehler, WU Wunsch, AN Anregung). „An Claude übergeben“ kopiert <code>ticket FE-0001</code> und öffnet das Claude Terminal – dort im Fenster „baustelle“ einfügen. Claude setzt den Stand, schließen tust du.</div></div>
+        <div class="leise">Jede Meldung ist ein Ticket (FE Fehler, WU Wunsch, AN Anregung). In Claude Code mit „Tickets prüfen“ abarbeiten lassen – ist ein Ticket behoben und eingespielt, setzt Claude es auf erledigt. Passt es nicht, hier wieder öffnen.</div></div>
       <div class="glas-panel liste"><div class="gruppe">Werkzeuge</div>
         <button class="zeile" data-act="diagnose"><span>Diagnose herunterladen</span><span class="chev">›</span></button>
         <div class="zeile"><span>Melden-Knopf in jedem Fenster</span>${schalter(this.d.e.melden, 'e-bool', 'data-k="melden"')}</div>
@@ -2432,9 +2419,6 @@ class BaustellePanel extends HTMLElement {
       case 'mfilter': S.mfilter = el.dataset.v; return neu();
       case 'm-status': { const m = (this.meldungen() || []).find(x => x.id === el.dataset.id); if (!m) return; delete this.cache.meldungen;
         return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'status', meldung_id: m.id, status: this.meldungOffen(m) ? 'geschlossen' : 'neu' }); }
-      case 'm-claude': { const id = el.dataset.id;
-        return Promise.resolve(this.meldungen() || this._hass.callWS({ type: 'baustelle/meldungen', entry_id: d && d.entry }))
-          .then(liste => { const m = (Array.isArray(liste) ? liste : []).find(x => x.id === id); if (m) return this.anClaude(m); }); }
       case 'm-weg': delete this.cache.meldungen; return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'loeschen', meldung_id: el.dataset.id }, 'Meldung gelöscht');
       case 'm-md': { const md = this.meldungenMarkdown(); if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {}); return this.toast(`${(this.meldungen() || []).length} Meldungen als Markdown kopiert`); }
       case 'm-json': this.datei(JSON.stringify(this.meldungen() || [], null, 2), 'baustelle-meldungen.json', 'application/json'); return this.toast('baustelle-meldungen.json');

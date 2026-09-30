@@ -90,8 +90,8 @@ def main() -> None:
                 str(x) for x in (TEXT.get(v.get("status"), ""), v.get("version") and "v" + v["version"], v.get("commit"), v.get("notiz")) if x))
     elif a.befehl == "status":
         finden(a.nr)
-        if a.status == "geloest" and not a.version:
-            sys.exit("geloest braucht --version (und möglichst --commit)")
+        if a.status in ("geloest", "geschlossen") and not (a.version and a.commit and a.notiz):
+            sys.exit(f"{a.status} braucht --version, --commit und --notiz (was behoben wurde)")
         r = dienst({"ticket": a.nr, "status": a.status, **{k: v for k, v in (("version", a.version), ("commit", a.commit), ("notiz", a.notiz)) if v}})
         print(f"{r.get('service_response', r).get('ticket', a.nr)}: {r.get('service_response', r).get('status_text', a.status)}")
     elif a.befehl == "notiz":

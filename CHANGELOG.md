@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.5] – 2026-09-30
+
+- Tickets: Knopf „An Claude übergeben“ entfernt (öffnete eine nicht vorhandene Terminal-Adresse). Die Integration sammelt
+  die Tickets nur; Herbert lässt sie in Claude Code mit „Tickets prüfen“ abarbeiten, Claude setzt sie bei Erfolg auf
+  erledigt. `tools/ticket.py` verlangt dafür Version, Commit und Notiz.
+
 ## [0.7.4] – 2026-09-30
 
 - Meldungen werden **Tickets**: Nummer je Art (FE Fehler, WU Wunsch, AN Anregung, ab 0001), Status neu → angenommen →

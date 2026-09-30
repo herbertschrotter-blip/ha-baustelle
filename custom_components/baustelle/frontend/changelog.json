@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.5",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Tickets: Knopf „An Claude übergeben“ entfernt (öffnete eine nicht vorhandene Terminal-Adresse). Die Integration sammelt die Tickets nur; Herbert lässt sie in Claude Code mit „Tickets prüfen“ abarbeiten, Claude setzt sie bei Erfolg auf erledigt. `tools/ticket.py` verlangt dafür Version, Commit und Notiz."
+    ]
+  },
+  {
     "version": "0.7.4",
     "datum": "2026-09-30",
     "punkte": [
