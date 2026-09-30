@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.29] – 2026-09-30
+
+- Verbrauch (FE-0003): Container zählten keine Leistung und keinen Verbrauch, wenn am Shelly mehrere passende
+  Sensoren hängen – z. B. der eigene „Ø Leistung im Betrieb“ der Baustelle (seit 0.7.9 mit gleichem Namensanfang) oder
+  „Energie“, „Energieverbrauch“ und „Energieeinspeisung“. Jetzt zählen eigene Sensoren und die Einspeisung nicht, bei
+  mehreren gilt der Hauptsensor. Die Heizzeit war nicht betroffen.
+- Neuer Reparatur-Hinweis, wenn ein Gerät weder Leistungs- noch Energiesensor hat.
+
 ## [0.7.28] – 2026-09-30
 
 - Arbeitszeit (FE-0002): Die beim ersten Start **automatisch angelegte** Arbeitszeit wird durch die erste eigene

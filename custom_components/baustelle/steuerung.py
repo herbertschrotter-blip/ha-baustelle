@@ -401,6 +401,17 @@ class Steuerung:
                 )
             else:
                 ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+        # Gerät ohne Leistungssensor: zählt weder Leistung noch Verbrauch (FE-0003)
+        for g in self.geraete.values():
+            issue_id = f"ohne_leistung_{self.entry.entry_id}_{g.id}"
+            if self.aktiv and not g.leistung and not g.energie:
+                ir.async_create_issue(
+                    self.hass, DOMAIN, issue_id, is_fixable=False, severity=ir.IssueSeverity.WARNING,
+                    translation_key="ohne_leistung",
+                    translation_placeholders={"geraet": g.name, "schalter": g.schalter, "baustelle": self.entry.title},
+                )
+            else:
+                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     @callback
     def _zustand_geaendert(self, event: Event[EventStateChangedData]) -> None:
@@ -1104,21 +1115,30 @@ def _einstellung_text(pfad: tuple[str, ...], wert: Any) -> str:
     return f"Einstellung {name}: {wert_text}"
 
 
+# Sensoren am Shelly, die nie Verbrauch sind (Shelly: Energieeinspeisung)
+KEIN_VERBRAUCH = {"energy_returned"}
+
+
 def _sensor_am_geraet(registry: er.EntityRegistry, schalter: str, device_class: str) -> str | None:
-    """Leistungs- bzw. Energiesensor desselben Shelly finden (bei Mehrkanal: gleicher Namensanfang)."""
+    """Leistungs- bzw. Energiesensor desselben Shelly finden.
+
+    Eigene Sensoren der Baustelle (hängen am Shelly-Gerät) und die Einspeisung zählen nicht; bei Mehrkanal gleicher
+    Namensanfang; bleiben mehrere (z. B. „Energie“ und „Energieverbrauch“), der mit dem kürzesten Namen – der
+    Hauptsensor. Vorher gab es bei mehreren gar keinen, der Container zählte dann nichts (FE-0003).
+    """
     eintrag = registry.async_get(schalter)
     if eintrag is None or eintrag.device_id is None:
         return None
     kandidaten = [
         x.entity_id
         for x in er.async_entries_for_device(registry, eintrag.device_id)
-        if x.domain == "sensor" and (x.device_class or x.original_device_class) == device_class and not x.disabled
+        if x.domain == "sensor" and x.platform != DOMAIN and not x.disabled
+        and (x.device_class or x.original_device_class) == device_class and x.translation_key not in KEIN_VERBRAUCH
     ]
-    if len(kandidaten) == 1:
-        return kandidaten[0]
-    stamm = schalter.split(".", 1)[1]
-    passend = [k for k in kandidaten if k.split(".", 1)[1].startswith(stamm)]
-    return passend[0] if len(passend) == 1 else None
+    if len(kandidaten) > 1:
+        stamm = schalter.split(".", 1)[1]
+        kandidaten = [k for k in kandidaten if k.split(".", 1)[1].startswith(stamm)]
+    return min(kandidaten, key=lambda k: (len(k), k)) if kandidaten else None
 
 
 def _antwort_liste(antwort: ServiceResponse, entity_id: str, key: str) -> list[dict[str, Any]]:

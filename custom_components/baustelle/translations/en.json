@@ -337,6 +337,10 @@
     "entitaet_fehlt": {
       "title": "Site {baustelle}: {entitaet} is missing",
       "description": "The site uses `{entitaet}`, but this entity has not existed for over 10 minutes. Was it renamed or removed? Reassign it under Settings → Devices & services → Baustelle."
+    },
+    "ohne_leistung": {
+      "title": "Site {baustelle}: {geraet} has no power sensor",
+      "description": "No power or energy sensor was found for switch `{schalter}`. This device counts neither power nor consumption (heating time still counts). Choose its power or energy sensor under Settings → Devices & services → Baustelle."
     }
   },
   "services": {

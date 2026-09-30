@@ -6,12 +6,13 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from homeassistant.core import Context, HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.baustelle.const import DOMAIN
 from custom_components.baustelle.daten import struktur
+from custom_components.baustelle.steuerung import _sensor_am_geraet
 
 from .conftest import C1, C2, HK1, HK2, P1, SCHACHT, baustelle_anlegen, eid, sub
 
@@ -541,6 +542,20 @@ async def test_reparatur_hinweis_bei_fehlender_entitaet(hass: HomeAssistant, bau
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
+async def test_reparatur_hinweis_ohne_leistungssensor(hass: HomeAssistant, baustelle) -> None:
+    """FE-0003: Gerät ohne Leistungs- und Energiesensor zählt nichts – das meldet ein Reparatur-Hinweis."""
+    from homeassistant.helpers import issue_registry as ir
+
+    st = baustelle.runtime_data
+    issue_id = f"ohne_leistung_{baustelle.entry_id}_{HK1}"
+    st._gestartet = dt_util.now() - timedelta(minutes=11)  # noqa: SLF001
+    st._takt(dt_util.now())  # noqa: SLF001
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+    st.geraete[HK1].leistung = None
+    st._takt(dt_util.now())  # noqa: SLF001
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
 async def test_naechste_schaltzeit_ueber_das_wochenende(hass: HomeAssistant, baustelle, freezer) -> None:
     st = baustelle.runtime_data
     st.einstellung_setzen(("automatik",), True)
@@ -720,3 +735,34 @@ def test_kern_ohne_einzelheiten_der_funktionen() -> None:
     ]
     treffer = [(m, z) for z in quelle.splitlines() for m in verboten if re.search(m, z)]
     assert treffer == []
+
+
+async def test_sensor_am_geraet_bei_mehreren(hass: HomeAssistant) -> None:
+    """FE-0003: Shelly „Heizung 01“ mit eigenem Sensor der Baustelle, Energie, Energieverbrauch und Einspeisung –
+    vorher gab es bei mehreren Kandidaten keinen Sensor, der Container zählte nichts."""
+    shelly = MockConfigEntry(domain="shelly")
+    shelly.add_to_hass(hass)
+    reg, dreg = er.async_get(hass), dr.async_get(hass)
+
+    def geraet(name: str, entitaeten: list[tuple[str, str, str, str | None, str | None]]) -> None:
+        dev = dreg.async_get_or_create(config_entry_id=shelly.entry_id, identifiers={("shelly", name)})
+        for domain, plattform, objekt, klasse, key in entitaeten:
+            reg.async_get_or_create(domain, plattform, f"{name}-{objekt}", device_id=dev.id, suggested_object_id=objekt,
+                                    original_device_class=klasse, translation_key=key)
+
+    geraet("heizung_01", [
+        ("switch", "shelly", "heizung_01", None, None),
+        ("sensor", "shelly", "heizung_01_leistung", "power", None),
+        ("sensor", DOMAIN, "heizung_01_radiator_1_o_leistung_im_betrieb", "power", "mittel_im_betrieb"),
+        ("sensor", "shelly", "heizung_01_energie", "energy", None),
+        ("sensor", "shelly", "heizung_01_energieverbrauch", "energy", "energy_consumed"),
+        ("sensor", "shelly", "heizung_01_energieeinspeisung", "energy", "energy_returned"),
+    ])
+    assert _sensor_am_geraet(reg, "switch.heizung_01", "power") == "sensor.heizung_01_leistung"
+    assert _sensor_am_geraet(reg, "switch.heizung_01", "energy") == "sensor.heizung_01_energie"
+
+    geraet("zwei", [   # Zweikanal: gleicher Namensanfang entscheidet
+        ("switch", "shelly", "zwei_kanal_1", None, None), ("switch", "shelly", "zwei_kanal_2", None, None),
+        ("sensor", "shelly", "zwei_kanal_1_leistung", "power", None), ("sensor", "shelly", "zwei_kanal_2_leistung", "power", None),
+    ])
+    assert _sensor_am_geraet(reg, "switch.zwei_kanal_2", "power") == "sensor.zwei_kanal_2_leistung"
