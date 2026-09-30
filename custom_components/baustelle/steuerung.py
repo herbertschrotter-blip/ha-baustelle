@@ -934,10 +934,13 @@ class Steuerung:
         for g in self.geraete.values():
             zustand = self.hass.states.get(g.schalter)
             erreichbar = zustand is not None and zustand.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+            # Protokoll von HA einmal beim Ausfall und einmal, wenn der Shelly wieder antwortet
             if erreichbar:
-                self._offline_seit.pop(g.id, None)
-            else:
-                self._offline_seit.setdefault(g.id, jetzt)
+                if self._offline_seit.pop(g.id, None) is not None:
+                    _LOGGER.info("%s (%s) ist wieder erreichbar", g.name, g.schalter)
+            elif g.id not in self._offline_seit:
+                self._offline_seit[g.id] = jetzt
+                _LOGGER.info("%s (%s) ist nicht erreichbar", g.name, g.schalter)
             leistung = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
             an = erreichbar and zustand is not None and zustand.state == STATE_ON
             f = self._je_rolle.get(g.rolle)

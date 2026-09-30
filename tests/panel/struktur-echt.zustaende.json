@@ -229,24 +229,6 @@
     "friendly_name": "Halle Lieboch Cost"
    }
   },
-  "sensor.halle_lieboch_daily_high": {
-   "state": "unknown",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "°C",
-    "device_class": "temperature",
-    "friendly_name": "Halle Lieboch Daily high"
-   }
-  },
-  "sensor.halle_lieboch_early_forecast": {
-   "state": "unknown",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "°C",
-    "device_class": "temperature",
-    "friendly_name": "Halle Lieboch Early forecast"
-   }
-  },
   "sensor.halle_lieboch_energy": {
    "state": "1840.5",
    "attributes": {
@@ -348,15 +330,6 @@
     "unit_of_measurement": "W",
     "device_class": "power",
     "friendly_name": "Halle Lieboch Power"
-   }
-  },
-  "sensor.halle_lieboch_rain": {
-   "state": "unknown",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "mm",
-    "device_class": "precipitation",
-    "friendly_name": "Halle Lieboch Rain"
    }
   },
   "sensor.halle_lieboch_savings_from_automation": {
@@ -751,24 +724,6 @@
     "friendly_name": "Wohnbau Kalsdorf Cost"
    }
   },
-  "sensor.wohnbau_kalsdorf_daily_high": {
-   "state": "7.1",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "°C",
-    "device_class": "temperature",
-    "friendly_name": "Wohnbau Kalsdorf Daily high"
-   }
-  },
-  "sensor.wohnbau_kalsdorf_early_forecast": {
-   "state": "-0.5",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "°C",
-    "device_class": "temperature",
-    "friendly_name": "Wohnbau Kalsdorf Early forecast"
-   }
-  },
   "sensor.wohnbau_kalsdorf_energy": {
    "state": "33.575",
    "attributes": {
@@ -870,15 +825,6 @@
     "unit_of_measurement": "W",
     "device_class": "power",
     "friendly_name": "Wohnbau Kalsdorf Power"
-   }
-  },
-  "sensor.wohnbau_kalsdorf_rain": {
-   "state": "6.2",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "mm",
-    "device_class": "precipitation",
-    "friendly_name": "Wohnbau Kalsdorf Rain"
    }
   },
   "sensor.wohnbau_kalsdorf_savings_from_automation": {

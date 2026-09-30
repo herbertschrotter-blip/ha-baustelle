@@ -149,6 +149,23 @@ class BaustelleConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Baustelle umbenennen (alles Übrige steht in den Optionen und auf der Seite)."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            name = user_input[CONF_NAME].strip()
+            if any(e.title == name for e in self._async_current_entries(include_ignore=False) if e.entry_id != entry.entry_id):
+                errors["base"] = "name_vergeben"
+            else:
+                return self.async_update_reload_and_abort(entry, title=name, data_updates={CONF_NAME: name})
+        schema = vol.Schema({vol.Required(CONF_NAME): selector.TextSelector()})
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(schema, user_input or {CONF_NAME: entry.title}),
+            errors=errors,
+        )
+
     async def async_on_create_entry(self, result: ConfigFlowResult) -> ConfigFlowResult:
         """Gleich den ersten Container anlegen lassen (wie bei den Kern-Helfern)."""
         sub = await self.hass.config_entries.subentries.async_init(

@@ -9,14 +9,32 @@
           "beginn": "Beginn",
           "heizung": "Funktion Heizung",
           "pumpen": "Funktion Pumpenüberwachung"
+        },
+        "data_description": {
+          "name": "Wie die Baustelle in Home Assistant und auf der Seite heißt; jeder Name nur einmal.",
+          "beginn": "Ab diesem Tag zeigt der Verlauf Verbrauch und Heiztage.",
+          "heizung": "Container nach Zeitplan und Wetter heizen.",
+          "pumpen": "Grundwasserpumpen in Schächten überwachen."
+        }
+      },
+      "reconfigure": {
+        "title": "Baustelle umbenennen",
+        "description": "Die Entitäten behalten ihre IDs; Zähler und Einstellungen bleiben.",
+        "data": {
+          "name": "Name der Baustelle"
+        },
+        "data_description": {
+          "name": "Wie die Baustelle in Home Assistant und auf der Seite heißt; jeder Name nur einmal."
         }
       }
     },
     "error": {
-      "keine_funktion": "Mindestens eine Funktion einschalten."
+      "keine_funktion": "Mindestens eine Funktion einschalten.",
+      "name_vergeben": "Diesen Namen hat schon eine andere Baustelle."
     },
     "abort": {
-      "already_configured": "Diese Baustelle gibt es schon."
+      "already_configured": "Diese Baustelle gibt es schon.",
+      "reconfigure_successful": "Gespeichert."
     }
   },
   "options": {
@@ -45,7 +63,7 @@
           "regen_sensor": "Optional; sonst der für heute vorhergesagte Regen.",
           "feiertag_kalender": "Kalender der Integration „Feiertage“ (Österreich, Bundesland).",
           "urlaub_kalender": "Lokaler Kalender; Einträge = Urlaub, Weihnachten usw.",
-          "empfaenger": "Benachrichtigungsdienste, z. B. mobile_app_<handy> der Companion App."
+          "empfaenger": "Benachrichtigungsdienste, z. B. mobile_app_handyname der Companion App."
         }
       }
     },
@@ -351,6 +369,11 @@
           "description": "Wer ändert (Standard: Claude)"
         }
       }
+    }
+  },
+  "exceptions": {
+    "ticket_fehlt": {
+      "message": "Ticket {ticket} gibt es nicht."
     }
   }
 }

@@ -9,14 +9,32 @@
           "beginn": "Start",
           "heizung": "Heating",
           "pumpen": "Pump monitoring"
+        },
+        "data_description": {
+          "name": "Name of the site in Home Assistant and on the page; each name only once.",
+          "beginn": "The history shows consumption and heating days from this day.",
+          "heizung": "Heat containers by schedule and weather.",
+          "pumpen": "Monitor groundwater pumps in shafts."
+        }
+      },
+      "reconfigure": {
+        "title": "Rename site",
+        "description": "Entities keep their IDs; counters and settings stay.",
+        "data": {
+          "name": "Site name"
+        },
+        "data_description": {
+          "name": "Name of the site in Home Assistant and on the page; each name only once."
         }
       }
     },
     "error": {
-      "keine_funktion": "Enable at least one function."
+      "keine_funktion": "Enable at least one function.",
+      "name_vergeben": "Another site already has this name."
     },
     "abort": {
-      "already_configured": "This site already exists."
+      "already_configured": "This site already exists.",
+      "reconfigure_successful": "Saved."
     }
   },
   "options": {
@@ -45,7 +63,7 @@
           "regen_sensor": "Optional; otherwise today's forecast precipitation.",
           "feiertag_kalender": "Calendar of the Holiday integration.",
           "urlaub_kalender": "Local calendar; events = breaks.",
-          "empfaenger": "Notify services, e.g. mobile_app_<phone>."
+          "empfaenger": "Notify services, e.g. mobile_app_yourphone."
         }
       }
     },
@@ -351,6 +369,11 @@
           "description": "Who changes it (default: Claude)"
         }
       }
+    }
+  },
+  "exceptions": {
+    "ticket_fehlt": {
+      "message": "Ticket {ticket} does not exist."
     }
   }
 }

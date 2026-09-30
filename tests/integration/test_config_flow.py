@@ -113,3 +113,71 @@ async def test_optionen_abschliessen_setzt_ende(hass: HomeAssistant) -> None:
     assert entry.options["status"] == "abgeschlossen"
     assert entry.options["ende"]
     await hass.async_block_till_done()
+
+
+async def test_optionen_wieder_aktiv_mit_vergebenem_shelly(hass: HomeAssistant) -> None:
+    """Abgeschlossene Baustelle wieder aktiv setzen geht nicht, wenn ihr Shelly inzwischen einer anderen gehört."""
+    alt = _entry(hass, status="abgeschlossen", title="Alt")
+    c = await _bereich(hass, alt)
+    daten = {"bereich": c.subentry_id, "schalter": "switch.plug_1", "name": "HK", "rolle": "heizkoerper", "typ": "konvektor"}
+    r = await hass.config_entries.subentries.async_init((alt.entry_id, SUB_GERAET), context={"source": "user"})
+    await hass.config_entries.subentries.async_configure(r["flow_id"], daten)
+    neu = _entry(hass, title="Neu")
+    c2 = await _bereich(hass, neu)
+    r = await hass.config_entries.subentries.async_init((neu.entry_id, SUB_GERAET), context={"source": "user"})
+    r = await hass.config_entries.subentries.async_configure(r["flow_id"], {**daten, "bereich": c2.subentry_id})
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+
+    r = await hass.config_entries.options.async_init(alt.entry_id)
+    eingabe = {"status": "aktiv", "beginn": "2026-09-01", "heizung": True, "pumpen": True,
+               "heizperiode_von": "10", "heizperiode_bis": "4"}
+    r = await hass.config_entries.options.async_configure(r["flow_id"], eingabe)
+    assert r["errors"] == {"base": "geraete_vergeben"}
+    assert r["description_placeholders"] == {"belegt": "switch.plug_1"}
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {**eingabe, "heizung": False, "pumpen": False})
+    assert r["errors"] == {"base": "keine_funktion"}
+    await hass.async_block_till_done()
+
+
+async def test_bereich_name_doppelt(hass: HomeAssistant) -> None:
+    entry = _entry(hass)
+    await _bereich(hass, entry)
+    r = await hass.config_entries.subentries.async_init((entry.entry_id, SUB_BEREICH), context={"source": "user"})
+    r = await hass.config_entries.subentries.async_configure(r["flow_id"], {"name": " Container 1 ", "art": "container"})
+    assert r["errors"] == {"base": "name_vergeben"}
+
+
+async def test_shelly_bereich_inzwischen_geloescht(hass: HomeAssistant) -> None:
+    """Der Bereich verschwindet, während der Dialog offen ist → Fehler statt Shelly ohne Bereich."""
+    entry = _entry(hass)
+    container = await _bereich(hass, entry)
+    await _bereich(hass, entry, "Container 2")
+    r = await hass.config_entries.subentries.async_init((entry.entry_id, SUB_GERAET), context={"source": "user"})
+    hass.config_entries.async_remove_subentry(entry, container.subentry_id)
+    r = await hass.config_entries.subentries.async_configure(
+        r["flow_id"], {"bereich": container.subentry_id, "schalter": "switch.plug_1", "name": "HK",
+                       "rolle": "heizkoerper", "typ": "konvektor"}
+    )
+    assert r["errors"] == {"base": "kein_bereich"}
+    await hass.async_block_till_done()
+
+
+async def test_shelly_neu_einrichten(hass: HomeAssistant) -> None:
+    """Shelly ändern (Subentry neu einrichten): gleiche Prüfungen wie beim Anlegen."""
+    entry = _entry(hass)
+    container = await _bereich(hass, entry)
+    daten = {"bereich": container.subentry_id, "schalter": "switch.plug_1", "name": "HK", "rolle": "heizkoerper",
+             "typ": "konvektor"}
+    r = await hass.config_entries.subentries.async_init((entry.entry_id, SUB_GERAET), context={"source": "user"})
+    await hass.config_entries.subentries.async_configure(r["flow_id"], daten)
+    sid = next(s.subentry_id for s in entry.subentries.values() if s.subentry_type == SUB_GERAET)
+    r = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUB_GERAET), context={"source": "reconfigure", "subentry_id": sid}
+    )
+    assert r["type"] is FlowResultType.FORM and r["step_id"] == "reconfigure"
+    r = await hass.config_entries.subentries.async_configure(r["flow_id"], {**daten, "rolle": "pumpe"})
+    assert r["errors"] == {"base": "rolle_passt_nicht"}
+    r = await hass.config_entries.subentries.async_configure(r["flow_id"], {**daten, "name": " HK Magazin "})
+    assert r["type"] is FlowResultType.ABORT and r["reason"] == "reconfigure_successful"
+    assert entry.subentries[sid].title == "HK Magazin"
+    await hass.async_block_till_done()

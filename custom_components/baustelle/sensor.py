@@ -144,6 +144,8 @@ class WetterSensor(BaustelleEntity, SensorEntity):
         self._lesen = wert.lesen
         self._attr_native_unit_of_measurement = wert.einheit
         self._attr_device_class = wert.klasse
+        # Nur die Außentemperatur braucht die Seite (Statistik); die übrigen Wetterwerte stehen auch in der Diagnose
+        self._attr_entity_registry_enabled_default = wert.key == "aussen"
 
     @property
     def native_value(self) -> float | None:

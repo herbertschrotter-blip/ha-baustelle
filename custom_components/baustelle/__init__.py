@@ -34,7 +34,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         await meldungen.async_laden()
         m = meldungen.finden(call.data["ticket"])
         if m is None:
-            raise ServiceValidationError(f"Ticket {call.data['ticket']} gibt es nicht")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="ticket_fehlt",
+                translation_placeholders={"ticket": call.data["ticket"]},
+            )
         meldungen.aendern(m, status=call.data.get("status"), notiz=call.data.get("notiz"), version=call.data.get("version"),
                           commit=call.data.get("commit"), von=call.data.get("von") or "Claude")
         return {"ticket": m["ticket"], "status": m["status"], "status_text": STATUS_TEXT.get(m["status"], m["status"])}
@@ -63,6 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) ->
     await steuerung.async_start()
     entry.async_on_unload(steuerung.async_stop)
     _geraete_anlegen(hass, entry, steuerung)
+    _verwaiste_geraete_entfernen(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Optionen und Subentries (Bereiche, Geräte) geändert → neu laden (Muster der Kern-Helfer)
     entry.async_on_unload(entry.add_update_listener(_neu_laden))
@@ -124,6 +128,32 @@ def _geraete_anlegen(hass: HomeAssistant, entry: BaustelleConfigEntry, steuerung
             name=info.name, manufacturer=HERSTELLER, model=MODELL[info.art], via_device_id=haupt.id,
         )
         steuerung.geraet_ids[bid] = bereich.id
+
+
+def _eigene_ids(entry: BaustelleConfigEntry) -> set[str]:
+    """Kennungen der Geräte, die zur Einrichtung gehören: die Baustelle und ihre Subentries (Bereiche, Shellys)."""
+    return {entry.entry_id, *entry.subentries}
+
+
+def _verwaist(entry: BaustelleConfigEntry, geraet: dr.DeviceEntry) -> bool:
+    """Gerät mit eigener Kennung, zu der es keinen Bereich bzw. Shelly mehr gibt."""
+    kennungen = {wert for (domain, wert) in geraet.identifiers if domain == DOMAIN}
+    return bool(kennungen) and not kennungen & _eigene_ids(entry)
+
+
+def _verwaiste_geraete_entfernen(hass: HomeAssistant, entry: BaustelleConfigEntry) -> None:
+    """Geräte von Bereichen/Shellys, die es nicht mehr gibt (z. B. aus älteren Versionen), aus der Registry nehmen."""
+    registry = dr.async_get(hass)
+    for geraet in dr.async_entries_for_config_entry(registry, entry.entry_id):
+        if _verwaist(entry, geraet):
+            registry.async_update_device(geraet.id, remove_config_entry_id=entry.entry_id)
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: BaustelleConfigEntry, geraet: dr.DeviceEntry
+) -> bool:
+    """„Gerät löschen“ in HA nur für verwaiste Geräte; Bereiche und Shellys entfernt man über ihren Unter-Eintrag."""
+    return _verwaist(entry, geraet)
 
 
 async def _neu_laden(hass: HomeAssistant, entry: BaustelleConfigEntry) -> None:

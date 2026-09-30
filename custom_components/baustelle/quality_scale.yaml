@@ -1,0 +1,156 @@
+# Qualitätsskala von Home Assistant (developers.home-assistant.io/docs/core/integration-quality-scale/rules)
+# Stand 0.7.22 (30.09.2026). Jede Regel: done, todo oder exempt (mit Grund).
+rules:
+  # Bronze
+  action-setup:
+    status: done
+    comment: Aktion baustelle.ticket wird in async_setup angemeldet, nicht je Baustelle.
+  appropriate-polling:
+    status: done
+    comment: Keine Abfrage im Takt; Entitäten schreiben nach jeder Auswertung (should_poll False). Wetter alle 30 min, Kalender alle 15 min.
+  brands:
+    status: done
+    comment: Eigenes Symbol in brand/icon.png und brand/icon@2x.png.
+  common-modules:
+    status: done
+    comment: Gemeinsame Basis der Entitäten in entity.py, Konstanten in const.py, Laufzeit in steuerung.py.
+  config-flow-test-coverage:
+    status: done
+    comment: config_flow.py vollständig getestet (tests/integration/test_config_flow.py, test_qualitaet.py).
+  config-flow:
+    status: done
+    comment: Einrichtung, Optionen, Umbenennen und Subentries (Bereich, Shelly) über die Oberfläche, mit data_description.
+  dependency-transparency:
+    status: done
+    comment: Keine Bibliotheken (requirements leer).
+  docs-actions:
+    status: done
+    comment: README, Abschnitt Aktionen (baustelle.ticket).
+  docs-high-level-description:
+    status: done
+  docs-installation-instructions:
+    status: done
+  docs-removal-instructions:
+    status: done
+  docs-triggers:
+    status: exempt
+    comment: Die Integration stellt keine eigenen Auslöser bereit.
+  docs-conditions:
+    status: exempt
+    comment: Die Integration stellt keine eigenen Bedingungen bereit.
+  entity-event-setup:
+    status: done
+    comment: Entitäten melden sich in async_added_to_hass bei der Steuerung an und mit async_on_remove ab.
+  entity-unique-id:
+    status: done
+  has-entity-name:
+    status: done
+  runtime-data:
+    status: done
+    comment: Steuerung in entry.runtime_data (BaustelleConfigEntry).
+  test-before-configure:
+    status: exempt
+    comment: Keine Verbindung zu einem Gerät oder Dienst; die Einrichtung wählt nur Entitäten aus Home Assistant.
+  test-before-setup:
+    status: exempt
+    comment: Keine eigene Verbindung, die fehlschlagen kann. Fehlende Entitäten (Shelly, Wetter, Kalender) meldet die Integration als Reparatur-Hinweis.
+  unique-config-entry:
+    status: done
+    comment: Jeder Name einer Baustelle nur einmal (Einrichten und Umbenennen).
+
+  # Silber
+  action-exceptions:
+    status: done
+    comment: baustelle.ticket meldet ein unbekanntes Ticket als ServiceValidationError.
+  config-entry-unloading:
+    status: done
+  docs-configuration-parameters:
+    status: done
+    comment: README, Abschnitt Einrichtung (Optionen der Baustelle).
+  docs-installation-parameters:
+    status: done
+    comment: README, Abschnitt Einrichtung (Name, Beginn, Funktionen; Bereiche und Shellys).
+  entity-unavailable:
+    status: exempt
+    comment: >-
+      Die Werte werden aus Entitäten von Home Assistant berechnet, es gibt keine eigene Verbindung, die ausfallen kann.
+      Fehlt ein Messwert, zeigt der Sensor „unbekannt“; der Ausfall eines Shelly steht in den Binärsensoren Erreichbar und Problem.
+  integration-owner:
+    status: done
+  log-when-unavailable:
+    status: done
+    comment: Ausfall und Rückkehr eines Shelly je einmal im Protokoll (Stufe info).
+  parallel-updates:
+    status: done
+    comment: PARALLEL_UPDATES = 0 in allen Plattformen (Entitäten fragen nichts ab).
+  reauthentication-flow:
+    status: exempt
+    comment: Keine Zugangsdaten.
+  test-coverage:
+    status: done
+    comment: Rund 97 % (tests/logik und tests/integration mit pytest-cov).
+
+  # Gold
+  devices:
+    status: done
+    comment: Gerät je Baustelle und je Bereich; Entitäten eines Shelly hängen an dessen Gerät.
+  diagnostics:
+    status: done
+    comment: Empfänger und Mail-Adressen geschwärzt.
+  discovery-update-info:
+    status: exempt
+    comment: Keine Geräte-Erkennung (siehe discovery).
+  discovery:
+    status: exempt
+    comment: Eine Baustelle ist keine Hardware im Netz; die Shellys findet ihre eigene Integration.
+  docs-data-update:
+    status: done
+  docs-examples:
+    status: done
+  docs-known-limitations:
+    status: done
+  docs-supported-devices:
+    status: done
+  docs-supported-functions:
+    status: done
+  docs-troubleshooting:
+    status: done
+  docs-use-cases:
+    status: done
+  dynamic-devices:
+    status: done
+    comment: Neue Bereiche und Shellys (Subentries) laden die Baustelle neu, ihre Geräte und Entitäten kommen dazu.
+  entity-category:
+    status: done
+    comment: Erreichbar, Wetterwerte und Mittelwerte je Gerät als Diagnose.
+  entity-device-class:
+    status: done
+  entity-disabled-by-default:
+    status: done
+    comment: Tageshöchstwert, Früh-Prognose und Regen sind neu eingerichtet aus (die Seite liest sie nicht).
+  entity-translations:
+    status: done
+  exception-translations:
+    status: done
+  icon-translations:
+    status: done
+  reconfiguration-flow:
+    status: done
+    comment: Baustelle umbenennen; Bereiche und Shellys über ihre Subentries neu einrichten.
+  repair-issues:
+    status: done
+    comment: Reparatur-Hinweis, wenn eine zugeordnete Entität fehlt.
+  stale-devices:
+    status: done
+    comment: Verwaiste Geräte beim Start entfernen; nur verwaiste lassen sich in HA löschen.
+
+  # Platin
+  async-dependency:
+    status: exempt
+    comment: Keine Bibliothek.
+  inject-websession:
+    status: exempt
+    comment: Keine HTTP-Aufrufe.
+  strict-typing:
+    status: done
+    comment: mypy --strict ohne Fehler (pyproject.toml).

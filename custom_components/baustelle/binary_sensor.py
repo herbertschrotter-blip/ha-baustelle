@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -33,6 +34,7 @@ class ErreichbarSensor(BaustelleEntity, BinarySensorEntity):
     """Aus: kein Gerät der Baustelle antwortet (Stromausfall oder Internet weg)."""
 
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, steuerung: Steuerung) -> None:
         super().__init__(steuerung, "erreichbar")

@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.22] – 2026-09-30
+
+- Qualität nach der Skala von Home Assistant (Bauplan Module Phase 7), die Seite „Baustelle“ bleibt gleich:
+  - Baustelle **umbenennen** über Einstellungen → Geräte & Dienste → Baustelle → „Neu konfigurieren“ (Entitäten
+    behalten ihre IDs).
+  - Geräte von Bereichen oder Shellys, die es nicht mehr gibt, räumt die Integration beim Start weg; nur solche
+    verwaisten Geräte lassen sich in HA von Hand löschen.
+  - Fällt ein Shelly aus, steht das einmal im Protokoll von HA, ebenso wenn er wieder antwortet.
+  - „Erreichbar“ ist jetzt ein Diagnose-Sensor; Tageshöchstwert, Früh-Prognose und Regen sind bei neuen Baustellen
+    zunächst ausgeschaltet (bestehende bleiben, wie sie sind).
+  - Fehlermeldung der Aktion `baustelle.ticket` übersetzt; Hilfetexte beim Anlegen einer Baustelle.
+  - Eigenes Symbol (`brand/`), Liste der erfüllten Regeln in `quality_scale.yaml`.
+
 ## [0.7.21] – 2026-09-30
 
 - Intern (Qualität, Bauplan Module Phase 7): Die Integration ist jetzt vollständig und streng typisiert
