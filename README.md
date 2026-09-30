@@ -32,7 +32,7 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät
   einstellungen.py             Einstellungen, Protokoll, Meldungen (Store v2 unter .storage/, in der Sicherung)
   frontend/baustelle-panel.js  eigene Seite (Web-Component, ohne externe Abhängigkeiten)
-  frontend/changelog.json      Verlauf für „Über“ (tools/changelog.py aus CHANGELOG.md)
+  frontend/changelog.json      Verlauf für „Über“ (tools/changelog.py aus CHANGELOG.md, setzt auch SEITE_VERSION der Seite)
   panel.py, daten.py           Seite anmelden, WebSocket-Befehle (docs/api-0.7.md)
   logbook.py                   Protokoll im HA-Logbuch
   translations/, icons.json    Texte de/en, Symbole

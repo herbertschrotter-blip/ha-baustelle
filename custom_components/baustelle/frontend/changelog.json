@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.7",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Seite: **Hinweis auf neue Version**. Ist in HA eine neuere Version geladen (nach einem Neustart) oder eine neuere eingespielt (ohne Neustart), steht oben „Neue Version … – bitte neu laden“ mit Knopf „Neu laden“; der Knopf holt die Seite am Browser-Speicher vorbei (Strg+F5 ist nicht mehr nötig). `tools/changelog.py` setzt die Version der Seite."
+    ]
+  },
+  {
     "version": "0.7.6",
     "datum": "2026-09-30",
     "punkte": [

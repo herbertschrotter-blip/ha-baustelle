@@ -609,6 +609,25 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Abschließen über den Options-Dialog', api.some(a => /options\/flow\/F/.test(a[1]) && a[2].status === 'abgeschlossen'));
   neu(); await klick({ act: 'bs-aktiv', t: 'lieboch' }, 30);
   erwarte('Wieder aktiv setzen', api.some(a => a[1] === 'config/config_entries/options/flow' && a[2].handler === 'lieboch') && api.some(a => /options\/flow\/F/.test(a[1]) && a[2].status === 'aktiv' && !('ende' in a[2])));
+  /* Versions-Hinweis: HA oder die Datei auf der Platte ist neuer als die geladene Seite */
+  { const eigen = (fs.readFileSync(datei, 'utf8').match(/const SEITE_VERSION = '([^']+)'/) || [])[1];
+    erwarte('SEITE_VERSION gesetzt', /^\d+\.\d+\.\d+$/.test(eigen || ''));
+    const holen = global.fetch, geholt = []; let platte = eigen, neu_geladen = false;
+    global.fetch = async (url, opt) => { geholt.push([String(url), opt && opt.cache]); return String(url).includes('changelog.json') ? { ok: true, json: async () => [{ version: platte }] } : { ok: true, json: async () => null }; };
+    const [ma, mi, pa] = eigen.split('.').map(Number), roh0 = panel.roh[0].version;
+    panel.neueVersion = null; panel._platteGeprueft = 0; panel.roh[0].version = `${ma}.${mi}.${pa - 1}`; panel._versionPruefen(); await ruhe(10); panel.render();
+    erwarte('gleiche/ältere Version: kein Hinweis', !panel.neueVersion && !ui.innerHTML.includes('neu-version') && geholt.some(g => g[0].includes('changelog.json?t=') && g[1] === 'no-store'));
+    panel.roh[0].version = `${ma}.${mi}.${pa + 4}`; panel._versionPruefen(); await ruhe(10);
+    erwarte('HA neuer (nach Neustart, 0.x.10 > 0.x.9): Hinweis', panel.neueVersion === `${ma}.${mi}.${pa + 4}` && ui.innerHTML.includes(`Neue Version ${ma}.${mi}.${pa + 4} – bitte neu laden`) && ui.innerHTML.includes('data-act="neu-laden"'));
+    pruefe('Versions-Hinweis');
+    panel.neueVersion = null; panel.roh[0].version = roh0; platte = `${ma}.${mi + 1}.0`; panel._platteGeprueft = 0; panel._versionPruefen(); await ruhe(10);
+    erwarte('eingespielt ohne Neustart (changelog.json): Hinweis', panel.neueVersion === platte && ui.innerHTML.includes(`Neue Version ${platte}`));
+    geholt.length = 0; panel._versionPruefen(); await ruhe(10);
+    erwarte('Platte höchstens alle 10 min', !geholt.length);
+    global.location = { search: '', reload: () => { neu_geladen = true; } };
+    await klick({ act: 'neu-laden' }, 20);
+    erwarte('Neu laden: Datei am Speicher vorbei holen, dann neu laden', neu_geladen && geholt.some(g => g[0].includes('baustelle-panel.js') && g[1] === 'reload'));
+    global.fetch = holen; global.location = { search: '' }; panel.neueVersion = null; panel.render(); }
   /* AN-0001: im Fenster „Baustelle wählen“ je Baustelle Bearbeiten und Löschen */
   await klick({ act: 'sheet', s: 'baustellen' }); pruefe('Baustelle wählen');
   erwarte('Baustelle wählen: Bearbeiten und Löschen je Baustelle', panel.alle.every(x => ui.innerHTML.includes(`data-act="bs-bearbeiten" data-id="${x.entry}"`) && ui.innerHTML.includes(`data-s="bs-loeschen" data-id="${x.entry}"`)));

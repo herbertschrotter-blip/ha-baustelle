@@ -267,6 +267,11 @@ Abweichungen vom Mockup auf der Seite (Stufe 3, 30.09.2026 – was das echte Sys
   Baustelle, abgeschlossene → Detailseite) und ✕ Löschen mit Abfrage „Endgültig löschen“ (REST
   `config/config_entries/entry/<id>` wie Geräte & Dienste; Zähler und Einstellungen weg, Langzeitstatistik der Shellys
   bleibt). Im Mockup gab es dort nur Wechseln und „+ Neue Baustelle“.
+- Versions-Hinweis (Herbert 30.09.2026, nicht im Mockup): oben auf der Seite „Neue Version … – bitte neu laden“ mit
+  Knopf, wenn die Version von HA (`baustelle/struktur`) oder die neueste in `changelog.json` auf der Platte (höchstens
+  alle 10 min, am Speicher vorbei) neuer ist als `SEITE_VERSION` der geladenen Seite. „Neu laden“ holt
+  `baustelle-panel.js` mit `cache: 'reload'` und lädt die Seite neu. `SEITE_VERSION` setzt `tools/changelog.py`; ein
+  Test prüft Gleichstand mit CHANGELOG.md und `manifest.json`.
 
 ### Abgleich Seite ↔ Integration (30.09.2026)
 
@@ -298,8 +303,7 @@ Melden-Knopf: `python3 tools/ticket.py liste` (Ticket-Profil in CLAUDE.md).
 
 - [x] **AN-0001** (Anregung): „Wie kann ich Baustellen bearbeiten oder löschen?“ – in 0.7.6 Bearbeiten und Löschen im
       Fenster „Baustelle wählen“ (§5).
-- [ ] **Versions-Hinweis auf der Seite:** meldet HA eine neuere Version als die geladene Seite (nach Neustart ohne
-      Neuladen des Browsers), oben „Neue Version – bitte neu laden“ mit Knopf. Vorgeschlagen, noch nicht entschieden.
+- [x] **Versions-Hinweis auf der Seite:** in 0.7.7 (§5).
 - [ ] **Aus der Seite 0.6.3 fehlt in 0.7** (Herbert entscheidet, was zurückkommt): eigener Reiter Pumpen; offline-Zeit
       und Trockenlauf-Schwelle einstellbar; Urlaub/Feiertag „absenken“ oder „aus“; Frostschutz mit Ein-/Aus-Wert; Modus
       je Container (Zeitplan/Thermostat/Hand/Aus); Beginn/Ende der Baustelle; Heizperiode samt Hochrechnung;

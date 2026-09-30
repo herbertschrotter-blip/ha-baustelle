@@ -584,6 +584,8 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .griff { width: 40px; height: 5px; border-radius: 3px; background: var(--ink2); opacity: .5; margin: 0 auto 4px; }
 .bs-zeile .bs-wahl { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; text-align: left; }
 .bs-zeile .bs-ic { color: var(--ink2); padding: 4px 8px; font-size: 16px; }
+.neu-version { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; margin-bottom: 12px; border-color: var(--amber); }
+.neu-version .chip { color: var(--amber); background: color-mix(in srgb, var(--amber) 18%, transparent); font-weight: 600; white-space: nowrap; }
 .sheet .zeile { padding: 8px 0; } .sheet .zeile + .zeile { border-top: 1px solid var(--gridc); }
 .sheet input[type=time] { flex: 1; } .x { color: var(--rot) !important; padding: 4px 8px !important; }
 .feld { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink2); } .feld input, .feld select { font-size: 15px; }
@@ -912,6 +914,10 @@ function phaseAusSonne(sonne) {
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
+const SEITE_VERSION = '0.7.7';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+/* Versionen vergleichen: 0.7.10 > 0.7.9 */
+const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
 const LOKAL_FMT = {};
 class BaustellePanel extends HTMLElement {
   constructor() {
@@ -987,7 +993,31 @@ class BaustellePanel extends HTMLElement {
       this._neuBauen();
       delete this.cache['p:' + (this.d && this.d.entry)];
     } catch (e) { this.fehler = (e && (e.message || e.code)) || String(e); if (!this.roh) this.roh = null; }
-    this._vorhersageAbo(); this._stimmung(); this._adresse(); this._auffrischen();
+    this._vorhersageAbo(); this._stimmung(); this._adresse(); this._auffrischen(); this._versionPruefen();
+  }
+  /* Neuere Version als diese Seite? HA nach dem Neustart (struktur) oder eingespielt ohne Neustart (changelog.json auf der Platte) */
+  _versionPruefen() {
+    const vorher = this.neueVersion;
+    for (const r of this.roh || []) if (verNeuer(r.version, this.neueVersion || SEITE_VERSION)) this.neueVersion = r.version;
+    if (typeof fetch === 'function' && !(Date.now() - (this._platteGeprueft || 0) < 600000)) {
+      this._platteGeprueft = Date.now();
+      fetch(`${STATISCH}/changelog.json?t=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(c => {
+        const v = Array.isArray(c) && c[0] && c[0].version;
+        if (verNeuer(v, this.neueVersion || SEITE_VERSION)) { this.neueVersion = v; this.render(); }
+      }).catch(() => {});
+    }
+    if (this.neueVersion !== vorher) this.render();
+  }
+  versionHinweis() {
+    if (!this.neueVersion) return '';
+    return `<div class="glas-panel neu-version"><span>Neue Version ${esc(this.neueVersion)} – bitte neu laden <span class="leise">(geladen ist ${SEITE_VERSION})</span></span><button class="chip" data-act="neu-laden">Neu laden</button></div>`;
+  }
+  async neuLaden() {
+    this.toast('Lädt neu …');
+    // Browser-Speicher auffrischen, sonst kommt nach dem Neuladen wieder die alte Datei
+    const urls = [...new Set([this._panel && this._panel.config && this._panel.config.version, this.neueVersion, SEITE_VERSION].filter(Boolean))].map(v => `${STATISCH}/baustelle-panel.js?v=${encodeURIComponent(v)}`);
+    await Promise.all([...urls, `${STATISCH}/baustelle-panel.js`].map(u => fetch(u, { cache: 'reload' }).catch(() => null)));
+    location.reload();
   }
   _neuBauen() {
     this.alle = (this.roh || []).map(r => this.bauen(r));
@@ -1541,7 +1571,7 @@ class BaustellePanel extends HTMLElement {
     const melden = this.d ? this.d.e.melden : true;
     let sheet = '';
     if (this.s.sheet) { try { sheet = this.sheet(); } catch (e) { this.s.sheet = null; sheet = ''; } }
-    this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${seite}</div></div>
+    this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this.versionHinweis()}${seite}</div></div>
       ${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
       <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
@@ -2384,6 +2414,7 @@ class BaustellePanel extends HTMLElement {
     switch (a) {
       case 'menue': return this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true }));
       case 'tab': return this.gehe(el.dataset.v);
+      case 'neu-laden': return this.neuLaden();
       case 'container': S.chart = 'temp'; return this.gehe('container', el.dataset.id);
       case 'w-hin': return this.gehe('container', el.dataset.id);
       case 'w-stumm': { const w = d.warnungen.find(x => x.id === el.dataset.id); if (!w) return;

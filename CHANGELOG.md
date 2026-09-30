@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.7] – 2026-09-30
+
+- Seite: **Hinweis auf neue Version**. Ist in HA eine neuere Version geladen (nach einem Neustart) oder eine neuere
+  eingespielt (ohne Neustart), steht oben „Neue Version … – bitte neu laden“ mit Knopf „Neu laden“; der Knopf holt die
+  Seite am Browser-Speicher vorbei (Strg+F5 ist nicht mehr nötig). `tools/changelog.py` setzt die Version der Seite.
+
 ## [0.7.6] – 2026-09-30
 
 - Anregung AN-0001 („Wie kann ich Baustellen bearbeiten oder löschen?“): Im Fenster „Baustelle wählen“ hat jede
