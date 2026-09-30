@@ -202,23 +202,33 @@ class Einstellungen:
 
 
 ART_TEXT = {"fehler": "Fehler", "wunsch": "Wunsch", "anregung": "Anregung"}
+# Tickets: Präfix je Art, Nummer je Art aufsteigend ab 0001 (Herbert, 30.09.2026)
+PRAEFIX = {"fehler": "FE", "wunsch": "WU", "anregung": "AN"}
+# Status wie im Skill „ticket“: neu → angenommen → in_arbeit → geloest → geschlossen, daneben verworfen
+TICKET_STATUS = ["neu", "angenommen", "in_arbeit", "geloest", "geschlossen", "verworfen"]
+STATUS_TEXT = {"neu": "neu", "angenommen": "angenommen", "in_arbeit": "in Arbeit", "geloest": "gelöst",
+               "geschlossen": "geschlossen", "verworfen": "verworfen"}
+TICKET_OFFEN = {"neu", "angenommen", "in_arbeit", "geloest"}
+STATUS_ALT = {"offen": "neu", "erledigt": "geschlossen"}  # Meldungen aus 0.7.0–0.7.3
 
 
 def meldungen_markdown(liste: list[dict[str, Any]], stand: str) -> str:
-    """Meldungen lesbar: offene zuerst, je Meldung Art, Zeit, Version, Gerät, Fenster, Stand der Seite und Text."""
-    offen = [m for m in liste if m.get("status") != "erledigt"]
-    erledigt = [m for m in liste if m.get("status") == "erledigt"]
-    zeilen = ["# Meldungen aus dem Melden-Knopf", "",
+    """Tickets lesbar: offene zuerst, je Ticket Nummer, Art, Status, Zeit, Version, Gerät, Fenster, Seite, Text, Verlauf."""
+    offen = [m for m in liste if m.get("status") in TICKET_OFFEN]
+    erledigt = [m for m in liste if m.get("status") not in TICKET_OFFEN]
+    zeilen = ["# Meldungen aus dem Melden-Knopf (Tickets)", "",
               f"Stand: {stand} · offen: {len(offen)} · erledigt: {len(erledigt)}", "",
               "Diese Datei schreibt die Integration Baustelle bei jeder Änderung neu. Quelle ist ihr Speicher; "
-              "bearbeitet wird auf der Seite unter Einstellungen › Entwicklung.", ""]
+              "Status und Notizen ändert `tools/ticket.py` (Dienst baustelle.ticket), angesehen und geschlossen wird "
+              "auf der Seite unter Einstellungen › Entwicklung.", ""]
     for titel, teil in (("Offen", offen), ("Erledigt", erledigt)):
         zeilen += [f"## {titel}", ""]
         if not teil:
             zeilen += ["(keine)", ""]
         for m in teil:
-            kopf = " · ".join(str(x) for x in (ART_TEXT.get(str(m.get("art")), m.get("art")), str(m.get("zeit") or "")[:16].replace("T", " "),
-                                               f"v{m.get('version')}" if m.get("version") else "", m.get("geraet")) if x)
+            kopf = " · ".join(str(x) for x in (
+                m.get("ticket"), ART_TEXT.get(str(m.get("art")), m.get("art")), STATUS_TEXT.get(str(m.get("status")), m.get("status")),
+                str(m.get("zeit") or "")[:16].replace("T", " "), f"v{m.get('version')}" if m.get("version") else "", m.get("geraet")) if x)
             zeilen += [f"### {kopf}", "", str(m.get("text") or "").strip(), ""]
             if m.get("kontext"):
                 zeilen.append(f"- Fenster: {m['kontext']}")
@@ -226,7 +236,13 @@ def meldungen_markdown(liste: list[dict[str, Any]], stand: str) -> str:
                 zeilen.append(f"- Seite: `{json.dumps(m['seite'], ensure_ascii=False)}`")
             if m.get("baustelle"):
                 zeilen.append(f"- Baustelle: {m['baustelle']}")
-            zeilen += [f"- id: {m.get('id')}", ""]
+            zeilen.append(f"- id: {m.get('id')}")
+            for v in m.get("verlauf") or []:
+                teile = [STATUS_TEXT.get(v.get("status"), v.get("status")) if v.get("status") else "",
+                         f"v{v['version']}" if v.get("version") else "", f"Commit {v['commit']}" if v.get("commit") else "",
+                         v.get("notiz") or ""]
+                zeilen.append(f"- {str(v.get('zeit') or '')[:16].replace('T', ' ')} ({v.get('von') or '–'}): " + " · ".join(t for t in teile if t))
+            zeilen.append("")
     return "\n".join(zeilen)
 
 
@@ -248,15 +264,60 @@ class Meldungen:
         self._hass = hass
         self._store: Store[dict[str, Any]] = Store(hass, 1, MELDUNGEN_KEY)
         self.liste: list[dict[str, Any]] = []
+        self.nummern: dict[str, int] = {}
         self._geladen = False
         self.ordner = hass.config.path(DOMAIN)
 
     async def async_laden(self) -> list[dict[str, Any]]:
         if not self._geladen:
-            self.liste = list(((await self._store.async_load()) or {}).get("meldungen") or [])
+            daten = (await self._store.async_load()) or {}
+            self.liste = list(daten.get("meldungen") or [])
+            self.nummern = {k: int(v) for k, v in (daten.get("nummern") or {}).items()}
             self._geladen = True
-            await self.async_exportieren()
+            if self._nummerieren():
+                self.speichern()
+            else:
+                await self.async_exportieren()
         return self.liste
+
+    def _nummerieren(self) -> bool:
+        """Ältere Meldungen ohne Ticketnummer nummerieren (älteste zuerst), alte Status auf die Ticket-Status umstellen."""
+        geaendert = False
+        for m in reversed(self.liste):
+            if m.get("status") in STATUS_ALT:
+                m["status"] = STATUS_ALT[m["status"]]
+                geaendert = True
+            if not m.get("ticket"):
+                m["ticket"] = self.neue_nummer(str(m.get("art") or "fehler"))
+                geaendert = True
+        return geaendert
+
+    def neue_nummer(self, art: str) -> str:
+        """Nächste Ticketnummer der Art, z. B. FE-0001."""
+        praefix = PRAEFIX.get(art, "FE")
+        n = self.nummern.get(praefix, 0) + 1
+        self.nummern[praefix] = n
+        return f"{praefix}-{n:04d}"
+
+    def finden(self, schluessel: str) -> dict[str, Any] | None:
+        """Ticket nach Nummer (FE-0001, groß/klein egal) oder id."""
+        s = schluessel.strip().upper()
+        return next((m for m in self.liste if str(m.get("ticket", "")).upper() == s or m.get("id") == schluessel.strip()), None)
+
+    def aendern(self, m: dict[str, Any], *, status: str | None = None, notiz: str | None = None,
+                version: str | None = None, commit: str | None = None, von: str = "") -> None:
+        """Status/Notiz eines Tickets ändern und im Verlauf festhalten."""
+        jetzt = dt_util.now().isoformat(timespec="seconds")
+        eintrag = {"zeit": jetzt, "von": von}
+        if status:
+            m["status"] = STATUS_ALT.get(status, status)
+            m["stand"] = jetzt
+            eintrag["status"] = m["status"]
+        for k, v in (("notiz", notiz), ("version", version), ("commit", commit)):
+            if v:
+                eintrag[k] = v
+        m.setdefault("verlauf", []).append(eintrag)
+        self.speichern()
 
     async def async_exportieren(self) -> None:
         """Lesbare Kopie nach <config>/baustelle/ schreiben (im Hintergrund-Thread)."""
@@ -264,5 +325,5 @@ class Meldungen:
             _meldungen_schreiben, self.ordner, copy.deepcopy(self.liste), dt_util.now().isoformat(timespec="seconds"))
 
     def speichern(self) -> None:
-        self._store.async_delay_save(lambda: {"meldungen": self.liste}, SPEICHER_VERZOEGERUNG_S)
+        self._store.async_delay_save(lambda: {"meldungen": self.liste, "nummern": self.nummern}, SPEICHER_VERZOEGERUNG_S)
         self._hass.async_create_task(self.async_exportieren(), "baustelle_meldungen_exportieren")

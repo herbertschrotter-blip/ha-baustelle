@@ -245,17 +245,17 @@ async def test_meldungen(hass: HomeAssistant, baustelle, ws, hass_storage) -> No
     assert "## Offen" in md and "Eigene Kachel für Bautrockner" in md and "Fenster: Übersicht" in md and mid in md
     assert json.loads((ordner / "meldungen.json").read_text(encoding="utf-8"))[0]["id"] == mid
     liste = (await ws.rufe("baustelle/meldungen", mit_entry=False))["result"]
-    assert liste[0]["id"] == mid and liste[0]["status"] == "offen" and liste[0]["zeit"]
+    assert liste[0]["id"] == mid and liste[0]["status"] == "neu" and liste[0]["zeit"] and liste[0]["ticket"] == "WU-0001"
     assert liste[0]["seite"] == {"view": "container", "cid": C1, "dialog": None}  # „Stand der Seite mitschicken“
     assert (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="status", meldung_id=mid, status="erledigt"))["success"]
     liste = (await ws.rufe("baustelle/meldungen", mit_entry=False))["result"]
-    assert liste[0]["status"] == "erledigt" and liste[0]["stand"]
+    assert liste[0]["status"] == "geschlossen" and liste[0]["stand"]  # „erledigt“ aus 0.7.0 = geschlossen
     await hass.async_block_till_done()
-    assert "## Erledigt\n\n### Wunsch" in (ordner / "meldungen.md").read_text(encoding="utf-8")
+    assert "## Erledigt\n\n### WU-0001 · Wunsch · geschlossen" in (ordner / "meldungen.md").read_text(encoding="utf-8")
     assert not (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="neu", meldung={"art": "x", "text": ""}))["success"]
     # wie die Seite: Kennung und Status in `meldung` (das Feld `id` gehört der WebSocket-Nachricht)
     assert (await ws.rufe("baustelle/meldung", aktion="status", meldung={"id": mid, "status": "offen"}))["success"]
-    assert (await ws.rufe("baustelle/meldungen"))["result"][0]["status"] == "offen"
+    assert (await ws.rufe("baustelle/meldungen"))["result"][0]["status"] == "neu"
     assert (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="loeschen", meldung_id=mid))["success"]
     assert (await ws.rufe("baustelle/meldungen", mit_entry=False))["result"] == []
     msg = await ws.rufe("baustelle/meldung", mit_entry=False, aktion="loeschen", meldung_id=mid)
@@ -336,5 +336,41 @@ async def test_meldung_im_logbuch(hass: HomeAssistant, baustelle, ws) -> None:
     assert msg["success"], msg
     await hass.async_block_till_done()
     assert ereignisse and ereignisse[-1]["art"] == "meldung"
-    assert ereignisse[-1]["text"] == "Meldung (Fehler): Knöpfe überlagern sich – Container · Dialog „bereich“"
+    assert ereignisse[-1]["text"] == "Meldung FE-0001 (Fehler): Knöpfe überlagern sich – Container · Dialog „bereich“"
     assert ereignisse[-1]["baustelle"] == baustelle.title
+
+
+async def test_tickets_nummern_status_und_dienst(hass: HomeAssistant, baustelle, ws) -> None:
+    """Meldungen werden Tickets: FE-/WU-/AN-Nummer je Art ab 0001, Status wie im Skill „ticket“, Dienst baustelle.ticket."""
+    nummern = []
+    for art, text in (("fehler", "A"), ("wunsch", "B"), ("fehler", "C"), ("anregung", "D")):
+        msg = await ws.rufe("baustelle/meldung", aktion="neu", meldung={"art": art, "text": text})
+        assert msg["success"], msg
+        nummern.append(msg["result"]["ticket"])
+    assert nummern == ["FE-0001", "WU-0001", "FE-0002", "AN-0001"]
+    liste = (await ws.rufe("baustelle/meldungen"))["result"]
+    assert {m["ticket"]: m["status"] for m in liste}["FE-0002"] == "neu"
+    antwort = await hass.services.async_call("baustelle", "ticket", {"ticket": "fe-0002", "status": "geloest", "notiz": "behoben",
+                                                                     "version": "0.7.4"}, blocking=True, return_response=True)
+    assert antwort == {"ticket": "FE-0002", "status": "geloest", "status_text": "gelöst"}
+    m = next(x for x in (await ws.rufe("baustelle/meldungen"))["result"] if x["ticket"] == "FE-0002")
+    assert m["verlauf"][-1]["notiz"] == "behoben" and m["verlauf"][-1]["von"] == "Claude"
+    await hass.async_block_till_done()
+    md = Path(hass.config.path("baustelle", "meldungen.md")).read_text(encoding="utf-8")
+    assert "### FE-0002 · Fehler · gelöst" in md and "(Claude): gelöst · v0.7.4 · behoben" in md
+    # Seite schließt
+    assert (await ws.rufe("baustelle/meldung", aktion="status", meldung={"id": m["id"], "status": "geschlossen"}))["success"]
+    with pytest.raises(Exception):
+        await hass.services.async_call("baustelle", "ticket", {"ticket": "FE-9999", "status": "neu"}, blocking=True)
+
+
+async def test_alte_meldungen_werden_nummeriert(hass: HomeAssistant, hass_storage) -> None:
+    """Meldungen aus 0.7.0–0.7.3 ohne Nummer bekommen beim Laden FE-0001 … (älteste zuerst), Status offen → neu."""
+    from custom_components.baustelle.einstellungen import Meldungen
+    hass_storage["baustelle.meldungen"] = {"version": 1, "key": "baustelle.meldungen", "data": {"meldungen": [
+        {"id": "m2", "art": "fehler", "text": "neuer", "status": "erledigt"},
+        {"id": "m1", "art": "fehler", "text": "älter", "status": "offen"}]}}
+    mel = Meldungen(hass)
+    liste = await mel.async_laden()
+    assert [(m["id"], m["ticket"], m["status"]) for m in liste] == [("m2", "FE-0002", "geschlossen"), ("m1", "FE-0001", "neu")]
+    assert mel.neue_nummer("fehler") == "FE-0003"

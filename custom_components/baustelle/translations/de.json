@@ -318,5 +318,37 @@
       "title": "Baustelle {baustelle}: {entitaet} fehlt",
       "description": "Die Baustelle verwendet `{entitaet}`, aber diese Entität gibt es seit über 10 Minuten nicht. Wurde der Shelly umbenannt, entfernt oder ist seine Integration nicht geladen? Unter Einstellungen → Geräte & Dienste → Baustelle den Shelly bzw. unter „Konfigurieren“ die Entität neu wählen."
     }
+  },
+  "services": {
+    "ticket": {
+      "name": "Ticket ändern",
+      "description": "Status, Notiz, Version oder Commit eines Tickets aus dem Melden-Knopf setzen.",
+      "fields": {
+        "ticket": {
+          "name": "Ticket",
+          "description": "Nummer, z. B. FE-0001"
+        },
+        "status": {
+          "name": "Status",
+          "description": "neu, angenommen, in_arbeit, geloest, geschlossen oder verworfen"
+        },
+        "notiz": {
+          "name": "Notiz",
+          "description": "Befund, Ursache oder Grund"
+        },
+        "version": {
+          "name": "Version",
+          "description": "Version mit dem Fix"
+        },
+        "commit": {
+          "name": "Commit",
+          "description": "Commit mit dem Fix"
+        },
+        "von": {
+          "name": "Von",
+          "description": "Wer ändert (Standard: Claude)"
+        }
+      }
+    }
   }
 }

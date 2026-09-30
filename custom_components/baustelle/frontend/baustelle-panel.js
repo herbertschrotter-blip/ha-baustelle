@@ -517,6 +517,8 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .sheet > .block-kopf:first-of-type, .sheet > h3:first-of-type { padding-right: 40px; }
 .app textarea { font: inherit; color: var(--ink); background: rgba(127,127,127,.16); border: 1px solid var(--panel-rand); border-radius: 10px; padding: 8px 10px; resize: vertical; font-size: 15px; }
 .ml-kontext { font-size: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(120,120,128,.14); display: flex; flex-direction: column; gap: 2px; }
+.ml-nr { font-variant-numeric: tabular-nums; } .ml-notiz { font-style: italic; }
+.badge.st-neu { background: rgba(10,132,255,.2); color: var(--blau); } .badge.st-angenommen, .badge.st-in_arbeit { background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--amber); } .badge.st-geloest { background: rgba(48,209,88,.22); color: #30d158; }
 .ml { padding: 8px 0 8px 12px; border-left: 3px solid var(--blau); display: flex; flex-direction: column; gap: 3px; } .ml.erledigt { opacity: .55; border-color: var(--ink2); }
 .ml + .ml { margin-top: 6px; } .ml-kopf { display: flex; justify-content: space-between; gap: 8px; } .ml-text { font-size: 14px; }
 .badge.rot-b { background: rgba(255,69,58,.2); color: var(--rot); }
@@ -735,6 +737,7 @@ const zahl = x => x !== null && x !== undefined && x !== '' && Number.isFinite(N
 const de = (x, d = 1) => { if (!zahl(x)) return '–'; const n = Number(x); return (Math.abs(n) < .5 * 10 ** -d ? 0 : n).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d }); };
 const FARBE = { bereit: '#8e8e93', heizt: '#ff9f0a', trocknen: '#ff9f0a', aus: '#8e8e93', frost: '#64d2ff', offline: '#ff453a', laeuft: '#0a84ff', pause: '#bf5af2' };
 const TAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const TICKET_STATUS = { neu: 'neu', angenommen: 'angenommen', in_arbeit: 'in Arbeit', geloest: 'gelöst', geschlossen: 'geschlossen', verworfen: 'verworfen', offen: 'neu', erledigt: 'geschlossen' };
 const ICON_MELDEN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 8v3.5M12 13.6v.2"/></svg>';
 const minu = t => { if (!t) return 0; const [h, m] = String(t).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
 const uhr = m => { m = Math.max(0, Math.round(zahl(m) ? m : 0)); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -1507,9 +1510,23 @@ class BaustellePanel extends HTMLElement {
     this.toast(`${name} · ${zeilen.length - 1} Zeilen`);
     return zeilen;
   }
+  meldungOffen(m) { return !['geschlossen', 'verworfen', 'erledigt'].includes(m.status); }
   meldungenMarkdown() {
     const ART = { fehler: 'Fehler', wunsch: 'Wunsch', anregung: 'Anregung' };
-    return (this.meldungen() || []).map(m => `- [${m.status === 'erledigt' ? 'x' : ' '}] **${ART[m.art] || m.art}** (${this.meldungZeit(m)}, v${m.version || '–'}, ${m.geraet || '–'}, ${m.kontext || '–'}): ${m.text}`).join('\n');
+    return (this.meldungen() || []).map(m => `- [${this.meldungOffen(m) ? ' ' : 'x'}] **${m.ticket ? m.ticket + ' ' : ''}${ART[m.art] || m.art}** (${TICKET_STATUS[m.status] || m.status}, ${this.meldungZeit(m)}, v${m.version || '–'}, ${m.geraet || '–'}, ${m.kontext || '–'}): ${m.text}`).join('\n');
+  }
+  /* Ticket an Claude Code übergeben: „ticket FE-0001“ in die Zwischenablage, Claude Terminal (Add-on) öffnen */
+  async anClaude(m) {
+    const text = `ticket ${m.ticket}`;
+    try { if (navigator.clipboard) await navigator.clipboard.writeText(text); } catch (e) { /* ohne Zwischenablage: Text steht im Hinweis */ }
+    let slug = this._claudeSlug;
+    if (slug === undefined) {
+      try { const r = await this._hass.callWS({ type: 'supervisor/api', endpoint: '/addons', method: 'get' });
+        const a = ((r && r.addons) || []).find(x => /claude/i.test(`${x.slug} ${x.name}`) && x.state === 'started') || ((r && r.addons) || []).find(x => /claude/i.test(`${x.slug} ${x.name}`));
+        slug = this._claudeSlug = a ? a.slug : null; } catch (e) { slug = this._claudeSlug = null; }
+    }
+    if (slug && typeof window !== 'undefined' && window.open) window.open(`/hassio/ingress/${slug}`, '_blank');
+    this.toast(slug ? `„${text}“ kopiert – im Claude Terminal (Fenster „baustelle“) einfügen` : `„${text}“ kopiert – Claude Terminal nicht gefunden, bitte selbst öffnen`);
   }
   meldungen() { const r = this._holen('meldungen', () => this._hass.callWS({ type: 'baustelle/meldungen', entry_id: this.d ? this.d.entry : undefined }), 60000); return r === undefined ? null : Array.isArray(r) ? r : (r && r.meldungen) || []; }
   meldungZeit(m) { const l = this.lokal(m.zeit); return l ? `${wtag(l)} ${kurzDatum(l)} ${l.slice(11, 16)}` : '–'; }
@@ -1907,17 +1924,20 @@ class BaustellePanel extends HTMLElement {
       ${!this.d || this.d.e.melden ? `<button class="knopf" data-act="melden">Fehler, Wunsch oder Anregung melden</button>` : ''}`;
   }
   v_dev() {
-    const f = this.s.mfilter || 'offen', alle = this.meldungen(), M = (alle || []).filter(m => f === 'alle' || m.status === f);
+    const f = this.s.mfilter || 'offen', alle = this.meldungen(), passt = m => f === 'alle' || (f === 'offen') === this.meldungOffen(m), M = (alle || []).filter(passt);
     const ART = { fehler: ['Fehler', 'rot-b'], wunsch: ['Wunsch', 'blau-b'], anregung: ['Anregung', 'gruen'] };
+    const anzahl = k => !alle ? '' : k === 'alle' ? alle.length : alle.filter(m => (k === 'offen') === this.meldungOffen(m)).length;
     return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="einst">‹ Einstellungen</button></div>
       ${this.kopf('Entwicklung', 'NUR FÜR DICH')}
-      <div class="glas-panel block"><div class="block-kopf"><b>Meldungen</b><div class="seg klein">${[['offen', 'offen'], ['erledigt', 'erledigt'], ['alle', 'alle']].map(([k, t]) => `<button data-act="mfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t} ${alle ? (k === 'alle' ? alle.length : alle.filter(m => m.status === k).length) : ''}</button>`).join('')}</div></div>
-        ${alle === null ? LAEDT : M.length ? M.map(m => `<div class="ml ${m.status === 'erledigt' ? 'erledigt' : 'offen'}"><div class="ml-kopf"><span class="badge ${(ART[m.art] || ART.wunsch)[1]}">${(ART[m.art] || ART.wunsch)[0]}</span><span class="leise">${this.meldungZeit(m)} · ${esc(m.geraet || '–')} · v${esc(m.version || '–')}</span></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Meldungen</b><div class="seg klein">${[['offen', 'offen'], ['erledigt', 'erledigt'], ['alle', 'alle']].map(([k, t]) => `<button data-act="mfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t} ${anzahl(k)}</button>`).join('')}</div></div>
+        ${alle === null ? LAEDT : M.length ? M.map(m => { const letzte = (m.verlauf || []).filter(v => v.notiz || v.version).at(-1);
+          return `<div class="ml ${this.meldungOffen(m) ? 'offen' : 'erledigt'}"><div class="ml-kopf"><span><b class="ml-nr">${esc(m.ticket || '')}</b> <span class="badge ${(ART[m.art] || ART.wunsch)[1]}">${(ART[m.art] || ART.wunsch)[0]}</span> <span class="badge st-${esc(m.status)}">${esc(TICKET_STATUS[m.status] || m.status)}</span></span><span class="leise">${this.meldungZeit(m)} · ${esc(m.geraet || '–')} · v${esc(m.version || '–')}</span></div>
           <div class="ml-text">${esc(m.text)}</div><div class="leise">📍 ${esc(m.kontext || '–')}</div>
-          <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-status" data-id="${esc(m.id)}">${m.status === 'erledigt' ? '↺ wieder offen' : '✓ erledigt'}</button><button class="chip glas-panel" data-act="m-weg" data-id="${esc(m.id)}">Löschen</button></div></div>`).join('')
+          ${letzte ? `<div class="leise ml-notiz">↳ ${esc(letzte.von || '')}: ${esc([letzte.version ? 'v' + letzte.version : '', letzte.notiz || ''].filter(Boolean).join(' · '))}</div>` : ''}
+          <div class="wk-knoepfe">${this.meldungOffen(m) ? `<button class="chip glas-panel amber" data-act="m-claude" data-id="${esc(m.id)}">An Claude übergeben</button>` : ''}<button class="chip glas-panel" data-act="m-status" data-id="${esc(m.id)}">${this.meldungOffen(m) ? '✓ Schließen' : '↺ wieder öffnen'}</button><button class="chip glas-panel" data-act="m-weg" data-id="${esc(m.id)}">Löschen</button></div></div>`; }).join('')
           : '<div class="leer">Keine Meldungen</div>'}
         <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-md">Als Markdown kopieren</button><button class="chip glas-panel" data-act="m-json">Als JSON herunterladen</button></div>
-        <div class="leise">Meldungen bleiben bei den Daten der Integration (auch in der Sicherung). Markdown passt direkt in ein GitHub-Issue.</div></div>
+        <div class="leise">Jede Meldung ist ein Ticket (FE Fehler, WU Wunsch, AN Anregung). „An Claude übergeben“ kopiert <code>ticket FE-0001</code> und öffnet das Claude Terminal – dort im Fenster „baustelle“ einfügen. Claude setzt den Stand, schließen tust du.</div></div>
       <div class="glas-panel liste"><div class="gruppe">Werkzeuge</div>
         <button class="zeile" data-act="diagnose"><span>Diagnose herunterladen</span><span class="chev">›</span></button>
         <div class="zeile"><span>Melden-Knopf in jedem Fenster</span>${schalter(this.d.e.melden, 'e-bool', 'data-k="melden"')}</div>
@@ -1986,7 +2006,7 @@ class BaustellePanel extends HTMLElement {
       <div class="glas-panel liste"><div class="gruppe">App</div>
         <button class="zeile" data-act="tab" data-v="ueber"><span>Über</span><span class="leise">Version ${esc(this.version)} ›</span></button>
         <div class="zeile"><div><b>Melden-Knopf</b><div class="leise">kleiner Knopf in jedem Fenster für Fehler, Wünsche und Anregungen</div></div>${schalter(e.melden, 'e-bool', 'data-k="melden"')}</div>
-        <button class="zeile" data-act="tab" data-v="dev"><span>Entwicklung</span><span class="leise">${M === null ? '–' : M.filter(m => m.status !== 'erledigt').length} offene Meldungen ›</span></button></div>
+        <button class="zeile" data-act="tab" data-v="dev"><span>Entwicklung</span><span class="leise">${M === null ? '–' : M.filter(m => this.meldungOffen(m)).length} offene Meldungen ›</span></button></div>
       <div class="glas-panel liste"><div class="gruppe">Firmen · für die Abrechnung</div>
         ${d.firmen.map(f => { const n = d.bereiche.filter(b => (b.firma || 'eigen') === f.id).length;
           return `<button class="zeile" data-act="firma-auf" data-id="${esc(f.id)}"><span>${esc(f.name)}${f.eigen ? ' <span class="badge">eigene</span>' : ''}</span><span class="leise">${n} Container ›</span></button>`; }).join('')}
@@ -2408,10 +2428,13 @@ class BaustellePanel extends HTMLElement {
         const meldung = { art: f.art, text: f.text.trim(), kontext: f.kontext, version: this.version, geraet: f.geraet,
           seite: f.stand ? { view: S.view, cid: S.cid, baustelle: d ? d.entry : null, dialog: S.sheet.vorher ? S.sheet.vorher.art : null } : null };
         S.sheet = S.sheet.vorher || null; neu(); delete this.cache.meldungen;
-        return this.ws({ type: 'baustelle/meldung', entry_id: d && d.entry, aktion: 'neu', meldung }, 'Danke – steht unter Einstellungen › Entwicklung'); }
+        return this.ws({ type: 'baustelle/meldung', entry_id: d && d.entry, aktion: 'neu', meldung }).then(r => { if (r) this.toast(`Danke – gemeldet als ${r.ticket || 'Ticket'}`); }); }
       case 'mfilter': S.mfilter = el.dataset.v; return neu();
       case 'm-status': { const m = (this.meldungen() || []).find(x => x.id === el.dataset.id); if (!m) return; delete this.cache.meldungen;
-        return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'status', meldung_id: m.id, status: m.status === 'erledigt' ? 'offen' : 'erledigt' }); }
+        return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'status', meldung_id: m.id, status: this.meldungOffen(m) ? 'geschlossen' : 'neu' }); }
+      case 'm-claude': { const id = el.dataset.id;
+        return Promise.resolve(this.meldungen() || this._hass.callWS({ type: 'baustelle/meldungen', entry_id: d && d.entry }))
+          .then(liste => { const m = (Array.isArray(liste) ? liste : []).find(x => x.id === id); if (m) return this.anClaude(m); }); }
       case 'm-weg': delete this.cache.meldungen; return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'loeschen', meldung_id: el.dataset.id }, 'Meldung gelöscht');
       case 'm-md': { const md = this.meldungenMarkdown(); if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {}); return this.toast(`${(this.meldungen() || []).length} Meldungen als Markdown kopiert`); }
       case 'm-json': this.datei(JSON.stringify(this.meldungen() || [], null, 2), 'baustelle-meldungen.json', 'application/json'); return this.toast('baustelle-meldungen.json');

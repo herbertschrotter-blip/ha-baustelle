@@ -318,5 +318,37 @@
       "title": "Site {baustelle}: {entitaet} is missing",
       "description": "The site uses `{entitaet}`, but this entity has not existed for over 10 minutes. Was it renamed or removed? Reassign it under Settings → Devices & services → Baustelle."
     }
+  },
+  "services": {
+    "ticket": {
+      "name": "Change ticket",
+      "description": "Set status, note, version or commit of a ticket from the report button.",
+      "fields": {
+        "ticket": {
+          "name": "Ticket",
+          "description": "Number, e.g. FE-0001"
+        },
+        "status": {
+          "name": "Status",
+          "description": "neu, angenommen, in_arbeit, geloest, geschlossen or verworfen"
+        },
+        "notiz": {
+          "name": "Note",
+          "description": "Finding, cause or reason"
+        },
+        "version": {
+          "name": "Version",
+          "description": "Version with the fix"
+        },
+        "commit": {
+          "name": "Commit",
+          "description": "Commit with the fix"
+        },
+        "von": {
+          "name": "By",
+          "description": "Who changes it (default: Claude)"
+        }
+      }
+    }
   }
 }

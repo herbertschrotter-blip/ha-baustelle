@@ -1,0 +1,31 @@
+ticket:
+  fields:
+    ticket:
+      required: true
+      example: FE-0001
+      selector:
+        text:
+    status:
+      selector:
+        select:
+          options:
+            - neu
+            - angenommen
+            - in_arbeit
+            - geloest
+            - geschlossen
+            - verworfen
+    notiz:
+      selector:
+        text:
+          multiline: true
+    version:
+      example: 0.7.4
+      selector:
+        text:
+    commit:
+      selector:
+        text:
+    von:
+      selector:
+        text:

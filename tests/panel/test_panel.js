@@ -143,6 +143,7 @@ const hass = {
       case 'baustelle/protokoll': { const b = struktur.find(x => x.baustelle.entry_id === m.entry_id); const p = b.laufzeit.protokoll.length ? b.laufzeit.protokoll : [['2026-04-17T12:00:00+02:00', 'einstellung', null, 'Baustelle abgeschlossen – Heizung aus, Werte gespeichert'], ['2026-03-03T06:00:00+02:00', 'warnung', `${m.entry_id}-3`, 'Frostgefahr 3,8 °C trotz Frostschutz'], ['2026-03-02T11:00:00+02:00', 'ok', `${m.entry_id}-3`, 'wieder über 5 °C']];
         return [...p, ...p.map(e => [e[0].replace('2026-09-2', '2026-09-1'), ...e.slice(1)])].slice(0, m.limit); }
       case 'baustelle/meldungen': return JSON.parse(JSON.stringify(meldungen));
+      case 'supervisor/api': return { addons: [{ slug: 'abc123_claude_terminal', name: 'Claude Terminal', state: 'started' }, { slug: 'core_mosquitto', name: 'Mosquitto broker', state: 'started' }] };
       case 'baustelle/bericht': { const b = struktur.find(x => x.baustelle.entry_id === m.entry_id), mon = m.art === 'monat', titel = b ? b.baustelle.titel : '';   // wie nachrichten.async_bericht_vorschau
         return { art: m.art, von: mon ? '2026-08-01' : '2026-09-21', bis: mon ? '2026-08-31' : '2026-09-27', betreff: `Baustelle ${titel} – ${mon ? 'August 2026' : 'Woche 21.–27.09.2026'}`,
           summe: mon ? 'August: 1 480 kWh · 414,40 €' : 'Vorwoche: 312 kWh · 87,47 €', vergleich: mon ? '(+31 % zum Juli)' : '(−4 % zur Woche davor)',
@@ -563,7 +564,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   neu(); await klick({ act: 'melden' }); eingabe({ ml: 'text' }, '  Knopf zu klein  '); await klick({ act: 'ml-senden' });
   erwarte('Meldung senden', (a => a && a.aktion === 'neu' && a.meldung.text === 'Knopf zu klein' && a.meldung.version === '0.7.0' && a.meldung.seite && a.meldung.seite.view && !('stand' in a.meldung))(letzte('baustelle/meldung').at(-1)));
   await klick({ act: 'tab', v: 'dev' }, 20); neu(); await klick({ act: 'm-status', id: 'm1' });
-  erwarte('Meldung erledigt (meldung_id, kein id)', (a => a && a.aktion === 'status' && a.meldung_id === 'm1' && a.status === 'erledigt' && !('id' in a))(letzte('baustelle/meldung').at(-1)));
+  erwarte('Meldung schließen (meldung_id, kein id)', (a => a && a.aktion === 'status' && a.meldung_id === 'm1' && a.status === 'geschlossen' && !('id' in a))(letzte('baustelle/meldung').at(-1)));
+  { const geoeffnet = []; global.window = { open: u => geoeffnet.push(u) }; downloads.length = 0;
+    neu(); await klick({ act: 'm-claude', id: 'm1' }, 5);
+    erwarte('An Claude übergeben: Terminal geöffnet', geoeffnet[0] === '/hassio/ingress/abc123_claude_terminal');
+    erwarte('An Claude übergeben: „ticket …“ in der Zwischenablage', downloads.some(x => x.startsWith('clipboard:')) && /ticket .* kopiert/.test(panel.letzterToast || ''));
+    delete global.window; }
   neu(); await klick({ act: 'm-weg', id: 'm2' }); erwarte('Meldung löschen', (a => a && a.aktion === 'loeschen' && a.meldung_id === 'm2' && !('id' in a))(letzte('baustelle/meldung').at(-1)));
   await klick({ act: 'm-md' }, 20); await klick({ act: 'm-json' });
   neu(); await klick({ act: 'diagnose' }, 20); erwarte('Diagnose über auth/sign_path', (a => a && a.path === '/api/diagnostics/config_entry/dobl')(letzte('auth/sign_path').at(-1)) && downloads.some(x => /baustelle-dobl/.test(x)));

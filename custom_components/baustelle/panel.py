@@ -17,7 +17,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
-from .einstellungen import EIGEN, Meldungen, ART_TEXT
+from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldungen
 from .logik.warnungen import Art
 
 URL_PANEL = "baustelle"
@@ -549,7 +549,7 @@ async def ws_meldungen(hass: HomeAssistant, connection: websocket_api.ActiveConn
     vol.Required("aktion"): vol.In(["neu", "status", "loeschen"]),
     vol.Optional("meldung"): dict,
     vol.Optional("meldung_id"): str,  # „id“ ist die Nummer der WebSocket-Nachricht
-    vol.Optional("status"): vol.In(["offen", "erledigt"]),
+    vol.Optional("status"): vol.In([*TICKET_STATUS, "offen", "erledigt"]),
     vol.Optional("entry_id"): vol.Any(None, str),
 })
 @websocket_api.async_response
@@ -564,7 +564,7 @@ async def ws_meldung(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         except vol.Invalid as err:
             _fehler(connection, msg, str(err))
             return
-        m.update(id=_neue_id("m"), zeit=jetzt, status="offen", stand=None)
+        m.update(id=_neue_id("m"), zeit=jetzt, status="neu", stand=None, ticket=meldungen.neue_nummer(m["art"]), verlauf=[])
         m.setdefault("version", hass.data.get(DATA_VERSION, ""))
         if msg.get("entry_id"):
             m["baustelle"] = msg["entry_id"]
@@ -573,13 +573,13 @@ async def ws_meldung(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         entry = hass.config_entries.async_get_entry(msg["entry_id"]) if msg.get("entry_id") else None
         hass.bus.async_fire(EVENT_PROTOKOLL, {
             "entry_id": msg.get("entry_id"), "baustelle": entry.title if entry else "", "art": "meldung", "bereich": None,
-            "bereich_name": None, "text": f"Meldung ({ART_TEXT.get(m.get('art'), m.get('art'))}): {m.get('text', '')} – {m.get('kontext', '')}",
+            "bereich_name": None, "text": f"Meldung {m['ticket']} ({ART_TEXT.get(m.get('art'), m.get('art'))}): {m.get('text', '')} – {m.get('kontext', '')}",
         })
-        connection.send_result(msg["id"], {"ok": True, "id": m["id"]})
+        connection.send_result(msg["id"], {"ok": True, "id": m["id"], "ticket": m["ticket"]})
         return
     angaben = msg.get("meldung") or {}
     mid = msg.get("meldung_id") or angaben.get("id")
-    m = next((x for x in liste if x["id"] == mid), None)
+    m = meldungen.finden(mid) if mid else None
     if m is None:
         connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Meldung nicht gefunden")
         return
@@ -587,10 +587,13 @@ async def ws_meldung(hass: HomeAssistant, connection: websocket_api.ActiveConnec
         liste.remove(m)
     else:
         status = msg.get("status") or angaben.get("status")
-        if status not in (None, "offen", "erledigt"):
-            _fehler(connection, msg, "status: offen oder erledigt")
+        if status not in (None, *TICKET_STATUS, "offen", "erledigt"):
+            _fehler(connection, msg, "status: " + ", ".join(TICKET_STATUS))
             return
-        m["status"] = status or ("erledigt" if m.get("status") == "offen" else "offen")
-        m["stand"] = jetzt
+        if status is None:
+            status = "geschlossen" if m.get("status") in TICKET_OFFEN else "neu"
+        meldungen.aendern(m, status=status, notiz=angaben.get("notiz"), von="Seite")
+        connection.send_result(msg["id"], {"ok": True})
+        return
     meldungen.speichern()
     connection.send_result(msg["id"], {"ok": True})

@@ -66,7 +66,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Config: none
 
 ### Ticket
-- Config: none
+- Config: ref:CLAUDE.md#Ticket-Profil
 
 ### Mockup
 - Ablage: mockups
@@ -80,3 +80,21 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 ### Modul
 - Manifest: none
 - Grundsatzregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
+
+## Ticket-Profil
+
+Tickets = Meldungen aus dem Melden-Knopf der Seite (Herbert, 30.09.2026). Bearbeitet werden sie in Claude Code im Fenster
+„baustelle“ des Claude Terminals (`tools/tickets-fenster.sh`), Herbert übergibt sie mit dem Knopf „An Claude übergeben“
+(`ticket FE-0001`).
+
+- Präfix: `FE-NNNN` Fehler, `WU-NNNN` Wunsch, `AN-NNNN` Anregung (je Art ab 0001 aufsteigend)
+- Befehle: `python3 tools/ticket.py liste [alle]` · `zeige <nr>` · `status <nr> <status> [--version X --commit Y --notiz T]` ·
+  `notiz <nr> "<text>"` · `verwerfen <nr> "<grund>"` (liest `/config/baustelle/meldungen.json`, ändert nur über den
+  Dienst `baustelle.ticket`)
+- Status: `neu → angenommen → in_arbeit → geloest → geschlossen`, daneben `verworfen`
+- Pflichtangaben: geloest → Version (+ Commit) · verworfen → Grund · geschlossen setzt nur Herbert (Seite › Entwicklung)
+- Aufgaben: kein Tracker – Befund und Plan als Notiz am Ticket
+- Beweise nachlesen: `zeige <nr>` (Fenster, Stand der Seite), HA-Logbuch und Protokoll der Baustelle, Diagnose
+- Regeln: `docs/bauplan-0.7.md`, Mockup `mockups/glas.html`
+- Doku: CHANGELOG.md-Eintrag nennt die Ticketnummer
+

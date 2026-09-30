@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+import voluptuous as vol
+
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 
 from .const import ALTE_PLATTFORMEN, CONF_REGEN_SENSOR, CONF_TEMP_SENSOR, CONF_WETTER, DOMAIN, PLATFORMS
-from .einstellungen import Einstellungen
+from .einstellungen import STATUS_TEXT, TICKET_STATUS, Einstellungen
 from .entity import HERSTELLER, MODELL
-from .panel import async_panel_anmelden
+from .panel import DATA_MELDUNGEN, async_panel_anmelden
 from .steuerung import Steuerung
 
 type BaustelleConfigEntry = ConfigEntry[Steuerung]
@@ -24,6 +27,30 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Eigene Seite „Baustelle“ anmelden (unabhängig von den einzelnen Baustellen)."""
     version = str((await async_get_integration(hass, DOMAIN)).version)
     await async_panel_anmelden(hass, version)
+
+    async def ticket(call: ServiceCall) -> ServiceResponse:
+        """Ticket aus dem Melden-Knopf ändern (Status, Notiz, Version, Commit) – für die Bearbeitung in Claude Code."""
+        meldungen = hass.data[DATA_MELDUNGEN]
+        await meldungen.async_laden()
+        m = meldungen.finden(call.data["ticket"])
+        if m is None:
+            raise ServiceValidationError(f"Ticket {call.data['ticket']} gibt es nicht")
+        meldungen.aendern(m, status=call.data.get("status"), notiz=call.data.get("notiz"), version=call.data.get("version"),
+                          commit=call.data.get("commit"), von=call.data.get("von") or "Claude")
+        return {"ticket": m["ticket"], "status": m["status"], "status_text": STATUS_TEXT.get(m["status"], m["status"])}
+
+    hass.services.async_register(
+        DOMAIN, "ticket", ticket,
+        schema=vol.Schema({
+            vol.Required("ticket"): cv.string,
+            vol.Optional("status"): vol.In(TICKET_STATUS),
+            vol.Optional("notiz"): vol.All(cv.string, vol.Length(max=5000)),
+            vol.Optional("version"): vol.All(cv.string, vol.Length(max=50)),
+            vol.Optional("commit"): vol.All(cv.string, vol.Length(max=80)),
+            vol.Optional("von"): vol.All(cv.string, vol.Length(max=50)),
+        }),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     return True
 
 

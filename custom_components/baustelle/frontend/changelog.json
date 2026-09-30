@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.7.4",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Meldungen werden **Tickets**: Nummer je Art (FE Fehler, WU Wunsch, AN Anregung, ab 0001), Status neu → angenommen → in Arbeit → gelöst → geschlossen oder verworfen, mit Verlauf und Notizen; ältere Meldungen werden beim Start nummeriert.",
+      "Neuer Dienst `baustelle.ticket` (Status, Notiz, Version, Commit) und `tools/ticket.py` für die Bearbeitung in Claude Code.",
+      "Seite › Entwicklung: Ticketnummer und Status, „An Claude übergeben“ (kopiert `ticket FE-0001`, öffnet das Claude Terminal), „Schließen“/„wieder öffnen“; nach dem Melden steht die Ticketnummer im Hinweis.",
+      "`tools/tickets-fenster.sh`: eigenes Fenster „baustelle“ im Claude Terminal mit Claude Code im Projekt."
+    ]
+  },
+  {
     "version": "0.7.3",
     "datum": "2026-09-30",
     "punkte": [
