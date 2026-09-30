@@ -19,6 +19,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import (
     ART_CONTAINER,
+    TYP_OELRADIATOR,
     CONF_ENDE,
     CONF_HEIZPERIODE_BIS,
     CONF_HEIZPERIODE_VON,
@@ -28,6 +29,7 @@ from ..const import (
     ZIEHT_STROM_W,
 )
 from .. import texte
+from ..logik import lernen
 from ..logik import warnungen as warn_logik
 from ..logik.arbeitszeit import (
     AusnahmeArt,
@@ -65,6 +67,11 @@ HEIZ_GRUENDE = {
     SollGrund.FRUEHSTART, SollGrund.VORHEIZEN, SollGrund.ARBEITSZEIT, SollGrund.NACHHEIZEN, SollGrund.TROCKNEN,
     SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN,
 }
+# lernende Regelung: nur in diesen Gründen regelt der Container selbst (K außen lernen)
+LERN_GRUENDE = {
+    SollGrund.FRUEHSTART, SollGrund.VORHEIZEN, SollGrund.ARBEITSZEIT, SollGrund.NACHHEIZEN, SollGrund.TROCKNEN,
+    SollGrund.BEDARF, SollGrund.ABSENKEN,
+}
 HAND_ENDE_TEXT = {   # Protokoll, wenn die Automatik einen Heizkörper aus dem Handbetrieb übernimmt (FE-0004)
     HandEnde.VORRANG: "Automatik übernimmt ({grund})",
     HandEnde.SOLL: "Soll {soll} °C erreicht – Automatik übernimmt",
@@ -96,6 +103,10 @@ class Heizung(Funktion):
         super().__init__(st)
         self.termine: list[dict[str, Any]] = []  # Termine der Bedarfs-Container (api-0.7 §1 `termine`)
         self.plaene: dict[str, Plan | None] = {}  # Heizplan je Container von heute (letzte Auswertung)
+        # lernende Regelung (0.8): Anteil und erwarteter Nachlauf je Container (letzte Auswertung), Grund, Lern-Minute
+        self.tpi_jetzt: dict[str, tuple[float, float]] = {}
+        self._lern_grund: dict[str, str] = {}
+        self._lern_minute: dict[str, int] = {}
         self._plan_cache: dict[tuple[date, bool], Plan | None] = {}
         self._zu_warm_vorher: bool | None = None
         self.tuer_trotzdem: set[str] = set()  # Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist
@@ -287,12 +298,74 @@ class Heizung(Funktion):
                 heizt_gerade=heizt, toleranz=float(h["toleranz"]), frost_vorher=self._frost.get(bid, False),
                 modus=self.modus(bid), frost_aus=None if h.get("frost_aus") is None else float(h["frost_aus"]),
                 frei_modus=str(h.get("frei_modus") or "frost"), absenk=float(h.get("absenk") or 10.0),
-                frost_immer=bool(h.get("frost_immer")),
+                frost_immer=bool(h.get("frost_immer")), tpi=self._tpi(info, e, temp, soll_t, wetter, jetzt),
             )
             soll = soll_container(lage, int(h["tuer_pause_min"]))
+            self._lern_grund[bid] = soll.grund
             self._frost[bid] = soll.grund == SollGrund.FROST
             ergebnis[bid] = (soll, lage)
         return ergebnis
+
+    # ------------------------------------------------------------------ Lernende Regelung (0.8, logik/lernen)
+    @property
+    def lern_staende(self) -> dict[str, Any]:
+        return self.st.lz.setdefault("lernen", {})
+
+    def _lern_art(self, bid: str) -> str:
+        """„oel“, wenn ein Ölradiator heizt (sonst: wenn einer da ist), sonst „konvektor“."""
+        heizer = [g for g in self.st.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER]
+        basis = [g for g in heizer if self._zieht_strom(g)] or heizer
+        return "oel" if any(g.typ == TYP_OELRADIATOR for g in basis) else "konvektor"
+
+    def _tpi(self, info: BereichInfo, e: Mapping[str, Any], temp: float | None, soll_t: float, wetter: WetterWerte,
+             jetzt: datetime) -> lernen.Tpi | None:
+        """TPI mit gelerntem Nachlauf – nur mit Fühler und eingeschalteter lernender Regelung."""
+        if not e.get("lernen") or temp is None:
+            self.tpi_jetzt.pop(info.id, None)
+            return None
+        stand = {**lernen.neuer_stand(), **self.lern_staende.get(info.id, {})}
+        log = [(zeit(a), zeit(b)) for a, b in stand["ein"] if zeit(a) is not None]
+        kl = lernen.klasse(lernen.ein_minuten(log, jetzt))
+        nachlauf = lernen.nachlauf_erwartet(stand["nachlauf"], self._lern_art(info.id), kl, lernen.band(wetter.aussen))
+        # je Container um 3 min versetzt, damit nicht alle zur selben Minute einschalten
+        t = lernen.Tpi(kint=float(stand["kint"]), kext=float(stand["kext"]), nachlauf=nachlauf, aussen=wetter.aussen,
+                       minute_im_zyklus=(jetzt.hour * 60 + jetzt.minute + 3 * info.nr) % lernen.ZYKLUS_MIN)
+        self.tpi_jetzt[info.id] = (lernen.tpi_anteil(temp, soll_t, t), nachlauf)
+        return t
+
+    def _lernen(self, jetzt: datetime, wetter: WetterWerte) -> None:
+        """Einmal je Minute: Ein-Zeiten, Nachlauf nach dem Ausschalten und K-Werte fortschreiben."""
+        minute = int(jetzt.timestamp() // 60)
+        for info in self.bereiche():
+            e = self.st.einstellungen.bereich(info.id)
+            if not e.get("lernen") or not info.fuehler or self._lern_minute.get(info.id) == minute:
+                continue
+            self._lern_minute[info.id] = minute
+            heizer = [g for g in self.st.geraete_in(info.id) if g.rolle == ROLLE_HEIZKOERPER]
+            regelt = (info.id in self.tpi_jetzt and self._lern_grund.get(info.id) in LERN_GRUENDE
+                      and not any(g.id in self.st.lz["hand"] for g in heizer))
+            alt = self.lern_staende.get(info.id) or lernen.neuer_stand()
+            neu = lernen.takt(
+                alt, jetzt=jetzt, heizt=any(self._zieht_strom(g) for g in heizer), innen=self.st.temperatur(info.fuehler),
+                soll=self.soll_temperatur(info.id), aussen=wetter.aussen, art=self._lern_art(info.id), regelt=regelt,
+            )
+            if neu != alt:
+                self.lern_staende[info.id] = neu
+                self.st.einstellungen.speichern()
+
+    def lern_anzeige(self, bid: str) -> dict[str, Any] | None:
+        """Lernstand für die Seite (api: laufzeit.container.<id>.lernen); None ohne Fühler."""
+        info = self.st.bereiche.get(bid)
+        if info is None or not info.fuehler:
+            return None
+        anteil, nachlauf = self.tpi_jetzt.get(bid, (None, 0.0))
+        soll_t = self.soll_temperatur(bid)
+        return {
+            "an": bool(self.st.einstellungen.bereich(bid).get("lernen")),
+            **lernen.anzeige(self.lern_staende.get(bid) or {}),
+            "anteil": round(anteil * 100) if anteil is not None else None,
+            "erwartet": round(nachlauf, 2), "aus_bei": round(soll_t - nachlauf, 2), "zyklus_min": lernen.ZYKLUS_MIN,
+        }
 
     # ------------------------------------------------------------------ Staffelung und Schalten
     def schaltbar(self, g: GeraetInfo) -> bool:
@@ -314,6 +387,7 @@ class Heizung(Funktion):
 
     def nach_schalten(self, jetzt: datetime, wetter: WetterWerte) -> None:
         """Einmal am Morgen die Wetter-Entscheidung ins Protokoll (Mockup „05:00 wetter …“), dazu jeder Wechsel."""
+        self._lernen(jetzt, wetter)
         st = self.st
         zu_warm = self.zu_warm(wetter)
         heute = jetzt.date().isoformat()

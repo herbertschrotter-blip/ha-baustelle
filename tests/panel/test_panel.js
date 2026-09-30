@@ -517,6 +517,22 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     Date.now = () => jetzt; const kw = panel.verbrauch(dd, 'polier', 'Tag'); Date.now = echt;
     panel._hass.states[en] = zustand; delete panel.cache[`s:${dd.entry}:Tag:${dd.z.HEUTE}`];
     erwarte(`WU-0002: Stunde 19 = 5-Minuten-Werte + Rest bis jetzt (${kw && kw[19]})`, kw && Math.abs(kw[18] - 1.0) < 1e-9 && Math.abs(kw[19] - (.75 + .15)) < 1e-9); }
+  /* 0.8: lernende Regelung – Schalter, Regelungszeile, Lernstand, Setzen und Zurücksetzen */
+  { await klick({ act: 'container', id: 'polier' }, 20);
+    const pol0 = () => panel.d.bereiche.find(x => x.id === 'polier'); let pol = pol0(); pol.modus = 'thermo';
+    const lern0 = pol.lern = { an: false, zyklen: 0, kint: { wert: .6, start: .6, fort: 0 }, kext: { wert: .01, start: .01, fort: 0 }, nachlauf: {}, treffer: [], anteil: null, erwartet: 0, aus_bei: 20, zyklus_min: 10 };
+    panel.render(); erwarte('Lernen: Schalter bei Container mit Fühler', ui.innerHTML.includes('Lernende Regelung') && ui.innerHTML.includes('data-act="b-lernen"'));
+    neu(); await klick({ act: 'b-lernen' }, 20);
+    erwarte('Lernen: Schalter setzt bereiche.polier.lernen', letzte('baustelle/setzen').some(x => JSON.stringify(x.pfad) === '["bereiche","polier","lernen"]' && x.wert === true));
+    pol = pol0(); pol.modus = 'thermo'; pol.lern = Object.assign({ ...lern0 }, { an: true, zyklen: 3, anteil: 38, erwartet: .8, aus_bei: 19.2, kint: { wert: .57, start: .6, fort: .06 },
+      nachlauf: { 'oel|lang|kalt': { grad: 1.2, min: 12, n: 3 } }, treffer: [.3, -.1, .2] });
+    panel.render(); erwarte('Lernen: Regelungszeile', /Thermostat · lernend/.test(ui.innerHTML) && /aus bei 19,2/.test(ui.innerHTML));
+    await klick({ act: 'sheet', s: 'lernen' }); pruefe('Lernstand');
+    erwarte('Lernen: Lernstand mit Nachlauf und Treffern', /\+1,2 °C/.test(ui.innerHTML) && /Ø ±0,2 °C/.test(ui.innerHTML) && /3\/50 Zyklen/.test(ui.innerHTML));
+    await klick({ act: 'lern-k', v: 'mild' }); pruefe('Lernstand mild');
+    neu(); await klick({ act: 'lern-reset' }, 20);
+    erwarte('Lernen: zurücksetzen über baustelle/aktion', letzte('baustelle/aktion').some(x => x.aktion === 'lern_reset' && x.bereich === 'polier'));
+    pol0().lern = null; }
   /* WU-0002: neue Sensorwerte tauschen in der Container-Ansicht nur Diagramm und Kennzahlen */
   { await klick({ act: 'container', id: 'polier' }, 20);
     const wrap = panel.root.querySelector('.c-live .chart-wrap'), knopf = panel.root.querySelector('.c-live-kennz'), vorher = ui.innerHTML;

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0] – 2026-09-30
+
+- Neu: **Lernende Regelung** je Container mit Fühler (Schalter startet aus; Modus Thermostat, Bei Bedarf, Absenken).
+  Statt „an bis Soll, dann aus“ regelt die Integration nach dem bewährten TPI-Verfahren (wie Versatile Thermostat):
+  je 10-min-Zyklus ein Einschaltanteil aus Innen-, Soll- und Außentemperatur. Sie lernt selbst, wie weit der Raum
+  nach dem Ausschalten nachheizt – je Heizkörperart (mit Ölradiator / nur Konvektor), Heizdauer davor und
+  Außentemperatur – und schaltet entsprechend früher ab; dazu lernt sie K innen (Trägheit) und K außen (Wärmeverlust).
+  Einblendung „Lernstand“ am Container mit Nachlauf-Tabelle, Lernfortschritt, Treffgenauigkeit und Zurücksetzen.
+
 ## [0.7.31] – 2026-09-30
 
 - Handbetrieb (FE-0004): Ein per Hand geschalteter Heizkörper blieb bis zum nächsten Schaltpunkt auf Hand – nach

@@ -238,3 +238,16 @@ def test_hand_endet_nach_hoechstdauer_und_am_schaltpunkt():
 def test_frost_und_tuer_gehen_vor():
     assert _hand(grund=SollGrund.FROST, temperatur=2.0) == HandEnde.VORRANG
     assert _hand(grund=SollGrund.TUER_OFFEN, temperatur=18.0) == HandEnde.VORRANG
+
+
+# ---------------------------------------------------------------- 0.8: lernende Regelung (TPI) statt Hysterese
+from logik.lernen import Tpi  # noqa: E402
+
+
+def test_lernend_regelt_nach_tpi():
+    werte = dict(temperatur=19.0, heizt_gerade=True)
+    # Hysterese: 19,0 < 20,3 → ein; TPI mit Nachlauf 1,0: Anteil 0,6·0 + 0,01·20 = 20 % → Minute 1 ein, Minute 5 aus
+    assert soll(**werte) == Soll(True, SollGrund.ARBEITSZEIT)
+    tpi = lambda m: Tpi(kint=0.6, kext=0.01, nachlauf=1.0, aussen=0.0, minute_im_zyklus=m)  # noqa: E731
+    assert soll(**werte, tpi=tpi(1)) == Soll(True, SollGrund.ARBEITSZEIT)
+    assert soll(**werte, tpi=tpi(5)) == Soll(False, SollGrund.ARBEITSZEIT)

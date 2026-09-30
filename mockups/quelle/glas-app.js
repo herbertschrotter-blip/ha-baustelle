@@ -583,6 +583,15 @@ class App {
   }
 
   /* ---- Container ---- */
+  /* Lernende Regelung (neu 0.8): Beispielwerte für den Prototyp – echt kommen sie von der Integration */
+  lernStand(b) {
+    const r = zufall([...String(b.id)].reduce((x, c) => x + c.charCodeAt(0), 11)), n = 37 + Math.round(r() * 20);
+    const nachlauf = (oel, kalt) => [['kurz', '< 15 min'], ['mittel', '15–45 min'], ['lang', '> 45 min']].map(([k, t], i) => ({ k, t,
+      grad: oel ? [.3, .8, 1.4][i] * (kalt ? .85 : 1.1) : [.05, .1, .15][i], min: oel ? [8, 15, 24][i] : [3, 4, 5][i], zyklen: oel ? [9, 14, 6][i] : [4, 3, 0][i] }));
+    return { zyklen: n, kint: { wert: .52, start: .6, fort: Math.min(1, n / 50) }, kext: { wert: .014, start: .01, fort: Math.min(1, (n - 12) / 50) },
+      anteil: 38, erwartet: .8, nachlauf, treffer: [.3, .1, -.2, .2, 0].map(x => x + (r() - .5) * .1) };
+  }
+
   v_container() {
     const b = this.b, tl = this.zeitleiste(b);
     const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['leistung', 'Leistung'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
@@ -609,7 +618,9 @@ class App {
         <div class="chart-wrap">${chart}</div></div>
       ${b.bedarf ? this.bedarfBlock(b) : ''}
       ${b.pumpe || b.bedarf ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Vorheizen · Arbeitszeit · Nachheizen · Kleidung trocknen</span></div>${tl}
-        <div class="regelung">${b.modus === 'thermo' ? `<b>🌡 Thermostat</b><span>regelt in der Heizzeit auf ${de(b.soll ?? this.d.e.soll)} °C (jetzt ${de(b.t)} °C)</span>`
+        <div class="regelung">${b.modus === 'thermo' && b.lernen ? (() => { const l = this.lernStand(b), soll = b.soll ?? this.d.e.soll;
+            return `<b>🧠 Thermostat · lernend</b><span>${l.anteil} % je 10 min · Nachlauf +${de(l.erwartet)} °C erwartet → aus bei ${de(soll - l.erwartet)} °C (Soll ${de(soll)} °C, jetzt ${de(b.t)} °C)</span>`; })()
+          : b.modus === 'thermo' ? `<b>🌡 Thermostat</b><span>regelt in der Heizzeit auf ${de(b.soll ?? this.d.e.soll)} °C (jetzt ${de(b.t)} °C)</span>`
           : b.modus === 'plan' ? `<b>Zeitplan</b><span>Heizung bleibt in der Heizzeit an, der Thermostat am Heizkörper regelt</span>`
           : b.modus === 'hand' ? `<b>Hand</b><span>die Automatik schaltet diesen Container nicht</span>` : `<b>Aus</b><span>nur Frostschutz (ein unter ${de(this.d.e.frost_temp)} °C, aus über ${de(this.d.e.frost_aus)} °C)</span>`}</div></div>`}
       <div class="glas-panel liste">
@@ -619,6 +630,7 @@ class App {
         ${b.pumpe ? `<div class="zeile"><span>♨ Automatik für diesen Schacht</span>${schalter(b.auto, 'b-auto')}</div>`
           : `<div class="zeile modus-z"><div><b>Modus</b> ${NEU}<div class="leise">${MODUS_TEXT[b.modus]}</div></div>
             <div class="seg klein">${MODI.map(([k, t]) => `<button data-act="modus" data-id="${b.id}" data-v="${k}" class="${b.modus === k ? 'on' : ''}" ${k === 'thermo' && b.t === null ? 'disabled title="kein Temperaturfühler"' : ''}>${t}</button>`).join('')}</div></div>`}
+        ${b.pumpe || b.t === null ? '' : `<div class="zeile"><div><b>🧠 Lernende Regelung</b> ${NEU}<div class="leise">${['thermo', 'bedarf'].includes(b.modus) ? 'lernt, wie lange der Raum nach dem Ausschalten nachheizt, und schaltet früher ab' : 'wirkt nur im Modus Thermostat oder Bei Bedarf'}${b.lernen ? ` · <button class="link" data-act="sheet" data-s="lernen">Lernstand ›</button>` : ''}</div></div>${schalter(b.lernen, 'b-lernen')}</div>`}
         ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
       </div>
       <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
@@ -1210,6 +1222,24 @@ class App {
         <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
         ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
+    if (s.art === 'lernen') {
+      const b = this.b, l = this.lernStand(b), kalt = (s.lk || 'kalt') === 'kalt', soll = b.soll ?? this.d.e.soll;
+      const balkenK = (name, k) => `<div class="zeile"><div><b>${name}</b> ${de(k.wert, 3)} <span class="leise">(Start ${de(k.start, 2)})</span>
+          <div class="lern-fort"><i style="width:${Math.round(k.fort * 100)}%"></i></div></div><span class="leise">${k.fort >= 1 ? 'gelernt' : `${Math.round(k.fort * 50)}/50 Zyklen`}</span></div>`;
+      const zelle = z => z.zyklen ? `<b>+${de(z.grad)} °C</b><span class="leise">${z.min} min · ${z.zyklen}×</span>` : '<span class="leise">noch nicht gelernt</span>';
+      const oel = l.nachlauf(true, kalt), kon = l.nachlauf(false, kalt), mittel = l.treffer.reduce((x, y) => x + Math.abs(y), 0) / l.treffer.length;
+      return `${griff}<div class="block-kopf"><h3>Lernstand · ${esc(b.name)}</h3><span class="leise">${l.zyklen} Heizzyklen gemessen</span></div>
+        <div class="gruppe-t">Regelung (TPI, 10-min-Zyklen)</div>
+        ${balkenK('K innen – Trägheit des Raums', l.kint)}${balkenK('K außen – Wärmeverlust nach außen', l.kext)}
+        <div class="leise">Einschaltanteil = K innen × (Soll − innen − Nachlauf) + K außen × (Soll − außen)</div>
+        <div class="block-kopf"><div class="gruppe-t">Nachlauf nach dem Ausschalten</div><div class="seg klein">${[['kalt', 'kalt < 5 °C'], ['mild', 'mild']].map(([k, t]) => `<button data-act="lern-k" data-v="${k}" class="${(s.lk || 'kalt') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+        <div class="lern-tab"><span></span><b>mit Ölradiator</b><b>nur Konvektor</b>
+          ${oel.map((z, i) => `<span>${z.t}</span><div>${zelle(z)}</div><div>${zelle(kon[i])}</div>`).join('')}</div>
+        <div class="leise">Wie weit die Temperatur nach dem Ausschalten noch steigt und wann die Spitze kommt, je nach Heizdauer davor. Zwei Heizkörper zählen mit ihrer Summe.</div>
+        <div class="gruppe-t">Soll getroffen · letzte Zyklen (Soll ${de(soll)} °C)</div>
+        <div class="lern-treffer">${l.treffer.map(x => `<span class="${Math.abs(x) <= .3 ? 'gut' : ''}">${x >= 0 ? '+' : '−'}${de(Math.abs(x))}</span>`).join('')}<b>Ø ±${de(mittel)} °C</b></div>
+        ${knopf('Lernstand zurücksetzen', 'lern-reset', 'rot')}${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
     if (s.art === 'baustelle') { const b = this.d.baustellen[s.i], r = zufall(s.i + 3), m = ['Sep', 'Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär', 'Apr'].slice(0, b.aktiv ? 2 : 6);
       return `${griff}<h3>${esc(b.name)}</h3><div class="leise">${b.zeit}</div>
         <div class="kennz"><div><b>${de(b.kwh, 0)}</b><span>kWh</span></div><div><b>${de(b.eur, 2)} €</b><span>Kosten</span></div><div><b>${b.container}</b><span>Container</span></div></div>
@@ -1390,6 +1420,9 @@ class App {
       case 'an-weg': { const id = this.s.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); for (const b of d.bereiche) if (b.anschluss === id) b.anschluss = rest.id;
         d.anschluesse = d.anschluesse.filter(x => x.id !== id); this.s.sheet = this.zurueck; neu(); return this.toast(`Gelöscht – Container hängen jetzt an ${rest.name}`); }
       case 'tab-einst': return this.gehe('einst');
+      case 'b-lernen': b.lernen = !b.lernen; neu(); return this.toast(b.lernen ? `${b.name}: lernende Regelung ein – lernt ab dem nächsten Heizzyklus` : `${b.name}: lernende Regelung aus – Lernstand bleibt`);
+      case 'lern-k': this.s.sheet.lk = el.dataset.v; return neu();
+      case 'lern-reset': this.s.sheet = this.zurueck; neu(); return this.toast(`${b.name}: Lernstand zurückgesetzt`);
       case 'az-alt': this.s.azAlt = !this.s.azAlt; return neu();
       case 'az-heizung': return this.gehe('heizung');
       case 'az-neu': case 'az-vorlage': { const v = a === 'az-vorlage' ? d.arbeitszeiten[this.s.sheet.i] : this.azJetzt;

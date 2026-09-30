@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from .arbeitszeit import Plan
+from .lernen import Tpi, tpi_anteil, tpi_ein
 
 FROST_SPANNE = 2.0
 
@@ -90,6 +91,7 @@ class LageContainer:
     frei_modus: str = "frost"
     absenk: float = 10.0
     frost_immer: bool = False
+    tpi: Tpi | None = None      # lernende Regelung (0.8): statt Hysterese TPI mit gelerntem Nachlauf
 
 
 @dataclass(frozen=True)
@@ -126,11 +128,19 @@ def frostschutz(lage: LageContainer) -> bool:
     return lage.temperatur < lage.frost_grenze
 
 
+def _regeln(lage: LageContainer, soll: float) -> bool:
+    """Auf `soll` regeln: lernend nach TPI (logik/lernen), sonst Hysterese wie der Generische Thermostat."""
+    assert lage.temperatur is not None
+    if lage.tpi is not None:
+        return tpi_ein(tpi_anteil(lage.temperatur, soll, lage.tpi), lage.tpi.minute_im_zyklus)
+    return thermostat(lage.temperatur, soll, lage.toleranz, lage.heizt_gerade)
+
+
 def _heizen(lage: LageContainer) -> bool:
     """Mit Fühler Thermostat, ohne Fühler (oder im Modus Zeitplan) einfach ein."""
     if lage.temperatur is None or lage.modus == "plan":
         return True
-    return thermostat(lage.temperatur, lage.soll, lage.toleranz, lage.heizt_gerade)
+    return _regeln(lage, lage.soll)
 
 
 # nach der Nachricht „seit … h auf Hand“ (bei `hand_h`) so lange auf eine Antwort warten, dann übernimmt die Automatik
@@ -193,7 +203,7 @@ def soll_container(lage: LageContainer, tuer_pause_min: int) -> Soll:
         return Soll(False, SollGrund.BEREIT)
     if lage.frei:
         if lage.frei_modus == "absenk" and lage.temperatur is not None:
-            return Soll(thermostat(lage.temperatur, lage.absenk, lage.toleranz, lage.heizt_gerade), SollGrund.ABSENKEN)
+            return Soll(_regeln(lage, lage.absenk), SollGrund.ABSENKEN)
         return Soll(False, SollGrund.FREI)
     if lage.zu_warm:
         return Soll(False, SollGrund.HEIZGRENZE)

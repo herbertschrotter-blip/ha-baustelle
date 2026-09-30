@@ -32,6 +32,11 @@ if (require.main === module) {
   klick({ act: 'sheet', s: 'az', i: '0' }); klick({ act: 'az-bearbeiten' }); pr('FE-0002 bearbeiten'); eing({ azn: 'name' }, 'Geändert'); klick({ act: 'azn-speichern' });
   if (A.d.arbeitszeiten.length !== 1 || A.azJetzt.name !== 'Geändert') f.push('FE-0002: bearbeiten ersetzt nicht');
   klick({ act: 'sheet', s: 'az', i: '0' }); klick({ act: 'az-weg' }); if (A.d.arbeitszeiten.length !== 1) f.push('FE-0002: letzte gelöscht');
+  /* Lernende Regelung (0.8): Schalter nur mit Fühler, Lernstand-Einblendung */
+  { const c = A.d.bereiche.find(x => !x.pumpe && x.t !== null); klick({ act: 'container', id: c.id }); c.modus = 'thermo';
+    if (!/Lernende Regelung/.test(ui())) f.push('Lernen: Schalter fehlt');
+    klick({ act: 'b-lernen' }); pr('lernen an'); if (!/Thermostat · lernend/.test(ui())) f.push('Lernen: Regelungszeile fehlt');
+    klick({ act: 'sheet', s: 'lernen' }); pr('lernstand'); klick({ act: 'lern-k', v: 'mild' }); pr('lernstand mild'); klick({ act: 'zu' }); }
   klick({ act: 'zu' });
   console.log(f.length ? f.join('\n') : 'Grundprüfung sauber');
 }

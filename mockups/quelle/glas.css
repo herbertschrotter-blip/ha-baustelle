@@ -483,3 +483,11 @@ body.hell { background: #d9dee5; color: #111; }
 /* Baustellen-Dialog: wählen, ✎ bearbeiten (AN-0002) */
 .bs-zeile { gap: 4px; } .bs-zeile .bs-wahl { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
 .bs-zeile .bs-ic { color: var(--ink2); padding: 4px 8px; font-size: 16px; background: none; border: 0; cursor: pointer; }
+
+/* Lernende Regelung (neu 0.8) */
+.lern-fort { height: 6px; border-radius: 3px; background: rgba(127,127,127,.25); margin-top: 6px; overflow: hidden; width: 160px; max-width: 100%; }
+.lern-fort i { display: block; height: 100%; background: var(--amber, #ffb74d); }
+.lern-tab { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 12px; align-items: center; font-size: 13px; margin: 6px 0; }
+.lern-tab > div { display: flex; flex-direction: column; } .lern-tab > b { font-size: 12px; color: var(--ink2); }
+.lern-treffer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; margin: 6px 0 10px; }
+.lern-treffer span { padding: 2px 8px; border-radius: 8px; background: rgba(255,152,0,.18); } .lern-treffer span.gut { background: rgba(76,175,80,.2); }

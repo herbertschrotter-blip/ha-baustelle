@@ -137,6 +137,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "boost_bis": _iso(heizung.bis("boost_bis", bid, jetzt)),
             "tuer": tuer,
             "modus": heizung.modus(bid) if info.art == ART_CONTAINER else None,
+            "lernen": heizung.lern_anzeige(bid) if info.art == ART_CONTAINER else None,   # lernende Regelung (0.8)
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}

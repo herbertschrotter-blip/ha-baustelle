@@ -101,6 +101,7 @@ SETZEN_BEREICH: dict[str, Any] = {
     "anschluss": cv.string,
     "tuer": vol.Any(None, cv.entity_domain("binary_sensor")),
     "modus": vol.In(["plan", "thermo", "bedarf", "hand", "aus"]),
+    "lernen": cv.boolean,
 }
 
 ARBEITSZEIT = vol.Schema({
@@ -430,7 +431,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Required("entry_id"): str,
     vol.Required("aktion"): vol.In(
         ["bedarf", "bedarf_aus", "boost", "jetzt_heizen", "schalten", "automatik", "warnung_stumm", "bericht_senden",
-         "test_meldung"]
+         "test_meldung", "lern_reset"]
     ),
     vol.Optional("bereich"): str,
     vol.Optional("geraet"): str,
@@ -523,6 +524,13 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         an = st.nachrichten.melden("🔔 Test", f"{st.entry.title}: Nachrichten der Baustelle kommen an.", tag="baustelle_test")
         connection.send_result(msg["id"], {"ok": True, "an": an})
         return
+    elif aktion == "lern_reset":
+        bid = msg.get("bereich")
+        if bid not in st.bereiche:
+            connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Container nicht gefunden")
+            return
+        lz.setdefault("lernen", {}).pop(bid, None)
+        st.protokoll("einstellung", bid, f"{st.bereiche[bid].name}: Lernstand zurückgesetzt")
     elif aktion == "bericht_senden":
         await st.nachrichten.async_bericht_senden(msg.get("art") or "woche")
         connection.send_result(msg["id"], {"ok": True})

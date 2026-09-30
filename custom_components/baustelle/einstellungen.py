@@ -71,7 +71,8 @@ STANDARD: dict[str, Any] = {
     "bereiche": {},
     # „frueher“: Nachricht „Noch früher“ – Tag (ISO) → zusätzliche Minuten Frühstart; „regen“: Regen je Tag (mm) für
     # „nach Regen früher“ am Folgetag
-    "laufzeit": {"bedarf_bis": {}, "boost_bis": {}, "jetzt_bis": None, "hand": {}, "frueher": {}, "regen": {}},
+    "laufzeit": {"bedarf_bis": {}, "boost_bis": {}, "jetzt_bis": None, "hand": {}, "frueher": {}, "regen": {},
+                 "lernen": {}},   # lernen: Lernstand je Container (logik/lernen, 0.8)
     "meldungen_einst": {
         "empfaenger": [],
         "knoepfe": True,
@@ -103,6 +104,7 @@ STANDARD_BEREICH: dict[str, Any] = {
     "tuer": None,
     # Modus (neu 0.7.8): plan | thermo | bedarf | hand | aus; None = aus `auto`/`bedarf` und Fühler abgeleitet
     "modus": None,
+    "lernen": False,   # lernende Regelung (0.8): TPI mit gelerntem Nachlauf, startet aus
 }
 
 

@@ -189,6 +189,11 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `zuordnung`-Eintrag mit `ab <= jetzt`, gelöschte Firma → `eigen`; `logik/abrechnung.firma_von`). Die Seite rechnet
   die Zuordnung nicht selbst nach.
 - `baustelle/aktion`: `test_meldung` → Test-Nachricht an alle Empfänger, Antwort `{ok, an: [Namen]}`.
+- Lernende Regelung (0.8, `logik/lernen.py`): Einstellung `bereiche.<id>.lernen` (bool, startet aus; wirkt mit Fühler im
+  Modus Thermostat, Bei Bedarf und beim Absenken). `laufzeit.container.<id>.lernen` (nur mit Fühler, sonst `null`):
+  `{an, zyklen, kint: {wert, start, fort}, kext: {…}, nachlauf: {"oel|lang|kalt": {grad, min, n}, …}, treffer: [Spitze −
+  Soll …], anteil (% je Zyklus oder null), erwartet (°C), aus_bei (°C), zyklus_min}`. `baustelle/aktion` `lern_reset`
+  mit `bereich` setzt den Lernstand zurück.
 - `baustelle/setzen`: `erklaer` (Erklärtexte der Seite), `heizung.frost_immer` (0.7.9: Frostschutz auch bei
   ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus).
 - Bericht (0.7.9): `heiztage` = Tage mit Heizzeit > 0 in einem Container (Statistik `<bid>_heizzeit`), wie `zaehler.heiztage`.

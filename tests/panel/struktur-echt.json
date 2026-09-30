@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.7.31",
+   "version": "0.8.0",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -357,7 +357,8 @@
      "prio": "hoch",
      "anschluss": "a1",
      "tuer": null,
-     "modus": null
+     "modus": null,
+     "lernen": false
     },
     "mannschaft": {
      "auto": true,
@@ -367,7 +368,8 @@
      "prio": "normal",
      "anschluss": "a1",
      "tuer": null,
-     "modus": null
+     "modus": null,
+     "lernen": false
     },
     "magazin": {
      "auto": true,
@@ -377,7 +379,8 @@
      "prio": "normal",
      "anschluss": "sued",
      "tuer": "binary_sensor.tuer_magazin",
-     "modus": null
+     "modus": null,
+     "lernen": false
     },
     "schacht": {
      "auto": true,
@@ -387,7 +390,8 @@
      "prio": "normal",
      "anschluss": "sued",
      "tuer": null,
-     "modus": null
+     "modus": null,
+     "lernen": false
     }
    },
    "meldungen_einst": {
@@ -482,6 +486,26 @@
      "boost_bis": null,
      "tuer": null,
      "modus": "thermo",
+     "lernen": {
+      "an": false,
+      "zyklen": 0,
+      "kint": {
+       "wert": 0.6,
+       "start": 0.6,
+       "fort": 0.0
+      },
+      "kext": {
+       "wert": 0.01,
+       "start": 0.01,
+       "fort": 0.0
+      },
+      "nachlauf": {},
+      "treffer": [],
+      "anteil": null,
+      "erwartet": 0.0,
+      "aus_bei": 20.0,
+      "zyklus_min": 10
+     },
      "firma": "eigen"
     },
     "mannschaft": {
@@ -494,6 +518,7 @@
      "boost_bis": null,
      "tuer": null,
      "modus": "bedarf",
+     "lernen": null,
      "firma": "eigen"
     },
     "magazin": {
@@ -509,6 +534,26 @@
       "seit": "2026-09-29T16:05:00+02:00"
      },
      "modus": "thermo",
+     "lernen": {
+      "an": false,
+      "zyklen": 0,
+      "kint": {
+       "wert": 0.6,
+       "start": 0.6,
+       "fort": 0.0
+      },
+      "kext": {
+       "wert": 0.01,
+       "start": 0.01,
+       "fort": 0.0
+      },
+      "nachlauf": {},
+      "treffer": [],
+      "anteil": null,
+      "erwartet": 0.0,
+      "aus_bei": 20.0,
+      "zyklus_min": 10
+     },
      "firma": "huber"
     },
     "schacht": {
@@ -521,6 +566,7 @@
      "boost_bis": null,
      "tuer": null,
      "modus": null,
+     "lernen": null,
      "firma": "eigen"
     }
    },
@@ -1163,7 +1209,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.7.31",
+   "version": "0.8.0",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1287,7 +1333,8 @@
      "prio": "normal",
      "anschluss": "a1",
      "tuer": null,
-     "modus": null
+     "modus": null,
+     "lernen": false
     }
    },
    "meldungen_einst": {
@@ -1355,6 +1402,7 @@
      "boost_bis": null,
      "tuer": null,
      "modus": "plan",
+     "lernen": null,
      "firma": "eigen"
     }
    },

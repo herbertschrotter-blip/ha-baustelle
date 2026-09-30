@@ -420,7 +420,7 @@ async def test_store_v1_nur_zaehler_uebernehmen(hass: HomeAssistant, freezer, ha
     assert e["automatik"] is False and e["preis"] == 0.28 and "plan" not in e and "regeln" not in e
     assert e["heizung"]["soll"] == 20.0 and e["heizung"]["heizgrenze_basis"] == "tageshoechst"
     assert e["bereiche"][C1] == {"auto": True, "trocknen": False, "soll": None, "bedarf": False, "prio": "normal",
-                                 "anschluss": "a1", "tuer": None, "modus": None}
+                                 "anschluss": "a1", "tuer": None, "modus": None, "lernen": False}
     assert e["arbeitszeiten"][0]["ab"] == "2026-09-29" and e["arbeitszeiten"][0]["tage"]["4"] == ["07:00", "12:30"]
     assert e["meldungen_einst"]["empfaenger"] == ["mobile_app_test"]
     assert e["protokoll"][0][1:] == ["einstellung", None, "Umstellung auf 0.7.0: Einstellungen neu, Zähler übernommen"]
@@ -811,3 +811,41 @@ async def test_hand_endet_am_soll_bei_einstellung_und_tuer(hass: HomeAssistant, 
     await _zu(hass, freezer, "2026-09-29 19:30:00+02:00", st)
     await _zu(hass, freezer, "2026-09-29 19:35:00+02:00", st)
     assert HK1 not in st.lz["hand"]
+
+
+async def test_lernende_regelung_lernt_nachlauf(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """0.8: Container 1 (Fühler, Ölradiator) regelt lernend nach TPI; nach dem Ausschalten läuft der Raum nach –
+    der Nachlauf wird gelernt und ab dann vorweggenommen; die Seite bekommt den Lernstand."""
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    st.einstellungen.bereich(C1)["soll"] = 20.0
+    st.einstellung_setzen(("bereiche", C1, "lernen"), True)
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    t = dt_util.parse_datetime(ZEHN_UHR)
+
+    async def minute(temp: float) -> None:
+        nonlocal t
+        hass.states.async_set("sensor.temp_c1", str(temp))
+        t += timedelta(minutes=1)
+        freezer.move_to(t)
+        st.auswerten()
+        await hass.async_block_till_done()
+
+    for _ in range(60):            # kalt: TPI 100 % – durchgehend ein
+        await minute(18.0)
+    assert hass.states.get("switch.hk1").state == "on"
+    lern = struktur(hass, baustelle)["laufzeit"]["container"][C1]["lernen"]
+    assert lern["an"] is True and lern["anteil"] == 100 and lern["erwartet"] == 0.0
+    await minute(20.4)             # über dem Soll: aus
+    assert hass.states.get("switch.hk1").state == "off"
+    for temp in (20.6, 20.8, 21.0, 21.2, 21.3, 21.2, 21.0):   # Nachlauf bis 21,3, dann vorbei
+        await minute(temp)
+    stand = st.lz["lernen"][C1]
+    assert stand["zyklen"] == 1 and stand["nachlauf"]["oel|lang|kalt"][0] == pytest.approx(0.9)
+    lern = struktur(hass, baustelle)["laufzeit"]["container"][C1]["lernen"]
+    assert lern["nachlauf"]["oel|lang|kalt"]["grad"] == pytest.approx(0.9) and lern["treffer"] == [pytest.approx(1.3)]
+    # zurücksetzen
+    st.lz["lernen"].pop(C1)
+    assert struktur(hass, baustelle)["laufzeit"]["container"][C1]["lernen"]["zyklen"] == 0
