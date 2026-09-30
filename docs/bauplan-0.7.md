@@ -191,8 +191,98 @@ Entscheidungen (im Sinne des Mockups, 30.09.2026):
 - Abrechnung: Zuordnung zur Firma je **Stunde** (Recorder-Stundenwerte) – „der Verbrauch wird ab jetzt zugeordnet“.
   CSV setzt Felder mit `;` oder `"` in Anführungszeichen (RFC 4180). Fällt ein Montag auf den 1., gehen beide Berichte.
 
+Entscheidungen aus Stufe 2 (Integration, 30.09.2026, im Sinne des Mockups):
+
+- Geschaltet werden nur Heizkörper (Rolle `heizkoerper`); Bautrockner, Steckdosen und Pumpen zählen in der Staffelung nur
+  mit (Mockup „geschaltet werden nur Heizungen“, „Pumpen und andere Verbraucher werden mitgezählt, aber nie
+  geschaltet“). In 0.6 folgten Bautrockner noch dem Zeitplan.
+- Leistung eines Heizkörpers für die Staffelung: gemessenes Mittel im Betrieb (Zähler `mittel:<gid>`), sonst 2,0 kW; ein
+  laufender Heizkörper zählt immer mit dieser Leistung (auch wenn sein Thermostat gerade nicht zieht).
+- Handbetrieb (wie 0.6, aber je Gerät): Schalten in HA oder auf der Seite stellt das Gerät auf Hand; bei Heizkörpern endet
+  er am nächsten Schaltpunkt (die Automatik würde anders schalten als beim Umschalten auf Hand, mit Fühler: Wechsel
+  zwischen Heizzeit und aus); andere Geräte bleiben auf Hand, bis sie ausgeschaltet oder per „Automatik übernehmen“
+  zurückgestellt werden.
+- „Bis morgen stumm“ gilt bis morgen 07:00. Die Frühstart-Nachricht („Morgen −4 °C“) kommt um 18:00 am Vorabend, „Noch
+  früher“ startet 30 min früher (Store `laufzeit.frueher`), „Morgen nicht heizen“ trägt eine Ausnahme „frei“ ein.
+- Wetter je Tag (Frühwert 4–8 Uhr, Höchstwert, Regen) aus `weather.get_forecasts` wird im Store gemerkt
+  (`laufzeit.wetter_tage`), damit „nach Regen früher“ am Folgetag und der Frühstart nach 8 Uhr noch stimmen; gemessener
+  Regen (Wetterstation) geht vor.
+- Standardwerte der Einstellungen wie Mockup; abweichend: Bericht per Mail aus (ohne Adresse und Mail-Dienst), eine erste
+  Arbeitszeit „Arbeitszeit“ ab dem Tag der Umstellung (Mo–Do 07:00–16:30, Fr 07:00–12:30 wie „Herbst 2026“), Empfänger
+  aus den bisherigen Optionen übernommen.
+- Meldungen (Melden-Knopf) liegen in einem eigenen Store für die ganze Integration, nicht in `baustelle.<entry_id>`.
+- Bericht: Verbrauch aus der Langzeitstatistik der Energie-Sensoren je Container als **Tageswerte**; die Aufteilung nach
+  Firma rechnet `logik/abrechnung.aufteilen` je Tag (ein Wechsel gilt ab dem Folgetag). „gespart durch Automatik“ =
+  Änderung des Sensors „Ersparnis“ im Zeitraum.
+- Den CSV-Anhang kann in HA nur der SMTP-Dienst mitschicken; bei anderen Mail-Diensten steht in der Mail ein Hinweis auf
+  die Abrechnung auf der Seite.
+- Speichern (Prüfung Stufe 2): Ein anstehender Schreibvorgang wird nicht mehr verschoben – die Zähler landen spätestens
+  30 s nach einer Änderung in der Datei, auch wenn alle paar Sekunden neue Messwerte kommen (`Store.async_delay_save`
+  allein verschiebt bei jedem Aufruf und hätte bis zum Herunterfahren nie geschrieben).
+- Protokoll der Staffelung: der kurze Wartegrund „anlauf“ (einer nach dem anderen) kommt nicht ins Protokoll, nur echtes
+  Warten (Anschluss voll, höchstens gleichzeitig, Mindestpause, Rundlauf).
+
 Abweichungen vom Mockup:
 
 - Einstellungen → Meldungen, Fußzeile: statt „Störungen gehen als Nachricht aufs Handy, Hinweise nur ins Protokoll und in
   den Warnung-Chip“ → „Störungen, offene Tür und langer Handbetrieb kommen aufs Handy, andere Hinweise nur ins Protokoll
   und in den Warnung-Chip“ (das Mockup widerspricht sich hier selbst; die Beispiel-Nachrichten gehen vor).
+
+Abweichungen vom Mockup auf der Seite (Stufe 3, 30.09.2026 – was das echte System erzwingt):
+
+- Vorführ-Leiste entfällt: Tageszeit aus `sun.sun` (Nacht unter −6°, Morgen/Abend bis 12° Sonnenhöhe), Wetter aus der
+  Wetter-Entität der Baustelle, Hell/Dunkel aus dem HA-Theme. Auf dem Handy (`narrow`) oben links ein kleiner Knopf ☰
+  für die Seitenleiste von HA (HA zeigt bei eigenen Seiten keinen Kopf).
+- Feste Beispieltexte werden echte Werte: Name der Baustelle, Wetter- und Kalendernamen („Open-Meteo · Zone
+  Baustelle“, Kalender „Besprechungen“/„Baustelle Urlaub“/„Feiertage“ → Name der gewählten Entität), Version und
+  HA-Version, Feiertage aus dem Feiertagskalender, Heizplan-Gründe mit den Werten der Vorhersage je Tag.
+- „Kälte-Frühstart morgen“ (Heizung › Heute) leuchtet nur, wenn die Vorhersage für morgen unter der Grenze liegt.
+- Bearbeiten (Container): zusätzlich Auswahl **Temperaturfühler** (sonst nach dem Anlegen nicht mehr änderbar);
+  Gerätetyp zusätzlich **Bautrockner** (Rolle der Integration). Neuer Container: Shelly „– später –“ möglich; beim
+  Pumpenschacht heißt die Auswahl „Gerät“ mit „Pumpe“ (im Mockup bleibt dort „Heizkörper“ stehen).
+- Einstellungen › Wetter: zusätzlich die Kalender **Urlaub, Feiertage, Termine** (Bedarfs-Container); ohne gewählten
+  Kalender zeigen „+ Termin eintragen“/„+ Urlaub eintragen“ stattdessen „Kalender … wählen“.
+- Auswertung › Ölradiator oder Konvektor: Zeile „Aufheizen“ in °C/h (gemessene Aufheizrate) statt „Aufheizen auf
+  18 °C“ in Minuten; „Kosten je Tag“ = Energie des Typs / Heiztage × Preis; Fußsatz aus den Messwerten, gebaut wie im
+  Mockup („braucht länger, hält die Wärme aber besser und verbraucht rund … % weniger“; ohne Messung „Noch zu wenige
+  Messungen“); fett wie im Mockup der Nachteil. Kennzahlen-Pfeile nur, wenn es einen Vergleichswert gibt.
+- Bericht · Beispiel kommt von der Integration (`baustelle/bericht`, dieselben Zahlen und Texte wie beim Senden) und zeigt
+  den Zeitraum, den der Bericht wirklich schickt (Vorwoche bzw. Vormonat). „Je Container“ wie im Mockup mit den
+  Pumpenschächten – in der Mail ebenso (bisher nur Container).
+- Nachrichten · Beispiele mit den Containern der Baustelle; ein Tipp auf einen Knopf zeigt nur einen Hinweis (die
+  echte Aktion kommt aus der Handy-Nachricht).
+- „Bis morgen stumm“ = bis morgen 07:00 (wie die Integration).
+- Die Mockup-Einblendung „baustelle“ (nie geöffnet) entfällt; „Baustelle wählen“ wechselt die Baustelle bzw. öffnet
+  eine abgeschlossene als Detailseite. „Stand der Seite mitschicken“ geht als Feld `seite` mit der Meldung (api §5;
+  `stand` ist dort der Zeitpunkt der Statusänderung).
+- Über: Badge „in Arbeit“ und „Neu in … · geplant“ mit der Liste aus dem Mockup nur, solange die Version noch nicht in
+  `CHANGELOG.md` steht; danach „Neu in …“ mit Datum und den Punkten aus dem Changelog.
+- Baustelle nicht geladen (Einrichtung in HA fehlgeschlagen): Status-Chip „nicht geladen – Integration prüfen“.
+- Anschluss-Einblendung: nimmt man einen Container aus der Liste, hängt er danach am ersten anderen Anschluss (wie im
+  Mockup; die Integration ordnet ihn um).
+- Neu zeichnen im Hintergrund (neue Werte der Integration) ohne die Einblend-Animationen der Kacheln, sonst flackert die
+  Seite bei jeder Zustandsänderung; Scrollstand von Seite und Einblendung bleibt.
+- Wo Werte fehlen: „–“, „Noch keine Werte“, „Keine Termine“ usw.; während Werte geladen werden „Lädt …“.
+
+### Abgleich Seite ↔ Integration (30.09.2026)
+
+Geprüft mit einer echten Baustelle (`tests/integration/test_abgleich.py`: ein Arbeitstag Minute für Minute mit
+Fake-Shellys, Tür, Anschlüssen, Firmen, Arbeitszeit, Ausnahmen, Terminen, Warnungen; die Antwort liegt in
+`tests/panel/struktur-echt.json`). Die Seite rendert dagegen ohne undefined/NaN, und jeder Befehl, den sie dabei sendet
+(WebSocket und REST-Dialoge), geht danach an die echte Integration und wird angenommen. Dabei geändert:
+
+- **Termin-Serien:** Der Kalender (lokaler Kalender von HA) liefert eine Serie je Vorkommen mit derselben `uid`. Die
+  Seite zeigt wie im Mockup eine Zeile je Serie; „nächster …“ ist das nächste noch nicht vorbeigegangene Vorkommen.
+  Einmalige Termine, die schon vorbei sind, stehen nicht mehr in der Liste. Löschen löscht die ganze Serie (`uid` ohne
+  `recurrence_id`); ein Termin ohne `uid` (Kalender ohne Kennung) wird nicht gelöscht, sondern mit Hinweis abgelehnt.
+- **Heiztage** (Verlauf, abgeschlossene Baustelle, Ölradiator/Konvektor „Kosten je Tag“) kommen aus dem Zähler der
+  Integration (`zaehler.heiztage`: Tage, an denen eine Heizung lief). Aus der Langzeitstatistik zählt die Seite nur,
+  wenn der Zähler fehlt. Vorher zählte die Seite jeden Tag mit mehr als 0,5 kWh der ganzen Baustelle, Pumpen
+  eingeschlossen.
+- **Stepper-Grenzen:** Die Seite schickt nur Werte, die die Integration annimmt (`panel.py` `SETZEN`); die Untergrenzen
+  bleiben wie im Mockup (z. B. Kälte-Frühstart ab 0 °C, Takt ab 5 min). Vorher gingen z. B. „schnell aufheizen 0 min“
+  oder „Vorheizen 245 min“ als Fehler zurück.
+- **Nicht geladene Baustelle:** Die Seite fragt `baustelle/protokoll` und `baustelle/bericht` dafür nicht mehr ab (die
+  Integration kennt sie nicht und antwortet `not_found`).
+- **Nachrichten · Beispiele:** „nicht erreichbar“ nimmt den Container der Warnung (auch wenn im Container noch ein
+  anderes Gerät erreichbar ist), „auf Hand“ das Gerät, das wirklich auf Hand steht (auch eine Heizung).

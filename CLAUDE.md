@@ -32,7 +32,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 ### Checks
 - logik: python3 -m pytest -q -p no:cacheprovider tests/logik [custom_components/baustelle/logik/**; tests/logik/**]
 - integration: uv run --no-project --python 3.14 --index-strategy unsafe-best-match --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration [custom_components/**; tests/integration/**]
-- panel: node --check custom_components/baustelle/frontend/baustelle-panel.js; node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/diagnose-beispiel.json [custom_components/baustelle/frontend/**; tests/panel/**]
+- panel: node --check custom_components/baustelle/frontend/baustelle-panel.js; node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json [custom_components/baustelle/frontend/**; tests/panel/**]
 
 ### Commit
 - Format: [vX.Y.Z] Modul, Typ: Kurztitel
