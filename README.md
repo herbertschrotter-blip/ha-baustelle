@@ -174,7 +174,9 @@ Symbol: `custom_components/baustelle/brand/icon.png` (+ `icon@2x.png`), gezeichn
 1. Änderungen im Repo, Tests grün, committen.
 2. Herbert spielt ein: `! /config/projekte/ha-baustelle/tools/deploy.sh`
    (kopiert die Integration samt Seite nach `/config/custom_components/baustelle/`).
-3. Konfiguration prüfen, dann **Neustart durch Herbert** (neue oder geänderte Integration braucht immer einen Neustart).
+3. Konfiguration prüfen, dann **Neustart durch Herbert** (neue oder geänderte Integration braucht immer einen Neustart):
+   `tools/neustart.sh` prüft die Konfiguration über die HA-API und startet nur bei gültiger neu, dann wartet es, bis HA
+   wieder läuft. Claude darf Einspielen und Neustart nur, wenn Herbert es für eine Sitzung per `--allowedTools` freigibt.
 4. Einstellungen → Geräte & Dienste → Baustelle prüfen; Protokoll auf Meldungen von `custom_components.baustelle` ansehen.
 
 ## Nie ins Repo
