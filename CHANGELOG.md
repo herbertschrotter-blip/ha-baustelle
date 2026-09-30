@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.18] – 2026-09-30
+
+- Umbau „Module je Funktion“, Phase 5: Die Integration nennt der Seite die eingeschalteten Funktionen der Baustelle
+  (Heizung, Pumpen). Der Reiter Heizung erscheint nur, wenn die Baustelle die Funktion Heizung hat, der Reiter Pumpen
+  nur mit der Funktion Pumpen und mindestens einem Pumpenschacht.
+
 ## [0.7.17] – 2026-09-30
 
 - Intern (Umbau „Module je Funktion“, Phase 4): Heizung und Pumpen sind jetzt je ein eigenes Modul der Integration

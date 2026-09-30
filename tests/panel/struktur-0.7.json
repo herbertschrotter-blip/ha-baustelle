@@ -24,6 +24,10 @@
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
   },
+  "funktionen": [
+   "heizung",
+   "pumpen"
+  ],
   "entitaeten": {
    "dobl_automatik": "switch.dobl_automatik",
    "dobl_status": "sensor.dobl_status",
@@ -1786,6 +1790,10 @@
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
   },
+  "funktionen": [
+   "heizung",
+   "pumpen"
+  ],
   "entitaeten": {
    "kalsdorf_automatik": "switch.kalsdorf_automatik",
    "kalsdorf_status": "sensor.kalsdorf_status",
@@ -2521,6 +2529,10 @@
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
   },
+  "funktionen": [
+   "heizung",
+   "pumpen"
+  ],
   "entitaeten": {
    "lieboch_automatik": "switch.lieboch_automatik",
    "lieboch_status": "sensor.lieboch_status",
@@ -2821,6 +2833,10 @@
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
   },
+  "funktionen": [
+   "heizung",
+   "pumpen"
+  ],
   "entitaeten": {
    "wundschuh_automatik": "switch.wundschuh_automatik",
    "wundschuh_status": "sensor.wundschuh_status",

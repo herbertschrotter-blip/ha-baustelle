@@ -258,3 +258,8 @@ Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle
 - `reihen`: kWh je Firma und Periode des Zeitraums (Firmen ohne Verbrauch fehlen).
 - CSV wie bisher auf der Seite: BOM, Semikolon, Dezimalkomma ohne Tausendertrennung, CRLF, Felder mit `;`, `"` oder
   Zeilenumbruch in Anführungszeichen (RFC 4180). „Verbrauch“ je Periode eine Zeile (Firma zu Beginn der Periode).
+
+**Funktionen (0.7.18, Bauplan Module Phase 5):** Jede Baustelle in `baustelle/struktur` hat neben `baustelle` das Feld
+`"funktionen": ["heizung", "pumpen"]` – die eingeschalteten Funktionen nach den Optionen `heizung`/`pumpen`
+(`funktionen.aktive`, je Funktion ein Modul in `funktionen/`), auch bei einer nicht geladenen Baustelle. Die Seite zeigt
+den Reiter Heizung nur mit `heizung`, den Reiter Pumpen nur mit `pumpen` und mindestens einem Pumpenschacht.

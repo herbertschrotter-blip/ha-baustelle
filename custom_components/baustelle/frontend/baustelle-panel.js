@@ -1013,7 +1013,7 @@ function phaseAusSonne(sonne) {
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.7.17';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.7.18';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1256,6 +1256,7 @@ class BaustellePanel extends HTMLElement {
     const zl = r.zaehler || {};
     const wetterEid = opt.wetter || null;
     return { r, entry: bs.entry_id, titel: bs.titel || 'Baustelle', aktiv, geladen: bs.geladen !== false, version: bs.version, optionen: opt, ent: r.entitaeten || {}, z, e,
+      funktionen: r.funktionen || ['heizung', 'pumpen'],
       bereiche, anschluesse, firmen, zuordnung, arbeitszeiten, ausnahmen: (e0.ausnahmen || []).map(a => ({ datum: a.datum, art: a.art in AUSNAHME ? a.art : 'zeiten', von: a.von || '07:00', bis: a.bis || '16:30', notiz: a.notiz || '' })),
       warnungen, termine, plan, frei, freiName, abschnitte: lz.abschnitte || {}, staffel: lz.staffel || null, wetter: lz.wetter || {}, heizgrenze: lz.heizgrenze || {},
       status: lz.status || (aktiv ? 'bereit' : 'abgeschlossen'), statusText: lz.status_text || '', jetztBis: lz.jetzt_bis ? this.lokal(lz.jetzt_bis, zone).slice(11, 16) : null,
@@ -1646,11 +1647,14 @@ class BaustellePanel extends HTMLElement {
     const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0, sh = this.root.querySelector('.sheet'), shPos = sh && this.s.sheet && this._sheetArt === this.s.sheet.art ? sh.scrollTop : 0;
     this.ui.classList.toggle('still', !neu && this._view === this.s.view);   // Neuzeichnen ohne Einblend-Animationen
     this._view = this.s.view; this._sheetArt = this.s.sheet && this.s.sheet.art;
-    // Reiter Pumpen nur, wenn die Baustelle Pumpenschächte hat (0.7.8, wie 0.6.3)
-    const mitPumpen = !!(this.d && this.d.bereiche.some(b => b.pumpe));
-    const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ...(mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
+    // Reiter nach den Funktionen der Baustelle (api §8): Heizung nur mit Funktion heizung, Pumpen nur mit Funktion
+    // pumpen und Pumpenschächten (0.7.8, wie 0.6.3)
+    const mitHeizung = !this.d || this.d.funktionen.includes('heizung');
+    const mitPumpen = !!(this.d && this.d.funktionen.includes('pumpen') && this.d.bereiche.some(b => b.pumpe));
+    const tabs = [['uebersicht', 'Übersicht'], ...(mitHeizung ? [['heizung', 'Heizung']] : []), ...(mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(this.s.view)) this.s.view = 'uebersicht';
     if (this.s.view === 'pumpen' && !mitPumpen) this.s.view = 'uebersicht';
+    if (this.s.view === 'heizung' && !mitHeizung) this.s.view = 'uebersicht';
     if (this.s.view === 'container' && !this.b) this.s.view = 'uebersicht';
     const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(this.s.view) ? 'einst' : this.s.view;
     let seite;

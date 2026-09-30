@@ -132,6 +132,13 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
     bei einer nicht geladenen Baustelle leer (0 Container), weil `baustelle/struktur` dort keine Bereiche liefert.
   - **„Ohne Automatik“ – „Noch keine Werte“:** Bedingung unverändert (Dauerbetrieb-Wert ≤ 0); die Regel steht jetzt in
     `auswertung.ohne_automatik` (liefert dann `null`), die Seite prüft nur noch auf `null`.
+- **Funktionen-Module (Phase 4/5):** `aktiv()` einer Funktion = ihre Option (`heizung`, Standard ein; `pumpen`,
+  Standard aus). Wie vor dem Umbau schaltet und regelt nur eine aktive Funktion (`soll`, Warnungen der Container,
+  Status); **gemessen, angezeigt und gezählt wird für alle Bereiche**, die es gibt – eine Pumpe in einem Schacht wird
+  also auch ohne Option `pumpen` überwacht (bisher genauso, die Steuerung kannte die Option nicht). Beispiel: Baustelle
+  mit `pumpen: false` und einem Schacht – Warnung „Trockenlauf“ und Zähler `pumpzeit` wie bisher; neu (Phase 5) fehlt
+  dort nur der Reiter Pumpen auf der Seite. Statt einer Methode `struktur()` je Funktion nennt `baustelle/struktur` die
+  Namen der aktiven Funktionen (`funktionen.aktive`) – eine Funktion braucht bisher keine eigenen Felder in der Struktur.
 - **Kühlung** wird nicht gebaut; `docs/funktion-anlegen.md` beschreibt, wie sie später als Modul dazukommt.
 
 ## 6. Ausführung mit Agenten
@@ -149,4 +156,4 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 - Freigegeben von Herbert am 30.09.2026 (mit Phase 7).
 - [x] Phase 0 · [x] Phase 1 · [x] Phase 2 · [x] Phase 3 (Nachbesserung nach Prüfung: Firmenregel einmal, Firma je
   Container aus der Struktur, sichtbare Unterschiede in §5) · [x] Phase 4 (0.7.17; `struktur-echt.json` byte-gleich bis auf
-  die Versionsnummer) · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6
+  die Versionsnummer) · [x] Phase 5 (0.7.18) · [ ] Phase 7 · [ ] Phase 6

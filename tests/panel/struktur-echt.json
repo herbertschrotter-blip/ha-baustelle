@@ -21,11 +21,15 @@
     "urlaub_kalender": "calendar.urlaub"
    },
    "geladen": true,
-   "version": "0.7.17",
+   "version": "0.7.18",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
   },
+  "funktionen": [
+   "heizung",
+   "pumpen"
+  ],
   "entitaeten": {
    "magazin_energie": "sensor.magazin_energy",
    "magazin_grund": "sensor.magazin_heating",
@@ -1155,11 +1159,14 @@
     "heizperiode_bis": "4"
    },
    "geladen": true,
-   "version": "0.7.17",
+   "version": "0.7.18",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
   },
+  "funktionen": [
+   "heizung"
+  ],
   "entitaeten": {
    "buero_energie": "sensor.buro_energy",
    "buero_grund": "sensor.buro_heating",

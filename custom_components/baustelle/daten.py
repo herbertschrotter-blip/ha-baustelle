@@ -12,6 +12,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import ART_CONTAINER, CONF_STATUS, STATUS_AKTIV
+from .funktionen import aktive
 from .logik.abrechnung import EIGEN, firma_von
 from .logik.arbeitszeit import Plan, uhrzeit
 from .logik.warnungen import titel as warn_titel
@@ -189,6 +190,7 @@ def struktur(hass: HomeAssistant, entry: ConfigEntry, version: str = "") -> dict
             "geladen": getattr(entry, "runtime_data", None) is not None, "version": version,
             "zeitzone": str(hass.config.time_zone), "heute": jetzt.date().isoformat(), "jetzt": _iso(jetzt),
         },
+        "funktionen": aktive(entry.options),  # eingeschaltete Funktionen (api-0.7 §8), auch nicht geladen
         "entitaeten": {e.unique_id: e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)},
     }
     st: Steuerung | None = getattr(entry, "runtime_data", None)

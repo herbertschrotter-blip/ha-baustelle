@@ -9,6 +9,9 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.baustelle.const import DOMAIN
 
 from .conftest import C1, C2, HK2, P1, SCHACHT
 
@@ -57,6 +60,18 @@ async def test_panel_und_struktur(hass: HomeAssistant, baustelle, ws, hass_clien
     assert lz["status"] == "automatik_aus" and lz["status_text"] == "Handbetrieb – nichts wird geschaltet"
     assert len(lz["plan_woche"]) == 7 and set(lz["abschnitte"]) == {C1, C2}
     assert lz["container"][SCHACHT]["zustand"] == "laeuft"
+    assert b["funktionen"] == ["heizung", "pumpen"]
+
+
+async def test_struktur_funktionen(hass: HomeAssistant, baustelle, ws) -> None:
+    """`funktionen` nach den Optionen (api-0.7 §8) – auch für eine nicht geladene Baustelle."""
+    hass.config_entries.async_update_entry(baustelle, options={**baustelle.options, "heizung": False})
+    await hass.async_block_till_done()
+    nur_heizung = MockConfigEntry(domain=DOMAIN, title="B2", data={"name": "B2"}, options={"heizung": True, "pumpen": False})
+    nur_heizung.add_to_hass(hass)
+    alle = {b["baustelle"]["titel"]: b for b in (await ws.rufe("baustelle/struktur", mit_entry=False))["result"]}
+    assert alle["B1"]["funktionen"] == ["pumpen"] and alle["B1"]["baustelle"]["geladen"]
+    assert alle["B2"]["funktionen"] == ["heizung"] and not alle["B2"]["baustelle"]["geladen"]
 
 
 async def test_setzen(hass: HomeAssistant, baustelle, ws) -> None:

@@ -8,8 +8,9 @@ Eine Funktion (Heizung, Pumpen, später z. B. Kühlung) gehört zu bestimmten Be
 3. `nach_soll` – nur bei eingeschalteter Automatik (z. B. Handbetrieb endet am nächsten Schaltpunkt),
 4. `geraet_warnung` / `warnungen` – Zustände für `logik/warnungen.py` (Bereiche nur aktiver Funktionen),
 5. `anzeige` – Zustand und Text je Bereich (Kacheln),
-6. `zaehlen_geraet` / `zaehlen_bereich` / `zaehlen_ende` – Zähler der Funktion,
-7. `struktur` – Name der Funktion für `baustelle/struktur` (api-0.7 §8).
+6. `zaehlen_geraet` / `zaehlen_bereich` / `zaehlen_ende` – Zähler der Funktion.
+
+`baustelle/struktur` nennt die eingeschalteten Funktionen mit ihrem `name` (`funktionen.aktive`, api-0.7 §8).
 
 Anzeige, Zählen und Überwachen laufen für alle Bereiche, die es gibt (wie vor dem Umbau: gemessen wird immer, nur
 geschaltet wird allein über `soll` aktiver Funktionen).
@@ -107,6 +108,3 @@ class Funktion:
 
     def zaehlen_ende(self, jetzt: datetime, stunden: float) -> None:
         return None
-
-    def struktur(self) -> str:
-        return self.name

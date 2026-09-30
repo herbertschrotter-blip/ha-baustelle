@@ -719,6 +719,18 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   neu(); await klick({ act: 'st', k: 'trocken_w', d: '5' }); await klick({ act: 'st', k: 'offline_min', d: '1' });
   erwarte('Pumpen-Schwellen über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["meldungen_einst","trocken_unter_w"]' && a.wert === 35)
     && letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["meldungen_einst","offline_min"]' && a.wert === 6));
+  /* Bauplan Module Phase 5: Reiter nach den Funktionen der Baustelle (api §8 `funktionen`) */
+  { const alt = struktur, dobl = () => struktur.find(x => x.baustelle.entry_id === 'dobl');
+    const nav = () => (ui.innerHTML.match(/<nav class="glas-nav[^]*?<\/nav>/) || [''])[0];
+    const mit = async funktionen => { struktur = JSON.parse(JSON.stringify(alt)); dobl().funktionen = funktionen; panel.cache = {}; await panel._laden(); await ruhe(20); };
+    erwarte('Struktur nennt die Funktionen', JSON.stringify(dobl().funktionen) === '["heizung","pumpen"]' && nav().includes('data-v="heizung"') && nav().includes('data-v="pumpen"'));
+    await mit(['pumpen']); await klick({ act: 'tab', v: 'heizung' }, 30);
+    erwarte('nur Funktion Pumpen: kein Reiter Heizung', !nav().includes('data-v="heizung"') && nav().includes('data-v="pumpen"') && panel.s.view === 'uebersicht');
+    pruefe('nur Pumpen');
+    await mit(['heizung']); await klick({ act: 'tab', v: 'pumpen' }, 30);
+    erwarte('nur Funktion Heizung: kein Reiter Pumpen, auch mit Schacht', nav().includes('data-v="heizung"') && !nav().includes('data-v="pumpen"') && panel.s.view === 'uebersicht');
+    pruefe('nur Heizung');
+    struktur = alt; panel.cache = {}; await panel._laden(); await ruhe(20); }
   await klick({ act: 'container', id: 'polier' }, 30);
   erwarte('Container: Modus-Auswahl statt Automatik-Schalter', ui.innerHTML.includes('data-act="modus"') && !ui.innerHTML.includes('Automatik für diesen Container'));
   neu(); await klick({ act: 'modus', id: 'polier', v: 'plan' });
