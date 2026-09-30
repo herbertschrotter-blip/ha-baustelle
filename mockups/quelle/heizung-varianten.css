@@ -1,0 +1,29 @@
+/* Reiter Heizung – drei Varianten (Mockup heizung-varianten.html) */
+.hz-held { padding: 14px 16px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+.hz-held.klickbar { cursor: pointer; }
+.hz-held-kopf { display: flex; justify-content: space-between; align-items: flex-start; }
+.hz-status { font-size: 22px; font-weight: 600; margin-top: 2px; color: var(--amber); }
+.hz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hz-chip { font-size: 12px; padding: 4px 9px; border-radius: 12px; background: rgba(255,255,255,.12); white-space: nowrap; }
+.hell .hz-chip { background: rgba(0,0,0,.06); }
+.hz-raster { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.desktop .hz-raster { grid-template-columns: repeat(4, 1fr); }
+.hz-kachel { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; text-align: left; min-height: 118px; animation: rein .45s ease-out backwards; }
+.hz-k-kopf { display: flex; justify-content: space-between; width: 100%; }
+.hz-sym { font-size: 20px; line-height: 1; }
+.hz-k-titel { font-size: 12px; color: var(--ink2); margin-top: 6px; }
+.hz-k-wert { font-size: 17px; font-weight: 600; line-height: 1.2; }
+.hz-k-unter { font-size: 11.5px; line-height: 1.35; }
+.hz-mini { display: flex; align-items: flex-end; gap: 3px; height: 22px; margin: 3px 0 1px; width: 100%; }
+.hz-mini i { flex: 1; background: var(--amber); opacity: .55; border-radius: 2px 2px 0 0; }
+.hz-mini i.heute { opacity: 1; }
+.hz-gruppe { margin-bottom: 10px; overflow: hidden; }
+.hz-g-kopf { display: grid; grid-template-columns: 28px 1fr 16px; gap: 10px; align-items: center; width: 100%; padding: 13px 16px; text-align: left; }
+.hz-g-t { display: flex; flex-direction: column; gap: 2px; } .hz-g-t .leise { font-size: 12px; }
+.hz-g-inhalt { padding: 0 16px 10px; border-top: 1px solid var(--gridc); }
+.hz-innen { padding: 12px 0 4px; } .hz-innen + .hz-innen { border-top: 1px solid var(--gridc); }
+.sheet .hz-innen { padding-top: 4px; }
+.hz-seg { margin-bottom: 12px; }
+.desktop .hz-zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.desktop .hz-zwei > * { margin-bottom: 12px; }
+.hz-fuss { text-align: center; margin: 8px 0 90px; font-size: 12px; }
