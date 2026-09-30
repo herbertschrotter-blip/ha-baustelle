@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.6",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Anregung AN-0001 („Wie kann ich Baustellen bearbeiten oder löschen?“): Im Fenster „Baustelle wählen“ hat jede Baustelle jetzt **✎ Bearbeiten** (laufende → Einstellungen › Baustelle, abgeschlossene → Detailseite mit „wieder aktiv setzen“) und **✕ Löschen** mit Sicherheitsabfrage; Löschen entfernt die Baustelle wie in HA unter Geräte & Dienste."
+    ]
+  },
+  {
     "version": "0.7.5",
     "datum": "2026-09-30",
     "punkte": [

@@ -609,6 +609,20 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Abschließen über den Options-Dialog', api.some(a => /options\/flow\/F/.test(a[1]) && a[2].status === 'abgeschlossen'));
   neu(); await klick({ act: 'bs-aktiv', t: 'lieboch' }, 30);
   erwarte('Wieder aktiv setzen', api.some(a => a[1] === 'config/config_entries/options/flow' && a[2].handler === 'lieboch') && api.some(a => /options\/flow\/F/.test(a[1]) && a[2].status === 'aktiv' && !('ende' in a[2])));
+  /* AN-0001: im Fenster „Baustelle wählen“ je Baustelle Bearbeiten und Löschen */
+  await klick({ act: 'sheet', s: 'baustellen' }); pruefe('Baustelle wählen');
+  erwarte('Baustelle wählen: Bearbeiten und Löschen je Baustelle', panel.alle.every(x => ui.innerHTML.includes(`data-act="bs-bearbeiten" data-id="${x.entry}"`) && ui.innerHTML.includes(`data-s="bs-loeschen" data-id="${x.entry}"`)));
+  await klick({ act: 'bs-bearbeiten', id: 'dobl' }, 30);
+  erwarte('Bearbeiten (aktiv) öffnet Einstellungen der Baustelle', panel.s.view === 'einst' && panel.d.entry === 'dobl' && !panel.s.sheet);
+  await klick({ act: 'bs-bearbeiten', id: 'lieboch' }, 30);
+  erwarte('Bearbeiten (abgeschlossen) öffnet die Detailseite', panel.s.view === 'bsdetail' && panel.s.bs === 'lieboch');
+  await klick({ act: 'sheet', s: 'baustellen' }); neu(); await klick({ act: 'sheet', s: 'bs-loeschen', id: 'lieboch' }); pruefe('Baustelle löschen');
+  erwarte('Löschen fragt nach', panel.s.sheet.art === 'bs-loeschen' && ui.innerHTML.includes('Endgültig löschen') && !api.some(a => a[0] === 'DELETE'));
+  await klick({ act: 'zu' });
+  erwarte('Abbrechen löscht nichts', !panel.s.sheet && !api.some(a => a[0] === 'DELETE'));
+  await klick({ act: 'sheet', s: 'bs-loeschen', id: 'lieboch' }); await klick({ act: 'bs-loeschen' }, 30);
+  erwarte('Löschen entfernt den Eintrag wie Geräte & Dienste', api.some(a => a[0] === 'DELETE' && a[1] === 'config/config_entries/entry/lieboch'));
+  erwarte('Löschen der offenen Detailseite führt zur Übersicht', panel.s.view === 'uebersicht');
   await klick({ act: 'sheet', s: 'nachrichten' }); await klick({ act: 'n-knopf', t: 'Bis morgen stumm' }); pruefe('Nachrichten-Knopf');
   erwarte('keine direkten HA-Dienste', true);
 

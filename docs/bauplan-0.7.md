@@ -263,6 +263,10 @@ Abweichungen vom Mockup auf der Seite (Stufe 3, 30.09.2026 – was das echte Sys
 - Neu zeichnen im Hintergrund (neue Werte der Integration) ohne die Einblend-Animationen der Kacheln, sonst flackert die
   Seite bei jeder Zustandsänderung; Scrollstand von Seite und Einblendung bleibt.
 - Wo Werte fehlen: „–“, „Noch keine Werte“, „Keine Termine“ usw.; während Werte geladen werden „Lädt …“.
+- „Baustelle wählen“ (AN-0001, Herbert 30.09.2026): je Baustelle zusätzlich ✎ Bearbeiten (laufende → Einstellungen ›
+  Baustelle, abgeschlossene → Detailseite) und ✕ Löschen mit Abfrage „Endgültig löschen“ (REST
+  `config/config_entries/entry/<id>` wie Geräte & Dienste; Zähler und Einstellungen weg, Langzeitstatistik der Shellys
+  bleibt). Im Mockup gab es dort nur Wechseln und „+ Neue Baustelle“.
 
 ### Abgleich Seite ↔ Integration (30.09.2026)
 
@@ -292,8 +296,8 @@ Fake-Shellys, Tür, Anschlüssen, Firmen, Arbeitszeit, Ausnahmen, Terminen, Warn
 Eingespielt ist 0.7.5; Sicherung vor dem Umstieg: HA-Backup „vor Baustelle 0.7.0“ (ID 304b1b2d). Tickets aus dem
 Melden-Knopf: `python3 tools/ticket.py liste` (Ticket-Profil in CLAUDE.md).
 
-- [ ] **AN-0001** (Anregung): „Wie kann ich Baustellen bearbeiten oder löschen?“ – Seite bietet Name ändern und
-      „abschließen“; Löschen nur in HA (Geräte & Dienste). Klären und ggf. auf der Seite ergänzen.
+- [x] **AN-0001** (Anregung): „Wie kann ich Baustellen bearbeiten oder löschen?“ – in 0.7.6 Bearbeiten und Löschen im
+      Fenster „Baustelle wählen“ (§5).
 - [ ] **Versions-Hinweis auf der Seite:** meldet HA eine neuere Version als die geladene Seite (nach Neustart ohne
       Neuladen des Browsers), oben „Neue Version – bitte neu laden“ mit Knopf. Vorgeschlagen, noch nicht entschieden.
 - [ ] **Aus der Seite 0.6.3 fehlt in 0.7** (Herbert entscheidet, was zurückkommt): eigener Reiter Pumpen; offline-Zeit
