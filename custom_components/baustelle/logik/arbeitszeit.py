@@ -166,6 +166,58 @@ class Plan:
         return None
 
 
+# Arbeitszeit einer neuen Baustelle (Mockup „Herbst 2026“): Mo–Do 07:00–16:30, Fr 07:00–12:30 – Store-Form je Wochentag
+STANDARD_TAGE: dict[str, list[str] | None] = {
+    "0": ["07:00", "16:30"], "1": ["07:00", "16:30"], "2": ["07:00", "16:30"], "3": ["07:00", "16:30"],
+    "4": ["07:00", "12:30"], "5": None, "6": None,
+}
+STANDARD_NAME = "Arbeitszeit"
+
+
+def erste_arbeitszeit(heute: date) -> dict[str, Any]:
+    """Automatisch angelegte Arbeitszeit einer neuen Baustelle; die erste eigene ersetzt sie (FE-0002)."""
+    return {"ab": heute.isoformat(), "name": STANDARD_NAME, "auto": True,
+            "tage": {k: (list(v) if v else None) for k, v in STANDARD_TAGE.items()}}
+
+
+def ist_automatisch(eintrag: dict[str, Any]) -> bool:
+    """Automatisch angelegt? Vor 0.7.28 ohne Kennzeichen gespeichert: dann am Namen und den Standardzeiten erkannt."""
+    if "auto" in eintrag:
+        return bool(eintrag["auto"])
+    tage = {str(k): (list(v) if v else None) for k, v in (eintrag.get("tage") or {}).items()}
+    return eintrag.get("name") == STANDARD_NAME and tage == STANDARD_TAGE
+
+
+def arbeitszeiten_bereinigen(liste: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Beim Laden: automatische kennzeichnen (vor 0.7.28 ohne Kennzeichen) und wegnehmen, sobald es eine eigene gibt –
+    dieselbe Regel wie beim Speichern, damit schon gespeicherte eigene Arbeitszeiten sofort gelten (FE-0002)."""
+    markiert = [{**a, "auto": ist_automatisch(a)} for a in liste]
+    eigene = [a for a in markiert if not a["auto"]]
+    return eigene or markiert
+
+
+def arbeitszeiten_speichern(liste: list[dict[str, Any]], neu: dict[str, Any], alt_ab: str | None = None) -> list[dict[str, Any]]:
+    """Arbeitszeit anlegen oder ändern (`alt_ab` = bisheriges `ab` beim Ändern), nach `ab` sortiert.
+
+    Eine eigene Arbeitszeit ersetzt die automatisch angelegte (FE-0002: sonst gewann die automatische ab dem Tag der
+    Anlage gegen eine eigene mit früherem Datum). Doppeltes `ab` → `ValueError`.
+    """
+    andere = [a for a in liste if a["ab"] != alt_ab and not ist_automatisch(a)]
+    if any(a["ab"] == neu["ab"] for a in andere):
+        raise ValueError(neu["ab"])
+    return sorted([*andere, {k: v for k, v in neu.items() if k != "auto"}], key=lambda a: a["ab"])
+
+
+def arbeitszeit_loeschen(liste: list[dict[str, Any]], ab: str) -> list[dict[str, Any]]:
+    """Arbeitszeit löschen; unbekannt → `KeyError`, die letzte bleibt (ohne Arbeitszeit liefe nur der Frostschutz) → `ValueError`."""
+    rest = [a for a in liste if a["ab"] != ab]
+    if len(rest) == len(liste):
+        raise KeyError(ab)
+    if not rest:
+        raise ValueError("letzte")
+    return rest
+
+
 def gueltige_arbeitszeit(liste: Iterable[Arbeitszeit], tag: date) -> Arbeitszeit | None:
     """Die jüngste Arbeitszeit, die am `tag` schon begonnen hat; alte bleiben gespeichert, künftige gelten erst ab `ab`."""
     gueltig: Arbeitszeit | None = None

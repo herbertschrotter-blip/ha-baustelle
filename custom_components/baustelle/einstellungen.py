@@ -13,7 +13,6 @@ Die Meldungen aus dem Melden-Knopf gelten für die ganze Integration und liegen 
 from __future__ import annotations
 
 import copy
-from datetime import date
 import json
 import os
 from typing import Any
@@ -24,6 +23,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.file import write_utf8_file
 
 from .const import DOMAIN
+from .logik.arbeitszeit import arbeitszeiten_bereinigen, erste_arbeitszeit
 from .logik.warnungen import Art
 
 STORE_VERSION = 2
@@ -37,7 +37,7 @@ ANSCHLUSS_STANDARD = "a1"
 STANDARD: dict[str, Any] = {
     "automatik": False,
     "preis": 0.28,
-    "arbeitszeiten": [],  # beim ersten Laden: eine Arbeitszeit ab heute (siehe `_erste_arbeitszeit`)
+    "arbeitszeiten": [],  # beim ersten Laden: eine Arbeitszeit ab heute (siehe `logik.arbeitszeit.erste_arbeitszeit`)
     "ausnahmen": [],
     "heizung": {
         "vorheizen_min": 45,
@@ -106,16 +106,6 @@ STANDARD_BEREICH: dict[str, Any] = {
 }
 
 
-def _erste_arbeitszeit(heute: date) -> dict[str, Any]:
-    """Arbeitszeit für eine neue Baustelle (Mockup „Herbst 2026“: Mo–Do 07:00–16:30, Fr 07:00–12:30)."""
-    lang, kurz = ["07:00", "16:30"], ["07:00", "12:30"]
-    return {
-        "ab": heute.isoformat(),
-        "name": "Arbeitszeit",
-        "tage": {"0": lang, "1": list(lang), "2": list(lang), "3": list(lang), "4": kurz, "5": None, "6": None},
-    }
-
-
 def _ergaenzen(ziel: dict[str, Any], vorlage: dict[str, Any]) -> dict[str, Any]:
     """Fehlende Schlüssel aus der Vorlage übernehmen (neue Einstellungen nach Updates)."""
     for schluessel, wert in vorlage.items():
@@ -157,7 +147,11 @@ class Einstellungen:
         neu = not gespeichert or self.von_v1
         self.daten = _ergaenzen(gespeichert, STANDARD)
         if neu and not self.daten["arbeitszeiten"]:
-            self.daten["arbeitszeiten"] = [_erste_arbeitszeit(dt_util.now().date())]
+            self.daten["arbeitszeiten"] = [erste_arbeitszeit(dt_util.now().date())]
+        # automatische kennzeichnen und wegnehmen, sobald es eine eigene gibt (FE-0002)
+        bereinigt = arbeitszeiten_bereinigen(self.daten["arbeitszeiten"])
+        geaendert = bereinigt != self.daten["arbeitszeiten"]
+        self.daten["arbeitszeiten"] = bereinigt
         if empfaenger and not self.daten["meldungen_einst"]["empfaenger"]:
             self.daten["meldungen_einst"]["empfaenger"] = list(empfaenger)
         bereiche = self.daten["bereiche"]
@@ -169,7 +163,7 @@ class Einstellungen:
             b = bereiche.setdefault(bid, {})
             _ergaenzen(b, {**STANDARD_BEREICH, "anschluss": erster})
         del self.daten["protokoll"][PROTOKOLL_MAX:]
-        if neu:
+        if neu or geaendert:
             self.speichern()
 
     def speichern(self, verzoegerung: float = SPEICHER_VERZOEGERUNG_S) -> None:

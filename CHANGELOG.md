@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.28] – 2026-09-30
+
+- Arbeitszeit (FE-0002): Die beim ersten Start **automatisch angelegte** Arbeitszeit wird durch die erste eigene
+  ersetzt – auch wenn diese ein früheres Datum hat; eine schon gespeicherte eigene gilt nach dem Update sofort.
+  Vorher gewann die automatische (ab dem Tag des ersten Starts) gegen eine eigene ab z. B. 09.02.2026.
+- Jede Arbeitszeit lässt sich **bearbeiten** (ab, Name, Zeiten) und **löschen** – die letzte bleibt; „Bearbeiten oder
+  löschen“ steht direkt unter der geltenden.
+
 ## [0.7.27] – 2026-09-30
 
 - Baustelle wählen (AN-0002): ✎ öffnet **„Baustelle bearbeiten“** nur mit den Daten dieser Baustelle – Name, Beginn

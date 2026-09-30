@@ -710,6 +710,8 @@ class App {
     const idx = a => this.d.arbeitszeiten.indexOf(a);
     return `<div class="glas-panel block"><div class="block-kopf"><b>Arbeitszeit</b><span class="badge gruen">gilt seit ${datum(jetzt.ab)}</span></div>
       <div class="az-name">${esc(jetzt.name)}</div>
+      ${jetzt.auto ? '<div class="leise">Automatisch angelegt – wird ersetzt, sobald du eine eigene Arbeitszeit speicherst (auch mit früherem Datum).</div>' : ''}
+      <button class="zeile" data-act="sheet" data-s="az" data-i="${idx(jetzt)}"><span class="blau">Bearbeiten oder löschen</span><span class="chev">›</span></button>
       ${TAGE.map(t => { const z = jetzt.tage[t]; return `<div class="zeile az ${t === HEUTE_TAG ? 'heute' : ''}"><b class="tag-n">${t}</b>
         <span class="fenster">${z ? `<em>${z[0]}–${z[1]}</em>` : '<span class="leise">frei</span>'}</span><span class="leise">${z ? dauer(z[0], z[1]) : ''}</span></div>`; }).join('')}
       ${geplant.map(a => `<button class="zeile" data-act="sheet" data-s="az" data-i="${idx(a)}"><span><span class="badge blau-b">geplant</span> ab ${datum(a.ab)} · ${esc(a.name)}</span><span class="chev">›</span></button>`).join('')}
@@ -1045,7 +1047,9 @@ class App {
       return `${griff}<div class="block-kopf"><h3>${esc(a.name)}</h3><span class="badge ${aktuell ? 'gruen' : geplant ? 'blau-b' : ''}">${aktuell ? 'gilt jetzt' : geplant ? 'geplant' : 'früher'}</span></div>
         <div class="leise">gilt ab ${datum(a.ab)}</div>
         ${TAGE.map(t => `<div class="zeile"><b class="tag-n">${t}</b><span>${a.tage[t] ? a.tage[t].join('–') : '<span class="leise">frei</span>'}</span></div>`).join('')}
-        ${knopf('Als Vorlage für eine neue', 'az-vorlage', 'amber')}${geplant ? knopf('Löschen', 'az-weg', 'rot') : ''}${knopf('Schließen', 'zu', 'leise-k')}`;
+        ${a.auto ? '<div class="leise">Automatisch angelegt – wird durch deine erste eigene Arbeitszeit ersetzt.</div>' : ''}
+        ${knopf('Bearbeiten', 'az-bearbeiten', 'amber')}${knopf('Als Vorlage für eine neue', 'az-vorlage')}
+        ${this.d.arbeitszeiten.length > 1 ? knopf('Löschen', 'az-weg', 'rot') : '<div class="leise">Die letzte Arbeitszeit lässt sich nicht löschen – ohne Arbeitszeit liefe nur der Frostschutz.</div>'}${knopf('Schließen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'firma') {
       const f = s.form, neu = !f.id, eigen = !neu && this.firma(f.id).eigen;
@@ -1161,12 +1165,13 @@ class App {
     }
     if (s.art === 'az-neu') {
       const f = s.form;
-      return `${griff}<h3>Neue Arbeitszeit</h3>
+      return `${griff}<h3>${f.i !== undefined ? 'Arbeitszeit bearbeiten' : 'Neue Arbeitszeit'}</h3>
         <div class="raster-2"><label class="feld">Gilt ab<input type="date" value="${f.ab}" data-azn="ab"></label><label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Winter" data-azn="name"></label></div>
         ${TAGE.map(t => { const z = f.tage[t]; return `<div class="zeile azn"><b class="tag-n">${t}</b>${schalter(!!z, 'azn-tag', `data-t="${t}"`)}
           ${z ? `<input type="time" value="${z[0]}" data-azt="${t}" data-p="0"><span class="leise">bis</span><input type="time" value="${z[1]}" data-azt="${t}" data-p="1">` : '<span class="leise frei">frei</span>'}</div>`; }).join('')}
         <button class="zeile" data-act="azn-wie-mo"><span class="blau">Di–Do wie Montag</span></button>
-        <div class="leise">Die bisherige Arbeitszeit bleibt gespeichert. Liegt das Datum in der Zukunft, gilt die neue automatisch ab diesem Tag.</div>
+        <div class="leise">${f.i !== undefined ? 'Es gilt immer die jüngste Arbeitszeit, die schon begonnen hat.' : 'Die bisherige Arbeitszeit bleibt gespeichert. Liegt das Datum in der Zukunft, gilt die neue automatisch ab diesem Tag.'}
+          ${this.d.arbeitszeiten.some(x => x.auto) ? ' Die automatisch angelegte Arbeitszeit fällt beim Speichern weg.' : ''}</div>
         ${knopf('Speichern', 'azn-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'zeitraum-bs') { const f = s.form ||= { ...this.d.bs, hp: [...this.d.bs.hp] };
@@ -1389,14 +1394,20 @@ class App {
       case 'az-heizung': return this.gehe('heizung');
       case 'az-neu': case 'az-vorlage': { const v = a === 'az-vorlage' ? d.arbeitszeiten[this.s.sheet.i] : this.azJetzt;
         this.s.sheet = { art: 'az-neu', form: { ab: '2026-10-05', name: '', tage: JSON.parse(JSON.stringify(v.tage)) } }; return neu(); }
-      case 'az-weg': { const x = d.arbeitszeiten[this.s.sheet.i]; d.arbeitszeiten.splice(this.s.sheet.i, 1); this.s.sheet = this.zurueck; neu(); return this.toast(`${x.name} gelöscht`); }
+      case 'az-bearbeiten': { const i = this.s.sheet.i, v = d.arbeitszeiten[i];
+        this.s.sheet = { art: 'az-neu', zurueck: this.s.sheet.zurueck, form: { i, ab: v.ab, name: v.auto ? '' : v.name, tage: JSON.parse(JSON.stringify(v.tage)) } }; return neu(); }
+      case 'az-weg': { const x = d.arbeitszeiten[this.s.sheet.i]; if (d.arbeitszeiten.length < 2) return this.toast('Die letzte Arbeitszeit bleibt'); d.arbeitszeiten.splice(this.s.sheet.i, 1); this.s.sheet = this.zurueck; neu(); return this.toast(`${x.name} gelöscht`); }
       case 'azn-tag': { const t = el.dataset.t, f = this.s.sheet.form; f.tage[t] = f.tage[t] ? null : [...(f.tage.Mo || ['07:00', '16:30'])]; return neu(); }
       case 'azn-wie-mo': { const f = this.s.sheet.form; for (const t of ['Di', 'Mi', 'Do']) f.tage[t] = f.tage.Mo ? [...f.tage.Mo] : null; return neu(); }
       case 'azn-speichern': { const f = this.s.sheet.form;
         if (!f.ab) return this.toast('Bitte ein Startdatum wählen');
-        if (d.arbeitszeiten.some(x => x.ab === f.ab)) return this.toast(`Ab ${datum(f.ab)} gibt es schon eine Arbeitszeit`);
-        d.arbeitszeiten.push({ ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage: f.tage }); this.s.sheet = this.zurueck; neu();
-        return this.toast(f.ab > HEUTE ? `Geplant – gilt ab ${datum(f.ab)}` : `Gilt jetzt – die bisherige bleibt gespeichert`); }
+        const bisher = f.i !== undefined ? d.arbeitszeiten[f.i] : null;
+        if (d.arbeitszeiten.some(x => x.ab === f.ab && x !== bisher && !x.auto)) return this.toast(`Ab ${datum(f.ab)} gibt es schon eine Arbeitszeit`);
+        const eintrag = { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage: f.tage };
+        // FE-0002: eine eigene Arbeitszeit ersetzt die automatisch angelegte
+        d.arbeitszeiten = d.arbeitszeiten.filter(x => x !== bisher && !x.auto).concat(eintrag); this.s.sheet = this.zurueck; neu();
+        const gilt = this.azJetzt === eintrag;
+        return this.toast(bisher ? 'Gespeichert' + (gilt ? ' – gilt jetzt' : '') : f.ab > HEUTE ? `Geplant – gilt ab ${datum(f.ab)}` : gilt ? 'Gilt jetzt – die bisherige bleibt gespeichert' : 'Gespeichert – eine jüngere Arbeitszeit gilt weiter'); }
       case 'neu-art': this.s.sheet.neuArt = el.dataset.v; return neu();
       case 'neu-anlegen': { const name = this.root.querySelector('[data-neu="name"]').value.trim() || 'Neuer Container';
         this.neuerContainer(name, this.s.sheet.neuArt === 'Pumpenschacht', 'eigen'); this.s.sheet = this.zurueck; neu(); return this.toast(`${name} angelegt`); }
@@ -1492,6 +1503,7 @@ class App {
 }
 document.querySelectorAll('.app').forEach(el => new App(el));
 document.getElementById('modus').onclick = () => { document.body.classList.toggle('hell'); APPS.forEach(a => a.stimmung(false)); };
+{ const el = document.getElementById('az-auto'); if (el) el.onclick = () => APPS.forEach(a => { a.d.arbeitszeiten = [{ ...az('2026-09-28', 'Arbeitszeit', ['07:00', '16:30'], ['07:00', '12:30']), auto: true }]; a.gehe('heizung'); }); }
 { const el = document.getElementById('wetter'); if (el) el.onchange = () => { STIMMUNG.wetter = el.value; APPS.forEach(a => a.stimmung()); }; }
 /* Vorführ-Leiste: Datum und Uhrzeit bestimmen den Sonnenstand; Zeitraffer = ein Tag in 48 s */
 const datumEl = document.getElementById('datum'), uhrEl = document.getElementById('uhr'), uhrText = document.getElementById('uhr-text'), rafferEl = document.getElementById('raffer');

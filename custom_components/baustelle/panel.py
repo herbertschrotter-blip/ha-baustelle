@@ -20,6 +20,7 @@ from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
 from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldungen
 from .funktionen.heizung import Heizung
+from .logik.arbeitszeit import arbeitszeit_loeschen, arbeitszeiten_speichern
 from .logik.auswertung import ARTEN
 from .logik.warnungen import Art
 
@@ -269,10 +270,10 @@ def _liste_aendern(st: Any, liste: str, aktion: str, eintrag: dict[str, Any]) ->
     if liste == "arbeitszeiten":
         if aktion == "loeschen":
             ab = DATUM(eintrag.get("ab"))
-            vorher = len(e["arbeitszeiten"])
-            e["arbeitszeiten"] = [a for a in e["arbeitszeiten"] if a["ab"] != ab]
-            if len(e["arbeitszeiten"]) == vorher:
-                raise KeyError(ab)
+            try:
+                e["arbeitszeiten"] = arbeitszeit_loeschen(e["arbeitszeiten"], ab)
+            except ValueError:
+                raise vol.Invalid("Die letzte Arbeitszeit bleibt – ohne Arbeitszeit liefe nur der Frostschutz") from None
             st.protokoll("einstellung", None, f"Arbeitszeit ab {_datum(ab)} gelöscht")
             return {"ok": True}
         x = ARBEITSZEIT(eintrag)
@@ -281,10 +282,10 @@ def _liste_aendern(st: Any, liste: str, aktion: str, eintrag: dict[str, Any]) ->
             if zeit is not None and zeit[1] <= zeit[0]:
                 raise vol.Invalid(f"Arbeitszeit am Tag {tag}: Ende vor Beginn")
         x["tage"] = {str(i): x["tage"].get(str(i)) for i in range(7)}
-        andere = [a for a in e["arbeitszeiten"] if a["ab"] != alt]
-        if any(a["ab"] == x["ab"] for a in andere):
-            raise vol.Invalid(f"Es gibt schon eine Arbeitszeit ab {_datum(x['ab'])}")
-        e["arbeitszeiten"] = sorted([*andere, x], key=lambda a: a["ab"])
+        try:   # eine eigene ersetzt die automatisch angelegte (FE-0002)
+            e["arbeitszeiten"] = arbeitszeiten_speichern(e["arbeitszeiten"], x, alt)
+        except ValueError:
+            raise vol.Invalid(f"Es gibt schon eine Arbeitszeit ab {_datum(x['ab'])}") from None
         text = "geändert" if alt else "gilt ab"
         st.protokoll("einstellung", None, f"{'Arbeitszeit' if alt else 'Neue Arbeitszeit'} „{x['name']}“ {text} {_datum(x['ab'])}")
         return {"ok": True}

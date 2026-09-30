@@ -401,7 +401,7 @@ async function allgemein() {
   for (const a of d().ausnahmen.slice(0, 1)) await gesendet('baustelle/liste', 'Ausnahme löschen', { act: 'ausn-weg', d: a.datum });
   await gesendet('baustelle/liste', 'Neue Arbeitszeit', { act: 'azn-speichern' }, async () => { await klick({ act: 'az-neu' }); eingabe({ azn: 'ab' }, plusTageT(d().z.HEUTE, 70)); eingabe({ azn: 'name' }, 'Spät');
     eingabe({ azt: 'Mo', p: '0' }, '08:00'); eingabe({ azt: 'Mo', p: '1' }, '17:00'); await klick({ act: 'azn-wie-mo' }); });
-  const geplant = panel.azListe.findIndex(a => a.ab > d().z.HEUTE);
+  const geplant = d().arbeitszeiten.findIndex(a => a.ab > d().z.HEUTE && !a.auto);   // Index wie in der Einblendung; die automatische ersetzt die Integration (FE-0002)
   if (geplant >= 0) await gesendet('baustelle/liste', 'Geplante Arbeitszeit löschen', { act: 'az-weg' }, () => klick({ act: 'sheet', s: 'az', i: String(geplant) }));
   const fremd = d().firmen.filter(f => !f.eigen && f.id !== 'eigen');
   await gesendet('baustelle/liste', 'Neue Firma', { act: 'firma-speichern' }, async () => { await klick({ act: 'firma-auf' }); eingabe({ fn: '' }, 'Trockenbau Maier'); await klick({ act: 'firma-c', id: c.id }); });
@@ -625,6 +625,18 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   neu(); await klick({ act: 'az-neu' }); eingabe({ azn: 'ab' }, '2026-09-28'); await klick({ act: 'azn-speichern' });
   erwarte('gleiches Startdatum wird abgelehnt', !letzte('baustelle/liste').length && /schon eine Arbeitszeit/.test(panel.letzterToast));
   await liste({ act: 'az-weg' }, { liste: 'arbeitszeiten', aktion: 'loeschen' }, { ab: '2026-11-02' }, 'Geplante Arbeitszeit löschen', () => klick({ act: 'sheet', s: 'az', i: '3' }));
+  /* FE-0002: jede Arbeitszeit bearbeiten (alt_ab), automatische mit Hinweis, die letzte bleibt */
+  { const v = panel.d.arbeitszeiten[0];
+    await liste({ act: 'azn-speichern' }, { liste: 'arbeitszeiten', aktion: 'speichern' }, { ab: v.ab, alt_ab: v.ab, name: 'Umbenannt' }, 'FE-0002: Arbeitszeit bearbeiten',
+      async () => { await klick({ act: 'sheet', s: 'az', i: '0' }); await klick({ act: 'az-bearbeiten' }); eingabe({ azn: 'name' }, 'Umbenannt'); });
+    const alle = panel.d.arbeitszeiten;
+    panel.d.arbeitszeiten = [{ ...v, ab: '2026-09-28', auto: true }];
+    await klick({ act: 'tab', v: 'heizung' }, 20); await klick({ act: 'hz-auf', k: 'az' }, 20);
+    erwarte('FE-0002: Hinweis „automatisch angelegt“ und Bearbeiten', /Automatisch angelegt/.test(ui.innerHTML) && ui.innerHTML.includes('Bearbeiten oder löschen'));
+    neu(); await klick({ act: 'sheet', s: 'az', i: '0' });
+    erwarte('FE-0002: letzte Arbeitszeit ohne Löschen', /lässt sich nicht löschen/.test(ui.innerHTML) && !ui.innerHTML.includes('data-act="az-weg"'));
+    await klick({ act: 'az-weg' }); erwarte('FE-0002: letzte bleibt', !letzte('baustelle/liste').length);
+    await klick({ act: 'zu' }); panel.d.arbeitszeiten = alle; }
   await liste({ act: 'firma-speichern' }, { liste: 'firmen', aktion: 'speichern' }, { name: 'Trockenbau Maier', container: c => c.includes('polier') && c.includes('neu-7') }, 'Neue Firma mit neuem Container',
     async () => { await klick({ act: 'firma-auf' }); eingabe({ fn: '' }, 'Trockenbau Maier'); await klick({ act: 'firma-c', id: 'polier' }); await klick({ act: 'fc-neu' }); eingabe({ fnc: '0' }, 'Lager Nord'); });
   erwarte('neuer Container über den Subentry-Dialog', api.some(a => a[1] === 'config/config_entries/subentries/flow' && JSON.stringify(a[2].handler) === '["dobl","bereich"]'));

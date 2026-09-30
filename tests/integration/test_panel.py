@@ -13,7 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.baustelle.const import DOMAIN
 
-from .conftest import C1, C2, HK2, P1, SCHACHT
+from .conftest import C1, C2, HK2, P1, SCHACHT, baustelle_anlegen
 
 
 @pytest.fixture
@@ -102,16 +102,23 @@ async def test_liste_arbeitszeiten_und_ausnahmen(hass: HomeAssistant, baustelle,
     tage = {"0": ["07:30", "16:30"], "1": ["07:30", "16:30"], "2": ["07:30", "16:30"], "3": ["07:30", "16:30"],
             "4": ["07:30", "12:00"], "5": None, "6": None}
     eintrag = {"ab": "2026-11-02", "name": "Winter 2026/27", "tage": tage}
+    # FE-0002: die automatisch angelegte Arbeitszeit (ab dem ersten Start) wird durch die erste eigene ersetzt
+    assert [a.get("auto") for a in st.e["arbeitszeiten"]] == [True]
+    eigene = {"ab": "2026-02-09", "name": "Meine", "tage": tage}
+    assert (await ws.rufe("baustelle/liste", liste="arbeitszeiten", aktion="speichern", eintrag=eigene))["success"]
+    assert [a["ab"] for a in st.e["arbeitszeiten"]] == ["2026-02-09"]
     assert (await ws.rufe("baustelle/liste", liste="arbeitszeiten", aktion="speichern", eintrag=eintrag))["success"]
-    assert [a["ab"] for a in st.e["arbeitszeiten"]] == ["2026-09-29", "2026-11-02"]
+    assert [a["ab"] for a in st.e["arbeitszeiten"]] == ["2026-02-09", "2026-11-02"]
     # gleiches ab → Fehler
     msg = await ws.rufe("baustelle/liste", liste="arbeitszeiten", aktion="speichern", eintrag=eintrag)
     assert msg["error"]["code"] == "invalid_format"
     # ändern über alt_ab
     neu = {**eintrag, "ab": "2026-11-09", "alt_ab": "2026-11-02"}
     assert (await ws.rufe("baustelle/liste", liste="arbeitszeiten", aktion="speichern", eintrag=neu))["success"]
-    assert [a["ab"] for a in st.e["arbeitszeiten"]] == ["2026-09-29", "2026-11-09"]
+    assert [a["ab"] for a in st.e["arbeitszeiten"]] == ["2026-02-09", "2026-11-09"]
     assert (await ws.rufe("baustelle/liste", liste="arbeitszeiten", aktion="loeschen", eintrag={"ab": "2026-11-09"}))["success"]
+    msg = await ws.rufe("baustelle/liste", liste="arbeitszeiten", aktion="loeschen", eintrag={"ab": "2026-02-09"})
+    assert msg["error"]["code"] == "invalid_format"   # die letzte bleibt
     msg = await ws.rufe("baustelle/liste", liste="arbeitszeiten", aktion="loeschen", eintrag={"ab": "2030-01-01"})
     assert msg["error"]["code"] == "not_found"
     kaputt = {**eintrag, "tage": {**tage, "0": ["16:30", "07:30"]}}
@@ -485,3 +492,19 @@ async def test_frostschutz_bei_automatik_aus(hass: HomeAssistant, baustelle, ws,
     st.auswerten()
     await hass.async_block_till_done()
     assert hass.states.get("switch.hk1").state == "off"
+
+
+async def test_alte_automatische_arbeitszeit_weicht(hass: HomeAssistant, freezer, shellys, nachrichten, hass_storage) -> None:
+    """FE-0002: im Store (vor 0.7.28) die automatische ohne Kennzeichen und die eigene ab 09.02. – nach dem Laden gilt die eigene."""
+    entry = await baustelle_anlegen(hass, freezer)
+    standard = {"0": ["07:00", "16:30"], "1": ["07:00", "16:30"], "2": ["07:00", "16:30"], "3": ["07:00", "16:30"],
+                "4": ["07:00", "12:30"], "5": None, "6": None}
+    eigene = {"ab": "2026-02-09", "name": "Meine", "tage": {**standard, "0": ["06:30", "15:00"]}}
+    hass_storage[f"baustelle.{entry.entry_id}"] = {"version": 2, "key": f"baustelle.{entry.entry_id}", "data": {
+        "arbeitszeiten": [eigene, {"ab": "2026-09-29", "name": "Arbeitszeit", "tage": standard}]}}
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    st = entry.runtime_data
+    assert [(a["ab"], a["name"]) for a in st.e["arbeitszeiten"]] == [("2026-02-09", "Meine")]
+    await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()

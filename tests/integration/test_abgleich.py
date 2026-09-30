@@ -285,7 +285,7 @@ async def echte_baustelle(hass: HomeAssistant, freezer, hass_ws_client, hass_sto
     await liste("arbeitszeiten", "speichern", {"ab": "2026-09-01", "name": "Herbst 2026", "tage": {
         "0": ["07:00", "16:30"], "1": ["07:00", "16:30"], "2": ["07:00", "16:30"], "3": ["07:00", "16:30"],
         "4": ["07:00", "12:30"], "5": None, "6": None}})
-    await liste("arbeitszeiten", "loeschen", {"ab": "2026-09-29"})  # die erste, automatisch angelegte
+    # die automatisch angelegte (ab 2026-09-29) ersetzt die Integration durch die erste eigene (FE-0002)
     await liste("arbeitszeiten", "speichern", {"ab": "2026-11-02", "name": "Winter", "tage": {
         "0": ["07:30", "16:00"], "1": ["07:30", "16:00"], "2": ["07:30", "16:00"], "3": ["07:30", "16:00"],
         "4": ["07:30", "12:00"], "5": None, "6": None}})

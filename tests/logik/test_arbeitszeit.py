@@ -2,6 +2,8 @@
 
 from datetime import date, datetime
 
+import pytest
+
 from logik.arbeitszeit import (
     Abschnitt,
     Arbeitszeit,
@@ -245,3 +247,55 @@ def test_bedarf_fenster_gleicher_beginn_und_leere_termine():
     # über Mitternacht
     nacht = bedarf_fenster([(datetime(2026, 10, 2, 0, 30), datetime(2026, 10, 2, 2))], 45)
     assert nacht == [(datetime(2026, 10, 1, 23, 45), datetime(2026, 10, 2, 2))]
+
+
+# ---------------------------------------------------------------- FE-0002: automatische Arbeitszeit, ändern, löschen
+from logik.arbeitszeit import (  # noqa: E402
+    arbeitszeit_loeschen,
+    arbeitszeiten_speichern,
+    erste_arbeitszeit,
+    ist_automatisch,
+)
+
+EIGENE = {"ab": "2026-02-09", "name": "Meine", "tage": {"0": ["06:30", "15:00"], "1": None, "2": None, "3": None,
+                                                         "4": None, "5": None, "6": None}}
+
+
+def test_eigene_ersetzt_automatische_auch_mit_frueherem_datum():
+    auto = erste_arbeitszeit(date(2026, 9, 29))
+    liste = arbeitszeiten_speichern([auto], EIGENE)
+    assert [a["name"] for a in liste] == ["Meine"]
+    # Fall aus dem Ticket: vorher gewann die automatische (ab 29.09.) gegen die eigene ab 09.02.
+    assert gueltige_arbeitszeit([Arbeitszeit.aus_store(a) for a in liste], date(2026, 9, 30)).name == "Meine"
+
+
+def test_automatische_ohne_kennzeichen_erkannt():
+    alt = {k: v for k, v in erste_arbeitszeit(date(2026, 9, 29)).items() if k != "auto"}   # vor 0.7.28 gespeichert
+    assert ist_automatisch(alt)
+    assert not ist_automatisch({**alt, "name": "Herbst"})
+    assert not ist_automatisch({**alt, "auto": False})
+    assert arbeitszeiten_speichern([alt], EIGENE) == [EIGENE]
+
+
+def test_aendern_und_doppeltes_ab():
+    liste = arbeitszeiten_speichern([EIGENE], {**EIGENE, "ab": "2026-03-01", "name": "Neu"}, alt_ab="2026-02-09")
+    assert [(a["ab"], a["name"]) for a in liste] == [("2026-03-01", "Neu")]
+    with pytest.raises(ValueError):
+        arbeitszeiten_speichern([EIGENE, {**EIGENE, "ab": "2026-05-01"}], {**EIGENE, "ab": "2026-05-01"})
+
+
+def test_loeschen_letzte_bleibt():
+    zwei = [EIGENE, {**EIGENE, "ab": "2026-05-01"}]
+    assert arbeitszeit_loeschen(zwei, "2026-05-01") == [EIGENE]
+    with pytest.raises(ValueError):
+        arbeitszeit_loeschen([EIGENE], "2026-02-09")
+    with pytest.raises(KeyError):
+        arbeitszeit_loeschen(zwei, "2027-01-01")
+
+
+def test_bereinigen_beim_laden():
+    """Fall aus FE-0002: automatische (vor 0.7.28 ohne Kennzeichen) und schon gespeicherte eigene – die eigene gilt sofort."""
+    from logik.arbeitszeit import arbeitszeiten_bereinigen
+    alt = {k: v for k, v in erste_arbeitszeit(date(2026, 9, 29)).items() if k != "auto"}
+    assert arbeitszeiten_bereinigen([alt, EIGENE]) == [{**EIGENE, "auto": False}]
+    assert arbeitszeiten_bereinigen([alt]) == [{**alt, "auto": True}]   # nur die automatische: bleibt, gekennzeichnet

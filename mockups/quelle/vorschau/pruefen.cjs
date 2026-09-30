@@ -24,5 +24,14 @@ if (require.main === module) {
   for (const [act, ds] of [['sheet', { s: 'name' }], ['sheet', { s: 'zeitraum-bs' }], ['sheet', { s: 'wetterquelle' }], ['bereich-einst', { id: A.d.bereiche[0].id }], ['firma-auf', { id: A.d.firmen[0].id }]]) {
     klick({ act, ...ds }); pr('AN-0002 ' + act); klick({ act: 'zu' }); if (!A.s.sheet || A.s.sheet.art !== 'bs-bearbeiten') f.push('AN-0002: nach ' + act + ' nicht zurück'); }
   klick({ act: 'zu' }); if (A.s.sheet) f.push('AN-0002: Fertig schließt nicht');
+  /* FE-0002: automatische Arbeitszeit wird durch die erste eigene ersetzt (auch mit früherem Datum); bearbeiten, löschen */
+  A.d.arbeitszeiten = [{ ab: '2026-09-28', name: 'Arbeitszeit', auto: true, tage: { Mo: ['07:00', '16:30'], Di: null, Mi: null, Do: null, Fr: null, Sa: null, So: null } }];
+  klick({ act: 'tab', v: 'heizung' }); pr('FE-0002 auto'); if (!/Automatisch angelegt/.test(ui())) f.push('FE-0002: Hinweis automatisch fehlt');
+  klick({ act: 'az-neu' }); eing({ azn: 'ab' }, '2026-02-09'); eing({ azn: 'name' }, 'Meine'); klick({ act: 'azn-speichern' });
+  if (A.azJetzt.name !== 'Meine' || A.d.arbeitszeiten.length !== 1) f.push('FE-0002: eigene gilt nicht: ' + A.azJetzt.name);
+  klick({ act: 'sheet', s: 'az', i: '0' }); klick({ act: 'az-bearbeiten' }); pr('FE-0002 bearbeiten'); eing({ azn: 'name' }, 'Geändert'); klick({ act: 'azn-speichern' });
+  if (A.d.arbeitszeiten.length !== 1 || A.azJetzt.name !== 'Geändert') f.push('FE-0002: bearbeiten ersetzt nicht');
+  klick({ act: 'sheet', s: 'az', i: '0' }); klick({ act: 'az-weg' }); if (A.d.arbeitszeiten.length !== 1) f.push('FE-0002: letzte gelöscht');
+  klick({ act: 'zu' });
   console.log(f.length ? f.join('\n') : 'Grundprüfung sauber');
 }
