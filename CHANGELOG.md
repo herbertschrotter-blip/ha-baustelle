@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.26] – 2026-09-30
+
+- Das Repo ist öffentlich (MIT-Lizenz) und über HACS als benutzerdefiniertes Repository installierbar; Einstellungen ›
+  Über nennt es so.
+
 ## [0.7.25] – 2026-09-30
 
 - Umbau abgeschlossen (Schlussprüfung Bauplan Module): Die Hochrechnung der Heizperiode (bisher, mit, ohne, gespart)

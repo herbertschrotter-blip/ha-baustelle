@@ -1013,7 +1013,7 @@ function phaseAusSonne(sonne) {
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.7.25';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.7.26';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -2144,7 +2144,7 @@ class BaustellePanel extends HTMLElement {
       <div class="glas-panel liste"><div class="gruppe">Dieses System</div>
         <div class="zeile"><span>Integration / Seite</span><span class="leise">${esc(V)} · baustelle</span></div>
         <div class="zeile"><span>Home Assistant</span><span class="leise">${esc(ha)}</span></div>
-        <div class="zeile"><span>Quellcode</span><span class="leise">GitHub · herbertschrotter-blip/ha-baustelle (privat)</span></div>
+        <div class="zeile"><span>Quellcode</span><span class="leise">GitHub · herbertschrotter-blip/ha-baustelle (öffentlich, MIT-Lizenz)</span></div>
         <div class="zeile"><span>Baustellen</span><span class="leise">${this.alle.filter(b => b.aktiv).length} laufend · ${this.alle.filter(b => !b.aktiv).length} abgeschlossen</span></div></div>
       <div class="glas-panel block"><div class="block-kopf"><b>Neu in ${esc(V)}</b><span class="leise">${eigen ? datum(eigen.datum) : 'geplant'}</span></div>${neu.map(n => `<div class="cl-punkt">${esc(n)}</div>`).join('')}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Verlauf</b><span class="leise">aus CHANGELOG.md</span></div>

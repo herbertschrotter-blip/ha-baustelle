@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.26",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Das Repo ist öffentlich (MIT-Lizenz) und über HACS als benutzerdefiniertes Repository installierbar; Einstellungen › Über nennt es so."
+    ]
+  },
+  {
     "version": "0.7.25",
     "datum": "2026-09-30",
     "punkte": [
