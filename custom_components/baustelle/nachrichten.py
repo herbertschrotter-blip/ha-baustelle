@@ -257,7 +257,8 @@ class Nachrichten:
             "firmen": [{"name": namen_firma.get(f, f), "kwh": x["kwh"], "eur": x["eur"]} for f, x in aufteilung.items()],
             # wie Mockup „Bericht · Beispiel“: alle Container und Pumpenschächte der Baustelle
             "container": [{"name": namen[bid], "kwh": sum(im.get(bid, {}).values())} for bid in namen],
-            "heiztage": bericht_logik.heiztage(im, von, bis),
+            # wie Zähler `heiztage` und Seite: Tage, an denen ein Heizkörper geheizt hat (Pumpen zählen nicht)
+            "heiztage": bericht_logik.heiztage(await self.async_heizzeit_je_tag(von, bis), von, bis),
             "gespart_eur": await self.async_gespart(von, bis),
             "warnungen": [{"bereich": namen.get(w.bereich) if w.bereich else None, "titel": warn_logik.titel(w)}
                           for w in offen],
@@ -375,7 +376,14 @@ class Nachrichten:
 
     async def async_verbrauch_je_tag(self, von: date, bis: date) -> dict[str, dict[date, float]]:
         """kWh je Container und Tag aus der Langzeitstatistik der Energie-Sensoren je Container."""
-        ids = self._statistik_ids({bid: f"{bid}_energie" for bid in self.st.bereiche})
+        return await self._async_je_tag({bid: f"{bid}_energie" for bid in self.st.bereiche}, von, bis)
+
+    async def async_heizzeit_je_tag(self, von: date, bis: date) -> dict[str, dict[date, float]]:
+        """Heizstunden je Container (ohne Pumpenschächte) und Tag – für die Heiztage wie der Zähler `heiztage`."""
+        return await self._async_je_tag({b.id: f"{b.id}_heizzeit" for b in self.st.container()}, von, bis)
+
+    async def _async_je_tag(self, schluessel: dict[str, str], von: date, bis: date) -> dict[str, dict[date, float]]:
+        ids = self._statistik_ids(schluessel)
         roh = await self._async_statistik(list(ids.values()), von, bis)
         ergebnis: dict[str, dict[date, float]] = {}
         for bid, entity_id in ids.items():

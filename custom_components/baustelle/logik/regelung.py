@@ -20,6 +20,8 @@ Aus 0.6.3 zurück (Herbert 30.09.2026, Mockup glas.html):
 - Modus je Container (`modus`): `thermo` regelt mit Fühler auf das Soll, `plan` lässt die Heizung in der Heizzeit an
   (der Thermostat am Heizkörper regelt), `aus` heizt nur im Frostschutz; Hand und Bei Bedarf bleiben `auto`/`bedarf`.
 - Frostschutz ein unter `frost_grenze`, aus erst über `frost_aus` (ohne Wert: Grenze + 2 °C).
+- Frostschutz auch bei ausgeschalteter Automatik (`frost_immer`, Schalter startet aus – Herbert 30.09.2026): dann
+  schaltet nur der Frostschutz ein und nach dem Frost einmal aus; sonst bleibt bei Automatik aus alles, wie es ist.
 - Urlaub und freie Feiertage (`frei`): `frei_modus` `frost` (nur Frostschutz), `absenk` (mit Fühler auf `absenk`, ohne
   Fühler nur Frostschutz) oder `aus` (alles aus, auch kein Frostschutz).
 """
@@ -87,6 +89,7 @@ class LageContainer:
     frost_aus: float | None = None
     frei_modus: str = "frost"
     absenk: float = 10.0
+    frost_immer: bool = False
 
 
 @dataclass(frozen=True)
@@ -133,6 +136,11 @@ def _heizen(lage: LageContainer) -> bool:
 def soll_container(lage: LageContainer, tuer_pause_min: int) -> Soll:
     """Soll-Zustand eines Containers nach der festen Reihenfolge (siehe Modul-Docstring)."""
     if not lage.automatik:
+        if lage.frost_immer:
+            if frostschutz(lage):
+                return Soll(True, SollGrund.FROST)
+            if lage.frost_vorher:
+                return Soll(False, SollGrund.AUTOMATIK_AUS)   # Frost vorbei: einmal aus, danach nichts mehr schalten
         return Soll(None, SollGrund.AUTOMATIK_AUS)
     if frostschutz(lage):
         return Soll(True, SollGrund.FROST)

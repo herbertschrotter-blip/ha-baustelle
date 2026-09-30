@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.9] – 2026-09-30
+
+- Bericht: **Heiztage** zählen wie Seite und Integration – Tage, an denen ein Container geheizt hat (Heizzeit), nicht
+  mehr jeder Tag mit Verbrauch; Pumpenschächte zählen nicht mehr mit.
+- Geräte-Entitäten heißen mit dem Container vorne („Mannschaft · Radiator Ø Leistung …“) – gleich benannte Geräte in
+  verschiedenen Containern sind in HA unterscheidbar (entity_ids bleiben).
+- Heizung › Frostschutz: neuer Schalter **„auch bei Automatik aus“** (startet aus) – dann schaltet die Integration nur
+  den Frostschutz, sonst nichts.
+- Heizung › Kälte-Frühstart: Grenze „wenn morgens kälter als“ auf der Seite einstellbar, bis −15 °C.
+
 ## [0.7.8] – 2026-09-30
 
 - Aus der Seite 0.6.3 zurück (Mockup `glas.html` abgenommen), Regelung: **Modus je Container** Zeitplan (Heizung in der

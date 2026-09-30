@@ -149,7 +149,11 @@ def anhang_name(art: str, von: date) -> str:
 
 
 def heiztage(kwh_je_bereich_und_tag: dict[str, dict[date, float]], von: date, bis: date) -> int:
-    """Tage im Zeitraum, an denen irgendein Container Energie verbraucht hat."""
+    """Tage im Zeitraum mit einem Wert über 0 in irgendeinem Container.
+
+    Der Bericht gibt die Heizstunden je Container und Tag hinein – so zählt er wie der Zähler `heiztage` der Integration
+    (Tage, an denen ein Heizkörper geheizt hat); Pumpenschächte sind nicht dabei.
+    """
     tage = {
         t for je_tag in kwh_je_bereich_und_tag.values() for t, kwh in je_tag.items() if (kwh or 0) > 0 and von <= t <= bis
     }

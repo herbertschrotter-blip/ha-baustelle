@@ -318,7 +318,8 @@ Melden-Knopf: `python3 tools/ticket.py liste` (Ticket-Profil in CLAUDE.md).
       „Je Gerät“ (Ø Leistung); Test-Meldung; Erklärtexte.
 - [ ] **Im Echtbetrieb prüfen:** WebGL-Himmel, Glas-Blur, Animationen (Handy + Desktop gegen `mockups/glas.html`);
       Recorder-Statistik im Bericht; uid/rrule der Termine aus dem lokalen Kalender; CSV-Anhang (nur SMTP).
-- [ ] Kleinigkeiten: „Heiztage“ zählt der Bericht anders als Integration/Seite; doppelte Entitäts-Namen bei gleich
-      benannten Geräten in verschiedenen Containern; Frostschutz wirkt nur bei eingeschalteter Automatik (wie Mockup –
-      bestätigen lassen); Kälte-Frühstart auf der Seite nicht unter 0 °C einstellbar.
+- [x] Kleinigkeiten (0.7.9, Herbert 30.09.2026): Heiztage im Bericht wie Integration (Heizzeit, ohne Pumpen);
+      Geräte-Entitäten mit Container vorne („immer“); Frostschutz bei Automatik aus nur mit eigenem Schalter „auch bei
+      Automatik aus“ (startet aus – die Regel „schaltet nur, wenn Herbert die Automatik einschaltet“ bleibt);
+      Kälte-Frühstart auf der Seite bis −15 °C (neuer Stepper, fehlte bisher).
 - [ ] Push nach GitHub durch Herbert (Push-Policy user-only), der Zweig `v0.7.0` ist in `main` zusammengeführt.

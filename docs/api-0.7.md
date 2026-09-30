@@ -185,5 +185,8 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   auto, sonst `thermo` mit Fühler bzw. `plan`); `null` bei Pumpenschächten. Neue Gründe: `aus` (Modus Aus),
   `absenken` (Urlaub/Feiertag abgesenkt).
 - `baustelle/aktion`: `test_meldung` → Test-Nachricht an alle Empfänger, Antwort `{ok, an: [Namen]}`.
+- `baustelle/setzen`: `erklaer` (Erklärtexte der Seite), `heizung.frost_immer` (0.7.9: Frostschutz auch bei
+  ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus).
+- Bericht (0.7.9): `heiztage` = Tage mit Heizzeit > 0 in einem Container (Statistik `<bid>_heizzeit`), wie `zaehler.heiztage`.
 - Beginn/Ende und Heizperiode: Options-Dialog (`beginn`, `ende`, `heizperiode_von`, `heizperiode_bis` als `"1"`…`"12"`).
   Die Hochrechnung (`<entry>_prognose_heizperiode…`) zählt nur bis zum geplanten Ende, wenn es in der Heizperiode liegt.

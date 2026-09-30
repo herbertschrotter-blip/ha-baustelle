@@ -26,7 +26,11 @@ class BaustelleEntity(Entity):
         entry = steuerung.entry
         if geraet_id is not None:
             bereich_id = steuerung.geraete[geraet_id].bereich
-            self._attr_translation_placeholders = {"geraet": steuerung.geraete[geraet_id].name}
+            # Container immer vorne (Herbert 30.09.2026): „Mannschaft · Radiator Ø Leistung“ – gleich benannte Geräte in
+            # verschiedenen Containern sind so in HA unterscheidbar; die entity_id bestehender Entitäten bleibt
+            g = steuerung.geraete[geraet_id]
+            b = steuerung.bereiche.get(g.bereich)
+            self._attr_translation_placeholders = {"geraet": f"{b.name} · {g.name}" if b else g.name}
         self.bereich_id = bereich_id
         self.geraet_id = geraet_id
         self._attr_translation_key = key

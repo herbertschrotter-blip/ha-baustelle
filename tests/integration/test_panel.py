@@ -204,7 +204,11 @@ async def test_bericht_vorschau(hass: HomeAssistant, baustelle, ws, monkeypatch)
     async def verbrauch(self, von, bis):
         return {C1: {date(2026, 9, 14): 20.0, date(2026, 9, 21): 10.0, date(2026, 9, 22): 12.0}, SCHACHT: {date(2026, 9, 23): 2.0}}
 
+    async def heizzeit(self, von, bis):   # Heizstunden je Container; Pumpenschacht und 0 h zählen nicht als Heiztag
+        return {C1: {date(2026, 9, 21): 2.5, date(2026, 9, 22): 0.0}, C2: {date(2026, 9, 24): 1.0, date(2026, 9, 14): 3.0}}
+
     monkeypatch.setattr(Nachrichten, "async_verbrauch_je_tag", verbrauch)
+    monkeypatch.setattr(Nachrichten, "async_heizzeit_je_tag", heizzeit)
     st = baustelle.runtime_data
     st.einstellung_setzen(("bericht", "mail"), True)
     st.einstellung_setzen(("bericht", "mail_an"), "bau@example.at")
@@ -213,7 +217,7 @@ async def test_bericht_vorschau(hass: HomeAssistant, baustelle, ws, monkeypatch)
     assert v["summe"] == "Vorwoche: 24 kWh · 6,72 €" and v["vergleich"] == "(+20 % zur Woche davor)"
     assert v["firmen"] == [{"name": "Eigene Firma", "kwh": 24.0, "eur": pytest.approx(6.72)}]
     assert [c["name"] for c in v["container"]] == ["Container 1", "Container 2", "Schacht"]  # wie Mockup: auch Schächte
-    assert v["heiztage"] == 3 and v["mail_an"] == "bau@example.at" and v["anhang"] == "abrechnung-kw39.csv"
+    assert v["heiztage"] == 2 and v["mail_an"] == "bau@example.at" and v["anhang"] == "abrechnung-kw39.csv"
     assert (await ws.rufe("baustelle/bericht", art="monat"))["result"]["betreff"] == "Baustelle B1 – August 2026"
     assert (await ws.rufe("baustelle/bericht", entry_id="falsch"))["error"]["code"] == "not_found"
 
@@ -431,3 +435,31 @@ async def test_modus_schaltet(hass: HomeAssistant, baustelle, ws, shellys, freez
     # heizt wieder nach Plan; ob Heizkörper 1 gleich läuft, entscheidet die Staffelung (Heizkörper 2 hat den Platz
     # am kleinen Anschluss inzwischen bekommen)
     assert st.daten.grund[C1] == "arbeitszeit" and "switch.hk2" in shellys.ein()
+
+
+async def test_geraete_entitaeten_mit_container_im_namen(hass: HomeAssistant, baustelle) -> None:
+    """Kleinigkeit aus bauplan §6: gleich benannte Geräte in verschiedenen Containern – Container immer vorne."""
+    from homeassistant.helpers import entity_registry as er
+
+    reg = er.async_get(hass)
+    eid = reg.async_get_entity_id("sensor", "baustelle", f"{HK2}_mittel_im_betrieb")
+    assert eid is not None
+    assert "Container 2 · Heizkörper 2" in hass.states.get(eid).attributes["friendly_name"]
+
+
+async def test_frostschutz_bei_automatik_aus(hass: HomeAssistant, baustelle, ws, shellys, freezer) -> None:
+    """Schalter „Frostschutz auch bei Automatik aus“ (startet aus): nur der Frost-Container wird geschaltet."""
+    st = baustelle.runtime_data
+    freezer.move_to("2026-09-29 22:00:00+02:00")
+    assert st.e["automatik"] is False and st.e["heizung"]["frost_immer"] is False
+    hass.states.async_set("sensor.temp_c1", "3.0", {"unit_of_measurement": "°C", "device_class": "temperature"})
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk1").state == "off"          # Standard: bei Automatik aus nichts schalten
+    assert (await ws.rufe("baustelle/setzen", pfad=["heizung", "frost_immer"], wert=True))["success"]
+    assert hass.states.get("switch.hk1").state == "on" and st.daten.grund[C1] == "frost"
+    assert hass.states.get("switch.hk2").state == "off"          # Container ohne Fühler: kein Frostschutz
+    hass.states.async_set("sensor.temp_c1", "8.0", {"unit_of_measurement": "°C", "device_class": "temperature"})
+    freezer.tick(timedelta(minutes=15))                           # Mindestlauf
+    st.auswerten()
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk1").state == "off"

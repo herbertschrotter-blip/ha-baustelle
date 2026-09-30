@@ -886,6 +886,7 @@ class Steuerung:
                 heizt_gerade=heizt, toleranz=float(h["toleranz"]), frost_vorher=self._frost.get(bid, False),
                 modus=self.modus(bid), frost_aus=None if h.get("frost_aus") is None else float(h["frost_aus"]),
                 frei_modus=str(h.get("frei_modus") or "frost"), absenk=float(h.get("absenk") or 10.0),
+                frost_immer=bool(h.get("frost_immer")),
             )
             soll = soll_container(lage, int(h["tuer_pause_min"]))
             self._frost[bid] = soll.grund == SollGrund.FROST
@@ -1058,6 +1059,9 @@ class Steuerung:
             self._hand_pruefen(soll)
             self._schalten_alle(jetzt, soll, an_set, ziel)
             self._wetter_protokoll(jetzt, wetter, zu_warm)
+        elif self.e["heizung"].get("frost_immer"):
+            # Automatik aus, aber „Frostschutz auch bei Automatik aus“: nur Frost-Container schalten (ziel enthält nur sie)
+            self._schalten_alle(jetzt, soll, an_set, ziel)
         self._warnungen(jetzt, soll)
         self._anzeige(jetzt, soll)
         self._status(jetzt, soll, zu_warm)

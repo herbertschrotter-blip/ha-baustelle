@@ -199,3 +199,11 @@ def test_urlaub_absenken_ohne_fuehler_nur_frostschutz():
 def test_urlaub_alles_aus_auch_kein_frostschutz():
     assert soll(frei=True, frei_modus="aus", temperatur=2.0) == Soll(False, SollGrund.FREI)
     assert soll(frei=False, frei_modus="aus", temperatur=2.0) == Soll(True, SollGrund.FROST)
+
+
+def test_frostschutz_bei_automatik_aus_nur_mit_schalter():
+    assert soll(automatik=False, temperatur=3.0) == Soll(None, SollGrund.AUTOMATIK_AUS)
+    assert soll(automatik=False, temperatur=3.0, frost_immer=True) == Soll(True, SollGrund.FROST)
+    assert soll(automatik=False, temperatur=6.0, frost_immer=True, frost_vorher=True) == Soll(True, SollGrund.FROST)
+    assert soll(automatik=False, temperatur=7.5, frost_immer=True, frost_vorher=True) == Soll(False, SollGrund.AUTOMATIK_AUS)
+    assert soll(automatik=False, temperatur=7.5, frost_immer=True) == Soll(None, SollGrund.AUTOMATIK_AUS)

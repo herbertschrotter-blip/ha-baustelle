@@ -1,13 +1,13 @@
 {
  "zustaende": {
-  "binary_sensor.bautrockner_bautrockner_problem": {
+  "binary_sensor.bautrockner_magazin_bautrockner_problem": {
    "state": "on",
    "attributes": {
     "probleme": [
      "offline"
     ],
     "device_class": "problem",
-    "friendly_name": "Bautrockner Bautrockner problem"
+    "friendly_name": "Bautrockner Magazin · Bautrockner problem"
    }
   },
   "binary_sensor.halle_lieboch_reachable": {
@@ -17,67 +17,67 @@
     "friendly_name": "Halle Lieboch Reachable"
    }
   },
-  "binary_sensor.konvektor_1_konvektor_1_problem": {
+  "binary_sensor.konvektor_1_mannschaft_konvektor_1_problem": {
    "state": "off",
    "attributes": {
     "probleme": [],
     "device_class": "problem",
-    "friendly_name": "Konvektor 1 Konvektor 1 problem"
+    "friendly_name": "Konvektor 1 Mannschaft · Konvektor 1 problem"
    }
   },
-  "binary_sensor.konvektor_1_konvektor_1_problem_2": {
+  "binary_sensor.konvektor_1_polier_konvektor_1_problem": {
    "state": "off",
    "attributes": {
     "probleme": [],
     "device_class": "problem",
-    "friendly_name": "Konvektor 1 Konvektor 1 problem"
+    "friendly_name": "Konvektor 1 Polier · Konvektor 1 problem"
    }
   },
-  "binary_sensor.konvektor_2_konvektor_2_problem": {
+  "binary_sensor.konvektor_2_mannschaft_konvektor_2_problem": {
    "state": "off",
    "attributes": {
     "probleme": [],
     "device_class": "problem",
-    "friendly_name": "Konvektor 2 Konvektor 2 problem"
+    "friendly_name": "Konvektor 2 Mannschaft · Konvektor 2 problem"
    }
   },
-  "binary_sensor.olradiator_1_olradiator_1_problem": {
+  "binary_sensor.olradiator_1_buro_olradiator_1_problem": {
    "state": "off",
    "attributes": {
     "probleme": [],
     "device_class": "problem",
-    "friendly_name": "Ölradiator 1 Ölradiator 1 problem"
+    "friendly_name": "Ölradiator 1 Büro · Ölradiator 1 problem"
    }
   },
-  "binary_sensor.olradiator_1_olradiator_1_problem_2": {
+  "binary_sensor.olradiator_1_magazin_olradiator_1_problem": {
    "state": "off",
    "attributes": {
     "probleme": [],
     "device_class": "problem",
-    "friendly_name": "Ölradiator 1 Ölradiator 1 problem"
+    "friendly_name": "Ölradiator 1 Magazin · Ölradiator 1 problem"
    }
   },
-  "binary_sensor.olradiator_1_olradiator_1_problem_3": {
+  "binary_sensor.olradiator_1_polier_olradiator_1_problem": {
    "state": "off",
    "attributes": {
     "probleme": [],
     "device_class": "problem",
-    "friendly_name": "Ölradiator 1 Ölradiator 1 problem"
+    "friendly_name": "Ölradiator 1 Polier · Ölradiator 1 problem"
    }
   },
-  "binary_sensor.pumpe_1_pumpe_1_problem": {
+  "binary_sensor.pumpe_1_pumpenschacht_pumpe_1_problem": {
    "state": "off",
    "attributes": {
     "probleme": [],
     "device_class": "problem",
-    "friendly_name": "Pumpe 1 Pumpe 1 problem"
+    "friendly_name": "Pumpe 1 Pumpenschacht · Pumpe 1 problem"
    }
   },
-  "binary_sensor.pumpe_1_pumpe_1_running": {
+  "binary_sensor.pumpe_1_pumpenschacht_pumpe_1_running": {
    "state": "off",
    "attributes": {
     "device_class": "running",
-    "friendly_name": "Pumpe 1 Pumpe 1 running"
+    "friendly_name": "Pumpe 1 Pumpenschacht · Pumpe 1 running"
    }
   },
   "binary_sensor.tuer_magazin": {
@@ -123,13 +123,13 @@
     "state_class": "measurement"
    }
   },
-  "sensor.bautrockner_bautrockner_avg_power_while_heating": {
+  "sensor.bautrockner_magazin_bautrockner_avg_power_while_heating": {
    "state": "unknown",
    "attributes": {
     "state_class": "measurement",
     "unit_of_measurement": "W",
     "device_class": "power",
-    "friendly_name": "Bautrockner Bautrockner avg. power while heating"
+    "friendly_name": "Bautrockner Magazin · Bautrockner avg. power while heating"
    }
   },
   "sensor.buero_r1_leistung": {
@@ -386,31 +386,31 @@
     "friendly_name": "Halle Lieboch Status"
    }
   },
-  "sensor.konvektor_1_konvektor_1_avg_power_while_heating": {
-   "state": "2010.0",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "W",
-    "device_class": "power",
-    "friendly_name": "Konvektor 1 Konvektor 1 avg. power while heating"
-   }
-  },
-  "sensor.konvektor_1_konvektor_1_avg_power_while_heating_2": {
+  "sensor.konvektor_1_mannschaft_konvektor_1_avg_power_while_heating": {
    "state": "1990.0",
    "attributes": {
     "state_class": "measurement",
     "unit_of_measurement": "W",
     "device_class": "power",
-    "friendly_name": "Konvektor 1 Konvektor 1 avg. power while heating"
+    "friendly_name": "Konvektor 1 Mannschaft · Konvektor 1 avg. power while heating"
    }
   },
-  "sensor.konvektor_2_konvektor_2_avg_power_while_heating": {
+  "sensor.konvektor_1_polier_konvektor_1_avg_power_while_heating": {
+   "state": "2010.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Konvektor 1 Polier · Konvektor 1 avg. power while heating"
+   }
+  },
+  "sensor.konvektor_2_mannschaft_konvektor_2_avg_power_while_heating": {
    "state": "2000.0",
    "attributes": {
     "state_class": "measurement",
     "unit_of_measurement": "W",
     "device_class": "power",
-    "friendly_name": "Konvektor 2 Konvektor 2 avg. power while heating"
+    "friendly_name": "Konvektor 2 Mannschaft · Konvektor 2 avg. power while heating"
    }
   },
   "sensor.magazin_cost": {
@@ -561,31 +561,31 @@
     "friendly_name": "Mannschaft Power"
    }
   },
-  "sensor.olradiator_1_olradiator_1_avg_power_while_heating": {
-   "state": "1980.0",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "W",
-    "device_class": "power",
-    "friendly_name": "Ölradiator 1 Ölradiator 1 avg. power while heating"
-   }
-  },
-  "sensor.olradiator_1_olradiator_1_avg_power_while_heating_2": {
-   "state": "1500.0",
-   "attributes": {
-    "state_class": "measurement",
-    "unit_of_measurement": "W",
-    "device_class": "power",
-    "friendly_name": "Ölradiator 1 Ölradiator 1 avg. power while heating"
-   }
-  },
-  "sensor.olradiator_1_olradiator_1_avg_power_while_heating_3": {
+  "sensor.olradiator_1_buro_olradiator_1_avg_power_while_heating": {
    "state": "unknown",
    "attributes": {
     "state_class": "measurement",
     "unit_of_measurement": "W",
     "device_class": "power",
-    "friendly_name": "Ölradiator 1 Ölradiator 1 avg. power while heating"
+    "friendly_name": "Ölradiator 1 Büro · Ölradiator 1 avg. power while heating"
+   }
+  },
+  "sensor.olradiator_1_magazin_olradiator_1_avg_power_while_heating": {
+   "state": "1500.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Ölradiator 1 Magazin · Ölradiator 1 avg. power while heating"
+   }
+  },
+  "sensor.olradiator_1_polier_olradiator_1_avg_power_while_heating": {
+   "state": "1980.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Ölradiator 1 Polier · Ölradiator 1 avg. power while heating"
    }
   },
   "sensor.polier_cost": {
@@ -666,20 +666,20 @@
     "state_class": "measurement"
    }
   },
-  "sensor.pumpe_1_pumpe_1_pump_cycles": {
+  "sensor.pumpe_1_pumpenschacht_pumpe_1_pump_cycles": {
    "state": "21.0",
    "attributes": {
     "state_class": "total_increasing",
-    "friendly_name": "Pumpe 1 Pumpe 1 pump cycles"
+    "friendly_name": "Pumpe 1 Pumpenschacht · Pumpe 1 pump cycles"
    }
   },
-  "sensor.pumpe_1_pumpe_1_pump_time": {
+  "sensor.pumpe_1_pumpenschacht_pumpe_1_pump_time": {
    "state": "1.8333",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "h",
     "device_class": "duration",
-    "friendly_name": "Pumpe 1 Pumpe 1 pump time"
+    "friendly_name": "Pumpe 1 Pumpenschacht · Pumpe 1 pump time"
    }
   },
   "sensor.pumpenschacht_cost": {
