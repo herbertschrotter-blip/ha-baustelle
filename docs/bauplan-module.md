@@ -106,4 +106,4 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 ## 7. Status
 
 - Freigegeben von Herbert am 30.09.2026 (mit Phase 7).
-- [ ] Phase 0 · [ ] Phase 1 · [ ] Phase 2 · [ ] Phase 3 · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6
+- [x] Phase 0 · [ ] Phase 1 · [ ] Phase 2 · [ ] Phase 3 · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6
