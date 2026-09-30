@@ -394,14 +394,14 @@ async def test_modus_frostschutz_urlaub_setzen(hass: HomeAssistant, baustelle, w
     assert lz["container"][C1]["modus"] == "thermo" and lz["container"][C2]["modus"] == "plan"   # abgeleitet (Fühler)
     assert lz["container"][SCHACHT]["modus"] is None
     assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C2, "modus"], wert="bedarf"))["success"]
-    assert st.e["bereiche"][C2]["bedarf"] is True and st.e["bereiche"][C2]["auto"] is True and st.modus(C2) == "bedarf"
+    assert st.e["bereiche"][C2]["bedarf"] is True and st.e["bereiche"][C2]["auto"] is True and st.heizfunktion.modus(C2) == "bedarf"
     assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C2, "modus"], wert="hand"))["success"]
     assert st.e["bereiche"][C2]["auto"] is False and st.e["bereiche"][C2]["bedarf"] is False
     assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C1, "modus"], wert="aus"))["success"]
-    assert st.modus(C1) == "aus" and "Modus: Aus" in [p[3] for p in st.e["protokoll"]]
+    assert st.heizfunktion.modus(C1) == "aus" and "Modus: Aus" in [p[3] for p in st.e["protokoll"]]
     # auto/bedarf allein heben den Modus auf
     assert (await ws.rufe("baustelle/setzen", pfad=["bereiche", C1, "auto"], wert=True))["success"]
-    assert st.e["bereiche"][C1]["modus"] is None and st.modus(C1) == "thermo"
+    assert st.e["bereiche"][C1]["modus"] is None and st.heizfunktion.modus(C1) == "thermo"
     # Thermostat nur mit Fühler
     msg = await ws.rufe("baustelle/setzen", pfad=["bereiche", C2, "modus"], wert="thermo")
     assert msg["error"]["code"] == "invalid_format"

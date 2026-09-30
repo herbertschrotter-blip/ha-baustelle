@@ -179,7 +179,7 @@ ZAEHLER_BAUSTELLE = [
     Zaehler("energie", lambda st: st.zaehler.get("energie", 0.0)),
     Zaehler("kosten", lambda st: st.zaehler.get("kosten", 0.0), **GELD),
     Zaehler("energie_ohne_automatik", lambda st: st.zaehler.get("ohne", 0.0), nur_heizung=True),
-    Zaehler("ersparnis", lambda st: st.ersparnis_kwh() * _preis(st), **{**GELD, "nur_heizung": True}),
+    Zaehler("ersparnis", lambda st: st.heizfunktion.ersparnis_kwh() * _preis(st), **{**GELD, "nur_heizung": True}),
     Zaehler("prognose_heizperiode", lambda st: st.hochrechnung_heizperiode("energie_heizen"), **PROGNOSE),
     Zaehler(
         "prognose_heizperiode_kosten",
@@ -194,7 +194,7 @@ def _typ_zaehler(typ: str) -> list[Zaehler]:
     return [
         Zaehler(f"energie_{typ}", lambda st: st.zaehler.get(f"energie_typ:{typ}", 0.0)),
         Zaehler(f"heizzeit_{typ}", lambda st: st.zaehler.get(f"heizzeit_typ:{typ}", 0.0), **STUNDEN),
-        Zaehler(f"mittel_{typ}", lambda st: st.mittel_typ(typ), **{**MITTEL, "diagnose": False}),
+        Zaehler(f"mittel_{typ}", lambda st: st.heizfunktion.mittel_typ(typ), **{**MITTEL, "diagnose": False}),
     ]
 
 

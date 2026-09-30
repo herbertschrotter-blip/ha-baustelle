@@ -561,13 +561,13 @@ async def test_neuer_tuerkontakt_wird_beobachtet(hass: HomeAssistant, baustelle,
     hass.states.async_set("binary_sensor.tuer_c2", "on")
     freezer.move_to(ZEHN_UHR)
     st.einstellung_setzen(("automatik",), True)
-    st._tuer_trotzdem.add(C2)  # noqa: SLF001  (heizt trotz offener Tür)
+    st.heizfunktion.tuer_trotzdem.add(C2)  # heizt trotz offener Tür
     st.einstellung_setzen(("bereiche", C2, "tuer"), "binary_sensor.tuer_c2")
     await hass.async_block_till_done()
     assert hass.states.get("switch.hk2").state == "on"
     hass.states.async_set("binary_sensor.tuer_c2", "off")  # zu → „trotzdem“ ist vorbei
     await hass.async_block_till_done()
-    assert C2 not in st._tuer_trotzdem  # noqa: SLF001
+    assert C2 not in st.heizfunktion.tuer_trotzdem
 
 
 async def test_anlauf_ohne_protokoll_eintrag(hass: HomeAssistant, baustelle, freezer, shellys) -> None:

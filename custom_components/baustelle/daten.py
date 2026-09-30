@@ -86,7 +86,7 @@ def _abschnitte(st: Steuerung, heute: date, jetzt: datetime) -> dict[str, dict[s
                         continue
                     teile.append([_minute_im_tag(von - vorheizen, tag), _minute_im_tag(von, tag), "vorheizen"])
                     teile.append([_minute_im_tag(von, tag), _minute_im_tag(bis, tag), "termin"])
-                if tag == heute and (bis := st.bis("bedarf_bis", info.id, jetzt)) is not None:
+                if tag == heute and (bis := st.heizfunktion.bis("bedarf_bis", info.id, jetzt)) is not None:
                     teile.append([_minute_im_tag(jetzt, tag), _minute_im_tag(bis, tag), "termin"])
             elif e["auto"]:
                 plan = st.plan(tag, bool(e["trocknen"]))
@@ -126,9 +126,10 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
         container[bid] = {
             "zustand": d.zustand.get(bid, "aus"), "grund": d.grund.get(bid), "text": d.text.get(bid, ""),
             "temperatur": d.temperatur.get(bid), "kw": round(kw, 3),
-            "bedarf_bis": _iso(st.bis("bedarf_bis", bid, jetzt)), "boost_bis": _iso(st.bis("boost_bis", bid, jetzt)),
+            "bedarf_bis": _iso(st.heizfunktion.bis("bedarf_bis", bid, jetzt)),
+            "boost_bis": _iso(st.heizfunktion.bis("boost_bis", bid, jetzt)),
             "tuer": tuer,
-            "modus": st.modus(bid) if info.art == ART_CONTAINER else None,
+            "modus": st.heizfunktion.modus(bid) if info.art == ART_CONTAINER else None,
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}
@@ -157,7 +158,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
         "status": d.status,
         "status_text": d.status_text,
         "naechste": _iso(d.naechste),
-        "jetzt_bis": _iso(st.jetzt_bis(jetzt)),
+        "jetzt_bis": _iso(st.heizfunktion.jetzt_bis(jetzt)),
         "container": container,
         "geraete": geraete,
         "plan_woche": _plan_woche(st, heute) if st.heizung else [],

@@ -58,6 +58,7 @@ ROLLE_PUMPE: Final = "pumpe"
 ROLLE_STECKDOSE: Final = "steckdose"
 ROLLEN: Final = [ROLLE_HEIZKOERPER, ROLLE_BAUTROCKNER, ROLLE_PUMPE, ROLLE_STECKDOSE]
 HEIZROLLEN: Final = (ROLLE_HEIZKOERPER, ROLLE_BAUTROCKNER)
+ZIEHT_STROM_W: Final = 50  # „über 50 W = zieht Strom“ (api-0.7 §1)
 
 TYP_OELRADIATOR: Final = "oelradiator"
 TYP_KONVEKTOR: Final = "konvektor"

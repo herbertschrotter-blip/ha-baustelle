@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.17",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Intern (Umbau „Module je Funktion“, Phase 4): Heizung und Pumpen sind jetzt je ein eigenes Modul der Integration (`funktionen/heizung.py`, `funktionen/pumpen.py`) mit derselben Schnittstelle; die Steuerung ist nur noch der Kern (Wetter, Kalender, Staffelung, Schalten, Protokoll, Status) und ruft die Funktionen auf. Sichtbar ändert sich nichts."
+    ]
+  },
+  {
     "version": "0.7.16",
     "datum": "2026-09-30",
     "punkte": [

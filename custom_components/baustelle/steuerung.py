@@ -8,6 +8,9 @@ Jede Minute und bei jeder Zustandsänderung der beteiligten Entitäten:
 3. schalten – nur Heizkörper; Pumpen, Steckdosen und Trockner zählen nur mit (Mockup „geschaltet werden nur Heizungen“),
 4. Warnungen (`logik/warnungen.py`), Handy-Nachrichten, Protokoll, Zähler.
 
+Was eine Funktion tut (Heizung: Soll je Container, Hand, Bedarf/Boost, Anzeige, Zähler; Pumpen: Überwachung, Zyklen,
+Pumpzeit), steht in `funktionen/`; der Kern ruft nur deren Schnittstelle (`funktionen/basis.py`).
+
 Geschaltet wird nur, wenn die Baustelle aktiv und die Automatik eingeschaltet ist. Wer einen Heizkörper von Hand
 schaltet, stellt ihn bis zum nächsten Schaltpunkt auf Hand (wie 0.6).
 """
@@ -37,7 +40,6 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     ART_CONTAINER,
-    ART_PUMPENSCHACHT,
     CONF_ART,
     CONF_BEREICH,
     CONF_EMPFAENGER,
@@ -47,9 +49,7 @@ from .const import (
     CONF_FUEHLER,
     CONF_HEIZPERIODE_BIS,
     CONF_HEIZPERIODE_VON,
-    CONF_HEIZUNG,
     CONF_LEISTUNG,
-    CONF_PUMPEN,
     CONF_REGEN_SENSOR,
     CONF_ROLLE,
     CONF_SCHALTER,
@@ -68,8 +68,12 @@ from .const import (
     SUB_GERAET,
     TERMINE_INTERVALL_MIN,
     WETTER_INTERVALL_MIN,
+    ZIEHT_STROM_W,
 )
 from .einstellungen import Einstellungen
+from .funktionen.basis import ZAEHLER_SPEICHERN_S, Funktion, minuten_seit as _minuten_seit, zahl as _zahl, zeit as _zeit
+from .funktionen.heizung import Heizung
+from .funktionen.pumpen import Pumpen
 from .logik import staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import (
     Arbeitszeit,
@@ -79,64 +83,28 @@ from .logik.arbeitszeit import (
     Plan,
     StatusArt,
     WetterTag,
-    bedarf_fenster,
-    im_fenster,
     status as plan_status,
     tagesplan,
     uhrzeit,
 )
-from .logik.pumpen import PumpenZustand, baustelle_offline, laeuft
-from .logik.regelung import LageContainer, Soll, SollGrund, soll_container
-from .logik.zaehlen import (
-    ABKUEHL_MIN_H,
-    AUFHEIZ_MIN_H,
-    energie_zuwachs,
-    gradstunden,
-    hochrechnung,
-    leistung_integriert,
-    mittel,
-    mittel_im_betrieb,
-    rate,
-    tage_heizperiode,
-)
+from .logik.pumpen import baustelle_offline
+from .logik.regelung import LageContainer, Soll, SollGrund
+from .logik.zaehlen import energie_zuwachs, hochrechnung, leistung_integriert, tage_heizperiode
 from . import texte
+from .texte import GRUND_TEXT
 
 _LOGGER = logging.getLogger(__name__)
 
-ZAEHLER_SPEICHERN_S = 30
 MAX_SCHRITT_H = 5 / 60  # längere Lücken (Neustart) zählen nicht als Laufzeit
 FEHLT_NACH = timedelta(minutes=10)  # so lange darf eine Entität nach dem Start fehlen (andere Integrationen laden)
 STABIL_S = 60  # Staffelung: kleinster freier Wert der letzten Minute
 ANLAUF_S = 20  # Staffelung: Heizkörper gehen nacheinander an, höchstens einer je 20 s (kein gemeinsamer Einschaltstoß)
 STANDARD_HEIZ_KW = 2.0  # Heizkörper ohne Messung (Mockup: 2,0 kW)
-ZIEHT_STROM_W = 50  # „über 50 W = zieht Strom“ (api-0.7 §1)
 FRUEHSTART_NACHRICHT = time(18, 0)  # Abend vorher: „Morgen −4 °C – Vorheizen startet schon um …“
 FRUEHER_MIN = 30  # Knopf „Noch früher“
 WETTER_PROTOKOLL_AB = time(5, 0)  # Mockup: „05:00 wetter …“
 PRIO = {"niedrig": staffel_logik.Prio.NIEDRIG, "normal": staffel_logik.Prio.NORMAL, "hoch": staffel_logik.Prio.HOCH}
 ROLLE_API = {"heizkoerper": "heizung", "bautrockner": "trockner", "pumpe": "pumpe", "steckdose": "steckdose"}
-HEIZ_GRUENDE = {
-    SollGrund.FRUEHSTART, SollGrund.VORHEIZEN, SollGrund.ARBEITSZEIT, SollGrund.NACHHEIZEN, SollGrund.TROCKNEN,
-    SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN,
-}
-MODI = ("plan", "thermo", "bedarf", "hand", "aus")
-GRUND_TEXT = {
-    SollGrund.FRUEHSTART: "Frühstart",
-    SollGrund.VORHEIZEN: "Vorheizen",
-    SollGrund.ARBEITSZEIT: "Arbeitszeit",
-    SollGrund.NACHHEIZEN: "Nachheizen",
-    SollGrund.TROCKNEN: "Kleidung trocknen",
-    SollGrund.BEDARF: "Bei Bedarf",
-    SollGrund.BOOST: "Schnell aufheizen",
-    SollGrund.FROST: "Frostschutz",
-    SollGrund.TUER_OFFEN: "Tür offen – Heizung pausiert",
-    SollGrund.BEREIT: "Bedarf vorbei",
-    SollGrund.FREI: "Frei",
-    SollGrund.HEIZGRENZE: "Heizgrenze",
-    SollGrund.AUSSERHALB: "Heizzeit vorbei",
-    SollGrund.AUS: "Aus – nur Frostschutz",
-    SollGrund.ABSENKEN: "Abgesenkt",
-}
 WARTE_TEXT = {
     "anschluss_voll": "Anschluss voll",
     "max_gleichzeitig": "höchstens {max} gleichzeitig",
@@ -144,26 +112,6 @@ WARTE_TEXT = {
     "rundlauf": "Rundlauf {takt} min",
     "anlauf": "Anlauf",
 }
-
-
-def _zahl(state: State | None) -> float | None:
-    if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-        return None
-    try:
-        return float(state.state)
-    except ValueError:
-        return None
-
-
-def _zeit(text: Any) -> datetime | None:
-    if not text:
-        return None
-    zeit = dt_util.parse_datetime(str(text))
-    return dt_util.as_local(zeit) if zeit is not None else None
-
-
-def _minuten_seit(seit: datetime | None, jetzt: datetime) -> float:
-    return 1e9 if seit is None else max(0.0, (jetzt - seit).total_seconds() / 60)
 
 
 def _mitternacht(tag: date) -> datetime:
@@ -262,24 +210,17 @@ class Steuerung:
         self._bericht_abmelden: CALLBACK_TYPE | None = None
         self._eigene_kontexte: deque[str] = deque(maxlen=100)
         self._letzter_befehl: dict[str, tuple[bool, datetime]] = {}
-        self._frost: dict[str, bool] = {}
         self._offline_seit: dict[str, datetime] = {}
-        self._laeuft_seit: dict[str, datetime] = {}
-        self._starts: dict[str, deque[datetime]] = {}
-        self._unter_soll_seit: dict[str, datetime] = {}
         self._wartet_seit: dict[str, datetime] = {}
-        self._hand_phase: dict[str, bool] = {}
         self._frei_verlauf: deque[tuple[datetime, dict[str, float]]] = deque()
         self._letzter_anlauf: datetime | None = None
         self._anlauf_geplant: CALLBACK_TYPE | None = None
-        self._tuer_trotzdem: set[str] = set()
         self._letzte_soll: dict[str, tuple[bool | None, str]] = {}
         self._letztes_warten: dict[str, str] = {}
         self._warn_alt: dict[str, warn_logik.Warnung] = {}
         self._zu_warm_vorher: bool | None = None
         self._letzte_auswertung: datetime | None = None
         self._gestartet = dt_util.now()
-        self._phase: dict[str, tuple[bool, datetime, float]] = {}  # Bereich → (heizt, seit, Temperatur beim Beginn)
         self.kalender_tage: dict[str, set[date]] = {"feiertag": set(), "urlaub": set()}
         self.kalender_namen: dict[date, str] = {}
         self.termine: list[dict[str, Any]] = []
@@ -288,6 +229,12 @@ class Steuerung:
         self._nochmal = False
         self._gestoppt = False
         self._plan_cache: dict[tuple[date, bool], Plan | None] = {}
+        # Funktionen der Baustelle (funktionen/): Bereiche je Art, Geräte je Rolle gehören genau einer Funktion
+        self.heizfunktion = Heizung(self)
+        self.pumpfunktion = Pumpen(self)
+        self.funktionen: list[Funktion] = [self.heizfunktion, self.pumpfunktion]
+        self._je_art = {art: f for f in self.funktionen for art in f.arten}
+        self._je_rolle = {rolle: f for f in self.funktionen for rolle in f.rollen}
 
     # ------------------------------------------------------------------ Einrichtung
     @property
@@ -296,11 +243,11 @@ class Steuerung:
 
     @property
     def heizung(self) -> bool:
-        return bool(self.entry.options.get(CONF_HEIZUNG, True))
+        return self.heizfunktion.aktiv()
 
     @property
     def pumpen(self) -> bool:
-        return bool(self.entry.options.get(CONF_PUMPEN, False))
+        return self.pumpfunktion.aktiv()
 
     @property
     def e(self) -> dict[str, Any]:
@@ -508,28 +455,7 @@ class Steuerung:
             return
         for g in self.geraete.values():
             if g.schalter == entity_id and g.rolle != ROLLE_PUMPE:
-                self.hand_setzen(g, neu.state == STATE_ON)
-
-    def hand_setzen(self, g: GeraetInfo, an: bool) -> None:
-        """Gerät auf Hand: Heizkörper bis zum nächsten Schaltpunkt, andere, solange sie eingeschaltet sind."""
-        hand = self.lz["hand"]
-        if g.rolle != ROLLE_HEIZKOERPER and not an:
-            if hand.pop(g.id, None) is not None:
-                self.einstellungen.speichern()
-            return
-        if g.id not in hand:
-            hand[g.id] = dt_util.now().isoformat(timespec="seconds")
-            self._hand_phase.pop(g.id, None)
-            self.einstellungen.speichern()
-        self.protokoll("schalten", g.bereich, f"{g.name} von Hand {'eingeschaltet' if an else 'ausgeschaltet'}")
-
-    def hand_beenden(self, gid: str, grund: str = "") -> None:
-        if self.lz["hand"].pop(gid, None) is not None:
-            self._hand_phase.pop(gid, None)
-            self.einstellungen.speichern()
-            g = self.geraete.get(gid)
-            if g is not None and grund:
-                self.protokoll("schalten", g.bereich, f"{g.name}: {grund}")
+                self.heizfunktion.hand_setzen(g, neu.state == STATE_ON)
 
     # ------------------------------------------------------------------ Wetter
     async def _async_prognose(self, _now: datetime | None = None) -> None:
@@ -782,116 +708,19 @@ class Steuerung:
             return float(wert) if isinstance(wert, (int, float)) else None
         return _zahl(s)
 
-    def modus(self, bid: str) -> str:
-        """Modus eines Containers (neu 0.7.8): gesetzt oder wie bisher aus `auto`, `bedarf` und dem Fühler abgeleitet."""
-        e = self.einstellungen.bereich(bid)
-        if e.get("modus") in MODI:
-            return str(e["modus"])
-        if e["bedarf"]:
-            return "bedarf"
-        if not e["auto"]:
-            return "hand"
-        info = self.bereiche.get(bid)
-        return "thermo" if info is not None and info.fuehler else "plan"
-
-    def soll_temperatur(self, bid: str) -> float:
-        b = self.einstellungen.bereich(bid)
-        return float(b["soll"] if b.get("soll") is not None else self.e["heizung"]["soll"])
-
-    def jetzt_bis(self, jetzt: datetime) -> datetime | None:
-        bis = _zeit(self.lz.get("jetzt_bis"))
-        return bis if bis is not None and bis > jetzt else None
-
-    def bis(self, art: str, bid: str, jetzt: datetime) -> datetime | None:
-        bis = _zeit(self.lz[art].get(bid))
-        return bis if bis is not None and bis > jetzt else None
-
     def _laufzeit_aufraeumen(self, jetzt: datetime) -> None:
         geaendert = False
-        for art in ("bedarf_bis", "boost_bis"):
-            for bid, bis in list(self.lz[art].items()):
-                ende = _zeit(bis)
-                if ende is None or ende <= jetzt or bid not in self.bereiche:
-                    del self.lz[art][bid]
-                    geaendert = True
-                    if art == "bedarf_bis" and bid in self.bereiche and ende is not None:
-                        self.protokoll("schalten", bid, "Bedarf vorbei – heizt wieder nur bei Bedarf")
-        if self.lz.get("jetzt_bis") and self.jetzt_bis(jetzt) is None:
-            self.lz["jetzt_bis"] = None
-            geaendert = True
-            self.protokoll("schalten", None, "„Alle jetzt heizen“ beendet")
+        for f in self.funktionen:
+            geaendert = f.aufraeumen(jetzt) or geaendert
         for key, bis in list(self.e["stumm"].items()):
             if (ende := _zeit(bis)) is None or ende <= jetzt:
                 del self.e["stumm"][key]
                 geaendert = True
-        for gid in [g for g in self.lz["hand"] if g not in self.geraete]:
-            del self.lz["hand"][gid]
-            geaendert = True
         grenze = (jetzt.date() - timedelta(days=1)).isoformat()
         for iso in [k for k in self.lz.get("frueher", {}) if k < grenze]:
             del self.lz["frueher"][iso]
         if geaendert:
             self.einstellungen.speichern()
-
-    def _termin_fenster(self, bid: str) -> list[tuple[datetime, datetime, bool]]:
-        """Termine eines Bedarfs-Containers als (von, bis, boost)."""
-        return [
-            (von, bis, bool(t.get("boost")))
-            for t in self.termine
-            if t["bereich"] == bid and (von := _zeit(t["von"])) is not None and (bis := _zeit(t["bis"])) is not None
-        ]
-
-    def _soll_je_container(self, jetzt: datetime, wetter: WetterWerte, zu_warm: bool) -> dict[str, tuple[Soll, LageContainer]]:
-        heute, minute = jetzt.date(), jetzt.hour * 60 + jetzt.minute
-        h = self.e["heizung"]
-        jetzt_bis = self.jetzt_bis(jetzt)
-        frei_heute = self.ist_frei(heute)
-        ergebnis: dict[str, tuple[Soll, LageContainer]] = {}
-        for info in self.container():
-            bid = info.id
-            e = self.einstellungen.bereich(bid)
-            plan = self.plan(heute, bool(e["trocknen"]))
-            self.daten.plaene[bid] = plan
-            frei, warm = frei_heute, zu_warm
-            if jetzt_bis is not None:
-                # „alle jetzt heizen“: wie in der Arbeitszeit, auch an freien Tagen und über der Heizgrenze (§5)
-                ende = 24 * 60 if jetzt_bis.date() > heute else jetzt_bis.hour * 60 + jetzt_bis.minute
-                if plan is None or not (plan.start <= minute < plan.ende):
-                    plan = Plan(start=minute, vor=minute, a=minute, b=max(minute + 1, ende), nach=max(minute + 1, ende),
-                                ende=max(minute + 1, ende))
-                frei, warm = False, False
-            temp = self.temperatur(info.fuehler)
-            soll_t = self.soll_temperatur(bid)
-            tuer_min = None
-            tuer = e.get("tuer")
-            if tuer and (s := self.hass.states.get(tuer)) is not None and s.state == STATE_ON:
-                if bid not in self._tuer_trotzdem:
-                    tuer_min = _minuten_seit(dt_util.as_local(s.last_changed), jetzt)
-            else:
-                self._tuer_trotzdem.discard(bid)
-            fenster = self._termin_fenster(bid)
-            aktive = [f for f in fenster if im_fenster(bedarf_fenster([(f[0], f[1])], int(h["vorheizen_min"])), jetzt)]
-            bedarf_aktiv = self.bis("bedarf_bis", bid, jetzt) is not None or bool(aktive) or jetzt_bis is not None
-            boost = self.bis("boost_bis", bid, jetzt) is not None or any(f[2] for f in aktive)
-            if boost and temp is not None and temp >= soll_t and bid in self.lz["boost_bis"]:
-                del self.lz["boost_bis"][bid]  # Soll erreicht: Boost beendet (Aufrufer, Bauplan §2.2)
-                self.einstellungen.speichern()
-                boost = False
-            heizer = [g for g in self.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER and g.id not in self.lz["hand"]]
-            heizt = any((s := self.hass.states.get(g.schalter)) is not None and s.state == STATE_ON for g in heizer)
-            lage = LageContainer(
-                minute=minute, plan=plan, automatik=self.automatik, auto=bool(e["auto"]), temperatur=temp, soll=soll_t,
-                frost=bool(h["frost"]), frost_grenze=float(h["frost_grenze"]), zu_warm=warm, frei=frei,
-                tuer_offen_min=tuer_min, bedarf=bool(e["bedarf"]), bedarf_aktiv=bedarf_aktiv, boost=boost,
-                heizt_gerade=heizt, toleranz=float(h["toleranz"]), frost_vorher=self._frost.get(bid, False),
-                modus=self.modus(bid), frost_aus=None if h.get("frost_aus") is None else float(h["frost_aus"]),
-                frei_modus=str(h.get("frei_modus") or "frost"), absenk=float(h.get("absenk") or 10.0),
-                frost_immer=bool(h.get("frost_immer")),
-            )
-            soll = soll_container(lage, int(h["tuer_pause_min"]))
-            self._frost[bid] = soll.grund == SollGrund.FROST
-            ergebnis[bid] = (soll, lage)
-        return ergebnis
 
     def nenn_kw(self, g: GeraetInfo) -> float:
         """Leistung eines Geräts für die Staffelung: gemessenes Mittel im Betrieb, sonst 2,0 kW (Heizkörper)."""
@@ -1053,10 +882,14 @@ class Steuerung:
         wetter = self._wetter(jetzt)
         zu_warm = self.zu_warm(wetter)
         self.daten.wetter, self.daten.zu_warm = wetter, zu_warm
-        soll = self._soll_je_container(jetzt, wetter, zu_warm) if self.heizung else {}
+        soll: dict[str, tuple[Soll, LageContainer]] = {}
+        for f in self.funktionen:
+            if f.aktiv():
+                soll.update(f.soll(jetzt, wetter, zu_warm))
         an_set, ziel = self._staffeln(jetzt, soll)
         if self.automatik:
-            self._hand_pruefen(soll)
+            for f in self.funktionen:
+                f.nach_soll(soll)
             self._schalten_alle(jetzt, soll, an_set, ziel)
             self._wetter_protokoll(jetzt, wetter, zu_warm)
         elif self.e["heizung"].get("frost_immer"):
@@ -1068,20 +901,6 @@ class Steuerung:
         self._zeiten_zaehlen(jetzt)
         for update in list(self._listener):
             update()
-
-    def _hand_pruefen(self, soll: dict[str, tuple[Soll, LageContainer]]) -> None:
-        """Hand endet am nächsten Schaltpunkt: wenn die Automatik den Heizkörper anders schalten würde als bisher."""
-        for gid in list(self.lz["hand"]):
-            g = self.geraete.get(gid)
-            if g is None or g.rolle != ROLLE_HEIZKOERPER or g.bereich not in soll:
-                continue
-            s, lage = soll[g.bereich]
-            if s.ein is None:
-                continue
-            phase = bool(s.ein) if lage.temperatur is None else s.grund in HEIZ_GRUENDE
-            vorher = self._hand_phase.setdefault(gid, phase)
-            if phase != vorher:
-                self.hand_beenden(gid, f"Automatik übernimmt ({GRUND_TEXT.get(s.grund, s.grund)})")
 
     def _schalten_alle(
         self, jetzt: datetime, soll: dict[str, tuple[Soll, LageContainer]], an_set: set[str], ziel: dict[str, bool | None]
@@ -1144,7 +963,7 @@ class Steuerung:
         """Gerät von der Seite aus schalten: Handbetrieb bis zum nächsten Schaltpunkt (api §2 `schalten`)."""
         zustand = self.hass.states.get(g.schalter)
         if self.automatik and g.rolle != ROLLE_PUMPE:
-            self.hand_setzen(g, an)
+            self.heizfunktion.hand_setzen(g, an)
         else:
             self.protokoll("schalten", g.bereich, f"{g.name} von Hand {'eingeschaltet' if an else 'ausgeschaltet'}")
         self._letzter_befehl.pop(g.id, None)
@@ -1187,7 +1006,7 @@ class Steuerung:
         self._zu_warm_vorher = zu_warm
 
     def _anzeige(self, jetzt: datetime, soll: dict[str, tuple[Soll, LageContainer]]) -> None:
-        """Zustand und Text je Bereich wie die Kacheln im Mockup (`TEXT(b)`)."""
+        """Zustand und Text je Bereich wie die Kacheln im Mockup (`TEXT(b)`) – von der Funktion des Bereichs."""
         d = self.daten
         for bid, info in self.bereiche.items():
             geraete = self.geraete_in(bid)
@@ -1198,93 +1017,14 @@ class Steuerung:
             erreichbar = [z is not None and z.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN) for z in zustaende]
             an = any(z is not None and z.state == STATE_ON for z in zustaende)
             offline = bool(geraete) and not any(erreichbar)
-            if info.art == ART_PUMPENSCHACHT:
-                laeuft_jetzt = any(d.pumpe_laeuft.get(g.id) for g in geraete)
-                d.zustand[bid] = "offline" if offline else ("laeuft" if laeuft_jetzt else "aus")
-                d.text[bid] = {"offline": "nicht erreichbar", "laeuft": "Pumpe läuft", "aus": "Pumpe aus"}[d.zustand[bid]]
-                d.grund[bid] = d.zustand[bid]
-                continue
-            s_c = soll.get(bid)
-            grund = s_c[0].grund if s_c else SollGrund.AUTOMATIK_AUS
-            d.grund[bid] = str(grund)
-            heizer_an = any(
-                (z := self.hass.states.get(g.schalter)) is not None and z.state == STATE_ON
-                for g in geraete if g.rolle in HEIZROLLEN
-            )
-            # „heizt“ (Glühen, Flammen im Symbol) nur bei echtem Verbrauch: ein eingeschalteter Heizkörper zieht über
-            # ZIEHT_STROM_W; ohne Leistungssensor zählt der Schalter (Meldung Herbert, 30.09.2026)
-            zieht = any(self._zieht_strom(g) for g in geraete if g.rolle in HEIZROLLEN)
-            e = self.einstellungen.bereich(bid)
-            if offline:
-                zustand, text = "offline", "nicht erreichbar"
-            elif heizer_an and not zieht and grund not in (SollGrund.TUER_OFFEN, SollGrund.BEREIT):
-                zustand, text = "aus", "an · zieht keinen Strom"
-            elif grund == SollGrund.FROST and zieht:
-                zustand, text = "frost", "Frostschutz"
-            elif grund == SollGrund.TUER_OFFEN:
-                zustand, text = "pause", "pausiert · Tür offen"
-            elif grund == SollGrund.BOOST and zieht:
-                zustand, text = "heizt", "⚡ schnell aufheizen"
-            elif grund == SollGrund.BEREIT:
-                zustand, text = "bereit", "bei Bedarf · nur Frostschutz"
-            elif grund == SollGrund.AUS and not heizer_an:
-                zustand, text = "aus", "aus · nur Frostschutz"
-            elif heizer_an and grund == SollGrund.TROCKNEN:
-                zustand, text = "trocknen", "Kleidung trocknen"
-            elif heizer_an:
-                zustand = "heizt"
-                if grund == SollGrund.BEDARF:
-                    bis = self.bis("bedarf_bis", bid, jetzt) or self._termin_ende(bid, jetzt)
-                    text = f"heizt bis {bis.strftime('%H:%M')}" if bis else "heizt · bei Bedarf"
-                elif d.temperatur[bid] is None:
-                    text = "an · Thermostat regelt"
-                elif grund == SollGrund.HAND or not e["auto"]:
-                    text = "heizt · Hand"
-                elif grund == SollGrund.ABSENKEN:
-                    text = "heizt · abgesenkt"
-                else:
-                    text = "heizt · Arbeitszeit"
-            else:
-                zustand = "aus"
-                naechster = self._naechster_start(jetzt, bid)
-                text = f"aus bis {naechster}" if naechster else "aus"
-            if an and not heizer_an and zustand == "aus":
-                text = "aus · Steckdose an"
-            d.zustand[bid], d.text[bid] = zustand, text
-
-    def _zieht_strom(self, g: GeraetInfo) -> bool:
-        """Eingeschaltet und – falls gemessen – über ZIEHT_STROM_W."""
-        z = self.hass.states.get(g.schalter)
-        if z is None or z.state != STATE_ON:
-            return False
-        if not g.leistung:
-            return True
-        w = _zahl(self.hass.states.get(g.leistung))
-        return w is None or w > ZIEHT_STROM_W  # Sensor ohne Wert: wie ohne Messung
-
-    def _termin_ende(self, bid: str, jetzt: datetime) -> datetime | None:
-        for von, bis, _ in self._termin_fenster(bid):
-            if von - timedelta(minutes=int(self.e["heizung"]["vorheizen_min"])) <= jetzt < bis:
-                return bis
-        return None
-
-    def _naechster_start(self, jetzt: datetime, bid: str) -> str | None:
-        e = self.einstellungen.bereich(bid)
-        if e["bedarf"] or not e["auto"] or not self.automatik:
-            return None
-        s = plan_status(jetzt.date(), jetzt.hour * 60 + jetzt.minute, lambda t: self.plan(t, bool(e["trocknen"])))
-        if s.minute is None or s.art == StatusArt.HEIZT:
-            return None
-        if s.tag in (jetzt.date(), jetzt.date() + timedelta(days=1)):
-            return uhrzeit(s.minute)  # Mockup „aus bis 06:15“
-        return f"{texte_wochentag(s.tag)} {uhrzeit(s.minute)}"
+            d.zustand[bid], d.text[bid], d.grund[bid] = self._je_art[info.art].anzeige(bid, info, jetzt, soll, offline, an)
 
     def _status(self, jetzt: datetime, soll: dict[str, tuple[Soll, LageContainer]], zu_warm: bool) -> None:
         """Status der Baustelle und Text neben dem Automatik-Chip (Mockup `statusText`)."""
         d = self.daten
         heute, minute = jetzt.date(), jetzt.hour * 60 + jetzt.minute
         d.naechste = None
-        jetzt_bis = self.jetzt_bis(jetzt)
+        jetzt_bis = self.heizfunktion.jetzt_bis(jetzt)
         if not self.aktiv:
             d.status, d.status_text = "abgeschlossen", "abgeschlossen"
             return
@@ -1316,7 +1056,7 @@ class Steuerung:
         elif s.art == StatusArt.START:
             d.status_text = f"Start um {uhrzeit(s.minute or 0)}"
         elif s.tag is not None:
-            wann = "morgen" if s.tag == heute + timedelta(days=1) else texte_wochentag(s.tag)
+            wann = "morgen" if s.tag == heute + timedelta(days=1) else texte.wochentag(s.tag)
             d.status_text = f"aus · {wann} ab {uhrzeit(s.minute or 0)}"
         else:
             d.status_text = "aus"
@@ -1335,8 +1075,7 @@ class Steuerung:
                     dict(w.get("werte") or {}),
                 )
 
-    def _geraete_zustand(self, jetzt: datetime, soll: dict[str, tuple[Soll, LageContainer]]) -> list[warn_logik.GeraetZustand]:
-        regeln = self.warn_einstellungen().pumpen_regeln()
+    def _geraete_zustand(self, jetzt: datetime) -> list[warn_logik.GeraetZustand]:
         liste = []
         for g in self.geraete.values():
             zustand = self.hass.states.get(g.schalter)
@@ -1347,29 +1086,10 @@ class Steuerung:
                 self._offline_seit.setdefault(g.id, jetzt)
             leistung = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
             an = erreichbar and zustand is not None and zustand.state == STATE_ON
-            typ = warn_logik.Typ.SONST
-            laeuft_seit = None
-            zyklen = 0
-            if g.rolle == ROLLE_PUMPE:
-                typ = warn_logik.Typ.PUMPE
-                z = PumpenZustand(erreichbar=erreichbar, leistung=leistung)
-                laeuft_jetzt = laeuft(z, regeln)
-                if laeuft_jetzt:
-                    if g.id not in self._laeuft_seit:
-                        self._laeuft_seit[g.id] = jetzt
-                        if self.daten.pumpe_laeuft.get(g.id) is False and self.aktiv:
-                            self._zaehler_plus(f"zyklen:{g.id}", 1)
-                            self._starts.setdefault(g.id, deque()).append(jetzt)
-                else:
-                    self._laeuft_seit.pop(g.id, None)
-                self.daten.pumpe_laeuft[g.id] = laeuft_jetzt
-                starts = self._starts.get(g.id, deque())
-                while starts and (jetzt - starts[0]) > timedelta(hours=1):
-                    starts.popleft()
-                zyklen = len(starts)
-                laeuft_seit = self._laeuft_seit.get(g.id)
-            elif g.rolle == ROLLE_HEIZKOERPER:
-                typ = warn_logik.Typ.HEIZUNG
+            f = self._je_rolle.get(g.rolle)
+            typ, laeuft_seit, zyklen = (
+                f.geraet_warnung(g, erreichbar, leistung, jetzt) if f is not None else (warn_logik.Typ.SONST, None, 0)
+            )
             liste.append(
                 warn_logik.GeraetZustand(
                     id=g.id, bereich=g.bereich, typ=typ, name=g.name, erreichbar=erreichbar,
@@ -1380,32 +1100,9 @@ class Steuerung:
             )
         return liste
 
-    def _container_zustand(self, jetzt: datetime, soll: dict[str, tuple[Soll, LageContainer]]) -> list[warn_logik.ContainerZustand]:
-        liste = []
-        for info in self.container():
-            s_c = soll.get(info.id)
-            temp = self.temperatur(info.fuehler)
-            soll_t = self.soll_temperatur(info.id)
-            in_az = bool(s_c) and s_c[0].grund == SollGrund.ARBEITSZEIT and self.automatik
-            if in_az and temp is not None and temp < soll_t - 1.0:
-                self._unter_soll_seit.setdefault(info.id, jetzt)
-            else:
-                self._unter_soll_seit.pop(info.id, None)
-            tuer_seit = None
-            tuer = self.einstellungen.bereich(info.id).get("tuer")
-            if tuer and info.id not in self._tuer_trotzdem and (s := self.hass.states.get(tuer)) is not None and s.state == STATE_ON:
-                tuer_seit = dt_util.as_local(s.last_changed)
-            liste.append(
-                warn_logik.ContainerZustand(
-                    id=info.id, temperatur=temp, soll=soll_t, in_arbeitszeit=in_az, fuehler=bool(info.fuehler),
-                    unter_soll_seit=self._unter_soll_seit.get(info.id), tuer_offen_seit=tuer_seit,
-                )
-            )
-        return liste
-
     def _warnungen(self, jetzt: datetime, soll: dict[str, tuple[Soll, LageContainer]]) -> None:
-        geraete = self._geraete_zustand(jetzt, soll)
-        container = self._container_zustand(jetzt, soll) if self.heizung else []
+        geraete = self._geraete_zustand(jetzt)
+        container = [c for f in self.funktionen if f.aktiv() for c in f.warnungen(jetzt, soll)]
         erreichbar = [g.erreichbar for g in geraete]
         self.daten.erreichbar = None if not erreichbar else not baustelle_offline(erreichbar)
         wetter_da = (
@@ -1475,13 +1172,13 @@ class Steuerung:
 
         self._bericht_abmelden = async_track_point_in_time(self.hass, faellig, zeitpunkt)
 
-    # ------------------------------------------------------------------ Zählen (wie 0.6, dazu Heiztage)
+    # ------------------------------------------------------------------ Zählen (Energie; Zeiten zählen die Funktionen)
     @property
     def zaehler(self) -> dict[str, Any]:
         """Dauerhafte Zähler der Baustelle (im Store, in der Sicherung)."""
         return self.einstellungen.daten["zaehler"]
 
-    def _zaehler_plus(self, key: str, wert: float) -> None:
+    def zaehler_plus(self, key: str, wert: float) -> None:
         if wert <= 0:
             return
         z = self.zaehler
@@ -1495,13 +1192,13 @@ class Steuerung:
             return
         preis = float(self.e["preis"])
         for key in ("energie", f"energie:{g.bereich}"):
-            self._zaehler_plus(key, kwh)
+            self.zaehler_plus(key, kwh)
         for key in ("kosten", f"kosten:{g.bereich}"):
-            self._zaehler_plus(key, kwh * preis)
+            self.zaehler_plus(key, kwh * preis)
         if g.rolle in HEIZROLLEN:
-            self._zaehler_plus("energie_heizen", kwh)
+            self.zaehler_plus("energie_heizen", kwh)
         if g.rolle == ROLLE_HEIZKOERPER:
-            self._zaehler_plus(f"energie_typ:{g.typ}", kwh)
+            self.zaehler_plus(f"energie_typ:{g.typ}", kwh)
 
     def _energie_zaehlen(self, g: GeraetInfo, stand: float | None) -> None:
         """Neuer Stand des Energiezählers eines Shelly; der letzte Stand ist gespeichert (übersteht Neustarts)."""
@@ -1514,69 +1211,26 @@ class Steuerung:
         self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
 
     def _zeiten_zaehlen(self, jetzt: datetime) -> None:
-        """Heiz- und Pumpzeit, mittlere Leistung, „ohne Automatik“, Energie ohne Zähler und Heiztage."""
+        """Zeiten der Funktionen (Heiz- und Pumpzeit, Heiztage …) und Energie der Shellys ohne Energiezähler."""
         vorher, self._letzte_auswertung = self._letzte_auswertung, jetzt
         if vorher is None or not self.aktiv:
             return
         stunden = (jetzt - vorher).total_seconds() / 3600
         if stunden <= 0 or stunden > MAX_SCHRITT_H:
             return
-        ohne_w = 0.0
-        heiztag = False
-        for bid in self.bereiche:
+        for bid, info in self.bereiche.items():
             heizt = False
             for g in self.geraete_in(bid):
                 zustand = self.hass.states.get(g.schalter)
                 an = zustand is not None and zustand.state == STATE_ON
                 leistung = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
-                if g.rolle in HEIZROLLEN:
-                    mittel_w = mittel_im_betrieb(self.zaehler.get(f"mittel:{g.id}"), leistung if an else None)
-                    if mittel_w is not None:
-                        self.zaehler[f"mittel:{g.id}"] = mittel_w
-                        if self.heizung:
-                            ohne_w += mittel_w
-                    if an:
-                        heizt = True
-                        if g.rolle == ROLLE_HEIZKOERPER:
-                            self._zaehler_plus(f"heizzeit_typ:{g.typ}", stunden)
-                if g.rolle == ROLLE_PUMPE and self.daten.pumpe_laeuft.get(g.id):
-                    self._zaehler_plus(f"pumpzeit:{g.id}", stunden)
+                if (f := self._je_rolle.get(g.rolle)) is not None and f.zaehlen_geraet(g, an, leistung, stunden):
+                    heizt = True
                 if not g.energie and an:
                     self._energie_buchen(g, leistung_integriert(leistung, stunden))
-            if heizt:
-                heiztag = True
-                self._zaehler_plus(f"heizzeit:{bid}", stunden)
-            self._temperaturverhalten(bid, heizt, jetzt, stunden)
-        self._zaehler_plus("ohne", ohne_w * stunden / 1000)
-        if heiztag and self.zaehler.get("heiztag_letzter") != jetzt.date().isoformat():
-            self.zaehler["heiztag_letzter"] = jetzt.date().isoformat()
-            self._zaehler_plus("heiztage", 1)
-
-    def _temperaturverhalten(self, bid: str, heizt: bool, jetzt: datetime, stunden: float) -> None:
-        """Aufheiz- und Abkühlrate (°C/h) und Gradstunden innen–außen eines Containers mit Fühler."""
-        info = self.bereiche[bid]
-        innen = self.temperatur(info.fuehler)
-        if info.art != ART_CONTAINER or innen is None:
-            self._phase.pop(bid, None)
-            return
-        self._zaehler_plus(f"gradh:{bid}", gradstunden(innen, self.daten.wetter.aussen, stunden))
-        phase = self._phase.get(bid)
-        if phase is None or phase[0] != heizt:
-            self._phase[bid] = (heizt, jetzt, innen)
-            return
-        dauer = (jetzt - phase[1]).total_seconds() / 3600
-        if dauer < (AUFHEIZ_MIN_H if heizt else ABKUEHL_MIN_H):
-            return
-        aenderung = rate(phase[2], innen, dauer)
-        key = f"aufheiz:{bid}" if heizt else f"abkuehl:{bid}"
-        if aenderung is not None and (aenderung > 0 if heizt else aenderung < 0):
-            self.zaehler[key] = mittel(self.zaehler.get(key), abs(aenderung))
-            self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
-        self._phase[bid] = (heizt, jetzt, innen)
-
-    def ersparnis_kwh(self) -> float:
-        """Was 24-h-Dauerbetrieb mehr verbraucht hätte als tatsächlich geheizt wurde."""
-        return max(0.0, self.zaehler.get("ohne", 0.0) - self.zaehler.get("energie_heizen", 0.0))
+            self._je_art[info.art].zaehlen_bereich(bid, heizt, jetzt, stunden)
+        for f in self.funktionen:
+            f.zaehlen_ende(jetzt, stunden)
 
     def hochrechnung_heizperiode(self, key: str) -> float | None:
         """Tagesschnitt seit Zählbeginn auf die ganze Heizperiode hochgerechnet (kWh)."""
@@ -1592,24 +1246,7 @@ class Steuerung:
         bis_tag = date.fromisoformat(ende) if ende else None   # geplantes Ende der Baustelle (neu 0.7.8)
         return hochrechnung(self.zaehler.get(key, 0.0), tage, tage_heizperiode(von, bis, jahr, bis_tag))
 
-    def mittel_typ(self, typ: str) -> float | None:
-        """Mittlere Leistung im Betrieb aller Heizkörper eines Typs (Vergleich Ölradiator/Konvektor)."""
-        werte = [
-            self.zaehler[f"mittel:{g.id}"]
-            for g in self.geraete.values()
-            if g.rolle == ROLLE_HEIZKOERPER and g.typ == typ and f"mittel:{g.id}" in self.zaehler
-        ]
-        return sum(werte) / len(werte) if werte else None
-
-
 MODUS_TEXT = {"plan": "Zeitplan", "thermo": "Thermostat", "bedarf": "Bei Bedarf", "hand": "Hand", "aus": "Aus"}
-TAGE_KURZ = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
-
-
-def texte_wochentag(tag: date) -> str:
-    return TAGE_KURZ[tag.weekday()]
-
-
 def _einstellung_text(pfad: tuple[str, ...], wert: Any) -> str:
     """Protokolltext einer geänderten Einstellung."""
     if pfad == ("automatik",):

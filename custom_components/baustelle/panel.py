@@ -491,7 +491,7 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
             connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Gerät nicht gefunden")
             return
         if aktion == "automatik":
-            st.hand_beenden(g.id, "wieder auf Automatik")
+            st.heizfunktion.hand_beenden(g.id, "wieder auf Automatik")
         elif "an" not in msg:
             _fehler(connection, msg, "schalten braucht an")
             return

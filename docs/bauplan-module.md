@@ -148,4 +148,5 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 
 - Freigegeben von Herbert am 30.09.2026 (mit Phase 7).
 - [x] Phase 0 · [x] Phase 1 · [x] Phase 2 · [x] Phase 3 (Nachbesserung nach Prüfung: Firmenregel einmal, Firma je
-  Container aus der Struktur, sichtbare Unterschiede in §5) · [ ] Phase 4 · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6
+  Container aus der Struktur, sichtbare Unterschiede in §5) · [x] Phase 4 (0.7.17; `struktur-echt.json` byte-gleich bis auf
+  die Versionsnummer) · [ ] Phase 5 · [ ] Phase 7 · [ ] Phase 6

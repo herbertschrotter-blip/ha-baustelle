@@ -6,8 +6,9 @@ Ohne HA-Code, damit die Seite dieselben Texte aus `baustelle/struktur` bekommt.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
+from .logik.regelung import SollGrund
 from .logik.warnungen import Art, Warnung, _zahl, titel
 
 HILFE: dict[str, str] = {
@@ -78,3 +79,28 @@ def protokoll_warnung(w: Warnung) -> str:
     if w.art == Art.FROSTGEFAHR:
         return f"{titel(w)} trotz Frostschutz"
     return titel(w)
+
+
+# Protokoll und Kacheln: Grund, aus dem ein Bereich gerade heizt oder nicht (logik/regelung.SollGrund)
+GRUND_TEXT: dict[str, str] = {
+    SollGrund.FRUEHSTART: "Frühstart",
+    SollGrund.VORHEIZEN: "Vorheizen",
+    SollGrund.ARBEITSZEIT: "Arbeitszeit",
+    SollGrund.NACHHEIZEN: "Nachheizen",
+    SollGrund.TROCKNEN: "Kleidung trocknen",
+    SollGrund.BEDARF: "Bei Bedarf",
+    SollGrund.BOOST: "Schnell aufheizen",
+    SollGrund.FROST: "Frostschutz",
+    SollGrund.TUER_OFFEN: "Tür offen – Heizung pausiert",
+    SollGrund.BEREIT: "Bedarf vorbei",
+    SollGrund.FREI: "Frei",
+    SollGrund.HEIZGRENZE: "Heizgrenze",
+    SollGrund.AUSSERHALB: "Heizzeit vorbei",
+    SollGrund.AUS: "Aus – nur Frostschutz",
+    SollGrund.ABSENKEN: "Abgesenkt",
+}
+TAGE_KURZ = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+def wochentag(tag: date) -> str:
+    return TAGE_KURZ[tag.weekday()]

@@ -188,11 +188,11 @@ class Nachrichten:
             st.protokoll("nachricht", w.bereich if w else None,
                          f"Knopf „{texte_bis}“: {warn_logik.titel(w) if w else wert}")
         elif befehl == "trotzdem" and wert in st.bereiche:
-            st._tuer_trotzdem.add(wert)  # noqa: SLF001
+            st.heizfunktion.tuer_trotzdem.add(wert)
             st.protokoll("nachricht", wert, "Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist")
         elif befehl == "automatik" and wert in st.geraete:
             g = st.geraete[wert]
-            st.hand_beenden(wert)
+            st.heizfunktion.hand_beenden(wert)
             st.protokoll("nachricht", g.bereich, f"Knopf „Automatik übernehmen“: {g.name} wieder auf Automatik")
         elif befehl in ("frei", "frueher") and not _ist_datum(wert):
             _LOGGER.debug("Knopf %s mit ungültigem Datum %s", befehl, wert)

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.17] – 2026-09-30
+
+- Intern (Umbau „Module je Funktion“, Phase 4): Heizung und Pumpen sind jetzt je ein eigenes Modul der Integration
+  (`funktionen/heizung.py`, `funktionen/pumpen.py`) mit derselben Schnittstelle; die Steuerung ist nur noch der Kern
+  (Wetter, Kalender, Staffelung, Schalten, Protokoll, Status) und ruft die Funktionen auf. Sichtbar ändert sich nichts.
+
 ## [0.7.16] – 2026-09-30
 
 - Intern (Umbau „Module je Funktion“, Nachbesserung Phase 2/3): Die Regel „Firma je Tag“ und die Firmen-CSV gibt es
