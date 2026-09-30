@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.3] – 2026-09-30
+
+- Fehler (Meldung m_9a9e95cb): Container zeigte „heizt“ mit Glühen und Flammen, obwohl der Heizkörper keinen Strom zog.
+  „heizt“, „Kleidung trocknen“, „Frostschutz“ und „schnell aufheizen“ gelten jetzt nur bei echtem Verbrauch (über 50 W,
+  ohne Leistungssensor zählt der Schalter); sonst „aus“ mit „an · zieht keinen Strom“.
+
 ## [0.7.2] – 2026-09-30
 
 - Meldungen aus dem Melden-Knopf zusätzlich lesbar unter `<config>/baustelle/meldungen.md` und `meldungen.json`

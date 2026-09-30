@@ -1189,14 +1189,19 @@ class Steuerung:
                 (z := self.hass.states.get(g.schalter)) is not None and z.state == STATE_ON
                 for g in geraete if g.rolle in HEIZROLLEN
             )
+            # „heizt“ (Glühen, Flammen im Symbol) nur bei echtem Verbrauch: ein eingeschalteter Heizkörper zieht über
+            # ZIEHT_STROM_W; ohne Leistungssensor zählt der Schalter (Meldung Herbert, 30.09.2026)
+            zieht = any(self._zieht_strom(g) for g in geraete if g.rolle in HEIZROLLEN)
             e = self.einstellungen.bereich(bid)
             if offline:
                 zustand, text = "offline", "nicht erreichbar"
-            elif grund == SollGrund.FROST:
+            elif heizer_an and not zieht and grund not in (SollGrund.TUER_OFFEN, SollGrund.BEREIT):
+                zustand, text = "aus", "an · zieht keinen Strom"
+            elif grund == SollGrund.FROST and zieht:
                 zustand, text = "frost", "Frostschutz"
             elif grund == SollGrund.TUER_OFFEN:
                 zustand, text = "pause", "pausiert · Tür offen"
-            elif grund == SollGrund.BOOST:
+            elif grund == SollGrund.BOOST and zieht:
                 zustand, text = "heizt", "⚡ schnell aufheizen"
             elif grund == SollGrund.BEREIT:
                 zustand, text = "bereit", "bei Bedarf · nur Frostschutz"
@@ -1220,6 +1225,16 @@ class Steuerung:
             if an and not heizer_an and zustand == "aus":
                 text = "aus · Steckdose an"
             d.zustand[bid], d.text[bid] = zustand, text
+
+    def _zieht_strom(self, g: GeraetInfo) -> bool:
+        """Eingeschaltet und – falls gemessen – über ZIEHT_STROM_W."""
+        z = self.hass.states.get(g.schalter)
+        if z is None or z.state != STATE_ON:
+            return False
+        if not g.leistung:
+            return True
+        w = _zahl(self.hass.states.get(g.leistung))
+        return w is None or w > ZIEHT_STROM_W  # Sensor ohne Wert: wie ohne Messung
 
     def _termin_ende(self, bid: str, jetzt: datetime) -> datetime | None:
         for von, bis, _ in self._termin_fenster(bid):

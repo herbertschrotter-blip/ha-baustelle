@@ -588,3 +588,23 @@ async def test_anlauf_ohne_protokoll_eintrag(hass: HomeAssistant, baustelle, fre
     await hass.async_block_till_done()
     assert sorted(shellys.ein()) == ["switch.hk1", "switch.hk2"]
     assert not [t for t in _texte(st, "schalten") if "wartet" in t]
+
+
+async def test_heizt_nur_bei_verbrauch(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """Kachel „heizt“ (Glühen) nur, wenn der Heizkörper wirklich Strom zieht – Schalter an allein reicht nicht."""
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert "switch.hk1" in shellys.ein()
+    assert struktur(hass, baustelle)["laufzeit"]["container"][C1]["zustand"] == "heizt"
+    # Heizkörper ist eingeschaltet, zieht aber nichts (z. B. am Gerät aus oder eigener Thermostat hat abgeschaltet)
+    hass.states.async_set("sensor.hk1_power", "0")
+    await hass.async_block_till_done()
+    c = struktur(hass, baustelle)["laufzeit"]["container"][C1]
+    assert hass.states.get("switch.hk1").state == "on"
+    assert c["zustand"] == "aus" and c["text"] == "an · zieht keinen Strom"
+    hass.states.async_set("sensor.hk1_power", "1800")
+    await hass.async_block_till_done()
+    assert struktur(hass, baustelle)["laufzeit"]["container"][C1]["zustand"] == "heizt"
