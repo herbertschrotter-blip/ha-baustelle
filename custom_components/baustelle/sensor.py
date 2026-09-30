@@ -21,12 +21,12 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import BaustelleConfigEntry
 from .const import ART_CONTAINER, HEIZROLLEN, ROLLE_PUMPE, TYPEN
 from .entity import BaustelleEntity
-from .logik.heizung import Grund
+from .logik.regelung import SollGrund
 from .steuerung import Steuerung
 
 PARALLEL_UPDATES = 0
 
-STATUS = ["abgeschlossen", "nur_pumpen", "automatik_aus", "heizgrenze", "urlaub", "feiertag", "heizt", "bereit"]
+STATUS = ["abgeschlossen", "nur_pumpen", "automatik_aus", "heizgrenze", "urlaub", "feiertag", "frei", "heizt", "bereit"]
 
 
 @dataclass(frozen=True)
@@ -83,7 +83,7 @@ class StatusSensor(BaustelleEntity, SensorEntity):
 
 
 class NaechsteSchaltzeitSensor(BaustelleEntity, SensorEntity):
-    """Nächste Ein- oder Ausschaltzeit heute."""
+    """Nächster Schaltpunkt der Baustelle (Ende der Heizzeit bzw. nächster Start)."""
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
@@ -99,7 +99,7 @@ class GrundSensor(BaustelleEntity, SensorEntity):
     """Warum die Heizung eines Containers gerade ein oder aus ist."""
 
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = [g.value for g in Grund]
+    _attr_options = [g.value for g in SollGrund]
 
     def __init__(self, steuerung: Steuerung, bereich_id: str) -> None:
         super().__init__(steuerung, "grund", bereich_id)
@@ -107,7 +107,7 @@ class GrundSensor(BaustelleEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         grund = self.steuerung.daten.grund.get(self.bereich_id or "")
-        return grund.value if grund else None
+        return grund if grund in self._attr_options else None
 
 
 class LeistungSensor(BaustelleEntity, SensorEntity):

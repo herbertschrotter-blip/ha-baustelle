@@ -9,7 +9,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 
-from .const import CONF_REGEN_SENSOR, CONF_TEMP_SENSOR, CONF_WETTER, DOMAIN, PLATFORMS
+from .const import ALTE_PLATTFORMEN, CONF_REGEN_SENSOR, CONF_TEMP_SENSOR, CONF_WETTER, DOMAIN, PLATFORMS
 from .einstellungen import Einstellungen
 from .entity import HERSTELLER, MODELL
 from .panel import async_panel_anmelden
@@ -30,6 +30,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -> bool:
     """Baustelle starten."""
     _eigene_quellen_entfernen(hass, entry)
+    _alte_entitaeten_entfernen(hass, entry)
     steuerung = Steuerung(hass, entry)
     entry.runtime_data = steuerung
     await steuerung.async_start()
@@ -42,7 +43,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) ->
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -> bool:
-    """Baustelle entladen."""
+    """Baustelle entladen (Einstellungen und Zähler vorher sicher speichern).
+
+    Erst anhalten, dann speichern: sonst zählt ein Messwert zwischen Speichern und Anhalten noch mit und plant einen
+    verzögerten Schreibvorgang ein, der nach dem Neu-Laden die Datei der neuen Instanz überschreibt.
+    """
+    entry.runtime_data.async_stop()
+    await entry.runtime_data.einstellungen.async_jetzt_speichern()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
@@ -64,6 +71,16 @@ def _eigene_quellen_entfernen(hass: HomeAssistant, entry: BaustelleConfigEntry) 
             optionen.pop(key)
     if optionen != dict(entry.options):
         hass.config_entries.async_update_entry(entry, options=optionen)
+
+
+def _alte_entitaeten_entfernen(hass: HomeAssistant, entry: BaustelleConfigEntry) -> None:
+    """Einstellungs-Entitäten aus 0.6 (Zeitplan, Regeln, Modus, Soll, Test-Meldung …) aus der Registry räumen."""
+    registry = er.async_get(hass)
+    for eintrag in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if eintrag.domain in ALTE_PLATTFORMEN or (
+            eintrag.domain == "switch" and eintrag.unique_id != f"{entry.entry_id}_automatik"
+        ):
+            registry.async_remove(eintrag.entity_id)
 
 
 def _geraete_anlegen(hass: HomeAssistant, entry: BaustelleConfigEntry, steuerung: Steuerung) -> None:

@@ -17,4 +17,5 @@ GESCHWAERZT = {CONF_EMPFAENGER}
 async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: BaustelleConfigEntry) -> dict[str, Any]:
     daten = struktur(hass, entry)
     daten["baustelle"]["optionen"] = async_redact_data(daten["baustelle"]["optionen"], GESCHWAERZT)
+    daten["einstellungen"] = async_redact_data(daten["einstellungen"], {*GESCHWAERZT, "mail_an"})
     return daten

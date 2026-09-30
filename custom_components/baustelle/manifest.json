@@ -5,6 +5,8 @@
     "calendar",
     "history",
     "holiday",
+    "logbook",
+    "mobile_app",
     "notify",
     "recorder",
     "weather"
@@ -24,5 +26,5 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/herbertschrotter-blip/ha-baustelle/issues",
   "requirements": [],
-  "version": "0.6.3"
+  "version": "0.7.0"
 }

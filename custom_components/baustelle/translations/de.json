@@ -194,150 +194,6 @@
     "switch": {
       "automatik": {
         "name": "Automatik"
-      },
-      "heizgrenze_aktiv": {
-        "name": "Heizgrenze"
-      },
-      "frost_aktiv": {
-        "name": "Frostschutz"
-      },
-      "kleidung_trocknen": {
-        "name": "Kleidung trocknen"
-      },
-      "mo_aktiv": {
-        "name": "Montag aktiv"
-      },
-      "di_aktiv": {
-        "name": "Dienstag aktiv"
-      },
-      "mi_aktiv": {
-        "name": "Mittwoch aktiv"
-      },
-      "do_aktiv": {
-        "name": "Donnerstag aktiv"
-      },
-      "fr_aktiv": {
-        "name": "Freitag aktiv"
-      },
-      "sa_aktiv": {
-        "name": "Samstag aktiv"
-      },
-      "so_aktiv": {
-        "name": "Sonntag aktiv"
-      }
-    },
-    "select": {
-      "modus": {
-        "name": "Modus",
-        "state": {
-          "zeitplan": "Zeitplan",
-          "thermostat": "Thermostat",
-          "hand": "Hand",
-          "aus": "Aus"
-        }
-      },
-      "heizgrenze_basis": {
-        "name": "Heizgrenze nach",
-        "state": {
-          "jetzt": "aktueller Temperatur",
-          "tageshoechst": "Tageshöchstwert (Vorhersage)"
-        }
-      },
-      "urlaub_modus": {
-        "name": "Im Urlaub / an Feiertagen",
-        "state": {
-          "frost": "Nur Frostschutz",
-          "absenken": "Absenken",
-          "aus": "Alles aus"
-        }
-      }
-    },
-    "number": {
-      "kaelte_schwelle": {
-        "name": "Kälte: Früh-Prognose unter"
-      },
-      "kaelte_frueher_min": {
-        "name": "Kälte: früher ein um"
-      },
-      "trocknen_ab_mm": {
-        "name": "Kleidung trocknen ab Regen"
-      },
-      "trocknen_laenger_min": {
-        "name": "Kleidung trocknen: abends länger"
-      },
-      "trocknen_frueher_min": {
-        "name": "Kleidung trocknen: früher starten"
-      },
-      "heizgrenze": {
-        "name": "Heizgrenze: aus über"
-      },
-      "frost_ein": {
-        "name": "Frostschutz ein unter"
-      },
-      "frost_aus": {
-        "name": "Frostschutz aus über"
-      },
-      "absenk_temp": {
-        "name": "Absenktemperatur"
-      },
-      "offline_min": {
-        "name": "Meldung nach offline"
-      },
-      "trocken_unter_w": {
-        "name": "Trockenlauf unter"
-      },
-      "dauerlauf_h": {
-        "name": "Dauerlauf länger als"
-      },
-      "preis": {
-        "name": "Strompreis"
-      },
-      "soll": {
-        "name": "Solltemperatur"
-      }
-    },
-    "time": {
-      "mo_ein": {
-        "name": "Montag ein"
-      },
-      "mo_aus": {
-        "name": "Montag aus"
-      },
-      "di_ein": {
-        "name": "Dienstag ein"
-      },
-      "di_aus": {
-        "name": "Dienstag aus"
-      },
-      "mi_ein": {
-        "name": "Mittwoch ein"
-      },
-      "mi_aus": {
-        "name": "Mittwoch aus"
-      },
-      "do_ein": {
-        "name": "Donnerstag ein"
-      },
-      "do_aus": {
-        "name": "Donnerstag aus"
-      },
-      "fr_ein": {
-        "name": "Freitag ein"
-      },
-      "fr_aus": {
-        "name": "Freitag aus"
-      },
-      "sa_ein": {
-        "name": "Samstag ein"
-      },
-      "sa_aus": {
-        "name": "Samstag aus"
-      },
-      "so_ein": {
-        "name": "Sonntag ein"
-      },
-      "so_aus": {
-        "name": "Sonntag aus"
       }
     },
     "sensor": {
@@ -350,6 +206,7 @@
           "heizgrenze": "Heizgrenze – zu warm",
           "urlaub": "Urlaub",
           "feiertag": "Feiertag",
+          "frei": "Frei (Ausnahme)",
           "heizt": "Heizt",
           "bereit": "Bereit"
         }
@@ -361,19 +218,20 @@
         "name": "Heizung",
         "state": {
           "automatik_aus": "Automatik aus",
-          "frostschutz": "Frostschutz",
+          "frost": "Frostschutz",
+          "tuer_offen": "Tür offen – pausiert",
           "hand": "Handbetrieb",
-          "modus_aus": "Modus aus",
+          "boost": "Schnell aufheizen",
+          "bedarf": "Bei Bedarf",
+          "bereit": "Bereit (nur bei Bedarf)",
+          "frei": "Frei",
           "heizgrenze": "Heizgrenze – zu warm",
-          "urlaub": "Urlaub",
-          "feiertag": "Feiertag",
-          "absenkung": "Abgesenkt (Urlaub)",
-          "ausserhalb": "Außerhalb der Heizzeit",
-          "zeitplan": "Zeitplan",
-          "kaelte_frueher": "Früher wegen Kälte",
-          "kleidung_trocknen": "Kleidung trocknen",
-          "thermostat_heizt": "Thermostat heizt",
-          "thermostat_erreicht": "Solltemperatur erreicht"
+          "fruehstart": "Frühstart",
+          "vorheizen": "Vorheizen",
+          "arbeitszeit": "Arbeitszeit",
+          "nachheizen": "Nachheizen",
+          "trocknen": "Kleidung trocknen",
+          "ausserhalb": "Außerhalb der Heizzeit"
         }
       },
       "leistung": {
@@ -453,16 +311,6 @@
       "pumpe_laeuft": {
         "name": "{geraet} läuft"
       }
-    },
-    "button": {
-      "test_meldung": {
-        "name": "Test-Meldung"
-      }
-    }
-  },
-  "exceptions": {
-    "keine_empfaenger": {
-      "message": "Keine Empfänger eingestellt (Baustelle → Konfigurieren → Meldungen an)."
     }
   },
   "issues": {

@@ -199,6 +199,16 @@ def _summe(daten: dict[str, Any]) -> str:
     return f"{was}: {de(daten['kwh'], 0)} kWh · {de(daten['eur'], 2)} €"
 
 
+def summe_text(daten: dict[str, Any]) -> str:
+    """„Vorwoche: 1 234 kWh · 345,67 €“ bzw. „September: …“ (Kopfzeile von Mail und Vorschau)."""
+    return _summe(daten)
+
+
+def vergleich_text(daten: dict[str, Any]) -> str:
+    """„ (−4 % zur Woche davor)“ bzw. „ (+31 % zum August)“; leer ohne Vergleichswert."""
+    return _vergleich(daten)
+
+
 def _warnung(w: dict[str, Any]) -> str:
     return f"{w['bereich']}: {w['titel']}" if w.get("bereich") else str(w["titel"])
 

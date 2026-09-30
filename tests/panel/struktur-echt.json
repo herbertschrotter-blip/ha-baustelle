@@ -1,0 +1,1430 @@
+[
+ {
+  "baustelle": {
+   "entry_id": "wohnbau",
+   "titel": "Wohnbau Kalsdorf",
+   "status": "aktiv",
+   "optionen": {
+    "heizung": true,
+    "pumpen": true,
+    "status": "aktiv",
+    "beginn": "2026-09-01",
+    "heizperiode_von": "10",
+    "heizperiode_bis": "4",
+    "empfaenger": [
+     "mobile_app_handy"
+    ],
+    "wetter": "weather.kalsdorf",
+    "temp_sensor": "sensor.aussen",
+    "regen_sensor": "sensor.regen",
+    "feiertag_kalender": "calendar.feiertage",
+    "urlaub_kalender": "calendar.urlaub"
+   },
+   "geladen": true,
+   "version": "0.7.0",
+   "zeitzone": "Europe/Vienna",
+   "heute": "2026-09-29",
+   "jetzt": "2026-09-29T16:20:00+02:00"
+  },
+  "entitaeten": {
+   "magazin_energie": "sensor.magazin_energy",
+   "magazin_grund": "sensor.magazin_heating",
+   "magazin_heizzeit": "sensor.magazin_heating_time",
+   "magazin_kosten": "sensor.magazin_cost",
+   "magazin_leistung": "sensor.magazin_power",
+   "magazin_r1_mittel_im_betrieb": "sensor.olradiator_1_olradiator_1_avg_power_while_heating_2",
+   "magazin_r1_problem": "binary_sensor.olradiator_1_olradiator_1_problem_2",
+   "magazin_t1_mittel_im_betrieb": "sensor.bautrockner_bautrockner_avg_power_while_heating",
+   "magazin_t1_problem": "binary_sensor.bautrockner_bautrockner_problem",
+   "mannschaft_energie": "sensor.mannschaft_energy",
+   "mannschaft_grund": "sensor.mannschaft_heating",
+   "mannschaft_heizzeit": "sensor.mannschaft_heating_time",
+   "mannschaft_k1_mittel_im_betrieb": "sensor.konvektor_1_konvektor_1_avg_power_while_heating_2",
+   "mannschaft_k1_problem": "binary_sensor.konvektor_1_konvektor_1_problem_2",
+   "mannschaft_k2_mittel_im_betrieb": "sensor.konvektor_2_konvektor_2_avg_power_while_heating",
+   "mannschaft_k2_problem": "binary_sensor.konvektor_2_konvektor_2_problem",
+   "mannschaft_kosten": "sensor.mannschaft_cost",
+   "mannschaft_leistung": "sensor.mannschaft_power",
+   "polier_energie": "sensor.polier_energy",
+   "polier_grund": "sensor.polier_heating",
+   "polier_heizzeit": "sensor.polier_heating_time",
+   "polier_k1_mittel_im_betrieb": "sensor.konvektor_1_konvektor_1_avg_power_while_heating",
+   "polier_k1_problem": "binary_sensor.konvektor_1_konvektor_1_problem",
+   "polier_kosten": "sensor.polier_cost",
+   "polier_leistung": "sensor.polier_power",
+   "polier_r1_mittel_im_betrieb": "sensor.olradiator_1_olradiator_1_avg_power_while_heating",
+   "polier_r1_problem": "binary_sensor.olradiator_1_olradiator_1_problem",
+   "schacht_energie": "sensor.pumpenschacht_energy",
+   "schacht_kosten": "sensor.pumpenschacht_cost",
+   "schacht_leistung": "sensor.pumpenschacht_power",
+   "schacht_p1_problem": "binary_sensor.pumpe_1_pumpe_1_problem",
+   "schacht_p1_pumpe_laeuft": "binary_sensor.pumpe_1_pumpe_1_running",
+   "schacht_p1_pumpzeit": "sensor.pumpe_1_pumpe_1_pump_time",
+   "schacht_p1_pumpzyklen": "sensor.pumpe_1_pumpe_1_pump_cycles",
+   "wohnbau_aussen": "sensor.wohnbau_kalsdorf_outdoor_temperature",
+   "wohnbau_automatik": "switch.wohnbau_kalsdorf_automation",
+   "wohnbau_energie": "sensor.wohnbau_kalsdorf_energy",
+   "wohnbau_energie_konvektor": "sensor.wohnbau_kalsdorf_energy_convectors",
+   "wohnbau_energie_oelradiator": "sensor.wohnbau_kalsdorf_energy_oil_radiators",
+   "wohnbau_energie_ohne_automatik": "sensor.wohnbau_kalsdorf_energy_without_automation_24_7",
+   "wohnbau_erreichbar": "binary_sensor.wohnbau_kalsdorf_reachable",
+   "wohnbau_ersparnis": "sensor.wohnbau_kalsdorf_savings_from_automation",
+   "wohnbau_frueh_prognose": "sensor.wohnbau_kalsdorf_early_forecast",
+   "wohnbau_heizzeit_konvektor": "sensor.wohnbau_kalsdorf_heating_time_convectors",
+   "wohnbau_heizzeit_oelradiator": "sensor.wohnbau_kalsdorf_heating_time_oil_radiators",
+   "wohnbau_kosten": "sensor.wohnbau_kalsdorf_cost",
+   "wohnbau_leistung": "sensor.wohnbau_kalsdorf_power",
+   "wohnbau_mittel_konvektor": "sensor.wohnbau_kalsdorf_avg_power_convector",
+   "wohnbau_mittel_oelradiator": "sensor.wohnbau_kalsdorf_avg_power_oil_radiator",
+   "wohnbau_naechste_schaltzeit": "sensor.wohnbau_kalsdorf_next_switching_time",
+   "wohnbau_prognose_heizperiode": "sensor.wohnbau_kalsdorf_heating_season_projected",
+   "wohnbau_prognose_heizperiode_kosten": "sensor.wohnbau_kalsdorf_heating_season_projected_cost",
+   "wohnbau_prognose_heizperiode_ohne": "sensor.wohnbau_kalsdorf_heating_season_without_automation",
+   "wohnbau_regen": "sensor.wohnbau_kalsdorf_rain",
+   "wohnbau_status": "sensor.wohnbau_kalsdorf_status",
+   "wohnbau_tageshoechst": "sensor.wohnbau_kalsdorf_daily_high"
+  },
+  "bereiche": [
+   {
+    "id": "polier",
+    "name": "Polier",
+    "art": "container",
+    "fuehler": "sensor.polier_temperatur",
+    "nr": 0
+   },
+   {
+    "id": "mannschaft",
+    "name": "Mannschaft",
+    "art": "container",
+    "fuehler": null,
+    "nr": 1
+   },
+   {
+    "id": "magazin",
+    "name": "Magazin",
+    "art": "container",
+    "fuehler": "sensor.magazin_temperatur",
+    "nr": 2
+   },
+   {
+    "id": "schacht",
+    "name": "Pumpenschacht",
+    "art": "pumpenschacht",
+    "fuehler": null,
+    "nr": 3
+   }
+  ],
+  "geraete": [
+   {
+    "id": "polier_r1",
+    "name": "Ölradiator 1",
+    "bereich": "polier",
+    "schalter": "switch.polier_r1",
+    "rolle": "heizung",
+    "typ": "oelradiator",
+    "leistung": "sensor.polier_r1_leistung",
+    "energie": null,
+    "nenn_kw": 1.98
+   },
+   {
+    "id": "polier_k1",
+    "name": "Konvektor 1",
+    "bereich": "polier",
+    "schalter": "switch.polier_k1",
+    "rolle": "heizung",
+    "typ": "konvektor",
+    "leistung": "sensor.polier_k1_leistung",
+    "energie": null,
+    "nenn_kw": 2.01
+   },
+   {
+    "id": "mannschaft_k1",
+    "name": "Konvektor 1",
+    "bereich": "mannschaft",
+    "schalter": "switch.mannschaft_k1",
+    "rolle": "heizung",
+    "typ": "konvektor",
+    "leistung": "sensor.mannschaft_k1_leistung",
+    "energie": null,
+    "nenn_kw": 1.99
+   },
+   {
+    "id": "mannschaft_k2",
+    "name": "Konvektor 2",
+    "bereich": "mannschaft",
+    "schalter": "switch.mannschaft_k2",
+    "rolle": "heizung",
+    "typ": "konvektor",
+    "leistung": "sensor.mannschaft_k2_leistung",
+    "energie": null,
+    "nenn_kw": 2.0
+   },
+   {
+    "id": "magazin_r1",
+    "name": "Ölradiator 1",
+    "bereich": "magazin",
+    "schalter": "switch.magazin_r1",
+    "rolle": "heizung",
+    "typ": "oelradiator",
+    "leistung": "sensor.magazin_r1_leistung",
+    "energie": null,
+    "nenn_kw": 1.5
+   },
+   {
+    "id": "magazin_t1",
+    "name": "Bautrockner",
+    "bereich": "magazin",
+    "schalter": "switch.magazin_t1",
+    "rolle": "trockner",
+    "typ": "konvektor",
+    "leistung": "sensor.magazin_t1_leistung",
+    "energie": null,
+    "nenn_kw": 2.0
+   },
+   {
+    "id": "schacht_p1",
+    "name": "Pumpe 1",
+    "bereich": "schacht",
+    "schalter": "switch.schacht_p1",
+    "rolle": "pumpe",
+    "typ": "konvektor",
+    "leistung": "sensor.schacht_p1_leistung",
+    "energie": null,
+    "nenn_kw": 0.0
+   }
+  ],
+  "einstellungen": {
+   "automatik": true,
+   "preis": 0.28,
+   "arbeitszeiten": [
+    {
+     "ab": "2026-09-01",
+     "name": "Herbst 2026",
+     "tage": {
+      "0": [
+       "07:00",
+       "16:30"
+      ],
+      "1": [
+       "07:00",
+       "16:30"
+      ],
+      "2": [
+       "07:00",
+       "16:30"
+      ],
+      "3": [
+       "07:00",
+       "16:30"
+      ],
+      "4": [
+       "07:00",
+       "12:30"
+      ],
+      "5": null,
+      "6": null
+     }
+    },
+    {
+     "ab": "2026-11-02",
+     "name": "Winter",
+     "tage": {
+      "0": [
+       "07:30",
+       "16:00"
+      ],
+      "1": [
+       "07:30",
+       "16:00"
+      ],
+      "2": [
+       "07:30",
+       "16:00"
+      ],
+      "3": [
+       "07:30",
+       "16:00"
+      ],
+      "4": [
+       "07:30",
+       "12:00"
+      ],
+      "5": null,
+      "6": null
+     }
+    }
+   ],
+   "ausnahmen": [
+    {
+     "datum": "2026-09-30",
+     "art": "zeiten",
+     "von": "07:00",
+     "bis": "18:00",
+     "notiz": "Betonage"
+    },
+    {
+     "datum": "2026-10-03",
+     "art": "arbeit",
+     "von": "07:00",
+     "bis": "12:00",
+     "notiz": ""
+    }
+   ],
+   "heizung": {
+    "vorheizen_min": 45,
+    "nachheizen_min": 15,
+    "soll": 20.0,
+    "toleranz": 0.3,
+    "heizgrenze": 15.0,
+    "heizgrenze_basis": "tageshoechst",
+    "fruehstart": true,
+    "fruehstart_unter": 0.0,
+    "fruehstart_min": 30,
+    "frost": true,
+    "frost_grenze": 5.0,
+    "trocknen_ab_mm": 2.0,
+    "trocknen_laenger_min": 45,
+    "trocknen_frueher_min": 15,
+    "tuer_pause_min": 3,
+    "tuer_melden_min": 10,
+    "boost_min": 30,
+    "feiertag_frei": true
+   },
+   "staffel": {
+    "an": true,
+    "nutzbar_prozent": 67,
+    "max_gleichzeitig": 5,
+    "min_lauf_min": 10,
+    "min_pause_min": 5,
+    "takt_min": 15
+   },
+   "anschluesse": [
+    {
+     "id": "a1",
+     "name": "Baustrom Nord",
+     "ampere": 32.0,
+     "phasen": 3,
+     "reserve_kw": 3.0
+    },
+    {
+     "id": "sued",
+     "name": "Verteiler Süd",
+     "ampere": 16.0,
+     "phasen": 3,
+     "reserve_kw": 1.0
+    }
+   ],
+   "firmen": [
+    {
+     "id": "eigen",
+     "name": "Eigene Firma",
+     "eigen": true
+    },
+    {
+     "id": "huber",
+     "name": "Elektro Huber GmbH",
+     "eigen": false
+    },
+    {
+     "id": "leitner",
+     "name": "Trockenbau Leitner",
+     "eigen": false
+    }
+   ],
+   "zuordnung": [
+    {
+     "bereich": "magazin",
+     "firma": "huber",
+     "ab": "2026-09-29T05:30:00+02:00"
+    }
+   ],
+   "bereiche": {
+    "polier": {
+     "auto": true,
+     "trocknen": false,
+     "soll": null,
+     "bedarf": false,
+     "prio": "hoch",
+     "anschluss": "a1",
+     "tuer": null
+    },
+    "mannschaft": {
+     "auto": true,
+     "trocknen": false,
+     "soll": null,
+     "bedarf": true,
+     "prio": "normal",
+     "anschluss": "a1",
+     "tuer": null
+    },
+    "magazin": {
+     "auto": true,
+     "trocknen": true,
+     "soll": null,
+     "bedarf": false,
+     "prio": "normal",
+     "anschluss": "sued",
+     "tuer": "binary_sensor.tuer_magazin"
+    },
+    "schacht": {
+     "auto": true,
+     "trocknen": false,
+     "soll": null,
+     "bedarf": false,
+     "prio": "normal",
+     "anschluss": "sued",
+     "tuer": null
+    }
+   },
+   "meldungen_einst": {
+    "empfaenger": [
+     "mobile_app_handy"
+    ],
+    "knoepfe": true,
+    "arten": {
+     "offline": true,
+     "baustelle_offline": true,
+     "trockenlauf": true,
+     "dauerlauf": true,
+     "zyklen_oft": true,
+     "keine_leistung": true,
+     "frostgefahr": true,
+     "zu_kalt": true,
+     "fuehler_fehlt": true,
+     "kein_wetter": true,
+     "hand_zu_lange": true,
+     "tuer_offen": true
+    },
+    "kalt_min": 60,
+    "hand_h": 8,
+    "zyklen_h": 10,
+    "dauerlauf_min": 20,
+    "trocken_unter_w": 30,
+    "offline_min": 5
+   },
+   "bericht": {
+    "haeufigkeit": "woche",
+    "handy": true,
+    "mail": true,
+    "mail_an": "bau@example.at",
+    "mail_dienst": "smtp",
+    "csv": true
+   },
+   "termine_kalender": "calendar.termine",
+   "stumm": {
+    "tuer_offen:magazin": "2026-09-30T07:00:00+02:00"
+   },
+   "melden_knopf": true
+  },
+  "zaehler": {
+   "gradh:polier": 152.2883333333336,
+   "seit": "2026-09-29T05:31:00+02:00",
+   "gradh:magazin": 139.06799999999996,
+   "pumpzeit:schacht_p1": 1.8333333333333317,
+   "energie": 33.57500000000026,
+   "energie:schacht": 1.393333333333333,
+   "kosten": 9.401000000000028,
+   "kosten:schacht": 0.3901333333333326,
+   "zyklen:schacht_p1": 21.0,
+   "mittel:polier_k1": 2010.0,
+   "heizzeit_typ:konvektor": 5.866666666666651,
+   "energie:polier": 14.657499999999933,
+   "kosten:polier": 4.1041000000000265,
+   "energie_heizen": 32.181666666666864,
+   "energie_typ:konvektor": 11.73966666666663,
+   "heizzeit:polier": 5.099999999999987,
+   "ohne": 71.53366666666697,
+   "heiztag_letzter": "2026-09-29",
+   "heiztage": 1.0,
+   "mittel:polier_r1": 1980.0,
+   "heizzeit_typ:oelradiator": 12.03333333333351,
+   "energie_typ:oelradiator": 20.442000000000053,
+   "mittel:magazin_r1": 1500.0,
+   "energie:magazin": 10.575000000000083,
+   "kosten:magazin": 2.961000000000002,
+   "heizzeit:magazin": 7.04999999999998,
+   "aufheiz:polier": 5.6982,
+   "aufheiz:magazin": 1.9080450000000004,
+   "mittel:mannschaft_k1": 1990.0,
+   "energie:mannschaft": 6.949166666666647,
+   "kosten:mannschaft": 1.9457666666666704,
+   "heizzeit:mannschaft": 1.7499999999999987,
+   "mittel:mannschaft_k2": 2000.0
+  },
+  "laufzeit": {
+   "status": "heizt",
+   "status_text": "♨ heizt bis 17:30",
+   "naechste": "2026-09-29T17:30:00+02:00",
+   "jetzt_bis": null,
+   "container": {
+    "polier": {
+     "zustand": "heizt",
+     "grund": "arbeitszeit",
+     "text": "heizt · Arbeitszeit",
+     "temperatur": 20.16,
+     "kw": 1.98,
+     "bedarf_bis": null,
+     "boost_bis": null,
+     "tuer": null
+    },
+    "mannschaft": {
+     "zustand": "bereit",
+     "grund": "bereit",
+     "text": "bei Bedarf · nur Frostschutz",
+     "temperatur": null,
+     "kw": 0,
+     "bedarf_bis": null,
+     "boost_bis": null,
+     "tuer": null
+    },
+    "magazin": {
+     "zustand": "pause",
+     "grund": "tuer_offen",
+     "text": "pausiert · Tür offen",
+     "temperatur": 19.46,
+     "kw": 0,
+     "bedarf_bis": null,
+     "boost_bis": null,
+     "tuer": {
+      "offen": true,
+      "seit": "2026-09-29T16:05:00+02:00"
+     }
+    },
+    "schacht": {
+     "zustand": "aus",
+     "grund": "aus",
+     "text": "Pumpe aus",
+     "temperatur": null,
+     "kw": 0,
+     "bedarf_bis": null,
+     "boost_bis": null,
+     "tuer": null
+    }
+   },
+   "geraete": {
+    "polier_r1": {
+     "an": true,
+     "kw": 1.98,
+     "erreichbar": true,
+     "hand_seit": null,
+     "warte": null
+    },
+    "polier_k1": {
+     "an": false,
+     "kw": 0.0,
+     "erreichbar": true,
+     "hand_seit": "2026-09-29T11:00:00+02:00",
+     "warte": null
+    },
+    "mannschaft_k1": {
+     "an": false,
+     "kw": 0.0,
+     "erreichbar": true,
+     "hand_seit": null,
+     "warte": null
+    },
+    "mannschaft_k2": {
+     "an": false,
+     "kw": 0.0,
+     "erreichbar": true,
+     "hand_seit": null,
+     "warte": null
+    },
+    "magazin_r1": {
+     "an": false,
+     "kw": 0.0,
+     "erreichbar": true,
+     "hand_seit": null,
+     "warte": null
+    },
+    "magazin_t1": {
+     "an": false,
+     "kw": 0.0,
+     "erreichbar": false,
+     "hand_seit": null,
+     "warte": null
+    },
+    "schacht_p1": {
+     "an": false,
+     "kw": 0.0,
+     "erreichbar": true,
+     "hand_seit": null,
+     "warte": null
+    }
+   },
+   "plan_woche": [
+    {
+     "datum": "2026-09-28",
+     "plan": {
+      "start": 375,
+      "vor": 375,
+      "a": 420,
+      "b": 990,
+      "nach": 1005,
+      "ende": 1005,
+      "gruende": [],
+      "ausnahme": null
+     },
+     "frei": null
+    },
+    {
+     "datum": "2026-09-29",
+     "plan": {
+      "start": 375,
+      "vor": 375,
+      "a": 420,
+      "b": 990,
+      "nach": 1005,
+      "ende": 1050,
+      "gruende": [
+       "trocknen"
+      ],
+      "ausnahme": null
+     },
+     "frei": null
+    },
+    {
+     "datum": "2026-09-30",
+     "plan": {
+      "start": 330,
+      "vor": 375,
+      "a": 420,
+      "b": 1080,
+      "nach": 1095,
+      "ende": 1095,
+      "gruende": [
+       "ausnahme",
+       "fruehstart",
+       "frueher_nach_regen"
+      ],
+      "ausnahme": {
+       "datum": "2026-09-30",
+       "art": "zeiten",
+       "von": "07:00",
+       "bis": "18:00",
+       "notiz": "Betonage"
+      }
+     },
+     "frei": null
+    },
+    {
+     "datum": "2026-10-01",
+     "plan": {
+      "start": 375,
+      "vor": 375,
+      "a": 420,
+      "b": 990,
+      "nach": 1005,
+      "ende": 1005,
+      "gruende": [],
+      "ausnahme": null
+     },
+     "frei": null
+    },
+    {
+     "datum": "2026-10-02",
+     "plan": null,
+     "frei": "urlaub"
+    },
+    {
+     "datum": "2026-10-03",
+     "plan": {
+      "start": 360,
+      "vor": 375,
+      "a": 420,
+      "b": 720,
+      "nach": 735,
+      "ende": 735,
+      "gruende": [
+       "ausnahme",
+       "frueher_nach_regen"
+      ],
+      "ausnahme": {
+       "datum": "2026-10-03",
+       "art": "arbeit",
+       "von": "07:00",
+       "bis": "12:00",
+       "notiz": ""
+      }
+     },
+     "frei": null
+    },
+    {
+     "datum": "2026-10-04",
+     "plan": null,
+     "frei": null
+    }
+   ],
+   "abschnitte": {
+    "polier": {
+     "2026-09-28": [
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       990,
+       "arbeitszeit"
+      ],
+      [
+       990,
+       1005,
+       "nachheizen"
+      ]
+     ],
+     "2026-09-29": [
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       990,
+       "arbeitszeit"
+      ],
+      [
+       990,
+       1005,
+       "nachheizen"
+      ]
+     ],
+     "2026-09-30": [
+      [
+       345,
+       375,
+       "fruehstart"
+      ],
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       1080,
+       "arbeitszeit"
+      ],
+      [
+       1080,
+       1095,
+       "nachheizen"
+      ]
+     ],
+     "2026-10-01": [
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       990,
+       "arbeitszeit"
+      ],
+      [
+       990,
+       1005,
+       "nachheizen"
+      ]
+     ],
+     "2026-10-02": [],
+     "2026-10-03": [
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       720,
+       "arbeitszeit"
+      ],
+      [
+       720,
+       735,
+       "nachheizen"
+      ]
+     ],
+     "2026-10-04": []
+    },
+    "mannschaft": {
+     "2026-09-28": [],
+     "2026-09-29": [
+      [
+       735,
+       780,
+       "vorheizen"
+      ],
+      [
+       780,
+       840,
+       "termin"
+      ]
+     ],
+     "2026-09-30": [],
+     "2026-10-01": [
+      [
+       495,
+       540,
+       "vorheizen"
+      ],
+      [
+       540,
+       630,
+       "termin"
+      ]
+     ],
+     "2026-10-02": [],
+     "2026-10-03": [],
+     "2026-10-04": []
+    },
+    "magazin": {
+     "2026-09-28": [
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       990,
+       "arbeitszeit"
+      ],
+      [
+       990,
+       1005,
+       "nachheizen"
+      ]
+     ],
+     "2026-09-29": [
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       990,
+       "arbeitszeit"
+      ],
+      [
+       990,
+       1005,
+       "nachheizen"
+      ],
+      [
+       1005,
+       1050,
+       "trocknen"
+      ]
+     ],
+     "2026-09-30": [
+      [
+       330,
+       375,
+       "fruehstart"
+      ],
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       1080,
+       "arbeitszeit"
+      ],
+      [
+       1080,
+       1095,
+       "nachheizen"
+      ]
+     ],
+     "2026-10-01": [
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       990,
+       "arbeitszeit"
+      ],
+      [
+       990,
+       1005,
+       "nachheizen"
+      ]
+     ],
+     "2026-10-02": [],
+     "2026-10-03": [
+      [
+       360,
+       375,
+       "fruehstart"
+      ],
+      [
+       375,
+       420,
+       "vorheizen"
+      ],
+      [
+       420,
+       720,
+       "arbeitszeit"
+      ],
+      [
+       720,
+       735,
+       "nachheizen"
+      ]
+     ],
+     "2026-10-04": []
+    }
+   },
+   "staffel": {
+    "an": true,
+    "laufen": 1,
+    "warten": 0,
+    "max": 5,
+    "anschluesse": [
+     {
+      "id": "a1",
+      "name": "Baustrom Nord",
+      "voll_kw": 22.08,
+      "grenze_kw": 14.794,
+      "reserve_kw": 3.0,
+      "heiz_kw": 1.98,
+      "pumpe_kw": 0,
+      "sonst_kw": 0,
+      "frei_kw": 9.814
+     },
+     {
+      "id": "sued",
+      "name": "Verteiler Süd",
+      "voll_kw": 11.04,
+      "grenze_kw": 7.397,
+      "reserve_kw": 1.0,
+      "heiz_kw": 0,
+      "pumpe_kw": 0,
+      "sonst_kw": 0,
+      "frei_kw": 6.397
+     }
+    ]
+   },
+   "warnungen": [
+    {
+     "key": "offline:magazin:magazin_t1",
+     "art": "offline",
+     "stufe": "stoerung",
+     "bereich": "magazin",
+     "geraet": "magazin_t1",
+     "titel": "Bautrockner nicht erreichbar",
+     "hilfe": "Shelly antwortet nicht. Stecker und Sicherung prüfen – bei Stromausfall meldet er sich von selbst zurück.",
+     "seit": "2026-09-29T10:42:00+02:00",
+     "stumm_bis": null
+    },
+    {
+     "key": "tuer_offen:magazin",
+     "art": "tuer_offen",
+     "stufe": "hinweis",
+     "bereich": "magazin",
+     "geraet": null,
+     "titel": "Tür seit 15 min offen – Heizung pausiert",
+     "hilfe": "Heizt wieder, sobald die Tür zu ist. Nach 10 min kommt eine Nachricht aufs Handy.",
+     "seit": "2026-09-29T16:05:00+02:00",
+     "stumm_bis": "2026-09-30T07:00:00+02:00"
+    }
+   ],
+   "wetter": {
+    "aussen": 7.1,
+    "aussen_max": 7.1,
+    "frueh_min": -0.5,
+    "regen_vortag": null,
+    "regen_heute": 6.2,
+    "zustand": "rainy"
+   },
+   "heizgrenze": {
+    "bezug": 7.1,
+    "zu_warm": false
+   },
+   "termine": [
+    {
+     "bereich": "mannschaft",
+     "von": "2026-09-29T13:00:00+02:00",
+     "bis": "2026-09-29T14:00:00+02:00",
+     "titel": "Baubesprechung",
+     "uid": "termin-1",
+     "rrule": "FREQ=WEEKLY",
+     "wiederholung": "woche",
+     "boost": false
+    },
+    {
+     "bereich": "mannschaft",
+     "von": "2026-10-01T09:00:00+02:00",
+     "bis": "2026-10-01T10:30:00+02:00",
+     "titel": "Abnahme Elektro",
+     "uid": "termin-2",
+     "rrule": null,
+     "wiederholung": "einmal",
+     "boost": true
+    },
+    {
+     "bereich": "mannschaft",
+     "von": "2026-10-06T13:00:00+02:00",
+     "bis": "2026-10-06T14:00:00+02:00",
+     "titel": "Baubesprechung",
+     "uid": "termin-1",
+     "rrule": "FREQ=WEEKLY",
+     "wiederholung": "woche",
+     "boost": false
+    }
+   ],
+   "protokoll": [
+    [
+     "2026-09-29T16:18:00+02:00",
+     "einstellung",
+     "magazin",
+     "Stumm bis 30.09.2026: Tür seit 13 min offen – Heizung pausiert"
+    ],
+    [
+     "2026-09-29T16:15:00+02:00",
+     "nachricht",
+     "magazin",
+     "An Handy: „Magazin: Tür seit 10 min offen“"
+    ],
+    [
+     "2026-09-29T16:08:00+02:00",
+     "schalten",
+     "magazin",
+     "Tür offen – Heizung pausiert"
+    ],
+    [
+     "2026-09-29T16:08:00+02:00",
+     "schalten",
+     "magazin",
+     "Tür offen – Heizung pausiert – Ölradiator 1 aus"
+    ],
+    [
+     "2026-09-29T16:05:00+02:00",
+     "schalten",
+     "magazin",
+     "Arbeitszeit – Ölradiator 1 ein"
+    ],
+    [
+     "2026-09-29T16:04:00+02:00",
+     "schalten",
+     "polier",
+     "Arbeitszeit – Ölradiator 1 ein"
+    ],
+    [
+     "2026-09-29T15:44:00+02:00",
+     "schalten",
+     "magazin",
+     "Arbeitszeit – Ölradiator 1 aus"
+    ],
+    [
+     "2026-09-29T15:43:00+02:00",
+     "schalten",
+     "polier",
+     "Arbeitszeit – Ölradiator 1 aus"
+    ],
+    [
+     "2026-09-29T15:23:00+02:00",
+     "schalten",
+     "magazin",
+     "Arbeitszeit – Ölradiator 1 ein"
+    ],
+    [
+     "2026-09-29T15:22:00+02:00",
+     "schalten",
+     "polier",
+     "Arbeitszeit – Ölradiator 1 ein"
+    ],
+    [
+     "2026-09-29T15:02:00+02:00",
+     "schalten",
+     "magazin",
+     "Arbeitszeit – Ölradiator 1 aus"
+    ],
+    [
+     "2026-09-29T15:01:00+02:00",
+     "schalten",
+     "polier",
+     "Arbeitszeit – Ölradiator 1 aus"
+    ],
+    [
+     "2026-09-29T14:41:00+02:00",
+     "schalten",
+     "magazin",
+     "Arbeitszeit – Ölradiator 1 ein"
+    ],
+    [
+     "2026-09-29T14:40:00+02:00",
+     "schalten",
+     "polier",
+     "Arbeitszeit – Ölradiator 1 ein"
+    ],
+    [
+     "2026-09-29T14:20:00+02:00",
+     "schalten",
+     "magazin",
+     "Arbeitszeit – Ölradiator 1 aus"
+    ],
+    [
+     "2026-09-29T14:19:00+02:00",
+     "schalten",
+     "polier",
+     "Arbeitszeit – Ölradiator 1 aus"
+    ],
+    [
+     "2026-09-29T14:00:00+02:00",
+     "schalten",
+     "mannschaft",
+     "Bedarf vorbei – Konvektor 1, Konvektor 2 aus"
+    ],
+    [
+     "2026-09-29T13:59:00+02:00",
+     "schalten",
+     "magazin",
+     "Arbeitszeit – Ölradiator 1 ein"
+    ],
+    [
+     "2026-09-29T13:58:00+02:00",
+     "schalten",
+     "polier",
+     "Arbeitszeit – Ölradiator 1 ein"
+    ],
+    [
+     "2026-09-29T13:38:00+02:00",
+     "schalten",
+     "magazin",
+     "Arbeitszeit – Ölradiator 1 aus"
+    ]
+   ],
+   "probleme": {
+    "polier_r1": [],
+    "polier_k1": [],
+    "mannschaft_k1": [],
+    "mannschaft_k2": [],
+    "magazin_r1": [],
+    "magazin_t1": [
+     "offline"
+    ],
+    "schacht_p1": []
+   },
+   "pumpe_laeuft": {
+    "schacht_p1": false
+   },
+   "erreichbar": true
+  }
+ },
+ {
+  "baustelle": {
+   "entry_id": "halle",
+   "titel": "Halle Lieboch",
+   "status": "abgeschlossen",
+   "optionen": {
+    "heizung": true,
+    "pumpen": false,
+    "status": "abgeschlossen",
+    "beginn": "2025-11-03",
+    "ende": "2026-04-17",
+    "heizperiode_von": "10",
+    "heizperiode_bis": "4"
+   },
+   "geladen": true,
+   "version": "0.7.0",
+   "zeitzone": "Europe/Vienna",
+   "heute": "2026-09-29",
+   "jetzt": "2026-09-29T16:20:00+02:00"
+  },
+  "entitaeten": {
+   "buero_energie": "sensor.buro_energy",
+   "buero_grund": "sensor.buro_heating",
+   "buero_heizzeit": "sensor.buro_heating_time",
+   "buero_kosten": "sensor.buro_cost",
+   "buero_leistung": "sensor.buro_power",
+   "buero_r1_mittel_im_betrieb": "sensor.olradiator_1_olradiator_1_avg_power_while_heating_3",
+   "buero_r1_problem": "binary_sensor.olradiator_1_olradiator_1_problem_3",
+   "halle_aussen": "sensor.halle_lieboch_outdoor_temperature",
+   "halle_automatik": "switch.halle_lieboch_automation",
+   "halle_energie": "sensor.halle_lieboch_energy",
+   "halle_energie_konvektor": "sensor.halle_lieboch_energy_convectors",
+   "halle_energie_oelradiator": "sensor.halle_lieboch_energy_oil_radiators",
+   "halle_energie_ohne_automatik": "sensor.halle_lieboch_energy_without_automation_24_7",
+   "halle_erreichbar": "binary_sensor.halle_lieboch_reachable",
+   "halle_ersparnis": "sensor.halle_lieboch_savings_from_automation",
+   "halle_frueh_prognose": "sensor.halle_lieboch_early_forecast",
+   "halle_heizzeit_konvektor": "sensor.halle_lieboch_heating_time_convectors",
+   "halle_heizzeit_oelradiator": "sensor.halle_lieboch_heating_time_oil_radiators",
+   "halle_kosten": "sensor.halle_lieboch_cost",
+   "halle_leistung": "sensor.halle_lieboch_power",
+   "halle_mittel_konvektor": "sensor.halle_lieboch_avg_power_convector",
+   "halle_mittel_oelradiator": "sensor.halle_lieboch_avg_power_oil_radiator",
+   "halle_naechste_schaltzeit": "sensor.halle_lieboch_next_switching_time",
+   "halle_prognose_heizperiode": "sensor.halle_lieboch_heating_season_projected",
+   "halle_prognose_heizperiode_kosten": "sensor.halle_lieboch_heating_season_projected_cost",
+   "halle_prognose_heizperiode_ohne": "sensor.halle_lieboch_heating_season_without_automation",
+   "halle_regen": "sensor.halle_lieboch_rain",
+   "halle_status": "sensor.halle_lieboch_status",
+   "halle_tageshoechst": "sensor.halle_lieboch_daily_high"
+  },
+  "bereiche": [
+   {
+    "id": "buero",
+    "name": "Büro",
+    "art": "container",
+    "fuehler": null,
+    "nr": 0
+   }
+  ],
+  "geraete": [
+   {
+    "id": "buero_r1",
+    "name": "Ölradiator 1",
+    "bereich": "buero",
+    "schalter": "switch.buero_r1",
+    "rolle": "heizung",
+    "typ": "oelradiator",
+    "leistung": "sensor.buero_r1_leistung",
+    "energie": null,
+    "nenn_kw": 2.0
+   }
+  ],
+  "einstellungen": {
+   "automatik": false,
+   "preis": 0.28,
+   "arbeitszeiten": [],
+   "ausnahmen": [],
+   "heizung": {
+    "vorheizen_min": 45,
+    "nachheizen_min": 15,
+    "soll": 20.0,
+    "toleranz": 0.3,
+    "heizgrenze": 15.0,
+    "heizgrenze_basis": "tageshoechst",
+    "fruehstart": true,
+    "fruehstart_unter": 0.0,
+    "fruehstart_min": 30,
+    "frost": true,
+    "frost_grenze": 5.0,
+    "trocknen_ab_mm": 2.0,
+    "trocknen_laenger_min": 45,
+    "trocknen_frueher_min": 15,
+    "tuer_pause_min": 3,
+    "tuer_melden_min": 10,
+    "boost_min": 30,
+    "feiertag_frei": true
+   },
+   "staffel": {
+    "an": true,
+    "nutzbar_prozent": 67,
+    "max_gleichzeitig": 5,
+    "min_lauf_min": 10,
+    "min_pause_min": 5,
+    "takt_min": 15
+   },
+   "anschluesse": [
+    {
+     "id": "a1",
+     "name": "Anschluss 1",
+     "ampere": 32,
+     "phasen": 3,
+     "reserve_kw": 3.0
+    }
+   ],
+   "firmen": [
+    {
+     "id": "eigen",
+     "name": "Eigene Firma",
+     "eigen": true
+    }
+   ],
+   "zuordnung": [],
+   "bereiche": {
+    "buero": {
+     "auto": true,
+     "trocknen": false,
+     "soll": null,
+     "bedarf": false,
+     "prio": "normal",
+     "anschluss": "a1",
+     "tuer": null
+    }
+   },
+   "meldungen_einst": {
+    "empfaenger": [],
+    "knoepfe": true,
+    "arten": {
+     "offline": true,
+     "baustelle_offline": true,
+     "trockenlauf": true,
+     "dauerlauf": true,
+     "zyklen_oft": true,
+     "keine_leistung": true,
+     "frostgefahr": true,
+     "zu_kalt": true,
+     "fuehler_fehlt": true,
+     "kein_wetter": true,
+     "hand_zu_lange": true,
+     "tuer_offen": true
+    },
+    "kalt_min": 60,
+    "hand_h": 8,
+    "zyklen_h": 10,
+    "dauerlauf_min": 20,
+    "trocken_unter_w": 30,
+    "offline_min": 5
+   },
+   "bericht": {
+    "haeufigkeit": "woche",
+    "handy": true,
+    "mail": false,
+    "mail_an": "",
+    "mail_dienst": "",
+    "csv": true
+   },
+   "termine_kalender": null,
+   "stumm": {},
+   "melden_knopf": true
+  },
+  "zaehler": {
+   "energie": 1840.5,
+   "kosten": 515.34,
+   "ohne": 3950.0,
+   "energie_heizen": 1840.5,
+   "heiztage": 96,
+   "seit": "2025-11-03T00:00:00+01:00",
+   "energie:buero": 1840.5,
+   "heizzeit:buero": 1102.4,
+   "energie_typ:oelradiator": 1840.5,
+   "heizzeit_typ:oelradiator": 1102.4
+  },
+  "laufzeit": {
+   "status": "abgeschlossen",
+   "status_text": "abgeschlossen",
+   "naechste": null,
+   "jetzt_bis": null,
+   "container": {
+    "buero": {
+     "zustand": "aus",
+     "grund": "automatik_aus",
+     "text": "aus",
+     "temperatur": null,
+     "kw": 0,
+     "bedarf_bis": null,
+     "boost_bis": null,
+     "tuer": null
+    }
+   },
+   "geraete": {
+    "buero_r1": {
+     "an": false,
+     "kw": 0.0,
+     "erreichbar": true,
+     "hand_seit": null,
+     "warte": null
+    }
+   },
+   "plan_woche": [
+    {
+     "datum": "2026-09-28",
+     "plan": null,
+     "frei": null
+    },
+    {
+     "datum": "2026-09-29",
+     "plan": null,
+     "frei": null
+    },
+    {
+     "datum": "2026-09-30",
+     "plan": null,
+     "frei": null
+    },
+    {
+     "datum": "2026-10-01",
+     "plan": null,
+     "frei": null
+    },
+    {
+     "datum": "2026-10-02",
+     "plan": null,
+     "frei": null
+    },
+    {
+     "datum": "2026-10-03",
+     "plan": null,
+     "frei": null
+    },
+    {
+     "datum": "2026-10-04",
+     "plan": null,
+     "frei": null
+    }
+   ],
+   "abschnitte": {
+    "buero": {
+     "2026-09-28": [],
+     "2026-09-29": [],
+     "2026-09-30": [],
+     "2026-10-01": [],
+     "2026-10-02": [],
+     "2026-10-03": [],
+     "2026-10-04": []
+    }
+   },
+   "staffel": {
+    "an": true,
+    "laufen": 0,
+    "warten": 0,
+    "max": 5,
+    "anschluesse": [
+     {
+      "id": "a1",
+      "name": "Anschluss 1",
+      "voll_kw": 22.08,
+      "grenze_kw": 14.794,
+      "reserve_kw": 3.0,
+      "heiz_kw": 0,
+      "pumpe_kw": 0,
+      "sonst_kw": 0,
+      "frei_kw": 11.794
+     }
+    ]
+   },
+   "warnungen": [],
+   "wetter": {
+    "aussen": null,
+    "aussen_max": null,
+    "frueh_min": null,
+    "regen_vortag": null,
+    "regen_heute": null,
+    "zustand": null
+   },
+   "heizgrenze": {
+    "bezug": null,
+    "zu_warm": false
+   },
+   "termine": [],
+   "protokoll": [
+    [
+     "2026-04-17T12:00:00+02:00",
+     "einstellung",
+     null,
+     "Baustelle abgeschlossen"
+    ]
+   ],
+   "probleme": {
+    "buero_r1": []
+   },
+   "pumpe_laeuft": {},
+   "erreichbar": true
+  }
+ }
+]

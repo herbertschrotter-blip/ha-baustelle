@@ -1,143 +1,428 @@
-"""Steuerung gegen Home Assistant: schalten, Handbetrieb, Heizgrenze, Pumpenmeldung."""
+"""Steuerung gegen Home Assistant (0.7): Regelung und Staffelung Ende-zu-Ende mit Fake-Shellys, Tür, Hand,
+Heizgrenze, Frost, Feiertag, Termine, Warnungen mit Handy-Knöpfen, Frühstart-Nachricht, Bericht-Termin."""
 
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
-from freezegun.api import FrozenDateTimeFactory
 import pytest
 
-from homeassistant.config_entries import ConfigSubentryDataWithId
-from homeassistant.core import Context, HomeAssistant
+from homeassistant.core import Context, HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_mock_service
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.baustelle.const import DOMAIN
+from custom_components.baustelle.daten import struktur
 
-C1, C2, SCHACHT, HK1, HK2, P1 = "sub_c1", "sub_c2", "sub_schacht", "sub_hk1", "sub_hk2", "sub_p1"
+from .conftest import C1, C2, HK1, HK2, P1, SCHACHT, baustelle_anlegen, eid, sub
 
-
-def _sub(sid, typ, title, data) -> ConfigSubentryDataWithId:
-    return ConfigSubentryDataWithId(subentry_id=sid, subentry_type=typ, title=title, unique_id=None, data=data)
-
-
-@pytest.fixture
-async def baustelle(hass: HomeAssistant, freezer: FrozenDateTimeFactory):
-    await hass.config.async_set_time_zone("Europe/Vienna")
-    for eid, wert in {
-        "switch.hk1": "off", "switch.hk2": "off", "switch.p1": "on",
-        "sensor.hk1_power": "0", "sensor.hk2_power": "0", "sensor.p1_power": "760",
-        "sensor.temp_c1": "19.0", "sensor.aussen": "4.5", "sensor.regen": "6.4",
-    }.items():
-        hass.states.async_set(eid, wert)
-    entry = MockConfigEntry(
-        domain=DOMAIN, title="B1", data={"name": "B1"},
-        options={"heizung": True, "pumpen": True, "status": "aktiv", "beginn": "2026-09-01",
-                 "heizperiode_von": "10", "heizperiode_bis": "4", "empfaenger": ["mobile_app_test"],
-                 "temp_sensor": "sensor.aussen", "regen_sensor": "sensor.regen"},
-        subentries_data=[
-            _sub(C1, "bereich", "Container 1", {"name": "Container 1", "art": "container", "fuehler": "sensor.temp_c1"}),
-            _sub(C2, "bereich", "Container 2", {"name": "Container 2", "art": "container"}),
-            _sub(SCHACHT, "bereich", "Schacht", {"name": "Schacht", "art": "pumpenschacht"}),
-            _sub(HK1, "geraet", "Heizkörper 1", {"bereich": C1, "schalter": "switch.hk1", "name": "Heizkörper 1",
-                                                 "rolle": "heizkoerper", "typ": "oelradiator", "leistung": "sensor.hk1_power"}),
-            _sub(HK2, "geraet", "Heizkörper 2", {"bereich": C2, "schalter": "switch.hk2", "name": "Heizkörper 2",
-                                                 "rolle": "heizkoerper", "typ": "konvektor", "leistung": "sensor.hk2_power"}),
-            _sub(P1, "geraet", "Pumpe 1", {"bereich": SCHACHT, "schalter": "switch.p1", "name": "Pumpe 1",
-                                           "rolle": "pumpe", "typ": "konvektor", "leistung": "sensor.p1_power"}),
-        ],
-    )
-    entry.add_to_hass(hass)
-    hass.services.async_register("notify", "mobile_app_test", lambda call: None)
-    assert await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
-    # Uhr erst nach dem Einrichten stellen (eingefrorene Zeit stört sonst das Anlegen der Entitäten)
-    freezer.move_to("2026-09-29 16:50:00+02:00")  # Dienstag, Plan 06:00–16:30
-    entry.runtime_data.auswerten()
-    await hass.async_block_till_done()
-    return entry
+ZEHN_UHR = "2026-09-29 10:00:00+02:00"  # Dienstag, Arbeitszeit 07:00–16:30
 
 
-def _eid(hass, platform, unique_id) -> str:
-    reg = er.async_get(hass)
-    eid = reg.async_get_entity_id(platform, DOMAIN, unique_id)
-    assert eid, (unique_id, sorted((e.domain, e.unique_id) for e in reg.entities.values() if e.unique_id.startswith("sub_")))
-    return eid
-
-
-async def test_entitaeten_und_automatik_aus_schaltet_nichts(hass: HomeAssistant, baustelle) -> None:
-    an = async_mock_service(hass, "switch", "turn_on")
-    st = baustelle.runtime_data
+async def _zu(hass, freezer, zeit: str, st) -> None:
+    freezer.move_to(zeit)
     st.auswerten()
     await hass.async_block_till_done()
-    assert an == []
-    assert hass.states.get(_eid(hass, "sensor", f"{baustelle.entry_id}_status")).state == "automatik_aus"
-    assert hass.states.get(_eid(hass, "switch", f"{baustelle.entry_id}_automatik")).state == "off"
-    assert hass.states.get(_eid(hass, "time", f"{baustelle.entry_id}_di_ein")).state == "06:00:00"
-    assert hass.states.get(_eid(hass, "sensor", f"{baustelle.entry_id}_leistung")).state == "760.0"
-    # Thermostat-Modus nur mit Fühler
-    assert "thermostat" in hass.states.get(_eid(hass, "select", f"{C1}_modus")).attributes["options"]
-    assert "thermostat" not in hass.states.get(_eid(hass, "select", f"{C2}_modus")).attributes["options"]
 
 
-async def test_kleidung_trocknen_nach_regen(hass: HomeAssistant, baustelle) -> None:
-    an = async_mock_service(hass, "switch", "turn_on")
+def _texte(st, art: str | None = None) -> list[str]:
+    return [p[3] for p in st.e["protokoll"] if art is None or p[1] == art]
+
+
+async def _knopf(hass, st, befehl: str, wert: str) -> None:
+    hass.bus.async_fire(
+        "mobile_app_notification_action", {"action": f"BAUSTELLE|{st.entry.entry_id}|{befehl}|{wert}"}
+    )
+    await hass.async_block_till_done()
+
+
+# ---------------------------------------------------------------------- Entitäten
+async def test_entitaeten_nur_automatik_und_sensoren(hass: HomeAssistant, baustelle, shellys) -> None:
     st = baustelle.runtime_data
-    st.einstellung_setzen(("bereiche", C2, "trocknen"), True)
+    assert shellys.aufrufe == []
+    assert hass.states.get(eid(hass, "sensor", f"{baustelle.entry_id}_status")).state == "automatik_aus"
+    assert hass.states.get(eid(hass, "switch", f"{baustelle.entry_id}_automatik")).state == "off"
+    assert hass.states.get(eid(hass, "sensor", f"{baustelle.entry_id}_leistung")).state == "760.0"
+    assert hass.states.get(eid(hass, "sensor", f"{C1}_grund")).state == "automatik_aus"
+    plattformen = {e.domain for e in er.async_entries_for_config_entry(er.async_get(hass), baustelle.entry_id)}
+    assert plattformen == {"sensor", "binary_sensor", "switch"}
+    schalter = [e for e in er.async_entries_for_config_entry(er.async_get(hass), baustelle.entry_id) if e.domain == "switch"]
+    assert [e.unique_id for e in schalter] == [f"{baustelle.entry_id}_automatik"]
+    assert st.daten.status_text == "Handbetrieb – nichts wird geschaltet"
+
+
+async def test_verwaiste_einstellungs_entitaeten_werden_entfernt(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    entry = await baustelle_anlegen(hass, freezer)
+    reg = er.async_get(hass)
+    alt = [
+        ("time", f"{entry.entry_id}_di_ein"), ("number", f"{entry.entry_id}_heizgrenze"),
+        ("select", f"{C1}_modus"), ("button", f"{entry.entry_id}_test_meldung"),
+        ("switch", f"{entry.entry_id}_mo_aktiv"), ("switch", f"{C2}_kleidung_trocknen"),
+    ]
+    for domain, uid in alt:
+        reg.async_get_or_create(domain, DOMAIN, uid, config_entry=entry)
+    reg.async_get_or_create("switch", DOMAIN, f"{entry.entry_id}_automatik", config_entry=entry)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    for domain, uid in alt:
+        assert reg.async_get_entity_id(domain, DOMAIN, uid) is None, uid
+    assert reg.async_get_entity_id("switch", DOMAIN, f"{entry.entry_id}_automatik") is not None
+
+
+# ---------------------------------------------------------------------- Regelung + Staffelung
+async def test_regelung_und_staffelung_ende_zu_ende(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    st = baustelle.runtime_data
+    # ein Anschluss 20 A Schuko: 20 · 230 · 67 % = 3,08 kW, Pumpe 0,76 kW → Platz für genau einen Heizkörper
+    st.e["anschluesse"][0].update(ampere=20, phasen=1, reserve_kw=0.0)
+    freezer.move_to(ZEHN_UHR)
     st.einstellung_setzen(("automatik",), True)
     await hass.async_block_till_done()
-    assert [c.data["entity_id"] for c in an] == ["switch.hk2"]  # nur Container 2, bis 17:30
-    assert hass.states.get(_eid(hass, "sensor", f"{C2}_grund")).state == "kleidung_trocknen"
-    assert hass.states.get(_eid(hass, "sensor", f"{C1}_grund")).state == "ausserhalb"
-    assert hass.states.get(_eid(hass, "sensor", f"{baustelle.entry_id}_status")).state == "heizt"
+    assert shellys.ein() == ["switch.hk1"]  # größtes Defizit zuerst (19,0 °C bei Soll 20 °C)
+    lz = struktur(hass, baustelle)["laufzeit"]
+    # sobald Heizkörper 1 läuft, wartet Heizkörper 2 auf den Rundlauf (Mockup „wartet – dran in … min“)
+    assert lz["geraete"][HK2]["warte"] == {"grund": "rundlauf", "dran_in_min": 15}
+    assert lz["container"][C1]["zustand"] == "heizt" and lz["container"][C1]["grund"] == "arbeitszeit"
+    assert lz["staffel"]["laufen"] == 1 and lz["staffel"]["warten"] == 1
+    a = lz["staffel"]["anschluesse"][0]
+    assert a["grenze_kw"] == pytest.approx(3.082, abs=0.001) and a["pumpe_kw"] == pytest.approx(0.76)
+    assert "Arbeitszeit – Heizkörper 1 ein" in _texte(st, "schalten")
+    assert "Staffelung: Heizkörper 2 wartet (Anschluss voll)" in _texte(st, "schalten")
+    assert "Staffelung: Heizkörper 2 wartet (Rundlauf 15 min)" in _texte(st, "schalten")
+    assert st.daten.status == "heizt" and st.daten.status_text == "♨ heizt bis 16:45"
+    # Rundlauf nach 15 min: Heizkörper 1 macht Platz für Heizkörper 2
+    freezer.tick(timedelta(minutes=16))
+    st.auswerten()
+    await hass.async_block_till_done()
+    assert shellys.aus() == ["switch.hk1"] and shellys.ein() == ["switch.hk1", "switch.hk2"]
+    # Heizkörper 1 wartet jetzt selbst: erst die Mindestpause (5 min), dann den nächsten Tausch
+    assert struktur(hass, baustelle)["laufzeit"]["geraete"][HK1]["warte"] == {"grund": "mindestpause", "dran_in_min": 5}
+    # Arbeitsende + Nachheizen vorbei → alles aus
+    await _zu(hass, freezer, "2026-09-29 16:46:00+02:00", st)
+    assert hass.states.get("switch.hk2").state == "off"
+    assert hass.states.get(eid(hass, "sensor", f"{C2}_grund")).state == "ausserhalb"
 
 
-async def test_heizgrenze_schaltet_aus(hass: HomeAssistant, baustelle, freezer) -> None:
-    aus = async_mock_service(hass, "switch", "turn_off")
+async def test_ohne_staffelung_heizen_alle_und_thermostat(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
     st = baustelle.runtime_data
-    freezer.move_to("2026-09-29 10:00:00+02:00")
-    hass.states.async_set("switch.hk1", "on")
+    st.e["staffel"]["an"] = False
+    freezer.move_to(ZEHN_UHR)
     st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert sorted(shellys.ein()) == ["switch.hk1", "switch.hk2"]
+    # Fühler über Soll + Toleranz → Thermostat schaltet aus (Grund bleibt Arbeitszeit)
+    hass.states.async_set("sensor.temp_c1", "20.4")
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk1").state == "off"
+    assert st.daten.grund[C1] == "arbeitszeit"
+
+
+async def test_tuer_offen_pausiert_und_trotzdem_heizen(hass: HomeAssistant, baustelle, freezer, shellys, nachrichten) -> None:
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    hass.states.async_set("binary_sensor.tuer_c2", "off")
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("bereiche", C2, "tuer"), "binary_sensor.tuer_c2")
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk2").state == "on"
+    hass.states.async_set("binary_sensor.tuer_c2", "on")
+    await hass.async_block_till_done()
+    await _zu(hass, freezer, "2026-09-29 10:04:00+02:00", st)
+    assert hass.states.get("switch.hk2").state == "off"
+    assert st.daten.grund[C2] == "tuer_offen" and st.daten.text[C2] == "pausiert · Tür offen"
+    assert "Tür offen – Heizung pausiert" in _texte(st, "schalten")
+    assert nachrichten == []  # Nachricht erst nach 10 min
+    await _zu(hass, freezer, "2026-09-29 10:11:00+02:00", st)
+    (n,) = nachrichten
+    assert n.data["title"] == "🚪 Container 2: Tür seit 11 min offen"
+    assert [a["title"] for a in n.data["data"]["actions"]] == ["Trotzdem heizen", "1 h stumm"]
+    await _knopf(hass, st, "trotzdem", C2)
+    assert hass.states.get("switch.hk2").state == "on"
+    assert any("Trotzdem heizen" in t for t in _texte(st, "nachricht"))
+
+
+async def test_hand_bis_zum_naechsten_schaltpunkt(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    hass.states.async_set("switch.hk2", "off", context=Context(user_id="nutzer"))
+    await hass.async_block_till_done()
+    assert HK2 in st.lz["hand"]
+    await _zu(hass, freezer, "2026-09-29 10:05:00+02:00", st)
+    assert hass.states.get("switch.hk2").state == "off"  # bleibt auf Hand
+    assert struktur(hass, baustelle)["laufzeit"]["geraete"][HK2]["hand_seit"]
+    # nächster Schaltpunkt: Heizzeit vorbei → Automatik übernimmt wieder
+    await _zu(hass, freezer, "2026-09-29 16:46:00+02:00", st)
+    assert HK2 not in st.lz["hand"]
+    assert any("Automatik übernimmt" in t for t in _texte(st, "schalten"))
+
+
+async def test_heizgrenze_schaltet_aus(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    freezer.move_to(ZEHN_UHR)
+    hass.states.async_set("switch.hk2", "on")
     hass.states.async_set("sensor.aussen", "17")
-    await hass.async_block_till_done()
-    assert "switch.hk1" in [c.data["entity_id"] for c in aus]
-    assert hass.states.get(_eid(hass, "sensor", f"{baustelle.entry_id}_status")).state == "heizgrenze"
-
-
-async def test_hand_geschaltet_setzt_handbetrieb(hass: HomeAssistant, baustelle) -> None:
-    st = baustelle.runtime_data
     st.einstellung_setzen(("automatik",), True)
-    hass.states.async_set("switch.hk1", "on", context=Context(user_id="nutzer"))
     await hass.async_block_till_done()
-    assert st.einstellungen.bereich(C1)["modus"] == "hand"
-    assert hass.states.get(_eid(hass, "select", f"{C1}_modus")).state == "hand"
+    assert "switch.hk2" in shellys.aus()
+    assert hass.states.get(eid(hass, "sensor", f"{baustelle.entry_id}_status")).state == "heizgrenze"
+    assert any(t.startswith("Heizgrenze überschritten (Höchstwert 17 °C)") for t in _texte(st, "wetter"))
 
 
-async def test_pumpe_trockenlauf_meldet(hass: HomeAssistant, baustelle, freezer) -> None:
-    meldungen = async_mock_service(hass, "notify", "mobile_app_test")
-    hass.states.async_set("sensor.p1_power", "120")
+async def test_frostschutz_ausserhalb_der_arbeitszeit(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    st = baustelle.runtime_data
+    freezer.move_to("2026-09-29 21:00:00+02:00")
+    hass.states.async_set("sensor.temp_c1", "4.0")
+    st.einstellung_setzen(("automatik",), True)
     await hass.async_block_till_done()
-    assert meldungen == []  # erst nach einer Minute
+    assert shellys.ein() == ["switch.hk1"]
+    assert st.daten.zustand[C1] == "frost" and st.daten.text[C1] == "Frostschutz"
+    assert any(w.art == "frostgefahr" for w in st.daten.warnungen)
+
+
+async def test_alle_jetzt_heizen_auch_ueber_der_heizgrenze(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    freezer.move_to("2026-09-29 19:00:00+02:00")
+    hass.states.async_set("sensor.aussen", "18")
+    st.lz["jetzt_bis"] = "2026-09-29T20:00:00+02:00"
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert sorted(shellys.ein()) == ["switch.hk1", "switch.hk2"]
+    assert st.daten.status_text == "♨ alle heizen bis 20:00"
+    await _zu(hass, freezer, "2026-09-29 20:01:00+02:00", st)
+    assert st.lz["jetzt_bis"] is None and hass.states.get("switch.hk2").state == "off"
+
+
+# ---------------------------------------------------------------------- Kalender
+def _kalender(hass: HomeAssistant, events: dict[str, list[dict]]) -> list[ServiceCall]:
+    aufrufe = []
+
+    async def get_events(call: ServiceCall):
+        aufrufe.append(call)
+        ids = call.data["entity_id"]
+        return {e: {"events": events.get(e, [])} for e in ([ids] if isinstance(ids, str) else ids)}
+
+    hass.services.async_register("calendar", "get_events", get_events, supports_response=SupportsResponse.ONLY)
+    for entity_id in events:
+        hass.states.async_set(entity_id, "off")
+    return aufrufe
+
+
+async def test_feiertag_aus_dem_kalender(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    _kalender(hass, {"calendar.feiertage": [{"start": "2026-09-29", "end": "2026-09-30", "summary": "Testfeiertag"}]})
+    entry = await baustelle_anlegen(hass, freezer, ZEHN_UHR, feiertag_kalender="calendar.feiertage")
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    shellys.anmelden()
+    st = entry.runtime_data
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert shellys.ein() == []
+    assert st.daten.status == "feiertag" and st.daten.grund[C2] == "frei"
+    woche = struktur(hass, entry)["laufzeit"]["plan_woche"]
+    assert [t["datum"] for t in woche][:2] == ["2026-09-28", "2026-09-29"]
+    assert woche[1] == {"datum": "2026-09-29", "plan": None, "frei": "feiertag", "name": "Testfeiertag"}
+    assert woche[2]["plan"]["a"] == 420 and woche[2]["plan"]["ende"] == 1005
+
+
+async def test_bedarf_mit_termin_aus_dem_kalender(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    _kalender(hass, {"calendar.besprechungen": [
+        {"start": "2026-09-29T11:00:00+02:00", "end": "2026-09-29T12:00:00+02:00", "summary": "Baubesprechung",
+         "description": f"baustelle:{C2}"},
+    ]})
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("bereiche", C2, "bedarf"), True)
+    st.einstellung_setzen(("termine_kalender",), "calendar.besprechungen")
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert st.termine[0]["titel"] == "Baubesprechung" and st.termine[0]["wiederholung"] == "einmal"
+    assert hass.states.get("switch.hk2").state == "off" and st.daten.grund[C2] == "bereit"
+    assert st.daten.text[C2] == "bei Bedarf · nur Frostschutz"
+    await _zu(hass, freezer, "2026-09-29 10:16:00+02:00", st)  # 45 min Vorheizen vor 11:00
+    assert hass.states.get("switch.hk2").state == "on" and st.daten.grund[C2] == "bedarf"
+    assert st.daten.text[C2] == "heizt bis 12:00"
+    lz = struktur(hass, baustelle)["laufzeit"]
+    assert lz["abschnitte"][C2]["2026-09-29"] == [[615, 660, "vorheizen"], [660, 720, "termin"]]
+    assert lz["termine"][0]["bereich"] == C2
+
+
+# ---------------------------------------------------------------------- Warnungen und Nachrichten
+async def test_pumpe_trockenlauf_meldet_mit_knoepfen(hass: HomeAssistant, baustelle, freezer, nachrichten) -> None:
+    st = baustelle.runtime_data
+    hass.states.async_set("sensor.p1_power", "25")  # läuft (≥ 20 W), zieht aber unter 30 W
+    await hass.async_block_till_done()
+    assert nachrichten == []  # erst nach einer Minute
     freezer.tick(timedelta(minutes=2))
-    baustelle.runtime_data.auswerten()  # sonst der Minutentakt von HA
+    st.auswerten()
     await hass.async_block_till_done()
-    assert len(meldungen) == 1 and "Trockenlauf" in meldungen[0].data["message"]
-    problem = hass.states.get(_eid(hass, "binary_sensor", f"{P1}_problem"))
+    (n,) = nachrichten
+    assert n.data["title"] == "⚠ Schacht: Pumpe 1 Trockenlauf: 25 W"
+    aktionen = n.data["data"]["actions"]
+    assert aktionen[0] == {"action": "URI", "title": "Zum Container",
+                           "uri": f"/baustelle?baustelle={baustelle.entry_id}&container={SCHACHT}"}
+    assert aktionen[1]["title"] == "Bis morgen stumm"
+    problem = hass.states.get(eid(hass, "binary_sensor", f"{P1}_problem"))
     assert problem.state == "on" and problem.attributes["probleme"] == ["trockenlauf"]
+    assert "Pumpe 1 Trockenlauf: 25 W" in _texte(st, "warnung")
+    assert "An Test: „Schacht: Pumpe 1 Trockenlauf: 25 W“" in _texte(st, "nachricht")
     # nicht nochmal melden
     freezer.tick(timedelta(minutes=1))
-    baustelle.runtime_data.auswerten()
+    st.auswerten()
     await hass.async_block_till_done()
-    assert len(meldungen) == 1
-
-
-async def test_baustelle_nicht_erreichbar(hass: HomeAssistant, baustelle) -> None:
-    meldungen = async_mock_service(hass, "notify", "mobile_app_test")
-    for eid in ("switch.hk1", "switch.hk2", "switch.p1"):
-        hass.states.async_set(eid, "unavailable")
+    assert len(nachrichten) == 1
+    # Knopf „Bis morgen stumm“
+    key = f"trockenlauf:{SCHACHT}:{P1}"
+    await _knopf(hass, st, "stumm_morgen", key)
+    assert st.e["stumm"][key].startswith("2026-09-30T07:00")
+    w = next(x for x in struktur(hass, baustelle)["laufzeit"]["warnungen"] if x["key"] == key)
+    assert w["stumm_bis"] and w["stufe"] == "stoerung" and w["hilfe"]
+    # Problem vorbei → „wieder normal“ im Protokoll
+    hass.states.async_set("sensor.p1_power", "760")
     await hass.async_block_till_done()
-    assert hass.states.get(_eid(hass, "binary_sensor", f"{baustelle.entry_id}_erreichbar")).state == "off"
-    assert len(meldungen) == 1 and "Stromausfall" in meldungen[0].data["message"]
+    assert "Pumpe 1 wieder normal" in _texte(st, "ok")
 
 
+async def test_baustelle_nicht_erreichbar(hass: HomeAssistant, baustelle, freezer, nachrichten) -> None:
+    st = baustelle.runtime_data
+    for entity_id in ("switch.hk1", "switch.hk2", "switch.p1"):
+        hass.states.async_set(entity_id, "unavailable")
+    await hass.async_block_till_done()
+    assert hass.states.get(eid(hass, "binary_sensor", f"{baustelle.entry_id}_erreichbar")).state == "off"
+    await _zu(hass, freezer, "2026-09-29 16:56:00+02:00", st)
+    assert [n.data["title"] for n in nachrichten] == ["⚠ Baustelle nicht erreichbar"]
+
+
+async def test_hand_zu_lange_nachricht_und_automatik_uebernehmen(hass: HomeAssistant, baustelle, freezer, nachrichten) -> None:
+    st = baustelle.runtime_data
+    st.lz["hand"][HK2] = (dt_util.now() - timedelta(hours=9)).isoformat()
+    st.auswerten()
+    await hass.async_block_till_done()
+    (n,) = nachrichten
+    assert n.data["title"] == "✋ Heizkörper 2 Container 2 seit 9 h auf Hand"
+    assert [a["title"] for a in n.data["data"]["actions"]] == ["Automatik übernehmen", "So lassen"]
+    await _knopf(hass, st, "automatik", HK2)
+    assert HK2 not in st.lz["hand"]
+
+
+async def test_fruehstart_nachricht_am_vorabend(hass: HomeAssistant, baustelle, freezer, nachrichten) -> None:
+    st = baustelle.runtime_data
+    st.lz["wetter_tage"] = {"2026-09-30": {"frueh": -4.0}}
+    st.einstellung_setzen(("automatik",), True)
+    freezer.move_to("2026-09-29 18:00:00+02:00")
+    st._takt(dt_util.now())  # noqa: SLF001
+    await hass.async_block_till_done()
+    (n,) = [x for x in nachrichten if x.data["title"].startswith("❄")]
+    assert n.data["title"] == "❄ Morgen −4 °C"
+    assert n.data["message"] == "Vorheizen startet schon um 05:45. Arbeitsbeginn 07:00."
+    assert [a["title"] for a in n.data["data"]["actions"]] == ["Morgen nicht heizen", "Noch früher (05:15)"]
+    st._takt(dt_util.now())  # noqa: SLF001
+    assert len([x for x in nachrichten if x.data["title"].startswith("❄")]) == 1  # einmal je Tag
+    await _knopf(hass, st, "frueher", "2026-09-30")
+    assert st.plan(date(2026, 9, 30), True).start == 5 * 60 + 15
+    await _knopf(hass, st, "frei", "2026-09-30")
+    assert st.plan(date(2026, 9, 30), True) is None
+    assert {"datum": "2026-09-30", "art": "frei"}.items() <= st.e["ausnahmen"][0].items()
+
+
+async def test_bericht_zum_termin(hass: HomeAssistant, baustelle, freezer, nachrichten, monkeypatch) -> None:
+    from custom_components.baustelle.nachrichten import HINWEIS_OHNE_ANHANG, Nachrichten
+
+    mails: list[ServiceCall] = []
+
+    async def mail(call: ServiceCall) -> None:
+        mails.append(call)
+
+    hass.services.async_register("notify", "mail_test", mail)
+
+    async def verbrauch(self, von, bis):
+        return {C1: {date(2026, 9, 21): 20.0, date(2026, 9, 28): 10.0, date(2026, 10, 1): 12.0},
+                C2: {date(2026, 9, 30): 8.0}}
+
+    monkeypatch.setattr(Nachrichten, "async_verbrauch_je_tag", verbrauch)
+    st = baustelle.runtime_data
+    st.einstellung_setzen(("bericht", "mail"), True)
+    st.einstellung_setzen(("bericht", "mail_dienst"), "mail_test")
+    st.einstellung_setzen(("bericht", "mail_an"), "bau@example.at")
+    zeit = datetime(2026, 10, 5, 7, 0, 1, tzinfo=dt_util.get_default_time_zone())
+    freezer.move_to(zeit)
+    async_fire_time_changed(hass, zeit)
+    await hass.async_block_till_done()
+    handy = [n for n in nachrichten if n.data["title"].startswith("Baustelle B1 – Woche")]
+    assert handy[0].data["title"] == "Baustelle B1 – Woche 28.09.–04.10.2026"
+    assert handy[0].data["message"].startswith("Vorwoche: 30 kWh · 8,40 € (+50 % zur Woche davor)")
+    (m,) = mails
+    assert m.data["target"] == ["bau@example.at"]
+    assert "Je Firma\nEigene Firma: 30 kWh · 8,40 €" in m.data["message"]
+    assert HINWEIS_OHNE_ANHANG in m.data["message"]  # kein SMTP-Dienst → kein Anhang, dafür Hinweis
+    assert any(t.startswith("Bericht Woche 28.09.–04.10.2026 an Test, E-Mail") for t in _texte(st, "nachricht"))
+    # nächster Termin ist eingeplant
+    assert st._bericht_abmelden is not None  # noqa: SLF001
+
+
+# ---------------------------------------------------------------------- Store, Logbuch, Diagnose
+async def test_store_v1_nur_zaehler_uebernehmen(hass: HomeAssistant, freezer, hass_storage, shellys, nachrichten) -> None:
+    entry = await baustelle_anlegen(hass, freezer)
+    key = f"baustelle.{entry.entry_id}"
+    hass_storage[key] = {"version": 1, "minor_version": 1, "key": key, "data": {
+        "automatik": True, "plan": {"mo": {"ein": "05:00", "aus": "12:00", "aktiv": True}},
+        "regeln": {"heizgrenze": 12.0}, "preis": 0.5, "bereiche": {C1: {"modus": "hand", "soll": 22}},
+        "zaehler": {"energie": 12.5, "kosten": 3.5, f"stand:{HK1}": 100.0, "heizzeit:" + C1: 4.0},
+    }}
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    st = entry.runtime_data
+    e = st.e
+    assert e["zaehler"]["energie"] == 12.5 and e["zaehler"]["heizzeit:" + C1] == 4.0
+    assert e["automatik"] is False and e["preis"] == 0.28 and "plan" not in e and "regeln" not in e
+    assert e["heizung"]["soll"] == 20.0 and e["heizung"]["heizgrenze_basis"] == "tageshoechst"
+    assert e["bereiche"][C1] == {"auto": True, "trocknen": False, "soll": None, "bedarf": False, "prio": "normal",
+                                 "anschluss": "a1", "tuer": None}
+    assert e["arbeitszeiten"][0]["ab"] == "2026-09-29" and e["arbeitszeiten"][0]["tage"]["4"] == ["07:00", "12:30"]
+    assert e["meldungen_einst"]["empfaenger"] == ["mobile_app_test"]
+    assert e["protokoll"][0][1:] == ["einstellung", None, "Umstellung auf 0.7.0: Einstellungen neu, Zähler übernommen"]
+    for i in range(1005):
+        st.protokoll("schalten", None, f"Eintrag {i}")
+    assert len(e["protokoll"]) == 1000 and e["protokoll"][0][3] == "Eintrag 1004"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass_storage[key]["version"] == 2
+    assert "_von_v1" not in hass_storage[key]["data"]
+
+
+async def test_protokoll_ins_logbuch(hass: HomeAssistant, baustelle) -> None:
+    from homeassistant.core import Event
+
+    from custom_components.baustelle.logbook import async_describe_events
+
+    beschreiber = {}
+    async_describe_events(hass, lambda domain, typ, f: beschreiber.setdefault(typ, f))
+    ereignisse = []
+    hass.bus.async_listen("baustelle_protokoll", ereignisse.append)
+    baustelle.runtime_data.protokoll("warnung", C1, "zu kalt: 17,8 °C statt 20 °C")
+    await hass.async_block_till_done()
+    (ev,) = ereignisse
+    text = beschreiber["baustelle_protokoll"](Event("baustelle_protokoll", ev.data))
+    assert text == {"name": "Baustelle B1 · Container 1", "message": "zu kalt: 17,8 °C statt 20 °C", "icon": "mdi:alert"}
+
+
+async def test_diagnose(hass: HomeAssistant, baustelle) -> None:
+    from custom_components.baustelle.diagnostics import async_get_config_entry_diagnostics
+
+    d = await async_get_config_entry_diagnostics(hass, baustelle)
+    assert d["baustelle"]["titel"] == "B1"
+    assert d["baustelle"]["optionen"]["empfaenger"] == "**REDACTED**"
+    assert d["einstellungen"]["meldungen_einst"]["empfaenger"] == "**REDACTED**"
+    assert d["entitaeten"][f"{baustelle.entry_id}_status"].startswith("sensor.")
+    assert {g["id"] for g in d["geraete"]} == {HK1, HK2, P1}
+    assert d["laufzeit"]["status"] == "automatik_aus"
+
+
+# ---------------------------------------------------------------------- wie 0.6
 async def test_bereich_loeschen_laedt_neu(hass: HomeAssistant, baustelle) -> None:
     hass.config_entries.async_remove_subentry(baustelle, HK2)
     await hass.async_block_till_done()
@@ -171,27 +456,26 @@ async def test_problem_sensor_haengt_am_shelly_geraet(hass: HomeAssistant) -> No
         options={"heizung": True, "pumpen": False, "status": "aktiv", "beginn": "2026-09-01",
                  "heizperiode_von": "10", "heizperiode_bis": "4", "empfaenger": []},
         subentries_data=[
-            _sub("c", "bereich", "C", {"name": "C", "art": "container"}),
-            _sub("g", "geraet", "HK", {"bereich": "c", "schalter": "switch.plug_a1f3", "name": "HK",
-                                       "rolle": "heizkoerper", "typ": "konvektor"}),
+            sub("c", "bereich", "C", {"name": "C", "art": "container"}),
+            sub("g", "geraet", "HK", {"bereich": "c", "schalter": "switch.plug_a1f3", "name": "HK",
+                                      "rolle": "heizkoerper", "typ": "konvektor"}),
         ],
     )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    problem = er.async_get(hass).async_get(_eid(hass, "binary_sensor", "g_problem"))
+    problem = er.async_get(hass).async_get(eid(hass, "binary_sensor", "g_problem"))
     assert problem.device_id == geraet.id
-    # Leistungssensor am Shelly automatisch gefunden
     assert entry.runtime_data.geraete["g"].leistung == "sensor.plug_a1f3_power"
 
 
 def test_prognose_auswerten() -> None:
-    from datetime import datetime
     from zoneinfo import ZoneInfo
 
     from custom_components.baustelle.steuerung import _prognose_auswerten
 
     tz = ZoneInfo("UTC")
+    dt_util.set_default_time_zone(tz)
     jetzt = datetime(2026, 9, 29, 16, 0, tzinfo=tz)
     stunden = [
         {"datetime": "2026-09-29T15:00:00+00:00", "temperature": 9.0, "precipitation": 1.2},
@@ -200,73 +484,36 @@ def test_prognose_auswerten() -> None:
         {"datetime": "2026-09-30T06:00:00+00:00", "temperature": -1.5},
         {"datetime": "2026-09-30T12:00:00+00:00", "temperature": 12.0},
     ]
-    from homeassistant.util import dt as dt_util
-
-    dt_util.set_default_time_zone(tz)
-    p = _prognose_auswerten(stunden, "hourly", jetzt)
-    assert p == {"max_heute": 9.0, "frueh": -1.5, "regen_heute": 2.0}
+    assert _prognose_auswerten(stunden, "hourly", jetzt) == {"max_heute": 9.0, "frueh": -1.5, "regen_heute": 2.0}
     tage = [{"datetime": "2026-09-29T00:00:00+00:00", "temperature": 10.0, "templow": 3.0, "precipitation": 4.0},
             {"datetime": "2026-09-30T00:00:00+00:00", "temperature": 11.0, "templow": -2.0}]
     assert _prognose_auswerten(tage, "daily", jetzt) == {"max_heute": 10.0, "frueh": -2.0, "regen_heute": 4.0}
 
 
-async def test_heizkoerper_ohne_strom_nur_wenn_nie_geheizt(hass: HomeAssistant, baustelle, freezer) -> None:
-    st = baustelle.runtime_data
-    problem = lambda: hass.states.get(_eid(hass, "binary_sensor", f"{HK1}_problem")).state  # noqa: E731
-    # eingeschaltet, zieht nie Strom → nach 10 min Problem
-    hass.states.async_set("switch.hk1", "on")
-    await hass.async_block_till_done()
-    freezer.tick(timedelta(minutes=11))
-    st.auswerten()
-    await hass.async_block_till_done()
-    assert problem() == "on"
-    # heizt einmal, danach 0 W (eigener Thermostat) → kein Problem
-    hass.states.async_set("sensor.hk1_power", "1980")
-    await hass.async_block_till_done()
-    hass.states.async_set("sensor.hk1_power", "0")
-    freezer.tick(timedelta(minutes=30))
-    st.auswerten()
-    await hass.async_block_till_done()
-    assert problem() == "off"
-
-
-async def test_diagnose(hass: HomeAssistant, baustelle) -> None:
-    from custom_components.baustelle.diagnostics import async_get_config_entry_diagnostics
-
-    d = await async_get_config_entry_diagnostics(hass, baustelle)
-    assert d["baustelle"]["titel"] == "B1"
-    assert d["baustelle"]["optionen"]["empfaenger"] == "**REDACTED**"
-    assert d["entitaeten"][f"{baustelle.entry_id}_status"].startswith("sensor.")
-    assert {g["id"] for g in d["geraete"]} == {HK1, HK2, P1}
-    assert d["laufzeit"]["status"] == "automatik_aus"
-
-
-async def test_reparatur_hinweis_bei_fehlender_entitaet(hass: HomeAssistant, baustelle, freezer) -> None:
+async def test_reparatur_hinweis_bei_fehlender_entitaet(hass: HomeAssistant, baustelle) -> None:
     from homeassistant.helpers import issue_registry as ir
-    from homeassistant.util import dt as dt_util
 
     st = baustelle.runtime_data
     issue_id = f"fehlt_{baustelle.entry_id}_switch.hk1"
     hass.states.async_remove("switch.hk1")
-    st._gestartet = dt_util.now() - timedelta(minutes=11)
-    st._takt(dt_util.now())
+    st._gestartet = dt_util.now() - timedelta(minutes=11)  # noqa: SLF001
+    st._takt(dt_util.now())  # noqa: SLF001
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
     hass.states.async_set("switch.hk1", "off")
-    st._takt(dt_util.now())
+    st._takt(dt_util.now())  # noqa: SLF001
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
-async def test_naechste_schaltzeit_morgen(hass: HomeAssistant, baustelle, freezer) -> None:
+async def test_naechste_schaltzeit_ueber_das_wochenende(hass: HomeAssistant, baustelle, freezer) -> None:
     st = baustelle.runtime_data
     st.einstellung_setzen(("automatik",), True)
-    freezer.move_to("2026-10-02 19:00:00+02:00")  # Freitag abends → Montag 06:00 (Sa/So aus)
-    st.auswerten()
-    await hass.async_block_till_done()
-    assert st.daten.naechste.isoformat().startswith("2026-10-05T06:00")
+    await _zu(hass, freezer, "2026-10-02 19:00:00+02:00", st)  # Freitag abends → Montag 06:15
+    assert st.daten.naechste.isoformat().startswith("2026-10-05T06:15")
+    assert st.daten.status_text == "aus · Mo ab 06:15"
 
 
 async def test_eigene_sensoren_als_wetterquelle_werden_entfernt(hass: HomeAssistant, baustelle) -> None:
-    eigener = _eid(hass, "sensor", f"{baustelle.entry_id}_aussen")
+    eigener = eid(hass, "sensor", f"{baustelle.entry_id}_aussen")
     hass.config_entries.async_update_entry(baustelle, options={**baustelle.options, "temp_sensor": eigener})
     await hass.async_block_till_done()  # Update-Listener lädt neu, Setup räumt auf
     assert "temp_sensor" not in baustelle.options
@@ -274,19 +521,70 @@ async def test_eigene_sensoren_als_wetterquelle_werden_entfernt(hass: HomeAssist
 
 
 async def test_vorhersage_sobald_wetter_da(hass: HomeAssistant, baustelle) -> None:
-    from pytest_homeassistant_custom_component.common import async_mock_service
-    from homeassistant.core import SupportsResponse
-
     aufrufe = []
 
     async def vorhersage(call):
         aufrufe.append(call)
-        return {"weather.spaet": {"forecast": [{"datetime": "2026-09-30T05:00:00+02:00", "temperature": -1.0, "precipitation": 0.4}]}}
+        return {"weather.spaet": {"forecast": [
+            {"datetime": "2026-09-30T05:00:00+02:00", "temperature": -1.0, "precipitation": 0.4}]}}
 
     hass.services.async_register("weather", "get_forecasts", vorhersage, supports_response=SupportsResponse.ONLY)
     hass.config_entries.async_update_entry(baustelle, options={**baustelle.options, "wetter": "weather.spaet"})
     await hass.async_block_till_done()
     assert aufrufe == []  # Wetter noch nicht geladen
-    hass.states.async_set("weather.spaet", "sunny", {"temperature": 4.0})
+    hass.states.async_set("weather.spaet", "rainy", {"temperature": 4.0})
     await hass.async_block_till_done()
     assert len(aufrufe) >= 1
+    st = baustelle.runtime_data
+    assert st.lz["wetter_tage"]["2026-09-30"]["frueh"] == -1.0
+    assert struktur(hass, baustelle)["laufzeit"]["wetter"]["zustand"] == "rainy"
+    assert st.daten.wetter.frueh == -1.0  # nach 8 Uhr: der Morgen von morgen
+
+
+async def test_nachricht_tag_je_baustelle_und_ungueltiger_knopf(hass: HomeAssistant, baustelle, nachrichten) -> None:
+    """Gleiche Warnung zweier Baustellen (z. B. `baustelle_offline`) darf sich auf dem Handy nicht ersetzen;
+    ein Knopf mit kaputtem Datum ändert nichts."""
+    st = baustelle.runtime_data
+    st.nachrichten.melden("⚠ B1", "offline", tag="baustelle_baustelle_offline")
+    await hass.async_block_till_done()
+    assert nachrichten[-1].data["data"]["tag"] == f"baustelle_baustelle_offline_{baustelle.entry_id}"
+    vorher = list(st.e["ausnahmen"])
+    st.nachrichten.knopf("frei", "kein-datum")
+    st.nachrichten.knopf("frueher", "2026-13-40")
+    assert st.e["ausnahmen"] == vorher and not st.lz.get("frueher")
+
+
+async def test_neuer_tuerkontakt_wird_beobachtet(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """Ein auf der Seite gesetzter Türkontakt wirkt sofort bei seiner Zustandsänderung, nicht erst im Minutentakt."""
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    hass.states.async_set("binary_sensor.tuer_c2", "on")
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    st._tuer_trotzdem.add(C2)  # noqa: SLF001  (heizt trotz offener Tür)
+    st.einstellung_setzen(("bereiche", C2, "tuer"), "binary_sensor.tuer_c2")
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk2").state == "on"
+    hass.states.async_set("binary_sensor.tuer_c2", "off")  # zu → „trotzdem“ ist vorbei
+    await hass.async_block_till_done()
+    assert C2 not in st._tuer_trotzdem  # noqa: SLF001
+
+
+async def test_anlauf_ohne_protokoll_eintrag(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """Anlaufstaffel: die Heizkörper gehen nacheinander an (höchstens einer je 20 s, kein gemeinsamer Einschaltstoß).
+    Das kurze Warten ist kein Warten, das ins Protokoll gehört."""
+    st = baustelle.runtime_data
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert shellys.ein() == ["switch.hk1"]
+    assert struktur(hass, baustelle)["laufzeit"]["geraete"][HK2]["warte"] == {"grund": "anlauf", "dran_in_min": 0}
+    freezer.tick(timedelta(seconds=10))
+    st.auswerten()
+    await hass.async_block_till_done()
+    assert shellys.ein() == ["switch.hk1"]  # noch keine 20 s
+    freezer.tick(timedelta(seconds=11))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+    assert sorted(shellys.ein()) == ["switch.hk1", "switch.hk2"]
+    assert not [t for t in _texte(st, "schalten") if "wartet" in t]

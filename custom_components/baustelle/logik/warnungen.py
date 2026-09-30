@@ -11,8 +11,9 @@ Ablauf beim Aufrufer (Integration), z. B. jede Minute:
 4. `gemeldet_merken(neu, bisher, gemeldet)` ergibt das neue `bisher` (gemeldete Keys, solange das Problem besteht).
    Verschwindet ein Problem, fällt sein Key heraus – kommt es wieder, wird es erneut gemeldet.
 
-Stufen: Störungen gehen sofort aufs Handy (einmal je Problem), Hinweise nur ins Protokoll und in den Chip. Ausnahme
-`tuer_offen`: Hinweis ab `tuer_pause_min` (Heizung pausiert), Nachricht erst nach `tuer_melden_min`.
+Stufen: Störungen gehen sofort aufs Handy (einmal je Problem), Hinweise nur ins Protokoll und in den Chip. Ausnahmen
+`tuer_offen`: Hinweis ab `tuer_pause_min` (Heizung pausiert), Nachricht erst nach `tuer_melden_min`; `hand_zu_lange`:
+Nachricht nach `hand_h` (Bauplan §5).
 Stumm bis Zeitpunkt unterdrückt Nachricht und Chip, nicht das Protokoll (`pruefe` liefert stumme Warnungen weiter).
 
 Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
@@ -33,8 +34,8 @@ Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
 - `fuehler_fehlt`: Fühler eingerichtet, aber kein Messwert, oder Batterie unter `batterie_unter` %
   („Fühler meldet nichts / Batterie schwach“).
 - `zyklen_oft` ab `zyklen_h` Zyklen in der letzten Stunde („ab 10 je Stunde“).
-- Das Mockup zeigt unter „nachrichten“ auch „Steckdose Magazin seit 8 h auf Hand“ als Handy-Nachricht. Bauplan und
-  Einstellungs-Fußzeile sagen: Hinweise nur Protokoll und Chip. Umgesetzt ist der Bauplan (keine Nachricht).
+- Das Mockup zeigt unter „nachrichten“ auch „Steckdose Magazin seit 8 h auf Hand“ als Handy-Nachricht. Bauplan §5
+  (Entscheidung 30.09.2026): die Beispiel-Nachrichten gehen vor – `hand_zu_lange` kommt nach `hand_h` aufs Handy.
 - Zahlen in Texten wie `de()` im Mockup: Dezimalkomma, kaufmännisch gerundet (4,25 → 4,3).
 """
 
@@ -405,14 +406,18 @@ def zu_melden(
     """Warnungen, die jetzt als Nachricht aufs Handy gehen.
 
     Störungen sofort, einmal je Problem (`bisher` = schon gemeldete Keys); `tuer_offen` nach `tuer_melden_min`;
-    andere Hinweise nie. Stumme Warnungen werden nicht gemeldet (und nicht als gemeldet gemerkt, s. `gemeldet_merken`).
+    `hand_zu_lange` nach `hand_h` (Bauplan §5); andere Hinweise nie. Stumme Warnungen werden nicht gemeldet (und nicht als gemeldet gemerkt, s. `gemeldet_merken`).
     """
     return [
         w
         for w in neu
         if w.key not in bisher
         and not ist_stumm(w.key, stumm, jetzt)
-        and (w.stufe == Stufe.STOERUNG or (w.art == Art.TUER_OFFEN and w.werte.get("nachricht", False)))
+        and (
+            w.stufe == Stufe.STOERUNG
+            or w.art == Art.HAND_ZU_LANGE
+            or (w.art == Art.TUER_OFFEN and w.werte.get("nachricht", False))
+        )
     ]
 
 

@@ -1,16 +1,14 @@
-"""Schalter: Automatik der Baustelle, Wochentage, Regeln, Kleidung trocknen je Container."""
+"""Schalter: nur noch die Automatik der Baustelle (alle anderen Einstellungen gibt es ab 0.7 nur auf der Seite)."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import BaustelleConfigEntry
-from .const import ART_CONTAINER, WOCHENTAGE
 from .entity import BaustelleEntity
 from .steuerung import Steuerung
 
@@ -21,49 +19,22 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: BaustelleConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     st = entry.runtime_data
-    if not st.heizung:
-        return
-    async_add_entities(
-        [
-            EinstellungSwitch(st, "automatik", ("automatik",), kategorie=None),
-            *(EinstellungSwitch(st, f"{tag}_aktiv", ("plan", tag, "aktiv")) for tag in WOCHENTAGE),
-            EinstellungSwitch(st, "heizgrenze_aktiv", ("regeln", "heizgrenze_aktiv")),
-            EinstellungSwitch(st, "frost_aktiv", ("regeln", "frost_aktiv")),
-        ]
-    )
-    for bid, info in st.bereiche.items():
-        if info.art == ART_CONTAINER:
-            async_add_entities(
-                [EinstellungSwitch(st, "kleidung_trocknen", ("bereiche", bid, "trocknen"), bereich_id=bid)],
-                config_subentry_id=bid,
-            )
+    if st.heizung:
+        async_add_entities([AutomatikSwitch(st)])
 
 
-class EinstellungSwitch(BaustelleEntity, SwitchEntity):
-    """Schaltet eine gespeicherte Einstellung."""
+class AutomatikSwitch(BaustelleEntity, SwitchEntity):
+    """Automatik der Baustelle: nur eingeschaltet schaltet die Integration Shellys."""
 
-    def __init__(
-        self,
-        steuerung: Steuerung,
-        key: str,
-        pfad: tuple[str, ...],
-        *,
-        bereich_id: str | None = None,
-        kategorie: EntityCategory | None = EntityCategory.CONFIG,
-    ) -> None:
-        super().__init__(steuerung, key, bereich_id)
-        self._pfad = pfad
-        self._attr_entity_category = kategorie
+    def __init__(self, steuerung: Steuerung) -> None:
+        super().__init__(steuerung, "automatik")
 
     @property
     def is_on(self) -> bool:
-        wert: Any = self.steuerung.einstellungen.daten
-        for teil in self._pfad:
-            wert = wert[teil]
-        return bool(wert)
+        return bool(self.steuerung.e["automatik"])
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        self.steuerung.einstellung_setzen(self._pfad, True)
+        self.steuerung.einstellung_setzen(("automatik",), True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        self.steuerung.einstellung_setzen(self._pfad, False)
+        self.steuerung.einstellung_setzen(("automatik",), False)

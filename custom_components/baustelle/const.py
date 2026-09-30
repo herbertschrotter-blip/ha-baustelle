@@ -10,13 +10,11 @@ DOMAIN: Final = "baustelle"
 
 PLATFORMS: Final = [
     Platform.BINARY_SENSOR,
-    Platform.BUTTON,
-    Platform.NUMBER,
-    Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
-    Platform.TIME,
 ]
+# Bis 0.6 gab es Einstellungs-Entitäten; ab 0.7 nur noch auf der Seite (api-0.7 §3)
+ALTE_PLATTFORMEN: Final = ["button", "number", "select", "time"]
 
 # Subentries
 SUB_BEREICH: Final = "bereich"
@@ -65,11 +63,12 @@ TYP_OELRADIATOR: Final = "oelradiator"
 TYP_KONVEKTOR: Final = "konvektor"
 TYPEN: Final = [TYP_OELRADIATOR, TYP_KONVEKTOR]
 
-WOCHENTAGE: Final = ["mo", "di", "mi", "do", "fr", "sa", "so"]
-
-# Heizkörper eingeschaltet, aber seit dem Einschalten nie über diesem Wert → „zieht keinen Strom“.
-# Hat er einmal geheizt, sind 0 W sein eigener Thermostat und kein Fehler.
-KEINE_LEISTUNG_W: Final = 5.0
-KEINE_LEISTUNG_MIN: Final = 10.0
-
 WETTER_INTERVALL_MIN: Final = 30
+TERMINE_INTERVALL_MIN: Final = 15
+
+# Eigenes Ereignis je Protokolleintrag (für das HA-Logbuch, logbook.py)
+EVENT_PROTOKOLL: Final = "baustelle_protokoll"
+# Knöpfe der Handy-Nachrichten (mobile_app)
+EVENT_NACHRICHT_AKTION: Final = "mobile_app_notification_action"
+AKTION_PRAEFIX: Final = "BAUSTELLE"
+URL_SEITE: Final = "/baustelle"

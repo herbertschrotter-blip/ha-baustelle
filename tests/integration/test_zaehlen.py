@@ -10,7 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.baustelle.const import DOMAIN
 
-from .test_steuerung import _eid, _sub
+from .conftest import eid as _eid, sub as _sub
 
 
 @pytest.fixture
@@ -147,3 +147,41 @@ async def test_aufheizen_abkuehlen_gradstunden(hass: HomeAssistant, baustelle, f
         st.auswerten()
     assert st.zaehler["abkuehl:c"] == pytest.approx(1.2, abs=0.4)
     assert st.zaehler["gradh:c"] > 10
+
+
+async def test_heiztage(hass: HomeAssistant, baustelle, freezer) -> None:
+    st = baustelle.runtime_data
+    hass.states.async_set("switch.hk2", "on")
+    await hass.async_block_till_done()
+    for _ in range(3):
+        freezer.tick(timedelta(minutes=1))
+        st.auswerten()
+    assert st.zaehler["heiztage"] == 1  # einmal je Tag, egal wie oft
+    freezer.move_to("2026-11-11 08:00:00+01:00")
+    st.auswerten()
+    freezer.tick(timedelta(minutes=1))
+    st.auswerten()
+    assert st.zaehler["heiztage"] == 2
+
+
+async def test_zaehler_werden_trotz_dauernder_messwerte_gespeichert(
+    hass: HomeAssistant, baustelle, freezer, hass_storage
+) -> None:
+    """Kommen Messwerte öfter als die Speicher-Verzögerung, darf das Schreiben nicht endlos verschoben werden
+    (sonst gehen die Zähler bei Stromausfall seit dem letzten Neustart verloren)."""
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    from custom_components.baustelle.steuerung import ZAEHLER_SPEICHERN_S
+
+    key = f"baustelle.{baustelle.entry_id}"
+    stand = 10.0
+    for _ in range(12):  # 2 min lang alle 10 s ein neuer Zählerstand
+        stand += 0.1
+        hass.states.async_set("sensor.hk1_energy", f"{stand:.1f}")
+        freezer.tick(timedelta(seconds=10))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    gespeichert = hass_storage[key]["data"]["zaehler"]
+    # spätestens nach ZAEHLER_SPEICHERN_S (+ ein Messintervall) liegt ein neuerer Stand in der Datei
+    assert gespeichert["stand:h1"] >= stand - (ZAEHLER_SPEICHERN_S + 10) / 10 * 0.1 - 1e-9
+    assert gespeichert["energie"] > 0

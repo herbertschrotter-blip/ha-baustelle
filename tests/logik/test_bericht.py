@@ -9,8 +9,10 @@ from logik.bericht import (
     de,
     heiztage,
     naechster_bericht,
+    summe_text,
     text_kurz,
     text_mail,
+    vergleich_text,
     zeitraum,
     zeitraum_text,
 )
@@ -219,3 +221,12 @@ def test_text_mail_warnung_ohne_bereich_und_prozent_rundung():
     assert inhalt.split("\n")[0].endswith("(+3 % zur Woche davor)")
     assert inhalt.split("\n")[-1] == "Baustelle offline"
     assert "1 offene Warnung: Baustelle offline" in text_kurz(daten)
+
+
+def test_summe_und_vergleich_fuer_die_vorschau_wie_in_der_mail():
+    """Die Seite zeigt im „Bericht · Beispiel“ dieselbe Kopfzeile wie die Mail."""
+    assert summe_text(DATEN_WOCHE) == "Vorwoche: 312 kWh · 87,47 €"
+    assert vergleich_text(DATEN_WOCHE) == " (−4 % zur Woche davor)"
+    assert vergleich_text({**DATEN_WOCHE, "vergleich_prozent": None}) == ""
+    _, inhalt = text_mail(DATEN_WOCHE)
+    assert inhalt.split("\n")[0] == summe_text(DATEN_WOCHE) + vergleich_text(DATEN_WOCHE)

@@ -1,0 +1,1831 @@
+{
+ "zustaende": {
+  "binary_sensor.bautrockner_bautrockner_problem": {
+   "state": "on",
+   "attributes": {
+    "probleme": [
+     "offline"
+    ],
+    "device_class": "problem",
+    "friendly_name": "Bautrockner Bautrockner problem"
+   }
+  },
+  "binary_sensor.halle_lieboch_reachable": {
+   "state": "on",
+   "attributes": {
+    "device_class": "connectivity",
+    "friendly_name": "Halle Lieboch Reachable"
+   }
+  },
+  "binary_sensor.konvektor_1_konvektor_1_problem": {
+   "state": "off",
+   "attributes": {
+    "probleme": [],
+    "device_class": "problem",
+    "friendly_name": "Konvektor 1 Konvektor 1 problem"
+   }
+  },
+  "binary_sensor.konvektor_1_konvektor_1_problem_2": {
+   "state": "off",
+   "attributes": {
+    "probleme": [],
+    "device_class": "problem",
+    "friendly_name": "Konvektor 1 Konvektor 1 problem"
+   }
+  },
+  "binary_sensor.konvektor_2_konvektor_2_problem": {
+   "state": "off",
+   "attributes": {
+    "probleme": [],
+    "device_class": "problem",
+    "friendly_name": "Konvektor 2 Konvektor 2 problem"
+   }
+  },
+  "binary_sensor.olradiator_1_olradiator_1_problem": {
+   "state": "off",
+   "attributes": {
+    "probleme": [],
+    "device_class": "problem",
+    "friendly_name": "Ölradiator 1 Ölradiator 1 problem"
+   }
+  },
+  "binary_sensor.olradiator_1_olradiator_1_problem_2": {
+   "state": "off",
+   "attributes": {
+    "probleme": [],
+    "device_class": "problem",
+    "friendly_name": "Ölradiator 1 Ölradiator 1 problem"
+   }
+  },
+  "binary_sensor.olradiator_1_olradiator_1_problem_3": {
+   "state": "off",
+   "attributes": {
+    "probleme": [],
+    "device_class": "problem",
+    "friendly_name": "Ölradiator 1 Ölradiator 1 problem"
+   }
+  },
+  "binary_sensor.pumpe_1_pumpe_1_problem": {
+   "state": "off",
+   "attributes": {
+    "probleme": [],
+    "device_class": "problem",
+    "friendly_name": "Pumpe 1 Pumpe 1 problem"
+   }
+  },
+  "binary_sensor.pumpe_1_pumpe_1_running": {
+   "state": "off",
+   "attributes": {
+    "device_class": "running",
+    "friendly_name": "Pumpe 1 Pumpe 1 running"
+   }
+  },
+  "binary_sensor.tuer_magazin": {
+   "state": "on",
+   "attributes": {
+    "device_class": "door",
+    "friendly_name": "Tür Magazin"
+   }
+  },
+  "binary_sensor.wohnbau_kalsdorf_reachable": {
+   "state": "on",
+   "attributes": {
+    "device_class": "connectivity",
+    "friendly_name": "Wohnbau Kalsdorf Reachable"
+   }
+  },
+  "calendar.feiertage": {
+   "state": "off",
+   "attributes": {
+    "friendly_name": "Feiertage",
+    "supported_features": 3
+   }
+  },
+  "calendar.termine": {
+   "state": "off",
+   "attributes": {
+    "friendly_name": "Termine",
+    "supported_features": 3
+   }
+  },
+  "calendar.urlaub": {
+   "state": "off",
+   "attributes": {
+    "friendly_name": "Urlaub",
+    "supported_features": 3
+   }
+  },
+  "sensor.aussen": {
+   "state": "7.1",
+   "attributes": {
+    "device_class": "temperature",
+    "unit_of_measurement": "°C",
+    "state_class": "measurement"
+   }
+  },
+  "sensor.bautrockner_bautrockner_avg_power_while_heating": {
+   "state": "unknown",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Bautrockner Bautrockner avg. power while heating"
+   }
+  },
+  "sensor.buero_r1_leistung": {
+   "state": "0",
+   "attributes": {
+    "device_class": "power",
+    "unit_of_measurement": "W",
+    "state_class": "measurement"
+   }
+  },
+  "sensor.buro_cost": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Büro Cost"
+   }
+  },
+  "sensor.buro_energy": {
+   "state": "1840.5",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Büro Energy"
+   }
+  },
+  "sensor.buro_heating": {
+   "state": "automatik_aus",
+   "attributes": {
+    "options": [
+     "automatik_aus",
+     "frost",
+     "tuer_offen",
+     "hand",
+     "boost",
+     "bedarf",
+     "bereit",
+     "frei",
+     "heizgrenze",
+     "fruehstart",
+     "vorheizen",
+     "arbeitszeit",
+     "nachheizen",
+     "trocknen",
+     "ausserhalb"
+    ],
+    "device_class": "enum",
+    "friendly_name": "Büro Heating"
+   }
+  },
+  "sensor.buro_heating_time": {
+   "state": "1102.4",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Büro Heating time"
+   }
+  },
+  "sensor.buro_power": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Büro Power"
+   }
+  },
+  "sensor.halle_lieboch_avg_power_convector": {
+   "state": "unknown",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Halle Lieboch Avg. power convector"
+   }
+  },
+  "sensor.halle_lieboch_avg_power_oil_radiator": {
+   "state": "unknown",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Halle Lieboch Avg. power oil radiator"
+   }
+  },
+  "sensor.halle_lieboch_cost": {
+   "state": "515.34",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Halle Lieboch Cost"
+   }
+  },
+  "sensor.halle_lieboch_daily_high": {
+   "state": "unknown",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "°C",
+    "device_class": "temperature",
+    "friendly_name": "Halle Lieboch Daily high"
+   }
+  },
+  "sensor.halle_lieboch_early_forecast": {
+   "state": "unknown",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "°C",
+    "device_class": "temperature",
+    "friendly_name": "Halle Lieboch Early forecast"
+   }
+  },
+  "sensor.halle_lieboch_energy": {
+   "state": "1840.5",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Halle Lieboch Energy"
+   }
+  },
+  "sensor.halle_lieboch_energy_convectors": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Halle Lieboch Energy convectors"
+   }
+  },
+  "sensor.halle_lieboch_energy_oil_radiators": {
+   "state": "1840.5",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Halle Lieboch Energy oil radiators"
+   }
+  },
+  "sensor.halle_lieboch_energy_without_automation_24_7": {
+   "state": "3950.0",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Halle Lieboch Energy without automation (24/7)"
+   }
+  },
+  "sensor.halle_lieboch_heating_season_projected": {
+   "state": "1180.0971",
+   "attributes": {
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Halle Lieboch Heating season projected"
+   }
+  },
+  "sensor.halle_lieboch_heating_season_projected_cost": {
+   "state": "330.4272",
+   "attributes": {
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Halle Lieboch Heating season projected (cost)"
+   }
+  },
+  "sensor.halle_lieboch_heating_season_without_automation": {
+   "state": "2532.6724",
+   "attributes": {
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Halle Lieboch Heating season without automation"
+   }
+  },
+  "sensor.halle_lieboch_heating_time_convectors": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Halle Lieboch Heating time convectors"
+   }
+  },
+  "sensor.halle_lieboch_heating_time_oil_radiators": {
+   "state": "1102.4",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Halle Lieboch Heating time oil radiators"
+   }
+  },
+  "sensor.halle_lieboch_next_switching_time": {
+   "state": "unknown",
+   "attributes": {
+    "device_class": "timestamp",
+    "friendly_name": "Halle Lieboch Next switching time"
+   }
+  },
+  "sensor.halle_lieboch_outdoor_temperature": {
+   "state": "unknown",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "°C",
+    "device_class": "temperature",
+    "friendly_name": "Halle Lieboch Outdoor temperature"
+   }
+  },
+  "sensor.halle_lieboch_power": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Halle Lieboch Power"
+   }
+  },
+  "sensor.halle_lieboch_rain": {
+   "state": "unknown",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "mm",
+    "device_class": "precipitation",
+    "friendly_name": "Halle Lieboch Rain"
+   }
+  },
+  "sensor.halle_lieboch_savings_from_automation": {
+   "state": "590.66",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Halle Lieboch Savings from automation"
+   }
+  },
+  "sensor.halle_lieboch_status": {
+   "state": "abgeschlossen",
+   "attributes": {
+    "options": [
+     "abgeschlossen",
+     "nur_pumpen",
+     "automatik_aus",
+     "heizgrenze",
+     "urlaub",
+     "feiertag",
+     "frei",
+     "heizt",
+     "bereit"
+    ],
+    "device_class": "enum",
+    "friendly_name": "Halle Lieboch Status"
+   }
+  },
+  "sensor.konvektor_1_konvektor_1_avg_power_while_heating": {
+   "state": "2010.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Konvektor 1 Konvektor 1 avg. power while heating"
+   }
+  },
+  "sensor.konvektor_1_konvektor_1_avg_power_while_heating_2": {
+   "state": "1990.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Konvektor 1 Konvektor 1 avg. power while heating"
+   }
+  },
+  "sensor.konvektor_2_konvektor_2_avg_power_while_heating": {
+   "state": "2000.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Konvektor 2 Konvektor 2 avg. power while heating"
+   }
+  },
+  "sensor.magazin_cost": {
+   "state": "2.961",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Magazin Cost"
+   }
+  },
+  "sensor.magazin_energy": {
+   "state": "10.575",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Magazin Energy"
+   }
+  },
+  "sensor.magazin_heating": {
+   "state": "tuer_offen",
+   "attributes": {
+    "options": [
+     "automatik_aus",
+     "frost",
+     "tuer_offen",
+     "hand",
+     "boost",
+     "bedarf",
+     "bereit",
+     "frei",
+     "heizgrenze",
+     "fruehstart",
+     "vorheizen",
+     "arbeitszeit",
+     "nachheizen",
+     "trocknen",
+     "ausserhalb"
+    ],
+    "device_class": "enum",
+    "friendly_name": "Magazin Heating"
+   }
+  },
+  "sensor.magazin_heating_time": {
+   "state": "7.05",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Magazin Heating time"
+   }
+  },
+  "sensor.magazin_power": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Magazin Power"
+   }
+  },
+  "sensor.magazin_r1_leistung": {
+   "state": "0.0",
+   "attributes": {}
+  },
+  "sensor.magazin_t1_leistung": {
+   "state": "unavailable",
+   "attributes": {}
+  },
+  "sensor.magazin_temperatur": {
+   "state": "19.46",
+   "attributes": {
+    "device_class": "temperature",
+    "unit_of_measurement": "°C",
+    "state_class": "measurement"
+   }
+  },
+  "sensor.mannschaft_cost": {
+   "state": "1.9458",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Mannschaft Cost"
+   }
+  },
+  "sensor.mannschaft_energy": {
+   "state": "6.9492",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Mannschaft Energy"
+   }
+  },
+  "sensor.mannschaft_heating": {
+   "state": "bereit",
+   "attributes": {
+    "options": [
+     "automatik_aus",
+     "frost",
+     "tuer_offen",
+     "hand",
+     "boost",
+     "bedarf",
+     "bereit",
+     "frei",
+     "heizgrenze",
+     "fruehstart",
+     "vorheizen",
+     "arbeitszeit",
+     "nachheizen",
+     "trocknen",
+     "ausserhalb"
+    ],
+    "device_class": "enum",
+    "friendly_name": "Mannschaft Heating"
+   }
+  },
+  "sensor.mannschaft_heating_time": {
+   "state": "1.75",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Mannschaft Heating time"
+   }
+  },
+  "sensor.mannschaft_k1_leistung": {
+   "state": "0.0",
+   "attributes": {}
+  },
+  "sensor.mannschaft_k2_leistung": {
+   "state": "0.0",
+   "attributes": {}
+  },
+  "sensor.mannschaft_power": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Mannschaft Power"
+   }
+  },
+  "sensor.olradiator_1_olradiator_1_avg_power_while_heating": {
+   "state": "1980.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Ölradiator 1 Ölradiator 1 avg. power while heating"
+   }
+  },
+  "sensor.olradiator_1_olradiator_1_avg_power_while_heating_2": {
+   "state": "1500.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Ölradiator 1 Ölradiator 1 avg. power while heating"
+   }
+  },
+  "sensor.olradiator_1_olradiator_1_avg_power_while_heating_3": {
+   "state": "unknown",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Ölradiator 1 Ölradiator 1 avg. power while heating"
+   }
+  },
+  "sensor.polier_cost": {
+   "state": "4.1041",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Polier Cost"
+   }
+  },
+  "sensor.polier_energy": {
+   "state": "14.6575",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Polier Energy"
+   }
+  },
+  "sensor.polier_heating": {
+   "state": "arbeitszeit",
+   "attributes": {
+    "options": [
+     "automatik_aus",
+     "frost",
+     "tuer_offen",
+     "hand",
+     "boost",
+     "bedarf",
+     "bereit",
+     "frei",
+     "heizgrenze",
+     "fruehstart",
+     "vorheizen",
+     "arbeitszeit",
+     "nachheizen",
+     "trocknen",
+     "ausserhalb"
+    ],
+    "device_class": "enum",
+    "friendly_name": "Polier Heating"
+   }
+  },
+  "sensor.polier_heating_time": {
+   "state": "5.1",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Polier Heating time"
+   }
+  },
+  "sensor.polier_k1_leistung": {
+   "state": "0.0",
+   "attributes": {}
+  },
+  "sensor.polier_power": {
+   "state": "1980.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Polier Power"
+   }
+  },
+  "sensor.polier_r1_leistung": {
+   "state": "1980.0",
+   "attributes": {}
+  },
+  "sensor.polier_temperatur": {
+   "state": "20.16",
+   "attributes": {
+    "device_class": "temperature",
+    "unit_of_measurement": "°C",
+    "state_class": "measurement"
+   }
+  },
+  "sensor.pumpe_1_pumpe_1_pump_cycles": {
+   "state": "21.0",
+   "attributes": {
+    "state_class": "total_increasing",
+    "friendly_name": "Pumpe 1 Pumpe 1 pump cycles"
+   }
+  },
+  "sensor.pumpe_1_pumpe_1_pump_time": {
+   "state": "1.8333",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Pumpe 1 Pumpe 1 pump time"
+   }
+  },
+  "sensor.pumpenschacht_cost": {
+   "state": "0.3901",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Pumpenschacht Cost"
+   }
+  },
+  "sensor.pumpenschacht_energy": {
+   "state": "1.3933",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Pumpenschacht Energy"
+   }
+  },
+  "sensor.pumpenschacht_power": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Pumpenschacht Power"
+   }
+  },
+  "sensor.regen": {
+   "state": "6.2",
+   "attributes": {
+    "device_class": "precipitation",
+    "unit_of_measurement": "mm"
+   }
+  },
+  "sensor.schacht_p1_leistung": {
+   "state": "0",
+   "attributes": {
+    "device_class": "power",
+    "unit_of_measurement": "W",
+    "state_class": "measurement"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_avg_power_convector": {
+   "state": "2000.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Wohnbau Kalsdorf Avg. power convector"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_avg_power_oil_radiator": {
+   "state": "1740.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Wohnbau Kalsdorf Avg. power oil radiator"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_cost": {
+   "state": "9.401",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Wohnbau Kalsdorf Cost"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_daily_high": {
+   "state": "7.1",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "°C",
+    "device_class": "temperature",
+    "friendly_name": "Wohnbau Kalsdorf Daily high"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_early_forecast": {
+   "state": "-0.5",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "°C",
+    "device_class": "temperature",
+    "friendly_name": "Wohnbau Kalsdorf Early forecast"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_energy": {
+   "state": "33.575",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Wohnbau Kalsdorf Energy"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_energy_convectors": {
+   "state": "11.7397",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Wohnbau Kalsdorf Energy convectors"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_energy_oil_radiators": {
+   "state": "20.442",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Wohnbau Kalsdorf Energy oil radiators"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_energy_without_automation_24_7": {
+   "state": "71.5337",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Wohnbau Kalsdorf Energy without automation (24/7)"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_heating_season_projected": {
+   "state": "unknown",
+   "attributes": {
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Wohnbau Kalsdorf Heating season projected"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_heating_season_projected_cost": {
+   "state": "unknown",
+   "attributes": {
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Wohnbau Kalsdorf Heating season projected (cost)"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_heating_season_without_automation": {
+   "state": "unknown",
+   "attributes": {
+    "unit_of_measurement": "kWh",
+    "device_class": "energy",
+    "friendly_name": "Wohnbau Kalsdorf Heating season without automation"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_heating_time_convectors": {
+   "state": "5.8667",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Wohnbau Kalsdorf Heating time convectors"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_heating_time_oil_radiators": {
+   "state": "12.0333",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Wohnbau Kalsdorf Heating time oil radiators"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_next_switching_time": {
+   "state": "2026-09-29T15:30:00+00:00",
+   "attributes": {
+    "device_class": "timestamp",
+    "friendly_name": "Wohnbau Kalsdorf Next switching time"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_outdoor_temperature": {
+   "state": "7.1",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "°C",
+    "device_class": "temperature",
+    "friendly_name": "Wohnbau Kalsdorf Outdoor temperature"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_power": {
+   "state": "1980.0",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "W",
+    "device_class": "power",
+    "friendly_name": "Wohnbau Kalsdorf Power"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_rain": {
+   "state": "6.2",
+   "attributes": {
+    "state_class": "measurement",
+    "unit_of_measurement": "mm",
+    "device_class": "precipitation",
+    "friendly_name": "Wohnbau Kalsdorf Rain"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_savings_from_automation": {
+   "state": "11.0186",
+   "attributes": {
+    "state_class": "total",
+    "unit_of_measurement": "EUR",
+    "device_class": "monetary",
+    "friendly_name": "Wohnbau Kalsdorf Savings from automation"
+   }
+  },
+  "sensor.wohnbau_kalsdorf_status": {
+   "state": "heizt",
+   "attributes": {
+    "options": [
+     "abgeschlossen",
+     "nur_pumpen",
+     "automatik_aus",
+     "heizgrenze",
+     "urlaub",
+     "feiertag",
+     "frei",
+     "heizt",
+     "bereit"
+    ],
+    "device_class": "enum",
+    "friendly_name": "Wohnbau Kalsdorf Status"
+   }
+  },
+  "switch.buero_r1": {
+   "state": "off",
+   "attributes": {
+    "friendly_name": "switch.buero_r1"
+   }
+  },
+  "switch.halle_lieboch_automation": {
+   "state": "off",
+   "attributes": {
+    "friendly_name": "Halle Lieboch Automation"
+   }
+  },
+  "switch.magazin_r1": {
+   "state": "off",
+   "attributes": {}
+  },
+  "switch.magazin_t1": {
+   "state": "unavailable",
+   "attributes": {}
+  },
+  "switch.mannschaft_k1": {
+   "state": "off",
+   "attributes": {}
+  },
+  "switch.mannschaft_k2": {
+   "state": "off",
+   "attributes": {}
+  },
+  "switch.polier_k1": {
+   "state": "off",
+   "attributes": {}
+  },
+  "switch.polier_r1": {
+   "state": "on",
+   "attributes": {}
+  },
+  "switch.reserve_1": {
+   "state": "off",
+   "attributes": {
+    "friendly_name": "switch.reserve_1"
+   }
+  },
+  "switch.reserve_2": {
+   "state": "off",
+   "attributes": {
+    "friendly_name": "switch.reserve_2"
+   }
+  },
+  "switch.schacht_p1": {
+   "state": "off",
+   "attributes": {}
+  },
+  "switch.wohnbau_kalsdorf_automation": {
+   "state": "on",
+   "attributes": {
+    "friendly_name": "Wohnbau Kalsdorf Automation"
+   }
+  },
+  "weather.kalsdorf": {
+   "state": "rainy",
+   "attributes": {
+    "friendly_name": "Wetter Kalsdorf",
+    "temperature": 2.1
+   }
+  }
+ },
+ "kalender": {
+  "calendar.feiertage": [
+   {
+    "start": {
+     "date": "2026-10-26"
+    },
+    "end": {
+     "date": "2026-10-27"
+    },
+    "summary": "Nationalfeiertag",
+    "description": null,
+    "location": null,
+    "uid": null,
+    "recurrence_id": null,
+    "rrule": null
+   }
+  ],
+  "calendar.urlaub": [
+   {
+    "start": {
+     "date": "2026-10-02"
+    },
+    "end": {
+     "date": "2026-10-03"
+    },
+    "summary": "Betriebsurlaub",
+    "description": null,
+    "location": null,
+    "uid": "u1",
+    "recurrence_id": null,
+    "rrule": null
+   }
+  ],
+  "calendar.termine": [
+   {
+    "start": {
+     "dateTime": "2026-09-29T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2026-09-29T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20260929T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-10-06T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2026-10-06T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261006T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-10-13T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2026-10-13T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261013T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-10-20T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2026-10-20T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261020T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-10-27T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-10-27T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261027T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-11-03T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-11-03T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261103T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-11-10T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-11-10T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261110T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-11-17T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-11-17T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261117T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-11-24T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-11-24T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261124T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-12-01T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-12-01T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261201T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-12-08T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-12-08T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261208T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-12-15T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-12-15T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261215T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-12-22T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-12-22T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261222T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-12-29T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2026-12-29T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20261229T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-01-05T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-01-05T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270105T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-01-12T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-01-12T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270112T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-01-19T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-01-19T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270119T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-01-26T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-01-26T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270126T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-02-02T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-02-02T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270202T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-02-09T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-02-09T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270209T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-02-16T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-02-16T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270216T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-02-23T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-02-23T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270223T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-03-02T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-03-02T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270302T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-03-09T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-03-09T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270309T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-03-16T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-03-16T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270316T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-03-23T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-03-23T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270323T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-03-30T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-03-30T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270330T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-04-06T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-04-06T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270406T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-04-13T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-04-13T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270413T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-04-20T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-04-20T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270420T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-04-27T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-04-27T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270427T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-05-04T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-05-04T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270504T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-05-11T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-05-11T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270511T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-05-18T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-05-18T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270518T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-05-25T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-05-25T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270525T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-06-01T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-06-01T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270601T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-06-08T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-06-08T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270608T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-06-15T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-06-15T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270615T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-06-22T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-06-22T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270622T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-06-29T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-06-29T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270629T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-07-06T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-07-06T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270706T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-07-13T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-07-13T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270713T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-07-20T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-07-20T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270720T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-07-27T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-07-27T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270727T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-08-03T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-08-03T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270803T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-08-10T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-08-10T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270810T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-08-17T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-08-17T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270817T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-08-24T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-08-24T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270824T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-08-31T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-08-31T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270831T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-09-07T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-09-07T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270907T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-09-14T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-09-14T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270914T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-09-21T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-09-21T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270921T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-09-28T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-09-28T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20270928T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-10-05T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-10-05T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20271005T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-10-12T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-10-12T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20271012T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-10-19T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-10-19T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20271019T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-10-26T13:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2027-10-26T14:00:00+02:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20271026T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2027-11-02T12:00:00+01:00"
+    },
+    "end": {
+     "dateTime": "2027-11-02T13:00:00+01:00"
+    },
+    "summary": "Baubesprechung",
+    "description": "baustelle:mannschaft",
+    "location": null,
+    "uid": "termin-1",
+    "recurrence_id": "20271102T130000",
+    "rrule": "FREQ=WEEKLY"
+   },
+   {
+    "start": {
+     "dateTime": "2026-10-01T09:00:00+02:00"
+    },
+    "end": {
+     "dateTime": "2026-10-01T10:30:00+02:00"
+    },
+    "summary": "Abnahme Elektro",
+    "description": "baustelle:mannschaft\nboost",
+    "location": null,
+    "uid": "termin-2",
+    "recurrence_id": null,
+    "rrule": null
+   }
+  ]
+ }
+}

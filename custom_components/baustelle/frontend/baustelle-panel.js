@@ -1,117 +1,10 @@
 /* =========================================================================================
-   Baustelle – eigene Seite in Home Assistant nach dem abgenommenen Entwurf (mockups/baustelle.html, v4).
-   Daten: WebSocket „baustelle/struktur“ (Aufbau), hass.states (Zustände), history/recorder (Verlauf).
-   Schalten und Einstellen nur über die normalen HA-Dienste der Entitäten der Integration.
+   Baustelle – eigene Seite in Home Assistant (0.7.0), gebaut aus dem abgenommenen Mockup mockups/glas.html
+   (Quellen mockups/quelle/: glas-app.js, glas.css, himmel.frag, himmel.js).
+   Daten: WebSocket „baustelle/struktur“ (docs/api-0.7.md §1), Verlauf/Statistik aus dem Recorder.
+   Bedienung: baustelle/setzen|aktion|liste|protokoll|meldung(en) (api §2) und die HA-Standardwege
+   (Subentry-/Options-Dialoge, calendar/event/*, Diagnose). Gerechnet wird in der Integration, nicht hier.
    ========================================================================================= */
-
-/* Aus dem Entwurf übernommen: Symbole (Animationen), Diagramme (Säulen, Linien, Zeitleiste). */
-/* ---------- Animierte Symbole ---------- */
-function icon(d, st) {
-  const run = st.on && !st.off && st.p > 0 ? 'run' : '', al = st.alarm ? 'alarm' : '';
-  const hot = run ? '#ff7043' : '#9e9e9e';
-  const waves = `<g stroke="#ff8a50" stroke-width="2" fill="none" stroke-linecap="round">
-      <path class="wave" d="M16 14 q3 -4 0 -8"/><path class="wave d2" d="M26 14 q3 -4 0 -8"/><path class="wave d3" d="M36 14 q3 -4 0 -8"/></g>`;
-  if (d.role === 'heat' && d.typ === 'oel') return `<svg class="a ${run} ${al}" viewBox="0 0 52 52">${waves}
-      <g class="glow">${[0, 1, 2, 3, 4, 5].map(i => `<rect x="${8 + i * 6.3}" y="17" width="5" height="26" rx="2.5" fill="${hot}"/>`).join('')}</g>
-      <rect x="9" y="42" width="34" height="3" rx="1.5" fill="#757575"/><circle cx="12" cy="48" r="2" fill="#757575"/><circle cx="40" cy="48" r="2" fill="#757575"/></svg>`;
-  if (d.role === 'heat') return `<svg class="a ${run} ${al}" viewBox="0 0 52 52">${waves}
-      <rect x="7" y="17" width="38" height="26" rx="4" fill="none" stroke="#9e9e9e" stroke-width="2"/>
-      <g class="glow" stroke="${hot}" stroke-width="2">${[0, 1, 2, 3, 4, 5, 6].map(i => `<line x1="${12 + i * 4.6}" y1="20" x2="${12 + i * 4.6}" y2="25"/>`).join('')}</g>
-      <circle cx="39" cy="37" r="2.3" fill="${run ? '#ff7043' : '#bdbdbd'}"/><line x1="11" y1="45" x2="11" y2="49" stroke="#757575" stroke-width="2"/><line x1="41" y1="45" x2="41" y2="49" stroke="#757575" stroke-width="2"/></svg>`;
-  if (d.role === 'dry') return `<svg class="a ${run} ${al}" viewBox="0 0 52 52">
-      <rect x="6" y="8" width="40" height="38" rx="6" fill="none" stroke="#9e9e9e" stroke-width="2"/>
-      <circle cx="26" cy="27" r="13" fill="none" stroke="#bdbdbd" stroke-width="1.5"/>
-      <g class="spin"><path d="M26 27 L26 15 A6 6 0 0 1 32 21 Z M26 27 L38 27 A6 6 0 0 1 32 33 Z M26 27 L26 39 A6 6 0 0 1 20 33 Z M26 27 L14 27 A6 6 0 0 1 20 21 Z" fill="${run ? '#03a9f4' : '#9e9e9e'}"/></g></svg>`;
-  if (d.role === 'pump') return `<svg class="a ${run} ${al}" viewBox="0 0 52 52">
-      <path d="M4 44 H14" stroke="#03a9f4" stroke-width="4" class="flow" stroke-linecap="round"/>
-      <circle cx="22" cy="30" r="12" fill="none" stroke="${st.alarm ? '#db4437' : '#78909c'}" stroke-width="2.5" class="blink"/>
-      <g class="spin"><path d="M22 30 l0 -9 M22 30 l8 4 M22 30 l-8 4" stroke="${run ? '#03a9f4' : '#9e9e9e'}" stroke-width="3" stroke-linecap="round"/></g>
-      <path d="M34 30 H40 V8 H48" fill="none" stroke="#78909c" stroke-width="4"/>
-      <path d="M34 30 H40 V8 H48" fill="none" stroke="#4fc3f7" stroke-width="2" class="flow"/>
-      <path d="M2 48 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#4fc3f7" stroke-width="2" opacity=".6"/></svg>`;
-  return `<svg class="a ${run} ${al}" viewBox="0 0 52 52"><rect x="12" y="10" width="28" height="34" rx="6" fill="none" stroke="#9e9e9e" stroke-width="2"/>
-      <circle cx="21" cy="25" r="2" fill="#9e9e9e"/><circle cx="31" cy="25" r="2" fill="#9e9e9e"/><circle class="glow" cx="26" cy="37" r="2.5" fill="${run ? '#43a047' : '#bdbdbd'}"/></svg>`;
-}
-
-const CX = {};                                   // Fadenkreuz-Daten je Diagramm
-const hash = str => { let h = 7; for (const c of str) h = (h * 31 + c.charCodeAt(0)) % 100003; return h; };
-const rnd = (str) => (hash(str) % 1000) / 1000;
-const niceMax = v => { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p; return 10 * p; };
-const sc = i => `var(--s${(i % 6) + 1})`;
-const legend = (items, kind = 'rect') => `<div class="lg">${items.map(([n, c, extra]) => `<span><i class="${kind}${extra ? ' ' + extra : ''}" style="--c:${c}"></i>${esc(n)}</span>`).join('')}</div>`;
-const rtop = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`; };
-
-/* Säulen, gestapelt oder gruppiert */
-function colChart({ id, W, H = 190, labels, series, stack, unit, dec = 1 }) {
-  const L = 40, R = 6, T = 10, Bm = 24, pw = W - L - R, ph = H - T - Bm, n = labels.length;
-  const max = niceMax(Math.max(...labels.map((_, i) => stack ? series.reduce((s, q) => s + (q.values[i] || 0), 0) : Math.max(...series.map(q => q.values[i] || 0))), 0.1));
-  const y = v => T + ph - v / max * ph, band = pw / n;
-  let g = '';
-  for (let k = 0; k <= 4; k++) { const v = max * k / 4; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="${k ? 'grid' : 'base'}"/><text x="${L - 6}" y="${y(v) + 3}" class="yt">${de(v, v < 10 && max < 10 ? 1 : 0)}</text>`; }
-  const step = Math.ceil(n / (W < 400 ? 6 : 12));
-  labels.forEach((l, i) => { if (i % step === 0) g += `<text x="${L + band * i + band / 2}" y="${H - 8}" class="xt">${esc(l)}</text>`; });
-  let bars = '';
-  labels.forEach((l, i) => {
-    const cx = L + band * i + band / 2;
-    if (stack) {
-      const bw = Math.min(24, band * .62); let acc = 0; const vals = series.map(q => q.values[i] || 0); const top = vals.map((v, k) => v > 0 ? k : -1).filter(k => k >= 0).pop();
-      series.forEach((q, k) => { const v = vals[k]; if (v <= 0) return; const y0 = y(acc + v), hh = Math.max(0, y(acc) - y0 - (k ? 2 : 0)); acc += v;
-        bars += `<path d="${k === top ? rtop(cx - bw / 2, y0, bw, hh, 4) : `M${cx - bw / 2},${y0}h${bw}v${hh}h${-bw}Z`}" fill="${q.color}" class="mk" data-tip="${de(v, dec)} ${unit}|${esc(q.name)} · ${esc(l)}"/>`; });
-    } else {
-      const k = series.length, bw = Math.min(24, (band * .8 - (k - 1) * 2) / k), x0 = cx - (k * bw + (k - 1) * 2) / 2;
-      series.forEach((q, j) => { const v = q.values[i] || 0; if (v <= 0) return; bars += `<path d="${rtop(x0 + j * (bw + 2), y(v), bw, y(0) - y(v), 4)}" fill="${q.color}" class="mk" data-tip="${de(v, dec)} ${unit}|${esc(q.name)} · ${esc(l)}"/>`; });
-    }
-  });
-  return `<svg class="ch" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(unit)}">${g}${bars}<text x="${L}" y="${T - 1}" class="un">${esc(unit)}</text></svg>`;
-}
-
-/* Linien, eine Achse, Fadenkreuz */
-function lineChart({ id, W, H = 190, labels, series, unit, ref, dec = 1, area }) {
-  const L = 40, R = 10, T = 12, Bm = 24, pw = W - L - R, ph = H - T - Bm, n = labels.length;
-  const all = series.flatMap(q => q.values).concat(ref ? [ref.v] : []);
-  let lo = Math.min(...all), hi = Math.max(...all); if (area) lo = 0;
-  const span = niceMax((hi - lo) || 1) , stp = span / 4; lo = Math.floor(lo / stp) * stp; hi = lo + stp * 4; while (hi < Math.max(...all)) hi += stp;
-  const x = i => L + (n === 1 ? pw / 2 : pw * i / (n - 1)), y = v => T + ph - (v - lo) / (hi - lo) * ph;
-  let g = '';
-  const tk = Math.round((hi - lo) / stp);
-  for (let k = 0; k <= tk; k++) { const v = lo + stp * k; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="${k ? 'grid' : 'base'}"/><text x="${L - 6}" y="${y(v) + 3}" class="yt">${de(v, stp < 1 ? 1 : 0)}</text>`; }
-  const step = Math.ceil(n / (W < 400 ? 5 : 10));
-  labels.forEach((l, i) => { if (i % step === 0) g += `<text x="${x(i)}" y="${H - 8}" class="xt">${esc(l)}</text>`; });
-  if (ref) g += `<line x1="${L}" x2="${W - R}" y1="${y(ref.v)}" y2="${y(ref.v)}" class="refl"/><text x="${W - R}" y="${y(ref.v) - 4}" class="reft">${esc(ref.label)}</text>`;
-  let ls = '';
-  series.forEach(q => {
-    const pts = q.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-    if (area) ls += `<polygon points="${x(0)},${y(lo)} ${pts} ${x(n - 1)},${y(lo)}" fill="${q.color}" opacity=".1"/>`;
-    ls += `<polyline points="${pts}" fill="none" stroke="${q.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${q.dash ? 'stroke-dasharray="4 4"' : ''}/>`;
-    const li = q.last != null ? q.last : n - 1;
-    ls += `<circle cx="${x(li)}" cy="${y(q.values[li])}" r="4" fill="${q.color}" class="ring"/>`;
-  });
-  CX[id] = { L, pw, n, W, labels, series: series.map(q => ({ name: q.name, color: q.color, values: q.values })), unit, dec };
-  return `<svg class="ch" viewBox="0 0 ${W} ${H}" data-cxid="${id}">${g}${ls}<line id="${id}-x" x1="0" x2="0" y1="${T}" y2="${T + ph}" class="cross" style="display:none"/>
-    <rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent" data-cx="${id}"/><text x="${L}" y="${T - 2}" class="un">${esc(unit)}</text></svg>`;
-}
-
-/* Zeitleiste (ein/aus je Gerät) über 24 h */
-function timeline({ id, W, rows, now }) {
-  const LW = W < 400 ? 96 : 170, R = 6, T = 6, RH = 22, H = T + rows.length * RH + 22, pw = W - LW - R;
-  const x = m => LW + pw * m / 1440;
-  let g = `<defs><pattern id="${id}-h" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="6" fill="currentColor"/></pattern></defs>`;
-  [0, 360, 720, 1080, 1440].forEach(m => g += `<line x1="${x(m)}" x2="${x(m)}" y1="${T}" y2="${H - 20}" class="grid"/><text x="${x(m)}" y="${H - 6}" class="xt">${m2t(m).slice(0, 2)}</text>`);
-  rows.forEach((r, i) => {
-    const yy = T + i * RH;
-    g += `<text x="${LW - 8}" y="${yy + 15}" class="rl">${esc(r.name.length > (W < 400 ? 13 : 24) ? r.name.slice(0, W < 400 ? 12 : 23) + '…' : r.name)}</text><rect x="${LW}" y="${yy + 5}" width="${pw}" height="12" rx="3" class="lane"/>`;
-    r.segs.forEach(([a, b2, k]) => {
-      const w = Math.max(1.5, x(b2) - x(a)), tip = `${m2t(a)}–${m2t(b2)} · ${de((b2 - a) / 60)} h|${esc(r.name)} · ${k === 'on' ? r.onLabel : k === 'extra' ? 'Kleidung trocknen' : 'offline'}`;
-      if (k === 'off') g += `<rect x="${x(a)}" y="${yy + 5}" width="${w}" height="12" rx="3" fill="url(#${id}-h)" style="color:var(--crit)" class="mk" data-tip="${tip}"/>`;
-      else if (k === 'extra') g += `<g class="mk" data-tip="${tip}" style="color:${r.color}"><rect x="${x(a)}" y="${yy + 5}" width="${w}" height="12" rx="3" fill="url(#${id}-h)"/><rect x="${x(a)}" y="${yy + 5}" width="${w}" height="12" rx="3" fill="none" stroke="${r.color}" stroke-width="1"/></g>`;
-      else g += `<rect x="${x(a)}" y="${yy + 5}" width="${w}" height="12" rx="3" fill="${r.color}" class="mk" data-tip="${tip}"/>`;
-    });
-  });
-  if (now != null) g += `<line x1="${x(now)}" x2="${x(now)}" y1="${T}" y2="${H - 20}" class="now"/><text x="${x(now)}" y="${H - 6}" class="xt now-t">jetzt</text>`;
-  return `<svg class="ch" viewBox="0 0 ${W} ${H}">${g}</svg>`;
-}
-
-
 
 /* Realistische, animierte Wettersymbole (eigene SVGs mit Filtern, ohne externe Dateien; von Herbert gewählt 29.09.2026).
    Bedingungen wie in HA (weather.*). */
@@ -223,190 +116,7 @@ function bcSchacht(laeuft) {
   </svg>`;
 }
 
-const CSS = `:host { display: flex; flex-direction: column; height: 100%; min-height: 100vh; background: var(--primary-background-color);
-  color: var(--primary-text-color); font-family: var(--ha-font-family-body, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif); font-size: 14px;
-  --state-heat: var(--state-climate-heat-color, #ff8100); --ha-card-border: var(--ha-card-border-width, 1px) solid var(--divider-color, rgba(0,0,0,.12));
-  --tag-bg: rgba(127,127,127,.15); }
-* { box-sizing: border-box; }
-.hdr { position: sticky; top: 0; z-index: 3; }
-.bname { font-size: 15px; opacity: .9; }
-.bsel { font: inherit; font-size: 15px; background: transparent; color: inherit; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; padding: 3px 6px; }
-.bsel option { color: #212121; }
-.inhalt { flex: 1; overflow: auto; container-type: inline-size; }
-.view { max-width: 1400px; margin: 0 auto; }
-.klein { font-size: 12px; }
-.filter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.rot { color: var(--error-color) !important; }
-.warn { color: var(--error-color); font-weight: 500; }
-.chip.gruen { background: rgba(67,160,71,.15); color: var(--success-color); }
-.tgl.dis { opacity: .4; pointer-events: none; }
-.tile[data-tab] { cursor: pointer; }
-/* Diagramm-Palette: validiert (hell auf #fff, dunkel auf #1c1c1c) – Kategorie-Reihenfolge fest */
-:host { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
-  --crit: #d03b3b; --muted: #898781; --gridc: #e1e0d9; --axisc: #c3c2b7; --ink2: #52514e; }
-:host([dunkel]) { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
-  --gridc: #2c2c2a; --axisc: #383835; --ink2: #c3c2b7; }
-/* Handy: Abschnitte nicht breiter als der Bildschirm, Tabellen scrollen in der Karte, Tabs kompakt */
-.sec, .card { min-width: 0; }
-.card { overflow-x: auto; }
-.tabs.eng .tab { text-transform: none; font-size: 13px; padding: 10px 9px; letter-spacing: 0; }
-@container (max-width: 700px) { table.t { font-size: 12px; } table.t td, table.t th { padding: 5px 3px; } }
-* { box-sizing: border-box; }
-.hdr { background: var(--app-header-background-color); color: var(--app-header-text-color); }
-.hdr-top { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px; font-size: 20px; }
-.hdr-top .ico { width: 24px; text-align: center; opacity: .9; }
-.hdr-top .t { flex: 1; }
-.tabs { display: flex; overflow-x: auto; padding: 0 4px; }
-.tab { padding: 10px 14px; font-size: 14px; text-transform: uppercase; letter-spacing: .03em; cursor: pointer; border-bottom: 2px solid transparent; opacity: .75; white-space: nowrap; }
-.tab.on { border-bottom-color: currentColor; opacity: 1; }
-.view { padding: 16px; }
-.sections { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
-.sec { display: flex; flex-direction: column; gap: 8px; }
-.sec.span2 { grid-column: span 2; }
-.sec.span3 { grid-column: 1 / -1; }
-@container (max-width: 700px) {
-  .sections { grid-template-columns: 1fr; }
-.sec.span2, .sec.span3 { grid-column: auto; }
-.view { padding: 8px; }
-.grid2 { grid-template-columns: 1fr 1fr; }
-.week .row { grid-template-columns: 34px 1fr 1fr 44px; }
-.hide-phone { display: none !important; }
-}
-.heading { display: flex; align-items: baseline; gap: 8px; padding: 8px 4px 0; font-size: 16px; font-weight: 500; }
-.heading .sub { margin-left: auto; font-size: 13px; color: var(--secondary-text-color); font-weight: 400; }
-.card { position: relative; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 12px; }
-.card h3 { margin: 0 0 8px; font-size: 15px; font-weight: 500; }
-.ctype { display: none; position: absolute; top: 4px; right: 6px; font: 10px/1.4 ui-monospace, monospace; background: var(--tag-bg); color: var(--secondary-text-color); padding: 0 5px; border-radius: 4px; }
-.show-types .ctype { display: block; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.tile { position: relative; display: flex; align-items: center; gap: 10px; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 10px; min-height: 56px; }
-.tile .ic { flex: 0 0 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; background: rgba(127,127,127,.15); }
-.tile.heat .ic { background: rgba(255,129,0,.2); color: var(--state-heat); }
-.tile.ok .ic { background: rgba(67,160,71,.18); color: var(--success-color); }
-.tile.bad .ic { background: rgba(219,68,55,.18); color: var(--error-color); }
-.tile.info .ic { background: rgba(3,155,229,.18); color: var(--info-color); }
-.tile .tx { flex: 1; min-width: 0; }
-.tile .n { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tile .s { color: var(--secondary-text-color); font-size: 12px; }
-.tile .ctype { top: auto; bottom: 3px; }
-.tgl { flex: 0 0 auto; width: 36px; height: 20px; border-radius: 10px; background: #9e9e9e; position: relative; cursor: pointer; }
-.tgl::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
-.tgl.on { background: var(--primary-color); }
-.tgl.on::after { left: 18px; }
-.rows { display: flex; flex-direction: column; }
-.r { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--divider-color); }
-.r:first-child { border-top: 0; }
-.r .ic { width: 24px; text-align: center; color: var(--secondary-text-color); }
-.r .l { flex: 1; min-width: 0; }
-.r .l small { display: block; color: var(--secondary-text-color); font-size: 12px; }
-.r .v { color: var(--secondary-text-color); white-space: nowrap; }
-.inp { border: 1px solid var(--divider-color); border-radius: 6px; padding: 4px 8px; background: transparent; color: var(--primary-text-color); font: inherit; width: 76px; text-align: center; }
-.slider { width: 110px; accent-color: var(--primary-color); }
-.big { font-size: 28px; font-weight: 400; }
-.muted { color: var(--secondary-text-color); }
-.warnc { border-left: 4px solid var(--warning-color); }
-.errc { border-left: 4px solid var(--error-color); }
-.pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: rgba(255,129,0,.18); color: var(--state-heat); }
-.pill.blue { background: rgba(3,155,229,.15); color: var(--info-color); }
-.pill.grey { background: rgba(127,127,127,.15); color: var(--secondary-text-color); }
-.week .row { display: grid; grid-template-columns: 40px 1fr 1fr 1fr 44px; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid var(--divider-color); }
-.week .row.h { border-top: 0; font-size: 12px; color: var(--secondary-text-color); }
-.week .inp { width: 100%; }
-.tl { position: relative; height: 10px; border-radius: 5px; background: rgba(127,127,127,.18); }
-.tl i { position: absolute; top: 0; bottom: 0; border-radius: 5px; background: var(--state-heat); }
-.tl i.ext { background: repeating-linear-gradient(45deg, var(--state-heat) 0 4px, transparent 4px 8px); }
-.tl i.pre { background: repeating-linear-gradient(45deg, var(--info-color) 0 4px, transparent 4px 8px); }
-.xlab { display: flex; gap: 4px; font-size: 10px; color: var(--secondary-text-color); }
-.xlab span { flex: 1; text-align: center; }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--secondary-text-color); margin-top: 6px; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
-.c1 { background: #03a9f4; } .c2 { background: #ff9800; } .c3 { background: #8e24aa; }
-.hbar { height: 10px; border-radius: 5px; background: rgba(127,127,127,.18); overflow: hidden; }
-.hbar i { display: block; height: 100%; }
-svg.line { width: 100%; height: 140px; }
-.tgl, [data-v], [data-goto] { user-select: none; }
-.inp:disabled { opacity: .4; }
-.tile .s i { font-style: normal; opacity: .8; }
-.tgl, [data-act] { user-select: none; cursor: pointer; }
-.inp:disabled, .dis { opacity: .45; pointer-events: none; }
-.tile .s i { font-style: normal; opacity: .8; }
-select.inp { width: auto; text-align: left; }
-.inp.wide { width: 100%; text-align: left; }
-.btn { border: 0; border-radius: 18px; padding: 6px 14px; font: inherit; font-weight: 500; cursor: pointer; background: var(--primary-color); color: #fff; }
-.btn.flat { background: transparent; color: var(--primary-color); }
-.btn.warn { background: var(--error-color); }
-.btn.small { padding: 3px 10px; font-size: 12px; }
-.chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 9px; background: rgba(3,169,244,.15); color: var(--info-color); margin-right: 4px; }
-.chip.grey { background: rgba(127,127,127,.15); color: var(--secondary-text-color); }
-.chip.red { background: rgba(219,68,55,.15); color: var(--error-color); }
-.form { background: rgba(3,169,244,.06); border: 1px dashed var(--primary-color); border-radius: 10px; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
-.form label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--secondary-text-color); }
-.form .act { display: flex; gap: 8px; justify-content: flex-end; }
-.bsel { display: flex; align-items: center; gap: 10px; }
-.bsel select { font: inherit; font-size: 15px; font-weight: 500; border: 0; background: transparent; color: var(--primary-text-color); flex: 1; }
-.info-card { background: rgba(3,169,244,.08); border: 1px solid rgba(3,169,244,.3); }
-table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.t th, table.t td { padding: 6px 4px; text-align: right; border-top: 1px solid var(--divider-color); white-space: nowrap; }
-table.t th { color: var(--secondary-text-color); font-weight: 500; border-top: 0; }
-table.t td:first-child, table.t th:first-child { text-align: left; }
-.save { color: var(--success-color); font-weight: 600; }
-.dev { display: flex; gap: 10px; align-items: center; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 8px 10px; position: relative; }
-.dev.bad { border-color: var(--error-color); }
-.dev svg.a { flex: 0 0 52px; width: 52px; height: 52px; }
-.dev .tx { flex: 1; min-width: 0; }
-.dev .n { font-weight: 500; }
-.dev .s { color: var(--secondary-text-color); font-size: 12px; }
-.dev .ctype { top: auto; bottom: 3px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes rise { 0% { transform: translateY(5px); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-7px); opacity: 0; } }
-@keyframes flow { to { stroke-dashoffset: -12; } }
-@keyframes glow { 50% { opacity: .65; } }
-@keyframes blink { 50% { opacity: .2; } }
-.run .spin { transform-box: fill-box; transform-origin: center; animation: spin .9s linear infinite; }
-.run .spin.slow { animation-duration: 1.6s; }
-.wave { opacity: 0; }
-.run .wave { animation: rise 1.8s ease-in infinite; }
-.run .wave.d2 { animation-delay: .6s; } .run .wave.d3 { animation-delay: 1.2s; }
-.run .flow { stroke-dasharray: 3 3; animation: flow .5s linear infinite; }
-.run .glow { animation: glow 2.2s ease-in-out infinite; }
-.alarm .blink { animation: blink 1s steps(2) infinite; }
-@media (prefers-reduced-motion: reduce) { .run *, .alarm * { animation: none !important; } .wave { opacity: .7; } }
-:host([dunkel]) { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
-  --gridc: #2c2c2a; --axisc: #383835; --ink2: #c3c2b7; }
-svg.ch { width: 100%; height: auto; display: block; overflow: visible; font-family: inherit; }
-svg.ch .grid { stroke: var(--gridc); stroke-width: 1; }
-svg.ch .base { stroke: var(--axisc); stroke-width: 1; }
-svg.ch .yt { font-size: 10px; fill: var(--muted); text-anchor: end; font-variant-numeric: tabular-nums; }
-svg.ch .xt { font-size: 10px; fill: var(--muted); text-anchor: middle; }
-svg.ch .un { font-size: 10px; fill: var(--muted); }
-svg.ch .rl { font-size: 11px; fill: var(--ink2); text-anchor: end; }
-svg.ch .lane { fill: var(--gridc); opacity: .5; }
-svg.ch .refl { stroke: var(--crit); stroke-width: 1; }
-svg.ch .reft { font-size: 10px; fill: var(--ink2); text-anchor: end; }
-svg.ch .now { stroke: var(--primary-text-color); stroke-width: 1.5; }
-svg.ch .now-t { fill: var(--primary-text-color); font-weight: 600; }
-svg.ch .cross { stroke: var(--muted); stroke-width: 1; pointer-events: none; }
-svg.ch .ring { stroke: var(--card-background-color); stroke-width: 2; }
-svg.ch .mk { cursor: default; transition: opacity .1s; }
-svg.ch .mk:hover { opacity: .75; }
-.lg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink2); margin-top: 8px; }
-.lg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
-.lg i.line { height: 2px; width: 14px; border-radius: 1px; vertical-align: 3px; }
-.lg i.dash { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
-.lg i.hatch { background: repeating-linear-gradient(45deg, var(--c) 0 2px, transparent 2px 5px); border: 1px solid var(--c); }
-.tip { position: fixed; z-index: 20; display: none; pointer-events: none; background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121);
-  border: 1px solid rgba(127,127,127,.3); border-radius: 8px; padding: 7px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.18); max-width: 260px; }
-.tip .tr { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.tip .tr i { width: 12px; height: 2px; border-radius: 1px; flex: 0 0 auto; }
-.tip .tr span { color: var(--secondary-text-color, #727272); }
-.stat { position: relative; background: var(--card-background-color); border: var(--ha-card-border); border-radius: var(--ha-card-border-radius); padding: 12px 14px; }
-.stat .sl { font-size: 13px; color: var(--secondary-text-color); }
-.stat .sv { font-size: 24px; font-weight: 600; margin: 2px 0; }
-.stat .ss { font-size: 12px; color: var(--secondary-text-color); }
-/* Wetter */
-:host { --wr-nebel: #cfd8dc; --wr-wind: #90a4ae; }
-:host([dunkel]) { --wr-nebel: #c5d0d7; --wr-wind: #b0bec5; }
+const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
 .wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
 .wetter .wtage { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
@@ -437,45 +147,7 @@ svg.ch .mk:hover { opacity: .75; }
 @media (prefers-reduced-motion: reduce) { .wi * { animation: none !important; } }
 
 /* Übersicht: Baustelle und Container als Kacheln */
-:host { --fenster: #2b3a44; --rahmen: #cfd8dc; } :host(:not([dunkel])) { --fenster: #cfe3f3; --rahmen: #eceff1; }
-.bu { display: flex; flex-direction: column; gap: 14px; }
-.bk, .kc { cursor: pointer; } .chip[data-tab], .chip[data-act] { cursor: pointer; }
-.chip.gruen { background: rgba(67,160,71,.16); color: #43a047; }
-.blitz { opacity: .5; } .blitz.an { opacity: 1; }
-.ck { display: grid; grid-template-columns: minmax(200px, 360px) 1fr; gap: 18px; align-items: center;
-  background: radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--f) 22%, transparent), transparent 60%), var(--card-background-color); }
-.ck-zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; } .ck-zahlen b { display: block; font-size: 18px; } .ck-zahlen small { color: var(--secondary-text-color); font-size: 12px; }
-@container (max-width: 700px) { .ck { grid-template-columns: 1fr; } }
-.chip.orange { background: rgba(255,129,0,.18); color: #ff9800; } .chip.blau { background: rgba(42,120,214,.2); color: #64b5f6; } .chip.rot { background: rgba(208,59,59,.2); color: #ef6c6c; } .chip.grau { color: var(--secondary-text-color); }
-.wchip { padding: 1px 10px 1px 4px; }
-/* Kopf-Kachel */
-.bk { position: relative; overflow: hidden; border-radius: 22px; padding: 18px; display: grid; grid-template-columns: 1fr auto; gap: 12px;
-  background: radial-gradient(120% 140% at 0% 0%, rgba(255,152,0,.28), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(57,135,229,.28), transparent 55%), var(--card-background-color); border: 1px solid var(--divider-color); }
-.bk::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255,193,7,.07) 0 14px, transparent 14px 28px); pointer-events: none; }
-.bk-name { font-size: 24px; font-weight: 600; margin: 2px 0 8px; } .bk-zahlen { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--secondary-text-color); } .bk-zahlen b { color: var(--primary-text-color); font-size: 18px; }
-.bk-r { display: flex; align-items: center; gap: 10px; } .bk-kw { font-size: 30px; font-weight: 300; } .bk-kw small { font-size: 14px; color: var(--secondary-text-color); }
-.blitz { font-size: 30px; animation: blitz 2.4s ease-in-out infinite; filter: drop-shadow(0 0 8px rgba(255,193,7,.7)); }
-.bk-leiste { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; position: relative; z-index: 1; }
-@container (max-width: 500px) { .bk { grid-template-columns: 1fr; } }
-/* Kacheln */
-.gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-@container (max-width: 520px) { .gitter { grid-template-columns: 1fr 1fr; gap: 10px; } .kc .gross { font-size: 24px; } .kc-name { font-size: 14px; } .kc-fuss .muted { font-size: 11px; } }
-.kc { position: relative; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 20px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; overflow: hidden;
-  animation: rein .5s ease-out both; transition: transform .2s; }
-.kc::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 58%; background: radial-gradient(90% 90% at 50% 20%, color-mix(in srgb, var(--f) 30%, transparent), transparent 70%); pointer-events: none; }
-.kc.heizt::before, .kc.trocknen::before { background: radial-gradient(90% 90% at 50% 20%, rgba(255,152,0,.32), transparent 70%); animation: atmen 3s ease-in-out infinite; }
-.kc.offline { border-color: rgba(208,59,59,.6); } .kc:hover { transform: translateY(-3px); }
-.illu { margin: -4px -6px 0; } .bc { width: 100%; height: auto; display: block; overflow: visible; } .bc.offline { filter: grayscale(.8) brightness(.8); }
-.kc-kopf { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; position: relative; } .kc-name { font-weight: 600; font-size: 15px; line-height: 1.2; }
-.kc-kopf .chip { font-size: 11px; padding: 2px 8px; white-space: nowrap; }
-.kc-mitte { display: flex; justify-content: space-between; align-items: flex-end; } .gross { font-size: 30px; font-weight: 300; line-height: 1; } .gross small { font-size: 13px; color: var(--secondary-text-color); } .gross.grau { color: var(--secondary-text-color); }
-.kw { font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; } .kw b { color: var(--primary-text-color); font-size: 16px; }
-.balken { height: 6px; border-radius: 3px; background: rgba(127,127,127,.2); overflow: hidden; } .balken i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--f), #ff9800); animation: fuellen 1.2s ease-out both; }
-.kc-fuss { display: flex; justify-content: space-between; align-items: center; font-size: 12px; } .punkte { display: flex; gap: 4px; } .punkte i { width: 8px; height: 8px; border-radius: 50%; background: rgba(127,127,127,.4); }
-.punkte i.an { background: #ff9800; box-shadow: 0 0 6px #ff9800; animation: atmen 2s ease-in-out infinite; }
-.kc.laeuft .punkte i.an { background: #42a5f5; box-shadow: 0 0 6px #42a5f5; } .kc.laeuft .balken i { background: linear-gradient(90deg, var(--f), #42a5f5); }
-.kc.neu { align-items: center; justify-content: center; border-style: dashed; min-height: 140px; font-size: 13px; } .kc.neu > div:first-child { font-size: 38px; font-weight: 200; color: var(--secondary-text-color); }
-/* Animationen */
+.bc { width: 100%; height: auto; display: block; overflow: visible; } .bc.offline { filter: grayscale(.8) brightness(.8); }
 @keyframes rein { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes atmen { 50% { opacity: .55; } }
 @keyframes fuellen { from { width: 0; } }
@@ -492,990 +164,2489 @@ svg.ch .mk:hover { opacity: .75; }
 @media (prefers-reduced-motion: reduce) { .bc *, .kc, .kc *, .bk * { animation: none !important; } }
 `;
 
-const TAGE = [['mo', 'Mo', 'Montag'], ['di', 'Di', 'Dienstag'], ['mi', 'Mi', 'Mittwoch'], ['do', 'Do', 'Donnerstag'],
-  ['fr', 'Fr', 'Freitag'], ['sa', 'Sa', 'Samstag'], ['so', 'So', 'Sonntag']];
-const MON = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-const STATUS = { abgeschlossen: 'Abgeschlossen', nur_pumpen: 'Nur Pumpenüberwachung', automatik_aus: 'Automatik aus',
-  heizgrenze: 'Heizgrenze – zu warm', urlaub: 'Urlaub', feiertag: 'Feiertag', heizt: 'Heizt', bereit: 'Bereit' };
-const GRUND = { automatik_aus: 'Automatik aus', frostschutz: 'Frostschutz', hand: 'Handbetrieb', modus_aus: 'Modus aus',
-  heizgrenze: 'Heizgrenze – zu warm', urlaub: 'Urlaub', feiertag: 'Feiertag', absenkung: 'Abgesenkt (Urlaub)',
-  ausserhalb: 'außerhalb der Heizzeit', zeitplan: 'Zeitplan', kaelte_frueher: 'früher wegen Kälte',
-  kleidung_trocknen: 'Kleidung trocknen', thermostat_heizt: 'Thermostat heizt', thermostat_erreicht: 'Solltemperatur erreicht' };
-const PROBLEM = { offline: 'nicht erreichbar – Stromausfall oder Verbindung weg?', trockenlauf: 'läuft, zieht aber zu wenig – Trockenlauf?',
-  dauerlauf: 'läuft ohne Pause – Schwimmer oder starker Zufluss?',
-  keine_leistung: 'eingeschaltet, zieht aber keinen Strom – Heizkörper selbst an? Stecker, Sicherung?' };
-const FEHLER = { keine_funktion: 'Mindestens eine Funktion einschalten.', geraete_vergeben: 'Einige Shellys gehören inzwischen einer anderen aktiven Baustelle.',
-  name_vergeben: 'Diesen Namen gibt es schon.', schalter_vergeben: 'Dieser Shelly ist in dieser Baustelle schon zugeordnet.',
-  schalter_andere_baustelle: 'Dieser Shelly gehört einer anderen aktiven Baustelle – die zuerst abschließen.', kein_bereich: 'Zuerst einen Container oder Bereich anlegen.',
-  rolle_passt_nicht: 'Pumpen gehören in einen Pumpenschacht, alles andere in einen Container.', already_configured: 'Diese Baustelle gibt es schon.' };
-const OPTION = { zeitplan: 'Zeitplan', thermostat: 'Thermostat', hand: 'Hand', aus: 'Aus', frost: 'Nur Frostschutz',
-  absenken: 'Absenken', jetzt: 'aktueller Temperatur', tageshoechst: 'Tageshöchstwert (Vorhersage)' };
-const ROLLE = { heizkoerper: 'Heizkörper', bautrockner: 'Bautrockner', pumpe: 'Pumpe', steckdose: 'Steckdose' };
-const TYP = { oelradiator: 'Ölradiator', konvektor: 'Konvektor' };
-const HEIZ = ['heizkoerper', 'bautrockner'];
-const INTEGRATION = '/config/integrations/integration/baustelle';
+/* Glas-Stil aus dem Mockup (mockups/quelle/glas.css) */
+const GLAS_CSS = `:host { display: block; height: 100%; }
+.wurzel { position: relative; height: 100vh; height: 100dvh; background: #0b0b0b; color: #fff; font-family: -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif; font-size: 14px; }
+.wurzel.hell { background: #d9dee5; color: #111; }
+/* Seitenleiste auf dem Handy (HA zeigt bei eigenen Seiten keinen Kopf) */
+.still .glas-k { animation: schweben2 6s ease-in-out infinite; } .still .glas-k.neu, .still .bs-karte, .still .fl-flaeche, .still .fl-linie, .still .hb-spur i, .still .w-inhalt { animation: none; }
+.menue-knopf { position: absolute; top: 10px; left: 14px; z-index: 6; width: 36px; height: 36px; border-radius: 50% !important; display: grid; place-items: center; font-size: 17px; color: var(--ink2); }
+/* Glas-Stil (Variante C) – klickbarer Prototyp */
 
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const de = (x, d = 1) => (x === null || x === undefined || Number.isNaN(Number(x))) ? '–'
-  : Number(x).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d });
-const eur = x => (x === null || x === undefined) ? '–' : de(x, 2) + ' €';
-const m2t = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
-const t2m = t => { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
-const tagIndex = d => (d.getDay() + 6) % 7;
-const isoTag = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const mitternacht = (d = new Date()) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+/* Farben der Diagramme (validierte Palette, eigene Stufen für dunkel) */
+.ui { position: absolute; inset: 0; }
+.app { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  --ink: #fff; --ink2: rgba(255,255,255,.66); --gridc: rgba(255,255,255,.14); --axisc: rgba(255,255,255,.55); --amber: #ff9f0a; --rot: #ff6961; --blau: #64a8ff;
+  --panel: rgba(255,255,255,.05); --panel-rand: rgba(255,255,255,.2); --sheet: rgba(28,32,44,.82);
+  --fenster: #2b3a44; --rahmen: #cfd8dc; --wr-nebel: #c5d0d7; --wr-wind: #cfe3f3;
+  position: relative; height: 100%; overflow: hidden; color: var(--ink); container-type: inline-size; }
+.hell .app { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --ink: #111; --ink2: rgba(0,0,0,.6); --gridc: rgba(0,0,0,.1); --axisc: rgba(0,0,0,.5); --amber: #d97800; --rot: #d7372b; --blau: #0a64d6;
+  --panel: rgba(255,255,255,.2); --panel-rand: rgba(255,255,255,.65); --sheet: rgba(250,250,252,.86);
+  --fenster: #cfe3f3; --rahmen: #eceff1; --wr-nebel: #8a99a3; --wr-wind: #7d98ad; }
+/* Grundform für Knöpfe ohne Gewicht (:where), damit Klassen wie .glas-panel oder .glas-kw sie überschreiben */
+:where(.app button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+.app input, .app select { font: inherit; color: var(--ink); background: rgba(127,127,127,.16); border: 1px solid var(--panel-rand); border-radius: 10px; padding: 7px 10px; }
+.app select option { color: #111; }
 
+/* Hintergrund: Stimmung nach Tageszeit und Wetter. Farben als registrierte Eigenschaften, damit sie weich überblenden */
+@property --g1 { syntax: '<color>'; inherits: true; initial-value: #1c3552; }
+@property --g2 { syntax: '<color>'; inherits: true; initial-value: #1f4a70; }
+@property --g3 { syntax: '<color>'; inherits: true; initial-value: #2a5575; }
+@property --f1 { syntax: '<color>'; inherits: true; initial-value: #ffd27a; }
+@property --f2 { syntax: '<color>'; inherits: true; initial-value: #3aa0ff; }
+@property --f3 { syntax: '<color>'; inherits: true; initial-value: #7fd0ff; }
+.glas-bg { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(165deg, var(--g1) 0%, var(--g2) 50%, var(--g3) 100%);
+  transition: --g1 2.5s, --g2 2.5s, --g3 2.5s, --f1 2.5s, --f2 2.5s, --f3 2.5s; --dunst-farbe: #3c4655; --tropfen: rgba(200,225,255,.6); }
+.glas-bg[data-phase=morgen] { --g1: #2e2748; --g2: #4a3150; --g3: #6b4040; --f1: #ff8a5c; --f2: #6a7bd6; --f3: #d07ab8; }
+.glas-bg[data-phase=tag]    { --g1: #1c3552; --g2: #1f4a70; --g3: #2a5575; --f1: #ffc766; --f2: #3aa0ff; --f3: #7fd0ff; }
+.glas-bg[data-phase=abend]  { --g1: #2a1a36; --g2: #45203d; --g3: #5a2a2c; --f1: #ff7a2e; --f2: #d0457a; --f3: #7a4bd0; }
+.glas-bg[data-phase=nacht]  { --g1: #070d1c; --g2: #0c1528; --g3: #131a33; --f1: #2c3e8a; --f2: #1b4a7a; --f3: #4b3a8a; }
+.hell .glas-bg { --dunst-farbe: #c9ced6; --tropfen: rgba(50,80,120,.35); }
+.hell .glas-bg[data-phase=morgen] { --g1: #ffd9c7; --g2: #f5e0f0; --g3: #cfdcff; --f1: #ff9a6a; --f2: #9fb4ff; --f3: #f0a0c8; }
+.hell .glas-bg[data-phase=tag]    { --g1: #cfe6ff; --g2: #e3f1ff; --g3: #fff3d6; --f1: #ffd060; --f2: #6ab8ff; --f3: #a8e0ff; }
+.hell .glas-bg[data-phase=abend]  { --g1: #ffd2b0; --g2: #f7c6d8; --g3: #d9ccff; --f1: #ff8a3a; --f2: #ff6f9a; --f3: #a58aff; }
+.hell .glas-bg[data-phase=nacht]  { --g1: #b9c4e0; --g2: #c9cde6; --g3: #d8d0ec; --f1: #6d80c8; --f2: #7fa3dc; --f3: #9a88d2; }
+.glas-bg > i { position: absolute; border-radius: 50%; filter: blur(40px) saturate(1); opacity: .7; animation: schweben 14s ease-in-out infinite; transition: filter 2.5s, opacity 2.5s; }
+.glas-bg .k1 { width: 260px; height: 260px; background: var(--f1); top: -60px; left: -60px; }
+.glas-bg .k2 { width: 240px; height: 240px; background: var(--f2); top: 300px; right: -80px; animation-delay: -5s; }
+.glas-bg .k3 { width: 200px; height: 200px; background: var(--f3); bottom: -40px; left: 40px; animation-delay: -9s; }
+.glas-bg[data-phase=nacht] > i { opacity: .45; }
+/* Wetter dämpft die Farben und legt Dunst darüber */
+.dunst { position: absolute; inset: 0; background: var(--dunst-farbe); opacity: 0; transition: opacity 2.5s; }
+.glas-bg[data-wetter=wolkig] .dunst { opacity: .3; }  .glas-bg[data-wetter=wolkig] > i { filter: blur(50px) saturate(.6); }
+.glas-bg[data-wetter=regen] .dunst { opacity: .42; }  .glas-bg[data-wetter=regen] > i { filter: blur(55px) saturate(.45); opacity: .5; }
+.glas-bg[data-wetter=gewitter] .dunst { opacity: .55; background: #1c2230; } .glas-bg[data-wetter=gewitter] > i { filter: blur(55px) saturate(.35); opacity: .4; }
+.hell .glas-bg[data-wetter=gewitter] .dunst { background: #9aa3b2; }
+.glas-bg[data-wetter=nebel] .dunst { opacity: .62; }  .glas-bg[data-wetter=nebel] > i { filter: blur(70px) saturate(.3); opacity: .35; }
+.glas-bg[data-wetter=schnee] .dunst { opacity: .35; background: #dfe8f2; } .glas-bg[data-wetter=schnee] > i { filter: blur(50px) saturate(.4); }
+.glas-bg:not(.hell *)[data-wetter=schnee] .dunst { opacity: .16; }
+/* Bewegung */
+.partikel { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.partikel i { position: absolute; display: block; }
+.tropfen { top: -40px; width: 1.5px; height: var(--l); border-radius: 1px; background: linear-gradient(transparent, var(--tropfen));
+  transform: rotate(12deg); animation: fallen var(--d) linear infinite; animation-delay: var(--v); }
+@keyframes fallen { to { transform: translate(-200px, 950px) rotate(12deg); } }
+.blitzlicht { inset: 0; background: #fff; opacity: 0; animation: blitzen 7s linear infinite; }
+@keyframes blitzen { 0%, 86%, 88.5%, 91%, 100% { opacity: 0; } 87% { opacity: .35; } 90% { opacity: .22; } }
+.flocke { top: -12px; animation: schneien var(--d) linear infinite; animation-delay: var(--v); }
+.flocke b { display: block; width: var(--s); height: var(--s); border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 0 4px rgba(255,255,255,.6);
+  animation: pendeln var(--w) ease-in-out infinite alternate; }
+.hell .flocke b { background: #fff; box-shadow: 0 0 3px rgba(80,100,130,.5); }
+@keyframes schneien { to { transform: translateY(950px); } }
+@keyframes pendeln { from { transform: translateX(-10px); } to { transform: translateX(10px); } }
+.schwade { left: -40%; width: 180%; height: 140px; background: radial-gradient(ellipse at center, rgba(225,232,240,.4), transparent 70%); filter: blur(12px);
+  animation: ziehen var(--d) ease-in-out infinite alternate; animation-delay: var(--v); }
+@keyframes ziehen { from { transform: translateX(-12%); } to { transform: translateX(12%); } }
+.wolke { left: -60%; width: 340px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.12); filter: blur(28px);
+  animation: wandern var(--d) linear infinite; animation-delay: var(--v); }
+.hell .wolke { background: rgba(255,255,255,.55); }
+@keyframes wandern { to { transform: translateX(260%); } }
+.stern { width: var(--s); height: var(--s); border-radius: 50%; background: #fff; box-shadow: 0 0 4px #fff; animation: funkeln 3.5s ease-in-out infinite; animation-delay: var(--v); }
+.hell .stern { background: #fffbe8; box-shadow: 0 0 4px #7d8fd0; }
+@keyframes funkeln { 50% { opacity: .2; } }
+.strahlen { top: -300px; left: -300px; width: 720px; height: 720px; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255,236,170,.14) 0 6deg, transparent 6deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 12%, transparent 62%); mask: radial-gradient(circle, #000 12%, transparent 62%); animation: drehen 90s linear infinite; }
+@keyframes drehen { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .partikel { display: none; } }
+/* WebGL-Himmel: zeichnet Verlauf, Lichtflecken, Wolken, Wetter und Tropfen selbst */
+.himmel { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.glas-bg.gl-an > i, .glas-bg.gl-an .dunst { visibility: hidden; }
+.glas-bg.gl-an .partikel { display: none; }
+
+.scroll { position: absolute; inset: 0; overflow-y: auto; }
+.seite { padding: 56px 14px 120px; display: flex; flex-direction: column; gap: 12px; max-width: 1100px; margin: 0 auto; }
+/* Einblenden nur am Anfang (backwards): eine festgehaltene Deckkraft machte die Seite zur eigenen Ebene – dann bleibt das Glas ohne Unschärfe */
+.seite.rein { animation: seite .28s cubic-bezier(.2,.7,.2,1) backwards; }
+
+.glas-panel { background: var(--panel); border: 1px solid var(--panel-rand); backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.22); }
+.glas-kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; }
+.klickbar { cursor: pointer; }
+.kopf-wetter { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 2px 10px 2px 2px !important; border-radius: 14px !important;
+  font-size: 13px; color: var(--ink2) !important; transition: background .2s; }
+.kopf-wetter:hover { background: rgba(255,255,255,.1) !important; } .kopf-wetter span:first-of-type { color: var(--ink); font-weight: 500; }
+.kopf-wetter .wi { margin: -4px 0; } .pfeil { font-size: 14px; opacity: .6; }
+.glas-klein { font-size: 11px; letter-spacing: 1.2px; color: var(--ink2); text-transform: uppercase; }
+.glas-titel { font-size: 22px; font-weight: 600; }
+.glas-kw { font-size: 38px; font-weight: 300; letter-spacing: -.5px; display: flex; align-items: baseline; gap: 4px; white-space: nowrap; line-height: 1; }
+.glas-kw small { font-size: 16px !important; opacity: .75 !important; font-weight: 400; letter-spacing: 0; }
+.glas-kw small, .glas-wert small, .c-wert small { font-size: .5em; opacity: .7; }
+.blitz { font-size: 26px; opacity: .4; align-self: center; } .blitz.an { opacity: 1; filter: drop-shadow(0 0 8px rgba(255,214,10,.9)); animation: blitz 2.4s ease-in-out infinite; }
+
+.glas-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; padding: 6px 12px; border-radius: 18px !important; transition: transform .15s; }
+.chip:active { transform: scale(.96); } .chip.rot { color: var(--rot); } .chip.amber { color: var(--amber); }
+.chip-leise { font-size: 12px; color: var(--ink2); margin-left: 4px; }
+.auto-chip { gap: 8px !important; padding-left: 7px !important; font-weight: 600; }
+.mini-sw { position: relative; width: 28px; height: 16px; border-radius: 8px; background: rgba(120,120,128,.45); transition: background .25s; flex: none; }
+.mini-sw i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: transform .25s cubic-bezier(.3,.7,.2,1.2); }
+.auto-chip.on .mini-sw { background: var(--amber); } .auto-chip.on .mini-sw i { transform: translateX(12px); }
+.chip-status { font-size: 13px; color: var(--ink2); } .chip-status.amber { color: var(--amber); font-weight: 500; }
+
+.glas-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.glas-k { padding: 12px; display: flex; flex-direction: column; gap: 3px; animation: rein .5s ease-out backwards, schweben2 6s ease-in-out infinite;
+  transition: transform .2s cubic-bezier(.2,.7,.2,1), box-shadow .2s; }
+.glas-k:nth-child(2n) { animation-delay: 0s, -3s; }
+.glas-k:hover { box-shadow: 0 14px 40px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.3); } .glas-k:active { transform: scale(.97); }
+.glas-illu { margin: -4px -6px -2px; filter: drop-shadow(0 12px 14px rgba(0,0,0,.35)); }
+.glas-name { font-weight: 600; font-size: 15px; }
+.glas-zeile { display: flex; justify-content: space-between; align-items: baseline; }
+.glas-wert { font-size: 26px; font-weight: 300; } .glas-kwk { font-size: 12px; color: var(--ink2); }
+.glas-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink2); }
+.glas-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); animation: atmen 2s infinite; flex: none; }
+.glas-geraete { display: flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11px; color: var(--ink2); }
+.glas-geraete i { width: 6px; height: 6px; border-radius: 50%; background: rgba(142,142,147,.55); } .glas-geraete i.an { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.glas-geraete span { margin-left: 4px; }
+.glas-k.neu { align-items: center; justify-content: center; min-height: 180px; color: var(--ink2); background: transparent; border-style: dashed; box-shadow: none; animation: rein .5s ease-out backwards; }
+.glas-k.neu span { font-size: 34px; font-weight: 200; color: var(--ink); }
+
+.glas-nav { position: absolute; left: 14px; right: 14px; bottom: 22px; display: flex; justify-content: space-around; padding: 6px; z-index: 5; }
+.glas-nav button { flex: 1; text-align: center; padding: 8px 2px; border-radius: 16px; font-size: 13px; color: var(--ink2); transition: background .2s, color .2s; }
+.glas-nav button.nav-ic { flex: 0 0 48px; display: grid; place-items: center; padding: 5px 2px; }
+.glas-nav button.nav-ic svg { display: block; transition: transform .4s cubic-bezier(.3,.7,.2,1); } .glas-nav button.nav-ic:hover svg { transform: rotate(60deg); }
+.glas-nav button.on { color: var(--ink); font-weight: 700; background: rgba(255,255,255,.16); }
+.hell .glas-nav button.on { background: rgba(255,255,255,.7); }
+
+/* Verbrauch (Klick auf kW) */
+.kw-knopf { cursor: pointer; border-radius: 14px !important; padding: 4px 8px !important; margin: -4px -8px -4px 0 !important; transition: background .2s; }
+.kw-knopf:hover { background: rgba(255,255,255,.12) !important; } .kw-pfeil { font-size: 22px; opacity: .5; margin-left: 4px; align-self: center; }
+.c-kw.kw-knopf { margin: 4px 0 0 -8px !important; }
+.vb-wer { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.vb-wer button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; padding: 5px 10px !important; border-radius: 14px !important;
+  border: 1px solid var(--panel-rand) !important; color: var(--ink2) !important; transition: background .2s, color .2s; }
+.vb-wer button.on { background: rgba(255,255,255,.2) !important; color: var(--ink) !important; font-weight: 600; } .hell .vb-wer button.on { background: #fff !important; }
+.vb-wer i { width: 8px; height: 8px; border-radius: 50%; }
+.app { --trenn: rgba(20,24,34,.85); } .hell .app { --trenn: rgba(255,255,255,.95); }
+.tip-summe { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--gridc); }
+.vb-je { display: flex; flex-direction: column; font-size: 13px; }
+.vb-je div { display: grid; grid-template-columns: 10px 1fr auto 62px 78px; gap: 8px; align-items: center; padding: 6px 0; }
+.vb-je div + div { border-top: 1px solid var(--gridc); } .vb-je i { width: 8px; height: 8px; border-radius: 50%; }
+.vb-je .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .vb-je span:not(.n) { text-align: right; } .vb-je b { font-weight: 600; text-align: right; }
+.fl-flaeche, .fl-linie { animation: seite .4s ease-out backwards; }
+
+/* Heizt: Kachel glüht am Rand warm */
+.glas-k, .c-held { position: relative; }
+.glas-k.heizt::after, .glas-k.trocknen::after, .glas-k.frost::after, .c-held.heizt::after, .c-held.trocknen::after, .c-held.frost::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 26px 1px rgba(255, 84, 40, .42), 0 0 22px rgba(255, 84, 40, .22); animation: gluehen 3.4s ease-in-out infinite; }
+.hell .glas-k.heizt::after, .hell .glas-k.trocknen::after, .hell .glas-k.frost::after, .hell .c-held.heizt::after, .hell .c-held.trocknen::after, .hell .c-held.frost::after {
+  box-shadow: inset 0 0 24px 1px rgba(240, 80, 30, .32), 0 0 20px rgba(240, 80, 30, .18); }
+@keyframes gluehen { 50% { opacity: .55; } }
+.glas-k:nth-child(3n)::after { animation-delay: -1.2s; } .glas-k:nth-child(3n+1)::after { animation-delay: -2.3s; }
+
+/* Verbrauch oben in der Container-Ansicht, Diagramm-Optionen, Bearbeiten */
+.kennz-knopf { position: relative; width: 100%; cursor: pointer; transition: transform .15s; } .kennz-knopf:active { transform: scale(.98); }
+.kennz-mehr { position: absolute; right: 12px; top: 6px; font-size: 11px; color: var(--ink2); }
+.chart-optionen { display: flex; justify-content: flex-end; } .chart-optionen .chip { font-size: 12px; font-weight: 500 !important; background: rgba(120,120,128,.18) !important; }
+.ge-zeile { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--gridc); }
+.ge-zeile.weg { justify-content: space-between; color: var(--ink2); text-decoration: line-through; } .ge-zeile.weg .chip { text-decoration: none; font-size: 12px; }
+.ge-felder { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; } .ge-shelly { font-size: 11px; }
+.ge-zwei { display: grid; grid-template-columns: 1fr 120px; gap: 6px; } .ge-zwei input, .ge-zwei select, .ge-felder > select { min-width: 0; }
+
+/* Container-Ansicht */
+.zurueck-zeile { display: flex; justify-content: space-between; }
+.c-held { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; padding: 14px; }
+.c-illu { filter: drop-shadow(0 16px 18px rgba(0,0,0,.35)); animation: schweben2 6s ease-in-out infinite; }
+.c-wert { font-size: 40px; font-weight: 300; margin: 4px 0; } .c-kw { font-size: 13px; color: var(--ink2); margin-top: 4px; }
+.block { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.block-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.leise { color: var(--ink2); font-size: 12px; } .rot-t { color: var(--rot); } .blau { color: var(--blau); } .ok { color: #30d158; font-size: 12px; }
+.liste { padding: 4px 0; }
+.zeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; width: 100%; box-sizing: border-box; min-height: 44px; }
+.block .zeile { padding: 8px 0; }
+.liste .zeile + .zeile, .block .zeile + .zeile { border-top: 1px solid var(--gridc); }
+.zeile.unter { padding-left: 14px; font-size: 14px; }
+.block .zeile.unter { padding-left: 14px; }
+.gruppe { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink2); padding: 10px 16px 2px; }
+.geraet { justify-content: flex-start; } .g-t { flex: 1; display: flex; flex-direction: column; } .g-t .leise em.hand { color: var(--amber); font-style: normal; font-weight: 600; }
+.g-ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: rgba(142,142,147,.22); flex: none; transition: background .25s, box-shadow .25s; }
+.g-ic.an { background: color-mix(in srgb, var(--amber) 28%, transparent); box-shadow: 0 0 14px color-mix(in srgb, var(--amber) 50%, transparent); }
+.farbpunkt { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+
+/* Schalter */
+.sw { width: 50px; height: 30px; border-radius: 15px !important; background: rgba(120,120,128,.36) !important; position: relative; flex: none; transition: background .25s; }
+.sw i { position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.2); transition: transform .25s cubic-bezier(.3,.7,.2,1.2); }
+.sw.on { background: var(--amber) !important; } .sw.on i { transform: translateX(20px); }
+
+/* Segmente und Stepper */
+.seg { display: flex; padding: 3px; border-radius: 14px; background: rgba(120,120,128,.2); gap: 2px; }
+.seg.glas-panel { border-radius: 16px; padding: 4px; }
+.seg button { flex: 1; text-align: center; padding: 7px 6px; border-radius: 11px; font-size: 13px; color: var(--ink2); transition: background .2s, color .2s; white-space: nowrap; }
+.seg button.on { background: rgba(255,255,255,.2); color: var(--ink); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.hell .seg button.on { background: #fff; }
+.seg.klein button { padding: 5px 10px; font-size: 12px; flex: none; }
+.stepper { display: flex; align-items: center; gap: 4px; background: rgba(120,120,128,.2); border-radius: 12px; padding: 2px; }
+.stepper button { width: 32px; height: 30px; text-align: center; border-radius: 10px; font-size: 18px; }
+.stepper button:active { background: rgba(255,255,255,.2); } .stepper b { min-width: 66px; text-align: center; font-size: 14px; font-weight: 600; }
+
+/* Zeitplan */
+.tag { cursor: pointer; } .tag-n { width: 28px; } .fenster { flex: 1; display: flex; gap: 6px; flex-wrap: wrap; }
+.fenster em { font-style: normal; font-size: 12px; padding: 3px 8px; border-radius: 8px; background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--ink); }
+.chev { color: var(--ink2); font-size: 18px; }
+.tl-spur { position: relative; height: 22px; border-radius: 8px; background: rgba(120,120,128,.2); overflow: hidden; }
+.tl-spur i { position: absolute; top: 0; bottom: 0; }
+.tl-heiz { background: var(--amber); opacity: .85; }
+.tl-trock { background: repeating-linear-gradient(45deg, var(--amber) 0 3px, transparent 3px 7px); }
+.tl-jetzt { width: 2px; background: var(--ink); box-shadow: 0 0 6px var(--ink); }
+.tl-achse { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink2); margin-top: 4px; }
+
+/* Arbeitszeit und Heizplan */
+.tl-vor { background: color-mix(in srgb, var(--amber) 45%, transparent); }
+.tl-extra { background: repeating-linear-gradient(45deg, var(--blau) 0 3px, transparent 3px 7px); opacity: .8; }
+.chip-status { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px !important; border-radius: 12px !important; transition: background .2s; }
+.chip-status:hover { background: rgba(255,255,255,.12) !important; }
+.regelung { display: flex; flex-direction: column; gap: 2px; font-size: 13px; padding-top: 8px; border-top: 1px solid var(--gridc); }
+.regelung span { color: var(--ink2); font-size: 12px; }
+.az-name { font-size: 18px; font-weight: 600; margin-top: -2px; }
+.zeile.az.heute .tag-n { color: var(--amber); }
+.badge.blau-b { background: color-mix(in srgb, var(--blau) 22%, transparent); color: var(--blau); }
+.hp-legende { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; color: var(--ink2); }
+.hp-legende i { display: inline-block; width: 14px; height: 8px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+.hp { display: flex; flex-direction: column; }
+.hp-zeile { display: grid; grid-template-columns: 48px 1fr 42px; gap: 10px; align-items: center; padding: 7px 0; }
+.hp-zeile + .hp-zeile { border-top: 1px solid var(--gridc); } .hp-zeile.achse { border-top: 0; padding-top: 0; }
+.hp-zeile.heute { background: rgba(255,255,255,.07); border-radius: 12px; margin: 0 -8px; padding: 7px 8px; }
+.hp-zeile .tl-spur { height: 14px; border-radius: 5px; } .hp-mitte .leise { font-size: 11px; margin-top: 3px; min-height: 13px; }
+.hp-tag { display: flex; flex-direction: column; font-size: 11px; color: var(--ink2); } .hp-tag b { font-size: 14px; color: var(--ink); }
+.hp-zeile.heute .hp-tag b { color: var(--amber); }
+.hp-zeit { font-size: 11px; text-align: right; color: var(--ink2); line-height: 1.35; font-variant-numeric: tabular-nums; }
+.azn input[type=time] { flex: 1; min-width: 0; padding: 5px 6px; } .azn .frei { flex: 1; }
+.raster-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Warnungen und Protokoll */
+.warn-chip { display: inline-block !important; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.gelb { color: #ffd60a; } .hell .chip.gelb { color: #9a6b00; }
+.gruppe-t { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink2); margin-top: 4px; }
+.wk { border-left: 3px solid var(--rot); padding: 6px 0 8px 12px; display: flex; flex-direction: column; gap: 3px; }
+.wk.hinweis { border-color: #ffd60a; } .hell .wk.hinweis { border-color: #d9a400; } .wk.stumm { opacity: .55; border-color: var(--ink2); }
+.wk-kopf { display: flex; justify-content: space-between; gap: 8px; } .wk-titel { font-size: 15px; font-weight: 500; }
+.wk.stoerung .wk-titel { color: var(--rot); }
+.wk-knoepfe { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; } .wk-knoepfe .chip { font-size: 12px; padding: 4px 10px; }
+.p-tag { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink2); margin-top: 8px; padding-bottom: 2px; }
+.p-ic { width: 16px; text-align: center; flex: none; font-size: 13px; }
+.ereignis > div { font-size: 13px; } .p-fuss { padding: 6px 16px 10px; }
+
+/* Heizung: Regeln heute, je Container, Feiertage */
+.hr-zeile { display: grid; grid-template-columns: 26px 1fr 14px; gap: 8px; align-items: center; padding: 7px 0; opacity: .6; }
+.hr-zeile + .hr-zeile { border-top: 1px solid var(--gridc); } .hr-zeile.an { opacity: 1; }
+.hr-ic { font-size: 18px; text-align: center; } .hr-an { color: var(--ink2); font-size: 11px; } .hr-zeile.an .hr-an { color: var(--amber); }
+.jc { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--gridc); flex-wrap: wrap; }
+.jc-name { display: flex; flex-direction: column; min-width: 110px; } .jc-ctrl { display: flex; align-items: center; gap: 6px; }
+.jc-l { font-size: 11px; color: var(--ink2); } .jc-th { width: 92px; text-align: center; font-size: 11px; }
+.sw.klein { width: 38px; height: 22px; } .sw.klein i { width: 18px; height: 18px; } .sw.klein.on i { transform: translateX(16px); }
+.stepper.klein button { width: 24px; height: 24px; font-size: 15px; } .stepper.klein b { min-width: 40px; font-size: 13px; } .stepper b.eigen { color: var(--amber); }
+.ft-d { font-weight: 600; min-width: 64px; display: inline-block; }
+/* Auswertung */
+.kennz.vier { grid-template-columns: repeat(4, 1fr); } .kennz em { display: block; font-style: normal; font-size: 10.5px; margin-top: 2px; }
+.kennz em.mehr { color: var(--rot); } .kennz em.weniger { color: #30d158; }
+@container (max-width: 420px) { .kennz.vier { grid-template-columns: repeat(2, 1fr); row-gap: 10px; } .kennz.vier div:nth-child(3) { border-left: 0; } }
+.vgl { margin: -6px 6px 0; }
+.hinweis-k { font-size: 13px; padding: 8px 10px; border-radius: 12px; background: rgba(120,120,128,.14); }
+.punkt-s { stroke: var(--sheet); stroke-width: 1.5; opacity: .9; }
+
+/* Firmen und Abrechnung */
+.firma-tag { align-self: flex-start; font-size: 10.5px; padding: 1px 7px; border-radius: 8px; background: rgba(120,120,128,.25); color: var(--ink2); margin-top: -1px; }
+.fc-neu input { flex: 1; min-width: 0; }
+.vb-gruppe { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.ab-firma { padding: 8px 0; border-top: 1px solid var(--gridc); } .ab-firma:first-of-type { border-top: 0; }
+.ab-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ab-c { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 3px 0 0 12px; }
+
+/* Staffelung / Strom */
+.strom-knopf { display: flex; flex-direction: column; gap: 5px; width: calc(100% + 0px); margin-top: 12px; padding-top: 10px !important; border-top: 1px solid var(--gridc) !important; cursor: pointer; }
+.glas-kopf { flex-wrap: wrap; } .glas-kopf .strom-knopf { flex-basis: 100%; }
+.strom-t { font-size: 12px; color: var(--ink2); } .strom-t b { color: var(--ink); font-weight: 600; }
+.strom-spur { position: relative; display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: rgba(120,120,128,.2); gap: 2px; }
+.strom.klein .strom-spur { height: 7px; } .strom-spur i { display: block; height: 100%; transition: width .5s cubic-bezier(.2,.7,.2,1); }
+.strom-spur .s-res { margin-left: auto; }
+.s-heiz { background: var(--amber); } .s-pumpe { background: var(--blau); } .s-sonst { background: rgba(142,142,147,.85); }
+.s-res { background: repeating-linear-gradient(45deg, rgba(142,142,147,.6) 0 3px, transparent 3px 6px); }
+.strom-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--ink2); }
+.strom-leg i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.an-block { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; border-top: 1px solid var(--gridc); }
+.an-kopf { display: flex; justify-content: space-between; gap: 8px; }
+.ph-zeile { display: grid; grid-template-columns: 24px 1fr 56px; gap: 8px; align-items: center; font-size: 12px; } .ph-zeile .leise { text-align: right; }
+.amber-t { color: var(--amber); } .lila { color: #bf5af2; } .blau { color: var(--blau); }
+.g-t em.warte { color: var(--blau); font-style: normal; }
+.gt-einzug { padding: 8px 16px 0; }
+/* Tür */
+.tuer-tag { align-self: flex-start; font-size: 10.5px; padding: 1px 7px; border-radius: 8px; background: rgba(191,90,242,.22); color: #d9a6f7; }
+.hell .tuer-tag { color: #8a2fb8; }
+.tuer-z { font-size: 12px; padding: 2px 9px; border-radius: 10px; background: rgba(48,209,88,.2); color: #30d158; } .tuer-z.offen { background: rgba(191,90,242,.22); color: #bf5af2; }
+.ge-phase { display: flex; align-items: center; gap: 8px; }
+/* Nachrichten und Bericht */
+.noti { background: rgba(250,250,252,.96); color: #111; border-radius: 18px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.noti-app { font-size: 11px; color: #666; } .noti b { font-size: 14px; }
+.noti-knoepfe { display: flex; gap: 14px; margin-top: 6px; } .noti-knoepfe button { color: #0a64d6 !important; font-weight: 600; font-size: 13px; padding: 4px 0 !important; }
+.mail { border-radius: 14px; overflow: hidden; border: 1px solid var(--panel-rand); font-size: 13px; }
+.mail-kopf { padding: 8px 12px; background: rgba(120,120,128,.16); display: flex; flex-direction: column; gap: 2px; }
+.mail-anhang { font-size: 12px; margin-top: 3px; } .mail-inhalt { padding: 10px 12px; }
+.mail-t { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink2); margin-top: 10px; }
+.mail-z { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.mail-feld { flex: 1; min-width: 0; margin-left: 12px; }
+
+/* Nur bei Bedarf */
+.glas-k.bereit { opacity: .88; }
+.bedarf-knopf { align-self: stretch; margin-top: 6px; padding: 7px 10px !important; border-radius: 12px !important; text-align: center !important; font-size: 13px; font-weight: 600;
+  background: rgba(120,120,128,.22) !important; transition: background .2s, transform .12s; }
+.bedarf-knopf:active { transform: scale(.96); } .bedarf-knopf.an { background: color-mix(in srgb, var(--amber) 30%, transparent) !important; color: var(--amber) !important; }
+.bedarf-dauer { display: flex; gap: 8px; flex-wrap: wrap; } .bedarf-dauer.gross { flex-direction: column; }
+.bedarf-an { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--amber); }
+.glas-k[role=button] { cursor: pointer; }
+
+/* Heizzeiten-Übersicht */
+.tl-termin { background: color-mix(in srgb, var(--amber) 70%, #bf5af2); }
+.hz-tag { display: flex; flex-direction: column; gap: 6px; }
+.hz-zeile { display: grid; grid-template-columns: 96px 1fr 40px; gap: 8px; align-items: center; } .hz-zeile.aus { opacity: .45; }
+.hz-n { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hz-h { font-size: 11px; color: var(--ink2); text-align: right; }
+.tl-spur.hz { height: 14px; border-radius: 5px; }
+.hz-woche { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.hz-wk, .hz-wz { display: grid; grid-template-columns: 92px repeat(7, 1fr) 40px; gap: 3px; align-items: center; }
+.hz-wk span { text-align: center; font-size: 11px; color: var(--ink2); line-height: 1.1; } .hz-wk span.heute { color: var(--amber); font-weight: 700; }
+.hz-zelle { height: 26px; border-radius: 6px !important; text-align: center !important; font-size: 11px; background: color-mix(in srgb, var(--amber) calc(var(--a) * 100%), rgba(120,120,128,.14)) !important; }
+.hz-sum { text-align: right; font-size: 11px; }
+.t-wann { width: 70px !important; }
+
+/* Melden, Über, Entwicklung */
+.melden-knopf { position: absolute; right: 16px; bottom: 90px; z-index: 6; width: 38px; height: 38px; border-radius: 50% !important; display: grid; place-items: center; color: var(--ink2);
+  opacity: .8; transition: opacity .2s, transform .15s; } .melden-knopf:hover { opacity: 1; color: var(--ink); } .melden-knopf:active { transform: scale(.92); }
+.melden-knopf.ueber-sheet { z-index: 23; top: 14px; bottom: auto; }
+.app textarea { font: inherit; color: var(--ink); background: rgba(127,127,127,.16); border: 1px solid var(--panel-rand); border-radius: 10px; padding: 8px 10px; resize: vertical; font-size: 15px; }
+.ml-kontext { font-size: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(120,120,128,.14); display: flex; flex-direction: column; gap: 2px; }
+.ml { padding: 8px 0 8px 12px; border-left: 3px solid var(--blau); display: flex; flex-direction: column; gap: 3px; } .ml.erledigt { opacity: .55; border-color: var(--ink2); }
+.ml + .ml { margin-top: 6px; } .ml-kopf { display: flex; justify-content: space-between; gap: 8px; } .ml-text { font-size: 14px; }
+.badge.rot-b { background: rgba(255,69,58,.2); color: var(--rot); }
+.ueber-kopf { display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: center; padding: 16px; } .ueber-illu { filter: drop-shadow(0 10px 12px rgba(0,0,0,.3)); }
+.ueber-v { font-size: 15px; margin: 4px 0; }
+.cl-punkt { font-size: 13px; padding: 4px 0 4px 14px; position: relative; } .cl-punkt::before { content: ""; position: absolute; left: 2px; top: 11px; width: 5px; height: 5px; border-radius: 50%; background: var(--amber); }
+.cl-liste { padding: 0 0 8px 4px; } .cl-v { border-top: 1px solid var(--gridc); }
+@container (min-width: 700px) { .melden-knopf { bottom: 24px; right: 24px; } .melden-knopf.ueber-sheet { top: 24px; } }
+
+.hp-zeile.ausn .hp-tag b::after { content: ' •'; color: var(--blau); }
+
+.hz-c { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font-size: 12.5px; } .hz-cn { font-weight: 600; } .hz-cp { font-size: 11px; }
+.hz-g { padding-left: 10px; color: var(--ink2); font-size: 11.5px; }
+.tl-spur.hz { height: 12px; }
+.hz-plan { background: color-mix(in srgb, var(--amber) 22%, transparent); } .hz-plan.vorbei { background: color-mix(in srgb, var(--amber) 12%, transparent); }
+.hz-an { background: var(--amber); border-radius: 2px; } .hz-off { background: repeating-linear-gradient(45deg, rgba(255,69,58,.5) 0 3px, transparent 3px 6px); }
+.hp-legende i.hz-plan, .hp-legende i.hz-an, .hp-legende i.hz-off { display: inline-block; width: 14px; height: 8px; }
+.hz-zelle.geplant { opacity: .55; font-style: italic; }
+.hz-wk, .hz-wz { grid-template-columns: 124px repeat(7, 1fr) 40px; } .hz-wz .hz-n { font-size: 11.5px; }
+
+/* Kennzahlen */
+.kennz { display: grid; grid-template-columns: repeat(3, 1fr); padding: 14px 6px; text-align: center; }
+.kennz div + div { border-left: 1px solid var(--gridc); }
+.kennz b { display: block; font-size: 20px; font-weight: 500; } .kennz span { font-size: 11px; color: var(--ink2); }
+
+/* Diagramme */
+.chart-wrap { position: relative; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .gr { stroke: var(--gridc); stroke-width: 1; } .chart .ax-e { font-weight: 600; font-size: 9px; } .chart .ax { fill: var(--axisc); font-size: 10px; }
+.chart .kreuz { stroke: var(--ink2); stroke-width: 1; stroke-dasharray: 2 3; } .chart .punkt { stroke: var(--sheet); stroke-width: 2; }
+.chart .bar { transition: opacity .15s; } .chart .bar.matt { opacity: .35; }
+.legende { display: flex; gap: 14px; font-size: 12px; color: var(--ink2); margin-top: 4px; }
+.legende i, .tip i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.leer { font-size: 13px; color: var(--ink2); padding: 24px 0; text-align: center; } .link { color: var(--blau) !important; }
+.tip { position: absolute; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .12s; background: var(--sheet); color: var(--ink); border: 1px solid var(--panel-rand);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 12px; padding: 7px 10px; font-size: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.25); white-space: nowrap; }
+.tip.an { opacity: 1; }
+.hbar { display: grid; grid-template-columns: 110px 1fr 54px; align-items: center; gap: 10px; font-size: 13px; }
+.hb-spur { height: 10px; border-radius: 5px; background: rgba(120,120,128,.18); overflow: hidden; }
+.hb-spur i { display: block; height: 100%; border-radius: 5px; animation: wachsen .6s cubic-bezier(.2,.7,.2,1) both; transform-origin: left; }
+.hb-w { text-align: right; font-weight: 600; } .hb-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gespart { font-size: 14px; } .gespart b { color: #30d158; }
+.vergleich { width: 100%; border-collapse: collapse; font-size: 13px; }
+.vergleich th { text-align: right; font-weight: 600; color: var(--ink2); font-size: 12px; padding: 4px 0; } .vergleich td { padding: 7px 0; border-top: 1px solid var(--gridc); }
+.vergleich td + td { text-align: right; } .fuss { margin-top: 4px; }
+
+/* Verlauf */
+.bs-karte { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; animation: rein .45s ease-out backwards; }
+.bs-kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.bs-zahlen { display: flex; gap: 18px; margin-top: 6px; font-size: 13px; color: var(--ink2); } .bs-zahlen b { font-size: 18px; color: var(--ink); font-weight: 500; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(142,142,147,.25); color: var(--ink2); }
+.badge.gruen { background: rgba(48,209,88,.22); color: #30d158; }
+.ereignis { justify-content: flex-start; align-items: flex-start; } .ereignis .zeit { width: 42px; font-size: 12px; color: var(--ink2); padding-top: 2px; } .ereignis .glas-dot { margin-top: 5px; }
+.eingabe input { width: 70px; text-align: right; }
+
+/* Einblendung von unten */
+.schleier { position: absolute; inset: 0; background: rgba(0,0,0,.35); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 20; }
+.schleier.an { opacity: 1; pointer-events: auto; }
+.sheet { position: absolute; left: 8px; right: 8px; bottom: 8px; max-height: 82%; overflow-y: auto; z-index: 21; padding: 8px 18px 18px; background: var(--sheet);
+  transform: translateY(110%); transition: transform .32s cubic-bezier(.2,.8,.2,1); border-radius: 28px; display: flex; flex-direction: column; gap: 10px; }
+.sheet.an { transform: none; }
+.sheet h3 { margin: 4px 0 0; font-size: 20px; }
+.griff { width: 40px; height: 5px; border-radius: 3px; background: var(--ink2); opacity: .5; margin: 0 auto 4px; }
+.sheet .zeile { padding: 8px 0; } .sheet .zeile + .zeile { border-top: 1px solid var(--gridc); }
+.sheet input[type=time] { flex: 1; } .x { color: var(--rot) !important; padding: 4px 8px !important; }
+.feld { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink2); } .feld input, .feld select { font-size: 15px; }
+.knopf { width: 100%; text-align: center !important; padding: 13px !important; border-radius: 16px !important; background: rgba(120,120,128,.24) !important; font-weight: 600; transition: transform .12s; }
+.knopf:active { transform: scale(.98); } .knopf.amber { background: var(--amber) !important; color: #1a1000 !important; } .knopf.rot { color: var(--rot) !important; }
+.knopf.leise-k { background: transparent !important; color: var(--ink2) !important; }
+.w-jetzt { display: flex; gap: 12px; align-items: center; } .w-jetzt b { font-size: 30px; font-weight: 400; }
+.w-std { display: grid; grid-template-columns: repeat(6, 1fr); text-align: center; gap: 2px; font-size: 12px; }
+.w-inhalt { animation: seite .25s ease-out backwards; }
+.w-regen { color: var(--blau); font-size: 12px; }
+.w-std b, .w-teile b { font-size: 16px; font-weight: 500; }
+.w-tag + .w-tag { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--gridc); }
+.w-tag-n { font-size: 12px; font-weight: 600; letter-spacing: .5px; margin-bottom: 4px; }
+.w-teile { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; font-size: 12px; }
+.w-teile div { display: flex; flex-direction: column; align-items: center; gap: 2px; } .w-teile .vorbei { opacity: .38; }
+.w-3z { display: grid; grid-template-columns: 58px 44px 54px 58px 1fr; align-items: center; gap: 6px; padding: 6px 0; font-size: 13px; }
+.w-3z + .w-3z { border-top: 1px solid var(--gridc); }
+.w-3t, .w-3w, .w-3r { display: flex; flex-direction: column; } .w-3w b { font-size: 17px; font-weight: 500; }
+.w-3f { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.w-folge { font-size: 10.5px; padding: 2px 7px; border-radius: 9px; background: rgba(142,142,147,.22); white-space: nowrap; }
+.w-folge.amber { color: var(--amber); background: color-mix(in srgb, var(--amber) 16%, transparent); }
+.w-folge.blau { color: var(--blau); background: color-mix(in srgb, var(--blau) 16%, transparent); }
+.w-std div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.warn-k { border-left: 3px solid var(--rot); padding: 4px 0 4px 12px; }
+.toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 25; padding: 10px 16px; font-size: 13px;
+  white-space: nowrap; border-radius: 18px; background: var(--sheet); }
+.toast.an { animation: toast 2.6s ease both; }
+
+/* Desktop: breiteres Raster, Navigation oben */
+@container (min-width: 700px) {
+  .seite { padding: 84px 28px 40px; }
+  .glas-nav { top: 16px; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: 560px; }
+  .glas-raster { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .c-held { grid-template-columns: 1fr 1.2fr; padding: 22px 28px; }
+  .sheet { left: 50%; right: auto; width: 460px; bottom: auto; top: 50%; transform: translate(-50%, -40%) scale(.96); opacity: 0; pointer-events: none;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1), opacity .2s; }
+  .sheet.an { transform: translate(-50%, -50%); opacity: 1; pointer-events: auto; }
+  .griff { display: none; } .toast { bottom: 28px; }
+  .raster2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+}
+
+@keyframes schweben { 50% { transform: translate(30px, 40px) scale(1.15); } }
+@keyframes schweben2 { 50% { transform: translateY(-3px); } }
+@keyframes seite { from { opacity: 0; transform: translateY(10px); } }
+@keyframes wachsen { from { transform: scaleX(0); } }
+@keyframes toast { 0% { opacity: 0; transform: translate(-50%, 20px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 10px); } }
+@media (prefers-reduced-motion: reduce) { .app *, .app *::before { animation: none !important; transition: none !important; } }
+`;
+
+/* Himmel hinter Glas (mockups/quelle/himmel.frag + himmel.js) */
+const HIMMEL_FS = "// Hintergrund „Himmel hinter einer Glasscheibe“: Stimmung nach Tageszeit und Wetter.\n// Eigene Umsetzung (WebGL 1 / GLSL ES 1.0). Einheiten: CSS-Pixel, y nach unten.\n#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n\nuniform vec2 uRes;        // Gerätepixel\nuniform float uDpr;\nuniform float uTime;      // Sekunden\nuniform vec3 uG1, uG2, uG3, uF1, uF2, uF3;   // Verlauf und Lichtflecken der Stimmung\nuniform float uBlobA, uSat;\nuniform vec3 uDunstC; uniform float uDunst;\nuniform vec3 uWolkeD, uWolkeH, uNebelC;\nuniform float uWolken, uRegen, uSchnee, uNebel, uSonne, uNachtKlar, uBlitz, uBlitzX;\nuniform vec2 uSonnePos; uniform vec3 uSonneF;\n\nvec2 R;\n\nfloat h11(float p) { p = fract(p * .1031); p *= p + 33.33; p *= p + p; return fract(p); }\nvec3 h31(float p) { vec3 q = fract(vec3(p) * vec3(.1031, .1030, .0973)); q += dot(q, q.yzx + 33.33); return fract((q.xxy + q.yzz) * q.zyx); }\nfloat h21(vec2 p) { vec3 q = fract(vec3(p.xyx) * .1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }\nfloat rausch(vec2 p) {\n  vec2 i = floor(p), f = fract(p), u = f * f * (3. - 2. * f);\n  return mix(mix(h21(i), h21(i + vec2(1., 0.)), u.x), mix(h21(i + vec2(0., 1.)), h21(i + vec2(1., 1.)), u.x), u.y);\n}\nfloat fbm(vec2 p) {\n  float s = 0., a = .5;\n  for (int i = 0; i < 5; i++) { s += a * rausch(p); p = p * 2.03 + vec2(1.7, 9.2); a *= .5; }\n  return s;\n}\n\nvec3 fleck(vec3 col, vec3 f, vec2 c, float r, float ph, vec2 p) {\n  float k = .5 - .5 * cos(6.2832 * uTime / 14. + ph);\n  c += vec2(30., 40.) * k; r *= 1. + .15 * k;\n  float g = dot(f, vec3(.299, .587, .114));\n  f = mix(vec3(g), f, uSat);\n  float d = length(p - c) / (r + 60.);\n  return mix(col, f, uBlobA * exp(-d * d * 2.2));\n}\n\nvec3 grund(vec2 p) {\n  float a = radians(165.);\n  vec2 dir = vec2(sin(a), -cos(a));\n  float t = clamp(dot(p - R * .5, dir) / (abs(R.x * dir.x) + abs(R.y * dir.y)) + .5, 0., 1.);\n  vec3 col = t < .5 ? mix(uG1, uG2, t * 2.) : mix(uG2, uG3, t * 2. - 1.);\n  col = fleck(col, uF1, vec2(70., 70.), 130., 0., p);\n  col = fleck(col, uF2, vec2(R.x - 40., 420.), 120., -2.244, p);\n  col = fleck(col, uF3, vec2(140., R.y - 60.), 100., -4.039, p);\n  return col;\n}\n\n/* Alles hinter der Scheibe */\nvec3 szene(vec2 p) {\n  vec2 uv = p / R;\n  vec3 col = grund(p);\n\n  if (uSonne > .01) {\n    vec2 d = p - uSonnePos * R;\n    float r = length(d) / R.y;\n    float ang = atan(d.y, d.x);\n    float strahl = pow(rausch(vec2(ang * 11., uTime * .04)), 4.) * exp(-r * 4.) * smoothstep(.02, .08, r) * .16;\n    col += uSonneF * (exp(-r * 7.) * .28 + exp(-r * 30.) * .55 + strahl) * uSonne;\n    col = mix(col, vec3(1., .98, .93), smoothstep(.026, .019, r) * uSonne);\n  }\n\n  if (uNachtKlar > .01) {\n    vec2 id = floor(p / 26.), f = fract(p / 26.) - .5;\n    vec3 n = h31(id.x * 57.3 + id.y * 113.1);\n    float s = smoothstep(.05 + .05 * n.z, 0., length(f - (n.xy - .5) * .7)) * step(.6, n.z);\n    s *= .55 + .45 * sin(uTime * (1. + n.x * 3.) + n.y * 6.28);\n    col += vec3(.9, .95, 1.) * s * smoothstep(.9, .25, uv.y) * uNachtKlar;\n    vec2 mp = vec2(.8, .13) * R;\n    float mr = length(p - mp);\n    col += vec3(.55, .65, .9) * exp(-mr / 70.) * .35 * uNachtKlar;\n    float scheibe = smoothstep(21., 19.5, mr);\n    col = mix(col, vec3(.95, .94, .88) - fbm((p - mp) * .14) * .3, scheibe * uNachtKlar);\n  }\n\n  if (uWolken > .01) {\n    vec2 q = uv * vec2(R.x / R.y, 1.) * 2.4 + vec2(uTime * .015, 0.);\n    float w = fbm(q + fbm(q * 1.6 + vec2(0., uTime * .02)) * 1.3);\n    float bed = mix(.62, .22, clamp(uWolken, 0., 1.));\n    float dichte = smoothstep(bed, bed + .38, w) * (1. - .35 * uv.y);\n    float licht = smoothstep(.3, .85, fbm(q * 2.1 + vec2(3.1, -uTime * .01)) * .6 + (w - bed) * .9);\n    vec3 wf = mix(uWolkeD, uWolkeH, licht);\n    wf += vec3(.8, .84, 1.) * uBlitz * (.25 + licht * .55) * .6;\n    col = mix(col, wf, clamp(dichte * uWolken * 1.15, 0., 1.));\n  }\n\n  if (uBlitz > .01) {\n    float y = uv.y;\n    float x = uBlitzX * R.x + (fbm(vec2(y * 7., uBlitzX * 40.)) - .5) * 160. + (rausch(vec2(y * 40., uBlitzX * 9.)) - .5) * 18.;\n    float strahl = smoothstep(2.5, 0., abs(p.x - x)) + smoothstep(14., 0., abs(p.x - x)) * .35;\n    col += vec3(.9, .92, 1.) * strahl * smoothstep(.62, .45, y) * uBlitz;\n    col += uBlitz * .05;\n  }\n\n  if (uRegen > .01) {\n    vec2 rp = vec2(p.x + p.y * .2, p.y);\n    float sp = floor(rp.x / 5.);\n    vec3 n = h31(sp * 13.7 + 2.);\n    float y = fract(rp.y / (R.y * .7) - uTime * (1.1 + n.x * .8) + n.y);\n    float strich = smoothstep(0., .015, y) * smoothstep(.16, .02, y) * smoothstep(.22, 0., abs(fract(rp.x / 5.) - .5));\n    col += vec3(.75, .82, .95) * strich * step(n.z, .28 * min(uRegen, 1.4)) * .16;\n  }\n\n  if (uNebel > .01) {\n    vec2 q = uv * vec2(R.x / R.y, 1.) * 2.2;\n    float n1 = fbm(q * vec2(.7, 1.5) + vec2(uTime * .03, 0.));\n    float n2 = fbm(q * vec2(1.4, 2.6) - vec2(uTime * .055, uTime * .01) + 5.2);\n    float dichte = smoothstep(.32, .8, n1 * .55 + n2 * .55);\n    vec3 nf = mix(uNebelC * .92, uNebelC * 1.18, dichte);\n    col = mix(col, nf, clamp(.3 + dichte * .6 * (.55 + .45 * uv.y), 0., 1.) * uNebel);\n  }\n\n  if (uSchnee > .01) {\n    for (int k = 0; k < 3; k++) {\n      float fk = float(k) / 2.;\n      float zelle = mix(95., 26., fk), rad = mix(4.2, 1.1, fk), v = mix(62., 22., fk), weich = mix(3.2, .6, fk);\n      vec2 q = p + vec2(sin(uTime * .4 + fk * 3.) * 24., -uTime * v);\n      vec2 id = floor(q / zelle), f = q - (id + .5) * zelle;\n      vec3 n = h31(id.x * 31.7 + id.y * 17.3 + fk * 71.);\n      vec2 o = (n.xy - .5) * zelle * .7 + vec2(sin(uTime * (.7 + n.z) + n.x * 6.28) * zelle * .12, 0.);\n      float fl = smoothstep(rad + weich, rad - weich * .3, length(f - o)) * step(n.z, .8);\n      col = mix(col, vec3(1.), fl * mix(.8, .55, fk) * uSchnee);\n    }\n  }\n\n  return mix(col, uDunstC, uDunst);\n}\n\n/* Tropfen auf der Scheibe: xy = Versatz für die Brechung, z = Wasser, w = klares Glas */\nvec4 laufend(vec2 p) {\n  float cw = 32.;\n  float spalte = floor(p.x / cw);\n  vec3 n = h31(spalte * 17.13 + 3.1);\n  if (n.x > .45 * uRegen) return vec4(0.);\n  float x0 = (spalte + .5) * cw + (n.y - .5) * cw * .18;\n  float dauer = mix(4.5, 9., n.z) / max(uRegen, .6);\n  float k = uTime / dauer + n.x * 7.;\n  vec3 m = h31(spalte * 3.7 + floor(k) * 11.9);\n  float stufen = 7.;\n  float g = fract(k) * stufen;\n  g = (floor(g) + smoothstep(.5, 1., fract(g))) / stufen;\n  float yK = mix(-.08, 1.12, g) * R.y;\n  float r = mix(4.5, 8.5, m.x);\n  float xl = x0 + sin(p.y * .02 + m.y * 6.) * 2.5;\n  vec2 q = vec2(p.x - xl, p.y - yK);\n  q.y *= q.y < 0. ? .6 : 1.05;\n  float wasser = smoothstep(1., .85, length(q) / r);\n  vec2 v = q / r;\n  float oben = yK - p.y;\n  float lang = mix(70., 200., m.z);\n  float xs = abs(p.x - xl);\n  float inSpur = step(0., oben) * smoothstep(lang, 0., oben);\n  float abst = 15.;\n  float yr = mod(oben, abst) - abst * .5;\n  float rr = r * .42 * inSpur * (.55 + .45 * h11(floor(oben / abst) + spalte * 7.));\n  vec2 qr = vec2(p.x - xl, yr);\n  float perle = rr > .2 ? smoothstep(rr, rr * .7, length(qr)) * step(abst * .7, oben) : 0.;\n  if (perle > wasser) { wasser = perle; v = qr / max(rr, .5); }\n  float klar = max(smoothstep(r * .55, r * .25, xs) * step(0., oben) * smoothstep(lang * 1.4, 0., oben), wasser);\n  return vec4(v, wasser, klar);\n}\n\nvec4 stehend(vec2 p, float zelle, float rMin, float rMax, float dichte, float seed) {\n  vec2 id = floor(p / zelle);\n  vec3 n = h31(id.x * 127.1 + id.y * 311.7 + seed);\n  float per = mix(7., 15., n.z);\n  float t = uTime / per + n.x * 5.;\n  float leben = fract(t);\n  vec3 m = h31(id.x * 7.3 + id.y * 13.1 + seed + floor(t) * 1.7);\n  float r = mix(rMin, rMax, m.x) * smoothstep(0., .12, leben) * smoothstep(1., .85, leben) * step(n.y, dichte);\n  if (r < .3) return vec4(0.);\n  vec2 c = (id + .5) * zelle + (m.yz - .5) * (zelle - 2. * rMax) * .9;\n  vec2 q = p - c;\n  float wasser = smoothstep(r, r * .8, length(q));\n  return vec4(q / r, wasser, wasser);\n}\n\nvoid main() {\n  R = uRes / uDpr;\n  vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uDpr;\n  vec3 col = szene(p);\n  if (uRegen > .01) {\n    vec4 a = laufend(p);\n    vec4 b = stehend(p, 19., 1.2, 3.4, .5 + .3 * min(uRegen, 1.), 1.);\n    vec4 c = stehend(p, 40., 3.5, 8.5, .5 * min(uRegen, 1.), 7.);\n    float weg = a.w;\n    b.z *= 1. - weg; c.z *= 1. - weg;\n    vec4 w = a;\n    if (b.z > w.z) w = vec4(b.xy, b.z, max(a.w, b.z));\n    if (c.z > w.z) w = vec4(c.xy, c.z, max(a.w, c.z));\n    float wasser = w.z * min(uRegen, 1.);\n    if (wasser > .01) {\n      vec2 qn = w.xy;                                  // Lage im Tropfen, Mitte 0, Rand 1\n      float lq = length(qn);\n      // Linse: der Himmel erscheint verkleinert und auf dem Kopf\n      vec3 linse = szene(p - qn * 22. + vec2(0., -6.)) * 1.08;\n      linse *= 1. - .38 * smoothstep(.15, 1., -qn.y) * smoothstep(.4, 1., lq);   // oben dunkler Rand\n      linse += vec3(.9, .95, 1.) * .22 * smoothstep(.1, .9, qn.y) * smoothstep(1., .75, lq); // unten helle Sichel\n      linse *= 1. - .25 * smoothstep(.72, 1., lq);                              // Kante\n      linse += vec3(1.) * .75 * smoothstep(.2, .04, length(qn - vec2(-.3, -.42))); // Glanzpunkt\n      col = mix(col, linse, wasser);\n      col *= 1. - .18 * smoothstep(.0, .5, wasser) * smoothstep(1., .5, wasser);   // Schatten am Außenrand\n    }\n    col *= 1. - .035 * max(a.w - wasser, 0.);         // nasse Spur hinter laufenden Tropfen\n    float beschlag = (1. - max(w.w, wasser)) * .07 * min(uRegen, 1.);\n    col = mix(col, uNebelC, beschlag);\n  }\n  if (uSchnee > .01) {\n    vec2 uv = p / R;\n    float rand = min(min(uv.x, 1. - uv.x) * R.x / R.y * 1.4, (1. - uv.y) * .8);\n    float eis = smoothstep(.09, 0., rand + (fbm(p * .018) - .5) * .14) * (.4 + .6 * uv.y);\n    float kristall = smoothstep(.55, .75, fbm(p * .12 + 3.)) * .5 + .5;\n    col = mix(col, vec3(.93, .97, 1.), eis * kristall * .6 * uSchnee);\n  }\n  gl_FragColor = vec4(col, 1.);\n}\n";
+/* Himmel hinter Glas: Werte je Stimmung (Tageszeit × Wetter × hell/dunkel) und WebGL-Zeichner.
+   himmelZiel() ist rein (ohne DOM) und wird auch von der Standbild-Vorschau benutzt. */
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+const HIMMEL_FARBEN = {
+  dunkel: {
+    morgen: ['#2e2748', '#4a3150', '#6b4040', '#ff8a5c', '#6a7bd6', '#d07ab8'],
+    tag:    ['#1c3552', '#1f4a70', '#2a5575', '#ffc766', '#3aa0ff', '#7fd0ff'],
+    abend:  ['#2a1a36', '#45203d', '#5a2a2c', '#ff7a2e', '#d0457a', '#7a4bd0'],
+    nacht:  ['#070d1c', '#0c1528', '#131a33', '#2c3e8a', '#1b4a7a', '#4b3a8a'],
+  },
+  hell: {
+    morgen: ['#ffd9c7', '#f5e0f0', '#cfdcff', '#ff9a6a', '#9fb4ff', '#f0a0c8'],
+    tag:    ['#cfe6ff', '#e3f1ff', '#fff3d6', '#ffd060', '#6ab8ff', '#a8e0ff'],
+    abend:  ['#ffd2b0', '#f7c6d8', '#d9ccff', '#ff8a3a', '#ff6f9a', '#a58aff'],
+    nacht:  ['#b9c4e0', '#c9cde6', '#d8d0ec', '#6d80c8', '#7fa3dc', '#9a88d2'],
+  },
+};
+
+function himmelZiel(phase, wetter, hell) {
+  const f = HIMMEL_FARBEN[hell ? 'hell' : 'dunkel'][phase].map(hex), nacht = phase === 'nacht', warm = phase === 'morgen' || phase === 'abend';
+  const gew = wetter === 'gewitter';
+  const w = { klar: 0, wolkig: .8, regen: .95, gewitter: 1, nebel: .2, schnee: .55 }[wetter];
+  let wolkeD, wolkeH, nebelC, dunstC;
+  if (hell) {
+    wolkeD = gew ? [.4, .43, .5] : nacht ? [.5, .55, .65] : [.54, .58, .65];
+    wolkeH = gew ? [.7, .73, .8] : nacht ? [.78, .81, .88] : warm ? [.96, .88, .86] : [.88, .9, .94];
+    nebelC = [.87, .89, .91]; dunstC = gew ? [.6, .64, .7] : [.79, .81, .84];
+  } else {
+    wolkeD = gew ? [.06, .07, .1] : nacht ? [.05, .06, .09] : [.13, .15, .2];
+    wolkeH = gew ? [.3, .32, .38] : nacht ? [.18, .2, .27] : warm ? [.55, .42, .45] : [.47, .51, .58];
+    nebelC = nacht ? [.2, .23, .28] : [.42, .46, .52]; dunstC = gew ? [.11, .13, .19] : [.24, .27, .33];
+  }
+  const sonne = { morgen: [[.16, .34], [1, .62, .36]], tag: [[.22, .1], [1, .86, .58]], abend: [[.84, .36], [1, .5, .3]], nacht: [[.5, .1], [0, 0, 0]] }[phase];
+  return {
+    uG1: f[0], uG2: f[1], uG3: f[2], uF1: f[3], uF2: f[4], uF3: f[5],
+    uBlobA: { klar: .7, wolkig: .28, regen: .22, gewitter: .12, nebel: .2, schnee: .3 }[wetter] * (nacht ? .65 : 1),
+    uSat: { klar: 1, wolkig: .75, regen: .7, gewitter: .6, nebel: .5, schnee: .6 }[wetter],
+    uDunstC: dunstC, uDunst: { klar: 0, wolkig: .1, regen: .18, gewitter: .22, nebel: .12, schnee: .1 }[wetter],
+    uWolkeD: wolkeD, uWolkeH: wolkeH, uNebelC: nebelC,
+    uWolken: w, uRegen: wetter === 'regen' ? 1 : gew ? 1.5 : 0, uSchnee: wetter === 'schnee' ? 1 : 0, uNebel: wetter === 'nebel' ? 1 : 0,
+    uSonne: wetter === 'klar' && !nacht ? 1 : 0, uNachtKlar: wetter === 'klar' && nacht ? 1 : 0,
+    uSonnePos: sonne[0], uSonneF: sonne[1].map(v => v * (hell ? .8 : 1)),
+  };
+}
+
+const HIMMEL_VS = 'attribute vec2 a; void main() { gl_Position = vec4(a, 0., 1.); }';
+
+class Himmel {
+  /* Gibt null zurück, wenn WebGL fehlt oder der Shader nicht übersetzt – dann bleibt der CSS-Hintergrund. */
+  static an(bg) {
+    try { const h = new Himmel(bg); return h.gl ? h : null; } catch (e) { console.warn('Himmel aus:', e); return null; }
+  }
+  constructor(bg) {
+    this.bg = bg; this.cv = document.createElement('canvas'); this.cv.className = 'himmel';
+    const gl = this.cv.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' }); if (!gl) return;
+    const sh = (typ, src) => { const s = gl.createShader(typ); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, HIMMEL_VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, HIMMEL_FS)); gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+    gl.useProgram(pr); gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const a = gl.getAttribLocation(pr, 'a'); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+    this.gl = gl; this.pr = pr; this.loc = {}; this.jetzt = null; this.ziel = null; this.blitz = 0; this.naechsterBlitz = 3; this.blitzX = .5;
+    bg.insertBefore(this.cv, bg.querySelector('.partikel')); bg.classList.add('gl-an');
+    this.ruhig = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.ro = new ResizeObserver(() => this.groesse()); this.ro.observe(bg); this.groesse();
+    this.t0 = performance.now(); this.letzt = 0; this.schleife = this.schleife.bind(this); requestAnimationFrame(this.schleife);
+  }
+  groesse() { const d = Math.min(devicePixelRatio || 1, 1.5); this.dpr = d; this.cv.width = Math.round(this.bg.clientWidth * d); this.cv.height = Math.round(this.bg.clientHeight * d); this.gl.viewport(0, 0, this.cv.width, this.cv.height); }
+  setze(phase, wetter, hell) { this.ziel = himmelZiel(phase, wetter, hell); this.gewitter = wetter === 'gewitter'; if (!this.jetzt) this.jetzt = JSON.parse(JSON.stringify(this.ziel)); }
+  u(n, v) { const l = this.loc[n] ??= this.gl.getUniformLocation(this.pr, n); if (l === null) return;
+    Array.isArray(v) ? this.gl['uniform' + v.length + 'fv'](l, v) : this.gl.uniform1f(l, v); }
+  /* Seite verlassen: Zeichnen beenden, Leinwand entfernen und WebGL-Kontext freigeben (sonst stapeln sich beim Wiederkommen Kontexte) */
+  stop() {
+    this.aus = true; if (this.ro) this.ro.disconnect();
+    try { const x = this.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* egal */ }
+    if (this.cv.parentNode) this.cv.parentNode.removeChild(this.cv); this.bg.classList.remove('gl-an');
+  }
+  schleife(ms) {
+    if (this.aus) return;
+    requestAnimationFrame(this.schleife);
+    const t = (ms - this.t0) / 1000; if (t - this.letzt < 1 / 30 || !this.ziel) return;   // 30 Bilder je Sekunde reichen
+    const dt = Math.min(t - this.letzt, .1); this.letzt = t;
+    const k = 1 - Math.exp(-dt / .9);                                                      // weiche Überblendung ~2,5 s
+    for (const n in this.ziel) { const z = this.ziel[n], j = this.jetzt[n]; this.jetzt[n] = Array.isArray(z) ? z.map((v, i) => j[i] + (v - j[i]) * k) : j + (z - j) * k; }
+    if (this.gewitter && !this.ruhig) {                                                     // Doppelblitz alle 5–12 s
+      this.naechsterBlitz -= dt;
+      if (this.naechsterBlitz <= 0) { this.blitzT = 0; this.blitzX = .2 + Math.random() * .6; this.naechsterBlitz = 5 + Math.random() * 7; }
+      if (this.blitzT !== undefined) { this.blitzT += dt; const b = this.blitzT; this.blitz = b < .08 ? 1 : b < .16 ? .15 : b < .24 ? .8 : Math.max(0, .8 - (b - .24) * 3); if (b > .6) this.blitzT = undefined; }
+    } else this.blitz = 0;
+    const gl = this.gl;
+    this.u('uRes', [this.cv.width, this.cv.height]); this.u('uDpr', this.dpr); this.u('uTime', this.ruhig ? 20 : t % 3600);
+    for (const n in this.jetzt) this.u(n, this.jetzt[n]);
+    this.u('uBlitz', this.blitz); this.u('uBlitzX', this.blitzX);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+}
+
+
+/* ---------- Hilfen (wie im Mockup, aber sicher gegen fehlende Werte) ---------- */
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const zahl = x => x !== null && x !== undefined && x !== '' && Number.isFinite(Number(x));
+const de = (x, d = 1) => { if (!zahl(x)) return '–'; const n = Number(x); return (Math.abs(n) < .5 * 10 ** -d ? 0 : n).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d }); };
+const FARBE = { bereit: '#8e8e93', heizt: '#ff9f0a', trocknen: '#ff9f0a', aus: '#8e8e93', frost: '#64d2ff', offline: '#ff453a', laeuft: '#0a84ff', pause: '#bf5af2' };
+const TAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const ICON_MELDEN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 8v3.5M12 13.6v.2"/></svg>';
+const minu = t => { if (!t) return 0; const [h, m] = String(t).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+const uhr = m => { m = Math.max(0, Math.round(zahl(m) ? m : 0)); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+const datum = iso => iso ? String(iso).slice(0, 10).split('-').reverse().join('.') : '–';
+const WIEDER = { einmal: 'einmalig', woche: 'jede Woche', '2wochen': 'alle 2 Wochen' };
+const tageZwischen = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 864e5);
+const plusTage = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+/* Liegt ein (wiederkehrender) Termin auf diesem Tag? */
+const terminAm = (t, iso) => { const d = tageZwischen(t.datum, iso); return t.wieder === 'einmal' ? d === 0 : d >= 0 && d % (t.wieder === '2wochen' ? 14 : 7) === 0; };
+const naechsterTermin = (t, ab) => { for (let k = 0; k < 28; k++) { const iso = plusTage(ab, k); if (terminAm(t, iso)) return iso; } return null; };
+const AUSNAHME = { arbeit: 'zusätzlich arbeiten', zeiten: 'andere Zeiten', frei: 'frei' };
+const kurzDatum = iso => iso ? String(iso).slice(0, 10).split('-').reverse().slice(0, 2).join('.') + '.' : '–';
+const wtag = iso => iso ? ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date(String(iso).slice(0, 10) + 'T12:00:00Z').getUTCDay()] : '–';
+const dauer = (a, b) => { const m = minu(b) - minu(a); return `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}`; };
+const stdMin = h => { if (!zahl(h)) return '–'; const m = Math.round(h * 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+const MONATE = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const MONATE_LANG = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const summe = a => (a || []).reduce((x, v) => x + (zahl(v) ? Number(v) : 0), 0);
+const addieren = arr => arr.length ? arr.reduce((a, w) => a.map((v, i) => v + (w[i] || 0))) : [];
+const LAEDT = '<div class="leer">Lädt …</div>';
+
+/* Zuordnung der Geräte: Rolle und Typ der Integration → Anzeige wie im Mockup */
+const HEIZER = g => ['heizung', 'heizkoerper'].includes(g.rolle);
+const TYP_TEXT = g => g.rolle === 'pumpe' ? 'Pumpe' : HEIZER(g) ? (g.typ === 'konvektor' ? 'Konvektor' : 'Ölradiator')
+  : ['trockner', 'bautrockner'].includes(g.rolle) ? 'Bautrockner' : 'Steckdose';
+const TYP_ROLLE = { Ölradiator: ['heizkoerper', 'oelradiator'], Konvektor: ['heizkoerper', 'konvektor'], Bautrockner: ['bautrockner', 'oelradiator'],
+  Steckdose: ['steckdose', 'oelradiator'], Pumpe: ['pumpe', 'oelradiator'] };
+/* Einstellungen: Schlüssel der Seite (wie im Mockup) → Pfad im Store (bauplan §1) */
+const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heizung', 'feiertag_frei'], boost_min: ['heizung', 'boost_min'],
+  staffel: ['staffel', 'an'], nutzbar: ['staffel', 'nutzbar_prozent'], max_gleich: ['staffel', 'max_gleichzeitig'], min_lauf: ['staffel', 'min_lauf_min'],
+  min_pause: ['staffel', 'min_pause_min'], takt: ['staffel', 'takt_min'], tuer_pause: ['heizung', 'tuer_pause_min'], tuer_melden: ['heizung', 'tuer_melden_min'],
+  knoepfe: ['meldungen_einst', 'knoepfe'], bericht: ['bericht', 'haeufigkeit'], bericht_handy: ['bericht', 'handy'], bericht_mail: ['bericht', 'mail'],
+  mail: ['bericht', 'mail_an'], bericht_csv: ['bericht', 'csv'], vorheizen: ['heizung', 'vorheizen_min'], nachheizen: ['heizung', 'nachheizen_min'],
+  soll: ['heizung', 'soll'], grenze: ['heizung', 'heizgrenze'], basis: ['heizung', 'heizgrenze_basis'], fruehstart: ['heizung', 'fruehstart'],
+  frueh_temp: ['heizung', 'fruehstart_unter'], frueh_min: ['heizung', 'fruehstart_min'], frost: ['heizung', 'frost'], frost_temp: ['heizung', 'frost_grenze'],
+  tr_mm: ['heizung', 'trocknen_ab_mm'], tr_laenger: ['heizung', 'trocknen_laenger_min'], tr_frueher: ['heizung', 'trocknen_frueher_min'],
+  dauer_min: ['meldungen_einst', 'dauerlauf_min'], kalt_min: ['meldungen_einst', 'kalt_min'], hand_h: ['meldungen_einst', 'hand_h'], zyklen_h: ['meldungen_einst', 'zyklen_h'] };
+/* Grenzen der Stepper: Untergrenze wie im Mockup, sonst die erlaubten Werte der Integration (panel.py SETZEN) –
+   so schickt die Seite nie einen Wert, den die Integration ablehnt */
+const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], min_pause: [0, 120], takt: [5, 240], tuer_pause: [1, 120], tuer_melden: [1, 240],
+  vorheizen: [0, 240], nachheizen: [0, 240], soll: [5, 30], grenze: [0, 30], frueh_temp: [0, 20], frueh_min: [0, 240], frost_temp: [0, 15],
+  tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480] };
+const ARTEN = { m_offline: 'offline', m_trocken: 'trockenlauf', m_dauer: 'dauerlauf', m_zyklen: 'zyklen_oft', m_leistung: 'keine_leistung', m_frost: 'frostgefahr',
+  m_kalt: 'zu_kalt', m_fuehler: 'fuehler_fehlt', m_wetter: 'kein_wetter', m_hand: 'hand_zu_lange' };
+/* Abschnitte der Integration → Klassen der Zeitleiste im Mockup */
+const ABSCHNITT = { fruehstart: 'extra', vorheizen: 'vor', nachheizen: 'vor', arbeitszeit: 'heiz', trocknen: 'trock', termin: 'termin' };
+const WARTE = { anschluss_voll: a => `${a} ausgelastet`, max_gleichzeitig: () => 'höchstens gleichzeitig erreicht', mindestpause: () => 'Mindestpause',
+  rundlauf: () => 'Rundlauf', anlauf: () => 'Anlaufstaffel' };
+/* Wetter der Baustelle (weather.*) → Stimmung des Hintergrunds und Text im Kopf */
+const WETTER_STIMMUNG = { sunny: 'klar', 'clear-night': 'klar', exceptional: 'klar', partlycloudy: 'wolkig', cloudy: 'wolkig', windy: 'wolkig', 'windy-variant': 'wolkig',
+  rainy: 'regen', pouring: 'regen', hail: 'regen', lightning: 'gewitter', 'lightning-rainy': 'gewitter', fog: 'nebel', snowy: 'schnee', 'snowy-rainy': 'schnee' };
+const WETTER_TEXT = { sunny: 'Sonnig', 'clear-night': 'Klar', exceptional: 'Unwetter', partlycloudy: 'Heiter', cloudy: 'Bewölkt', windy: 'Windig', 'windy-variant': 'Windig',
+  rainy: 'Regen', pouring: 'Starkregen', hail: 'Hagel', lightning: 'Gewitter', 'lightning-rainy': 'Gewitter', fog: 'Nebel', snowy: 'Schnee', 'snowy-rainy': 'Schneeregen' };
+const AKTIV = z => ['heizt', 'trocknen', 'frost', 'laeuft'].includes(z);
+const kwVon = b => zahl(b.kw) ? Number(b.kw) : b.geraete.reduce((s, g) => s + (g.an ? g.kw : 0), 0);
+const wertHtml = b => b.pumpe ? `${zahl(b.zyklen) ? b.zyklen : '–'}<small> Zyklen</small>` : b.t !== null ? `${de(b.t)}<small>°C</small>` : '–';
+const illu = b => b.pumpe ? bcSchacht(b.z === 'laeuft') : bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], b.z === 'pause' || b.z === 'bereit' ? 'aus' : b.z);
+const TEXT_MOCKUP = b => b.boost ? '⚡ schnell aufheizen' : ({ heizt: b.bedarf && b.bedarfBis ? `heizt bis ${b.bedarfBis}` : b.t === null ? 'an · Thermostat regelt' : 'heizt · Arbeitszeit',
+  trocknen: 'Kleidung trocknen', aus: 'aus', frost: 'Frostschutz', offline: 'nicht erreichbar', laeuft: 'Pumpe läuft', pause: 'pausiert · Tür offen', bereit: 'bei Bedarf · nur Frostschutz' })[b.z] || '';
+const TEXT = b => b.text || TEXT_MOCKUP(b);
+const knopf2 = (t, act, text) => `<button class="knopf leise-k" data-act="${act}" data-t="${esc(text)}">${t}</button>`;
+// mdi:cog – dasselbe Zahnrad wie in Home Assistant
+const ICON_COG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>';
+const schalter = (on, act, extra = '') => `<button class="sw ${on ? 'on' : ''}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
+
+/* ---------- Diagramme: dünne Marken, Haarraster, Hover-Anzeige (aus dem Mockup) ---------- */
+const CHARTS = {};
+function linie(id, reihen, einheit, vb = null) {
+  // mit vb: Verbrauch als Fläche im selben Diagramm – links °C, rechts kWh (Herbert, 29.09.2026)
+  const W = 320, H = 160, L = 28, R = vb ? 30 : 8, T = 16, U = 22;
+  const alle = reihen.flatMap(s => s.v.filter(v => zahl(v)));
+  if (!alle.length) return '<div class="leer">Noch keine Werte</div>';
+  let lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.ceil(Math.max(...alle) / 5) * 5; if (hi === lo) hi = lo + 5;
+  const n = (hi - lo) / 5;
+  const x = i => L + i / 24 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U);
+  const raster = [...Array(n + 1)].map((_, k) => lo + k * 5).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}°</text>`).join('');
+  const achse = [0, 6, 12, 18, 24].map(h => `<text x="${x(h)}" y="${H - 6}" class="ax" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('');
+  const pfade = reihen.map((s, k) => `<path d="${s.v.map((v, i) => !zahl(v) ? '' : `${i && zahl(s.v[i - 1]) ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('') || `M${L} ${H - U}`}" fill="none" stroke="var(--s${k + 1})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('');
+  let flaeche = '', rechts = '', yv = null;
+  if (vb && vb.length) {
+    // rechte Achse auf dieselben Rasterlinien legen: n Schritte, Schrittweite glatt gerundet
+    const roh = Math.max(...vb, 0.01) * 1.1 / n, schritt = [.1, .2, .25, .5, 1, 1.5, 2, 2.5, 5].find(st => st >= roh) || 10, vmax = schritt * n;
+    yv = v => T + (1 - v / vmax) * (H - T - U);
+    const wert = i => vb[Math.min(i, vb.length - 1)] || 0, k = reihen.length + 1;
+    const d = [...Array(25)].map((_, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${yv(wert(i)).toFixed(1)}`).join('');
+    flaeche = `<defs><linearGradient id="vbg-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--s${k})" stop-opacity=".42"/><stop offset="1" stop-color="var(--s${k})" stop-opacity=".06"/></linearGradient></defs>
+      <path class="fl-flaeche" d="${d}L${x(24)} ${yv(0)}L${x(0)} ${yv(0)}z" fill="url(#vbg-${id})"/><path class="fl-linie" d="${d}" fill="none" stroke="var(--s${k})" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>`;
+    rechts = [...Array(n + 1)].map((_, q) => q * schritt).map(v => `<text x="${W - R + 5}" y="${yv(v) + 3}" class="ax">${de(v, schritt < 1 ? (schritt < .25 ? 1 : 2) : 0)}</text>`).join('')
+      + `<text x="${W - R + 5}" y="${T - 7}" class="ax ax-e">kWh</text>`;
+  } else vb = null;
+  const links = `<text x="${L - 5}" y="${T - 7}" class="ax ax-e" text-anchor="end">°C</text>`;
+  CHARTS[id] = { art: 'linie', x0: L, x1: W - R, W, n: 25, reihen, einheit, y, vb, yv, unten: H - U };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${flaeche}${pfade}${vb ? links + rechts : ''}<g class="hover"></g></svg>
+    <div class="legende">${reihen.map((s, k) => `<span><i style="background:var(--s${k + 1})"></i>${s.name} (°C, links)</span>`).join('')}${vb ? `<span><i style="background:var(--s${reihen.length + 1})"></i>Verbrauch (kWh je Stunde, rechts)</span>` : ''}</div>`;
+}
+function balken(id, werte, labels, einheit, d = 1) {
+  werte = werte.map(v => zahl(v) ? Number(v) : 0);
+  const W = 320, H = 150, L = 28, R = 8, T = 10, U = 22, n = werte.length, hi = Math.max(...werte, 0) * 1.15 || 1;
+  const bw = (W - L - R) / n, y = v => T + (1 - v / hi) * (H - T - U), stufe = hi > 20 ? 10 : hi > 6 ? 2 : hi > 2 ? 1 : .5;
+  const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_, k) => k * stufe).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${de(v, stufe < 1 ? 1 : 0)}</text>`).join('');
+  const b = werte.map((v, i) => { const h = H - U - y(v), bx = L + i * bw + 1, w = bw - 2;
+    return `${v > 0 ? `<path d="M${bx} ${H - U}V${y(v) + Math.min(4, h)}q0 -4 4 -4h${w - 8}q4 0 4 4V${H - U}z" fill="var(--s1)" class="bar" data-i="${i}"/>` : ''}
+      <text x="${bx + w / 2}" y="${H - 6}" class="ax" text-anchor="middle">${labels[i]}</text>`; }).join('');
+  CHARTS[id] = { art: 'balken', werte, labels, einheit, d };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${b}<rect class="treffer" x="0" y="0" width="0" height="0"/></svg>`;
+}
+function streu(id, pkt, k, d0) {
+  const W = 320, H = 170, L = 30, R = 8, T = 10, U = 24;
+  const tx = [-10, -5, 0, 5, 10, 15], ymax = Math.max(50, Math.ceil(Math.max(...pkt.map(q => q[1])) / 50) * 50);
+  const x = t => L + (Math.max(-10, Math.min(15, t)) + 10) / 25 * (W - L - R), y = v => T + (1 - v / ymax) * (H - T - U);
+  const raster = [...Array(ymax / 50 + 1)].map((_, q) => q * 50).map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}</text>`).join('');
+  const achse = tx.map(t => `<text x="${x(t)}" y="${H - 8}" class="ax" text-anchor="middle">${t}°</text>`).join('');
+  const t1 = -8, t2 = k < 0 ? Math.min(15, -d0 / k) : 15;
+  const trend = `<line x1="${x(t1)}" y1="${y(Math.max(0, Math.min(ymax, k * t1 + d0)))}" x2="${x(t2)}" y2="${y(Math.max(0, Math.min(ymax, k * t2 + d0)))}" stroke="var(--s2)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  const punkte = pkt.map((q, i) => `<circle class="punkt-s" data-i="${i}" cx="${x(q[0]).toFixed(1)}" cy="${y(q[1]).toFixed(1)}" r="4.5" fill="var(--s1)"/>`).join('');
+  CHARTS[id] = { art: 'streu', pkt, x, y };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}<text x="${W - R}" y="${H - 8}" class="ax" text-anchor="end" dx="0" opacity="0">.</text>${trend}${punkte}<g class="hover"></g></svg>
+    <div class="legende"><span><i style="background:var(--s1)"></i>ein Heiztag</span><span><i style="background:var(--s2)"></i>Trend</span><span class="leise">x: Tagesmittel außen · y: kWh</span></div>`;
+}
+function flaeche(id, reihen, labels, einheit, jedes) {
+  const W = 320, H = 160, L = 30, R = 8, T = 10, U = 22, n = labels.length, viele = reihen.length > 1;
+  reihen = reihen.map(r => ({ ...r, v: labels.map((_, i) => zahl(r.v[i]) ? Number(r.v[i]) : 0) }));
+  // gestapelt: jede Reihe liegt auf der Summe der darunterliegenden, die oberste Kante ist die Summe der Auswahl
+  let unten = Array(n).fill(0);
+  const lagen = reihen.map(r => { const u = unten, o = r.v.map((v, i) => u[i] + v); unten = o; return { ...r, u, o }; });
+  const hi0 = Math.max(...unten, 0) * 1.1 || 1;
+  const stufe = [.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000].find(st => hi0 / st <= 5) || 10000, hi = Math.ceil(hi0 / stufe) * stufe;
+  const x = i => L + i / Math.max(1, n - 1) * (W - L - R), y = v => T + (1 - v / hi) * (H - T - U);
+  const raster = [...Array(Math.round(hi / stufe) + 1)].map((_, k) => k * stufe).map(v =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${de(v, stufe < 1 ? 1 : 0)}</text>`).join('');
+  const achse = labels.map((t, i) => i % jedes ? '' : `<text x="${x(i)}" y="${H - 6}" class="ax" text-anchor="middle">${t}</text>`).join('');
+  const g = k => `fl-${id.replace(/[^a-z0-9]/gi, '')}-${k}`;
+  const defs = lagen.map((r, k) => `<linearGradient id="${g(k)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${r.farbe}" stop-opacity="${viele ? .75 : .45}"/><stop offset="1" stop-color="${r.farbe}" stop-opacity="${viele ? .45 : .03}"/></linearGradient>`).join('');
+  const linieD = a => a.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
+  const zurueck = a => a.map((v, i) => [i, v]).reverse().map(([i, v]) => `L${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
+  const flaechen = lagen.map((r, k) => `<path class="fl-flaeche" style="animation-delay:${k * 40}ms" d="${linieD(r.o)}${zurueck(r.u)}z" fill="url(#${g(k)})"/>`).join('');
+  const kanten = lagen.map(r => `<path class="fl-linie" d="${linieD(r.o)}" fill="none" stroke="${viele ? 'var(--trenn)' : r.farbe}" stroke-width="${viele ? 1.5 : 2}" stroke-linejoin="round"/>`).join('');
+  const oben = viele ? `<path d="${linieD(unten)}" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>` : '';
+  CHARTS[id] = { art: 'flaeche', x0: L, x1: W - R, W, n, reihen: lagen, labels, einheit, y };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${raster}${achse}${flaechen}${kanten}${oben}<g class="hover"></g></svg>
+    ${viele ? `<div class="legende">${[...lagen].reverse().map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}</div>` : ''}`;
+}
+
+/* ---------- Stimmung: Hintergrund nach Tageszeit (sun.sun) und Wetter (weather.*) ---------- */
+const zufall = seed => () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+function partikel(phase, wetter) {
+  const r = zufall(42), z = (a, b) => (a + r() * (b - a)).toFixed(2);
+  const tropfen = n => [...Array(n)].map(() => `<i class="tropfen" style="left:${z(-10, 130)}%;--l:${z(12, 26)}px;--d:${z(.55, 1)}s;--v:-${z(0, 2)}s;opacity:${z(.35, .9)}"></i>`).join('');
+  const teile = [];
+  if (wetter === 'regen') teile.push(tropfen(70));
+  if (wetter === 'gewitter') teile.push(tropfen(120), '<i class="blitzlicht"></i>');
+  if (wetter === 'schnee') teile.push([...Array(60)].map(() => `<i class="flocke" style="left:${z(-5, 105)}%;--d:${z(7, 14)}s;--v:-${z(0, 14)}s"><b style="--s:${z(2, 5)}px;--w:${z(2, 4)}s"></b></i>`).join(''));
+  if (wetter === 'nebel') teile.push([...Array(4)].map((_, k) => `<i class="schwade" style="top:${10 + k * 22}%;--d:${24 + k * 7}s;--v:-${k * 6}s"></i>`).join(''));
+  if (wetter === 'wolkig' || wetter === 'regen' || wetter === 'gewitter') teile.push([...Array(3)].map((_, k) => `<i class="wolke" style="top:${z(-5, 45)}%;--d:${z(50, 80)}s;--v:-${z(0, 60)}s"></i>`).join(''));
+  if (wetter === 'klar' && phase === 'nacht') teile.push([...Array(45)].map(() => `<i class="stern" style="left:${z(0, 100)}%;top:${z(0, 60)}%;--v:-${z(0, 4)}s;--s:${z(1, 2.4)}px"></i>`).join(''));
+  if (wetter === 'klar' && phase !== 'nacht') teile.push('<i class="strahlen"></i>');
+  return teile.join('');
+}
+/* Tageszeit aus sun.sun: Nacht unter −6°, Morgen/Abend bis 12° über dem Horizont */
+function phaseAusSonne(sonne) {
+  if (!sonne) return 'tag';
+  const a = sonne.attributes || {}, hoehe = Number(a.elevation), steigt = a.rising;
+  if (!zahl(hoehe)) return sonne.state === 'below_horizon' ? 'nacht' : 'tag';
+  if (hoehe < -6) return 'nacht';
+  if (hoehe < 12) return steigt === false ? 'abend' : 'morgen';
+  return 'tag';
+}
+
+/* ---------- Seite ---------- */
+const STATISCH = '/baustelle_static';
+const LOKAL_FMT = {};
 class BaustellePanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this.ui = { bid: null, tab: 'uebersicht', sub: 'baustellen', per: '7', scope: 'all', hsel: 'all', form: null, drawer: false };
-    this.cache = {};
-    this.baustellen = null;
-    try { const u = JSON.parse(localStorage.getItem('baustelle-panel-ui') || '{}'); Object.assign(this.ui, { bid: u.bid || null, tab: u.tab || 'uebersicht' }); } catch (e) { /* ohne Speicher */ }
+    this.s = { view: 'uebersicht', cid: null, sheet: null, chart: 'temp', verlauf: 'aktiv' };
+    this.cache = {}; this.roh = null; this.alle = []; this.d = null; this.bid = null; this.fehler = null;
+    this.vorhersage = { daily: null, hourly: null }; this.abos = []; this.changelog = null;
+    this.st = { phase: 'tag', wetter: 'wolkig', hell: false };
+    try { const u = JSON.parse(localStorage.getItem('baustelle-panel') || '{}'); this.bid = u.bid || null; } catch (e) { /* ohne Speicher */ }
   }
 
+  /* ---- Lebenszyklus (panel_custom: hass, narrow, panel) ---- */
   set hass(h) {
     const erst = !this._hass;
     this._hass = h;
-    if (erst) { this._laden(); this._timer = setInterval(() => this._laden(), 60000); }
-    this.toggleAttribute('dunkel', !!(h.themes && h.themes.darkMode));
-    this._vorhersageAbo();
-    this._planen();
+    this._aufbauen();
+    if (erst) this._starten(); else this._beobachten(h);
+    this._stimmung();
+  }
+  get hass() { return this._hass; }
+  set narrow(n) { const alt = this._narrow; this._narrow = !!n; if (alt !== undefined && alt !== this._narrow) this.render(); }
+  get narrow() { return this._narrow; }
+  set panel(p) { this._panel = p; }
+  get panel() { return this._panel; }
+  connectedCallback() { this._aufbauen(); if (this._hass && !this._timer) this._starten(); if (!this.himmel && this.bg) this.himmel = Himmel.an(this.bg); this._stimmung(true); }
+  disconnectedCallback() {
+    clearInterval(this._timer); this._timer = null; clearTimeout(this._nachladen);
+    this._aboEnde(); if (this.himmel) { this.himmel.stop(); this.himmel = null; }
+  }
+  _starten() {
+    this._laden();
+    clearInterval(this._timer); this._timer = setInterval(() => this._laden(), 60000);
+    if (typeof fetch === 'function') fetch(`${STATISCH}/changelog.json?v=${encodeURIComponent(this.version)}`).then(r => r.ok ? r.json() : null)
+      .then(c => { this.changelog = Array.isArray(c) ? c : []; if (this.s.view === 'ueber') this.render(); }).catch(() => { this.changelog = []; });
+  }
+  get version() { return (this.d && this.d.version) || (this._panel && this._panel.config && this._panel.config.version) || '–'; }
+
+  _aufbauen() {
+    if (this.root) return;
+    const sr = this.shadowRoot;
+    sr.innerHTML = `<style>${CSS}\n${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui"></div></div></div>`;
+    this.wurzel = sr.querySelector('.wurzel'); this.root = sr.querySelector('.app');
+    this.bg = sr.querySelector('.glas-bg'); this.ui = sr.querySelector('.ui');
+    sr.addEventListener('click', e => this.klick(e));
+    sr.addEventListener('input', e => this.eingabe(e));
+    sr.addEventListener('change', e => this.aenderung(e));
+    sr.addEventListener('pointermove', e => this.hover(e));
+    sr.addEventListener('pointerleave', () => this.tip(null));
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('location-changed', () => { this._adresseFertig = null; setTimeout(() => this._adresse(), 0); });
+    sr.addEventListener('focusout', () => { if (this._wartet) { this._wartet = false; setTimeout(() => this._auffrischen(), 0); } });
+    this.himmel = Himmel.an(this.bg);          // WebGL-Himmel; ohne WebGL bleibt der CSS-Hintergrund
+    this.render();
+  }
+
+  /* Eigene Entitäten geändert → Struktur kurz danach neu holen (Zustände kommen aus der Integration) */
+  _beobachten(h) {
+    const ids = this._eigene || [];
+    let neu = !this._alt;
+    if (this._alt) for (const id of ids) if (h.states[id] !== this._alt[id]) { neu = true; break; }
+    this._alt = Object.fromEntries(ids.map(id => [id, h.states[id]]));
+    if (neu && this._alt && ids.length && !this._nachladen) this._nachladen = setTimeout(() => { this._nachladen = null; this._laden(); }, 3000);
+  }
+
+  async _laden() {
+    if (!this._hass) return;
+    try {
+      const r = await this._hass.callWS({ type: 'baustelle/struktur' });
+      // unverändert (bis auf die Uhrzeit) → nicht neu zeichnen; spätestens alle 5 min wegen der Jetzt-Marke
+      const text = JSON.stringify(r, (k, v) => k === 'jetzt' ? undefined : v);
+      if (text === this._rohText && !this.fehler && Date.now() - this._geholt < 300000) return;
+      this._rohText = text; this._geholt = Date.now(); this.roh = Array.isArray(r) ? r : []; this.fehler = null;
+      this._neuBauen();
+      delete this.cache['p:' + (this.d && this.d.entry)];
+    } catch (e) { this.fehler = (e && (e.message || e.code)) || String(e); if (!this.roh) this.roh = null; }
+    this._vorhersageAbo(); this._stimmung(); this._adresse(); this._auffrischen();
+  }
+  _neuBauen() {
+    this.alle = (this.roh || []).map(r => this.bauen(r));
+    const aktiv = this.alle.filter(x => x.aktiv);
+    this.d = aktiv.find(x => x.entry === this.bid) || aktiv[0] || null;
+    if (this.d && this.d.entry !== this.bid) { this.bid = this.d.entry; this._merken(); }
+    this._eigene = (this.roh || []).flatMap(r => Object.values(r.entitaeten || {}));
+  }
+  /* Adresse aus einer Handy-Nachricht (api §4): ?baustelle=<entry_id>&container=<bid>&ansicht=auswertung */
+  _adresse() {
+    const such = typeof location !== 'undefined' ? location.search : '';
+    if (!such || such === this._adresseFertig || !this.roh) return;
+    this._adresseFertig = such;
+    const q = new URLSearchParams(such), bid = q.get('baustelle'), cid = q.get('container'), ansicht = q.get('ansicht');
+    const x = bid && this.alle.find(y => y.entry === bid);
+    if (x && x.aktiv) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); }
+    else if (x) { this.s.bs = x.entry; return this.gehe('bsdetail'); }
+    if (cid && this.d && this.d.bereiche.some(b => b.id === cid)) return this.gehe('container', cid);
+    if (ansicht && typeof this['v_' + ansicht] === 'function' && ansicht !== 'leer') return this.gehe(ansicht);
+    if (x) this.gehe('uebersicht');
+  }
+  _merken() { try { localStorage.setItem('baustelle-panel', JSON.stringify({ bid: this.bid })); } catch (e) { /* egal */ } }
+  get z() { return this.d.z; }
+
+  /* Hintergrund aus der Baustelle: Tageszeit (sun.sun), Wetter (Wetter-Entität), hell/dunkel (Theme) */
+  _stimmung(erzwingen = false) {
+    if (!this.bg || !this._hass) return;
+    const h = this._hass, eid = this.d && this.d.wetterEid, w = eid && h.states[eid];
+    const phase = phaseAusSonne(h.states['sun.sun']), wetter = WETTER_STIMMUNG[w && w.state] || 'wolkig', hell = !(h.themes && h.themes.darkMode);
+    const alt = this.st, neu = { phase, wetter, hell };
+    if (!erzwingen && alt.phase === phase && alt.wetter === wetter && alt.hell === hell && this.bg.dataset.phase) return;
+    if (this.bg.dataset.phase !== phase || this.bg.dataset.wetter !== wetter) { const p = this.bg.querySelector('.partikel'); if (p) p.innerHTML = partikel(phase, wetter); }
+    this.bg.dataset.phase = phase; this.bg.dataset.wetter = wetter;
+    if (this.wurzel) this.wurzel.classList.toggle('hell', hell);
+    if (this.himmel) this.himmel.setze(phase, wetter, hell);
+    const kopfNeu = alt.wetter !== wetter || alt.phase !== phase;
+    this.st = neu;
+    if (kopfNeu && this.d) this._auffrischen();
   }
 
   _vorhersageAbo() {
-    const b = this.baustellen && this.B();
-    const eid = b && b.baustelle.optionen.wetter;
-    if (!eid || this._aboFuer === eid || !this._hass.connection) return;
-    this._aboEnde();
-    this._aboFuer = eid;
-    this.vorhersage = null;
-    this._abo = this._hass.connection.subscribeMessage(m => { this.vorhersage = m.forecast; this._planen(); },
-      { type: 'weather/subscribe_forecast', entity_id: eid, forecast_type: 'daily' });
-    this._abo.catch(() => { this._aboFuer = null; });
-  }
-
-  _aboEnde() {
-    if (this._abo) this._abo.then(ende => ende()).catch(() => {});
-    this._abo = null;
-    this._aboFuer = null;
-  }
-  get hass() { return this._hass; }
-  set narrow(n) { this._narrow = n; this._planen(); }
-  set panel(p) { this._panel = p; }
-
-  connectedCallback() {
-    if (this._verbunden) return;
-    this._verbunden = true;
-    const sr = this.shadowRoot;
-    sr.addEventListener('click', e => this._klick(e));
-    sr.addEventListener('change', e => this._aenderung(e));
-    sr.addEventListener('focusout', () => { if (this._wartet) { this._wartet = false; this._planen(); } });
-    sr.addEventListener('pointermove', e => this._tooltip(e));
-    sr.addEventListener('pointerleave', () => { const t = sr.querySelector('.tip'); if (t) t.style.display = 'none'; });
-  }
-  disconnectedCallback() { clearInterval(this._timer); this._timer = null; this._aboEnde(); }
-
-  /* ---------------------------------------------------------------- Daten */
-  async _laden() {
-    try {
-      this.baustellen = await this._hass.callWS({ type: 'baustelle/struktur' });
-      this.fehler = null;
-      this._vorhersageAbo();
-    } catch (e) { this.fehler = e.message || String(e); }
-    this._planen();
-  }
-
-  _holen(schluessel, holer, maxAlterMs = 300000) {
-    const c = this.cache[schluessel];
-    const jetzt = Date.now();
-    if (!c || (!c.laeuft && jetzt - c.zeit > maxAlterMs)) {
-      this.cache[schluessel] = { ...(c || {}), laeuft: true, zeit: jetzt };
-      holer().then(daten => { this.cache[schluessel] = { daten, zeit: Date.now(), laeuft: false }; this._planen(); })
-        .catch(err => { this.cache[schluessel] = { daten: null, fehler: String(err.message || err), zeit: Date.now(), laeuft: false }; this._planen(); });
+    const eid = this.d && this.d.wetterEid, con = this._hass && this._hass.connection;
+    if (!eid || !con || !con.subscribeMessage || this._aboFuer === eid) return;
+    this._aboEnde(); this._aboFuer = eid; this.vorhersage = { daily: null, hourly: null };
+    for (const art of ['daily', 'hourly']) {
+      const abo = con.subscribeMessage(m => { this.vorhersage[art] = (m && m.forecast) || []; this._auffrischen(); },
+        { type: 'weather/subscribe_forecast', entity_id: eid, forecast_type: art });
+      if (abo && abo.catch) abo.catch(() => { this.vorhersage[art] = []; });
+      this.abos.push(abo);
     }
-    return c ? c.daten : undefined;
+  }
+  _aboEnde() { for (const a of this.abos) if (a && a.then) a.then(ende => typeof ende === 'function' && ende()).catch(() => {}); this.abos = []; this._aboFuer = null; }
+
+  /* Zeit in der Zone der Baustelle: 'YYYY-MM-DD HH:MM' */
+  lokal(t, zone = this.d && this.d.z.zone) {
+    const ms = typeof t === 'number' ? t : Date.parse(t);
+    if (!Number.isFinite(ms)) return '';
+    const k = zone || '';
+    if (!(k in LOKAL_FMT)) {
+      try { LOKAL_FMT[k] = new Intl.DateTimeFormat('sv-SE', { timeZone: zone || undefined, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); }
+      catch (e) { LOKAL_FMT[k] = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); }
+    }
+    return LOKAL_FMT[k].format(ms).replace('T', ' ');
+  }
+  /* Mitternacht (oder Uhrzeit) eines Tages in der Zone der Baustelle als Zeitpunkt */
+  zoneMs(tag, zeit = '00:00', zone) {
+    const g = Date.parse(`${tag}T${zeit}:00Z`), l = Date.parse(this.lokal(g, zone).replace(' ', 'T') + ':00Z');
+    return Number.isFinite(l) ? g - (l - g) : g;
+  }
+  isoUhr(iso) { return iso ? this.lokal(iso).slice(11, 16) : null; }
+  seitText(iso) { if (!iso) return ''; const l = this.lokal(iso); return l.slice(0, 10) === this.z.HEUTE ? `seit ${l.slice(11, 16)}` : `seit ${wtag(l)} ${kurzDatum(l)}`; }
+  tagText(l) { const t = l.slice(0, 10); return t === this.z.HEUTE ? 'Heute' : t === plusTage(this.z.HEUTE, -1) ? 'Gestern' : `${wtag(t)} ${kurzDatum(t)}`; }
+  minSeit(iso) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((this.jetztMs() - ms) / 60000)) : null; }
+  jetztMs() { return this.d ? this.d.z.jetztMs : Date.now(); }
+
+  /* ---- Adapter: baustelle/struktur (docs/api-0.7.md §1) → Modell der Seite (Form wie im Mockup) ---- */
+  bauen(r) {
+    const bs = r.baustelle || {}, lz = r.laufzeit || {}, e0 = r.einstellungen || {}, opt = bs.optionen || {}, zone = bs.zeitzone;
+    const jetztIso = bs.jetzt || new Date().toISOString(), jl = this.lokal(jetztIso, zone) || '';
+    const heute = bs.heute || jl.slice(0, 10) || new Date().toISOString().slice(0, 10);
+    const montag = plusTage(heute, -((new Date(heute + 'T12:00:00Z').getUTCDay() + 6) % 7));
+    const WOCHE_ISO = TAGE.map((_, k) => plusTage(montag, k));
+    const z = { HEUTE: heute, HEUTE_TAG: TAGE[WOCHE_ISO.indexOf(heute)] || 'Mo', JETZT: jl.slice(11, 16) || '00:00', WOCHE_ISO,
+      WOCHE: WOCHE_ISO.map((iso, k) => [TAGE[k], kurzDatum(iso)]), zone, jetztMs: Number.isFinite(Date.parse(jetztIso)) ? Date.parse(jetztIso) : Date.now() };
+    const h = e0.heizung || {}, st = e0.staffel || {}, me = e0.meldungen_einst || {}, ar = me.arten || {}, be = e0.bericht || {};
+    const v = (x, std) => zahl(x) ? Number(x) : std;
+    const namen = s => { const x = this._hass && this._hass.states[`notify.${s}`]; return (x && x.attributes.friendly_name) || String(s).replace(/^mobile_app_/, '').replace(/_/g, ' '); };
+    const e = { preis: v(e0.preis, 0), feiertag_frei: h.feiertag_frei !== false, boost_min: v(h.boost_min, 30), melden: e0.melden_knopf !== false,
+      staffel: st.an !== false, nutzbar: v(st.nutzbar_prozent, 67), max_gleich: v(st.max_gleichzeitig, 5), min_lauf: v(st.min_lauf_min, 10), min_pause: v(st.min_pause_min, 5), takt: v(st.takt_min, 15),
+      tuer_pause: v(h.tuer_pause_min, 3), tuer_melden: v(h.tuer_melden_min, 10), knoepfe: me.knoepfe !== false,
+      bericht: be.haeufigkeit || 'aus', bericht_handy: be.handy !== false, bericht_mail: !!be.mail, mail: be.mail_an || '', mail_dienst: be.mail_dienst || '', bericht_csv: be.csv !== false,
+      vorheizen: v(h.vorheizen_min, 45), nachheizen: v(h.nachheizen_min, 15), soll: v(h.soll, 20), grenze: v(h.heizgrenze, 15), basis: h.heizgrenze_basis === 'jetzt' ? 'jetzt' : 'Tageshöchstwert',
+      fruehstart: h.fruehstart !== false, frueh_temp: v(h.fruehstart_unter, 0), frueh_min: v(h.fruehstart_min, 30), frost: h.frost !== false, frost_temp: v(h.frost_grenze, 5),
+      tr_mm: v(h.trocknen_ab_mm, 2), tr_laenger: v(h.trocknen_laenger_min, 45), tr_frueher: v(h.trocknen_frueher_min, 15),
+      empfaenger: (me.empfaenger || opt.empfaenger || []).map(namen).join(', ') || 'keiner gewählt',
+      dauer_min: v(me.dauerlauf_min, 20), kalt_min: v(me.kalt_min, 60), hand_h: v(me.hand_h, 8), zyklen_h: v(me.zyklen_h, 10), trocken_w: v(me.trocken_unter_w, 30),
+      auto: !!e0.automatik };
+    for (const [k, art] of Object.entries(ARTEN)) e[k] = ar[art] !== false;
+    const anschluesse = (e0.anschluesse || []).map(a => ({ id: a.id, name: a.name || a.id, ampere: v(a.ampere, 16), phasen: v(a.phasen, 3), reserve: v(a.reserve_kw, 0) }));
+    const firmen = (e0.firmen && e0.firmen.length ? e0.firmen : [{ id: 'eigen', name: 'Eigene Firma', eigen: true }]).map(f => ({ ...f }));
+    const zuordnung = e0.zuordnung || [], jetztMs = z.jetztMs;
+    const firmaVon = bid => { let f = 'eigen', ab = -Infinity; for (const x of zuordnung) { const t = Date.parse(x.ab); if (x.bereich === bid && t <= jetztMs && t >= ab) { f = x.firma; ab = t; } } return firmen.some(y => y.id === f) ? f : 'eigen'; };
+    const ebAlle = e0.bereiche || {}, cAlle = lz.container || {}, gAlle = lz.geraete || {};
+    const bereiche = (r.bereiche || []).map((b, i) => {
+      const eb = ebAlle[b.id] || {}, c = cAlle[b.id] || {}, pumpe = b.art === 'pumpenschacht';
+      const geraete = (r.geraete || []).filter(g => g.bereich === b.id).map(g => { const x = gAlle[g.id] || {};
+        return { id: g.id, n: g.name || g.id, typ: TYP_TEXT(g), rolle: g.rolle, gtyp: g.typ, heizer: HEIZER(g), kw: v(g.nenn_kw, 0), kwJetzt: x.kw, an: !!x.an,
+          hand: !!x.hand_seit, hand_seit: x.hand_seit || null, warte: x.warte || null, erreichbar: x.erreichbar !== false, schalter: g.schalter, leistung: g.leistung, energie: g.energie }; });
+      let zst = c.zustand in FARBE ? c.zustand : (pumpe ? 'aus' : 'aus');
+      const offline = zst === 'offline' || (geraete.length > 0 && geraete.every(g => !g.erreichbar));
+      if (offline) zst = 'offline';
+      const tuerS = eb.tuer && this._hass && this._hass.states[eb.tuer];
+      const tuer = eb.tuer ? { eid: eb.tuer, sensor: (tuerS && tuerS.attributes.friendly_name) || eb.tuer, offen: c.tuer && c.tuer.offen ? Math.max(1, this.minSeitAb(c.tuer.seit, jetztMs) ?? 1) : 0 } : undefined;
+      return { id: b.id, name: b.name || b.id, f: zahl(b.nr) ? Number(b.nr) : i, art: b.art, pumpe, fuehler: b.fuehler || null, z: zst, grund: c.grund || null,
+        t: zahl(c.temperatur) ? Number(c.temperatur) : null, kw: zahl(c.kw) ? Number(c.kw) : null, text: c.text || '', geraete,
+        auto: eb.auto !== false, trocknen: !!eb.trocknen, soll: zahl(eb.soll) ? Number(eb.soll) : undefined, bedarf: !!eb.bedarf, prio: eb.prio || 'normal',
+        anschluss: eb.anschluss || (anschluesse[0] && anschluesse[0].id) || null, firma: firmaVon(b.id), tuer, offline,
+        bedarfBisIso: c.bedarf_bis || null, bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
+        boost: !!c.boost_bis, boostBis: c.boost_bis || null };
+    });
+    const plan = {}, frei = {};
+    const freiName = {};
+    for (const p of lz.plan_woche || []) { plan[p.datum] = p.plan || null; frei[p.datum] = p.frei || null; if (p.name) freiName[p.datum] = p.name; }
+    const warnungen = (lz.warnungen || []).map(w => ({ id: w.key, key: w.key, art: w.art, stufe: w.stufe === 'stoerung' ? 'stoerung' : 'hinweis', b: w.bereich || null, g: w.geraet || null,
+      titel: w.titel || w.art || '', hilfe: w.hilfe || '', seitIso: w.seit, stumm: !!(w.stumm_bis && Date.parse(w.stumm_bis) > jetztMs) }));
+    const termine = (lz.termine || []).map(t => { const l = this.lokal(t.von, zone), lb = this.lokal(t.bis, zone);
+      return { b: t.bereich, datum: l.slice(0, 10), von: l.slice(11, 16), bis: lb.slice(11, 16), titel: t.titel || '', uid: t.uid, rrule: t.rrule || null,
+        wieder: WIEDER[t.wiederholung] ? t.wiederholung : 'einmal', boost: !!t.boost }; });
+    const tage = e0.arbeitszeiten || [];
+    const arbeitszeiten = tage.map(a => ({ ab: a.ab, name: a.name || '', tage: Object.fromEntries(TAGE.map((t, k) => { const x = (a.tage || {})[k] ?? (a.tage || {})[String(k)]; return [t, x && x[0] && x[1] ? [x[0], x[1]] : null]; })) }));
+    const aktiv = (bs.status || opt.status || 'aktiv') !== 'abgeschlossen';
+    const zl = r.zaehler || {};
+    const wetterEid = opt.wetter || null;
+    return { r, entry: bs.entry_id, titel: bs.titel || 'Baustelle', aktiv, geladen: bs.geladen !== false, version: bs.version, optionen: opt, ent: r.entitaeten || {}, z, e,
+      bereiche, anschluesse, firmen, zuordnung, arbeitszeiten, ausnahmen: (e0.ausnahmen || []).map(a => ({ datum: a.datum, art: a.art in AUSNAHME ? a.art : 'zeiten', von: a.von || '07:00', bis: a.bis || '16:30', notiz: a.notiz || '' })),
+      warnungen, termine, plan, frei, freiName, abschnitte: lz.abschnitte || {}, staffel: lz.staffel || null, wetter: lz.wetter || {}, heizgrenze: lz.heizgrenze || {},
+      status: lz.status || (aktiv ? 'bereit' : 'abgeschlossen'), statusText: lz.status_text || '', jetztBis: lz.jetzt_bis ? this.lokal(lz.jetzt_bis, zone).slice(11, 16) : null,
+      protokoll: (lz.protokoll || []).map(p => this.protokollZeile(p, z)), zaehler: zl, termineKal: e0.termine_kalender || null, wetterEid,
+      beginn: opt.beginn || null, ende: opt.ende || null };
+  }
+  minSeitAb(iso, jetztMs) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((jetztMs - ms) / 60000)) : null; }
+  protokollZeile(p, z) {
+    const l = this.lokal(p[0], z.zone) || '', t = l.slice(0, 10);
+    const tag = t === z.HEUTE ? 'Heute' : t === plusTage(z.HEUTE, -1) ? 'Gestern' : `${wtag(t)} ${kurzDatum(t)}`;
+    return [tag, l.slice(11, 16), p[1] || 'einstellung', p[2] || null, p[3] || ''];
+  }
+  eid(d, besitzer, key) { return d.ent[`${besitzer}_${key}`] || null; }
+  zustand(eid) { const s = eid && this._hass && this._hass.states[eid]; return s && !['unknown', 'unavailable'].includes(s.state) ? s : null; }
+  name(eid) { const s = eid && this._hass && this._hass.states[eid]; return (s && s.attributes.friendly_name) || eid || ''; }
+
+  /* ---- Nachladen mit Zwischenspeicher: gibt undefined zurück, solange es lädt ---- */
+  _holen(key, holer, maxAlter = 300000) {
+    const c = this.cache[key], jetzt = Date.now();
+    if (!c || (!c.laeuft && jetzt - c.zeit > maxAlter)) {
+      this.cache[key] = { ...(c || {}), laeuft: true, zeit: jetzt };
+      Promise.resolve().then(holer).then(daten => { this.cache[key] = { daten, zeit: Date.now(), laeuft: false }; this._auffrischen(); })
+        .catch(err => { this.cache[key] = { daten: null, fehler: String((err && err.message) || err), zeit: Date.now(), laeuft: false }; this._auffrischen(); });
+    }
+    return c && 'daten' in c ? c.daten : undefined;
+  }
+  /* Neu zeichnen ohne Eingaben zu stören */
+  _auffrischen() {
+    if (this._auffrischenGeplant) return;
+    this._auffrischenGeplant = true;
+    Promise.resolve().then(() => {
+      this._auffrischenGeplant = false;
+      const f = this.shadowRoot && this.shadowRoot.activeElement;
+      if (f && ['INPUT', 'TEXTAREA', 'SELECT'].includes(f.tagName)) { this._wartet = true; return; }
+      this.render();
+    });
   }
 
-  _historie(ids, start) {
-    ids = ids.filter(Boolean);
-    if (!ids.length) return {};
-    return this._holen(`h:${ids.join(',')}:${start.toISOString().slice(0, 13)}`, () => this._hass.callWS({
-      type: 'history/history_during_period', start_time: start.toISOString(), entity_ids: ids,
-      minimal_response: true, no_attributes: true, significant_changes_only: false,
-    }));
+  /* Zeiträume der Auswertung: Tag (je Stunde), Woche/Monat (je Tag), Jahr (je Monat); versatz 1 = davor */
+  zeitraum(z, versatz = 0, d = this.d) {
+    const h = d.z.HEUTE, J = +h.slice(0, 4), M = +h.slice(5, 7);
+    if (z === 'Tag') { const tag = plusTage(h, -versatz);
+      return { von: tag, bis: plusTage(tag, 1), periode: 'hour', n: 24, labels: [...Array(24)].map((_, i) => String(i).padStart(2, '0')), index: l => l.slice(0, 10) === tag ? +l.slice(11, 13) : -1 }; }
+    if (z === 'Woche') { const mo = plusTage(d.z.WOCHE_ISO[0], -7 * versatz);
+      return { von: mo, bis: plusTage(mo, 7), periode: 'day', n: 7, labels: TAGE, index: l => tageZwischen(mo, l.slice(0, 10)) }; }
+    if (z === 'Monat') { let m = M - 1 - versatz, j = J; while (m < 0) { m += 12; j--; }
+      const von = `${j}-${String(m + 1).padStart(2, '0')}-01`, n = new Date(Date.UTC(j, m + 1, 0)).getUTCDate();
+      return { von, bis: plusTage(von, n), periode: 'day', n, labels: [...Array(n)].map((_, i) => `${i + 1}.`), index: l => l.slice(0, 7) === von.slice(0, 7) ? +l.slice(8, 10) - 1 : -1, monat: m, jahr: j }; }
+    const j = J - versatz;
+    return { von: `${j}-01-01`, bis: `${j + 1}-01-01`, periode: 'month', n: 12, labels: MONATE, index: l => +l.slice(0, 4) === j ? +l.slice(5, 7) - 1 : -1, jahr: j };
   }
+  statIds(d, mitTemp) {
+    const ids = [];
+    for (const b of d.bereiche) {
+      const en = this.eid(d, b.id, 'energie'); if (en) ids.push(en); else ids.push(...b.geraete.map(g => g.energie).filter(Boolean));
+      ids.push(this.eid(d, b.id, 'heizzeit'));
+      for (const g of b.geraete) if (g.rolle === 'pumpe') ids.push(this.eid(d, g.id, 'pumpzeit'), this.eid(d, g.id, 'pumpzyklen'));
+      if (mitTemp && b.fuehler) ids.push(b.fuehler);
+    }
+    ids.push(this.eid(d, d.entry, 'energie_ohne_automatik'));
+    if (mitTemp) ids.push(this.eid(d, d.entry, 'aussen'));
+    return [...new Set(ids.filter(Boolean))].sort();
+  }
+  /* Langzeitstatistik (Recorder) eines Zeitraums: {statistic_id: [Wert je Stunde/Tag/Monat]} */
+  statistik(z, versatz = 0, d = this.d) {
+    if (!d) return null;
+    const zr = this.zeitraum(z, versatz, d), ids = this.statIds(d, z === 'Tag');
+    if (!ids.length) return { ...zr, werte: {} };
+    const roh = this._holen(`s:${d.entry}:${z}:${zr.von}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
+      start_time: new Date(this.zoneMs(zr.von, '00:00', d.z.zone)).toISOString(), end_time: new Date(this.zoneMs(zr.bis, '00:00', d.z.zone)).toISOString(),
+      statistic_ids: ids, period: zr.periode, types: ['change', 'mean'], units: {} }));
+    if (roh === undefined) return null;
+    const werte = {};
+    for (const id of ids) {
+      const arr = Array(zr.n).fill(null);
+      for (const p of (roh || {})[id] || []) {
+        const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), i = zr.index(this.lokal(ms, d.z.zone));
+        if (i < 0 || i >= zr.n) continue;
+        if (zahl(p.change)) arr[i] = (arr[i] || 0) + Number(p.change); else if (zahl(p.mean)) arr[i] = Number(p.mean);
+      }
+      werte[id] = arr;
+    }
+    return { ...zr, werte };
+  }
+  /* Verbrauch in kWh je Stunde (Tag), je Tag (Woche/Monat) oder je Monat (Jahr); bid null = Summe der Baustelle */
+  verbrauch(d, bid, z, versatz = 0) {
+    const st = this.statistik(z, versatz, d); if (!st) return null;
+    const eins = b => { const en = this.eid(d, b.id, 'energie'), ids = en ? [en] : b.geraete.map(g => g.energie).filter(Boolean);
+      const r = addieren(ids.map(id => (st.werte[id] || Array(st.n).fill(0)).map(v => v || 0))); return r.length ? r : Array(st.n).fill(0); };
+    const liste = bid ? d.bereiche.filter(b => b.id === bid) : d.bereiche;
+    return liste.length ? addieren(liste.map(eins)) : Array(st.n).fill(0);
+  }
+  reihe(d, id, z, versatz = 0) { const st = this.statistik(z, versatz, d); if (!st) return null; return (id && st.werte[id]) || Array(st.n).fill(null); }
+  heizStunden(d, b, z, versatz = 0) {
+    if (b.pumpe) { const r = b.geraete.filter(g => g.rolle === 'pumpe').map(g => this.reihe(d, this.eid(d, g.id, 'pumpzeit'), z, versatz)); if (r.some(x => !x)) return null; return addieren(r.map(x => x.map(v => v || 0))); }
+    const r = this.reihe(d, this.eid(d, b.id, 'heizzeit'), z, versatz); return r && r.map(v => v || 0);
+  }
+  zyklen(d, b, z) { const r = b.geraete.filter(g => g.rolle === 'pumpe').map(g => this.reihe(d, this.eid(d, g.id, 'pumpzyklen'), z)); if (r.some(x => !x)) return null; return addieren(r.map(x => x.map(v => Math.round(v || 0)))); }
 
-  _statistik(ids, periode, start, arten = ['change']) {
-    ids = ids.filter(Boolean);
-    if (!ids.length) return {};
-    return this._holen(`s:${ids.join(',')}:${periode}:${start.toISOString().slice(0, 13)}:${arten}`, () => this._hass.callWS({
-      type: 'recorder/statistics_during_period', start_time: start.toISOString(), statistic_ids: ids, period: periode,
-      types: arten, units: {},
-    }));
+  /* Gemessen: wann zieht ein Gerät Strom (Leistung über 50 W) – Verlauf der Leistungssensoren seit Montag */
+  messung(d = this.d) {
+    const geraete = d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g, eid: g.leistung || g.schalter }))).filter(x => x.eid);
+    if (!geraete.length) return {};
+    const ids = [...new Set(geraete.map(x => x.eid))].sort(), start = this.zoneMs(d.z.WOCHE_ISO[0], '00:00', d.z.zone);
+    const roh = this._holen(`h:${d.entry}:${d.z.HEUTE}:${d.z.JETZT.slice(0, 4)}`, () => this._hass.callWS({ type: 'history/history_during_period',
+      start_time: new Date(start).toISOString(), end_time: new Date(d.z.jetztMs).toISOString(), entity_ids: ids, minimal_response: true, no_attributes: true, significant_changes_only: false }), 600000);
+    if (roh === undefined) return null;
+    const tagStart = d.z.WOCHE_ISO.map(t => this.zoneMs(t, '00:00', d.z.zone)), ende = d.z.jetztMs, erg = {};
+    for (const { g, eid } of geraete) {
+      const liste = ((roh || {})[eid] || []).map(x => ({ s: x.s ?? x.state, t: zahl(x.lu) ? x.lu * 1000 : zahl(x.lc) ? x.lc * 1000 : Date.parse(x.last_updated || x.last_changed) }))
+        .filter(x => Number.isFinite(x.t)).sort((a, b) => a.t - b.t);
+      const tage = TAGE.map(() => ({ an: [], off: [] }));
+      liste.forEach((x, i) => {
+        const von = Math.max(x.t, start), bis = i + 1 < liste.length ? liste[i + 1].t : ende; if (bis <= von) return;
+        const art = x.s === 'unavailable' ? 'off' : (x.s === 'on' || (zahl(x.s) && Number(x.s) > 50)) ? 'an' : null; if (!art) return;
+        tagStart.forEach((ds, k) => { const a = Math.max(von, ds), b = Math.min(bis, ds + 864e5); if (b > a) tage[k][art].push([(a - ds) / 60000, (b - ds) / 60000]); });
+      });
+      for (const t of tage) for (const art of ['an', 'off']) { const m = []; for (const q of t[art]) { const l = m[m.length - 1]; if (l && q[0] - l[1] < 1) l[1] = Math.max(l[1], q[1]); else m.push([...q]); } t[art] = m; }
+      erg[g.id] = tage;
+    }
+    return erg;
   }
 
   _kalender(eid, tage = 400) {
     if (!eid) return [];
-    const start = mitternacht(), ende = new Date(start.getTime() + tage * 86400000);
-    return this._holen(`k:${eid}`, () => this._hass.callApi('GET',
-      `calendars/${eid}?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(ende.toISOString())}`), 120000);
+    const start = new Date(this.zoneMs(this.d ? this.z.HEUTE : new Date().toISOString().slice(0, 10), '00:00', this.d && this.z.zone)), ende = new Date(start.getTime() + tage * 864e5);
+    const r = this._holen(`k:${eid}`, () => this._hass.callApi('GET', `calendars/${eid}?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(ende.toISOString())}`), 120000);
+    return r === undefined ? null : (r || []).map(x => { const s = x.start || {}, e = x.end || {}, von = s.date || this.lokal(s.dateTime).slice(0, 10), bisX = e.date ? plusTage(e.date, -1) : this.lokal(e.dateTime).slice(0, 10);
+      return { name: x.summary || '', von, bis: bisX < von ? von : bisX, uid: x.uid || null, recurrence_id: x.recurrence_id || null }; });
+  }
+  wetterTag(iso) {
+    const d = this.d, w = d.wetter || {};
+    if (iso === d.z.HEUTE) return { kalt: w.frueh_min, regen: w.regen_heute, regenVortag: w.regen_vortag };
+    const f = x => (this.vorhersage.daily || []).find(y => this.lokal(y.datetime).slice(0, 10) === x);
+    const t = f(iso), v = plusTage(iso, -1) === d.z.HEUTE ? { precipitation: w.regen_heute } : f(plusTage(iso, -1));
+    return { kalt: t && t.templow, regen: t && t.precipitation, regenVortag: v && v.precipitation };
   }
 
-  /* ---------------------------------------------------------------- Zugriff */
-  B() {
-    const alle = (this.baustellen || []).filter(b => b.baustelle.geladen);
-    const aktiv = alle.filter(b => b.baustelle.optionen.status !== 'abgeschlossen');
-    return aktiv.find(b => b.baustelle.entry_id === this.ui.bid) || aktiv[0] || alle[0] || null;
+  get azListe() { return [...this.d.arbeitszeiten].sort((a, b) => a.ab.localeCompare(b.ab)); }
+  get azJetzt() { const L = this.azListe; return L.filter(a => a.ab <= this.z.HEUTE).at(-1) || L[0] || null; }
+  /* Heizplan eines Tages – berechnet von der Integration (plan_woche), hier nur in Text übersetzt */
+  planTag(tag) {
+    const iso = this.z.WOCHE_ISO[TAGE.indexOf(tag)], q = this.d.plan[iso];
+    if (!q) return null;
+    const w = this.wetterTag(iso);
+    const gruende = (q.gruende || []).map(c => c === 'ausnahme' ? `Ausnahme: ${(q.ausnahme && (q.ausnahme.notiz || AUSNAHME[q.ausnahme.art])) || 'andere Zeiten'}`
+      : c === 'fruehstart' ? (zahl(w.kalt) ? `Frühstart ${de(w.kalt).replace('-', '−')} °C` : 'Frühstart')
+      : c === 'frueher_nach_regen' ? 'früher nach Regen'
+      : c === 'trocknen' ? (zahl(w.regen) ? `Kleidung trocknen, ${de(w.regen, w.regen % 1 ? 1 : 0)} mm Regen` : 'Kleidung trocknen') : String(c));
+    return { vor: q.vor, extra: zahl(q.start) ? q.start : q.vor, a: q.a, b: q.b, nach: q.nach, ende: q.ende, gruende, codes: q.gruende || [], ausnahme: q.ausnahme || null };
   }
-  E(b, key, besitzer) { return b.entitaeten[`${besitzer || b.baustelle.entry_id}_${key}`]; }
-  S(eid) { return eid ? this._hass.states[eid] : undefined; }
-  V(eid) { const s = this.S(eid); return s ? s.state : undefined; }
-  N(eid) { const v = parseFloat(this.V(eid)); return Number.isNaN(v) ? null : v; }
-  an(eid) { return this.V(eid) === 'on'; }
-  weg(eid) { const v = this.V(eid); return v === undefined || v === 'unavailable' || v === 'unknown'; }
-
-  /* ---------------------------------------------------------------- Rendern */
-  _planen() {
-    if (this._raf) return;
-    this._raf = requestAnimationFrame(() => { this._raf = null; this._rendern(); });
+  statusText() {
+    const d = this.d;
+    if (!d.geladen) return 'nicht geladen – Integration prüfen';   // Einrichtung fehlgeschlagen: keine Werte, nichts wird geschaltet
+    if (!d.e.auto) return 'Handbetrieb – nichts wird geschaltet';
+    if (d.jetztBis) return `♨ alle heizen bis ${d.jetztBis}`;
+    if (d.statusText) return d.statusText;
+    const p = this.planTag(this.z.HEUTE_TAG), j = minu(this.z.JETZT);
+    if (p && j >= p.extra && j < p.ende) return `♨ heizt bis ${uhr(p.ende)}`;
+    if (p && j < p.extra) return `Start um ${uhr(p.extra)}`;
+    return 'aus';
   }
-
-  _rendern() {
-    if (!this._hass) return;
-    const aktiv = this.shadowRoot.activeElement;
-    if (aktiv && ['INPUT', 'SELECT', 'TEXTAREA'].includes(aktiv.tagName)) { this._wartet = true; return; }
-    const scroll = this.shadowRoot.querySelector('.inhalt');
-    const y = scroll ? scroll.scrollTop : 0;
-    this.shadowRoot.innerHTML = `<style>${CSS}</style>${this._seite()}<div class="tip"></div>`;
-    const neu = this.shadowRoot.querySelector('.inhalt');
-    if (neu) neu.scrollTop = y;
-    try { localStorage.setItem('baustelle-panel-ui', JSON.stringify({ bid: this.ui.bid, tab: this.ui.tab })); } catch (e) { /* egal */ }
+  zeitstrahl(p, jetzt = false) {
+    const seg = p ? [[p.extra, p.vor, 'extra'], [p.vor, p.a, 'vor'], [p.a, p.b, 'heiz'], [p.b, p.nach, 'vor'], [p.nach, p.ende, 'trock']] : [];
+    return this.zeitstrahlSeg(seg, jetzt);
   }
-
-  _seite() {
-    const b = this.B();
-    const TABS = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['pumpen', 'Pumpen'], ['auswertung', 'Auswertung'],
-      ['verlauf', 'Verlauf'], ['einstellungen', 'Einstellungen']]
-      .filter(([k]) => !b || (k !== 'heizung' || b.baustelle.optionen.heizung) && (k !== 'pumpen' || b.baustelle.optionen.pumpen));
-    if (b && this.ui.tab !== 'container' && !TABS.some(([k]) => k === this.ui.tab)) this.ui.tab = 'uebersicht';
-    const kopf = `<div class="hdr"><div class="hdr-top">
-        ${this._narrow ? '<span class="ico" data-act="menu">☰</span>' : ''}<span class="t">Baustelle</span>${b ? this._auswahl(b) : ''}</div>
-      <div class="tabs ${this._narrow ? 'eng' : ''}">${TABS.map(([k, l]) => `<div class="tab ${this.ui.tab === k || (this.ui.tab === 'container' && k === 'uebersicht') ? 'on' : ''}" data-tab="${k}">${this._narrow && k === 'einstellungen' ? '⚙' : l}</div>`).join('')}</div></div>`;
+  zeitstrahlSeg(liste, jetzt = false) {
+    const A = 4 * 60, B = 20 * 60, x = m => Math.max(0, Math.min(100, (m - A) / (B - A) * 100));
+    const seg = (von, bis, k) => bis > von ? `<i class="tl-${k}" style="left:${x(von)}%;width:${x(bis) - x(von)}%"></i>` : '';
+    return `<div class="tl-spur">${liste.map(q => seg(q[0], q[1], q[2])).join('')}${jetzt ? `<i class="tl-jetzt" style="left:${x(minu(this.z.JETZT))}%"></i>` : ''}</div>`;
+  }
+  bName(id) { return id ? (this.d.bereiche.find(b => b.id === id) || { name: id }).name : 'Baustelle'; }
+  /* Staffelung: gemessene Last, Grenze und freier Platz – gerechnet von der Integration (laufzeit.staffel) */
+  last() {
+    const d = this.d, S = d.staffel || {}, e = d.e;
+    const alleG = d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g }))), hk = alleG.filter(x => x.g.heizer);
+    const quelle = S.anschluesse && S.anschluesse.length ? S.anschluesse : d.anschluesse.map(a => ({ id: a.id }));
+    const n = x => zahl(x) ? Number(x) : 0;
+    const A = quelle.map(a => {
+      const s = d.anschluesse.find(x => x.id === a.id) || {}, voll = zahl(a.voll_kw) ? n(a.voll_kw) : n(s.ampere) * 230 / 1000 * n(s.phasen);
+      const grenze = zahl(a.grenze_kw) ? n(a.grenze_kw) : voll * e.nutzbar / 100, reserve = zahl(a.reserve_kw) ? n(a.reserve_kw) : n(s.reserve);
+      const heiz = n(a.heiz_kw), pumpe = n(a.pumpe_kw), sonst = n(a.sonst_kw);
+      return { id: a.id, name: a.name || s.name || a.id, ampere: s.ampere, phasen: s.phasen, voll, grenze, reserve, heiz, pumpe, sonst, frei: zahl(a.frei_kw) ? n(a.frei_kw) : grenze - reserve - heiz - pumpe - sonst };
+    });
+    const s3 = k => A.reduce((x, a) => x + a[k], 0);
+    return { A, heiz: s3('heiz'), pumpe: s3('pumpe'), sonst: s3('sonst'), grenze: s3('grenze'), reserve: s3('reserve'), gesamt: s3('heiz') + s3('pumpe') + s3('sonst'), hk,
+      laufen: zahl(S.laufen) ? S.laufen : hk.filter(x => x.g.an && !x.b.offline).length, warten: zahl(S.warten) ? S.warten : hk.filter(x => x.g.warte).length, max: zahl(S.max) ? S.max : e.max_gleich };
+  }
+  stromBalken(L, klein) {
+    const w = v => `${L.grenze > 0 ? Math.max(0, v / L.grenze * 100) : 0}%`;
+    return `<div class="strom ${klein ? 'klein' : ''}"><div class="strom-spur"><i class="s-heiz" style="width:${w(L.heiz)}"></i><i class="s-pumpe" style="width:${w(L.pumpe)}"></i><i class="s-sonst" style="width:${w(L.sonst)}"></i>
+      <i class="s-res" style="width:${w(L.reserve)}"></i></div></div>`;
+  }
+  arbeitsende() { const p = this.planTag(this.z.HEUTE_TAG); return p ? uhr(p.b) : null; }
+  bedarfBlock(b) {
+    // Der Kalender liefert eine Serie je Vorkommen (gleiche uid) – hier eine Zeile je Serie wie im Mockup, vorbei ist vorbei
+    const H = this.z.HEUTE, offen = t => t.datum > H || (t.datum === H && t.bis > this.z.JETZT), serien = new Map();
+    for (const t of this.d.termine.filter(t => t.b === b.id)) {
+      const k = t.rrule && t.uid ? t.uid : t, alt = serien.get(k);
+      if (!alt || (!offen(alt) && offen(t))) serien.set(k, t);
+    }
+    const T = [...serien.values()].filter(t => t.wieder !== 'einmal' || offen(t))
+      .map(t => ({ t, n: t.wieder === 'einmal' || offen(t) ? t.datum : naechsterTermin(t, plusTage(H, 1)) })).sort((x, y) => (x.n || '9').localeCompare(y.n || '9'));
+    const vor = m => uhr(minu(m) - this.d.e.vorheizen), ende = this.arbeitsende();
+    const kal = this.d.termineKal;
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Nur bei Bedarf</b><span class="leise">heizt nicht nach der Arbeitszeit · sonst nur Frostschutz</span></div>
+      ${b.bedarfBis ? `<div class="bedarf-an"><b>♨ heizt bis ${b.bedarfBis}${b.boost ? ' · ⚡ schnell' : ''}</b><button class="chip glas-panel" data-act="bedarf-aus" data-id="${b.id}">Beenden</button></div>`
+        : `<div class="bedarf-dauer">${[['60', '1 h'], ['120', '2 h'], ...(ende ? [['ende', 'bis Arbeitsende']] : [])].map(([v, t]) => `<button class="chip glas-panel" data-act="bedarf-an" data-id="${b.id}" data-v="${v}">▶ ${t}</button>`).join('')}</div>`}
+      <div class="gruppe-t">Termine · ${kal ? `Kalender „${esc(this.name(kal))}“` : 'kein Kalender gewählt'}</div>
+      ${T.length ? T.map(({ t, n }) => `<div class="zeile ereignis"><span class="zeit t-wann">${t.wieder === 'einmal' ? `${wtag(t.datum)} ${kurzDatum(t.datum)}` : t.wieder === 'woche' ? `jeden ${wtag(t.datum)}` : `jeden 2. ${wtag(t.datum)}`}</span>
+          <div><b>${t.von}–${t.bis}</b> ${esc(t.titel)}${t.wieder !== 'einmal' ? ` <span class="badge">${WIEDER[t.wieder]}</span>` : ''}<div class="leise">${n && t.wieder !== 'einmal' ? `nächster ${wtag(n)} ${kurzDatum(n)} · ` : ''}heizt ab ${vor(t.von)}${t.boost ? ' · ⚡ schnell' : ''}</div></div>
+          <button class="x" data-act="termin-weg" data-i="${this.d.termine.indexOf(t)}" title="Termin löschen">✕</button></div>`).join('') : '<div class="leise">Keine Termine</div>'}
+      <button class="zeile" data-act="sheet" data-s="${kal ? 'termin' : 'wetterquelle'}" data-id="${b.id}"><span class="blau">${kal ? '+ Termin eintragen' : 'Kalender für Termine wählen'}</span></button></div>`;
+  }
+  /* Heizzeiten eines Containers an einem Tag der Woche: Abschnitte der Integration [von, bis, art] in Minuten */
+  heizzeiten(b, t) {
+    if (b.pumpe) return [];
+    const iso = this.z.WOCHE_ISO[TAGE.indexOf(t)], seg = (this.d.abschnitte[b.id] || {})[iso] || [];
+    return seg.filter(q => zahl(q[0]) && zahl(q[1])).map(q => [Number(q[0]), Number(q[1]), ABSCHNITT[q[2]] || 'heiz']).filter(x => x[1] > x[0]).sort((p, q) => p[0] - q[0]);
+  }
+  /* Wann ein Heizkörper wirklich Strom zieht (Leistung über 50 W) – aus dem Verlauf der Leistungssensoren */
+  aktiv(b, g, t) {
+    const leer = { an: [], off: [] };
+    if (!g.heizer) return leer;
+    const tagNr = TAGE.indexOf(t), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG); if (tagNr > heuteNr) return leer;
+    const m = this.mess && this.mess[g.id];
+    return (m && m[tagNr]) || leer;
+  }
+  uebersichtHeizzeiten() {
+    const art = this.s.hzArt || 'tag', tag = this.s.hzTag || this.z.HEUTE_TAG, C = this.d.bereiche.filter(b => !b.pumpe);
+    const A = 4 * 60, B = 21 * 60, x = m => Math.max(0, Math.min(100, (m - A) / (B - A) * 100)), breite = (a, b) => Math.max(0, x(b) - x(a));
+    const std = segs => segs.reduce((a, q) => a + (q[1] - q[0]), 0) / 60;
+    const HZ = b => b.geraete.filter(g => g.heizer);
+    const tagNr = TAGE.indexOf(tag), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), jetzt = minu(this.z.JETZT);
+    this.mess = this.messung();
+    const kopf = `<div class="block-kopf"><b>Wann welche Heizung heizt</b><div class="seg klein">${[['tag', 'Tag'], ['woche', 'Woche']].map(([k, t]) => `<button data-act="hz-art" data-v="${k}" class="${art === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
+    if (this.mess === null) return `<div class="glas-panel block">${kopf}${LAEDT}</div>`;
     let inhalt;
-    if (this.fehler) inhalt = `<div class="card errc">Die Daten der Integration sind nicht erreichbar: ${esc(this.fehler)}</div>`;
-    else if (!this.baustellen) inhalt = '<div class="card">Lädt …</div>';
-    else if (!b) inhalt = this._leer();
-    else inhalt = ({ uebersicht: () => this.vUebersicht(b), container: () => this.vContainer(b), heizung: () => this.vHeizung(b), pumpen: () => this.vPumpen(b),
-      auswertung: () => this.vAuswertung(b), verlauf: () => this.vVerlauf(), einstellungen: () => this.vEinstellungen(b) })[this.ui.tab]();
-    return `${kopf}<div class="inhalt"><div class="view">${inhalt}</div></div>`;
-  }
-
-  _auswahl(b) {
-    const aktive = this.baustellen.filter(x => x.baustelle.geladen && x.baustelle.optionen.status !== 'abgeschlossen');
-    if (aktive.length < 2) return `<span class="bname">${esc(b.baustelle.titel)}</span>`;
-    return `<select class="bsel" data-ui="bid">${aktive.map(x => `<option value="${x.baustelle.entry_id}" ${x === b ? 'selected' : ''}>${esc(x.baustelle.titel)}</option>`).join('')}</select>`;
-  }
-
-  _leer() {
-    return `<div class="sections"><div class="sec span3"><div class="card info-card"><h3>Noch keine Baustelle</h3>
-      Lege eine Baustelle an: <span class="btn" data-href="/config/integrations/dashboard/add?domain=baustelle">+ Baustelle anlegen</span></div></div></div>`;
-  }
-
-  /* ---------------------------------------------------------------- Bausteine */
-  tgl(eid) { return eid ? `<span class="tgl ${this.an(eid) ? 'on' : ''} ${this.weg(eid) ? 'dis' : ''}" data-toggle="${eid}"></span>` : ''; }
-  zahl(eid, einheit) {
-    const s = this.S(eid); if (!s) return '<span class="v">–</span>';
-    const a = s.attributes;
-    return `<input class="inp" type="number" data-num="${eid}" value="${esc(s.state)}" min="${a.min ?? ''}" max="${a.max ?? ''}" step="${a.step ?? 'any'}"><span class="v">${esc(einheit ?? a.unit_of_measurement ?? '')}</span>`;
-  }
-  auswahl(eid) {
-    const s = this.S(eid); if (!s) return '';
-    return `<select class="inp" data-select="${eid}">${(s.attributes.options || []).map(o => `<option value="${esc(o)}" ${o === s.state ? 'selected' : ''}>${esc(OPTION[o] || o)}</option>`).join('')}</select>`;
-  }
-  zeile(ic, label, sub, ctl) { return `<div class="r"><span class="ic">${ic}</span><div class="l">${label}${sub ? `<small>${sub}</small>` : ''}</div>${ctl || ''}</div>`; }
-  link(text, pfad, klasse = 'btn flat small') { return `<span class="${klasse}" data-href="${pfad}">${text}</span>`; }
-
-  geraetKarte(b, g, extra = '') {
-    const zustand = this.S(g.schalter);
-    const weg = this.weg(g.schalter);
-    const p = this.N(g.leistung);
-    const an = this.an(g.schalter);
-    const laeuft = g.rolle === 'pumpe' ? this.an(this.E(b, 'pumpe_laeuft', g.id)) : an && (p === null || p > 5);
-    const probleme = (this.S(this.E(b, 'problem', g.id))?.attributes.probleme) || [];
-    const st = { on: laeuft, off: weg, p: laeuft ? (p ?? 1) : 0, alarm: probleme.length > 0 };
-    const d = { role: { heizkoerper: 'heat', bautrockner: 'dry', pumpe: 'pump', steckdose: 'plug' }[g.rolle], typ: g.typ === 'oelradiator' ? 'oel' : 'konv' };
-    const text = weg ? 'nicht erreichbar'
-      : `${g.rolle === 'pumpe' ? (laeuft ? 'läuft' : 'steht') : (an ? 'Ein' : 'Aus')}${p !== null ? ` · ${de(p, 0)} W` : ''}`
-        + (probleme.length ? ` · <b class="warn">${esc(PROBLEM[probleme[0]] || probleme[0])}</b>` : '');
-    const schalter = g.rolle === 'pumpe' || weg || !zustand ? '' : this.tgl(g.schalter);
-    return `<div class="dev ${st.alarm ? 'bad' : ''}">${icon(d, st)}<div class="tx"><div class="n">${esc(g.name)}</div><div class="s">${text}</div>${extra}</div>${schalter}</div>`;
-  }
-
-  heizgeraete(b) { return b.geraete.filter(g => HEIZ.includes(g.rolle)); }
-
-  /* ---------------------------------------------------------------- Übersicht */
-  /* ---------------------------------------------------------------- Übersicht: Baustelle und Container als Kacheln (Herberts Wahl 29.09.2026) */
-  _bereichZustand(b, x) {
-    const geraete = b.geraete.filter(g => g.bereich === x.id);
-    if (geraete.length && geraete.every(g => this.weg(g.schalter))) return 'offline';
-    if (x.art === 'pumpenschacht') return geraete.some(g => this.an(this.E(b, 'pumpe_laeuft', g.id))) ? 'laeuft' : 'steht';
-    const grund = this.V(this.E(b, 'grund', x.id));
-    if (grund === 'frostschutz') return 'frost';
-    if (grund === 'kleidung_trocknen' && geraete.some(g => this.an(g.schalter))) return 'trocknen';
-    return geraete.some(g => HEIZ.includes(g.rolle) && this.an(g.schalter)) ? 'heizt' : 'aus';
-  }
-
-  _geraeteText(geraete) {
-    const n = {};
-    for (const g of geraete) n[g.rolle] = (n[g.rolle] || 0) + 1;
-    const mehr = { heizkoerper: 'Heizkörper', bautrockner: 'Trockner', pumpe: 'Pumpen', steckdose: 'Steckdosen' };
-    const eins = { heizkoerper: 'Heizkörper', bautrockner: 'Trockner', pumpe: 'Pumpe', steckdose: 'Steckdose' };
-    return Object.entries(n).map(([r, k]) => `${k} ${k > 1 ? mehr[r] : eins[r]}`).join(' · ') || 'noch kein Shelly';
-  }
-
-  _uhrzeit(iso) { return iso && iso !== 'unknown' && iso !== 'unavailable' ? new Date(iso).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) : null; }
-
-  vUebersicht(b) {
-    const o = b.baustelle.optionen;
-    const status = this.V(this.E(b, 'status'));
-    const naechste = this._uhrzeit(this.V(this.E(b, 'naechste_schaltzeit')));
-    const container = b.bereiche.filter(x => x.art === 'container'), schaechte = b.bereiche.filter(x => x.art === 'pumpenschacht');
-    const an = b.geraete.filter(g => this.an(g.schalter)).length;
-    const heute = this._statistik([this.E(b, 'energie'), this.E(b, 'kosten')], '5minute', mitternacht());
-    const summe = eid => heute && heute[eid] ? heute[eid].reduce((s, x) => s + (x.change || 0), 0) : null;
-    const wetter = this.S(o.wetter);
-    const warnungen = [];
-    if (this.V(this.E(b, 'erreichbar')) === 'off') warnungen.push(['errc', 'Baustelle nicht erreichbar', 'Kein Gerät antwortet – Stromausfall oder Internet weg?']);
-    for (const g of b.geraete) {
-      for (const p of (this.S(this.E(b, 'problem', g.id))?.attributes.probleme || [])) {
-        warnungen.push([p === 'offline' || p === 'trockenlauf' ? 'errc' : 'warnc', `${this._bereichName(b, g.bereich)} · ${g.name}`, PROBLEM[p] || p]);
-      }
-    }
-    const schaltText = !naechste ? '' : status === 'heizt' ? `aus um ${naechste}` : `Start ${naechste}`;
-    const kopf = `<div class="bk" data-tab="auswertung">
-      <div class="bk-l"><div class="muted klein">BAUSTELLE · ${o.status === 'abgeschlossen' ? 'ABGESCHLOSSEN' : 'AKTIV'}</div><div class="bk-name">${esc(b.baustelle.titel)}</div>
-        <div class="bk-zahlen"><span><b>${container.length}</b> Container</span>${schaechte.length ? `<span><b>${schaechte.length}</b> Pumpenschacht</span>` : ''}<span><b>${b.geraete.length}</b> Geräte · ${an} an</span></div></div>
-      <div class="bk-r"><div class="blitz ${(this.N(this.E(b, 'leistung')) || 0) > 5 ? 'an' : ''}">⚡</div><div><div class="bk-kw">${de((this.N(this.E(b, 'leistung')) || 0) / 1000, 1)}<small> kW</small></div>
-        <div class="muted klein">jetzt · ${de(summe(this.E(b, 'energie')), 1)} kWh heute · ${eur(summe(this.E(b, 'kosten')))}</div></div></div>
-      <div class="bk-leiste">
-        ${o.heizung ? `<span class="chip ${status === 'heizt' ? 'orange' : ''}" data-tab="heizung">♨ ${esc(STATUS[status] || status || '–')}</span>` : ''}
-        ${schaltText ? `<span class="chip">${schaltText}</span>` : ''}
-        ${wetter ? `<span class="chip wchip" data-act="wetter-auf">${wetterIcon(wetter.state, 22)} ${de(wetter.attributes.temperature)} °C${this.N(this.E(b, 'regen')) ? ` · ${de(this.N(this.E(b, 'regen')))} mm` : ''} ${this.ui.wetter ? '▴' : '▾'}</span>`
-          : `<span class="chip" data-act="wetter-waehlen">Wetter wählen</span>`}
-        <span class="chip ${warnungen.length ? 'rot' : 'gruen'}">${warnungen.length ? `${warnungen.length} Warnung${warnungen.length > 1 ? 'en' : ''}` : '✓ alles in Ordnung'}</span></div></div>`;
-    const kacheln = b.bereiche.map((x, i) => {
-      const zustand = this._bereichZustand(b, x);
-      const geraete = b.geraete.filter(g => g.bereich === x.id);
-      const kw = (this.N(this.E(b, 'leistung', x.id)) || 0) / 1000;
-      const max = Math.max(0.5, geraete.reduce((s, g) => s + ((this.N(this.E(b, 'mittel_im_betrieb', g.id)) || 2000) / 1000), 0));
-      const t = x.fuehler ? this.N(x.fuehler) ?? this.S(x.fuehler)?.attributes.current_temperature : null;
-      const soll = this.E(b, 'soll', x.id) && this.V(this.E(b, 'modus', x.id)) === 'thermostat' ? this.N(this.E(b, 'soll', x.id)) : null;
-      const [ct, cf] = { heizt: ['heizt', 'orange'], trocknen: ['Kleidung trocknen', 'orange'], aus: ['aus', ''], frost: ['Frostschutz', 'blau'], offline: ['nicht erreichbar', 'rot'],
-        laeuft: ['läuft', 'blau'], steht: ['steht', ''] }[zustand];
-      const grund = x.art === 'pumpenschacht' ? '' : GRUND[this.V(this.E(b, 'grund', x.id))] || '';
-      const zyklen = x.art === 'pumpenschacht' ? geraete.reduce((s, g) => s + (this.N(this.E(b, 'pumpzyklen', g.id)) || 0), 0) : null;
-      const farbe = BEREICH_FARBEN[i % BEREICH_FARBEN.length];
-      return `<div class="kc ${zustand}" style="--f:${farbe};animation-delay:${i * 70}ms" data-cid="${x.id}">
-        <div class="illu">${x.art === 'pumpenschacht' ? bcSchacht(zustand === 'laeuft') : bcContainer(farbe, zustand)}</div>
-        <div class="kc-kopf"><div class="kc-name">${esc(x.name)}</div><span class="chip ${cf}">${ct}</span></div>
-        <div class="kc-mitte"><div>${x.art === 'pumpenschacht' ? `<div class="gross">${de(zyklen, 0)}<small> Zyklen</small></div>`
-          : t !== null && t !== undefined ? `<div class="gross">${de(t)}<small> °C</small></div>` : '<div class="gross grau">–</div>'}
-          ${soll !== null ? `<div class="muted klein">Soll ${de(soll)} °C</div>` : x.fuehler || x.art === 'pumpenschacht' ? '' : '<div class="muted klein">kein Fühler</div>'}</div>
-          <div class="kw"><b>${de(kw, 2)}</b>&nbsp;kW</div></div>
-        <div class="balken"><i style="width:${Math.min(100, kw / max * 100)}%"></i></div>
-        <div class="kc-fuss"><span class="muted">${this._geraeteText(geraete)}</span><span class="punkte">${geraete.map(g => `<i class="${this.an(g.schalter) && !this.weg(g.schalter) ? 'an' : ''}" title="${esc(g.name)}"></i>`).join('')}</span></div>
-        ${grund ? `<div class="muted klein">${esc(grund)}</div>` : ''}</div>`;
-    }).join('');
-    return `<div class="bu">${kopf}
-      ${this.ui.wetter && wetter ? this._wetterKarte(wetter, b) : ''}
-      ${warnungen.map(([k, t, s]) => `<div class="card ${k}"><b>${esc(t)}</b><br><span class="muted">${esc(s)}</span></div>`).join('')}
-      <div class="gitter">${kacheln}<div class="kc neu" data-act="container-neu"><div>+</div><div class="muted">Container / Pumpenschacht</div></div></div></div>`;
-  }
-
-  /* ---------------------------------------------------------------- Container-Ansicht (Klick auf eine Kachel) */
-  vContainer(b) {
-    const i = b.bereiche.findIndex(x => x.id === this.ui.cid);
-    const x = b.bereiche[i];
-    if (!x) { this.ui.tab = 'uebersicht'; return this.vUebersicht(b); }
-    const zustand = this._bereichZustand(b, x), farbe = BEREICH_FARBEN[i % BEREICH_FARBEN.length];
-    const geraete = b.geraete.filter(g => g.bereich === x.id);
-    const t = x.fuehler ? this.N(x.fuehler) ?? this.S(x.fuehler)?.attributes.current_temperature : null;
-    const pumpe = x.art === 'pumpenschacht';
-    const hs = this._historie([this.E(b, 'leistung', x.id), x.fuehler, this.E(b, 'aussen')], mitternacht());
-    return `<div class="sections">
-      <div class="sec span3"><div class="card ck" style="--f:${farbe}">
-        <div class="ck-illu">${pumpe ? bcSchacht(zustand === 'laeuft') : bcContainer(farbe, zustand)}</div>
-        <div class="ck-text"><span class="btn flat small" data-tab="uebersicht">← Übersicht</span>
-          <div class="bk-name">${esc(x.name)}</div>
-          <div class="muted">${this._geraeteText(geraete)} · ${esc(pumpe ? '' : GRUND[this.V(this.E(b, 'grund', x.id))] || '')}</div>
-          <div class="ck-zahlen">${t !== null && t !== undefined ? `<div><b>${de(t)} °C</b><small>innen</small></div>` : ''}
-            <div><b>${de((this.N(this.E(b, 'leistung', x.id)) || 0) / 1000, 2)} kW</b><small>jetzt</small></div>
-            <div><b>${de(this.N(this.E(b, 'energie', x.id)), 1)} kWh</b><small>gesamt</small></div>
-            <div><b>${eur(this.N(this.E(b, 'kosten', x.id)))}</b><small>Kosten</small></div></div></div></div></div>
-      <div class="sec"><div class="heading">Geräte</div>
-        ${geraete.map(g => this.geraetKarte(b, g, g.rolle === 'pumpe' ? `<div class="s">Pumpzeit ${de(this.N(this.E(b, 'pumpzeit', g.id)))} h · ${de(this.N(this.E(b, 'pumpzyklen', g.id)), 0)} Zyklen</div>`
-          : `<div class="s">Ø im Betrieb ${de(this.N(this.E(b, 'mittel_im_betrieb', g.id)), 0)} W${g.rolle === 'heizkoerper' ? ' · ' + TYP[g.typ] : ''}</div>`)).join('') || '<div class="muted">Noch kein Shelly zugeordnet.</div>'}
-        ${pumpe ? '' : '<div class="muted klein">Schalter antippen stellt den Container auf Handbetrieb.</div>'}</div>
-      ${pumpe ? '' : `<div class="sec"><div class="heading">Einstellungen</div><div class="card"><div class="rows">
-        ${this.zeile('⚙', 'Modus', esc(GRUND[this.V(this.E(b, 'grund', x.id))] || ''), this.auswahl(this.E(b, 'modus', x.id)))}
-        ${this.E(b, 'soll', x.id) ? this.zeile('🌡', 'Solltemperatur', '', this.zahl(this.E(b, 'soll', x.id))) : this.zeile('🌡', 'Kein Fühler', 'für Thermostat und Frostschutz einen Fühler zuordnen', `<span class="btn flat small" data-act="fuehler-zuordnen" data-id="${x.id}">zuordnen</span>`)}
-        ${this.zeile('👕', 'Kleidung trocknen', 'nach Regen länger und früher heizen', this.tgl(this.E(b, 'kleidung_trocknen', x.id)))}</div></div></div>`}
-      <div class="sec"><div class="heading">Heute</div><div class="card">${this._zeitleiste(b, geraete.filter(g => g.rolle !== 'steckdose').map(g => g.schalter), 'c' + x.id.slice(-4))}</div></div>
-      <div class="sec span3"><div class="heading">Leistung heute <span class="sub">kW</span></div><div class="card">${this._linie(hs, [[this.E(b, 'leistung', x.id), x.name, farbe, 1000]], 'kW', true)}</div></div>
-      ${x.fuehler ? `<div class="sec span3"><div class="heading">Temperatur heute <span class="sub">°C</span></div><div class="card">${this._linie(hs,
-        [[x.fuehler, x.name, farbe], [this.E(b, 'aussen'), 'Außen', 'var(--muted)', 1, true]], '°C', false,
-        this.an(this.E(b, 'frost_aktiv')) ? { v: this.N(this.E(b, 'frost_ein')), label: `Frostschutz ${de(this.N(this.E(b, 'frost_ein')))} °C` } : null)}</div></div>` : ''}
-      <div class="sec span3"><div class="heading">Energie je Tag <span class="sub">kWh, letzte 14 Tage</span></div><div class="card">
-        ${this._tagesSaeulen([[this.E(b, 'energie', x.id), x.name, farbe]], 14, 'kWh', false)}</div></div>
-      ${pumpe ? `<div class="sec span3"><div class="heading">Pumpzeit je Tag <span class="sub">Stunden</span></div><div class="card">
-          ${this._tagesSaeulen(geraete.map((g, k) => [this.E(b, 'pumpzeit', g.id), g.name, sc(k)]), 14, 'h', false)}</div></div>
-        <div class="sec span3"><div class="heading">Pumpzyklen je Tag</div><div class="card">
-          ${this._tagesSaeulen(geraete.map((g, k) => [this.E(b, 'pumpzyklen', g.id), g.name, sc(k)]), 14, 'Zyklen', false)}</div></div>`
-        : `<div class="sec span3"><div class="heading">Heizzeit je Tag <span class="sub">Stunden</span></div><div class="card">
-          ${this._tagesSaeulen([[this.E(b, 'heizzeit', x.id), x.name, farbe]], 14, 'h', false)}</div></div>`}
-    </div>`;
-  }
-
-  _kachel(ic, n, s, tab) { return `<div class="tile" ${tab ? `data-tab="${tab}"` : ''}><span class="ic">${ic}</span><div class="tx"><div class="n">${n}</div><div class="s">${s}</div></div></div>`; }
-  _bereichName(b, id) { return (b.bereiche.find(x => x.id === id) || {}).name || '?'; }
-  _wetterKarte(w, b) {
-    const a = w.attributes;
-    const heute = isoTag(new Date()), morgen = isoTag(new Date(Date.now() + 86400000));
-    const frost = this.N(this.E(b, 'frost_ein')) ?? 5;
-    const zustand = this._hass.formatEntityState ? this._hass.formatEntityState(w) : w.state;
-    const tage = (this.vorhersage || []).filter(v => isoTag(new Date(v.datetime)) >= heute).slice(0, 4);
-    const tag = v => { const d = isoTag(new Date(v.datetime)); return d === heute ? 'Heute' : d === morgen ? 'Morgen' : new Date(v.datetime).toLocaleDateString('de-AT', { weekday: 'short' }); };
-    return `<div class="card wetter"><div class="wjetzt">${wetterIcon(w.state, 72)}<div>
-        <div class="big">${de(a.temperature)} °C</div><div class="muted">${esc(zustand)}${a.apparent_temperature !== undefined ? ` · gefühlt ${de(a.apparent_temperature, 0)} °C` : ''}</div>
-        <div class="klein muted">${a.wind_speed !== undefined ? `Wind ${de(a.wind_speed, 0)} ${esc(a.wind_speed_unit || 'km/h')}` : ''}${a.humidity !== undefined ? ` · Feuchte ${de(a.humidity, 0)} %` : ''}</div></div></div>
-      ${tage.length ? `<div class="wtage">${tage.map(v => `<div class="wtag"><div class="wt">${tag(v)}</div>${wetterIcon(v.condition, 40)}
-        <div><span class="max">${de(v.temperature, 0)}°</span> <span class="${v.templow !== undefined && v.templow < frost ? 'frost' : 'muted'}">${de(v.templow, 0)}°</span></div>
-        <div class="klein ${(v.precipitation || 0) > 0 ? 'regen' : 'muted'}">${(v.precipitation || 0) > 0 ? de(v.precipitation) + ' mm' : 'trocken'}</div></div>`).join('')}</div>` : ''}</div>`;
-  }
-
-  _wetterSymbol(z) { return ({ sunny: '☀', 'clear-night': '🌙', partlycloudy: '⛅', cloudy: '☁', rainy: '🌧', pouring: '🌧', snowy: '❄', 'snowy-rainy': '🌨', fog: '🌫', windy: '💨', lightning: '⚡', 'lightning-rainy': '⛈', hail: '🌨' })[z] || '🌡'; }
-
-  _zeitleiste(b, ids, id) {
-    const W = this._breite(), start = mitternacht();
-    const gruende = b.bereiche.map(x => this.E(b, 'grund', x.id)).filter(Boolean);
-    const h = this._historie([...ids, ...gruende], start);
-    if (h === undefined) return '<div class="muted">Lädt …</div>';
-    const jetzt = new Date(), jetztMin = (jetzt - start) / 60000;
-    const zeitpunkt = e => Math.max(0, ((e.lu || e.lc || 0) * 1000 - start) / 60000);
-    const trocknen = {};
-    for (const x of b.bereiche) {
-      const liste = (h && h[this.E(b, 'grund', x.id)]) || [];
-      trocknen[x.id] = liste.map((e, i) => [zeitpunkt(e), i + 1 < liste.length ? zeitpunkt(liste[i + 1]) : jetztMin, e.s ?? e.state])
-        .filter(z => z[2] === 'kleidung_trocknen');
-    }
-    const schneiden = (segs, zeiten) => segs.flatMap(([von, bis, k]) => {
-      if (k !== 'on') return [[von, bis, k]];
-      const teile = []; let pos = von;
-      for (const [tv, tb] of zeiten.filter(z => z[1] > von && z[0] < bis).sort((p, q) => p[0] - q[0])) {
-        if (tv > pos) teile.push([pos, tv, 'on']);
-        teile.push([Math.max(pos, tv), Math.min(bis, tb), 'extra']); pos = Math.min(bis, tb);
-      }
-      if (pos < bis) teile.push([pos, bis, 'on']);
-      return teile;
-    });
-    const rows = ids.map(eid => {
-      const g = b.geraete.find(x => x.schalter === eid) || { name: eid, bereich: '' };
-      const liste = (h && h[eid]) || [];
-      const segs = [];
-      liste.forEach((e, i) => {
-        const von = Math.max(0, ((e.lu || e.lc || 0) * 1000 - start) / 60000);
-        const bis = i + 1 < liste.length ? ((liste[i + 1].lu || liste[i + 1].lc) * 1000 - start) / 60000 : jetztMin;
-        const s = e.s ?? e.state;
-        if (s === 'on') segs.push([von, Math.max(von + 1, bis), 'on']);
-        else if (s === 'unavailable') segs.push([von, Math.max(von + 1, bis), 'off']);
-      });
-      const idx = b.bereiche.findIndex(x => x.id === g.bereich);
-      return { name: this._narrow ? g.name : `${this._bereichName(b, g.bereich)} · ${g.name}`, color: sc(idx < 0 ? 0 : idx), onLabel: g.rolle === 'pumpe' ? 'läuft' : 'ein',
-        segs: g.rolle === 'pumpe' ? segs : schneiden(segs, trocknen[g.bereich] || []) };
-    });
-    if (!rows.length) return '<div class="muted">Noch keine Geräte zugeordnet.</div>';
-    return timeline({ id: `tl${id}`, W, now: jetztMin, rows }) + legend([...b.bereiche.map((x, i) => [x.name, sc(i)]), ['Kleidung trocknen', 'var(--muted)', 'hatch'], ['nicht erreichbar', 'var(--crit)', 'hatch']]);
-  }
-
-  _breite() { return this._narrow ? 340 : Math.min(1100, Math.max(600, (this.clientWidth || 1000) - 60)); }
-
-  /* ---------------------------------------------------------------- Heizung */
-  vHeizung(b) {
-    const regeln = (key, titel, sub) => this.zeile('', titel, sub, this.zahl(this.E(b, key)));
-    const container = b.bereiche.filter(x => x.art === 'container');
-    const status = this.V(this.E(b, 'status'));
-    const naechste = this.V(this.E(b, 'naechste_schaltzeit'));
-    const plan = TAGE.map(([k]) => ({ k, ein: t2m(this.V(this.E(b, `${k}_ein`))), aus: t2m(this.V(this.E(b, `${k}_aus`))), aktiv: this.an(this.E(b, `${k}_aktiv`)) }));
-    const heute = tagIndex(new Date());
-    const regen = this.N(this.E(b, 'regen')), frueh = this.N(this.E(b, 'frueh_prognose'));
-    const trocknet = regen !== null && regen >= (this.N(this.E(b, 'trocknen_ab_mm')) ?? 99) && container.some(x => this.an(this.E(b, 'kleidung_trocknen', x.id)));
-    const kalt = frueh !== null && frueh < (this.N(this.E(b, 'kaelte_schwelle')) ?? -99);
-    const vor = (kalt ? this.N(this.E(b, 'kaelte_frueher_min')) || 0 : 0) + (trocknet ? this.N(this.E(b, 'trocknen_frueher_min')) || 0 : 0);
-    const nach = trocknet ? this.N(this.E(b, 'trocknen_laenger_min')) || 0 : 0;
-    const jetzt = (new Date() - mitternacht()) / 60000;
-    const balken = (p, i) => {
-      if (!p.aktiv) return '<div class="tl hide-phone"></div>';
-      const x = m => (Math.max(0, Math.min(1440, m)) / 14.4).toFixed(2);
-      let h = `<i style="left:${x(p.ein)}%;width:${x(p.aus - p.ein)}%"></i>`;
-      if (i === heute) {
-        if (vor) h += `<i class="pre" style="left:${x(p.ein - vor)}%;width:${x(vor)}%"></i>`;
-        if (nach) h += `<i class="ext" style="left:${x(p.aus)}%;width:${x(nach)}%"></i>`;
-        h += `<b style="position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--primary-text-color);left:${x(jetzt)}%"></b>`;
-      }
-      return `<div class="tl hide-phone">${h}</div>`;
-    };
-    return `<div class="sections">
-      <div class="sec span3"><div class="tile ${status === 'heizt' ? 'heat' : ''}"><span class="ic">♨</span><div class="tx"><div class="n">Automatik (alle Container)</div>
-        <div class="s">${esc(STATUS[status] || status || '–')}${naechste && naechste !== 'unknown' ? ` · nächste Schaltzeit ${new Date(naechste).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })}` : ''}${nach ? ` · Kleidung trocknen +${nach} min` : ''}${vor ? ` · ${vor} min früher` : ''}</div></div>${this.tgl(this.E(b, 'automatik'))}</div></div>
-      ${container.map(x => {
-        const t = x.fuehler ? this.N(x.fuehler) ?? this.S(x.fuehler)?.attributes.current_temperature : null;
-        return `<div class="sec">
-          <div class="heading">${esc(x.name)} <span class="sub">${t !== null && t !== undefined ? de(t) + ' °C' : 'kein Fühler'}</span></div>
-          <div class="card"><div class="rows">
-            ${this.zeile('⚙', 'Modus', esc(GRUND[this.V(this.E(b, 'grund', x.id))] || ''), this.auswahl(this.E(b, 'modus', x.id)))}
-            ${this.E(b, 'soll', x.id) ? this.zeile('🌡', 'Solltemperatur', '', this.zahl(this.E(b, 'soll', x.id))) : ''}
-            ${this.zeile('👕', 'Kleidung trocknen', 'nach Regen länger und früher heizen', this.tgl(this.E(b, 'kleidung_trocknen', x.id)))}
-          </div></div>
-          ${b.geraete.filter(g => g.bereich === x.id).map(g => this.geraetKarte(b, g)).join('') || '<div class="muted">Noch kein Shelly zugeordnet.</div>'}
-          <div class="muted klein">Schalter antippen stellt den Container auf Handbetrieb.</div>
-        </div>`;
-      }).join('')}
-      <div class="sec span2"><div class="heading">Zeitplan je Tag <span class="sub hide-phone">schraffiert = heute länger/früher · Strich = jetzt</span></div>
-        <div class="card week">
-          <div class="row h"><span>Tag</span><span>Ein</span><span>Aus</span><span class="hide-phone">Verlauf</span><span>Aktiv</span></div>
-          ${plan.map((p, i) => `<div class="row" ${i === heute ? 'style="font-weight:600"' : ''}><b>${TAGE[i][1]}</b>
-            <input class="inp" type="time" value="${m2t(p.ein)}" data-time="${this.E(b, `${p.k}_ein`)}" ${p.aktiv ? '' : 'disabled'}>
-            <input class="inp" type="time" value="${m2t(p.aus)}" data-time="${this.E(b, `${p.k}_aus`)}" ${p.aktiv ? '' : 'disabled'}>
-            ${balken(p, i)}${this.tgl(this.E(b, `${p.k}_aktiv`))}</div>`).join('')}
-          <div class="muted klein">Tag aus = nur Frostschutz.</div></div></div>
-      <div class="sec"><div class="heading">Heizgrenze – zu warm</div><div class="card"><div class="rows">
-        ${this.zeile('☀', 'Heizgrenze', 'über dem Wert läuft keine Heizung', this.tgl(this.E(b, 'heizgrenze_aktiv')))}
-        ${regeln('heizgrenze', 'Aus über', 'laut Wetterbericht')}
-        ${this.zeile('🔮', 'Grundlage', '', this.auswahl(this.E(b, 'heizgrenze_basis')))}</div></div>
-        <div class="heading">Frostschutz</div><div class="card"><div class="rows">
-        ${this.zeile('❄', 'Frostschutz', 'nur Container mit Fühler', this.tgl(this.E(b, 'frost_aktiv')))}
-        ${regeln('frost_ein', 'Ein unter')}${regeln('frost_aus', 'Aus über')}</div></div></div>
-      <div class="sec"><div class="heading">Kleidung trocknen <span class="sub">${trocknet ? 'greift heute' : 'kein Regen'}</span></div><div class="card"><div class="rows">
-        <div class="muted klein">Nach Regen: nasse Arbeitskleidung soll in der Früh trocken sein. Gilt nur für Container mit „Kleidung trocknen“.</div>
-        ${regeln('trocknen_ab_mm', 'Ab Regen', 'letzte 24 h')}${regeln('trocknen_laenger_min', 'Abends länger heizen')}${regeln('trocknen_frueher_min', 'In der Früh früher starten')}</div></div></div>
-      <div class="sec"><div class="heading">Bei Kälte früher ein</div><div class="card"><div class="rows">
-        ${regeln('kaelte_schwelle', 'Früh-Prognose unter', 'gilt für alle Container')}${regeln('kaelte_frueher_min', 'Früher um')}</div></div>
-        <div class="heading">Urlaub und Feiertage</div><div class="card"><div class="rows">
-        ${this.zeile('🏖', 'Verhalten', '', this.auswahl(this.E(b, 'urlaub_modus')))}${regeln('absenk_temp', 'Absenken auf')}</div></div></div>
-    </div>`;
-  }
-
-  /* ---------------------------------------------------------------- Pumpen */
-  vPumpen(b) {
-    const pumpen = b.geraete.filter(g => g.rolle === 'pumpe');
-    const schaechte = b.bereiche.filter(x => pumpen.some(g => g.bereich === x.id));
-    return `<div class="sections">
-      ${schaechte.map(x => `<div class="sec"><div class="heading">${esc(x.name)}</div>
-        ${pumpen.filter(g => g.bereich === x.id).map(g => this.geraetKarte(b, g,
-          `<div class="s">Pumpzeit ${de(this.N(this.E(b, 'pumpzeit', g.id)))} h · ${de(this.N(this.E(b, 'pumpzyklen', g.id)), 0)} Zyklen gesamt</div>`)).join('')}</div>`).join('')
-        || '<div class="sec"><div class="card info-card">Noch keine Pumpe zugeordnet – in den Einstellungen einen Pumpenschacht und Shellys anlegen.</div></div>'}
-      <div class="sec"><div class="heading">Meldungen</div><div class="card"><div class="rows">
-        ${this.zeile('⚡', 'Offline länger als', 'Stromausfall / Verbindung', this.zahl(this.E(b, 'offline_min')))}
-        ${this.zeile('🏜', 'Trockenlauf unter', 'Pumpe läuft, zieht zu wenig', this.zahl(this.E(b, 'trocken_unter_w')))}
-        ${this.zeile('⏱', 'Dauerlauf länger als', 'Schwimmer hängt / starker Zufluss', this.zahl(this.E(b, 'dauerlauf_h')))}</div></div></div>
-      <div class="sec"><div class="heading">Empfänger</div><div class="card"><div class="rows">
-        ${(Array.isArray(b.baustelle.optionen.empfaenger) ? b.baustelle.optionen.empfaenger : []).map(n => this.zeile('📱', esc(n.replace('mobile_app_', '')), 'notify.' + esc(n), '')).join('') || '<div class="muted">Noch keine Empfänger.</div>'}
-        <div class="r"><div class="l">${this.link('Empfänger wählen', INTEGRATION)}</div><span class="btn small" data-press="${this.E(b, 'test_meldung')}">Test-Meldung senden</span></div></div></div>
-        <div class="card info-card klein">Stromausfall erkennt HA daran, dass die Shellys nicht mehr antworten. Fällt das Internet der Baustelle aus, sieht das gleich aus.</div></div>
-      <div class="sec span3"><div class="heading">Pumpzeit je Tag <span class="sub">Stunden, letzte 14 Tage</span></div><div class="card">
-        ${this._tagesSaeulen(pumpen.map((g, i) => [this.E(b, 'pumpzeit', g.id), g.name, sc(b.bereiche.length + i)]), 14, 'h', false)}</div></div>
-      <div class="sec span3"><div class="heading">Pumpzyklen je Tag <span class="sub">letzte 14 Tage</span></div><div class="card">
-        ${this._tagesSaeulen(pumpen.map((g, i) => [this.E(b, 'pumpzyklen', g.id), g.name, sc(b.bereiche.length + i)]), 14, 'Zyklen', false)}</div></div>
-    </div>`;
-  }
-
-  /* ---------------------------------------------------------------- Auswertung */
-  _tagesSaeulen(reihen, tage, einheit, stapeln, periode = 'day', start = null) {
-    reihen = reihen.filter(r => r[0]);
-    if (!reihen.length) return '<div class="muted">Keine Daten.</div>';
-    const von = start || new Date(mitternacht().getTime() - (tage - 1) * 86400000);
-    const st = this._statistik(reihen.map(r => r[0]), periode, von);
-    if (st === undefined) return '<div class="muted">Lädt …</div>';
-    const schluessel = [];
-    for (let d = new Date(von); d <= new Date(); periode === 'month' ? d.setMonth(d.getMonth() + 1) : d.setDate(d.getDate() + 1)) schluessel.push(periode === 'month' ? `${d.getFullYear()}-${d.getMonth()}` : isoTag(d));
-    const key = ms => { const d = new Date(ms); return periode === 'month' ? `${d.getFullYear()}-${d.getMonth()}` : isoTag(d); };
-    const series = reihen.map(([eid, name, color]) => {
-      const werte = Object.fromEntries(((st && st[eid]) || []).map(x => [key(x.start), Math.max(0, x.change || 0)]));
-      return { name, color, values: schluessel.map(k => werte[k] || 0) };
-    });
-    const labels = schluessel.map(k => periode === 'month' ? `${MON[Number(k.split('-')[1])]} ${k.slice(2, 4)}` : `${k.slice(8, 10)}.${k.slice(5, 7)}.`);
-    if (series.every(s => s.values.every(v => !v))) return '<div class="muted">Noch keine Werte in der Langzeitstatistik – die füllt sich stündlich.</div>';
-    return colChart({ id: 'c' + Math.random().toString(36).slice(2, 7), W: this._breite(), labels, series, stack: stapeln, unit: einheit, dec: einheit === 'h' ? 1 : 2 })
-      + legend(series.map(s => [s.name, s.color]));
-  }
-
-  vAuswertung(b) {
-    const PER = [['d', 'Heute'], ['7', '7 Tage'], ['30', '30 Tage'], ['hp', 'Heizperiode']];
-    const o = b.baustelle.optionen;
-    const bereiche = this.ui.scope === 'all' ? b.bereiche : b.bereiche.filter(x => x.id === this.ui.scope);
-    const heizBereiche = bereiche.filter(x => x.art === 'container');
-    const von = Number(o.heizperiode_von || 10), jetzt = new Date();
-    const hpStart = new Date(jetzt.getMonth() + 1 >= von ? jetzt.getFullYear() : jetzt.getFullYear() - 1, von - 1, 1);
-    let diagramme = '';
-    if (this.ui.per === 'd') {
-      const hs = this._historie([this.E(b, 'leistung'), ...heizBereiche.map(x => x.fuehler), this.E(b, 'aussen')], mitternacht());
-      diagramme += `<div class="sec span3"><div class="heading">Leistung heute <span class="sub">kW</span></div><div class="card">${this._linie(hs, [[this.E(b, 'leistung'), 'Baustelle', sc(0), 1000]], 'kW', true)}</div></div>
-        <div class="sec span3"><div class="heading">Heiz- und Pumpzeiten heute</div><div class="card">${this._zeitleiste(b, b.geraete.filter(g => g.rolle !== 'steckdose' && bereiche.some(x => x.id === g.bereich)).map(g => g.schalter), 'au')}</div></div>
-        <div class="sec span3"><div class="heading">Temperaturen heute <span class="sub">°C</span></div><div class="card">${this._linie(hs,
-          [...heizBereiche.filter(x => x.fuehler).map(x => [x.fuehler, x.name, sc(b.bereiche.indexOf(x))]), [this.E(b, 'aussen'), 'Außen', 'var(--muted)', 1, true]], '°C', false,
-          this.an(this.E(b, 'frost_aktiv')) ? { v: this.N(this.E(b, 'frost_ein')), label: `Frostschutz ${de(this.N(this.E(b, 'frost_ein')))} °C` } : null)}</div></div>`;
+    if (!C.some(b => HZ(b).length)) inhalt = '<div class="leer">Keine Heizkörper</div>';
+    else if (art === 'tag') {
+      const zukunft = tagNr > heuteNr, heute = tagNr === heuteNr;
+      inhalt = `<div class="vb-wer">${this.z.WOCHE.map(([t, d]) => `<button data-act="hz-tag" data-v="${t}" class="${t === tag ? 'on' : ''}">${t === this.z.HEUTE_TAG ? 'heute' : t} ${d.slice(0, 2)}.</button>`).join('')}</div>
+        <div class="leise">${zukunft ? 'Noch nichts gemessen – blass der Plan.' : heute ? 'Bis jetzt gemessen, danach blass der Plan.' : 'Gemessen an der Leistung: kräftig = zieht Strom (über 50 W).'}</div>
+        <div class="hz-tag">${C.filter(b => HZ(b).length).map(b => { const plan = this.heizzeiten(b, tag), ph = std(plan);
+          return `<div class="hz-c"><span class="hz-cn">${esc(b.name)}${b.bedarf ? ' <span class="leise">bei Bedarf</span>' : ''}${b.offline ? ' <span class="rot-t">offline</span>' : ''}</span><span class="leise hz-cp">${ph ? `${de(ph)} h geplant` : b.bedarf ? 'kein Termin' : !b.auto ? 'Hand' : 'frei'}</span></div>
+            ${HZ(b).map(g => { const a = this.aktiv(b, g, tag), ah = std(a.an);
+              return `<div class="hz-zeile"><span class="hz-n hz-g">${esc(g.n)}</span>
+                <div class="tl-spur hz">${plan.map(q => `<i class="hz-plan ${!zukunft && (!heute || q[1] <= jetzt) ? 'vorbei' : ''}" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
+                  ${zukunft ? '' : a.an.map(q => `<i class="hz-an" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
+                  ${a.off.map(q => `<i class="hz-off" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
+                  ${heute ? `<i class="tl-jetzt" style="left:${x(jetzt)}%"></i>` : ''}</div>
+                <span class="hz-h">${zukunft ? '–' : `${de(ah)} h`}</span></div>`; }).join('')}`; }).join('')}
+          <div class="hz-zeile achse"><span></span><div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div><span></span></div></div>
+        <div class="hp-legende"><span><i class="hz-an"></i>zieht Strom</span><span><i class="hz-plan"></i>geplant</span><span><i class="hz-off"></i>offline</span><span class="leise">Lücken im Plan: Thermostat, Staffelung, Tür offen</span></div>`;
     } else {
-      const tage = this.ui.per === 'hp' ? null : Number(this.ui.per);
-      const periode = this.ui.per === 'hp' ? 'month' : 'day';
-      const start = this.ui.per === 'hp' ? hpStart : null;
-      const was = this.ui.per === 'hp' ? 'Monat' : 'Tag';
-      diagramme += `<div class="sec span3"><div class="heading">Verbrauch je ${was} <span class="sub">kWh, gestapelt nach Bereich</span></div><div class="card">
-          ${this._tagesSaeulen(bereiche.map(x => [this.E(b, 'energie', x.id), x.name, sc(b.bereiche.indexOf(x))]), tage, 'kWh', true, periode, start)}</div></div>
-        <div class="sec span3"><div class="heading">Heizzeit je ${was} <span class="sub">Stunden je Container</span></div><div class="card">
-          ${this._tagesSaeulen(heizBereiche.map(x => [this.E(b, 'heizzeit', x.id), x.name, sc(b.bereiche.indexOf(x))]), tage, 'h', false, periode, start)}</div></div>
-        <div class="sec span3"><div class="heading">Kosten je ${was}</div><div class="card">
-          ${this._tagesSaeulen(bereiche.map(x => [this.E(b, 'kosten', x.id), x.name, sc(b.bereiche.indexOf(x))]), tage, '€', true, periode, start)}</div></div>
-        <div class="sec span3"><div class="heading">Temperatur je ${was} <span class="sub">Mittel °C</span></div><div class="card">
-          ${this._mittelTemperatur([...heizBereiche.filter(x => x.fuehler).map(x => [x.fuehler, x.name, sc(b.bereiche.indexOf(x))]), [this.E(b, 'aussen'), 'Außen', 'var(--muted)', true]], tage, periode, start)}</div></div>`;
+      const zeilen = C.flatMap(b => HZ(b).map(g => ({ b, g, h: TAGE.map((t, k) => k > heuteNr ? std(this.heizzeiten(b, t)) : std(this.aktiv(b, g, t).an)) })));
+      const max = Math.max(...zeilen.flatMap(z => z.h), 1);
+      inhalt = `<div class="hz-woche"><div class="hz-wk"><span></span>${this.z.WOCHE.map(([t, d]) => `<span class="${t === this.z.HEUTE_TAG ? 'heute' : ''}">${t}<br><small>${d.slice(0, 2)}.</small></span>`).join('')}<span>Σ</span></div>
+        ${zeilen.map(({ b, g, h }) => `<div class="hz-wz"><span class="hz-n">${esc(b.name)} <span class="leise">· ${esc(g.n)}</span></span>${h.map((v, k) => `<button class="hz-zelle ${k > heuteNr ? 'geplant' : ''}" data-act="hz-tag" data-v="${TAGE[k]}" data-art="tag" style="--a:${v ? .15 + .75 * v / max : 0}" title="${esc(b.name)} · ${esc(g.n)} ${TAGE[k]}: ${de(v)} h ${k > heuteNr ? 'geplant' : 'gemessen'}">${v ? de(v, v % 1 ? 1 : 0) : ''}</button>`).join('')}<b class="hz-sum">${de(h.slice(0, heuteNr + 1).reduce((a, v) => a + v, 0), 0)} h</b></div>`).join('')}</div>
+        <div class="leise">Stunden, in denen der Heizkörper Strom gezogen hat (heute bis jetzt); kommende Tage blass und kursiv = geplant. Σ = bisher gemessen. Tippen zeigt den Tag.</div>`;
     }
-    const ist = this.N(this.E(b, 'energie')), ohne = this.N(this.E(b, 'energie_ohne_automatik')), preis = this.N(this.E(b, 'preis')) || 0;
-    const typen = ['oelradiator', 'konvektor'].map(t => {
-      const g = b.geraete.filter(x => x.rolle === 'heizkoerper' && x.typ === t);
-      const suffix = t;
-      const z = b.zaehler || {};
-      const reine = b.bereiche.filter(x => { const hk = b.geraete.filter(y => y.bereich === x.id && y.rolle === 'heizkoerper'); return hk.length && hk.every(y => y.typ === t); });
-      const schnitt = werte => { werte = werte.filter(v => v !== null && v !== undefined && Number.isFinite(v)); return werte.length ? werte.reduce((p, q) => p + q, 0) / werte.length : null; };
-      return { t, n: g.length, mittel: this.N(this.E(b, `mittel_${suffix}`)), energie: this.N(this.E(b, `energie_${suffix}`)), zeit: this.N(this.E(b, `heizzeit_${suffix}`)),
-        aufheiz: schnitt(reine.map(x => z[`aufheiz:${x.id}`])), abkuehl: schnitt(reine.map(x => z[`abkuehl:${x.id}`])),
-        jeGrad: schnitt(reine.map(x => (z[`gradh:${x.id}`] || 0) > 24 ? (z[`energie:${x.id}`] || 0) / (z[`gradh:${x.id}`] / 24) : null)) };
-    });
-    const vgl = (label, f, fmt, besser) => `<tr><td>${label}</td>${typen.map(r => `<td>${r.n ? fmt(f(r)) : '–'}</td>`).join('')}<td class="muted klein" style="text-align:left;white-space:normal">${besser}</td></tr>`;
-    return `<div class="sections">
-      <div class="sec span3"><div class="card filter">
-        ${PER.map(([k, l]) => `<span class="btn small ${this.ui.per === k ? '' : 'flat'}" data-ui="per" data-wert="${k}">${l}</span>`).join('')}
-        <span style="flex:1"></span><select class="inp" data-ui="scope"><option value="all">Ganze Baustelle</option>${b.bereiche.map(x => `<option value="${x.id}" ${this.ui.scope === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div></div>
-      <div class="sec span3"><div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-        <div class="stat"><div class="sl">⚡ Verbrauch gesamt</div><div class="sv">${de(ist, 1)} kWh</div><div class="ss">${eur(this.N(this.E(b, 'kosten')))}</div></div>
-        <div class="stat"><div class="sl">♨ Heizzeit</div><div class="sv">${de(heizBereiche.reduce((s, x) => s + (this.N(this.E(b, 'heizzeit', x.id)) || 0), 0), 1)} h</div><div class="ss">Summe der Container</div></div>
-        <div class="stat"><div class="sl">🐷 Gespart</div><div class="sv">${eur(this.N(this.E(b, 'ersparnis')))}</div><div class="ss">gegenüber 24 h Dauerbetrieb</div></div>
-        <div class="stat"><div class="sl">📈 Heizperiode</div><div class="sv">${de(this.N(this.E(b, 'prognose_heizperiode')), 0)} kWh</div><div class="ss">hochgerechnet · ${eur(this.N(this.E(b, 'prognose_heizperiode_kosten')))}</div></div>
-      </div></div>
-      ${diagramme}
-      <div class="sec span2"><div class="heading">Mit Automatik vs. ohne</div><div class="card">
-        <table class="t"><tr><th></th><th>mit Automatik</th><th>ohne (24/7)</th><th>Ersparnis</th></tr>
-          <tr><td>bisher</td><td>${de(ist, 1)} kWh</td><td>${de(ohne, 1)} kWh</td><td class="save">${eur(this.N(this.E(b, 'ersparnis')))}</td></tr>
-          <tr><td>Heizperiode (${MON[von - 1]}–${MON[Number(o.heizperiode_bis || 4) - 1]}, hochger.)</td><td>${de(this.N(this.E(b, 'prognose_heizperiode')), 0)} kWh</td>
-            <td>${de(this.N(this.E(b, 'prognose_heizperiode_ohne')), 0)} kWh</td>
-            <td class="save">${this.N(this.E(b, 'prognose_heizperiode_ohne')) !== null && this.N(this.E(b, 'prognose_heizperiode')) !== null ? eur(Math.max(0, this.N(this.E(b, 'prognose_heizperiode_ohne')) - this.N(this.E(b, 'prognose_heizperiode'))) * preis) : '–'}</td></tr></table>
-        <div class="muted klein">„Ohne“ = Ø Leistung jedes Heizgeräts im Betrieb (gemessen) × 24 h. Hochrechnungen ab einem Tag Daten.</div></div></div>
-      <div class="sec"><div class="heading">Kosten</div><div class="card"><div class="rows">
-        ${this.zeile('€', 'Strompreis', 'brutto je kWh', this.zahl(this.E(b, 'preis'), '€/kWh'))}
-        ${this.zeile('🗓', 'Heizperiode', `${MON[von - 1]} – ${MON[Number(o.heizperiode_bis || 4) - 1]}`, this.link('ändern', INTEGRATION))}</div></div>
-        <div class="heading">Je Gerät</div><div class="card"><table class="t"><tr><th>Gerät</th><th>Ø Betrieb</th><th>jetzt</th></tr>
-        ${b.geraete.filter(g => bereiche.some(x => x.id === g.bereich)).map(g => `<tr><td>${esc(g.name)}<br><span class="muted klein">${esc(this._bereichName(b, g.bereich))}${g.rolle === 'heizkoerper' ? ' · ' + TYP[g.typ] : ''}</span></td>
-          <td>${de(this.N(this.E(b, 'mittel_im_betrieb', g.id)), 0)} W</td><td>${de(this.N(g.leistung), 0)} W</td></tr>`).join('')}</table></div></div>
-      ${o.heizung ? `<div class="sec span3"><div class="heading">Vergleich Ölradiator ↔ Konvektor</div><div class="card">
-        <table class="t"><tr><th></th><th>Ölradiator</th><th>Konvektor</th><th style="text-align:left">besser ist</th></tr>
-          ${vgl('Anzahl', r => r.n, x => x, '')}
-          ${vgl('Ø Leistung im Betrieb', r => r.mittel, x => de(x, 0) + ' W', '–')}
-          ${vgl('Energie gesamt', r => r.energie, x => de(x, 1) + ' kWh', '')}
-          ${vgl('Energie je Gerät', r => r.energie === null ? null : r.energie / r.n, x => de(x, 1) + ' kWh · ' + eur(x * preis), 'weniger')}
-          ${vgl('Heizzeit je Gerät', r => r.zeit === null ? null : r.zeit / r.n, x => de(x, 1) + ' h', 'weniger')}
-          ${vgl('Aufheizen', r => r.aufheiz, x => x === null ? '–' : de(x, 1) + ' °C/h', 'mehr = schneller warm')}
-          ${vgl('Abkühlen nach Aus', r => r.abkuehl, x => x === null ? '–' : de(x, 1) + ' °C/h', 'weniger = hält Wärme länger')}
-          ${vgl('kWh je Tag und Grad innen/außen', r => r.jeGrad, x => x === null ? '–' : de(x, 2), 'weniger = fairer Vergleich')}</table>
-        <div class="muted klein">Beide wandeln Strom zu 100 % in Wärme – pro kWh gibt es keinen Unterschied. Unterschiede entstehen durch Leistung, Laufzeit, Takten am Thermostat und Wärmespeicherung.
-          Aufheizen, Abkühlen und „je Grad“ brauchen einen Fühler im Container und zählen nur Container mit einem einzigen Heizkörper-Typ.</div></div></div>` : ''}
-    </div>`;
+    return `<div class="glas-panel block">${kopf}${inhalt}</div>`;
+  }
+  anschluss(id) { return this.d.anschluesse.find(a => a.id === id) || this.d.anschluesse[0] || { id: null, name: 'kein Anschluss', ampere: 0, phasen: 3, reserve: 0 }; }
+  laufende() { return this.alle.filter(x => x.aktiv); }
+  firma(id, d = this.d) { return d.firmen.find(f => f.id === id) || d.firmen[0]; }
+  /* Firma eines Containers zu einem Zeitpunkt (Verlauf der Zuordnung) */
+  firmaAm(d, bid, ms) { let f = 'eigen', ab = -Infinity; for (const x of d.zuordnung) { const t = Date.parse(x.ab); if (x.bereich === bid && t <= ms && t >= ab) { f = x.firma; ab = t; } } return d.firmen.some(y => y.id === f) ? f : 'eigen'; }
+  bucketMs(zr, i, d = this.d) {
+    if (zr.periode === 'hour') return this.zoneMs(zr.von, '00:00', d.z.zone) + i * 36e5;
+    if (zr.periode === 'day') return this.zoneMs(plusTage(zr.von, i), '00:00', d.z.zone);
+    return this.zoneMs(`${zr.jahr}-${String(i + 1).padStart(2, '0')}-01`, '00:00', d.z.zone);
+  }
+  /* Was im Verbrauch gestapelt wird: Container dieser Baustelle, laufende Baustellen oder Firmen */
+  quellen(st, ziel) {
+    const alle = ziel === 'aw' && this.s.awScope === 'alle', lauf = alle ? this.laufende() : [this.d];
+    const nichts = z => { for (const l of lauf) if (!this.verbrauch(l, null, z)) return true; return false; };
+    if (st.gruppe === 'firma') {
+      const namen = [...new Map(lauf.flatMap(l => l.firmen.map(f => [f.eigen ? 'eigen' : f.name, f]))).values()];
+      return namen.map((f, k) => ({ id: f.eigen ? 'eigen' : f.name, name: f.name, farbe: `var(--s${(k % 6) + 1})`, v: z => { if (nichts(z)) return null; const zr = this.zeitraum(z);
+        return addieren(lauf.flatMap(l => l.bereiche.map(b => { const v = this.verbrauch(l, b.id, z); return v.map((x, i) => { const fid = this.firmaAm(l, b.id, this.bucketMs(zr, i, l)), ff = this.firma(fid, l);
+          return (ff.eigen ? 'eigen' : ff.name) === (f.eigen ? 'eigen' : f.name) ? x : 0; }); }))); } }));
+    }
+    if (alle) return lauf.map((l, k) => ({ id: l.entry, name: l.titel, farbe: `var(--s${(k % 6) + 1})`, v: z => this.verbrauch(l, null, z) }));
+    return this.d.bereiche.map(b => ({ id: b.id, name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: z => this.verbrauch(this.d, b.id, z) }));
+  }
+  verbrauchInhalt(st, ziel, kennzahlen) {
+    const Q = this.quellen(st, ziel), z = st.zeitraum, aus = Q.filter(q => st.auswahl.includes(q.id)), alleGewaehlt = aus.length === Q.length && Q.length > 0;
+    const alle = ziel === 'aw' && this.s.awScope === 'alle', summenName = alle ? 'Alle laufenden' : this.d.titel;
+    const zr = this.zeitraum(z), labels = zr.labels, zd = `data-ziel="${ziel}"`;
+    const was = st.gruppe === 'firma' ? 'Firmen' : alle ? 'Baustellen' : 'Container';
+    const titel = !aus.length ? `${esc(summenName)} · Summe` : aus.length === 1 ? esc(aus[0].name) : `${aus.length} ${was} gestapelt`;
+    const werte = Q.map(q => ({ q, v: q.v(z) })), laedt = werte.some(x => !x.v);
+    const reihen = laedt ? [] : aus.length ? werte.filter(x => st.auswahl.includes(x.q.id)).map(({ q, v }) => ({ name: q.name, v, farbe: q.farbe }))
+      : [{ name: 'Summe', v: addieren(werte.map(x => x.v)).length ? addieren(werte.map(x => x.v)) : Array(zr.n).fill(0), farbe: 'var(--s1)' }];
+    const summeJe = labels.map((_, i) => reihen.reduce((a, r) => a + (r.v[i] || 0), 0)), sum = summe(summeJe);
+    const spitze = Math.max(...summeJe, 0), wo = sum > 0 ? labels[summeJe.indexOf(spitze)] : '–';
+    const einheit = z === 'Tag' ? 'kWh/h' : 'kWh', je = { Tag: 'je Stunde · heute', Woche: 'je Tag · diese Woche', Monat: `je Tag · ${MONATE_LANG[zr.monat ?? 0]}`, Jahr: `je Monat · ${zr.jahr ?? ''}` }[z];
+    const p = this.d.e.preis;
+    return `<div class="block-kopf">${ziel === 'sheet' ? '<h3>Verbrauch</h3>' : '<b>Verbrauch</b>'}<span class="leise">${titel}</span></div>
+      <div class="seg">${['Tag', 'Woche', 'Monat', 'Jahr'].map(v => `<button data-act="vb-zeitraum" ${zd} data-v="${v}" class="${v === z ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <div class="vb-gruppe"><span class="leise">stapeln nach</span><div class="seg klein">${[['teil', alle ? 'Baustelle' : 'Container'], ['firma', 'Firma']].map(([k, t]) => `<button data-act="vb-gruppe" ${zd} data-v="${k}" class="${(st.gruppe || 'teil') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+      <div class="vb-wer"><button data-act="vb-wer" ${zd} class="${!aus.length ? 'on' : ''}"><i style="background:var(--s1)"></i>Summe</button>
+        <button data-act="vb-wer" ${zd} data-id="*" class="${alleGewaehlt ? 'on' : ''}">Alle gestapelt</button>
+        ${Q.map(q => `<button data-act="vb-wer" ${zd} data-id="${esc(q.id)}" class="${st.auswahl.includes(q.id) ? 'on' : ''}"><i style="background:${q.farbe}"></i>${esc(q.name)}${st.auswahl.includes(q.id) ? ' ✓' : ''}</button>`).join('')}</div>
+      ${kennzahlen ? `<div class="kennz"><div><b>${laedt ? '–' : de(sum, sum < 100 ? 1 : 0)}</b><span>kWh ${{ Tag: 'heute', Woche: 'diese Woche', Monat: 'im Monat', Jahr: 'im Jahr' }[z]}${reihen.length > 1 ? ' zusammen' : ''}</span></div>
+        <div><b>${laedt ? '–' : de(sum * p, 2)} €</b><span>Kosten</span></div><div><b>${laedt ? '–' : wo}</b><span>Spitze ${laedt ? '–' : de(spitze, 1)} kWh</span></div></div>` : ''}
+      <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · gestapelt, oberste Kante = Summe' : ''}</div>
+      <div class="chart-wrap">${laedt ? LAEDT : flaeche(`vb-${ziel}-${this.s.awScope || ''}-${st.gruppe || ''}-${aus.map(q => q.id).join('_') || 'alle'}-${z}`, reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3)}</div>
+      ${reihen.length > 1 ? `<div class="vb-je">${reihen.map(r => { const su = summe(r.v), sp = Math.max(...r.v, 0);
+          return `<div><i style="background:${r.farbe}"></i><span class="n">${esc(r.name)}</span><b>${de(su, su < 100 ? 1 : 0)} kWh</b><span>${de(su * p, 2)} €</span><span class="leise">Spitze ${su > 0 ? labels[r.v.indexOf(sp)] : '–'}</span></div>`; }).join('')}</div>` : ''}`;
+  }
+  /* Abrechnung: je Firma die Container mit kWh und Kosten im gewählten Zeitraum (Firma je Stunde/Tag nach dem Verlauf der Zuordnung) */
+  abrechnungDaten(z) {
+    const lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], zr = this.zeitraum(z), zeilen = new Map();
+    for (const l of lauf) {
+      for (const b of l.bereiche) {
+        const v = this.verbrauch(l, b.id, z); if (!v) return null;
+        v.forEach((x, i) => { if (!x) return; const f = this.firma(this.firmaAm(l, b.id, this.bucketMs(zr, i, l)), l), key = f.eigen ? 'eigen' : f.name;
+          if (!zeilen.has(key)) zeilen.set(key, { f, c: new Map(), kwh: 0 });
+          const zeile = zeilen.get(key), ck = `${l.entry}|${b.id}`; zeile.kwh += x;
+          if (!zeile.c.has(ck)) zeile.c.set(ck, { l, b, kwh: 0 }); zeile.c.get(ck).kwh += x; });
+      }
+    }
+    return [...zeilen.values()].sort((a, b) => (b.f.eigen ? 1 : 0) - (a.f.eigen ? 1 : 0)).map(x => ({ ...x, c: [...x.c.values()] }));
+  }
+  abrechnung(z) {
+    const lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], p = this.d.e.preis, zr = this.zeitraum(z), zeilen = this.abrechnungDaten(z);
+    const ges = zeilen ? zeilen.reduce((a, x) => a + x.kwh, 0) : 0;
+    const wann = { Tag: 'heute', Woche: 'diese Woche', Monat: `${MONATE_LANG[zr.monat ?? 0]} ${zr.jahr ?? ''}`, Jahr: String(zr.jahr ?? '') }[z];
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Abrechnung nach Firma</b><span class="leise">${wann} · ${de(p, 2)} € je kWh</span></div>
+      ${!zeilen ? LAEDT : !zeilen.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : zeilen.map(({ f, c, kwh }) => `<div class="ab-firma ${f.eigen ? 'eigen' : ''}"><div class="ab-kopf"><b>${esc(f.name)}</b><span><b>${de(kwh * p, 2)} €</b> <span class="leise">${de(kwh, 0)} kWh · ${de(ges ? kwh / ges * 100 : 0, 0)} %</span></span></div>
+        ${c.map(x => `<div class="ab-c"><span>${esc(x.b.name)}${lauf.length > 1 ? ` <span class="leise">· ${esc(x.l.titel)}</span>` : ''}</span><span class="leise">${de(x.kwh, 0)} kWh · ${de(x.kwh * p, 2)} €</span></div>`).join('')}</div>`).join('')}
+      <button class="knopf" data-act="csv" data-art="firma">⇩ Abrechnung als CSV</button></div>`;
+  }
+  freiText(iso) {
+    const a = this.d.ausnahmen.find(x => x.datum === iso), f = this.d.frei[iso];
+    if (a && a.art === 'frei') return `Ausnahme: frei${a.notiz ? ' – ' + esc(a.notiz) : ''} · nur Frostschutz`;
+    if (f === 'feiertag') return `${esc(this.d.freiName[iso] || 'Feiertag')} · nur Frostschutz`;
+    if (f === 'urlaub') return 'Urlaub · nur Frostschutz';
+    return 'frei · nur Frostschutz';
+  }
+  heizplanInhalt() {
+    const e = this.d.e;
+    return `<div class="hp-legende"><span><i class="tl-extra"></i>Frühstart</span><span><i class="tl-vor"></i>Vor- und Nachheizen ${e.vorheizen}/${e.nachheizen} min</span><span><i class="tl-heiz"></i>Arbeitszeit</span><span><i class="tl-trock"></i>Kleidung trocknen</span></div>
+      <div class="hp">${this.z.WOCHE.map(([t, d], k) => { const p = this.planTag(t), h = t === this.z.HEUTE_TAG, iso = this.z.WOCHE_ISO[k];
+        return `<div class="hp-zeile ${h ? 'heute' : ''} ${this.d.ausnahmen.some(x => x.datum === iso) ? 'ausn' : ''}"><div class="hp-tag"><b>${h ? 'heute' : t}</b><span>${d}</span></div>
+          <div class="hp-mitte">${this.zeitstrahl(p, h)}<div class="leise">${p ? p.gruende.map(esc).join(' · ') : this.freiText(iso)}</div></div>
+          <div class="hp-zeit">${p ? `${uhr(p.extra)}<br>${uhr(p.ende)}` : '–'}</div></div>`; }).join('')}
+        <div class="hp-zeile achse"><div></div><div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div><div></div></div></div>`;
+  }
+  get b() { return this.d && this.d.bereiche.find(x => x.id === this.s.cid); }
+  gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.sheet = null; this.render(true); }
+  herunterladen(url, name) {
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+    const a = document.createElement('a'); if (!a) return; a.href = url; a.download = name; if (a.click) a.click();
+  }
+  datei(inhalt, name, typ) {
+    if (typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return;
+    this.herunterladen(URL.createObjectURL(new Blob([inhalt], { type: typ })), name);
+  }
+  csv(art) {
+    // Export (Semikolon, deutsches Komma – öffnet direkt in Excel). art 'firma': Abrechnung je Firma und Container
+    const zeilen = [], zz = (v, d) => (zahl(v) ? Number(v) : 0).toFixed(d).replace('.', ',');   // ohne Tausendertrennung, damit Excel es als Zahl liest
+    const feld = s => /[;"\n]/.test(String(s)) ? `"${String(s).replace(/"/g, '""')}"` : String(s);
+    let name;
+    if (this.s.view === 'bsdetail') {
+      const x = this.alle.find(y => y.entry === this.s.bs), m = x && this.monateJeContainer(x);
+      if (!m) return this.toast('Werte laden noch …');
+      zeilen.push(['Monat', 'Baustelle', 'Container', 'kWh', 'Kosten €'].join(';'));
+      for (const r of m.reihen) r.v.forEach((v, i) => zeilen.push([m.labels[i], x.titel, r.name, zz(v, 2), zz(v * x.e.preis, 2)].map(feld).join(';')));
+      name = `baustelle-verbrauch-${x.titel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`;
+    } else {
+      const z = (this.s.aw || { zeitraum: 'Monat' }).zeitraum, p = this.d.e.preis, lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], zr = this.zeitraum(z);
+      if (art === 'firma') {
+        const daten = this.abrechnungDaten(z); if (!daten) return this.toast('Werte laden noch …');
+        zeilen.push(['Zeitraum', 'Firma', 'Baustelle', 'Container', 'kWh', 'Preis €/kWh', 'Betrag €'].join(';'));
+        for (const { f, c } of daten) for (const x of c) zeilen.push([z, f.name, x.l.titel, x.b.name, zz(x.kwh, 2), zz(p, 2), zz(x.kwh * p, 2)].map(feld).join(';'));
+      } else {
+        const labels = z === 'Tag' ? zr.labels.map(h => `${h}:00`) : z === 'Jahr' ? MONATE.map(m => `${m} ${zr.jahr}`) : zr.labels.map((_, i) => datum(plusTage(zr.von, i)));
+        zeilen.push(['Zeit', 'Baustelle', 'Firma', 'Container', 'kWh', 'Kosten €'].join(';'));
+        for (const l of lauf) for (const b of l.bereiche) { const v = this.verbrauch(l, b.id, z); if (!v) return this.toast('Werte laden noch …');
+          v.forEach((w, i) => zeilen.push([labels[i], l.titel, this.firma(this.firmaAm(l, b.id, this.bucketMs(zr, i, l)), l).name, b.name, zz(w, 3), zz(w * p, 2)].map(feld).join(';'))); }
+      }
+      name = `baustelle-${art === 'firma' ? 'abrechnung' : 'verbrauch'}-${lauf.length > 1 ? 'alle' : this.d.titel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${z.toLowerCase()}.csv`;
+    }
+    this.datei('﻿' + zeilen.join('\r\n'), name, 'text/csv;charset=utf-8');
+    this.toast(`${name} · ${zeilen.length - 1} Zeilen`);
+    return zeilen;
+  }
+  meldungenMarkdown() {
+    const ART = { fehler: 'Fehler', wunsch: 'Wunsch', anregung: 'Anregung' };
+    return (this.meldungen() || []).map(m => `- [${m.status === 'erledigt' ? 'x' : ' '}] **${ART[m.art] || m.art}** (${this.meldungZeit(m)}, v${m.version || '–'}, ${m.geraet || '–'}, ${m.kontext || '–'}): ${m.text}`).join('\n');
+  }
+  meldungen() { const r = this._holen('meldungen', () => this._hass.callWS({ type: 'baustelle/meldungen', entry_id: this.d ? this.d.entry : undefined }), 60000); return r === undefined ? null : Array.isArray(r) ? r : (r && r.meldungen) || []; }
+  meldungZeit(m) { const l = this.lokal(m.zeit); return l ? `${wtag(l)} ${kurzDatum(l)} ${l.slice(11, 16)}` : '–'; }
+  toast(t, wieder = false) {
+    const el = this.root && this.root.querySelector('.toast'); if (!el || !t) return;
+    el.textContent = t; el.classList.remove('an'); void el.offsetWidth; el.classList.add('an'); this.letzterToast = t;
+    if (!wieder) this._toastBis = Date.now() + 2000;
   }
 
-  _mittelTemperatur(reihen, tage, periode, start) {
-    reihen = reihen.filter(r => r[0]);
-    if (!reihen.length) return '<div class="muted">Kein Fühler und keine Außentemperatur.</div>';
-    const von = start || new Date(mitternacht().getTime() - (tage - 1) * 86400000);
-    const st = this._statistik(reihen.map(r => r[0]), periode, von, ['mean']);
-    if (st === undefined) return '<div class="muted">Lädt …</div>';
-    const schluessel = [];
-    for (let d = new Date(von); d <= new Date(); periode === 'month' ? d.setMonth(d.getMonth() + 1) : d.setDate(d.getDate() + 1)) schluessel.push(periode === 'month' ? `${d.getFullYear()}-${d.getMonth()}` : isoTag(d));
-    const key = ms => { const d = new Date(ms); return periode === 'month' ? `${d.getFullYear()}-${d.getMonth()}` : isoTag(d); };
-    const series = reihen.map(([eid, name, color, dash]) => {
-      const werte = Object.fromEntries(((st && st[eid]) || []).filter(x => x.mean !== null && x.mean !== undefined).map(x => [key(x.start), x.mean]));
-      if (!Object.keys(werte).length) return null;
-      let letzter = Object.values(werte)[0];
-      return { name, color, dash, values: schluessel.map(k => (letzter = werte[k] ?? letzter)) };
-    }).filter(Boolean);
-    if (!series.length) return '<div class="muted">Noch keine Werte in der Langzeitstatistik – die füllt sich stündlich.</div>';
-    const labels = schluessel.map(k => periode === 'month' ? `${MON[Number(k.split('-')[1])]} ${k.slice(2, 4)}` : `${k.slice(8, 10)}.${k.slice(5, 7)}.`);
-    return lineChart({ id: 'm' + Math.random().toString(36).slice(2, 7), W: this._breite(), H: 190, labels, series, unit: '°C' })
-      + legend(series.map(x => [x.name, x.color, x.dash ? 'dash' : '']), 'line');
+  render(neu = false) {
+    if (!this.ui) return;
+    const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0, sh = this.root.querySelector('.sheet'), shPos = sh && this.s.sheet && this._sheetArt === this.s.sheet.art ? sh.scrollTop : 0;
+    this.ui.classList.toggle('still', !neu && this._view === this.s.view);   // Neuzeichnen ohne Einblend-Animationen
+    this._view = this.s.view; this._sheetArt = this.s.sheet && this.s.sheet.art;
+    const tabs = [['uebersicht', 'Übersicht'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
+    if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(this.s.view)) this.s.view = 'uebersicht';
+    if (this.s.view === 'container' && !this.b) this.s.view = 'uebersicht';
+    const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(this.s.view) ? 'einst' : this.s.view;
+    let seite;
+    if (!this.roh) seite = `<div class="glas-panel block">${this.fehler ? `<div class="leer">Die Integration antwortet nicht: ${esc(this.fehler)}</div>` : LAEDT}</div>`;
+    else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(this.s.view)) seite = this.v_leer();
+    else seite = this['v_' + this.s.view]();
+    const melden = this.d ? this.d.e.melden : true;
+    let sheet = '';
+    if (this.s.sheet) { try { sheet = this.sheet(); } catch (e) { this.s.sheet = null; sheet = ''; } }
+    this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${seite}</div></div>
+      ${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
+      <nav class="glas-nav glas-panel">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
+      <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
+      <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${sheet}</div>
+      <div class="tip"></div><div class="toast glas-panel"></div>
+      ${melden && this.roh && (!this.s.sheet || this.s.sheet.art !== 'melden') ? `<button class="melden-knopf glas-panel ${this.s.sheet ? 'ueber-sheet' : ''}" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}`;
+    const sc = this.root.querySelector('.scroll'); if (sc) sc.scrollTop = pos;
+    const sh2 = this.root.querySelector('.sheet'); if (sh2 && shPos) sh2.scrollTop = shPos;
+    if (this._toastBis > Date.now()) this.toast(this.letzterToast, true);
+  }
+  v_leer() {
+    return `${this.kopf('Baustelle', 'KEINE LAUFENDE BAUSTELLE')}
+      <div class="glas-panel liste"><div class="zeile"><span class="leise">Lege eine Baustelle an – danach kommen Container und Shellys dazu.</span></div>
+        <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>
+        ${this.alle.length ? '<button class="zeile" data-act="tab" data-v="verlauf"><span>Abgeschlossene Baustellen</span><span class="chev">›</span></button>' : ''}</div>`;
   }
 
-  _linie(hs, reihen, einheit, flaeche, ref = null) {
-    if (hs === undefined) return '<div class="muted">Lädt …</div>';
-    reihen = reihen.filter(r => r[0] && hs && hs[r[0]] && hs[r[0]].length);
-    if (!reihen.length) return '<div class="muted">Noch keine Messwerte.</div>';
-    const start = mitternacht().getTime(), jetzt = Date.now(), schritte = Math.max(2, Math.ceil((jetzt - start) / 600000));
-    const labels = [...Array(schritte)].map((_, i) => m2t(i * 10));
-    const series = reihen.map(([eid, name, color, teiler = 1, dash = false]) => {
-      const liste = hs[eid].map(e => [((e.lu || e.lc) * 1000), parseFloat(e.s ?? e.state)]).filter(x => !Number.isNaN(x[1]));
-      let j = 0, letzter = liste.length ? liste[0][1] : 0;
-      const values = labels.map((_, i) => { const t = start + i * 600000; while (j < liste.length && liste[j][0] <= t) { letzter = liste[j][1]; j++; } return +(letzter / teiler).toFixed(2); });
-      return { name, color, values, dash, last: schritte - 1 };
-    });
-    return lineChart({ id: 'l' + Math.random().toString(36).slice(2, 7), W: this._breite(), H: 200, labels, series, unit: einheit, area: flaeche, ref })
-      + (series.length > 1 ? legend(series.map(s => [s.name, s.color, s.dash ? 'dash' : '']), 'line') : '');
+  kopf(titel, klein, rechts = '') {
+    return `<div class="glas-kopf glas-panel"><div><div class="glas-klein">${klein}</div><div class="glas-titel">${titel}</div></div>${rechts}</div>`;
+  }
+  wetterJetzt() {
+    const d = this.d, s = this.zustand(d.wetterEid), w = d.wetter || {};
+    if (!s) return [w.zustand || 'cloudy', d.wetterEid ? 'kein Wetter' : 'Wetter wählen', w.aussen];
+    const regen = ['rainy', 'pouring', 'lightning-rainy', 'snowy-rainy'].includes(s.state) && zahl(w.regen_heute) && w.regen_heute > 0 ? ` · ${de(w.regen_heute, w.regen_heute % 1 ? 1 : 0)} mm` : '';
+    return [s.state, (WETTER_TEXT[s.state] || s.state) + regen, zahl(w.aussen) ? w.aussen : s.attributes.temperature];
   }
 
-  /* ---------------------------------------------------------------- Verlauf */
-  vVerlauf() {
-    const alle = this.baustellen.filter(x => x.baustelle.geladen);
-    const zeile = x => {
-      const o = x.baustelle.optionen, ab = o.status === 'abgeschlossen';
-      return `<tr data-ui="hsel" data-wert="${x.baustelle.entry_id}" style="cursor:pointer"><td>${esc(x.baustelle.titel)} <span class="chip ${ab ? 'grey' : 'gruen'}">${ab ? 'abgeschlossen' : 'aktiv'}</span></td>
-        <td class="hide-phone">${esc(o.beginn || '–')} – ${ab ? esc(o.ende || '–') : 'laufend'}</td>
-        <td>${de(this.N(this.E(x, 'energie')), 0)} kWh</td><td>${eur(this.N(this.E(x, 'kosten')))}</td><td class="save">${eur(this.N(this.E(x, 'ersparnis')))}</td></tr>`;
-    };
-    const start = new Date(new Date().getFullYear() - 1, 0, 1);
-    const detail = alle.find(x => x.baustelle.entry_id === this.ui.hsel);
-    const summe = k => alle.reduce((s, x) => s + (this.N(this.E(x, k)) || 0), 0);
-    return `<div class="sections">
-      <div class="sec span3"><div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-        <div class="stat"><div class="sl">🏗 Baustellen</div><div class="sv">${alle.length}</div><div class="ss">${alle.filter(x => x.baustelle.optionen.status !== 'abgeschlossen').length} aktiv · ${alle.filter(x => x.baustelle.optionen.status === 'abgeschlossen').length} abgeschlossen</div></div>
-        <div class="stat"><div class="sl">⚡ Energie</div><div class="sv">${de(summe('energie'), 0)} kWh</div><div class="ss">alle Baustellen</div></div>
-        <div class="stat"><div class="sl">€ Kosten</div><div class="sv">${eur(summe('kosten'))}</div><div class="ss">alle Baustellen</div></div>
-        <div class="stat"><div class="sl">🐷 Gespart</div><div class="sv">${eur(summe('ersparnis'))}</div><div class="ss">durch Automatik</div></div></div></div>
-      <div class="sec span3"><div class="heading">Alle Baustellen <span class="sub">Zeile antippen = Detail</span></div><div class="card" style="overflow-x:auto">
-        <table class="t"><tr><th>Baustelle</th><th class="hide-phone">Zeitraum</th><th>Energie</th><th>Kosten</th><th>gespart</th></tr>${alle.map(zeile).join('')}</table></div></div>
-      <div class="sec span3"><div class="heading">Verbrauch je Monat <span class="sub">alle Baustellen</span></div><div class="card">
-        ${this._tagesSaeulen(alle.map((x, i) => [this.E(x, 'energie'), x.baustelle.titel, sc(i)]), null, 'kWh', true, 'month', start)}</div></div>
-      ${detail ? `<div class="sec span3"><div class="heading">${esc(detail.baustelle.titel)} <span class="sub"><span class="btn flat small" data-ui="hsel" data-wert="all">schließen</span></span></div><div class="card">
-        ${this._tagesSaeulen([[this.E(detail, 'energie'), 'mit Automatik', sc(0)], [this.E(detail, 'energie_ohne_automatik'), 'ohne (24/7)', 'rgba(127,127,127,.45)']], null, 'kWh', false, 'month', start)}</div></div>
-        <div class="sec span3"><div class="heading">Ereignisse <span class="sub">letzte 30 Tage</span></div><div class="card">${this._ereignisse(detail)}</div></div>` : ''}
-    </div>`;
+  /* ---- Übersicht ---- */
+  pumpenWerte(d = this.d) {
+    const st = this.statistik('Woche', 0, d), i = TAGE.indexOf(d.z.HEUTE_TAG);
+    for (const b of d.bereiche) if (b.pumpe) { const z = st && this.zyklen(d, b, 'Woche'); b.zyklen = z ? z[i] : null; }
+  }
+  v_uebersicht() {
+    const d = this.d, B = d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), W = d.warnungen.filter(w => !w.stumm);
+    const st = W.filter(w => w.stufe === 'stoerung').length, hi = W.length - st;
+    const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
+    const [wz, wt, wtemp] = this.wetterJetzt();
+    this.pumpenWerte();
+    return `<div class="glas-kopf glas-panel">
+        <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">${esc(d.titel)} <span class="pfeil">▾</span></div>
+        ${d.e.staffel && d.anschluesse.length ? (() => { const L = this.last(); return `<button class="strom-knopf" data-act="sheet" data-s="strom">${this.stromBalken(L, true)}<span class="strom-t"><b>${de(L.gesamt)} kW</b> · ${L.A.length} ${L.A.length === 1 ? 'Anschluss' : 'Anschlüsse'} · ${L.laufen} Heizkörper an${L.warten ? ` · ${L.warten} wartet` : ''} ›</span></button>`; })() : ''}</div>
+          <button class="kopf-wetter" data-act="sheet" data-s="${d.wetterEid ? 'wetter' : 'wetterquelle'}">${wetterIcon(wz, 22)}<span>${zahl(wtemp) ? de(wtemp) + '°' : '–'}</span><span class="kw-t">${esc(wt)}</span></button></div>
+        <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
+      <div class="glas-chips">
+        <button class="glas-panel chip auto-chip ${d.e.auto ? 'on' : ''}" data-act="auto" role="switch" aria-checked="${d.e.auto}" title="Automatik ${d.e.auto ? 'ausschalten' : 'einschalten'}"><span class="mini-sw"><i></i></span>Automatik</button>
+        <button class="chip-status ${d.e.auto ? 'amber' : ''}" data-act="sheet" data-s="heizplan" title="Heizplan anzeigen">${esc(this.statusText())} <span class="pfeil">›</span></button>
+        ${W.length ? `<button class="glas-panel chip warn-chip ${st ? 'rot' : 'gelb'}" data-act="sheet" data-s="warnungen">⚠ ${W.length === 1 ? `${esc(this.bName(W[0].b))}: ${esc(W[0].titel)}`
+          : [st ? `${st} ${st === 1 ? 'Störung' : 'Störungen'}` : '', hi ? `${hi} ${hi === 1 ? 'Hinweis' : 'Hinweise'}` : ''].filter(Boolean).join(' · ')}</button>` : ''}
+        <span class="chip-leise">${an} von ${alle} Geräten an</span>
+      </div>
+      <div class="glas-raster">${B.map((b, i) => `<div class="glas-panel glas-k ${b.z}" role="button" tabindex="0" data-act="container" data-id="${b.id}" style="animation-delay:${i * 60}ms;--c:${FARBE[b.z]}">
+        <div class="glas-illu">${illu(b)}</div>
+        <div class="glas-name">${esc(b.name)}</div>${this.firma(b.firma).eigen ? '' : `<div class="firma-tag">${esc(this.firma(b.firma).name)}</div>`}${b.tuer && b.tuer.offen ? `<div class="tuer-tag">🚪 offen ${b.tuer.offen} min</div>` : ''}
+        <div class="glas-zeile"><span class="glas-wert">${wertHtml(b)}</span><span class="glas-kwk">${de(kwVon(b))} kW</span></div>
+        <div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b))}</div>
+        <div class="glas-geraete">${b.geraete.map(g => `<i class="${g.an ? 'an' : ''}"></i>`).join('')}<span>${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'}</span></div>
+        ${b.bedarf ? `<button class="bedarf-knopf ${b.bedarfBis ? 'an' : ''}" data-act="${b.bedarfBis ? 'bedarf-aus' : 'bedarf-auf'}" data-id="${b.id}">${b.bedarfBis ? `■ bis ${b.bedarfBis}` : '▶ jetzt heizen'}</button>` : ''}</div>`).join('')}
+        <button class="glas-panel glas-k neu" data-act="sheet" data-s="container-neu"><span>+</span>Container</button></div>`;
   }
 
-  _ereignisse(b) {
-    const probleme = b.geraete.map(g => [this.E(b, 'problem', g.id), g]).filter(p => p[0]);
-    const ids = [this.E(b, 'status'), this.E(b, 'erreichbar'), this.E(b, 'automatik'), ...probleme.map(p => p[0])].filter(Boolean);
-    const start = new Date(Date.now() - 30 * 86400000);
-    const liste = this._holen(`lb:${b.baustelle.entry_id}`, () => this._hass.callWS({ type: 'logbook/get_events', start_time: start.toISOString(), entity_ids: ids }), 120000);
-    if (liste === undefined) return '<div class="muted">Lädt …</div>';
-    const text = e => {
-      const p = probleme.find(q => q[0] === e.entity_id);
-      if (p) return e.state === 'on' ? `⚠ ${p[1].name}: Problem` : `✓ ${p[1].name}: wieder in Ordnung`;
-      if (e.entity_id === this.E(b, 'erreichbar')) return e.state === 'off' ? '⚠ Baustelle nicht erreichbar' : '✓ Baustelle wieder erreichbar';
-      if (e.entity_id === this.E(b, 'automatik')) return e.state === 'on' ? 'Automatik eingeschaltet' : 'Automatik ausgeschaltet';
-      if (e.entity_id === this.E(b, 'status')) return `Status: ${STATUS[e.state] || e.state}`;
-      return null;
-    };
-    const zeilen = (liste || []).map(e => [e.when, text(e)]).filter(z => z[1]).reverse().slice(0, 40);
-    if (!zeilen.length) return '<div class="muted">Keine Ereignisse.</div>';
-    return `<div class="rows">${zeilen.map(([w, t]) => this.zeile('', esc(t), new Date(w * 1000).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }), '')).join('')}</div>`;
+  /* ---- Container ---- */
+  v_container() {
+    const d = this.d, b = this.b, tl = this.zeitleiste(b), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG);
+    const tabs = b.pumpe ? [['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']] : [['temp', 'Temperatur'], ['verbrauch', 'Verbrauch'], ['heizzeit', 'Heizzeit']];
+    if (!tabs.some(t => t[0] === this.s.chart)) this.s.chart = tabs[0][0];
+    const c = this.s.chart, mitVb = this.s.tempVb !== false;
+    const kwh7 = this.verbrauch(d, b.id, 'Woche'), h7 = this.heizStunden(d, b, 'Woche'), zyk7 = b.pumpe ? this.zyklen(d, b, 'Woche') : null;
+    let chart;
+    if (c === 'temp') {
+      if (!b.fuehler) chart = '<div class="leer">Kein Temperaturfühler zugeordnet · <button class="link" data-act="sheet" data-s="bereich">zuordnen</button></div>';
+      else { const st = this.statistik('Tag');
+        if (!st) chart = LAEDT;
+        else { const inn = [...(st.werte[b.fuehler] || []), null], aussen = [...(st.werte[this.eid(d, d.entry, 'aussen')] || []), null];
+          chart = linie(`t-${b.id}-${mitVb ? 'vb' : ''}`, [{ name: 'Innen', v: inn }, { name: 'Außen', v: aussen }], '°C', mitVb ? this.verbrauch(d, b.id, 'Tag') : null); } }
+    } else if (c === 'verbrauch') chart = kwh7 ? balken('v-' + b.id, kwh7, TAGE, 'kWh') : LAEDT;
+    else if (c === 'zyklen') chart = zyk7 ? balken('z-' + b.id, zyk7, TAGE, 'Zyklen', 0) : LAEDT;
+    else chart = h7 ? balken('h-' + b.id, h7, TAGE, 'h') : LAEDT;
+    let kennz;
+    if (b.pumpe) { this.mess = this.messung(); const pz = h7 ? h7[heuteNr] : null;
+      const laengster = this.mess ? Math.max(0, ...b.geraete.flatMap(g => { const t = this.mess[g.id]; return t ? t[heuteNr].an.map(q => q[1] - q[0]) : []; })) : null;
+      kennz = [['Zyklen heute', zyk7 ? zyk7[heuteNr] : '–'], ['Laufzeit', stdMin(pz)], ['Längster Lauf', zahl(laengster) ? `${Math.round(laengster)} min` : '–']];
+    } else kennz = [['kWh heute', kwh7 ? de(kwh7[heuteNr]) : '–'], ['Kosten', kwh7 ? `${de(kwh7[heuteNr] * d.e.preis, 2)} €` : '–'], ['Heizzeit', h7 ? `${de(h7[heuteNr])} h` : '–']];
+    b.zyklen = zyk7 ? zyk7[heuteNr] : null;
+    const soll = b.soll ?? d.e.soll;
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
+        <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
+      <div class="glas-panel c-held ${b.z}" style="--c:${FARBE[b.z]}">
+        <div class="c-illu">${illu(b)}</div>
+        <div class="c-text"><div class="glas-klein">${b.pumpe ? 'PUMPENSCHACHT' : 'CONTAINER'}</div><div class="glas-titel">${esc(b.name)}</div>
+          <div class="c-wert">${wertHtml(b)}</div><div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b))}</div>
+          <div class="c-kw">⚡ ${de(kwVon(b))} kW jetzt</div></div>
+      </div>
+      <button class="glas-panel kennz kennz-knopf" data-act="sheet" data-s="verbrauch" data-id="${b.id}">${kennz.map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}<span class="kennz-mehr">Verbrauch ›</span></button>
+      <div class="glas-panel block"><div class="seg">${tabs.map(([k, t]) => `<button data-act="chart" data-c="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
+        ${c === 'temp' && b.fuehler ? `<div class="chart-optionen"><button class="chip auto-chip ${mitVb ? 'on' : ''}" data-act="temp-vb"><span class="mini-sw"><i></i></span>Verbrauch einblenden</button></div>` : ''}
+        <div class="chart-wrap">${chart}</div></div>
+      ${b.bedarf ? this.bedarfBlock(b) : ''}
+      ${b.pumpe || b.bedarf ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Vorheizen · Arbeitszeit · Nachheizen · Kleidung trocknen</span></div>${tl}
+        <div class="regelung">${b.fuehler ? `<b>🌡 Mit Fühler</b><span>regelt in der Arbeitszeit auf ${de(soll)} °C (jetzt ${b.t !== null ? de(b.t) + ' °C' : '–'})</span>`
+          : `<b>Ohne Fühler</b><span>Heizung bleibt in der Arbeitszeit an, der Thermostat am Heizkörper regelt</span>`}</div></div>`}
+      <div class="glas-panel liste">
+        ${b.tuer ? `<div class="zeile"><div><b>🚪 ${esc(b.tuer.sensor)}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min – Heizung pausiert nach ${d.e.tuer_pause} min, Meldung nach ${d.e.tuer_melden} min` : 'zu'}</div></div><span class="tuer-z ${b.tuer.offen ? 'offen' : ''}">${b.tuer.offen ? 'offen' : 'zu'}</span></div>` : ''}
+        ${b.pumpe ? '' : `<div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">${b.boost ? `läuft – alle Heizkörper an, ${b.fuehler ? `bis ${de(soll)} °C` : `noch ${this.minBis(b.boostBis) ?? d.e.boost_min} min`}` : `alle Heizkörper zugleich, Vorrang in der Staffelung`}</div></div>
+          <button class="chip glas-panel ${b.boost ? 'amber' : ''}" data-act="boost" data-id="${b.id}">${b.boost ? 'Beenden' : 'Start'}</button></div>`}
+        <div class="zeile"><span>♨ Automatik für ${b.pumpe ? 'diesen Schacht' : 'diesen Container'}</span>${schalter(b.auto, 'b-auto')}</div>
+        ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
+      </div>
+      <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
+        ${b.geraete.length ? '' : '<div class="leise">Noch kein Gerät</div>'}
+        ${b.geraete.map((g, i) => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">${g.typ === 'Pumpe' ? '💧' : g.typ === 'Steckdose' || g.typ === 'Bautrockner' ? '⏻' : '♨'}</span>
+          <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${g.hand ? ' · <em class="hand">Hand</em>' : ''}${g.warte ? ` · <em class="warte">wartet – ${esc((WARTE[g.warte.grund] || WARTE.anschluss_voll)(this.anschluss(b.anschluss).name))}${zahl(g.warte.dran_in_min) ? `, dran in ${g.warte.dran_in_min} min` : ''}</em>` : ''}${b.z === 'pause' && g.heizer ? ' · <em class="warte">pausiert – Tür offen</em>' : ''}</span></div>
+          ${b.offline || !g.erreichbar ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}
+        <button class="zeile" data-act="sheet" data-s="bereich"><span class="blau">Geräte bearbeiten</span><span class="chev">›</span></button></div>
+      ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter ${de(d.e.trocken_w, 0)} W beim Laufen)</span><span class="ok">${d.e.m_trocken ? '● überwacht' : '○ aus'}</span></div>
+        <div class="zeile"><span>Dauerlauf über ${d.e.dauer_min} min</span><span class="ok">${d.e.m_dauer ? '● überwacht' : '○ aus'}</span></div>
+        <div class="zeile"><span>Stromausfall / offline</span><span class="ok">${d.e.m_offline ? '● überwacht' : '○ aus'}</span></div></div>` : ''}`;
+  }
+  minBis(iso) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((ms - this.jetztMs()) / 60000)) : null; }
+  zeitleiste(b) {
+    const seg = this.heizzeiten(b, this.z.HEUTE_TAG), p = this.planTag(this.z.HEUTE_TAG);
+    const gruende = p ? p.gruende.filter((_, k) => b.trocknen || !['trocknen', 'frueher_nach_regen'].includes(p.codes[k])) : [];
+    return `<div class="tl">${this.zeitstrahlSeg(seg, true)}<div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div></div>
+      ${p ? `<div class="leise">Arbeitszeit ${uhr(p.a)}–${uhr(p.b)}${seg.length ? ` · heizt ${uhr(seg[0][0])}–${uhr(Math.max(...seg.map(q => q[1])))}` : b.auto ? '' : ' · Automatik aus'}${gruende.length ? ' · ' + gruende.map(esc).join(' · ') : ''}</div>`
+        : `<div class="leise">${this.freiText(this.z.HEUTE)}</div>`}`;
   }
 
-  /* ---------------------------------------------------------------- Einstellungen */
-  vEinstellungen(b) {
-    const SUBS = [['baustellen', 'Baustellen'], ['diese', 'Container & Shellys'], ['wetter', 'Wetter'], ['urlaub', 'Urlaub & Feiertage'], ['meldungen', 'Meldungen']];
-    const o = b.baustelle.optionen;
-    const f = this.ui.form || {};
-    const knopf = (text, act, extra = '', klasse = 'btn flat small') => `<span class="${klasse}" data-act="${act}" ${extra}>${text}</span>`;
-    const formular = (felder, speichern, text = 'Speichern') => `<div class="form">${felder}<div class="act">${knopf('Abbrechen', 'abbrechen', '', 'btn flat')}${knopf(text, speichern, '', 'btn')}</div></div>`;
-    let inhalt = '';
-    if (this.ui.sub === 'baustellen') {
-      inhalt = `<div class="sec span2"><div class="heading">Baustellen</div><div class="card"><div class="rows">
-        ${this.baustellen.map(x => { const id = x.baustelle.entry_id, xo = x.baustelle.optionen, ab = xo.status === 'abgeschlossen';
-          return `<div class="r"><span class="ic">🏗</span><div class="l">${esc(x.baustelle.titel)}
-            <span class="chip ${ab ? 'grey' : 'gruen'}">${ab ? 'abgeschlossen' : 'aktiv'}</span>${x === b ? '<span class="chip">angezeigt</span>' : ''}
-            <small>${esc(xo.beginn || '')}${ab ? ' – ' + esc(xo.ende || '') : ''} · ${x.bereiche.length} Bereiche · ${x.geraete.length} Shellys</small></div>
-            ${!ab && x !== b ? `<span class="btn flat small" data-ui="bid" data-wert="${id}">anzeigen</span>` : ''}${knopf('Status & Optionen', 'optionen', `data-id="${id}"`)}</div>
-            ${f.art === 'optionen' && f.id === id ? formular(`
-              <label>Status<select class="inp wide" data-f="status"><option value="aktiv" ${!ab ? 'selected' : ''}>aktiv</option><option value="abgeschlossen" ${ab ? 'selected' : ''}>abgeschlossen – Shellys frei, Zahlen bleiben</option></select></label>
-              <label>Beginn<input class="inp wide" type="date" data-f="beginn" value="${esc(xo.beginn || '')}"></label>
-              <label>Ende (nur abgeschlossen)<input class="inp wide" type="date" data-f="ende" value="${esc(xo.ende || '')}"></label>
-              <label><span><input type="checkbox" data-f="heizung" ${xo.heizung ? 'checked' : ''}> Funktion Heizung</span></label>
-              <label><span><input type="checkbox" data-f="pumpen" ${xo.pumpen ? 'checked' : ''}> Funktion Pumpenüberwachung</span></label>
-              <label>Heizperiode von<select class="inp wide" data-f="heizperiode_von">${MON.map((m, i) => `<option value="${i + 1}" ${String(xo.heizperiode_von) === String(i + 1) ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
-              <label>Heizperiode bis<select class="inp wide" data-f="heizperiode_bis">${MON.map((m, i) => `<option value="${i + 1}" ${String(xo.heizperiode_bis) === String(i + 1) ? 'selected' : ''}>${m}</option>`).join('')}</select></label>`, 'optionen-speichern') : ''}`; }).join('')}
-        </div>${f.art === 'neu' ? formular(`
-          <label>Name<input class="inp wide" data-f="name" placeholder="z. B. Wohnanlage Ost"></label>
-          <label>Beginn<input class="inp wide" type="date" data-f="beginn" value="${isoTag(new Date())}"></label>
-          <label><span><input type="checkbox" data-f="heizung" checked> Funktion Heizung</span></label>
-          <label><span><input type="checkbox" data-f="pumpen"> Funktion Pumpenüberwachung</span></label>`, 'baustelle-anlegen', 'Anlegen')
-          : `<div style="margin-top:8px">${knopf('+ Baustelle anlegen', 'neu', '', 'btn')}</div>`}</div></div>
-        <div class="sec"><div class="heading">Status</div><div class="card klein"><b>Aktiv:</b> Automatik, Meldungen und Zähler laufen.<br><br>
-          <b>Abgeschlossen:</b> nichts wird mehr geschaltet, Shellys werden frei für die nächste Baustelle, alle Zahlen bleiben im Verlauf.<br><br>
-          Löschen einer Baustelle nur in den ${this.link('Einstellungen der Integration', INTEGRATION)} – die Langzeitstatistik bleibt dabei erhalten.</div></div>`;
-    }
-    if (this.ui.sub === 'diese') {
-      const fuehler = this._entitaeten(s => (s.entity_id.startsWith('sensor.') && s.attributes.device_class === 'temperature') || s.entity_id.startsWith('climate.'));
-      const eigene = new Set(this.baustellen.flatMap(x => Object.values(x.entitaeten)));
-      const schalter = this._entitaeten(s => s.entity_id.startsWith('switch.') && !eigene.has(s.entity_id));
-      const bereichFelder = x => `<label>Name<input class="inp wide" data-f="name" value="${esc(x ? x.name : '')}" placeholder="z. B. Container 2 · Mannschaft"></label>
-        ${x ? '' : `<label>Art<select class="inp wide" data-f="art"><option value="container">Container</option><option value="pumpenschacht">Pumpenschacht</option></select></label>`}
-        <label>Thermostat / Temperaturfühler (ohne: kein Thermostat-Modus, kein Frostschutz)<select class="inp wide" data-f="fuehler">${this._optionen(fuehler, x && x.fuehler, true)}</select></label>`;
-      const geraetFelder = g => `<label>Container / Bereich<select class="inp wide" data-f="bereich">${b.bereiche.map(x => `<option value="${x.id}" ${g ? (g.bereich === x.id ? 'selected' : '') : (f.bereich === x.id ? 'selected' : '')}>${esc(x.name)}</option>`).join('')}</select></label>
-        <label>Shelly – das, was geschaltet wird<select class="inp wide" data-f="schalter">${this._optionen(g ? [[g.schalter, this.S(g.schalter)?.attributes.friendly_name || g.schalter], ...schalter.filter(([e]) => e !== g.schalter)] : schalter, g && g.schalter)}</select></label>
-        <label>Bezeichnung<input class="inp wide" data-f="name" value="${esc(g ? g.name : '')}" placeholder="z. B. Heizkörper 3"></label>
-        <label>Was hängt dran<select class="inp wide" data-f="rolle">${Object.entries(ROLLE).map(([k, l]) => `<option value="${k}" ${(g ? g.rolle : 'heizkoerper') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-        <label>Heizkörper-Typ – nur für den Vergleich<select class="inp wide" data-f="typ">${Object.entries(TYP).map(([k, l]) => `<option value="${k}" ${(g ? g.typ : 'konvektor') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
-      inhalt = `<div class="sec span2"><div class="heading">„${esc(b.baustelle.titel)}“ – Container und Shellys</div>
-        ${b.bereiche.map(x => `<div class="card"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1">${x.art === 'pumpenschacht' ? '💧' : '🏠'} ${esc(x.name)}
-            <span class="muted klein">${x.fuehler ? 'Fühler: ' + esc(this.S(x.fuehler)?.attributes.friendly_name || x.fuehler) : 'kein Fühler'}</span></b>
-            ${knopf('ändern', 'bereich-aendern', `data-id="${x.id}"`)}${knopf('entfernen', 'bereich-loeschen', `data-id="${x.id}"`, 'btn flat small rot')}</div>
-          ${f.art === 'bereich' && f.id === x.id ? formular(bereichFelder(x), 'bereich-speichern') : ''}
-          ${f.art === 'bereich-loeschen' && f.id === x.id ? formular(`<b>„${esc(x.name)}“ entfernen?</b> Die zugeordneten Shellys bleiben als Einträge ohne Bereich – entferne sie vorher. Die Zahlen bleiben im Verlauf.`, 'bereich-entfernen', 'Entfernen') : ''}
-          <div class="rows">${b.geraete.filter(g => g.bereich === x.id).map(g => `${this.zeile('🔌', `${esc(this.S(g.schalter)?.attributes.friendly_name || g.schalter)} → ${esc(g.name)}`,
-            `${esc(g.schalter)} · schaltet: ${ROLLE[g.rolle]}${g.rolle === 'heizkoerper' ? ' · Typ (Vergleich): ' + TYP[g.typ] : ''}`,
-            knopf('ändern', 'geraet-aendern', `data-id="${g.id}"`) + knopf('✕', 'geraet-loeschen', `data-id="${g.id}"`, 'btn flat small rot'))}
-            ${f.art === 'geraet' && f.id === g.id ? formular(geraetFelder(g), 'geraet-speichern') : ''}
-            ${f.art === 'geraet-loeschen' && f.id === g.id ? formular(`<b>„${esc(g.name)}“ entfernen?</b> Der Shelly wird frei; die Zahlen bleiben.`, 'geraet-entfernen', 'Entfernen') : ''}`).join('') || '<div class="muted">kein Shelly</div>'}</div>
-          <div style="margin-top:6px">${knopf('+ Shelly', 'geraet-neu', `data-bereich="${x.id}"`)}</div>
-          ${f.art === 'geraet' && !f.id && f.bereich === x.id ? formular(geraetFelder(null), 'geraet-speichern', 'Hinzufügen') : ''}</div>`).join('')}
-        ${f.art === 'bereich' && !f.id ? formular(bereichFelder(null), 'bereich-speichern', 'Anlegen') : `<div>${knopf('+ Container / Pumpenschacht', 'bereich-neu', '', 'btn')}</div>`}</div>
-        <div class="sec"><div class="heading">So funktioniert es</div><div class="card klein">Jede Zeile ist ein Shelly: das, was geschaltet wird.
-          Ein Shelly gehört immer nur einer aktiven Baustelle. Leistung und Energie findet die Integration am Shelly selbst.<br><br>
-          Heizkörper in Containern, Pumpen in Pumpenschächten. Ohne Fühler heizt der Container nach Zeitplan, der Heizkörper regelt selbst.</div></div>`;
-    }
-    if (this.ui.sub === 'wetter') {
-      const z = (label, eid, einheit) => this.zeile('📡', label, eid ? esc(this.S(eid)?.attributes.friendly_name || eid) : 'nicht gewählt', eid ? `<span class="v">${esc(this.V(eid) ?? '–')} ${einheit}</span>` : '');
-      const wetter = this._entitaeten(s => s.entity_id.startsWith('weather.'));
-      const temp = this._entitaeten(s => s.entity_id.startsWith('sensor.') && s.attributes.device_class === 'temperature');
-      const regen = this._entitaeten(s => s.entity_id.startsWith('sensor.') && s.attributes.device_class === 'precipitation');
-      inhalt = `<div class="sec span2"><div class="heading">Wetter für „${esc(b.baustelle.titel)}“</div><div class="card"><div class="rows">
-        ${z('Wetter (Vorhersage)', o.wetter, '')}${z('Außentemperatur (Wetterstation)', o.temp_sensor, '°C')}${z('Regen letzte 24 h (Wetterstation)', o.regen_sensor, 'mm')}
-        ${this.zeile('🧮', 'Damit rechnet die Heizung', '', `<span class="v">außen ${de(this.N(this.E(b, 'aussen')))} °C · Regen ${de(this.N(this.E(b, 'regen')))} mm · Früh ${de(this.N(this.E(b, 'frueh_prognose')))} °C</span>`)}</div>
-        ${f.art === 'wetter' ? formular(`<label>Wetter (Vorhersage)<select class="inp wide" data-f="wetter">${this._optionen(wetter, o.wetter, true)}</select></label>
-            <label>Außentemperatur (Wetterstation, optional)<select class="inp wide" data-f="temp_sensor">${this._optionen(temp, o.temp_sensor, true)}</select></label>
-            <label>Regen letzte 24 h (Wetterstation, optional)<select class="inp wide" data-f="regen_sensor">${this._optionen(regen, o.regen_sensor, true)}</select></label>`, 'wetter-speichern')
-          : `<div style="margin-top:8px">${knopf('Wetter wählen', 'wetter', '', 'btn small')}</div>`}</div></div>
-        <div class="sec"><div class="heading">Bewährte Quellen</div><div class="card klein"><b>Open-Meteo</b> über eine Zone der Baustelle (eingebaut) – Vorhersage.
-          Zuerst unter Einstellungen → Bereiche & Zonen eine Zone anlegen, dann Open-Meteo hinzufügen.<br><br>
-          <b>Wetterstation</b> (z. B. Ecowitt) – gemessene Temperatur und Regen, genauer für „Kleidung trocknen“.<br><br>
-          ${this.link('Open-Meteo hinzufügen', '/config/integrations/dashboard/add?domain=open_meteo')}</div></div>`;
-    }
-    if (this.ui.sub === 'urlaub') {
-      const feiertage = (this._kalender(o.feiertag_kalender) || []).slice(0, 6);
-      const urlaub = this._kalender(o.urlaub_kalender) || [];
-      const kalender = this._entitaeten(s => s.entity_id.startsWith('calendar.'));
-      const datum = e => (e.start.date || e.start.dateTime || '').slice(0, 10);
-      const bis = e => { const d = new Date((e.end.date || e.end.dateTime || '').slice(0, 10)); if (e.end.date) d.setDate(d.getDate() - 1); return isoTag(d); };
-      inhalt = `<div class="sec"><div class="heading">Feiertage</div><div class="card"><div class="rows">
-        ${o.feiertag_kalender ? (feiertage.map(e => this.zeile('🎌', esc(e.summary), datum(e), '')).join('') || '<div class="muted">Lädt …</div>') : '<div class="muted">Kein Feiertags-Kalender gewählt (Integration „Feiertage“).</div>'}</div>
-        ${f.art === 'kalender' ? formular(`<label>Feiertage (Kalender der Integration „Feiertage“)<select class="inp wide" data-f="feiertag_kalender">${this._optionen(kalender, o.feiertag_kalender, true)}</select></label>
-            <label>Urlaub / Betriebsruhe (Lokaler Kalender)<select class="inp wide" data-f="urlaub_kalender">${this._optionen(kalender, o.urlaub_kalender, true)}</select></label>`, 'kalender-speichern')
-          : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${knopf('Kalender wählen', 'kalender', '', 'btn small')}${this.link('Feiertage hinzufügen', '/config/integrations/dashboard/add?domain=holiday')}${this.link('Lokalen Kalender hinzufügen', '/config/integrations/dashboard/add?domain=local_calendar')}</div>`}</div>
-        <div class="heading">Verhalten im Urlaub / an Feiertagen</div><div class="card"><div class="rows">
-        ${this.zeile('♨', 'Heizung', 'Pumpen werden weiter überwacht', this.auswahl(this.E(b, 'urlaub_modus')))}${this.zeile('🌡', 'Absenken auf', '', this.zahl(this.E(b, 'absenk_temp')))}</div></div></div>
-        <div class="sec span2"><div class="heading">Urlaub / Betriebsruhe</div><div class="card">
-        ${o.urlaub_kalender ? `<div class="rows">${urlaub.map(e => this.zeile('🏖', esc(e.summary), `${datum(e)} – ${bis(e)}`,
-          e.uid ? `<span class="btn flat small rot" data-act="urlaub-loeschen" data-uid="${esc(e.uid)}">✕</span>` : '')).join('') || '<div class="muted">Kein Zeitraum eingetragen.</div>'}</div>
-          ${f.art === 'urlaub' ? formular(`<label>Bezeichnung<input class="inp wide" data-f="name" value="Urlaub"></label>
-            <label>Von<input class="inp wide" type="date" data-f="von" value="${isoTag(new Date())}"></label><label>Bis<input class="inp wide" type="date" data-f="bis" value="${isoTag(new Date(Date.now() + 6 * 86400000))}"></label>`, 'urlaub-speichern', 'Eintragen')
-          : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${knopf('+ Zeitraum', 'urlaub-neu', '', 'btn small')}${knopf('Weihnachten (23.12.–06.01.)', 'urlaub-weihnachten')}</div>`}`
-          : '<div class="muted">Kein Urlaubs-Kalender gewählt. Lege einen „Lokalen Kalender“ an (z. B. „Baustelle Urlaub“) und wähle ihn links unter „Kalender wählen“ aus.</div>'}
-        </div></div>`;
-    }
-    if (this.ui.sub === 'meldungen') {
-      const dienste = Object.keys((this._hass.services || {}).notify || {}).filter(d => d !== 'send_message').sort();
-      const gewaehlt = Array.isArray(o.empfaenger) ? o.empfaenger : [];
-      inhalt = `<div class="sec span2"><div class="heading">Meldungen an</div><div class="card">
-        ${dienste.length ? `<div class="rows">${dienste.map(d => this.zeile('📱', esc(d.replace('mobile_app_', '')), 'notify.' + esc(d),
-          `<input type="checkbox" data-f="empf" value="${esc(d)}" ${gewaehlt.includes(d) ? 'checked' : ''}>`)).join('')}</div>
-          <div style="display:flex;gap:8px;margin-top:8px">${knopf('Speichern', 'meldungen-speichern', '', 'btn small')}<span class="btn flat small" data-press="${this.E(b, 'test_meldung')}">Test-Meldung senden</span></div>`
-          : '<div class="muted">Keine Benachrichtigungsdienste gefunden. Installiere die Companion App am Handy und melde dich an – dann erscheint dein Handy hier.</div>'}</div></div>
-        <div class="sec"><div class="heading">Wann gemeldet wird</div><div class="card klein">Bei aktiver Pumpenüberwachung: Pumpe offline, Trockenlauf, Dauerlauf und
-          „Baustelle nicht erreichbar“ (Stromausfall oder Internet weg). Die Grenzwerte stellst du im Tab „Pumpen“ ein.</div></div>`;
-    }
-    return `<div class="sections"><div class="sec span3">
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${SUBS.map(([k, l]) => `<span class="btn small ${this.ui.sub === k ? '' : 'flat'}" data-ui="sub" data-wert="${k}">${l}</span>`).join('')}</div></div>${inhalt}</div>`;
+  /* ---- Heizung ---- */
+  stepper(k, d, fmt) { const e = this.d.e; return `<span class="stepper"><button data-act="st" data-k="${k}" data-d="${-d}">−</button><b>${fmt(e[k])}</b><button data-act="st" data-k="${k}" data-d="${d}">+</button></span>`; }
+  feiertage() { const k = this._kalender(this.d.optionen.feiertag_kalender); return k === null ? null : k.filter(f => f.von > this.z.HEUTE).sort((a, b) => a.von.localeCompare(b.von)); }
+  urlaube() { const k = this._kalender(this.d.optionen.urlaub_kalender); return k === null ? null : k.filter(u => u.bis >= this.z.HEUTE).sort((a, b) => a.von.localeCompare(b.von)); }
+  v_heizung() {
+    const d = this.d, e = d.e, st = (k, s, fmt) => this.stepper(k, s, fmt);
+    const grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, mm = v => `${de(v, 1)} mm`;
+    const p = this.planTag(this.z.HEUTE_TAG), az = this.azJetzt, hg = d.heizgrenze || {}, w = d.wetter || {};
+    const bezug = zahl(hg.bezug) ? hg.bezug : e.basis === 'jetzt' ? w.aussen : w.aussen_max;
+    const ft = this.feiertage(), naechster = ft && ft[0];
+    const morgen = plusTage(this.z.HEUTE, 1), wm = this.wetterTag(morgen), pm = this.d.plan[morgen];
+    const regel = (ic, titel, text, an) => `<div class="hr-zeile ${an ? 'an' : ''}"><span class="hr-ic">${ic}</span><div><b>${titel}</b><div class="leise">${text}</div></div><span class="hr-an">${an ? '●' : '○'}</span></div>`;
+    const C = d.bereiche.filter(b => !b.pumpe), ur = this.urlaube();
+    const frei = { urlaub: ['Urlaub', 'heute nur Frostschutz'], feiertag: ['Feiertag', 'heute nur Frostschutz'] }[d.status];
+    const urlaubsKal = d.optionen.urlaub_kalender, feiertagsKal = d.optionen.feiertag_kalender;
+    return `${this.kopf('Heizung', esc(d.titel), `<div>${schalter(e.auto, 'auto')}</div>`)}
+      <div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">welche Regeln greifen</span></div>
+        ${regel('🕖', `Arbeitszeit ${p ? `${uhr(p.a)}–${uhr(p.b)}` : 'frei'}`, `${az ? `„${esc(az.name)}“` : 'keine Arbeitszeit'} · heizt ${p ? `${uhr(p.extra)}–${uhr(p.ende)}` : 'nicht'}`, !!p)}
+        ${regel('🌡', `Heizgrenze ${de(e.grenze, 0)} °C`, zahl(bezug) ? `${e.basis === 'jetzt' ? 'jetzt' : 'Höchstwert heute'} ${de(bezug, 0)} °C → ${hg.zu_warm ?? bezug > e.grenze ? 'zu warm, es wird nicht geheizt' : 'es wird geheizt'}` : 'kein Wert vom Wetter', !(hg.zu_warm ?? (zahl(bezug) && bezug > e.grenze)))}
+        ${regel('🌧', 'Kleidung trocknen', zahl(w.regen_heute) ? `${de(w.regen_heute, w.regen_heute % 1 ? 1 : 0)} mm Regen seit gestern (ab ${de(e.tr_mm)} mm) → ${w.regen_heute >= e.tr_mm ? `${e.tr_laenger} min länger, bis ${p ? uhr(p.ende) : '–'}` : 'nicht nötig'}` : 'kein Regenwert vom Wetter', zahl(w.regen_heute) && w.regen_heute >= e.tr_mm)}
+        ${regel('❄', 'Kälte-Frühstart morgen', zahl(wm.kalt) ? `${de(wm.kalt).replace('-', '−')} °C erwartet (unter ${de(e.frueh_temp, 0)} °C) → ${wm.kalt < e.frueh_temp ? `${e.frueh_min} min früher` : 'nicht nötig'}${pm && (pm.gruende || []).includes('frueher_nach_regen') ? `, dazu ${e.tr_frueher} min nach Regen` : ''}` : 'noch keine Vorhersage für morgen', e.fruehstart && zahl(wm.kalt) && wm.kalt < e.frueh_temp)}
+        ${e.staffel ? (() => { const L = this.last(); return regel('⚡', `Staffelung: ${L.laufen} von ${L.hk.length} Heizkörpern`, `${L.warten ? `${L.warten} wartet, weil ein Anschluss ausgelastet ist` : 'alle haben Platz'} · höchstens ${e.max_gleich} gleichzeitig · Vorheizen startet 15 min früher, damit alle warm werden`, true); })() : ''}
+        ${frei ? regel('🏖', frei[0], frei[1], true) : regel('🏖', 'Kein Urlaub, kein Feiertag', naechster ? `nächster Feiertag ${wtag(naechster.von)} ${kurzDatum(naechster.von)} ${esc(naechster.name)}` : feiertagsKal ? (ft === null ? 'Feiertage laden …' : 'kein Feiertag im Kalender') : 'kein Feiertagskalender gewählt', false)}</div>
+      ${this.uebersichtHeizzeiten()}
+      <div class="glas-panel block"><div class="block-kopf"><b>Heizplan · diese Woche</b><span class="leise">aus Arbeitszeit und Wetter</span></div>${this.heizplanInhalt()}</div>
+      ${this.azBlock()}
+      ${this.ausnahmenBlock()}
+      <div class="glas-panel block"><div class="block-kopf"><b>So wird geheizt</b><span class="leise">in der Arbeitszeit immer</span></div>
+        <div class="zeile"><div><b>Vorheizen</b><div class="leise">vor Arbeitsbeginn, damit es warm ist</div></div>${st('vorheizen', 5, min)}</div>
+        <div class="zeile"><div><b>Nachheizen</b><div class="leise">nach Arbeitsende, jeden Tag</div></div>${st('nachheizen', 5, min)}</div>
+        <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">alle Heizkörper eines Containers zugleich, Vorrang in der Staffelung – bis zum Soll, ohne Fühler für</div></div>${st('boost_min', 5, min)}</div>
+        <div class="zeile"><div><b>🚪 Tür offen</b><div class="leise">Heizung pausieren nach</div></div>${st('tuer_pause', 1, min)}</div>
+        <div class="zeile unter"><span>Nachricht nach</span>${st('tuer_melden', 5, min)}</div>
+        <div class="zeile"><div><b>🌡 Solltemperatur</b><div class="leise">für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat</div></div>${st('soll', .5, grad)}</div>
+        <div class="zeile"><div><b>Heizgrenze</b><div class="leise">nicht heizen, wenn es wärmer ist</div></div>${st('grenze', .5, grad)}</div>
+        <div class="zeile"><span>Grundlage</span><div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+        <div class="zeile"><div><b>Kälte-Frühstart</b><div class="leise">unter ${de(e.frueh_temp, 0)} °C zusätzlich früher</div></div>${schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"')}</div>
+        ${e.fruehstart ? `<div class="zeile unter"><span>so viel früher</span>${st('frueh_min', 5, min)}</div>` : ''}
+        <div class="zeile"><div><b>Frostschutz</b><div class="leise">hält jeden Container über der Grenze, auch außerhalb der Arbeitszeit</div></div>${schalter(e.frost, 'e-bool', 'data-k="frost"')}</div>
+        ${e.frost ? `<div class="zeile unter"><span>Frostgrenze</span>${st('frost_temp', .5, grad)}</div>` : ''}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen zusätzlich zum Nachheizen</span></div>
+        <div class="zeile"><span>ab Regen (seit gestern)</span>${st('tr_mm', .5, mm)}</div>
+        <div class="zeile"><span>zusätzlich nach dem Nachheizen</span>${st('tr_laenger', 5, min)}</div>
+        <div class="zeile"><span>am nächsten Morgen früher</span>${st('tr_frueher', 5, min)}</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">Automatik · Trocknen · Soll</span></div>
+        ${C.map(b => { const soll = b.soll ?? e.soll;
+          return `<div class="jc"><div class="jc-name"><b>${esc(b.name)}</b><span class="leise">${b.offline ? 'offline' : b.t !== null ? `🌡 ${de(b.t)} °C` : 'ohne Fühler'}</span></div>
+            <div class="jc-ctrl">${b.bedarf ? `<span class="badge">bei Bedarf</span>` : `<span class="jc-l">Auto</span>${schalter(b.auto, 'jc-auto', `data-id="${b.id}"`).replace('class="sw', 'class="sw klein')}`}
+              <span class="jc-l">👕</span>${schalter(b.trocknen, 'tr-b', `data-id="${b.id}"`).replace('class="sw', 'class="sw klein')}
+              ${b.fuehler ? `<span class="stepper klein"><button data-act="jc-soll" data-id="${b.id}" data-d="-0.5">−</button><b class="${b.soll !== undefined ? 'eigen' : ''}">${de(soll)}°</b><button data-act="jc-soll" data-id="${b.id}" data-d="0.5">+</button></span>`
+                : '<span class="leise jc-th">Thermostat</span>'}</div></div>`; }).join('')}
+        <div class="leise">Ein eigener Sollwert (bernstein) gilt nur für diesen Container, sonst gilt ${de(e.soll)} °C.</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Urlaub &amp; Feiertage</b></div>
+        <div class="zeile"><div><b>An Feiertagen nur Frostschutz</b><div class="leise">${feiertagsKal ? `Feiertage aus dem Kalender „${esc(this.name(feiertagsKal))}“` : 'noch kein Feiertagskalender gewählt'}</div></div>${schalter(e.feiertag_frei, 'e-bool', 'data-k="feiertag_frei"')}</div>
+        ${ft === null ? '<div class="leise">Lädt …</div>' : ft.slice(0, 4).map(f => { const t = wtag(f.von), we = t === 'Sa' || t === 'So';
+          return `<div class="zeile unter"><span><b class="ft-d">${t} ${kurzDatum(f.von)}</b> ${esc(f.name)}</span><span class="leise">${we ? 'Wochenende' : 'frei'}</span></div>`; }).join('')}
+        <div class="gruppe-t">Urlaub · ${urlaubsKal ? `Kalender „${esc(this.name(urlaubsKal))}“` : 'kein Kalender gewählt'}</div>
+        ${ur === null ? '<div class="leise">Lädt …</div>' : ur.map((u, i) => `<div class="zeile unter"><span><b>${esc(u.name)}</b> <span class="leise">${kurzDatum(u.von)} – ${datum(u.bis)}</span></span><button class="x" data-act="urlaub-weg" data-i="${i}" title="Urlaub löschen">✕</button></div>`).join('') || '<div class="leise">Kein Urlaub eingetragen</div>'}
+        <button class="zeile" data-act="sheet" data-s="${urlaubsKal ? 'urlaub' : 'wetterquelle'}"><span class="blau">${urlaubsKal ? '+ Urlaub eintragen' : 'Kalender für Urlaub wählen'}</span></button></div>`;
+  }
+  ausnahmenBlock() {
+    const L = this.d.ausnahmen.filter(a => a.datum >= this.z.HEUTE).sort((a, b) => a.datum.localeCompare(b.datum));
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Ausnahmen</b><span class="leise">einmalig – die Arbeitszeit bleibt, wie sie ist</span></div>
+      <div class="bedarf-dauer">${[['heute-laenger', '+ Heute länger'], ['morgen-spaeter', '+ Morgen später'], ['samstag', '+ Samstag arbeiten'], ['frei', '+ Freier Tag']].map(([k, t]) => `<button class="chip glas-panel" data-act="ausn-neu" data-v="${k}">${t}</button>`).join('')}</div>
+      ${L.length ? L.map(a => `<div class="zeile ereignis"><span class="zeit t-wann">${wtag(a.datum)} ${kurzDatum(a.datum)}</span>
+          <div><b>${a.art === 'frei' ? 'frei' : `${a.von}–${a.bis}`}</b> <span class="badge ${a.art === 'frei' ? '' : 'blau-b'}">${AUSNAHME[a.art]}</span>${a.notiz ? `<div class="leise">${esc(a.notiz)}</div>` : ''}</div>
+          <button class="x" data-act="ausn-weg" data-d="${a.datum}" title="Ausnahme löschen">✕</button></div>`).join('') : '<div class="leise">Keine Ausnahmen</div>'}
+      <button class="zeile" data-act="ausn-neu" data-v=""><span class="blau">+ Ausnahme für einen anderen Tag</span></button></div>`;
+  }
+  azBlock() {
+    const L = this.azListe, jetzt = this.azJetzt;
+    if (!jetzt) return `<div class="glas-panel block"><div class="block-kopf"><b>Arbeitszeit</b></div><div class="leise">Noch keine Arbeitszeit – ohne Arbeitszeit läuft nur der Frostschutz.</div>
+      <button class="zeile" data-act="az-neu"><span class="blau">+ Neue Arbeitszeit ab …</span></button></div>`;
+    const geplant = L.filter(a => a.ab > this.z.HEUTE), frueher = L.filter(a => a.ab < jetzt.ab).reverse();
+    const idx = a => this.d.arbeitszeiten.indexOf(a);
+    return `<div class="glas-panel block"><div class="block-kopf"><b>Arbeitszeit</b><span class="badge gruen">${jetzt.ab <= this.z.HEUTE ? 'gilt seit' : 'gilt ab'} ${datum(jetzt.ab)}</span></div>
+      <div class="az-name">${esc(jetzt.name)}</div>
+      ${TAGE.map(t => { const z = jetzt.tage[t]; return `<div class="zeile az ${t === this.z.HEUTE_TAG ? 'heute' : ''}"><b class="tag-n">${t}</b>
+        <span class="fenster">${z ? `<em>${z[0]}–${z[1]}</em>` : '<span class="leise">frei</span>'}</span><span class="leise">${z ? dauer(z[0], z[1]) : ''}</span></div>`; }).join('')}
+      ${geplant.filter(a => a !== jetzt).map(a => `<button class="zeile" data-act="sheet" data-s="az" data-i="${idx(a)}"><span><span class="badge blau-b">geplant</span> ab ${datum(a.ab)} · ${esc(a.name)}</span><span class="chev">›</span></button>`).join('')}
+      ${frueher.length ? `<button class="zeile" data-act="az-alt"><span>Frühere Arbeitszeiten (${frueher.length})</span><span class="chev">${this.s.azAlt ? '⌄' : '›'}</span></button>` : ''}
+      ${this.s.azAlt ? frueher.map(a => `<button class="zeile unter" data-act="sheet" data-s="az" data-i="${idx(a)}"><span>${datum(a.ab)} · ${esc(a.name)}</span><span class="leise">${a.tage.Mo ? a.tage.Mo.join('–') : ''} ›</span></button>`).join('') : ''}
+      <button class="zeile" data-act="az-neu"><span class="blau">+ Neue Arbeitszeit ab …</span></button></div>`;
   }
 
-  _entitaeten(filter) {
-    const eigene = new Set((this.baustellen || []).flatMap(x => Object.values(x.entitaeten)));
-    return Object.values(this._hass.states).filter(s => !eigene.has(s.entity_id) && filter(s))
+  /* ---- Auswertung ---- */
+  /* Tageswerte der letzten Wochen: kWh der Baustelle und Tagesmittel außen (Wetter-Einfluss) */
+  tageswerte(d = this.d) {
+    const bis = plusTage(d.z.HEUTE, 1), von = plusTage(d.z.HEUTE, -45), aussen = this.eid(d, d.entry, 'aussen');
+    const en = d.bereiche.map(b => this.eid(d, b.id, 'energie')).filter(Boolean), ids = [...new Set([...en, aussen].filter(Boolean))].sort();
+    if (!ids.length || !aussen) return [];
+    const roh = this._holen(`t:${d.entry}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(this.zoneMs(von, '00:00', d.z.zone)).toISOString(),
+      end_time: new Date(this.zoneMs(bis, '00:00', d.z.zone)).toISOString(), statistic_ids: ids, period: 'day', types: ['change', 'mean'], units: {} }));
+    if (roh === undefined) return null;
+    const tage = {};
+    for (const id of ids) for (const p of (roh || {})[id] || []) {
+      const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), t = this.lokal(ms, d.z.zone).slice(0, 10);
+      const x = tage[t] ||= { kwh: 0, aussen: null };
+      if (id === aussen) { if (zahl(p.mean)) x.aussen = Number(p.mean); } else if (zahl(p.change)) x.kwh += Number(p.change);
+    }
+    return Object.entries(tage).filter(([t, x]) => t < d.z.HEUTE && x.kwh > .5 && zahl(x.aussen)).sort().slice(-30).map(([, x]) => [x.aussen, x.kwh]);
+  }
+  typVergleich() {
+    const d = this.d, s = k => { const x = this.zustand(this.eid(d, d.entry, k)); return x && zahl(x.state) ? Number(x.state) : null; }, p = d.e.preis;
+    const heiztage = this.verlaufWerte(d).heiztage;
+    const rate = (typ, art) => { const w = d.bereiche.filter(b => b.geraete.some(g => g.heizer && (g.gtyp || 'oelradiator') === typ)).map(b => d.zaehler[`${art}:${b.id}`]).filter(zahl);
+      return w.length ? summe(w) / w.length : null; };
+    return ['oelradiator', 'konvektor'].map(typ => { const en = s(`energie_${typ}`), hz = s(`heizzeit_${typ}`);
+      return { kwhH: en !== null && hz ? en / hz : null, auf: rate(typ, 'aufheiz'), ab: rate(typ, 'abkuehl'), tag: en !== null && heiztage ? en / heiztage * p : null }; });
+  }
+  v_auswertung() {
+    const d = this.d, aw = this.s.aw ||= { zeitraum: 'Monat', auswahl: d.bereiche.map(b => b.id) }, z = aw.zeitraum, preis = d.e.preis;
+    const alle = this.s.awScope === 'alle', lauf = alle ? this.laufende() : [d];
+    const sum = (f, versatz) => { let s = 0; for (const l of lauf) { const w = f(l, versatz); if (!w) return null; s += summe(w); } return s; };
+    const kwhF = (l, v) => this.verbrauch(l, null, z, v);
+    const hzF = (l, v) => { const r = l.bereiche.filter(b => !b.pumpe).map(b => this.heizStunden(l, b, z, v)); return r.some(x => !x) ? null : addieren(r); };
+    const pzF = (l, v) => { const r = l.bereiche.filter(b => b.pumpe).map(b => this.heizStunden(l, b, z, v)); return r.some(x => !x) ? null : r.length ? addieren(r) : [0]; };
+    const ohneF = (l, v) => this.reihe(l, this.eid(l, l.entry, 'energie_ohne_automatik'), z, v);
+    const kwh = sum(kwhF, 0), kwh0 = sum(kwhF, 1), hz = sum(hzF, 0), hz0 = sum(hzF, 1), pz = sum(pzF, 0), pz0 = sum(pzF, 1), ohne = sum(ohneF, 0);
+    const vgl = { Tag: 'gestern', Woche: 'Vorwoche', Monat: 'Vormonat', Jahr: String(this.zeitraum('Jahr', 1).jahr) }[z];
+    const delta = (a, b) => zahl(a) && zahl(b) && b > 0 ? Math.round((a - b) / b * 100) : null;
+    const kz = (wert, text, dl) => `<div><b>${wert}</b><span>${text}</span>${dl !== null ? `<em class="${dl > 0 ? 'mehr' : 'weniger'}">${dl > 0 ? '▲' : '▼'} ${Math.abs(dl)} %</em>` : ''}</div>`;
+    // Wetter-Einfluss: letzte 30 Heiztage, kWh je Tag gegen Tagesmittel außen
+    const pkt = this.tageswerte();
+    let streuHtml;
+    if (pkt === null) streuHtml = LAEDT;
+    else if (pkt.length < 5) streuHtml = '<div class="leer">Noch zu wenige Heiztage für einen Vergleich</div>';
+    else {
+      const mx = summe(pkt.map(q => q[0])) / pkt.length, my = summe(pkt.map(q => q[1])) / pkt.length, nn = summe(pkt.map(q => (q[0] - mx) ** 2));
+      const k = nn ? summe(pkt.map(q => (q[0] - mx) * (q[1] - my))) / nn : 0, d0 = my - k * mx, null0 = k < 0 ? -d0 / k : null;
+      streuHtml = `<div class="chart-wrap">${streu('streu', pkt, k, d0)}</div>
+        <div class="hinweis-k">${k < 0 ? `Je Grad kälter <b>≈ +${de(-k, 1)} kWh</b> am Tag (${de(-k * preis, 2)} €).${zahl(null0) ? ` Ab etwa <b>${de(null0, 0)} °C</b> wird kaum mehr geheizt – ` : ' '}` : 'Noch kein klarer Zusammenhang mit der Außentemperatur. '}die Heizgrenze steht auf ${de(d.e.grenze, 0)} °C.</div>`;
+    }
+    const T = this.typVergleich(), f = (v, fn) => zahl(v) ? fn(v) : '–';
+    // wie Mockup: fett ist der Nachteil (mehr kWh, langsamer aufheizen, schneller abkühlen); Kosten ohne Hervorhebung
+    const nachteil = (i, hoch) => { const a = T[0][i], b = T[1][i]; if (hoch === null || !zahl(a) || !zahl(b) || a === b) return [false, false]; return hoch ? [a > b, b > a] : [a < b, b < a]; };
+    const zeile = (titel, i, hoch, fn) => { const [x, y] = nachteil(i, hoch); return `<tr><td>${titel}</td><td>${x ? '<b>' : ''}${f(T[0][i], fn)}${x ? '</b>' : ''}</td><td>${y ? '<b>' : ''}${f(T[1][i], fn)}${y ? '</b>' : ''}</td></tr>`; };
+    const weniger = zahl(T[0].kwhH) && zahl(T[1].kwhH) && T[1].kwhH > 0 ? Math.round((1 - T[0].kwhH / T[1].kwhH) * 100) : null;
+    const cmp = i => zahl(T[0][i]) && zahl(T[1][i]) && T[0][i] !== T[1][i] ? Math.sign(T[0][i] - T[1][i]) : 0;
+    // Fußsatz aus den Messwerten, gebaut wie im Mockup („braucht länger, hält die Wärme aber besser und verbraucht rund 16 % weniger“)
+    const auf = cmp('auf') < 0 ? 'braucht länger' : cmp('auf') > 0 ? 'heizt schneller auf' : '';
+    const ab = cmp('ab') < 0 ? `hält die Wärme ${auf === 'braucht länger' ? 'aber ' : ''}besser` : cmp('ab') > 0 ? 'kühlt schneller ab' : '';
+    const vb = weniger > 0 ? `verbraucht rund ${weniger} % weniger` : weniger < 0 ? `verbraucht rund ${-weniger} % mehr` : '';
+    const teile = [auf, ab, vb].filter(Boolean), fussSatz = teile.length ? `Der Ölradiator ${teile.length > 1 ? `${teile.slice(0, -1).join(', ')} und ${teile.at(-1)}` : teile[0]}.` : 'Noch zu wenige Messungen für einen Vergleich.';
+    return `${this.kopf('Auswertung', alle ? 'ALLE LAUFENDEN BAUSTELLEN' : esc(d.titel), `<button class="glas-panel chip" data-act="csv">⇩ CSV</button>`)}
+      <div class="seg glas-panel">${[['diese', 'Diese Baustelle'], ['alle', `Alle laufenden (${this.laufende().length})`]].map(([k, t]) => `<button data-act="aw-scope" data-v="${k}" class="${(this.s.awScope || 'diese') === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <div class="glas-panel kennz vier">${kz(zahl(kwh) ? de(kwh, 0) : '–', 'kWh', delta(kwh, kwh0))}${kz(zahl(kwh) ? `${de(kwh * preis, 0)} €` : '–', 'Kosten', delta(kwh, kwh0))}${kz(zahl(hz) ? `${de(hz, 0)} h` : '–', 'Heizzeit', delta(hz, hz0))}${kz(zahl(pz) ? `${de(pz, 1)} h` : '–', 'Pumpzeit', delta(pz, pz0))}</div>
+      <div class="leise vgl">Pfeile: im Vergleich zu ${vgl}</div>
+      <div class="glas-panel block">${this.verbrauchInhalt(aw, 'aw', false)}</div>
+      ${this.abrechnung(z)}
+      <div class="glas-panel block"><div class="block-kopf"><b>Wetter-Einfluss</b><span class="leise">letzte 30 Heiztage · kWh je Tag gegen Außentemperatur</span></div>
+        ${streuHtml}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
+        ${!zahl(ohne) || !zahl(kwh) ? (ohne === null || kwh === null ? LAEDT : '<div class="leer">Noch keine Werte</div>') : ohne <= 0 ? '<div class="leer">Noch keine Werte</div>' : `
+        <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${Math.min(100, kwh / ohne * 100)}%;background:var(--s1)"></i></span><span class="hb-w">${de(kwh * preis, 0)} €</span></div>
+        <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(ohne * preis, 0)} €</span></div>
+        <div class="gespart">gespart <b>${de(Math.max(0, ohne - kwh) * preis, 2)} €</b> · ${de(Math.max(0, 1 - kwh / ohne) * 100, 0)} %</div>`}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
+        <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
+          ${zeile('kWh je Heizstunde', 'kwhH', true, v => de(v, 2))}
+          ${zeile('Aufheizen', 'auf', false, v => `${de(v, 1)} °C/h`)}
+          ${zeile('Abkühlen nach Aus', 'ab', true, v => `${de(v, 1)} °C/h`)}
+          ${zeile('Kosten je Tag', 'tag', null, v => `${de(v, 2)} €`)}</table>
+        <div class="leise fuss">${fussSatz}</div></div>`;
+  }
+
+  /* ---- Verlauf ---- */
+  /* Tageswerte einer Baustelle seit Beginn (bzw. der letzten 12 Monate): Heiztage, Monate, kWh je Monat */
+  verlaufWerte(x) {
+    const id = this.eid(x, x.entry, 'energie'), heute = x.z.HEUTE, j = +heute.slice(0, 4), m = +heute.slice(5, 7) - 1;
+    const vor12 = `${m >= 11 ? j : j - 1}-${String(((m + 1) % 12) + 1).padStart(2, '0')}-01`;
+    const beginn = x.beginn || vor12, von = beginn < vor12 ? beginn : vor12, bis = x.ende ? plusTage(x.ende, 1) : plusTage(heute, 1);
+    // Heiztage zählt die Integration (zaehler.heiztage: Tage, an denen eine Heizung lief) – dieselbe Zahl wie ihr Sensor;
+    // aus der Statistik nur, wenn der Zähler fehlt
+    const hz = x.zaehler && zahl(x.zaehler.heiztage) ? Number(x.zaehler.heiztage) : null;
+    const leer = { heiztage: hz ?? 0, monate: 0, jeMonat: {}, laedt: false };
+    if (!id) return leer;
+    const roh = this._holen(`v:${x.entry}:${heute}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(this.zoneMs(von, '00:00', x.z.zone)).toISOString(),
+      end_time: new Date(this.zoneMs(bis, '00:00', x.z.zone)).toISOString(), statistic_ids: [id], period: 'day', types: ['change'], units: {} }), 900000);
+    if (roh === undefined) return { ...leer, laedt: hz === null };
+    const jeMonat = {}, monate = new Set(); let heiztage = 0;
+    for (const p of (roh || {})[id] || []) {
+      const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), t = this.lokal(ms, x.z.zone).slice(0, 10), v = zahl(p.change) ? Number(p.change) : 0;
+      jeMonat[t.slice(0, 7)] = (jeMonat[t.slice(0, 7)] || 0) + v;
+      if (v > .5 && (!x.beginn || t >= x.beginn)) { heiztage++; monate.add(t.slice(0, 7)); }
+    }
+    return { heiztage: hz ?? heiztage, monate: monate.size, jeMonat, laedt: false };
+  }
+  kennzahlen(x) {
+    const zl = x.zaehler || {}, st = k => { const s = this.zustand(this.eid(x, x.entry, k)); return s && zahl(s.state) ? Number(s.state) : null; };
+    const kwh = zahl(zl.energie) ? Number(zl.energie) : st('energie') ?? 0, eur = zahl(zl.kosten) ? Number(zl.kosten) : st('kosten') ?? kwh * x.e.preis;
+    const gespart = st('ersparnis') ?? (zahl(zl.ohne) && zahl(zl.energie_heizen) ? Math.max(0, zl.ohne - zl.energie_heizen) * x.e.preis : null);
+    const zeit = x.aktiv ? (x.beginn ? `seit ${datum(x.beginn)}` : 'laufend') : `${x.beginn ? datum(x.beginn) : '–'} – ${x.ende ? datum(x.ende) : '–'}`;
+    return { kwh, eur, gespart, zeit, container: x.bereiche.length, ...this.verlaufWerte(x) };
+  }
+  v_verlauf() {
+    const BS = this.alle, liste = BS.filter(b => b.aktiv === (this.s.verlauf === 'aktiv')), m = this.s.vglArt || 'tag';
+    const K = new Map(BS.map(b => [b.entry, this.kennzahlen(b)]));
+    const wert = b => { const k = K.get(b.entry); return m === 'tag' ? (k.heiztage ? k.kwh / k.heiztage : 0) : m === 'monat' ? (k.monate ? k.eur / k.monate : 0) : k.kwh; };
+    const fmt = v => m === 'tag' ? `${de(v, 1)} kWh` : m === 'monat' ? `${de(v, 0)} €` : `${de(v, 0)} kWh`, max = Math.max(...BS.map(wert), 0) || 1;
+    const heute = (this.d || BS[0] || { z: { HEUTE: new Date().toISOString().slice(0, 10) } }).z.HEUTE, j = +heute.slice(0, 4), mo = +heute.slice(5, 7) - 1;
+    const MONK = [...Array(12)].map((_, k) => { const mm = mo - 11 + k, jj = mm < 0 ? j - 1 : j; return `${jj}-${String(((mm % 12) + 12) % 12 + 1).padStart(2, '0')}`; });
+    const MON = MONK.map(k => MONATE[+k.slice(5, 7) - 1]);
+    const laedt = BS.some(b => K.get(b.entry).laedt);
+    const mitDaten = BS.map((b, i) => ({ b, i })).filter(({ b }) => MONK.some(k => (K.get(b.entry).jeMonat[k] || 0) > .5));
+    const reihen = mitDaten.map(({ b, i }) => ({ name: b.titel, v: MONK.map(k => K.get(b.entry).jeMonat[k] || 0), farbe: `var(--s${(i % 6) + 1})` }));
+    const draussen = BS.filter(b => !mitDaten.some(x => x.b === b)).map(b => b.titel);
+    return `${this.kopf('Verlauf', 'BAUSTELLEN')}
+      <div class="glas-panel block"><div class="block-kopf"><b>Vergleich</b><span class="leise">alle Baustellen</span></div>
+        <div class="seg">${[['tag', 'kWh je Heiztag'], ['monat', '€ je Monat'], ['ges', 'gesamt']].map(([k, t]) => `<button data-act="vgl" data-v="${k}" class="${k === m ? 'on' : ''}">${t}</button>`).join('')}</div>
+        ${BS.length ? BS.map((b, i) => `<div class="hbar"><span class="hb-n">${esc(b.titel)}</span><span class="hb-spur"><i style="width:${wert(b) / max * 100}%;background:var(--s${(i % 6) + 1})"></i></span><span class="hb-w">${fmt(wert(b))}</span></div>`).join('') : '<div class="leer">Noch keine Baustelle</div>'}
+        <div class="leise">${m === 'tag' ? 'Gut vergleichbar, weil unabhängig von der Dauer der Baustelle.' : m === 'monat' ? 'Kosten geteilt durch die Monate mit Heizung.' : 'Summe über die ganze Baustelle.'}</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Letzte 12 Monate</b><span class="leise">kWh je Monat, gestapelt nach Baustelle</span></div>
+        <div class="chart-wrap">${laedt ? LAEDT : reihen.length ? flaeche('zwoelf', reihen, MON, 'kWh', 2) : '<div class="leer">Noch keine Werte</div>'}</div>
+        ${draussen.length && !laedt ? `<div class="leise">Ohne Werte in diesem Zeitraum: ${draussen.map(esc).join(', ')}</div>` : ''}</div>
+      <div class="seg glas-panel">${[['aktiv', 'Aktiv'], ['ab', 'Abgeschlossen']].map(([k, t]) => `<button data-act="verlauf" data-v="${k}" class="${k === this.s.verlauf ? 'on' : ''}">${t}</button>`).join('')}</div>
+      ${liste.length ? '' : `<div class="glas-panel block"><div class="leer">${this.s.verlauf === 'aktiv' ? 'Keine laufende Baustelle' : 'Noch keine abgeschlossene Baustelle'}</div></div>`}
+      ${liste.map((b, i) => { const k = K.get(b.entry); return `<button class="glas-panel bs-karte" data-act="bs-oeffnen" data-id="${b.entry}" style="animation-delay:${i * 60}ms">
+        <div class="bs-kopf"><b>${esc(b.titel)}</b><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></div>
+        <div class="leise">${k.zeit} · ${k.container} Container · ${k.laedt ? '–' : k.heiztage} Heiztage</div>
+        <div class="bs-zahlen"><span><b>${de(k.kwh, 0)}</b> kWh</span><span><b>${de(k.eur, 2)}</b> €</span><span class="leise">${b.aktiv ? 'Übersicht ›' : 'ansehen ›'}</span></div></button>`; }).join('')}
+      ${this.s.verlauf === 'aktiv' && this.d ? this.protokoll() : ''}`;
+  }
+  v_ueber() {
+    const V = this.version, cl = this.changelog, offen = this.s.cl ?? 0, eigen = cl && cl.find(c => c.version === V);
+    const neu = eigen ? eigen.punkte : ['Staffelung der Heizungen je Stromanschluss', 'Arbeitszeiten mit Startdatum, Vor- und Nachheizen', 'Firmen und Abrechnung, Auswertung über alle laufenden Baustellen',
+      'Container nur bei Bedarf, Termine und Serien, schnell aufheizen', 'Türkontakt, Warnungen mit Stufen, dauerhaftes Protokoll', 'Handy-Nachrichten mit Knöpfen, Wochen-/Monatsbericht per E-Mail',
+      'Glas-Oberfläche mit Himmel nach Tageszeit und Wetter', 'Seite „Über“ und Melden-Knopf'];
+    const ha = (this._hass && this._hass.config && this._hass.config.version) || '–';
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="einst">‹ Einstellungen</button></div>
+      <div class="glas-panel ueber-kopf"><div class="ueber-illu">${bcContainer(BEREICH_FARBEN[0], 'heizt')}</div>
+        <div><div class="glas-klein">HOME-ASSISTANT-INTEGRATION</div><div class="glas-titel">Baustelle</div><div class="ueber-v">Version <b>${esc(V)}</b>${eigen ? '' : ' <span class="badge blau-b">in Arbeit</span>'}</div>
+          <div class="leise">Heizung und Pumpen auf der Baustelle · Integration und Seite haben dieselbe Nummer</div></div></div>
+      <div class="glas-panel liste"><div class="gruppe">Dieses System</div>
+        <div class="zeile"><span>Integration / Seite</span><span class="leise">${esc(V)} · baustelle</span></div>
+        <div class="zeile"><span>Home Assistant</span><span class="leise">${esc(ha)}</span></div>
+        <div class="zeile"><span>Quellcode</span><span class="leise">GitHub · herbertschrotter-blip/ha-baustelle (privat)</span></div>
+        <div class="zeile"><span>Baustellen</span><span class="leise">${this.alle.filter(b => b.aktiv).length} laufend · ${this.alle.filter(b => !b.aktiv).length} abgeschlossen</span></div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Neu in ${esc(V)}</b><span class="leise">${eigen ? datum(eigen.datum) : 'geplant'}</span></div>${neu.map(n => `<div class="cl-punkt">${esc(n)}</div>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Verlauf</b><span class="leise">aus CHANGELOG.md</span></div>
+        ${cl === null ? LAEDT : !cl.length ? '<div class="leise">Kein Verlauf vorhanden</div>' : cl.map((c, i) => `<button class="zeile cl-v" data-act="cl" data-i="${i}"><span><b>${esc(c.version)}</b> <span class="leise">${datum(c.datum)}</span></span><span class="chev">${offen === i ? '⌄' : '›'}</span></button>
+          ${offen === i ? `<div class="cl-liste">${(c.punkte || []).map(p => `<div class="cl-punkt">${esc(p)}</div>`).join('')}</div>` : ''}`).join('')}</div>
+      ${!this.d || this.d.e.melden ? `<button class="knopf" data-act="melden">Fehler, Wunsch oder Anregung melden</button>` : ''}`;
+  }
+  v_dev() {
+    const f = this.s.mfilter || 'offen', alle = this.meldungen(), M = (alle || []).filter(m => f === 'alle' || m.status === f);
+    const ART = { fehler: ['Fehler', 'rot-b'], wunsch: ['Wunsch', 'blau-b'], anregung: ['Anregung', 'gruen'] };
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="einst">‹ Einstellungen</button></div>
+      ${this.kopf('Entwicklung', 'NUR FÜR DICH')}
+      <div class="glas-panel block"><div class="block-kopf"><b>Meldungen</b><div class="seg klein">${[['offen', 'offen'], ['erledigt', 'erledigt'], ['alle', 'alle']].map(([k, t]) => `<button data-act="mfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t} ${alle ? (k === 'alle' ? alle.length : alle.filter(m => m.status === k).length) : ''}</button>`).join('')}</div></div>
+        ${alle === null ? LAEDT : M.length ? M.map(m => `<div class="ml ${m.status === 'erledigt' ? 'erledigt' : 'offen'}"><div class="ml-kopf"><span class="badge ${(ART[m.art] || ART.wunsch)[1]}">${(ART[m.art] || ART.wunsch)[0]}</span><span class="leise">${this.meldungZeit(m)} · ${esc(m.geraet || '–')} · v${esc(m.version || '–')}</span></div>
+          <div class="ml-text">${esc(m.text)}</div><div class="leise">📍 ${esc(m.kontext || '–')}</div>
+          <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-status" data-id="${esc(m.id)}">${m.status === 'erledigt' ? '↺ wieder offen' : '✓ erledigt'}</button><button class="chip glas-panel" data-act="m-weg" data-id="${esc(m.id)}">Löschen</button></div></div>`).join('')
+          : '<div class="leer">Keine Meldungen</div>'}
+        <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-md">Als Markdown kopieren</button><button class="chip glas-panel" data-act="m-json">Als JSON herunterladen</button></div>
+        <div class="leise">Meldungen bleiben bei den Daten der Integration (auch in der Sicherung). Markdown passt direkt in ein GitHub-Issue.</div></div>
+      <div class="glas-panel liste"><div class="gruppe">Werkzeuge</div>
+        <button class="zeile" data-act="diagnose"><span>Diagnose herunterladen</span><span class="chev">›</span></button>
+        <div class="zeile"><span>Melden-Knopf in jedem Fenster</span>${schalter(this.d.e.melden, 'e-bool', 'data-k="melden"')}</div>
+        <div class="zeile"><span>Version</span><span class="leise">${esc(this.version)}${(this.changelog || []).find(c => c.version === this.version) ? ' · ' + (this.changelog.find(c => c.version === this.version).datum || '').slice(0, 7) : ''}</span></div></div>`;
+  }
+  /* Abgeschlossene Baustelle: Verbrauch je Monat und Container (Recorder-Statistik) */
+  monateJeContainer(x) {
+    const ids = x.bereiche.map(b => this.eid(x, b.id, 'energie')).filter(Boolean);
+    const von = x.beginn || plusTage(x.z.HEUTE, -365), bis = x.ende ? plusTage(x.ende, 1) : plusTage(x.z.HEUTE, 1);
+    const roh = ids.length ? this._holen(`bm:${x.entry}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period', start_time: new Date(this.zoneMs(von.slice(0, 8) + '01', '00:00', x.z.zone)).toISOString(),
+      end_time: new Date(this.zoneMs(bis, '00:00', x.z.zone)).toISOString(), statistic_ids: ids, period: 'month', types: ['change'], units: {} }), 900000) : {};
+    if (roh === undefined) return null;
+    const monate = []; for (let k = von.slice(0, 7); k <= bis.slice(0, 7) && monate.length < 36; ) { monate.push(k); const [j, m] = k.split('-').map(Number); k = m === 12 ? `${j + 1}-01` : `${j}-${String(m + 1).padStart(2, '0')}`; }
+    if (bis.slice(8, 10) === '01' && monate.length > 1) monate.pop();
+    const reihen = x.bereiche.map((b, k) => { const id = this.eid(x, b.id, 'energie'), v = monate.map(() => 0);
+      for (const p of (roh || {})[id] || []) { const ms = typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start), i = monate.indexOf(this.lokal(ms, x.z.zone).slice(0, 7)); if (i >= 0 && zahl(p.change)) v[i] += Number(p.change); }
+      return { name: b.name, v, farbe: BEREICH_FARBEN[(zahl(b.f) ? b.f : k) % BEREICH_FARBEN.length] }; });
+    return { labels: monate.map(k => MONATE[+k.slice(5, 7) - 1]), reihen };
+  }
+  v_bsdetail() {
+    const x = this.alle.find(y => y.entry === this.s.bs);
+    if (!x) return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button></div><div class="glas-panel block"><div class="leer">Baustelle nicht gefunden</div></div>`;
+    const k = this.kennzahlen(x), m = this.monateJeContainer(x);
+    const prot = !x.geladen ? [] : this._holen(`bp:${x.entry}`, () => this._hass.callWS({ type: 'baustelle/protokoll', entry_id: x.entry, filter: 'alle', vor: null, limit: 5 }), 300000);   // nicht geladen: die Integration kennt sie nicht
+    const ART = { einstellung: '⚙', warnung: '⚠', ok: '✓', schalten: '⏻', wetter: '☁', nachricht: '✉' };
+    const eintraege = prot === undefined ? null : (Array.isArray(prot) ? prot : (prot && prot.eintraege) || []).slice(0, 5);
+    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button><button class="glas-panel chip" data-act="csv">⇩ CSV</button></div>
+      ${this.kopf(esc(x.titel), x.aktiv ? 'LAUFEND' : 'ABGESCHLOSSEN · NUR ANSEHEN')}
+      <div class="leise vgl">${k.zeit}</div>
+      <div class="glas-panel kennz vier"><div><b>${de(k.kwh, 0)}</b><span>kWh</span></div><div><b>${de(k.eur, 0)} €</b><span>Kosten</span></div><div><b>${k.laedt ? '–' : k.heiztage}</b><span>Heiztage</span></div><div><b>${zahl(k.gespart) ? `${de(k.gespart, 0)} €` : '–'}</b><span>gespart</span></div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Verbrauch je Monat</b><span class="leise">gestapelt nach Container</span></div>
+        ${!m ? LAEDT : !m.reihen.length ? '<div class="leer">Keine Container</div>' : `<div class="chart-wrap">${flaeche('bs-' + x.entry, m.reihen, m.labels, 'kWh', 1)}</div>
+        <div class="vb-je">${m.reihen.map(q => { const s2 = summe(q.v), ges = summe(m.reihen.map(r => summe(r.v))); return `<div><i style="background:${q.farbe}"></i><span class="n">${esc(q.name)}</span><b>${de(s2, 0)} kWh</b><span>${de(s2 * x.e.preis, 0)} €</span><span class="leise">${de(ges ? s2 / ges * 100 : 0, 0)} %</span></div>`; }).join('')}</div>`}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Protokoll</b><span class="leise">Auszug</span></div>
+        ${eintraege === null ? LAEDT : eintraege.length ? eintraege.map(p => { const l = this.lokal(p[0], x.z.zone); return `<div class="zeile ereignis"><span class="zeit">${kurzDatum(l)}</span><span class="p-ic">${ART[p[1]] || '•'}</span><div><span>${p[2] ? `${esc((x.bereiche.find(b => b.id === p[2]) || { name: p[2] }).name)}: ` : ''}${esc(p[3])}</span></div></div>`; }).join('') : '<div class="leer">Keine Einträge</div>'}</div>
+      ${x.aktiv ? '' : knopf2('Wieder aktiv setzen', 'bs-aktiv', x.entry)}`;
+  }
+  protokoll() {
+    const f = this.s.pfilter || 'alle', ART = { warnung: ['⚠', 'var(--rot)'], ok: ['✓', '#30d158'], schalten: ['⏻', 'var(--amber)'], wetter: ['☁', 'var(--blau)'], nachricht: ['✉', 'var(--ink2)'], einstellung: ['⚙', 'var(--ink2)'] };
+    const passt = e => f === 'alle' || e[2] === f || (f === 'warnung' && e[2] === 'ok') || (f === 'schalten' && e[2] === 'einstellung');
+    let quelle = this.d.protokoll;
+    if ((f !== 'alle' || this.s.pmehr) && this.d.geladen) {
+      const r = this._holen('p:' + this.d.entry, () => this._hass.callWS({ type: 'baustelle/protokoll', entry_id: this.d.entry, filter: 'alle', vor: null, limit: 200 }), 60000);
+      quelle = r === undefined ? null : (Array.isArray(r) ? r : (r && r.eintraege) || []).map(p => this.protokollZeile(p, this.z));
+    }
+    const kopf = `<div class="block-kopf"><b>Protokoll</b><span class="leise">bleibt mit der Baustelle gespeichert · auch im HA-Logbuch</span></div>
+      <div class="vb-wer">${[['alle', 'Alle'], ['warnung', 'Warnungen'], ['schalten', 'Schalten'], ['wetter', 'Wetter'], ['nachricht', 'Nachrichten']].map(([k, t]) => `<button data-act="pfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+    if (quelle === null) return `<div class="glas-panel block">${kopf}${LAEDT}</div>`;
+    let liste = quelle.filter(passt); const mehr = !this.s.pmehr && (liste.length > 12 || (f === 'alle' && quelle.length >= 20)); if (mehr) liste = liste.slice(0, 12);
+    let tag = '';
+    return `<div class="glas-panel block">${kopf}
+      ${liste.length ? liste.map(e => { const [ic, farbe] = ART[e[2]] || ['•', 'var(--ink2)'], kopfT = e[0] !== tag ? `<div class="p-tag">${(tag = e[0])}</div>` : '';
+        return `${kopfT}<div class="zeile ereignis"><span class="zeit">${e[1]}</span><span class="p-ic" style="color:${farbe}">${ic}</span><div>${e[3] ? `<b>${esc(this.bName(e[3]))}</b> ` : ''}<span class="${e[3] ? 'leise' : ''}">${esc(e[4])}</span></div></div>`; }).join('')
+        : '<div class="leer">Keine Einträge</div>'}
+      ${mehr ? '<button class="zeile" data-act="pmehr"><span class="blau">Ältere Einträge laden</span></button>' : ''}</div>`;
+  }
+
+  /* ---- Einstellungen ---- */
+  v_einst() {
+    const d = this.d, e = d.e, st = (k, s, fmt) => this.stepper(k, s, fmt), M = this.meldungen(), o = d.optionen;
+    return `${this.kopf('Einstellungen', esc(d.titel))}
+      <div class="glas-panel liste"><div class="gruppe">Baustelle</div>
+        <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">${esc(d.titel)} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">App</div>
+        <button class="zeile" data-act="tab" data-v="ueber"><span>Über</span><span class="leise">Version ${esc(this.version)} ›</span></button>
+        <div class="zeile"><div><b>Melden-Knopf</b><div class="leise">kleiner Knopf in jedem Fenster für Fehler, Wünsche und Anregungen</div></div>${schalter(e.melden, 'e-bool', 'data-k="melden"')}</div>
+        <button class="zeile" data-act="tab" data-v="dev"><span>Entwicklung</span><span class="leise">${M === null ? '–' : M.filter(m => m.status !== 'erledigt').length} offene Meldungen ›</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">Firmen · für die Abrechnung</div>
+        ${d.firmen.map(f => { const n = d.bereiche.filter(b => (b.firma || 'eigen') === f.id).length;
+          return `<button class="zeile" data-act="firma-auf" data-id="${esc(f.id)}"><span>${esc(f.name)}${f.eigen ? ' <span class="badge">eigene</span>' : ''}</span><span class="leise">${n} Container ›</span></button>`; }).join('')}
+        <button class="zeile" data-act="firma-auf"><span class="blau">+ Firma hinzufügen</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">Container und Geräte</div>
+        ${d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
+        <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button></div>
+      <div class="glas-panel liste"><div class="gruppe">Strom</div>
+        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label>
+        <div class="zeile"><div><b>⚡ Staffelung</b><div class="leise">verteilt die Heizungen auf den freien Strom – geschaltet werden nur Heizungen</div></div>${schalter(e.staffel, 'e-bool', 'data-k="staffel"')}</div>
+        ${e.staffel ? `<div class="gruppe-t gt-einzug">Anschlüsse</div>
+        ${d.anschluesse.map(a => `<button class="zeile unter" data-act="anschluss-auf" data-id="${esc(a.id)}"><div><b>${esc(a.name)}</b><div class="leise">${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A · Reserve ${de(a.reserve)} kW · ${d.bereiche.filter(b => b.anschluss === a.id).map(b => esc(b.name)).join(', ') || 'keine Container'}</div></div><span class="chev">›</span></button>`).join('')}
+        <button class="zeile unter" data-act="anschluss-auf"><span class="blau">+ Anschluss hinzufügen</span></button>
+        <div class="zeile unter"><div><span>Nutzbar je Anschluss</span><div class="leise">vorsichtig, weil unbekannt ist, welche Steckdose an welcher Phase hängt</div></div>${st('nutzbar', 5, v => `${v} %`)}</div>
+        <div class="zeile unter"><span>Höchstens gleichzeitig</span>${st('max_gleich', 1, v => `${v} Heizk.`)}</div>
+        <div class="zeile unter"><span>Mindestlaufzeit</span>${st('min_lauf', 1, v => `${v} min`)}</div>
+        <div class="zeile unter"><span>Mindestpause</span>${st('min_pause', 1, v => `${v} min`)}</div>
+        <div class="zeile unter"><div><span>Wechsel im Rundlauf</span><div class="leise">wenn nicht alle gleichzeitig dürfen</div></div>${st('takt', 5, v => `${v} min`)}</div>
+        <div class="zeile unter"><span class="leise">Gesamtzähler: keiner – gerechnet wird mit den Shellys und der Reserve je Anschluss. Später kann je Anschluss ein Zähler dazukommen.</span></div>
+        <div class="gruppe-t gt-einzug">Vorrang, wenn nicht alle dürfen</div>
+        ${d.bereiche.filter(b => !b.pumpe).map(b => `<div class="zeile unter"><span>${esc(b.name)}</span><div class="seg klein">${['niedrig', 'normal', 'hoch'].map(v => `<button data-act="prio" data-id="${b.id}" data-v="${v}" class="${(b.prio || 'normal') === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>`).join('')}
+        <div class="leise p-fuss">Frostschutz geht immer vor. Pumpen und andere Verbraucher werden mitgezählt, aber nie geschaltet.</div>` : ''}</div>
+      <div class="glas-panel liste"><div class="gruppe">Wetter und Kalender</div>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Wetter</span><span class="leise">${o.wetter ? esc(this.name(o.wetter)) : 'keins gewählt'} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Außentemperatur</span><span class="leise">${o.temp_sensor ? esc(this.name(o.temp_sensor)) : 'aus der Vorhersage'} ›</span></button>
+        <button class="zeile" data-act="sheet" data-s="urlaub"><span>Urlaub</span><span class="leise">${o.urlaub_kalender ? `Kalender „${esc(this.name(o.urlaub_kalender))}“` : 'kein Kalender'} ›</span></button>
+        <div class="zeile"><span>Feiertage</span><span class="leise">${o.feiertag_kalender ? esc(this.name(o.feiertag_kalender)) : 'kein Kalender'}</span></div></div>
+      <div class="glas-panel liste"><div class="gruppe">Bericht</div>
+        <div class="zeile"><span>Wie oft</span><div class="seg klein">${[['aus', 'aus'], ['woche', 'Woche'], ['monat', 'Monat'], ['beides', 'beides']].map(([k, t]) => `<button data-act="e-wert" data-k="bericht" data-v="${k}" class="${e.bericht === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+        ${e.bericht !== 'aus' ? `<div class="zeile unter"><span class="leise">${{ woche: 'jeden Montag 07:00 für die Vorwoche', monat: 'am 1. des Monats 07:00 für den Vormonat', beides: 'Montag 07:00 und am 1. des Monats' }[e.bericht] || ''}</span></div>
+        <div class="zeile unter"><span>📱 aufs Handy</span>${schalter(e.bericht_handy, 'e-bool', 'data-k="bericht_handy"')}</div>
+        <div class="zeile unter"><span>✉ per E-Mail</span>${schalter(e.bericht_mail, 'e-bool', 'data-k="bericht_mail"')}</div>
+        ${e.bericht_mail ? `<label class="zeile unter"><span>an</span><input type="email" value="${esc(e.mail)}" data-k="mail" class="mail-feld"></label>
+        <div class="zeile unter"><span>Abrechnung als CSV anhängen</span>${schalter(e.bericht_csv, 'e-bool', 'data-k="bericht_csv"')}</div>
+        <div class="zeile unter"><span class="leise">über den Dienst notify.${esc(e.mail_dienst || 'baustelle_mail')} (z. B. Google Mail oder SMTP in HA eingerichtet)</span></div>` : ''}
+        <button class="zeile" data-act="sheet" data-s="bericht"><span class="blau">Beispiel ansehen</span><span class="chev">›</span></button>
+        <button class="zeile" data-act="bericht-senden"><span class="blau">Jetzt senden</span></button>` : ''}</div>
+      <div class="glas-panel liste"><div class="gruppe">Meldungen · Störungen</div>
+        <div class="zeile"><span>Empfänger</span><span class="leise">${esc(e.empfaenger)}</span></div>
+        <div class="zeile"><div><b>Knöpfe in der Nachricht</b><div class="leise">direkt aus der Nachricht reagieren, z. B. „bis morgen stumm“</div></div>${schalter(e.knoepfe, 'e-bool', 'data-k="knoepfe"')}</div>
+        <button class="zeile" data-act="sheet" data-s="nachrichten"><span class="blau">Beispiele ansehen</span><span class="chev">›</span></button>
+        <div class="zeile"><span>Stromausfall / offline</span>${schalter(e.m_offline, 'e-bool', 'data-k="m_offline"')}</div>
+        <div class="zeile"><span>Pumpe Trockenlauf</span>${schalter(e.m_trocken, 'e-bool', 'data-k="m_trocken"')}</div>
+        <div class="zeile"><span>Pumpe Dauerlauf über ${e.dauer_min} min</span>${schalter(e.m_dauer, 'e-bool', 'data-k="m_dauer"')}</div>
+        <div class="zeile"><span>Pumpe schaltet oft (ab ${e.zyklen_h} je Stunde)</span>${schalter(e.m_zyklen, 'e-bool', 'data-k="m_zyklen"')}</div>
+        <div class="zeile"><span>Heizkörper zieht keinen Strom</span>${schalter(e.m_leistung, 'e-bool', 'data-k="m_leistung"')}</div>
+        <div class="zeile"><span>Frostgefahr trotz Frostschutz</span>${schalter(e.m_frost, 'e-bool', 'data-k="m_frost"')}</div>
+        <div class="gruppe">Hinweise</div>
+        <div class="zeile"><span>Zu kalt trotz Heizung (nach ${e.kalt_min} min)</span>${schalter(e.m_kalt, 'e-bool', 'data-k="m_kalt"')}</div>
+        <div class="zeile"><span>Fühler meldet nichts / Batterie schwach</span>${schalter(e.m_fuehler, 'e-bool', 'data-k="m_fuehler"')}</div>
+        <div class="zeile"><span>Keine Wettervorhersage</span>${schalter(e.m_wetter, 'e-bool', 'data-k="m_wetter"')}</div>
+        <div class="zeile"><span>Handbetrieb länger als ${e.hand_h} h</span>${schalter(e.m_hand, 'e-bool', 'data-k="m_hand"')}</div>
+        <div class="leise p-fuss">Störungen, offene Tür und langer Handbetrieb kommen aufs Handy, andere Hinweise nur ins Protokoll und in den Warnung-Chip.</div></div>`;
+  }
+
+  /* ---- Auswahllisten aus HA (für die Einrichtungs-Dialoge) ---- */
+  entitaeten(filter) {
+    const eigene = new Set(this._eigene || []);
+    return Object.values((this._hass && this._hass.states) || {}).filter(s => !eigene.has(s.entity_id) && filter(s))
       .map(s => [s.entity_id, s.attributes.friendly_name || s.entity_id]).sort((a, b) => a[1].localeCompare(b[1], 'de'));
   }
+  freieSchalter(auch) {
+    const belegt = new Set(this.alle.filter(x => x.aktiv).flatMap(x => x.bereiche.flatMap(b => b.geraete.map(g => g.schalter))));
+    return this.entitaeten(s => s.entity_id.startsWith('switch.') && (!belegt.has(s.entity_id) || s.entity_id === auch));
+  }
+  optionen(liste, aktuell, leer) { return (leer ? `<option value="">${leer}</option>` : '') + liste.map(([v, n]) => `<option value="${esc(v)}" ${v === aktuell ? 'selected' : ''}>${esc(n)}</option>`).join(''); }
 
-  _optionen(liste, aktuell, leer = false) {
-    return (leer ? `<option value="">– keiner –</option>` : '')
-      + liste.map(([e, n]) => `<option value="${esc(e)}" ${e === aktuell ? 'selected' : ''}>${esc(n)} (${esc(e)})</option>`).join('');
+  /* ---- Einblendungen von unten ---- */
+  sheet() {
+    const s = this.s.sheet, d = this.d, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
+    const griff = '<div class="griff"></div>';
+    if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
+    if (s.art === 'wetter') {
+      const a = s.wa || 'std', e = d.e, ws = this.zustand(d.wetterEid), w = d.wetter || {};
+      const folge = (t, mm) => [zahl(t) && t < e.frueh_temp ? '<span class="w-folge blau">Frühstart</span>' : '', zahl(mm) && mm >= e.tr_mm ? '<span class="w-folge amber">Kleidung trocknen</span>' : '',
+        zahl(t) && t > e.grenze ? '<span class="w-folge">über Heizgrenze</span>' : ''].join('');
+      const H = this.vorhersage.hourly, D = this.vorhersage.daily, jetzt = d.z.jetztMs;
+      let inhalt;
+      if (a === 'std') {
+        const std = (H || []).filter(x => Date.parse(x.datetime) > jetzt - 36e5).slice(0, 6);
+        inhalt = H === null ? LAEDT : !std.length ? '<div class="leer">Keine stündliche Vorhersage</div>' : `<div class="w-std">${std.map(x => `<div><span class="leise">${this.lokal(x.datetime).slice(11, 13)}:00</span>${wetterIcon(x.condition, 36)}<b>${de(x.temperature, 0)}°</b>
+          <span class="w-regen">${zahl(x.precipitation) && x.precipitation > 0 ? de(x.precipitation) + ' mm' : '–'}</span><span class="leise">${zahl(x.precipitation_probability) ? x.precipitation_probability : 0} %</span></div>`).join('')}</div>`;
+      } else if (a === 'tag') {
+        const teile = [['Morgen', 7], ['Mittag', 12], ['Nachmittag', 16], ['Nacht', 22]], jetztH = +d.z.JETZT.slice(0, 2);
+        const tagSt = this.statistik('Tag'), aussen = tagSt && tagSt.werte[this.eid(d, d.entry, 'aussen')];
+        const stunde = (tag, h) => (H || []).find(x => this.lokal(x.datetime).slice(0, 13) === `${tag} ${String(h).padStart(2, '0')}`);
+        inhalt = H === null ? LAEDT : [['Heute', d.z.HEUTE], ['Morgen', plusTage(d.z.HEUTE, 1)]].map(([name, tag]) => `<div class="w-tag"><div class="w-tag-n">${name}</div><div class="w-teile">${teile.map(([t, h]) => {
+          const x = stunde(tag, h), vorbei = tag === d.z.HEUTE && h < jetztH, temp = x ? x.temperature : vorbei && aussen ? aussen[h] : null;
+          return `<div class="${vorbei ? 'vorbei' : ''}"><span class="leise">${t}</span>${wetterIcon(x ? x.condition : (ws ? ws.state : 'cloudy'), 34)}<b>${zahl(temp) ? de(temp, 0) + '°' : '–'}</b><span class="w-regen">${x && zahl(x.precipitation) && x.precipitation > 0 ? de(x.precipitation) + ' mm' : '–'}</span></div>`; }).join('')}</div></div>`).join('');
+      } else {
+        const tage = (D || []).filter(x => this.lokal(x.datetime).slice(0, 10) > d.z.HEUTE).slice(0, 3);
+        inhalt = D === null ? LAEDT : !tage.length ? '<div class="leer">Keine Tagesvorhersage</div>' : `<div class="w-3">${tage.map(x => { const t = this.lokal(x.datetime).slice(0, 10); return `<div class="w-3z">
+          <div class="w-3t"><b>${wtag(t)}</b><span class="leise">${kurzDatum(t)}</span></div>${wetterIcon(x.condition, 40)}
+          <div class="w-3w"><b>${de(x.temperature, 0)}°</b><span class="leise">${de(x.templow, 0)}°</span></div>
+          <div class="w-3r"><span class="w-regen">${zahl(x.precipitation) && x.precipitation > 0 ? de(x.precipitation) + ' mm' : '–'}</span><span class="leise">${zahl(x.precipitation_probability) ? x.precipitation_probability : 0} %</span></div>
+          <div class="w-3f">${folge(x.templow, x.precipitation)}</div></div>`; }).join('')}</div>`;
+      }
+      const [wz, wt, wtemp] = this.wetterJetzt(), gef = ws && ws.attributes.apparent_temperature;
+      const morgen = plusTage(d.z.HEUTE, 1), pm = d.plan[morgen], wm = this.wetterTag(morgen), g = (pm && pm.gruende) || [];
+      const fuer = [g.includes('frueher_nach_regen') ? `Kleidung trocknen morgen früh aktiv (Regen über ${de(e.tr_mm)} mm)` : '',
+        g.includes('fruehstart') ? `Kälte-Frühstart morgen ${e.frueh_min} min früher${zahl(wm.kalt) ? ` (${de(wm.kalt, 0).replace('-', '−')} °C)` : ''}` : ''].filter(Boolean);
+      return `${griff}<h3>Wetter · ${esc(this.name(d.wetterEid) || d.titel)}</h3><div class="w-jetzt">${wetterIcon(wz, 72)}<div><b>${zahl(wtemp) ? de(wtemp) + ' °C' : '–'}</b><div class="leise">${esc([ws ? WETTER_TEXT[ws.state] || ws.state : wt, zahl(w.regen_heute) && w.regen_heute > 0 ? `${de(w.regen_heute, w.regen_heute % 1 ? 1 : 0)} mm seit gestern` : '', zahl(gef) ? `gefühlt ${de(gef, 0)} °C` : ''].filter(Boolean).join(' · '))}</div></div></div>
+        <div class="seg">${[['std', 'Stündlich'], ['tag', 'Tagesverlauf'], ['3', '3 Tage']].map(([k, t]) => `<button data-act="wa" data-v="${k}" class="${a === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <div class="w-inhalt">${inhalt}</div>
+        <div class="leise">Für die Heizung: ${fuer.length ? fuer.join(', ') + '.' : 'morgen nichts Besonderes.'}</div>${knopf('Schließen')}`;
+    }
+    if (s.art === 'warnungen') {
+      const W = d.warnungen, karte = w => `<div class="wk ${w.stufe} ${w.stumm ? 'stumm' : ''}"><div class="wk-kopf"><b>${esc(this.bName(w.b))}</b><span class="leise">${this.seitText(w.seitIso)}</span></div>
+        <div class="wk-titel">${esc(w.titel)}</div><div class="leise">${esc(w.hilfe)}</div>
+        <div class="wk-knoepfe">${w.b && d.bereiche.some(b => b.id === w.b) ? `<button class="chip glas-panel" data-act="w-hin" data-id="${w.b}">Zum Container ›</button>` : ''}
+          <button class="chip glas-panel" data-act="w-stumm" data-id="${esc(w.id)}">${w.stumm ? '🔔 wieder melden' : '🔕 bis morgen stumm'}</button></div></div>`;
+      const gruppe = (titel, liste) => liste.length ? `<div class="gruppe-t">${titel} · ${liste.length}</div>${liste.map(karte).join('')}` : '';
+      const offen = W.filter(w => !w.stumm);
+      return `${griff}<div class="block-kopf"><h3>Warnungen</h3><span class="leise">${offen.length} offen</span></div>
+        ${offen.length ? '' : '<div class="leer">Alles in Ordnung ✓</div>'}
+        ${gruppe('Störungen', offen.filter(w => w.stufe === 'stoerung'))}${gruppe('Hinweise', offen.filter(w => w.stufe === 'hinweis'))}${gruppe('Stumm bis morgen', W.filter(w => w.stumm))}
+        <button class="zeile" data-act="w-protokoll"><span class="blau">Alle Einträge im Protokoll</span><span class="chev">›</span></button>
+        ${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.alle.map(b => `<button class="zeile" data-act="bs-wahl" data-id="${esc(b.entry)}"><span>${esc(b.titel)}${d && b.entry === d.entry ? ' ✓' : ''}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>`).join('')}
+      <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>`;
+    if (s.art === 'heizplan') {
+      const az = this.azJetzt;
+      return `${griff}<div class="block-kopf"><h3>Heizplan · diese Woche</h3><span class="leise">${az ? `${esc(az.name)} · seit ${datum(az.ab)}` : 'keine Arbeitszeit'}</span></div>
+        ${d.e.auto ? '' : '<div class="warn-k"><b>Automatik ist aus</b><div class="leise">Der Plan wird gerade nicht ausgeführt.</div></div>'}
+        ${this.heizplanInhalt()}
+        <div class="bedarf-dauer">${d.jetztBis ? `<button class="chip glas-panel amber" data-act="jetzt-aus">■ alle heizen bis ${d.jetztBis} – beenden</button>` : `<button class="chip glas-panel" data-act="jetzt-an">▶ alle jetzt 1 h heizen</button>`}<button class="chip glas-panel" data-act="ausn-neu" data-v="">+ Ausnahme</button></div>
+        ${knopf('Arbeitszeit ändern', 'az-heizung', 'amber')}${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'az') {
+      const a = d.arbeitszeiten[s.i]; if (!a) { this.s.sheet = null; return ''; }
+      const geplant = a.ab > this.z.HEUTE, aktuell = a === this.azJetzt;
+      return `${griff}<div class="block-kopf"><h3>${esc(a.name)}</h3><span class="badge ${aktuell ? 'gruen' : geplant ? 'blau-b' : ''}">${aktuell ? 'gilt jetzt' : geplant ? 'geplant' : 'früher'}</span></div>
+        <div class="leise">gilt ab ${datum(a.ab)}</div>
+        ${TAGE.map(t => `<div class="zeile"><b class="tag-n">${t}</b><span>${a.tage[t] ? a.tage[t].join('–') : '<span class="leise">frei</span>'}</span></div>`).join('')}
+        ${knopf('Als Vorlage für eine neue', 'az-vorlage', 'amber')}${geplant ? knopf('Löschen', 'az-weg', 'rot') : ''}${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'firma') {
+      const f = s.form, neu = !f.id, eigen = !neu && this.firma(f.id).eigen;
+      // wählbar: Container ohne fremde Firma, dazu die, die schon dieser Firma gehören
+      const frei = d.bereiche.filter(b => (b.firma || 'eigen') === 'eigen' || (!neu && b.firma === f.id));
+      return `${griff}<h3>${neu ? 'Neue Firma' : 'Firma'}</h3>
+        <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Trockenbau Maier" data-fn ${eigen ? 'disabled' : ''}></label>
+        ${eigen ? `<div class="gruppe-t">Container der eigenen Firma</div>
+          ${d.bereiche.filter(b => (b.firma || 'eigen') === 'eigen').map(b => `<div class="zeile"><span>${esc(b.name)}</span></div>`).join('')}
+          <div class="leise">Hierher gehören alle Container, die keiner anderen Firma zugeordnet sind.</div>`
+        : `<div class="gruppe-t">Container zuordnen</div>
+          ${frei.length ? frei.map(b => `<div class="zeile"><span>${esc(b.name)}</span>${schalter(f.container.includes(b.id), 'firma-c', `data-id="${b.id}"`)}</div>`).join('')
+            : '<div class="leise">Alle Container sind schon anderen Firmen zugeordnet.</div>'}
+          ${f.neu.map((c, i) => `<div class="zeile fc-neu"><input value="${esc(c.name)}" placeholder="Name des Containers" data-fnc="${i}">
+            <div class="seg klein">${['Container', 'Schacht'].map(a => `<button data-act="fc-art" data-i="${i}" data-v="${a}" class="${c.art === a ? 'on' : ''}">${a}</button>`).join('')}</div>
+            <button class="x" data-act="fc-weg" data-i="${i}" title="nicht anlegen">✕</button></div>`).join('')}
+          <button class="zeile" data-act="fc-neu"><span class="blau">+ Neuer Container für diese Firma</span></button>
+          <div class="leise">Nur Container ohne andere Firma sind wählbar. Nimmst du einen weg, gehört er wieder der eigenen Firma. Frühere Werte bleiben bei der bisherigen Firma.</div>`}
+        ${eigen ? knopf('Schließen', 'zu', 'leise-k') : knopf('Speichern', 'firma-speichern', 'amber') + (neu ? '' : knopf('Firma löschen', 'firma-weg', 'rot')) + knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'strom') {
+      const L = this.last(), e = d.e;
+      const zustand = x => x.b.offline || !x.g.erreichbar ? ['offline', 'rot-t'] : x.b.boost && x.g.an ? ['heizt – schnell, Vorrang', 'amber-t'] : x.b.z === 'pause' ? ['pausiert – Tür offen', 'lila']
+        : x.g.warte ? [`wartet${zahl(x.g.warte.dran_in_min) ? ` – dran in ${x.g.warte.dran_in_min} min` : ''}`, 'blau'] : x.g.an ? ['heizt', 'amber-t'] : ['aus', 'leise'];
+      return `${griff}<div class="block-kopf"><h3>Stromverteilung</h3><span class="leise">${L.laufen} von ${L.hk.length} Heizkörpern an · höchstens ${L.max}</span></div>
+        <div class="strom-leg"><span><i class="s-heiz"></i>Heizung ${de(L.heiz)} kW</span><span><i class="s-pumpe"></i>Pumpen ${de(L.pumpe)} kW</span><span><i class="s-sonst"></i>Sonstiges ${de(L.sonst)} kW</span><span><i class="s-res"></i>Reserve (Kran, Werkzeug)</span></div>
+        ${L.A.map(a => { const w = v => `${a.grenze > 0 ? Math.max(0, v / a.grenze * 100) : 0}%`;
+          return `<div class="an-block"><div class="an-kopf"><b>${esc(a.name)}</b><span class="leise">${a.phasen === 3 ? '3 × ' : ''}${a.ampere ?? '–'} A · ${de(a.heiz + a.pumpe + a.sonst)} von ${de(a.grenze)} kW</span></div>
+          <div class="strom-spur"><i class="s-heiz" style="width:${w(a.heiz)}"></i><i class="s-pumpe" style="width:${w(a.pumpe)}"></i><i class="s-sonst" style="width:${w(a.sonst)}"></i><i class="s-res" style="width:${w(a.reserve)}"></i></div>
+          <div class="leise">${a.frei < 2 ? `<span class="amber-t">nur ${de(Math.max(0, a.frei))} kW frei</span>` : `${de(a.frei)} kW frei`} für Heizungen</div>
+          ${L.hk.filter(x => x.b.anschluss === a.id).map(x => { const [t, k] = zustand(x); return `<div class="zeile"><span>${esc(x.b.name)} · ${esc(x.g.n)}</span><span class="${k}">${t}</span></div>`; }).join('')}</div>`; }).join('')}
+        <div class="hinweis-k">Je Anschluss gilt: ${e.nutzbar} % der Anschlussleistung (vorsichtig, weil die Verteilung auf die Phasen unbekannt ist) minus Reserve minus alles, was schon läuft. Ein Heizkörper kommt erst dazu, wenn eine Minute lang genug frei ist. Jeder läuft mindestens ${e.min_lauf} min und pausiert mindestens ${e.min_pause} min; dürfen nicht alle, wechseln sie alle ${e.takt} min – wer am weitesten unter dem Soll ist, zuerst.</div>
+        ${knopf('Anschlüsse einstellen', 'tab-einst', 'leise-k')}${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'anschluss') {
+      const f = s.form, neu = !f.id;
+      return `${griff}<h3>${neu ? 'Neuer Anschluss' : 'Anschluss'}</h3>
+        <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Verteiler West" data-an="name"></label>
+        <div class="zeile"><span>Absicherung</span><div class="seg klein">${[16, 32, 63].map(v => `<button data-act="an-wert" data-k="ampere" data-v="${v}" class="${f.ampere === v ? 'on' : ''}">${v} A</button>`).join('')}</div></div>
+        <div class="zeile"><span>Art</span><div class="seg klein">${[3, 1].map(v => `<button data-act="an-wert" data-k="phasen" data-v="${v}" class="${f.phasen === v ? 'on' : ''}">${v === 3 ? 'Starkstrom (CEE)' : 'Schuko 230 V'}</button>`).join('')}</div></div>
+        <div class="zeile"><div><span>Reserve</span><div class="leise">für Ungemessenes wie Kran oder Werkzeug</div></div><span class="stepper"><button data-act="an-res" data-d="-1">−</button><b>${de(f.reserve)} kW</b><button data-act="an-res" data-d="1">+</button></span></div>
+        <div class="leise">Anschlussleistung ${de(f.ampere * .23 * f.phasen)} kW, davon rechnet die Staffelung mit ${d.e.nutzbar} % = ${de(f.ampere * .23 * f.phasen * d.e.nutzbar / 100)} kW, abzüglich ${de(f.reserve)} kW Reserve.</div>
+        <div class="gruppe-t">Container an diesem Anschluss</div>
+        ${d.bereiche.map(b => `<div class="zeile"><span>${esc(b.name)} <span class="leise">${f.container.includes(b.id) ? '' : '· ' + esc(this.anschluss(b.anschluss).name)}</span></span>${schalter(f.container.includes(b.id), 'an-c', `data-id="${b.id}"`)}</div>`).join('')}
+        <div class="leise">Ein Container hängt an genau einem Anschluss.</div>
+        ${knopf('Speichern', 'an-speichern', 'amber')}${!neu && d.anschluesse.length > 1 ? knopf('Anschluss löschen', 'an-weg', 'rot') : ''}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'nachrichten') {
+      // Beispiele mit echten Containern: bevorzugt der, auf den es gerade passt (offline, Tür offen, Gerät auf Hand)
+      const B = d.bereiche, c = k => (B[k] || B[0] || { name: 'Container', id: '' });
+      const wOff = d.warnungen.find(w => w.art === 'offline' && w.b), GB = B.flatMap(b => b.geraete.map(g => ({ b, g })));
+      const off = (wOff && B.find(b => b.id === wOff.b)) || B.find(b => b.offline) || c(0);   // Container der Warnung „nicht erreichbar“
+      const pumpe = B.find(b => b.pumpe), steck = GB.find(x => x.g.hand && !x.g.heizer) || GB.find(x => x.g.hand) || GB.find(x => !x.g.heizer && x.g.rolle !== 'pumpe');
+      const n = (ic, titel, text, knoepfe, b) => `<div class="noti"><div class="noti-kopf"><span class="noti-app">🏗 Home Assistant · jetzt</span></div><b>${ic} ${esc(titel)}</b><div>${esc(text)}</div>
+        ${d.e.knoepfe ? `<div class="noti-knoepfe">${knoepfe.map(k => `<button data-act="n-knopf" data-t="${k}" data-b="${b || ''}">${k}</button>`).join('')}</div>` : ''}</div>`;
+      const tuer = B.find(b => b.tuer && b.tuer.offen) || B.find(b => b.tuer) || c(0), p = this.planTag(TAGE[(TAGE.indexOf(this.z.HEUTE_TAG) + 1) % 7]);
+      const frueh = p ? p.vor - d.e.frueh_min : null;   // Frühstart; „Noch früher“ startet 30 min davor (Integration: laufzeit.frueher)
+      return `${griff}<h3>Nachrichten aufs Handy</h3><div class="leise">So kommen sie in der Home-Assistant-App an. ${d.e.knoepfe ? 'Tippe einen Knopf zum Ausprobieren.' : 'Knöpfe sind ausgeschaltet.'}</div>
+        ${n('⚠', `${off.name} nicht erreichbar`, 'Seit 10:42 keine Antwort – Stromausfall oder Stecker gezogen?', ['Zum Container', 'Bis morgen stumm'], off.id)}
+        ${n('🚪', `${tuer.name}: Tür seit ${d.e.tuer_melden} min offen`, 'Die Heizung ist pausiert und heizt wieder, sobald die Tür zu ist.', ['Trotzdem heizen', '1 h stumm'], tuer.id)}
+        ${n('❄', 'Morgen −4 °C', `Vorheizen startet schon um ${p ? uhr(frueh) : '05:30'}. Arbeitsbeginn ${p ? uhr(p.a) : '07:00'}.`, ['Morgen nicht heizen', `Noch früher (${p ? uhr(frueh - 30) : '05:00'})`])}
+        ${n('✋', `${steck ? `${steck.g.n} ${steck.b.name}` : (pumpe ? pumpe.name : c(0).name)} seit ${d.e.hand_h} h auf Hand`, 'Von Hand eingeschaltet und nicht zurückgestellt.', ['Automatik übernehmen', 'So lassen'], steck ? steck.b.id : c(0).id)}
+        <div class="leise">Die Knöpfe sind Aktionen der HA-App (mobile_app). Ein Tipp löst die Aktion aus und landet im Protokoll.</div>${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'bericht') {
+      // Inhalt kommt von der Integration (baustelle/bericht) – dieselben Zahlen und Texte, die der Bericht verschickt
+      const e = d.e, art = e.bericht === 'monat' ? 'monat' : 'woche';
+      const v = !d.geladen ? null : this._holen(`b:${d.entry}:${art}:${d.z.HEUTE}:${e.bericht_mail}:${e.bericht_csv}:${e.mail}`, () => this._hass.callWS({ type: 'baustelle/bericht', entry_id: d.entry, art }), 120000);
+      if (!v) return `${griff}<h3>Bericht · Beispiel</h3>${v === undefined ? LAEDT : '<div class="leer">Bericht nicht verfügbar</div>'}${knopf('Schließen', 'zu', 'leise-k')}`;
+      return `${griff}<h3>Bericht · Beispiel</h3>
+        <div class="mail"><div class="mail-kopf"><div><span class="leise">An</span> ${v.mail_an ? esc(v.mail_an) : '—'}</div><div><span class="leise">Betreff</span> ${esc(v.betreff)}</div>
+          ${v.anhang ? `<div class="mail-anhang">📎 ${esc(v.anhang)}</div>` : ''}</div>
+          <div class="mail-inhalt"><b>${esc(v.summe)}</b> ${v.vergleich ? `<span class="leise">${esc(v.vergleich)}</span>` : ''}
+            <div class="mail-t">Je Firma</div>${(v.firmen || []).map(f => `<div class="mail-z"><span>${esc(f.name)}</span><span>${de(f.kwh, 0)} kWh · ${de(f.eur, 2)} €</span></div>`).join('') || '<div class="mail-z"><span>–</span></div>'}
+            <div class="mail-t">Je Container</div>${(v.container || []).map(c => `<div class="mail-z"><span>${esc(c.name)}</span><span>${de(c.kwh, 0)} kWh</span></div>`).join('')}
+            <div class="mail-t">Heizung</div><div class="mail-z"><span>Heiztage</span><span>${zahl(v.heiztage) ? v.heiztage : '–'}</span></div><div class="mail-z"><span>gespart durch Automatik</span><span>${zahl(v.gespart_eur) ? `${de(v.gespart_eur, 0)} €` : '–'}</span></div>
+            <div class="mail-t">Offene Warnungen</div>${(v.warnungen || []).map(w => `<div class="mail-z"><span>${esc(w.bereich ? `${w.bereich}: ${w.titel}` : w.titel)}</span></div>`).join('') || '<div class="mail-z"><span>keine</span></div>'}</div></div>
+        <div class="leise">${e.bericht_handy ? 'Aufs Handy kommt eine Kurzfassung (Summe, Kosten, Warnungen) mit Knopf „Bericht öffnen“. ' : ''}Die E-Mail geht über einen Mail-Dienst in HA (Google Mail oder SMTP); die Zugangsdaten stehen in secrets.yaml.</div>
+        ${knopf('Schließen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'bedarf') {
+      const b = d.bereiche.find(x => x.id === s.cid); if (!b) { this.s.sheet = null; return ''; }
+      const ende = this.arbeitsende(), warm = b.t !== null ? Math.max(0, Math.round(((b.soll ?? d.e.soll) - b.t) * 4)) : null;
+      return `${griff}<h3>${esc(b.name)} heizen</h3><div class="leise">Jetzt ${b.t !== null ? `${de(b.t)} °C` : 'ohne Fühler'} · wird ${b.t !== null ? `in etwa ${warm} min warm` : 'sofort eingeschaltet'}</div>
+        <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">alle Heizkörper zugleich, Vorrang in der Staffelung</div></div>${schalter(s.boost, 'bedarf-boost')}</div>
+        <div class="bedarf-dauer gross">${[['60', '1 Stunde'], ['120', '2 Stunden'], ...(ende ? [['ende', `bis Arbeitsende (${ende})`]] : []), ['abend', 'bis 19:00']].map(([v, t]) => `<button class="knopf" data-act="bedarf-an" data-id="${b.id}" data-v="${v}">▶ ${t}</button>`).join('')}</div>
+        <button class="zeile" data-act="sheet" data-s="termin" data-id="${b.id}"><span class="blau">Lieber einen Termin eintragen</span><span class="chev">›</span></button>
+        ${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'termin') {
+      const f = s.form, kal = d.termineKal;
+      return `${griff}<h3>Termin eintragen</h3>
+        <label class="feld">Titel<input value="${esc(f.titel)}" placeholder="z. B. Baubesprechung" data-tm="titel"></label>
+        <label class="feld">${f.wieder === 'einmal' ? 'Tag' : 'Ab (Wochentag gilt für die Serie)'}<input type="date" value="${f.datum}" data-tm="datum"></label>
+        <div class="zeile"><span>Wiederholen</span><div class="seg klein">${Object.entries(WIEDER).map(([k, t]) => `<button data-act="tm-wieder" data-v="${k}" class="${f.wieder === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+        <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">vor dem Termin alle Heizkörper zugleich</div></div>${schalter(f.boost, 'tm-boost')}</div>
+        <div class="raster-2"><label class="feld">von<input type="time" value="${f.von}" data-tm="von"></label><label class="feld">bis<input type="time" value="${f.bis}" data-tm="bis"></label></div>
+        ${f.wieder !== 'einmal' && f.datum ? `<div class="leise">Serie: ${WIEDER[f.wieder]} am ${wtag(f.datum)} ab ${datum(f.datum)}</div>` : ''}
+        <div class="leise">Kommt in den HA-Kalender „${esc(kal ? this.name(kal) : 'Termine')}“ (Serien als Wiederholung im Kalender). Die Heizung startet ${d.e.vorheizen} min vorher (Vorheizen) und hört zum Ende auf.</div>
+        ${knopf('Eintragen', 'termin-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'melden') {
+      const f = s.form;
+      return `${griff}<h3>Melden</h3><div class="leise">Fehler, Wunsch oder Anregung – landet im Entwicklermenü.</div>
+        <div class="seg">${[['fehler', 'Fehler'], ['wunsch', 'Wunsch'], ['anregung', 'Anregung']].map(([k, t]) => `<button data-act="ml-art" data-v="${k}" class="${f.art === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <label class="feld">${{ fehler: 'Was ist passiert, was hättest du erwartet?', wunsch: 'Was wünschst du dir?', anregung: 'Deine Idee' }[f.art]}<textarea rows="4" data-ml="text" placeholder="kurz beschreiben">${esc(f.text)}</textarea></label>
+        <div class="ml-kontext"><div><span class="leise">Fenster</span> ${esc(f.kontext)}</div><div><span class="leise">Version</span> ${esc(this.version)} · ${f.geraet} · ${d ? `${wtag(d.z.HEUTE)} ${kurzDatum(d.z.HEUTE)} ${d.z.JETZT}` : ''}</div></div>
+        <div class="zeile"><div><b>Stand der Seite mitschicken</b><div class="leise">Zustand und Einstellungen als Anhang – hilft beim Nachstellen, ohne Zugangsdaten</div></div>${schalter(f.stand, 'ml-stand')}</div>
+        ${knopf('Senden', 'ml-senden', 'amber')}${knopf('Abbrechen', 'ml-zurueck', 'leise-k')}`;
+    }
+    if (s.art === 'ausnahme') {
+      const f = s.form, az = this.azJetzt, z = az && az.tage[wtag(f.datum)];
+      return `${griff}<h3>Ausnahme</h3>
+        <label class="feld">Tag<input type="date" value="${f.datum}" data-au="datum"></label>
+        <div class="leise">${wtag(f.datum)} ${kurzDatum(f.datum)} · laut Arbeitszeit ${z ? z.join('–') : 'frei'}</div>
+        <div class="seg">${Object.entries(AUSNAHME).map(([k, t]) => `<button data-act="au-art" data-v="${k}" class="${f.art === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+        ${f.art === 'frei' ? '<div class="leise">An diesem Tag wird nicht geheizt, nur der Frostschutz läuft.</div>'
+          : `<div class="raster-2"><label class="feld">von<input type="time" value="${f.von}" data-au="von"></label><label class="feld">bis<input type="time" value="${f.bis}" data-au="bis"></label></div>
+          <div class="leise">Vorheizen ${d.e.vorheizen} min und Nachheizen ${d.e.nachheizen} min gelten auch hier – geheizt wird ${uhr(minu(f.von) - d.e.vorheizen)}–${uhr(minu(f.bis) + d.e.nachheizen)}.</div>`}
+        <label class="feld">Notiz<input value="${esc(f.notiz)}" placeholder="z. B. Betonieren" data-au="notiz"></label>
+        ${knopf('Speichern', 'au-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'az-neu') {
+      const f = s.form;
+      return `${griff}<h3>Neue Arbeitszeit</h3>
+        <div class="raster-2"><label class="feld">Gilt ab<input type="date" value="${f.ab}" data-azn="ab"></label><label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Winter" data-azn="name"></label></div>
+        ${TAGE.map(t => { const z = f.tage[t]; return `<div class="zeile azn"><b class="tag-n">${t}</b>${schalter(!!z, 'azn-tag', `data-t="${t}"`)}
+          ${z ? `<input type="time" value="${z[0]}" data-azt="${t}" data-p="0"><span class="leise">bis</span><input type="time" value="${z[1]}" data-azt="${t}" data-p="1">` : '<span class="leise frei">frei</span>'}</div>`; }).join('')}
+        <button class="zeile" data-act="azn-wie-mo"><span class="blau">Di–Do wie Montag</span></button>
+        <div class="leise">Die bisherige Arbeitszeit bleibt gespeichert. Liegt das Datum in der Zukunft, gilt die neue automatisch ab diesem Tag.</div>
+        ${knopf('Speichern', 'azn-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'container-neu') {
+      const f = s.form, schacht = f.art === 'Pumpenschacht';
+      const fuehler = this.entitaeten(x => (x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'temperature') || x.entity_id.startsWith('climate.'));
+      return `${griff}<h3>Neuer Container</h3>
+      <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Lager Nord" data-neu="name"></label>
+      <div class="feld">Art<div class="seg klein">${['Container', 'Pumpenschacht'].map(v => `<button data-act="neu-art" data-v="${v}" class="${f.art === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+      <label class="feld">Temperaturfühler<select data-neu="fuehler">${this.optionen(fuehler, f.fuehler, '– keiner –')}</select></label>
+      <label class="feld">Shelly<select data-neu="schalter">${this.optionen(this.freieSchalter().map(([v, n]) => [v, `${n} (${v})`]), f.schalter, '– später –')}</select></label>
+      <label class="feld">${schacht ? 'Gerät' : 'Heizkörper'}<select data-neu="typ">${this.optionen((schacht ? ['Pumpe'] : ['Ölradiator', 'Konvektor']).map(t => [t, t]), f.typ)}</select></label>
+      ${knopf('Anlegen', 'neu-anlegen', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'bereich') {
+      const b = this.b; if (!b) { this.s.sheet = null; return ''; }
+      const e = s.edit ||= { bedarf: !!b.bedarf, name: b.name, anschluss: b.anschluss || (d.anschluesse[0] && d.anschluesse[0].id) || '', tuer: (b.tuer && b.tuer.eid) || '', firma: b.firma || 'eigen', fuehler: b.fuehler || '',
+        geraete: b.geraete.map(g => ({ id: g.id, n: g.n, typ: g.typ, schalter: g.schalter, leistung: g.leistung, energie: g.energie, alt: { n: g.n, typ: g.typ } })) };
+      const typen = b.pumpe ? ['Pumpe'] : ['Ölradiator', 'Konvektor', 'Bautrockner', 'Steckdose'];
+      const wahl = (i, g) => `<select data-ge="typ" data-i="${i}">${typen.map(t => `<option ${g.typ === t ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+      const tueren = this.entitaeten(x => x.entity_id.startsWith('binary_sensor.') && ['door', 'window', 'opening', 'garage_door'].includes(x.attributes.device_class));
+      const fuehler = this.entitaeten(x => (x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'temperature') || x.entity_id.startsWith('climate.'));
+      if (e.fuehler && !fuehler.some(x => x[0] === e.fuehler)) fuehler.unshift([e.fuehler, this.name(e.fuehler)]);
+      if (e.tuer && !tueren.some(x => x[0] === e.tuer)) tueren.unshift([e.tuer, this.name(e.tuer)]);
+      return `${griff}<div class="block-kopf"><h3>Bearbeiten</h3><span class="leise">${b.pumpe ? 'Pumpenschacht' : 'Container'}</span></div>
+        <label class="feld">Name<input value="${esc(e.name)}" data-b="name"></label>
+        ${b.pumpe ? '' : `<div class="zeile"><div><b>Nur bei Bedarf heizen</b><div class="leise">z. B. Besprechungscontainer: heizt nur per Schalter oder Termin, sonst Frostschutz</div></div>${schalter(e.bedarf, 'ge-bedarf')}</div>`}
+        ${b.pumpe ? '' : `<label class="feld">Temperaturfühler<select data-bfu>${this.optionen(fuehler, e.fuehler, '– keiner –')}</select></label>`}
+        ${b.pumpe ? '' : `<label class="feld">Türkontakt<select data-btuer>${this.optionen(tueren, e.tuer, 'keiner')}</select></label>`}
+        <label class="feld">Stromanschluss<select data-ban>${d.anschluesse.map(a => `<option value="${esc(a.id)}" ${e.anschluss === a.id ? 'selected' : ''}>${esc(a.name)} · ${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A</option>`).join('')}</select></label>
+        <label class="feld">Firma · für die Abrechnung<select data-bf="firma">${d.firmen.map(f => `<option value="${esc(f.id)}" ${e.firma === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>
+        <div class="gruppe-t">${b.pumpe ? 'Pumpen' : 'Geräte'} · ${e.geraete.filter(g => !g.weg).length}</div>
+        ${e.geraete.map((g, i) => g.weg ? `<div class="ge-zeile weg"><span>${esc(g.n)} wird entfernt</span><button class="chip glas-panel" data-act="ge-zurueck" data-i="${i}">rückgängig</button></div>`
+          : `<div class="ge-zeile"><div class="ge-felder">
+            ${g.neu ? `<select data-ge="schalter" data-i="${i}">${this.optionen(this.freieSchalter().map(([v, n]) => [v, `${n} (${v})`]), g.schalter, '– Shelly wählen –')}</select>` : `<span class="leise ge-shelly">${esc(this.name(g.schalter))} · ${esc(g.schalter)}</span>`}
+            <div class="ge-zwei"><input value="${esc(g.n)}" data-ge="n" data-i="${i}" placeholder="Name">${wahl(i, g)}</div>
+            <button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
+        <button class="zeile" data-act="ge-neu"><span class="blau">+ Gerät hinzufügen</span></button>
+        <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
+        ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'abschliessen', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    if (s.art === 'urlaub') {
+      if (!d.optionen.urlaub_kalender) return `${griff}<h3>Urlaub eintragen</h3><div class="leise">Zuerst einen Kalender für den Urlaub wählen.</div>${knopf('Kalender wählen', 'wetterquelle-auf', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+      return `${griff}<h3>Urlaub eintragen</h3><label class="feld">Name<input value="${esc(s.form.name)}" placeholder="z. B. Semesterferien" data-ur="name"></label>
+      <div class="raster-2"><label class="feld">Von<input type="date" value="${s.form.von}" data-ur="von"></label><label class="feld">Bis<input type="date" value="${s.form.bis}" data-ur="bis"></label></div>
+      <div class="leise">Wird in den Kalender „${esc(this.name(d.optionen.urlaub_kalender))}“ eingetragen; in der Zeit läuft nur der Frostschutz.</div>${knopf('Eintragen', 'urlaub-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
+    if (s.art === 'wetterquelle') {
+      const f = s.form, kal = this.entitaeten(x => x.entity_id.startsWith('calendar.'));
+      return `${griff}<h3>Wetter</h3>
+        <label class="feld">Wetter<select data-wq="wetter">${this.optionen(this.entitaeten(x => x.entity_id.startsWith('weather.')), f.wetter, '– keins –')}</select></label>
+        <label class="feld">Außentemperatur<select data-wq="temp_sensor">${this.optionen(this.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'temperature'), f.temp_sensor, 'aus der Vorhersage')}</select></label>
+        <label class="feld">Regenmenge<select data-wq="regen_sensor">${this.optionen(this.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'precipitation'), f.regen_sensor, 'aus der Vorhersage')}</select></label>
+        <div class="gruppe-t">Kalender</div>
+        <label class="feld">Urlaub<select data-wq="urlaub_kalender">${this.optionen(kal, f.urlaub_kalender, '– keiner –')}</select></label>
+        <label class="feld">Feiertage<select data-wq="feiertag_kalender">${this.optionen(kal, f.feiertag_kalender, '– keiner –')}</select></label>
+        <label class="feld">Termine (Container nur bei Bedarf)<select data-wq="termine_kalender">${this.optionen(kal, f.termine_kalender, '– keiner –')}</select></label>
+        ${knopf('Speichern', 'wetterquelle-speichern', 'amber')}`;
+    }
+    return `${griff}<h3>${{ name: 'Name', 'baustelle-neu': 'Neue Baustelle' }[s.art] || ''}</h3>
+      <label class="feld">Name<input value="${esc(s.form ? s.form.name : '')}" placeholder="z. B. Wohnbau Kalsdorf" data-nm="name"></label>
+      ${knopf('Speichern', s.art === 'name' ? 'name-speichern' : 'baustelle-anlegen', 'amber')}`;
   }
 
+  /* ---- Aufrufe an die Integration (docs/api-0.7.md §2) und an HA ---- */
+  fehlerText(e) { return (e && e.body && e.body.message) || (e && e.message) || (e && e.code) || String(e); }
+  async ws(msg, ok) {
+    try { const r = await this._hass.callWS(msg); if (ok) this.toast(ok); return r === undefined ? true : r; }
+    catch (e) { this.toast(`Fehler: ${this.fehlerText(e)}`); return null; }
+    finally { this._laden(); }
+  }
+  /* Einstellung setzen: sofort anzeigen, dann an die Integration (Pfad wie im Store) */
+  setzen(pfad, wert, ok) {
+    const r = this.d && this.d.r;
+    this._rohText = null;   // Antwort der Integration immer übernehmen (auch wenn sie den Wert ablehnt)
+    if (r) { let o = r.einstellungen ||= {}; for (const k of pfad.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; o[pfad[pfad.length - 1]] = wert; this._neuBauen(); this.render(); }
+    return this.ws({ type: 'baustelle/setzen', entry_id: this.d.entry, pfad, wert }, ok);
+  }
+  aktion(aktion, felder, ok) { return this.ws({ type: 'baustelle/aktion', entry_id: this.d.entry, aktion, ...felder }, ok); }
+  liste(liste, aktion, eintrag, ok) { return this.ws({ type: 'baustelle/liste', entry_id: this.d.entry, liste, aktion, eintrag }, ok); }
   /* Einrichtungs-Dialoge von HA (dieselben wie unter Einstellungen → Geräte & Dienste) */
-  async _dialog(pfad, start, daten) {
+  async dialog(pfad, start, daten) {
     const form = await this._hass.callApi('POST', pfad, start);
-    if (form.type !== 'form') return form;
+    if (!form || form.type !== 'form') return form;
     return this._hass.callApi('POST', `${pfad}/${form.flow_id}`, daten);
   }
-
-  async _ausfuehren(text, lauf) {
-    try {
-      const r = await lauf();
-      const fehler = r && ((r.type === 'form' && r.errors && (r.errors.base || Object.values(r.errors)[0]))
-        || (r.type === 'abort' && r.reason !== 'reconfigure_successful' && r.reason));
-      if (fehler) { this._meldung(FEHLER[fehler] || fehler); return null; }
-      this._meldung(text);
-      this.ui.form = null;
-      this._rendern();
-      setTimeout(() => this._laden(), 1500);
-      setTimeout(() => this._laden(), 5000);
-      return r;
-    } catch (err) {
-      this._meldung((err && err.body && err.body.message) || (err && err.message) || String(err));
-      return null;
-    }
+  flowFehler(r) { return r && ((r.type === 'form' && r.errors && (r.errors.base || Object.values(r.errors)[0])) || (r.type === 'abort' && !['reconfigure_successful'].includes(r.reason) && r.reason)); }
+  async einrichten(lauf, ok) {
+    try { const r = await lauf(); const f = this.flowFehler(r); if (f) { this.toast(`Nicht gespeichert: ${f}`); return null; } if (ok) this.toast(ok); return r || true; }
+    catch (e) { this.toast(`Fehler: ${this.fehlerText(e)}`); return null; }
   }
-
-  _optionenSpeichern(b, aenderung) {
-    const o = { ...b.baustelle.optionen, ...aenderung };
+  optionenSpeichern(x, aenderung) {
+    const o = { ...x.optionen, ...aenderung };
     for (const k of Object.keys(o)) if (o[k] === '' || o[k] === null || o[k] === undefined) delete o[k];
-    return this._ausfuehren('Gespeichert', () => this._dialog('config/config_entries/options/flow', { handler: b.baustelle.entry_id }, o));
+    return this.dialog('config/config_entries/options/flow', { handler: x.entry }, o);
   }
-
-  _formWert(k) {
-    const el = this.shadowRoot.querySelector(`[data-f="${k}"]`);
-    if (!el) return undefined;
-    return el.type === 'checkbox' ? el.checked : el.value;
+  bereichDaten(name, art, fuehler) { return { name, art, ...(fuehler ? { fuehler } : {}) }; }
+  geraetDaten(bid, g) { const [rolle, typ] = TYP_ROLLE[g.typ] || TYP_ROLLE.Ölradiator;
+    return { bereich: bid, schalter: g.schalter, name: (g.n || '').trim() || this.name(g.schalter) || g.typ, rolle, typ: typ === 'oelradiator' && rolle !== 'heizkoerper' ? 'konvektor' : typ,
+      ...(g.leistung ? { leistung: g.leistung } : {}), ...(g.energie ? { energie: g.energie } : {}) }; }
+  async bereichAnlegen(name, schacht) {
+    const r = await this.dialog('config/config_entries/subentries/flow', { handler: [this.d.entry, 'bereich'] }, this.bereichDaten(name, schacht ? 'pumpenschacht' : 'container'));
+    const f = this.flowFehler(r); if (f) throw new Error(f);
+    return r;
   }
+  async neueIds(namen) { await this._laden(); return namen.map(n => (this.d.bereiche.find(b => b.name === n) || {}).id).filter(Boolean); }
+  morgenFrueh() { return new Date(this.zoneMs(plusTage(this.z.HEUTE, 1), '07:00', this.z.zone)).toISOString(); }   // „bis morgen stumm“ = morgen 07:00
+  isoHeute(hhmm) { return new Date(this.zoneMs(this.z.HEUTE, hhmm, this.z.zone)).toISOString(); }
 
-  _einstellungAktion(act, d, b) {
-    const f = k => this._formWert(k);
-    const id = b.baustelle.entry_id;
-    const bereich = x => x ? { name: f('name').trim(), art: x.art, ...(f('fuehler') ? { fuehler: f('fuehler') } : {}) }
-      : { name: f('name').trim(), art: f('art'), ...(f('fuehler') ? { fuehler: f('fuehler') } : {}) };
-    switch (act) {
-      case 'optionen': this.ui.form = { art: 'optionen', id: d.id }; return this._rendern();
-      case 'neu': this.ui.form = { art: 'neu' }; return this._rendern();
-      case 'wetter': case 'kalender': this.ui.form = { art: act }; return this._rendern();
-      case 'bereich-neu': this.ui.form = { art: 'bereich' }; return this._rendern();
-      case 'bereich-aendern': this.ui.form = { art: 'bereich', id: d.id }; return this._rendern();
-      case 'bereich-loeschen': this.ui.form = { art: 'bereich-loeschen', id: d.id }; return this._rendern();
-      case 'geraet-neu': this.ui.form = { art: 'geraet', bereich: d.bereich }; return this._rendern();
-      case 'geraet-aendern': this.ui.form = { art: 'geraet', id: d.id }; return this._rendern();
-      case 'geraet-loeschen': this.ui.form = { art: 'geraet-loeschen', id: d.id }; return this._rendern();
-      case 'optionen-speichern': {
-        const x = this.baustellen.find(y => y.baustelle.entry_id === this.ui.form.id);
-        return this._optionenSpeichern(x, { status: f('status'), beginn: f('beginn'), ende: f('status') === 'abgeschlossen' ? f('ende') : '',
-          heizung: f('heizung'), pumpen: f('pumpen'), heizperiode_von: f('heizperiode_von'), heizperiode_bis: f('heizperiode_bis') });
-      }
-      case 'wetter-speichern': return this._optionenSpeichern(b, { wetter: f('wetter'), temp_sensor: f('temp_sensor'), regen_sensor: f('regen_sensor') });
-      case 'kalender-speichern': return this._optionenSpeichern(b, { feiertag_kalender: f('feiertag_kalender'), urlaub_kalender: f('urlaub_kalender') });
-      case 'meldungen-speichern':
-        return this._optionenSpeichern(b, { empfaenger: [...this.shadowRoot.querySelectorAll('[data-f="empf"]')].filter(x => x.checked).map(x => x.value) });
-      case 'baustelle-anlegen': {
-        if (!f('name').trim()) return this._meldung('Bitte einen Namen eingeben');
-        return this._ausfuehren('Baustelle angelegt – jetzt Container anlegen', () => this._dialog('config/config_entries/flow',
-          { handler: 'baustelle', show_advanced_options: false }, { name: f('name').trim(), beginn: f('beginn'), heizung: f('heizung'), pumpen: f('pumpen') }))
-          .then(r => {
-            if (!r) return;
-            if (r.next_flow) this._hass.callApi('DELETE', `config/config_entries/subentries/flow/${r.next_flow[1]}`).catch(() => {});
-            if (r.result && r.result.entry_id) { this.ui.bid = r.result.entry_id; this.ui.sub = 'diese'; }
-          });
-      }
-      case 'bereich-speichern': {
-        if (!f('name').trim()) return this._meldung('Bitte einen Namen eingeben');
-        const x = b.bereiche.find(y => y.id === this.ui.form.id);
-        return this._ausfuehren(x ? 'Gespeichert' : 'Angelegt', () => this._dialog('config/config_entries/subentries/flow',
-          { handler: [id, 'bereich'], ...(x ? { subentry_id: x.id } : {}) }, bereich(x)));
-      }
-      case 'bereich-entfernen':
-        return this._ausfuehren('Entfernt', () => this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: id, subentry_id: this.ui.form.id }));
-      case 'geraet-speichern': {
-        if (!f('schalter')) return this._meldung('Bitte einen Shelly wählen');
-        const g = b.geraete.find(y => y.id === this.ui.form.id);
-        const daten = { bereich: f('bereich'), schalter: f('schalter'), name: f('name').trim() || ROLLE[f('rolle')], rolle: f('rolle'), typ: f('typ') };
-        return this._ausfuehren(g ? 'Gespeichert' : 'Shelly hinzugefügt', () => this._dialog('config/config_entries/subentries/flow',
-          { handler: [id, 'geraet'], ...(g ? { subentry_id: g.id } : {}) }, daten));
-      }
-      case 'geraet-entfernen':
-        return this._ausfuehren('Entfernt', () => this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: id, subentry_id: this.ui.form.id }));
-      default: return undefined;
+  /* ---- Aktionen ---- */
+  klick(ev) {
+    const el = ev.target && ev.target.closest && ev.target.closest('[data-act]'); if (!el) return;
+    const a = el.dataset.act, d = this.d, b = this.b, S = this.s;
+    const neu = () => this.render();
+    switch (a) {
+      case 'menue': return this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true }));
+      case 'tab': return this.gehe(el.dataset.v);
+      case 'container': S.chart = 'temp'; return this.gehe('container', el.dataset.id);
+      case 'w-hin': return this.gehe('container', el.dataset.id);
+      case 'w-stumm': { const w = d.warnungen.find(x => x.id === el.dataset.id); if (!w) return;
+        return this.aktion('warnung_stumm', { key: w.key, bis: w.stumm ? null : this.morgenFrueh() }, w.stumm ? 'Wird wieder gemeldet' : 'Stumm bis morgen – bleibt im Protokoll'); }
+      case 'w-protokoll': S.verlauf = 'aktiv'; S.pfilter = 'warnung'; return this.gehe('verlauf');
+      case 'pfilter': S.pfilter = el.dataset.v; S.pmehr = false; return neu();
+      case 'pmehr': S.pmehr = true; return neu();
+      case 'sheet': {
+        const art = el.dataset.s;
+        if (art === 'termin') { S.sheet = { art: 'termin', form: { b: el.dataset.id || S.cid, titel: '', datum: plusTage(this.z.HEUTE, 7), von: '09:00', bis: '10:00', wieder: 'einmal', boost: false } }; return neu(); }
+        if (art === 'urlaub') { S.sheet = { art: 'urlaub', form: { name: '', von: plusTage(this.z.HEUTE, 14), bis: plusTage(this.z.HEUTE, 18) } }; return neu(); }
+        if (art === 'container-neu') { S.sheet = { art, form: { name: '', art: 'Container', fuehler: '', schalter: '', typ: 'Ölradiator' } }; return neu(); }
+        if (art === 'wetterquelle') { const o = d.optionen; S.sheet = { art, form: { wetter: o.wetter || '', temp_sensor: o.temp_sensor || '', regen_sensor: o.regen_sensor || '', urlaub_kalender: o.urlaub_kalender || '', feiertag_kalender: o.feiertag_kalender || '', termine_kalender: d.termineKal || '' } }; return neu(); }
+        if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
+        S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu(); }
+      case 'wetterquelle-auf': return this.klick({ target: { closest: () => ({ dataset: { act: 'sheet', s: 'wetterquelle' } }) } });
+      case 'wa': S.sheet.wa = el.dataset.v; return neu();
+      case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
+      case 'aw-scope': S.awScope = el.dataset.v; S.aw.auswahl = this.quellen(S.aw, 'aw').map(q => q.id); return neu();
+      case 'vb-zeitraum': (el.dataset.ziel === 'aw' ? S.aw : S.sheet).zeitraum = el.dataset.v; return neu();
+      case 'vb-wer': { const sh = el.dataset.ziel === 'aw' ? S.aw : S.sheet, id = el.dataset.id;
+        if (!id) sh.auswahl = []; else if (id === '*') sh.auswahl = this.quellen(sh, el.dataset.ziel || 'sheet').map(q => q.id);
+        else sh.auswahl = sh.auswahl.includes(id) ? sh.auswahl.filter(x => x !== id) : [...sh.auswahl, id];
+        return neu(); }
+      case 'bereich-einst': S.cid = el.dataset.id; S.sheet = { art: 'bereich' }; return neu();
+      case 'zu': S.sheet = null; return neu();
+      case 'melden': { const namen = { uebersicht: 'Übersicht', container: 'Container', heizung: 'Heizung', auswertung: 'Auswertung', verlauf: 'Verlauf', einst: 'Einstellungen', ueber: 'Über', dev: 'Entwicklung', bsdetail: 'Baustelle (abgeschlossen)' };
+        const kontext = [namen[S.view] || S.view, S.view === 'container' && this.b ? this.b.name : '', S.sheet ? `Dialog „${S.sheet.art}“` : ''].filter(Boolean).join(' · ');
+        const breite = this.root && this.root.getBoundingClientRect ? this.root.getBoundingClientRect().width : 1000, geraet = breite < 700 ? 'Handy' : 'Desktop';
+        S.sheet = { art: 'melden', vorher: S.sheet, form: { art: 'wunsch', text: '', kontext, geraet, stand: true } }; return neu(); }
+      case 'ml-art': S.sheet.form.art = el.dataset.v; return neu();
+      case 'ml-stand': S.sheet.form.stand = !S.sheet.form.stand; return neu();
+      case 'ml-zurueck': S.sheet = S.sheet.vorher || null; return neu();
+      case 'ml-senden': { const f = S.sheet.form; if (!f.text.trim()) return this.toast('Bitte kurz beschreiben');
+        // „Stand der Seite mitschicken“ → Feld `seite` (api §5; `stand` ist in der Integration der Zeitpunkt der Statusänderung)
+        const meldung = { art: f.art, text: f.text.trim(), kontext: f.kontext, version: this.version, geraet: f.geraet,
+          seite: f.stand ? { view: S.view, cid: S.cid, baustelle: d ? d.entry : null, dialog: S.sheet.vorher ? S.sheet.vorher.art : null } : null };
+        S.sheet = S.sheet.vorher || null; neu(); delete this.cache.meldungen;
+        return this.ws({ type: 'baustelle/meldung', entry_id: d && d.entry, aktion: 'neu', meldung }, 'Danke – steht unter Einstellungen › Entwicklung'); }
+      case 'mfilter': S.mfilter = el.dataset.v; return neu();
+      case 'm-status': { const m = (this.meldungen() || []).find(x => x.id === el.dataset.id); if (!m) return; delete this.cache.meldungen;
+        return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'status', meldung_id: m.id, status: m.status === 'erledigt' ? 'offen' : 'erledigt' }); }
+      case 'm-weg': delete this.cache.meldungen; return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'loeschen', meldung_id: el.dataset.id }, 'Meldung gelöscht');
+      case 'm-md': { const md = this.meldungenMarkdown(); if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {}); return this.toast(`${(this.meldungen() || []).length} Meldungen als Markdown kopiert`); }
+      case 'm-json': this.datei(JSON.stringify(this.meldungen() || [], null, 2), 'baustelle-meldungen.json', 'application/json'); return this.toast('baustelle-meldungen.json');
+      case 'cl': { const i = +el.dataset.i; S.cl = (S.cl ?? 0) === i ? -1 : i; return neu(); }
+      case 'toast': return this.toast(el.dataset.t);
+      case 'diagnose': return this.ws({ type: 'auth/sign_path', path: `/api/diagnostics/config_entry/${d.entry}` }).then(r => { if (r && r.path) { this.herunterladen(r.path, `baustelle-${d.entry}.json`); this.toast('Diagnose wird heruntergeladen (wie in HA unter Geräte & Dienste)'); } });
+      case 'auto': return this.setzen(['automatik'], !d.e.auto, !d.e.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
+      case 'bedarf-auf': S.sheet = { art: 'bedarf', cid: el.dataset.id, boost: false }; return neu();
+      case 'bedarf-an': { const x = d.bereiche.find(y => y.id === el.dataset.id), v = el.dataset.v, boost = !!(S.sheet && S.sheet.art === 'bedarf' && S.sheet.boost);
+        const felder = v === 'ende' ? { bis: this.isoHeute(this.arbeitsende() || '16:30') } : v === 'abend' ? { bis: this.isoHeute('19:00') } : { minuten: +v };
+        const bisText = v === 'ende' ? this.arbeitsende() : v === 'abend' ? '19:00' : uhr(minu(this.z.JETZT) + +v);
+        S.sheet = null; neu(); return this.aktion('bedarf', { bereich: x.id, ...felder, boost }, `${x.name} heizt bis ${bisText}`); }
+      case 'bedarf-aus': { const x = d.bereiche.find(y => y.id === el.dataset.id); return this.aktion('bedarf_aus', { bereich: x.id }, `${x.name} aus – nur Frostschutz`); }
+      case 'termin-weg': { const t = d.termine[+el.dataset.i]; if (!t) return; if (!t.uid) return this.toast('Dieser Kalender nennt keine Kennung – Termin bitte im Kalender löschen');
+        return this.ws({ type: 'calendar/event/delete', entity_id: d.termineKal, uid: t.uid }, `Termin „${t.titel}“ gelöscht`); }
+      case 'termin-speichern': { const f = S.sheet.form; if (!f.titel.trim() || !f.datum || f.bis <= f.von) return this.toast('Bitte Titel, Tag und Uhrzeit prüfen');
+        if (!d.termineKal) return this.toast('Zuerst einen Kalender für Termine wählen');
+        const ev = { summary: f.titel.trim(), dtstart: `${f.datum}T${f.von}:00`, dtend: `${f.datum}T${f.bis}:00`, description: `baustelle:${f.b}${f.boost ? '\nboost' : ''}` };   // Zuordnung zum Container (api §4)
+        if (f.wieder !== 'einmal') ev.rrule = f.wieder === 'woche' ? 'FREQ=WEEKLY' : 'FREQ=WEEKLY;INTERVAL=2';
+        S.sheet = null; neu();
+        return this.ws({ type: 'calendar/event/create', entity_id: d.termineKal, event: ev }, `Eingetragen${f.wieder !== 'einmal' ? ` – ${WIEDER[f.wieder]} am ${wtag(f.datum)}` : ''} – heizt ab ${uhr(minu(f.von) - d.e.vorheizen)}`); }
+      case 'bedarf-boost': S.sheet.boost = !S.sheet.boost; return neu();
+      case 'tm-wieder': S.sheet.form.wieder = el.dataset.v; return neu();
+      case 'tm-boost': S.sheet.form.boost = !S.sheet.form.boost; return neu();
+      case 'boost': { const x = d.bereiche.find(y => y.id === el.dataset.id); return this.aktion('boost', { bereich: x.id, an: !x.boost }, !x.boost ? `${x.name}: schnell aufheizen` : `${x.name}: normal weiter`); }
+      case 'hz-art': S.hzArt = el.dataset.v; return neu();
+      case 'hz-tag': S.hzTag = el.dataset.v; if (el.dataset.art) S.hzArt = 'tag'; return neu();
+      case 'ausn-neu': { const v = el.dataset.v, az = (this.azJetzt || { tage: {} }).tage, h = this.z.HEUTE, morgen = plusTage(h, 1);
+        const sa = plusTage(h, (5 - (new Date(h + 'T12:00:00Z').getUTCDay() + 6) % 7 + 7) % 7 || 7);   // nächster Samstag
+        const vor = { 'heute-laenger': { datum: h, art: 'zeiten', von: (az[wtag(h)] || ['07:00'])[0], bis: '18:00', notiz: 'heute länger' },
+          'morgen-spaeter': { datum: morgen, art: 'zeiten', von: '09:00', bis: (az[wtag(morgen)] || ['', '16:30'])[1], notiz: 'morgen später' },
+          samstag: { datum: sa, art: 'arbeit', von: '07:00', bis: '12:00', notiz: '' }, frei: { datum: morgen, art: 'frei', von: '07:00', bis: '16:30', notiz: '' } }[v]
+          || { datum: plusTage(h, 7), art: 'zeiten', von: '07:00', bis: '16:30', notiz: '' };
+        S.sheet = { art: 'ausnahme', form: { ...vor } }; return neu(); }
+      case 'au-art': S.sheet.form.art = el.dataset.v; return neu();
+      case 'au-speichern': { const f = S.sheet.form; if (!f.datum || (f.art !== 'frei' && f.bis <= f.von)) return this.toast('Bitte Tag und Uhrzeit prüfen');
+        S.sheet = null; neu();
+        return this.liste('ausnahmen', 'speichern', { datum: f.datum, art: f.art, von: f.von, bis: f.bis, notiz: f.notiz.trim() }, `Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)} gespeichert`); }
+      case 'ausn-weg': return this.liste('ausnahmen', 'loeschen', { datum: el.dataset.d }, 'Ausnahme gelöscht – es gilt wieder die Arbeitszeit');
+      case 'jetzt-an': return this.aktion('jetzt_heizen', { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`);
+      case 'jetzt-aus': return this.aktion('jetzt_heizen', { minuten: null }, 'Zurück zum Plan');
+      case 'b-auto': return this.setzen(['bereiche', b.id, 'auto'], !b.auto);
+      case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; return this.setzen(['bereiche', x.id, 'trocknen'], !x.trocknen); }
+      case 'geraet': { const g = b.geraete[+el.dataset.i]; return this.aktion('schalten', { geraet: g.id, an: !g.an }, b.auto && d.e.auto ? 'Handbetrieb bis zum nächsten Schaltpunkt' : undefined); }
+      case 'chart': S.chart = el.dataset.c; return neu();
+      case 'verlauf': S.verlauf = el.dataset.v; return neu();
+      case 'basis': return this.setzen(PFAD.basis, el.dataset.v === 'jetzt' ? 'jetzt' : 'tageshoechst');
+      case 'e-bool': { const k = el.dataset.k;
+        if (ARTEN[k]) return this.setzen(['meldungen_einst', 'arten', ARTEN[k]], !d.e[k]);
+        return this.setzen(PFAD[k], !d.e[k]); }
+      case 'st': { const k = el.dataset.k, [min, max] = GRENZEN[k] || [0, 1e9];
+        const wert = Math.min(max, Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10)); if (wert === d.e[k]) return undefined; return this.setzen(PFAD[k], wert); }
+      case 'jc-auto': { const x = d.bereiche.find(y => y.id === el.dataset.id); return this.setzen(['bereiche', x.id, 'auto'], !x.auto); }
+      case 'jc-soll': { const x = d.bereiche.find(y => y.id === el.dataset.id), [min, max] = GRENZEN.soll;
+        return this.setzen(['bereiche', x.id, 'soll'], Math.min(max, Math.max(min, Math.round(((x.soll ?? d.e.soll) + +el.dataset.d) * 2) / 2))); }
+      case 'urlaub-weg': { const u = (this.urlaube() || [])[+el.dataset.i]; if (!u) return; delete this.cache['k:' + d.optionen.urlaub_kalender];
+        return this.ws({ type: 'calendar/event/delete', entity_id: d.optionen.urlaub_kalender, uid: u.uid, ...(u.recurrence_id ? { recurrence_id: u.recurrence_id } : {}) }, `${u.name} gelöscht`); }
+      case 'urlaub-speichern': { const f = S.sheet.form; if (!f.von || !f.bis || f.bis < f.von) return this.toast('Bitte Von und Bis prüfen');
+        S.sheet = null; neu(); delete this.cache['k:' + d.optionen.urlaub_kalender];
+        return this.ws({ type: 'calendar/event/create', entity_id: d.optionen.urlaub_kalender, event: { summary: f.name.trim() || 'Urlaub', dtstart: f.von, dtend: plusTage(f.bis, 1) } }, 'Eingetragen – in der Zeit nur Frostschutz'); }
+      case 'vgl': S.vglArt = el.dataset.v; return neu();
+      case 'bs-oeffnen': case 'bs-wahl': { const x = this.alle.find(y => y.entry === el.dataset.id); if (!x) return;
+        if (x.aktiv) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); S.aw = null; return this.gehe('uebersicht'); }
+        S.bs = x.entry; return this.gehe('bsdetail'); }
+      case 'bs-aktiv': { const x = this.alle.find(y => y.entry === el.dataset.t); if (!x) return;
+        return this.einrichten(() => this.optionenSpeichern(x, { status: 'aktiv', ende: null }), 'Baustelle wieder aktiv – Automatik bleibt aus, bis du sie einschaltest').then(() => this._laden()); }
+      case 'csv': return this.csv(el.dataset.art);
+      case 'firma-auf': { const f = el.dataset.id ? this.firma(el.dataset.id) : null;
+        S.sheet = { art: 'firma', form: { id: f && f.id, name: (f && f.name) || '', neu: [], container: f ? d.bereiche.filter(x => (x.firma || 'eigen') === f.id).map(x => x.id) : [] } }; return neu(); }
+      case 'firma-c': { const c = S.sheet.form.container, id = el.dataset.id; S.sheet.form.container = c.includes(id) ? c.filter(x => x !== id) : [...c, id]; return neu(); }
+      case 'firma-speichern': { const f = S.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
+        const neue = f.neu.filter(c => c.name.trim());
+        S.sheet = null; neu();
+        return (async () => {
+          let ids = [];
+          if (neue.length) { try { for (const c of neue) await this.bereichAnlegen(c.name.trim(), c.art === 'Schacht'); ids = await this.neueIds(neue.map(c => c.name.trim())); } catch (e) { return this.toast(`Nicht angelegt: ${this.fehlerText(e)}`); } }
+          return this.liste('firmen', 'speichern', { ...(f.id ? { id: f.id } : {}), name: f.name.trim(), container: [...f.container, ...ids] }, `${f.name.trim()} gespeichert${neue.length ? ` · ${neue.length} Container angelegt` : ''}`);
+        })(); }
+      case 'fc-neu': S.sheet.form.neu.push({ name: '', art: 'Container' }); return neu();
+      case 'fc-weg': S.sheet.form.neu.splice(+el.dataset.i, 1); return neu();
+      case 'fc-art': S.sheet.form.neu[+el.dataset.i].art = el.dataset.v; return neu();
+      case 'firma-weg': { const id = S.sheet.form.id; S.sheet = null; neu(); return this.liste('firmen', 'loeschen', { id }, 'Firma gelöscht – Container gehören wieder der eigenen Firma'); }
+      case 'e-wert': { const v = el.dataset.v; return this.setzen(PFAD[el.dataset.k], isNaN(+v) ? v : +v); }
+      case 'prio': return this.setzen(['bereiche', el.dataset.id, 'prio'], el.dataset.v);
+      case 'n-knopf': return this.toast(`„${el.dataset.t}“ – so reagierst du direkt aus der Nachricht`);
+      case 'bericht-senden': { const art = d.e.bericht === 'monat' ? 'monat' : 'woche'; return this.aktion('bericht_senden', { art }, `Bericht für ${art === 'monat' ? 'den Vormonat' : 'die Vorwoche'} gesendet`); }
+      case 'anschluss-auf': { const x = el.dataset.id ? this.anschluss(el.dataset.id) : null;
+        S.sheet = { art: 'anschluss', form: { id: x && x.id, name: (x && x.name) || '', ampere: (x && x.ampere) || 32, phasen: (x && x.phasen) || 3, reserve: x ? x.reserve : 3, container: x ? d.bereiche.filter(y => y.anschluss === x.id).map(y => y.id) : [] } }; return neu(); }
+      case 'an-wert': S.sheet.form[el.dataset.k] = +el.dataset.v; return neu();
+      case 'an-res': S.sheet.form.reserve = Math.max(0, S.sheet.form.reserve + +el.dataset.d); return neu();
+      case 'an-c': { const c = S.sheet.form.container, id = el.dataset.id; S.sheet.form.container = c.includes(id) ? c.filter(x => x !== id) : [...c, id]; return neu(); }
+      case 'an-speichern': { const f = S.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
+        S.sheet = null; neu();
+        return this.liste('anschluesse', 'speichern', { ...(f.id ? { id: f.id } : {}), name: f.name.trim(), ampere: f.ampere, phasen: f.phasen, reserve_kw: f.reserve, container: f.container }, `${f.name.trim()} gespeichert`); }
+      case 'an-weg': { const id = S.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); S.sheet = null; neu();
+        return this.liste('anschluesse', 'loeschen', { id }, `Gelöscht – Container hängen jetzt an ${rest ? rest.name : 'keinem Anschluss'}`); }
+      case 'tab-einst': return this.gehe('einst');
+      case 'az-alt': S.azAlt = !S.azAlt; return neu();
+      case 'az-heizung': return this.gehe('heizung');
+      case 'az-neu': case 'az-vorlage': { const v = a === 'az-vorlage' ? d.arbeitszeiten[S.sheet.i] : this.azJetzt;
+        const tage = v ? JSON.parse(JSON.stringify(v.tage)) : { Mo: ['07:00', '16:30'], Di: ['07:00', '16:30'], Mi: ['07:00', '16:30'], Do: ['07:00', '16:30'], Fr: ['07:00', '12:30'], Sa: null, So: null };
+        const mo = plusTage(this.z.WOCHE_ISO[0], 7);
+        S.sheet = { art: 'az-neu', form: { ab: mo, name: '', tage } }; return neu(); }
+      case 'az-weg': { const x = d.arbeitszeiten[S.sheet.i]; S.sheet = null; neu(); return this.liste('arbeitszeiten', 'loeschen', { ab: x.ab }, `${x.name} gelöscht`); }
+      case 'azn-tag': { const t = el.dataset.t, f = S.sheet.form; f.tage[t] = f.tage[t] ? null : [...(f.tage.Mo || ['07:00', '16:30'])]; return neu(); }
+      case 'azn-wie-mo': { const f = S.sheet.form; for (const t of ['Di', 'Mi', 'Do']) f.tage[t] = f.tage.Mo ? [...f.tage.Mo] : null; return neu(); }
+      case 'azn-speichern': { const f = S.sheet.form;
+        if (!f.ab) return this.toast('Bitte ein Startdatum wählen');
+        if (d.arbeitszeiten.some(x => x.ab === f.ab)) return this.toast(`Ab ${datum(f.ab)} gibt es schon eine Arbeitszeit`);
+        const tage = Object.fromEntries(TAGE.map((t, k) => [String(k), f.tage[t] ? [...f.tage[t]] : null]));
+        S.sheet = null; neu();
+        return this.liste('arbeitszeiten', 'speichern', { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage }, f.ab > this.z.HEUTE ? `Geplant – gilt ab ${datum(f.ab)}` : 'Gilt jetzt – die bisherige bleibt gespeichert'); }
+      case 'neu-art': S.sheet.form.art = el.dataset.v; S.sheet.form.typ = el.dataset.v === 'Pumpenschacht' ? 'Pumpe' : 'Ölradiator'; return neu();
+      case 'neu-anlegen': { const f = S.sheet.form, name = f.name.trim() || 'Neuer Container', schacht = f.art === 'Pumpenschacht';
+        S.sheet = null; neu();
+        return this.einrichten(async () => {
+          const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'bereich'] }, this.bereichDaten(name, schacht ? 'pumpenschacht' : 'container', f.fuehler));
+          if (this.flowFehler(r) || !f.schalter) return r;
+          const [bid] = await this.neueIds([name]); if (!bid) return r;
+          return this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'] }, this.geraetDaten(bid, { n: schacht ? 'Pumpe 1' : '', typ: f.typ, schalter: f.schalter }));
+        }, `${name} angelegt`).then(() => this._laden()); }
+      case 'b-speichern': { const e = S.sheet.edit, x = b; S.sheet = null; neu();
+        return this.einrichten(async () => {
+          const eb = { ...((d.r.einstellungen.bereiche || {})[x.id] || {}) }, pfad = k => ['bereiche', x.id, k];
+          if (e.name.trim() && (e.name.trim() !== x.name || (e.fuehler || '') !== (x.fuehler || ''))) {
+            const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'bereich'], subentry_id: x.id }, this.bereichDaten(e.name.trim(), x.art || 'container', e.fuehler));
+            if (this.flowFehler(r)) return r; }
+          const call = (k, w) => this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: pfad(k), wert: w });
+          if (e.bedarf !== !!eb.bedarf) await call('bedarf', e.bedarf);
+          if ((e.tuer || null) !== (eb.tuer || null)) await call('tuer', e.tuer || null);
+          if (e.anschluss && e.anschluss !== x.anschluss) await call('anschluss', e.anschluss);
+          if (e.firma !== x.firma) {
+            if (x.firma !== 'eigen') await this._hass.callWS({ type: 'baustelle/liste', entry_id: d.entry, liste: 'firmen', aktion: 'speichern', eintrag: { id: x.firma, name: this.firma(x.firma).name, container: d.bereiche.filter(y => y.firma === x.firma && y.id !== x.id).map(y => y.id) } });
+            if (e.firma !== 'eigen') await this._hass.callWS({ type: 'baustelle/liste', entry_id: d.entry, liste: 'firmen', aktion: 'speichern', eintrag: { id: e.firma, name: this.firma(e.firma).name, container: [...d.bereiche.filter(y => y.firma === e.firma).map(y => y.id), x.id] } });
+          }
+          for (const g of e.geraete) {
+            if (g.weg && !g.neu) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
+            else if (g.neu && !g.weg && g.schalter) { const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'] }, this.geraetDaten(x.id, g)); if (this.flowFehler(r)) return r; }
+            else if (!g.neu && !g.weg && (g.n !== g.alt.n || g.typ !== g.alt.typ)) { const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id }, this.geraetDaten(x.id, g)); if (this.flowFehler(r)) return r; }
+          }
+          return true;
+        }, e.geraete.some(g => g.weg && !g.neu) ? `Gespeichert · ${e.geraete.filter(g => g.weg && !g.neu).length} entfernt – Werte bleiben im Verlauf` : 'Gespeichert').then(() => this._laden()); }
+      case 'ge-bedarf': S.sheet.edit.bedarf = !S.sheet.edit.bedarf; return neu();
+      case 'ge-weg': { const g = S.sheet.edit.geraete[+el.dataset.i]; if (g.neu) S.sheet.edit.geraete.splice(+el.dataset.i, 1); else g.weg = true; return neu(); }
+      case 'ge-zurueck': S.sheet.edit.geraete[+el.dataset.i].weg = false; return neu();
+      case 'ge-neu': S.sheet.edit.geraete.push({ neu: true, schalter: '', n: '', typ: b.pumpe ? 'Pumpe' : 'Ölradiator' }); return neu();
+      case 'temp-vb': S.tempVb = S.tempVb === false; return neu();
+      case 'b-weg': { const x = b; S.sheet = null; this.gehe('uebersicht');
+        return this.einrichten(async () => {
+          for (const g of x.geraete) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
+          await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: x.id }); return true;
+        }, `${x.name} entfernt – Werte bleiben im Verlauf`).then(() => this._laden()); }
+      case 'abschliessen': S.sheet = null; neu();
+        return this.einrichten(() => this.optionenSpeichern(d, { status: 'abgeschlossen' }), 'Abgeschlossen – steht jetzt im Verlauf').then(() => this._laden());
+      case 'name-speichern': { const n = S.sheet.form.name.trim(); if (!n) return this.toast('Bitte einen Namen eingeben'); S.sheet = null; neu();
+        return this.ws({ type: 'config_entries/update', entry_id: d.entry, title: n }, 'Gespeichert'); }
+      case 'baustelle-anlegen': { const n = S.sheet.form.name.trim(); if (!n) return this.toast('Bitte einen Namen eingeben'); S.sheet = null; neu();
+        const heute = this.d ? this.z.HEUTE : new Date().toISOString().slice(0, 10);
+        return this.einrichten(() => this.dialog('config/config_entries/flow', { handler: 'baustelle', show_advanced_options: false }, { name: n, beginn: heute, heizung: true, pumpen: true }), `${n} angelegt – jetzt Container anlegen`)
+          .then(r => { if (r && r.next_flow) this._hass.callApi('DELETE', `config/config_entries/subentries/flow/${r.next_flow[1]}`).catch(() => {});
+            if (r && r.result && r.result.entry_id) { this.bid = r.result.entry_id; this._merken(); } this._laden(); }); }
+      case 'wetterquelle-speichern': { const f = S.sheet.form; S.sheet = null; neu();
+        return this.einrichten(async () => {
+          const r = await this.optionenSpeichern(d, { wetter: f.wetter, temp_sensor: f.temp_sensor, regen_sensor: f.regen_sensor, urlaub_kalender: f.urlaub_kalender, feiertag_kalender: f.feiertag_kalender });
+          if (this.flowFehler(r)) return r;
+          if ((f.termine_kalender || null) !== (d.termineKal || null)) await this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: ['termine_kalender'], wert: f.termine_kalender || null });
+          return r;
+        }, 'Gespeichert').then(() => { this.cache = {}; this._aboFuer = null; this._laden(); }); }
     }
+    return undefined;
   }
-
-  /* ---------------------------------------------------------------- Bedienung */
-  _klick(e) {
-    const t = e.composedPath().find(x => x.dataset && (x.dataset.cid || x.dataset.tab || x.dataset.toggle || x.dataset.press || x.dataset.act || x.dataset.href || (x.dataset.ui && x.dataset.wert !== undefined)));
-    if (!t) return;
-    const d = t.dataset;
-    if (d.cid) { this.ui.tab = 'container'; this.ui.cid = d.cid; this.ui.form = null; this._rendern(); const i = this.shadowRoot.querySelector('.inhalt'); if (i) i.scrollTop = 0; return; }
-    if (d.tab) { this.ui.tab = d.tab; this.ui.form = null; return this._rendern(); }
-    if (d.toggle) { if (!t.classList.contains('dis')) this._dienst('homeassistant', this.an(d.toggle) ? 'turn_off' : 'turn_on', { entity_id: d.toggle }); return; }
-    if (d.press) { this._dienst('button', 'press', { entity_id: d.press }); this._meldung('Test-Meldung gesendet'); return; }
-    if (d.href) { history.pushState(null, '', d.href); window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } })); return; }
-    if (d.ui) { this.ui[d.ui] = d.wert; this.ui.form = null; if (d.ui === 'bid') this.ui.scope = 'all'; return this._rendern(); }
-    const b = this.B();
-    switch (d.act) {
-      case 'wetter-auf': this.ui.wetter = !this.ui.wetter; this._rendern(); break;
-      case 'wetter-waehlen': this.ui.tab = 'einstellungen'; this.ui.sub = 'wetter'; this.ui.form = { art: 'wetter' }; this._rendern(); break;
-      case 'container-neu': this.ui.tab = 'einstellungen'; this.ui.sub = 'diese'; this.ui.form = { art: 'bereich' }; this._rendern(); break;
-      case 'fuehler-zuordnen': this.ui.tab = 'einstellungen'; this.ui.sub = 'diese'; this.ui.form = { art: 'bereich', id: d.id }; this._rendern(); break;
-      case 'menu': this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true })); break;
-      case 'urlaub-neu': this.ui.form = { art: 'urlaub' }; this._rendern(); break;
-      case 'abbrechen': this.ui.form = null; this._rendern(); break;
-      case 'urlaub-speichern': {
-        const f = k => this.shadowRoot.querySelector(`[data-f="${k}"]`).value;
-        this._urlaubEintragen(b, f('name') || 'Urlaub', f('von'), f('bis'));
-        this.ui.form = null; break;
-      }
-      case 'urlaub-weihnachten': { const j = new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear(); this._urlaubEintragen(b, 'Weihnachten', `${j}-12-23`, `${j + 1}-01-06`); break; }
-      case 'urlaub-loeschen':
-        this._hass.callWS({ type: 'calendar/event/delete', entity_id: b.baustelle.optionen.urlaub_kalender, uid: d.uid })
-          .then(() => { delete this.cache[`k:${b.baustelle.optionen.urlaub_kalender}`]; this._planen(); }).catch(err => this._meldung('Löschen ging nicht: ' + err.message));
-        break;
-      default: this._einstellungAktion(d.act, d, b);
+  eingabe(ev) {
+    const el = ev.target, ds = (el && el.dataset) || {}, sh = this.s.sheet;
+    if (ds.azn) sh.form[ds.azn] = el.value;
+    if (ds.ur) sh.form[ds.ur] = el.value;
+    if (ds.tm) sh.form[ds.tm] = el.value;
+    if (ds.au) { sh.form[ds.au] = el.value; if (ds.au === 'datum') this.render(); }
+    if (ds.ml) sh.form[ds.ml] = el.value;
+    if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
+    if (ds.bf) sh.edit.firma = el.value;
+    if (ds.btuer !== undefined) sh.edit.tuer = el.value;
+    if (ds.bfu !== undefined) sh.edit.fuehler = el.value;
+    if (ds.ban !== undefined) { sh.edit.anschluss = el.value; this.render(); }
+    if (ds.an) sh.form[ds.an] = el.value;
+    if (ds.fn !== undefined) sh.form.name = el.value;
+    if (ds.fnc !== undefined) sh.form.neu[+ds.fnc].name = el.value;
+    if (ds.b === 'name' && sh && sh.edit) sh.edit.name = el.value;
+    if (ds.azt) sh.form.tage[ds.azt][+ds.p] = el.value;
+    if (ds.neu) sh.form[ds.neu] = el.value;
+    if (ds.wq) sh.form[ds.wq] = el.value;
+    if (ds.nm) sh.form.name = el.value;
+  }
+  /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
+  aenderung(ev) {
+    const el = ev.target, k = el && el.dataset && el.dataset.k;
+    if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
+    if (k === 'mail') return this.setzen(PFAD.mail, String(el.value).trim(), 'Gespeichert');
+    return undefined;
+  }
+  hover(ev) {
+    const svg = ev.target && ev.target.closest && ev.target.closest('svg.chart'); if (!svg) return this.tip(null);
+    const c = CHARTS[svg.dataset.chart]; if (!c) return this.tip(null);
+    const r = svg.getBoundingClientRect(), fx = (ev.clientX - r.left) / r.width, p = this.d ? this.d.e.preis : 0;
+    if (c.art === 'streu') {
+      const vx = (ev.clientX - r.left) / r.width * 320, vy = ((ev.clientY ?? 0) - (r.top ?? 0)) / r.width * 320;
+      let best = 0, bd = 1e9; c.pkt.forEach((q, i) => { const dd = (c.x(q[0]) - vx) ** 2 + (c.y(q[1]) - vy) ** 2; if (dd < bd) { bd = dd; best = i; } });
+      if (bd > 900) { svg.querySelector('.hover').innerHTML = ''; return this.tip(null); }
+      const q = c.pkt[best];
+      svg.querySelector('.hover').innerHTML = `<circle cx="${c.x(q[0])}" cy="${c.y(q[1])}" r="7" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`;
+      return this.tip(ev, `<b>${de(q[0], 1)} °C außen</b><div>${de(q[1], 0)} kWh · ${de(q[1] * p, 2)} €</div>`);
     }
-  }
-
-  _urlaubEintragen(b, name, von, bis) {
-    if (!von || !bis || bis < von) return this._meldung('Bitte gültigen Zeitraum wählen');
-    const ende = new Date(bis); ende.setDate(ende.getDate() + 1);
-    this._dienst('calendar', 'create_event', { entity_id: b.baustelle.optionen.urlaub_kalender, summary: name, start_date: von, end_date: isoTag(ende) })
-      .then(() => { delete this.cache[`k:${b.baustelle.optionen.urlaub_kalender}`]; this._planen(); });
-  }
-
-  _aenderung(e) {
-    const t = e.composedPath()[0];
-    const d = t.dataset || {};
-    if (d.select) this._dienst('select', 'select_option', { entity_id: d.select, option: t.value });
-    else if (d.num) { if (t.value !== '') this._dienst('number', 'set_value', { entity_id: d.num, value: Number(t.value) }); }
-    else if (d.time) { if (t.value) this._dienst('time', 'set_value', { entity_id: d.time, time: t.value.length === 5 ? t.value + ':00' : t.value }); }
-    else if (d.ui) { this.ui[d.ui] = t.value; this._rendern(); }
-  }
-
-  _dienst(domain, service, daten) {
-    return this._hass.callService(domain, service, daten).catch(err => this._meldung(err.message || String(err)));
-  }
-
-  _meldung(text) { this.dispatchEvent(new CustomEvent('hass-notification', { detail: { message: text }, bubbles: true, composed: true })); }
-
-  _tooltip(e) {
-    const tip = this.shadowRoot.querySelector('.tip');
-    if (!tip) return;
-    const pfad = e.composedPath();
-    const cx = pfad.find(x => x.dataset && x.dataset.cx);
-    this.shadowRoot.querySelectorAll('.cross').forEach(l => { if (!cx || l.id !== cx.dataset.cx + '-x') l.style.display = 'none'; });
-    const zeigen = zeilen => {
-      tip.replaceChildren(...zeilen.map(([v, n, c]) => { const r = document.createElement('div'); r.className = 'tr';
-        if (c) { const k = document.createElement('i'); k.style.background = c; r.appendChild(k); }
-        const b1 = document.createElement('b'); b1.textContent = v; r.appendChild(b1);
-        if (n) { const s1 = document.createElement('span'); s1.textContent = ' ' + n; r.appendChild(s1); } return r; }));
-      tip.style.display = 'block';
-      tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px';
-      tip.style.top = (e.clientY + 16 + tip.offsetHeight > innerHeight ? e.clientY - tip.offsetHeight - 10 : e.clientY + 16) + 'px';
-    };
-    if (cx) {
-      const d = CX[cx.dataset.cx], svg = cx.ownerSVGElement, r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * d.W;
-      const i = Math.max(0, Math.min(d.n - 1, Math.round((vx - d.L) / d.pw * (d.n - 1)))), X = d.L + (d.n === 1 ? d.pw / 2 : d.pw * i / (d.n - 1));
-      const ln = svg.querySelector('.cross'); if (ln) { ln.setAttribute('x1', X); ln.setAttribute('x2', X); ln.style.display = ''; }
-      return zeigen([[d.labels[i], '', ''], ...d.series.map(q => [`${de(q.values[i], d.dec)} ${d.unit}`, q.name, q.color.startsWith('var') ? getComputedStyle(this).getPropertyValue(q.color.slice(4, -1)) : q.color])]);
+    if (c.art === 'flaeche') {
+      const vx = fx * c.W, i = Math.max(0, Math.min(c.n - 1, Math.round((vx - c.x0) / (c.x1 - c.x0) * (c.n - 1)))), x = c.x0 + i / Math.max(1, c.n - 1) * (c.x1 - c.x0);
+      const h = c.einheit === 'kWh/h', sum = c.reihen.reduce((a, q) => a + q.v[i], 0);
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(q => `<circle cx="${x}" cy="${c.y(q.o[i])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join('');
+      return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (c.reihen.length > 1
+        ? [...c.reihen].reverse().map(q => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i], 2)} kWh</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p, 2)} €</div>`
+        : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p, 2)} €</div>`));
     }
-    const t = pfad.find(x => x.dataset && x.dataset.tip);
-    if (!t) { tip.style.display = 'none'; return; }
-    const [v, n] = t.dataset.tip.split('|'); zeigen([[v, n, '']]);
+    if (c.art === 'linie') {
+      const vx = fx * c.W, i = Math.max(0, Math.min(24, Math.round((vx - c.x0) / (c.x1 - c.x0) * 24))), x = c.x0 + i / 24 * (c.x1 - c.x0);
+      const v = c.vb ? c.vb[Math.min(i, c.vb.length - 1)] || 0 : null, kv = c.reihen.length + 1;
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="${c.unten}" class="kreuz"/>` + c.reihen.map((s, k) => !zahl(s.v[i]) ? '' : `<circle cx="${x}" cy="${c.y(s.v[i])}" r="4" fill="var(--s${k + 1})" class="punkt"/>`).join('')
+        + (c.vb ? `<circle cx="${x}" cy="${c.yv(v)}" r="3.5" fill="var(--s${kv})" class="punkt"/>` : '');
+      return this.tip(ev, `<b>${String(i).padStart(2, '0')}:00</b>${c.reihen.map((s, k) => !zahl(s.v[i]) ? '' : `<div><i style="background:var(--s${k + 1})"></i>${s.name} <b>${de(s.v[i])} ${c.einheit}</b></div>`).join('')}`
+        + (c.vb ? `<div><i style="background:var(--s${kv})"></i>Verbrauch <b>${de(v, 2)} kWh</b></div>` : ''));
+    }
+    const bar = ev.target.closest('.bar'); svg.querySelectorAll('.bar').forEach(x => x.classList.toggle('matt', !!bar && x !== bar));
+    if (!bar) return this.tip(null); const i = +bar.dataset.i;
+    return this.tip(ev, `<b>${c.labels[i]}</b><div>${de(c.werte[i], c.d)} ${c.einheit}</div>`);
+  }
+  tip(ev, html) {
+    const t = this.root && this.root.querySelector('.tip'); if (!t) return;
+    if (!ev || !html) { t.classList.remove('an'); this.root.querySelectorAll('.chart .hover').forEach(h => { h.innerHTML = ''; }); this.root.querySelectorAll('.bar.matt').forEach(x => x.classList.remove('matt')); return; }
+    const r = this.root.getBoundingClientRect(); t.innerHTML = html; t.classList.add('an');
+    const x = Math.min(ev.clientX - r.left + 12, r.width - t.offsetWidth - 8); t.style.left = x + 'px'; t.style.top = (ev.clientY - r.top - t.offsetHeight - 12) + 'px';
   }
 }
-
 if (!customElements.get('baustelle-panel')) customElements.define('baustelle-panel', BaustellePanel);

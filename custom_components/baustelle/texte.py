@@ -1,0 +1,80 @@
+"""Texte für Warnungen, Handy-Nachrichten und das Protokoll – wörtlich wie im abgenommenen Mockup, wo es sie gibt.
+
+Mockup `mockups/quelle/glas-app.js`: Daten `warnungen` (Feld `hilfe`), Einblendung „nachrichten“, Daten `protokoll`.
+Ohne HA-Code, damit die Seite dieselben Texte aus `baustelle/struktur` bekommt.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from .logik.warnungen import Art, Warnung, _zahl, titel
+
+HILFE: dict[str, str] = {
+    Art.OFFLINE: "Shelly antwortet nicht. Stecker und Sicherung prüfen – bei Stromausfall meldet er sich von selbst zurück.",
+    Art.BAUSTELLE_OFFLINE: "Kein Gerät der Baustelle antwortet. Stromausfall oder Internet weg? Nach dem Ausfall melden sich die Shellys von selbst zurück.",
+    Art.TROCKENLAUF: "Die Pumpe läuft, zieht aber zu wenig Strom. Schacht leer oder Ansaugung verstopft?",
+    Art.DAUERLAUF: "Die Pumpe läuft ohne Pause. Schwimmer hängt oder starker Zufluss?",
+    Art.ZYKLEN_OFT: "Üblich sind hier 3–5. Schwimmer prüfen – oder das Grundwasser steigt.",
+    Art.KEINE_LEISTUNG: "Eingeschaltet, aber der Heizkörper zieht keinen Strom. Heizkörper-Schalter oder Thermostat am Gerät prüfen.",
+    Art.FROSTGEFAHR: "Unter der Frostgrenze ({grenze} °C), obwohl der Frostschutz heizt. Tür offen? Heizkörper prüfen.",
+    Art.ZU_KALT: "Erreicht in der Arbeitszeit das Soll nicht. Tür oder Fenster offen? Heizkörper zu schwach?",
+    Art.FUEHLER_FEHLT: "Der Temperaturfühler meldet nichts oder die Batterie ist fast leer. Ohne Fühler bleibt die Heizung in der Heizzeit an.",
+    Art.KEIN_WETTER: "Keine Vorhersage – Frühstart, Kleidung trocknen und Heizgrenze rechnen ohne Wetter.",
+    Art.HAND_ZU_LANGE: "Von Hand eingeschaltet und nicht zurückgestellt. Soll wieder die Automatik übernehmen?",
+    Art.TUER_OFFEN: "Heizt wieder, sobald die Tür zu ist. Nach {melden} min kommt eine Nachricht aufs Handy.",
+}
+
+SYMBOL: dict[str, str] = {Art.TUER_OFFEN: "🚪", Art.HAND_ZU_LANGE: "✋", Art.FROSTGEFAHR: "❄"}
+
+
+def hilfe(w: Warnung, tuer_melden_min: float = 10) -> str:
+    """Hilfetext einer Warnung (Mockup `hilfe`)."""
+    text = HILFE.get(w.art, "")
+    return text.format(grenze=_zahl(w.werte.get("grenze", 5), 0), melden=int(tuer_melden_min))
+
+
+def uhr(zeit: datetime) -> str:
+    return zeit.strftime("%H:%M")
+
+
+def nachricht(w: Warnung, bereich_name: str | None) -> tuple[str, str]:
+    """Titel und Text der Handy-Nachricht (Mockup „Nachrichten aufs Handy“)."""
+    ort = bereich_name or "Baustelle"
+    name = w.werte.get("name") or ""
+    match w.art:
+        case Art.OFFLINE:
+            wer = f"{name} ({ort})" if name else ort
+            return f"⚠ {wer} nicht erreichbar", f"Seit {uhr(w.seit)} keine Antwort – Stromausfall oder Stecker gezogen?"
+        case Art.BAUSTELLE_OFFLINE:
+            return "⚠ Baustelle nicht erreichbar", f"Seit {uhr(w.seit)} antwortet kein Gerät – Stromausfall oder Internet weg?"
+        case Art.TUER_OFFEN:
+            return (
+                f"🚪 {ort}: Tür seit {w.werte.get('minuten', 0)} min offen",
+                "Die Heizung ist pausiert und heizt wieder, sobald die Tür zu ist.",
+            )
+        case Art.HAND_ZU_LANGE:
+            stunden = int(w.werte.get("stunden", 0))
+            dauer = f"{stunden // 24} {'Tag' if stunden // 24 == 1 else 'Tagen'}" if stunden >= 24 else f"{stunden} h"
+            return f"✋ {name or 'Gerät'} {ort} seit {dauer} auf Hand", "Von Hand eingeschaltet und nicht zurückgestellt."
+    return f"{SYMBOL.get(w.art, '⚠')} {ort}: {titel(w)}", hilfe(w)
+
+
+def wieder_ok(w: Warnung) -> str:
+    """Protokolltext, wenn ein Problem vorbei ist (Mockup „wieder erreichbar“, „Pumpe 1 wieder normal“)."""
+    name = w.werte.get("name") or ""
+    match w.art:
+        case Art.OFFLINE | Art.BAUSTELLE_OFFLINE:
+            return f"{name} wieder erreichbar".strip()
+        case Art.TROCKENLAUF | Art.DAUERLAUF | Art.ZYKLEN_OFT:
+            return f"{name or 'Pumpe'} wieder normal"
+        case Art.TUER_OFFEN:
+            return "Tür zu – Heizung läuft weiter"
+    return f"wieder in Ordnung: {titel(w)}"
+
+
+def protokoll_warnung(w: Warnung) -> str:
+    """Protokolltext einer neuen Warnung (Mockup: „Frostgefahr: 4,2 °C trotz Frostschutz“)."""
+    if w.art == Art.FROSTGEFAHR:
+        return f"{titel(w)} trotz Frostschutz"
+    return titel(w)

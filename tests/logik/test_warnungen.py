@@ -268,7 +268,8 @@ def test_einstellungen_aus_store():
 def test_stoerung_einmal_je_problem():
     neu = pruefe(mockup_zustand(), EINST, JETZT)
     gemeldet = zu_melden(neu, set(), {}, JETZT)
-    assert arten(gemeldet) == ["offline", "zyklen_oft", "frostgefahr"]
+    # Störungen und (Bauplan §5) die Steckdose, die seit 3 Tagen auf Hand ist
+    assert arten(gemeldet) == ["offline", "zyklen_oft", "frostgefahr", "hand_zu_lange"]
     bisher = gemeldet_merken(neu, set(), gemeldet)
     assert zu_melden(neu, bisher, {}, JETZT + timedelta(minutes=1)) == []
 
@@ -286,7 +287,18 @@ def test_hinweis_ohne_nachricht():
     )
     neu = pruefe(z, EINST, JETZT)
     assert sorted(arten(neu)) == ["fuehler_fehlt", "hand_zu_lange", "kein_wetter", "zu_kalt"]
-    assert zu_melden(neu, set(), {}, JETZT) == []
+    # Bauplan §5: nur langer Handbetrieb kommt aufs Handy, die übrigen Hinweise nicht
+    assert arten(zu_melden(neu, set(), {}, JETZT)) == ["hand_zu_lange"]
+
+
+def test_hand_zu_lange_nachricht_einmal():
+    neu = pruefe(zustand(GeraetZustand(id="s1", bereich="magazin", hand_seit=vor(9 * 60))), EINST, JETZT)
+    gemeldet = zu_melden(neu, set(), {}, JETZT)
+    assert arten(gemeldet) == ["hand_zu_lange"]
+    bisher = gemeldet_merken(neu, set(), gemeldet)
+    assert zu_melden(neu, bisher, {}, JETZT) == []
+    kurz = pruefe(zustand(GeraetZustand(id="s1", bereich="magazin", hand_seit=vor(60))), EINST, JETZT)
+    assert zu_melden(kurz, set(), {}, JETZT) == []
 
 
 def test_tuer_nachricht_erst_nach_tuer_melden_min():
