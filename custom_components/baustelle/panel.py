@@ -237,6 +237,7 @@ def ws_setzen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
         _fehler(connection, msg, str(err))
         return
     pfad = list(msg["pfad"])
+    Heizung.von(st).hand_nach_einstellung(pfad)   # FE-0004: geänderte Einstellung gilt sofort
     if pfad[0] == "bereiche" and pfad[2] in ("modus", "auto", "bedarf"):
         # Modus (neu 0.7.8) und die bisherigen Felder auto/bedarf passend halten: Modus setzt beide, auto/bedarf allein
         # heben einen gesetzten Modus auf (dann wird er wieder abgeleitet)

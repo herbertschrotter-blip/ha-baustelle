@@ -133,6 +133,41 @@ def _heizen(lage: LageContainer) -> bool:
     return thermostat(lage.temperatur, lage.soll, lage.toleranz, lage.heizt_gerade)
 
 
+# nach der Nachricht „seit … h auf Hand“ (bei `hand_h`) so lange auf eine Antwort warten, dann übernimmt die Automatik
+HAND_NACHFRIST_MIN = 30
+
+
+class HandEnde(StrEnum):
+    """Warum ein Heizkörper aus dem Handbetrieb an die Automatik zurückgeht (FE-0004)."""
+
+    VORRANG = "vorrang"          # Frostschutz oder Tür offen
+    SOLL = "soll"                # mit Fühler: Soll erreicht (Hand-Ein)
+    DAUER = "dauer"              # Höchstdauer (`hand_h` + Nachfrist) ohne „So lassen“
+    SCHALTPUNKT = "schaltpunkt"  # die Automatik würde jetzt anders schalten als beim Start der Hand
+
+
+def hand_ende(
+    *, grund: SollGrund, phase_vorher: bool, phase: bool, an: bool, temperatur: float | None, soll: float,
+    minuten: float | None, max_minuten: float, lassen: bool = False,
+) -> HandEnde | None:
+    """Endet der Handbetrieb eines Heizkörpers jetzt? (FE-0004, Herbert 30.09.2026)
+
+    Vorher endete er nur am nächsten Schaltpunkt – nach einem Start außerhalb der Heizzeit erst am nächsten Morgen,
+    auch weit über dem Soll. Jetzt gehen Frostschutz und Tür offen vor, ein Hand-Ein endet mit Fühler am Soll, und
+    nach `max_minuten` kommt die Nachricht – ohne Antwort übernimmt die Automatik `HAND_NACHFRIST_MIN` später;
+    „So lassen“ (`lassen`, Warnung stumm) hält die Hand. Eine geänderte Einstellung beendet ihn sofort (Aufrufer).
+    """
+    if grund in (SollGrund.FROST, SollGrund.TUER_OFFEN):
+        return HandEnde.VORRANG
+    if an and temperatur is not None and temperatur >= soll:
+        return HandEnde.SOLL
+    if minuten is not None and minuten >= max_minuten + HAND_NACHFRIST_MIN and not lassen:
+        return HandEnde.DAUER
+    if phase != phase_vorher:
+        return HandEnde.SCHALTPUNKT
+    return None
+
+
 def soll_container(lage: LageContainer, tuer_pause_min: int) -> Soll:
     """Soll-Zustand eines Containers nach der festen Reihenfolge (siehe Modul-Docstring)."""
     if not lage.automatik:

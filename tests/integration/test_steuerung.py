@@ -12,6 +12,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 
 from custom_components.baustelle.const import DOMAIN
 from custom_components.baustelle.daten import struktur
+from custom_components.baustelle.funktionen.heizung import Heizung
 from custom_components.baustelle.steuerung import _sensor_am_geraet
 
 from .conftest import C1, C2, HK1, HK2, P1, SCHACHT, baustelle_anlegen, eid, sub
@@ -766,3 +767,47 @@ async def test_sensor_am_geraet_bei_mehreren(hass: HomeAssistant) -> None:
         ("sensor", "shelly", "zwei_kanal_1_leistung", "power", None), ("sensor", "shelly", "zwei_kanal_2_leistung", "power", None),
     ])
     assert _sensor_am_geraet(reg, "switch.zwei_kanal_2", "power") == "sensor.zwei_kanal_2_leistung"
+
+
+async def test_hand_endet_am_soll_bei_einstellung_und_tuer(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """FE-0004: um 19:01 (außerhalb der Heizzeit) per Hand eingeschaltet, Fühler über dem Soll – vorher heizte der
+    Heizkörper bis zum nächsten Morgen weiter. Jetzt: Soll erreicht, geänderte Einstellung, Tür offen beenden die Hand."""
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    st.einstellungen.bereich(C1)["soll"] = 20.0
+    await _zu(hass, freezer, "2026-09-29 19:01:00+02:00", st)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+
+    def hand_ein() -> None:
+        hass.states.async_set("sensor.hk1_power", "1900")
+        hass.states.async_set("switch.hk1", "on", context=Context(user_id="nutzer"))
+
+    hass.states.async_set("sensor.temp_c1", "19.0")
+    hand_ein()
+    await hass.async_block_till_done()
+    assert HK1 in st.lz["hand"]
+    c = struktur(hass, baustelle)["laufzeit"]["container"][C1]
+    assert c["text"] == "heizt · Hand"   # vorher „heizt · Arbeitszeit“ außerhalb der Heizzeit
+    # Soll erreicht: Automatik übernimmt und schaltet aus (außerhalb der Heizzeit)
+    hass.states.async_set("sensor.temp_c1", "20.2")
+    await _zu(hass, freezer, "2026-09-29 19:20:00+02:00", st)
+    assert HK1 not in st.lz["hand"] and hass.states.get("switch.hk1").state == "off"
+    assert any("Soll 20,0 °C erreicht" in t for t in _texte(st, "schalten"))
+
+    # geänderte Einstellung beendet die Hand sofort
+    hass.states.async_set("sensor.temp_c1", "18.0")
+    hand_ein()
+    await hass.async_block_till_done()
+    assert HK1 in st.lz["hand"]
+    Heizung.von(st).hand_nach_einstellung(("bereiche", C1, "soll"))
+    assert HK1 not in st.lz["hand"]
+
+    # Tür offen geht vor
+    hand_ein()
+    await hass.async_block_till_done()
+    hass.states.async_set("binary_sensor.tuer_c1", "on")
+    st.einstellungen.bereich(C1)["tuer"] = "binary_sensor.tuer_c1"
+    await _zu(hass, freezer, "2026-09-29 19:30:00+02:00", st)
+    await _zu(hass, freezer, "2026-09-29 19:35:00+02:00", st)
+    assert HK1 not in st.lz["hand"]

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.31] – 2026-09-30
+
+- Handbetrieb (FE-0004): Ein per Hand geschalteter Heizkörper blieb bis zum nächsten Schaltpunkt auf Hand – nach
+  einem Start außerhalb der Heizzeit bis zum nächsten Morgen, auch weit über dem Soll. Jetzt übernimmt die Automatik
+  auch, wenn der Fühler das Soll erreicht, bei Frostschutz oder offener Tür, sofort bei einer geänderten Einstellung
+  (Soll, Modus, Automatik – auch über den HA-Schalter) und nach „Handbetrieb länger als … h“ plus 30 min ohne Antwort
+  („So lassen“ hält die Hand).
+- Container zeigt „heizt · Hand“, wenn ein Heizkörper per Hand heizt (vorher „heizt · Arbeitszeit“).
+
 ## [0.7.30] – 2026-09-30
 
 - Diagramme und „kWh heute“ sind aktuell (WU-0002): HA schreibt eine Stunde erst nach ihrem Ende in die

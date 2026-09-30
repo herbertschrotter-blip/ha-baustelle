@@ -207,3 +207,34 @@ def test_frostschutz_bei_automatik_aus_nur_mit_schalter():
     assert soll(automatik=False, temperatur=6.0, frost_immer=True, frost_vorher=True) == Soll(True, SollGrund.FROST)
     assert soll(automatik=False, temperatur=7.5, frost_immer=True, frost_vorher=True) == Soll(False, SollGrund.AUTOMATIK_AUS)
     assert soll(automatik=False, temperatur=7.5, frost_immer=True) == Soll(None, SollGrund.AUTOMATIK_AUS)
+
+
+# ---------------------------------------------------------------- FE-0004: Ende des Handbetriebs
+from logik.regelung import HandEnde, hand_ende  # noqa: E402
+
+
+def _hand(**x):
+    werte = dict(grund=SollGrund.AUSSERHALB, phase_vorher=False, phase=False, an=True, temperatur=24.0, soll=20.0,
+                 minuten=80.0, max_minuten=480.0)
+    werte.update(x)
+    return hand_ende(**werte)
+
+
+def test_hand_endet_mit_fuehler_am_soll():
+    # Fall aus dem Ticket: um 19:01 außerhalb der Heizzeit per Hand gestartet, 26,5 °C bei Soll 20 – vorher erst morgens
+    assert _hand(temperatur=26.5) == HandEnde.SOLL
+    assert _hand(temperatur=19.5) is None                      # noch unter dem Soll: bleibt
+    assert _hand(temperatur=None) is None                      # ohne Fühler: bleibt
+    assert _hand(an=False, temperatur=26.5) is None            # Hand-Aus endet nicht am Soll
+
+
+def test_hand_endet_nach_hoechstdauer_und_am_schaltpunkt():
+    assert _hand(temperatur=19.0, minuten=480.0) is None                      # Nachricht kommt, 30 min Frist
+    assert _hand(temperatur=19.0, minuten=510.0) == HandEnde.DAUER           # keine Antwort: Automatik
+    assert _hand(temperatur=19.0, minuten=510.0, lassen=True) is None        # „So lassen“: bleibt
+    assert _hand(temperatur=19.0, phase=True) == HandEnde.SCHALTPUNKT
+
+
+def test_frost_und_tuer_gehen_vor():
+    assert _hand(grund=SollGrund.FROST, temperatur=2.0) == HandEnde.VORRANG
+    assert _hand(grund=SollGrund.TUER_OFFEN, temperatur=18.0) == HandEnde.VORRANG

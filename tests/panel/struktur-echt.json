@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.7.30",
+   "version": "0.7.31",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -475,7 +475,7 @@
     "polier": {
      "zustand": "heizt",
      "grund": "arbeitszeit",
-     "text": "heizt · Arbeitszeit",
+     "text": "heizt · Hand",
      "temperatur": 20.16,
      "kw": 1.98,
      "bedarf_bis": null,
@@ -1163,7 +1163,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.7.30",
+   "version": "0.7.31",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"

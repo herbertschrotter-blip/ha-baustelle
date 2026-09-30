@@ -10,6 +10,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import BaustelleConfigEntry
 from .entity import BaustelleEntity
+from .funktionen.heizung import Heizung
 from .steuerung import Steuerung
 
 PARALLEL_UPDATES = 0
@@ -34,7 +35,9 @@ class AutomatikSwitch(BaustelleEntity, SwitchEntity):
         return bool(self.steuerung.e["automatik"])
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        Heizung.von(self.steuerung).hand_nach_einstellung(("automatik",))   # FE-0004: gilt sofort
         self.steuerung.einstellung_setzen(("automatik",), True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
+        Heizung.von(self.steuerung).hand_nach_einstellung(("automatik",))
         self.steuerung.einstellung_setzen(("automatik",), False)

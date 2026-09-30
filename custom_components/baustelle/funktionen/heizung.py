@@ -40,7 +40,7 @@ from ..logik.arbeitszeit import (
     tagesplan,
     uhrzeit,
 )
-from ..logik.regelung import LageContainer, Soll, SollGrund, soll_container
+from ..logik.regelung import HandEnde, LageContainer, Soll, SollGrund, hand_ende, soll_container
 from ..logik.zaehlen import (
     ABKUEHL_MIN_H,
     AUFHEIZ_MIN_H,
@@ -55,7 +55,7 @@ from ..texte import GRUND_TEXT, wochentag
 from .basis import ZAEHLER_SPEICHERN_S, Funktion, ev_zeit, minuten_seit, mitternacht, zahl, zeit
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from ..logik.warnungen import Warnung
     from ..steuerung import BereichInfo, GeraetInfo, Steuerung, WetterWerte
@@ -64,6 +64,12 @@ if TYPE_CHECKING:
 HEIZ_GRUENDE = {
     SollGrund.FRUEHSTART, SollGrund.VORHEIZEN, SollGrund.ARBEITSZEIT, SollGrund.NACHHEIZEN, SollGrund.TROCKNEN,
     SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN,
+}
+HAND_ENDE_TEXT = {   # Protokoll, wenn die Automatik einen Heizkörper aus dem Handbetrieb übernimmt (FE-0004)
+    HandEnde.VORRANG: "Automatik übernimmt ({grund})",
+    HandEnde.SOLL: "Soll {soll} °C erreicht – Automatik übernimmt",
+    HandEnde.DAUER: "{h} h von Hand, keine Antwort – Automatik übernimmt",
+    HandEnde.SCHALTPUNKT: "Automatik übernimmt ({grund})",
 }
 MODUS_TEXT = {"plan": "Zeitplan", "thermo": "Thermostat", "bedarf": "Bei Bedarf", "hand": "Hand", "aus": "Aus"}
 MODI = tuple(MODUS_TEXT)
@@ -337,7 +343,10 @@ class Heizung(Funktion):
 
     # ------------------------------------------------------------------ Hand
     def nach_soll(self, soll: SollJeBereich) -> None:
-        """Hand endet am nächsten Schaltpunkt: wenn die Automatik den Heizkörper anders schalten würde als bisher."""
+        """Handbetrieb beenden nach `logik/regelung.hand_ende` (FE-0004): Frostschutz/Tür, mit Fühler am Soll, nach der
+        Höchstdauer (`hand_h`) oder am nächsten Schaltpunkt."""
+        jetzt = dt_util.now()
+        max_minuten = float(self.st.e["meldungen_einst"].get("hand_h") or 8) * 60
         for gid in list(self.st.lz["hand"]):
             g = self.st.geraete.get(gid)
             if g is None or g.rolle != ROLLE_HEIZKOERPER or g.bereich not in soll:
@@ -347,8 +356,17 @@ class Heizung(Funktion):
                 continue
             phase = bool(s.ein) if lage.temperatur is None else s.grund in HEIZ_GRUENDE
             vorher = self._hand_phase.setdefault(gid, phase)
-            if phase != vorher:
-                self.hand_beenden(gid, f"Automatik übernimmt ({GRUND_TEXT.get(s.grund, s.grund)})")
+            z = self.st.hass.states.get(g.schalter)
+            seit = self.hand_seit(g)
+            ende = hand_ende(
+                grund=s.grund, phase_vorher=vorher, phase=phase, an=z is not None and z.state == STATE_ON,
+                temperatur=lage.temperatur, soll=lage.soll,
+                minuten=(jetzt - seit).total_seconds() / 60 if seit is not None else None, max_minuten=max_minuten,
+                lassen=warn_logik.warn_key(warn_logik.Art.HAND_ZU_LANGE, g.bereich, g.id) in self.st.e["stumm"],   # „So lassen“
+            )
+            if ende is not None:
+                self.hand_beenden(gid, HAND_ENDE_TEXT[ende].format(
+                    grund=GRUND_TEXT.get(s.grund, s.grund), soll=warn_logik._zahl(lage.soll), h=warn_logik._zahl(max_minuten / 60, 0)))
 
     def hand_setzen(self, g: GeraetInfo, an: bool) -> bool:
         """Gerät auf Hand: Heizkörper bis zum nächsten Schaltpunkt, andere, solange sie eingeschaltet sind."""
@@ -366,6 +384,18 @@ class Heizung(Funktion):
 
     def hand_seit(self, g: GeraetInfo) -> datetime | None:
         return zeit(self.st.lz["hand"].get(g.id))
+
+    def hand_nach_einstellung(self, pfad: Sequence[str]) -> None:
+        """Wer Soll, Modus oder Automatik ändert, will, dass es sofort gilt – der Handbetrieb dort endet (FE-0004)."""
+        pfad = list(pfad)
+        if pfad[0] == "bereiche" and len(pfad) > 2 and pfad[2] in ("soll", "modus", "auto", "bedarf"):
+            betroffen = {pfad[1]}
+        elif pfad in (["automatik"], ["heizung", "soll"]):
+            betroffen = set(self.st.bereiche)
+        else:
+            return
+        for g in [g for g in self.st.geraete.values() if g.bereich in betroffen]:
+            self.hand_beenden(g.id, "Einstellung geändert – Automatik übernimmt")
 
     def hand_beenden(self, gid: str, grund: str = "") -> None:
         if self.st.lz["hand"].pop(gid, None) is not None:
@@ -454,8 +484,8 @@ class Heizung(Funktion):
                 text = f"heizt bis {bis.strftime('%H:%M')}" if bis else "heizt · bei Bedarf"
             elif st.daten.temperatur[bid] is None:
                 text = "an · Thermostat regelt"
-            elif grund == SollGrund.HAND or not e["auto"]:
-                text = "heizt · Hand"
+            elif grund == SollGrund.HAND or not e["auto"] or any(g.id in st.lz["hand"] for g in geraete if g.rolle in HEIZROLLEN):
+                text = "heizt · Hand"   # auch ein Heizkörper im Handbetrieb (FE-0004: vorher „heizt · Arbeitszeit“)
             elif grund == SollGrund.ABSENKEN:
                 text = "heizt · abgesenkt"
             else:

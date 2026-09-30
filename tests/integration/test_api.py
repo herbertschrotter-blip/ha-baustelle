@@ -100,7 +100,7 @@ async def test_struktur_wie_beispiel(hass: HomeAssistant, baustelle, freezer, sh
     st.einstellung_setzen(("bereiche", C2, "bedarf"), True)
     st.einstellung_setzen(("termine_kalender",), "calendar.besprechungen")
     st.lz["bedarf_bis"][C2] = "2026-09-29T11:00:00+02:00"
-    st.lz["hand"][HK2] = "2026-09-28T09:30:00+02:00"
+    st.lz["hand"][HK2] = "2026-09-29T01:50:00+02:00"   # 8 h 10 min: Warnung da, Automatik übernimmt erst nach 8 h 30 (FE-0004)
     st.einstellung_setzen(("automatik",), True)
     await hass.async_block_till_done()
 
