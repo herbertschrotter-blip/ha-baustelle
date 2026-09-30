@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import copy
 from datetime import date
+import json
+import os
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
+from homeassistant.util.file import write_utf8_file
 
 from .const import DOMAIN
 from .logik.warnungen import Art
@@ -198,19 +201,68 @@ class Einstellungen:
         self.speichern()
 
 
+ART_TEXT = {"fehler": "Fehler", "wunsch": "Wunsch", "anregung": "Anregung"}
+
+
+def meldungen_markdown(liste: list[dict[str, Any]], stand: str) -> str:
+    """Meldungen lesbar: offene zuerst, je Meldung Art, Zeit, Version, Gerät, Fenster, Stand der Seite und Text."""
+    offen = [m for m in liste if m.get("status") != "erledigt"]
+    erledigt = [m for m in liste if m.get("status") == "erledigt"]
+    zeilen = ["# Meldungen aus dem Melden-Knopf", "",
+              f"Stand: {stand} · offen: {len(offen)} · erledigt: {len(erledigt)}", "",
+              "Diese Datei schreibt die Integration Baustelle bei jeder Änderung neu. Quelle ist ihr Speicher; "
+              "bearbeitet wird auf der Seite unter Einstellungen › Entwicklung.", ""]
+    for titel, teil in (("Offen", offen), ("Erledigt", erledigt)):
+        zeilen += [f"## {titel}", ""]
+        if not teil:
+            zeilen += ["(keine)", ""]
+        for m in teil:
+            kopf = " · ".join(str(x) for x in (ART_TEXT.get(str(m.get("art")), m.get("art")), str(m.get("zeit") or "")[:16].replace("T", " "),
+                                               f"v{m.get('version')}" if m.get("version") else "", m.get("geraet")) if x)
+            zeilen += [f"### {kopf}", "", str(m.get("text") or "").strip(), ""]
+            if m.get("kontext"):
+                zeilen.append(f"- Fenster: {m['kontext']}")
+            if m.get("seite"):
+                zeilen.append(f"- Seite: `{json.dumps(m['seite'], ensure_ascii=False)}`")
+            if m.get("baustelle"):
+                zeilen.append(f"- Baustelle: {m['baustelle']}")
+            zeilen += [f"- id: {m.get('id')}", ""]
+    return "\n".join(zeilen)
+
+
+def _meldungen_schreiben(ordner: str, liste: list[dict[str, Any]], stand: str) -> None:
+    os.makedirs(ordner, exist_ok=True)
+    write_utf8_file(os.path.join(ordner, "meldungen.json"), json.dumps(liste, ensure_ascii=False, indent=2) + "\n")
+    write_utf8_file(os.path.join(ordner, "meldungen.md"), meldungen_markdown(liste, stand) + "\n")
+
+
 class Meldungen:
-    """Meldungen aus dem Melden-Knopf (Fehler, Wünsche, Anregungen) – eine Liste für die ganze Integration."""
+    """Meldungen aus dem Melden-Knopf (Fehler, Wünsche, Anregungen) – eine Liste für die ganze Integration.
+
+    Quelle ist der Store; zusätzlich schreibt die Integration die Liste lesbar nach `<config>/baustelle/meldungen.json`
+    und `meldungen.md` (beim Laden und nach jeder Änderung), damit sie ohne Zugriff auf `.storage/` gelesen und
+    abgearbeitet werden kann. Die Meldungen enthalten nur, was im Melden-Dialog steht – keine Zugangsdaten.
+    """
 
     def __init__(self, hass: HomeAssistant) -> None:
+        self._hass = hass
         self._store: Store[dict[str, Any]] = Store(hass, 1, MELDUNGEN_KEY)
         self.liste: list[dict[str, Any]] = []
         self._geladen = False
+        self.ordner = hass.config.path(DOMAIN)
 
     async def async_laden(self) -> list[dict[str, Any]]:
         if not self._geladen:
             self.liste = list(((await self._store.async_load()) or {}).get("meldungen") or [])
             self._geladen = True
+            await self.async_exportieren()
         return self.liste
+
+    async def async_exportieren(self) -> None:
+        """Lesbare Kopie nach <config>/baustelle/ schreiben (im Hintergrund-Thread)."""
+        await self._hass.async_add_executor_job(
+            _meldungen_schreiben, self.ordner, copy.deepcopy(self.liste), dt_util.now().isoformat(timespec="seconds"))
 
     def speichern(self) -> None:
         self._store.async_delay_save(lambda: {"meldungen": self.liste}, SPEICHER_VERZOEGERUNG_S)
+        self._hass.async_create_task(self.async_exportieren(), "baustelle_meldungen_exportieren")

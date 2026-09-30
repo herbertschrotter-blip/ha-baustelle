@@ -1,5 +1,7 @@
 """Eigene Seite: Anmeldung, JavaScript, WebSocket-Befehle nach api-0.7 §1–§2 (jeder Befehl) und die Dialoge."""
 
+import json
+from pathlib import Path
 from datetime import timedelta
 
 import pytest
@@ -236,12 +238,20 @@ async def test_meldungen(hass: HomeAssistant, baustelle, ws, hass_storage) -> No
                                  "geraet": "Handy", "seite": {"view": "container", "cid": C1, "dialog": None}})
     assert msg["success"], msg
     mid = msg["result"]["id"]
+    # lesbare Kopie außerhalb von .storage und Eintrag im Logbuch (damit Meldungen abgearbeitet werden können)
+    await hass.async_block_till_done()
+    ordner = Path(hass.config.path("baustelle"))
+    md = (ordner / "meldungen.md").read_text(encoding="utf-8")
+    assert "## Offen" in md and "Eigene Kachel für Bautrockner" in md and "Fenster: Übersicht" in md and mid in md
+    assert json.loads((ordner / "meldungen.json").read_text(encoding="utf-8"))[0]["id"] == mid
     liste = (await ws.rufe("baustelle/meldungen", mit_entry=False))["result"]
     assert liste[0]["id"] == mid and liste[0]["status"] == "offen" and liste[0]["zeit"]
     assert liste[0]["seite"] == {"view": "container", "cid": C1, "dialog": None}  # „Stand der Seite mitschicken“
     assert (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="status", meldung_id=mid, status="erledigt"))["success"]
     liste = (await ws.rufe("baustelle/meldungen", mit_entry=False))["result"]
     assert liste[0]["status"] == "erledigt" and liste[0]["stand"]
+    await hass.async_block_till_done()
+    assert "## Erledigt\n\n### Wunsch" in (ordner / "meldungen.md").read_text(encoding="utf-8")
     assert not (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="neu", meldung={"art": "x", "text": ""}))["success"]
     # wie die Seite: Kennung und Status in `meldung` (das Feld `id` gehört der WebSocket-Nachricht)
     assert (await ws.rufe("baustelle/meldung", aktion="status", meldung={"id": mid, "status": "offen"}))["success"]
@@ -314,3 +324,17 @@ async def test_liste_fehler_aendert_nichts(hass: HomeAssistant, baustelle, ws) -
                         eintrag={"name": "Huber", "container": ["gibt_es_nicht"]})
     assert msg["error"]["code"] == "invalid_format"
     assert [f["id"] for f in st.e["firmen"]] == ["eigen"]
+
+
+async def test_meldung_im_logbuch(hass: HomeAssistant, baustelle, ws) -> None:
+    """Neue Meldung erscheint im HA-Logbuch („Meldung (Fehler): … – Fenster“)."""
+    ereignisse = []
+    hass.bus.async_listen("baustelle_protokoll", lambda e: ereignisse.append(e.data))
+    msg = await ws.rufe("baustelle/meldung", aktion="neu",
+                        meldung={"art": "fehler", "text": "Knöpfe überlagern sich", "kontext": "Container · Dialog „bereich“",
+                                 "geraet": "Desktop"})
+    assert msg["success"], msg
+    await hass.async_block_till_done()
+    assert ereignisse and ereignisse[-1]["art"] == "meldung"
+    assert ereignisse[-1]["text"] == "Meldung (Fehler): Knöpfe überlagern sich – Container · Dialog „bereich“"
+    assert ereignisse[-1]["baustelle"] == baustelle.title

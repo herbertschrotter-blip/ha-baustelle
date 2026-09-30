@@ -17,6 +17,7 @@ SYMBOL = {
     "wetter": "mdi:weather-partly-rainy",
     "nachricht": "mdi:cellphone-message",
     "einstellung": "mdi:cog",
+    "meldung": "mdi:message-alert-outline",
 }
 
 

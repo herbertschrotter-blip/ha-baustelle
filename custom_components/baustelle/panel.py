@@ -15,9 +15,9 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
-from .einstellungen import EIGEN, Meldungen
+from .einstellungen import EIGEN, Meldungen, ART_TEXT
 from .logik.warnungen import Art
 
 URL_PANEL = "baustelle"
@@ -147,6 +147,7 @@ async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
     )
     hass.data[DATA_VERSION] = version
     hass.data[DATA_MELDUNGEN] = Meldungen(hass)
+    hass.async_create_task(hass.data[DATA_MELDUNGEN].async_laden(), "baustelle_meldungen_laden")  # lesbare Kopie beim Start
     for befehl in (ws_struktur, ws_setzen, ws_liste, ws_aktion, ws_bericht, ws_protokoll, ws_meldungen, ws_meldung):
         websocket_api.async_register_command(hass, befehl)
 
@@ -569,6 +570,11 @@ async def ws_meldung(hass: HomeAssistant, connection: websocket_api.ActiveConnec
             m["baustelle"] = msg["entry_id"]
         liste.insert(0, m)
         meldungen.speichern()
+        entry = hass.config_entries.async_get_entry(msg["entry_id"]) if msg.get("entry_id") else None
+        hass.bus.async_fire(EVENT_PROTOKOLL, {
+            "entry_id": msg.get("entry_id"), "baustelle": entry.title if entry else "", "art": "meldung", "bereich": None,
+            "bereich_name": None, "text": f"Meldung ({ART_TEXT.get(m.get('art'), m.get('art'))}): {m.get('text', '')} – {m.get('kontext', '')}",
+        })
         connection.send_result(msg["id"], {"ok": True, "id": m["id"]})
         return
     angaben = msg.get("meldung") or {}

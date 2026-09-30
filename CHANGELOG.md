@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.2] – 2026-09-30
+
+- Meldungen aus dem Melden-Knopf zusätzlich lesbar unter `<config>/baustelle/meldungen.md` und `meldungen.json`
+  (beim Start und nach jeder Änderung neu geschrieben) und neue Meldungen im HA-Logbuch – so lassen sie sich ohne
+  Zugriff auf den Speicher der Integration lesen und beheben.
+
 ## [0.7.1] – 2026-09-30
 
 - Seite, Container › Bearbeiten: Gerätezeile war nicht geschlossen – „+ Gerät hinzufügen“, Hinweis und Knöpfe standen
