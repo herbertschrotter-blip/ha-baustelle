@@ -85,7 +85,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 
 Tickets = Meldungen aus dem Melden-Knopf der Seite (Herbert, 30.09.2026). Die Integration sammelt sie nur und legt sie
 lesbar ab (`/config/baustelle/meldungen.json`, `meldungen.md`). Abgearbeitet wird in Claude Code im Projekt (eigenes
-tmux-Fenster „baustelle“: `tools/tickets-fenster.sh`): Herbert startet mit „Tickets prüfen“, Claude holt die offenen
+Fenster: tmux-Sitzung „Baustelle-Dashboard“, Fenster „Tickets“: `tools/tickets-fenster.sh`): Herbert startet mit „Tickets prüfen“, Claude holt die offenen
 Tickets und bearbeitet sie einzeln nach dem Skill `ticket`. **Bei Erfolg** (behoben, Tests grün, eingespielt) setzt
 Claude das Ticket auf `geschlossen` – mit Version, Commit und kurzer Notiz; Herbert kann es auf der Seite wieder öffnen.
 
