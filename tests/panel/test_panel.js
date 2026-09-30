@@ -224,6 +224,7 @@ const hov = wo => { let t = ''; const alt = panel.tip; panel.tip = (e, h) => { t
   panel.tip = alt; };
 
 /* ---------- allgemeine Prüfung gegen die echte Antwort der Integration (struktur-echt.json) ---------- */
+const HZ_KACHELN = [['heute'], ['plan'], ['wann'], ['container'], ['az'], ['ausn'], ['regeln'], ['trocknen'], ['urlaub']];
 const ANSICHTEN = ['uebersicht', 'heizung', 'pumpen', 'auswertung', 'verlauf', 'einst', 'ueber', 'dev'];
 const EINBLENDUNGEN = ['verbrauch', 'wetter', 'warnungen', 'baustellen', 'heizplan', 'strom', 'nachrichten', 'bericht', 'container-neu', 'abschliessen', 'urlaub', 'wetterquelle', 'name', 'baustelle-neu', 'termin', 'zeitraum-bs'];
 async function allgemein() {
@@ -248,10 +249,13 @@ async function allgemein() {
       for (const c of b.pumpe ? ['pumpzeit', 'zyklen', 'verbrauch'] : ['temp', 'verbrauch', 'heizzeit']) { await klick({ act: 'chart', c }, 30); pruefe(`${bid} ${b.id} ${c}`); hov(`${bid} ${b.id} ${c}`); }
       if (!b.pumpe && b.fuehler) { await klick({ act: 'chart', c: 'temp' }); await klick({ act: 'temp-vb' }); pruefe(`${bid} ${b.id} ohne Verbrauch`); await klick({ act: 'temp-vb' }); }
     }
-    await klick({ act: 'tab', v: 'heizung' });
+    await klick({ act: 'tab', v: 'heizung' }); pruefe(`${bid} heizung kacheln`);
+    // Reiter Heizung als Kacheln (0.7.11): jede Kachel öffnet ihren bisherigen Block als Einblendung
+    for (const [k] of HZ_KACHELN) { await klick({ act: 'hz-auf', k }, 20); pruefe(`${bid} heizung ${k}`); erwarte(`${bid} Kachel ${k} mit Inhalt`, ui.innerHTML.includes('class="block hz-innen"')); }
+    await klick({ act: 'hz-auf', k: 'wann' });
     for (const art of ['tag', 'woche']) { await klick({ act: 'hz-art', v: art }, 30); pruefe(`${bid} heizzeiten ${art}`); }
     for (const t of ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) { await klick({ act: 'hz-tag', v: t, art: 'tag' }, 30); pruefe(`${bid} heizzeiten ${t}`); }
-    await klick({ act: 'az-alt' }); pruefe(`${bid} frühere Arbeitszeiten`);
+    await klick({ act: 'hz-auf', k: 'az' }); await klick({ act: 'az-alt' }); pruefe(`${bid} frühere Arbeitszeiten`); await klick({ act: 'zu' });
     await klick({ act: 'tab', v: 'auswertung' }, 30);
     for (const scope of ['diese', 'alle']) { await klick({ act: 'aw-scope', v: scope }, 30);
       for (const z of ['Tag', 'Woche', 'Monat', 'Jahr']) { await klick({ act: 'vb-zeitraum', ziel: 'aw', v: z }, 40);
@@ -454,10 +458,13 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       for (const c of b.pumpe ? ['pumpzeit', 'zyklen', 'verbrauch'] : ['temp', 'verbrauch', 'heizzeit']) { await klick({ act: 'chart', c }, 30); pruefe(`${bid} ${b.id} ${c}`); hov(`${bid} ${b.id} ${c}`); }
       if (!b.pumpe && b.fuehler) { await klick({ act: 'chart', c: 'temp' }); await klick({ act: 'temp-vb' }); pruefe(`${bid} ${b.id} ohne Verbrauch`); await klick({ act: 'temp-vb' }); }
     }
-    await klick({ act: 'tab', v: 'heizung' });
+    await klick({ act: 'tab', v: 'heizung' }); pruefe(`${bid} heizung kacheln`);
+    // Reiter Heizung als Kacheln (0.7.11): jede Kachel öffnet ihren bisherigen Block als Einblendung
+    for (const [k] of HZ_KACHELN) { await klick({ act: 'hz-auf', k }, 20); pruefe(`${bid} heizung ${k}`); erwarte(`${bid} Kachel ${k} mit Inhalt`, ui.innerHTML.includes('class="block hz-innen"')); }
+    await klick({ act: 'hz-auf', k: 'wann' });
     for (const art of ['tag', 'woche']) { await klick({ act: 'hz-art', v: art }, 30); pruefe(`${bid} heizzeiten ${art}`); }
     for (const t of ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) { await klick({ act: 'hz-tag', v: t, art: 'tag' }, 30); pruefe(`${bid} heizzeiten ${t}`); }
-    await klick({ act: 'az-alt' }); pruefe(`${bid} frühere Arbeitszeiten`);
+    await klick({ act: 'hz-auf', k: 'az' }); await klick({ act: 'az-alt' }); pruefe(`${bid} frühere Arbeitszeiten`); await klick({ act: 'zu' });
     await klick({ act: 'tab', v: 'auswertung' }, 30);
     for (const scope of ['diese', 'alle']) { await klick({ act: 'aw-scope', v: scope }, 30);
       for (const z of ['Tag', 'Woche', 'Monat', 'Jahr']) { await klick({ act: 'vb-zeitraum', ziel: 'aw', v: z }, 40);
@@ -661,8 +668,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Thermostat ohne Fühler nicht wählbar', /data-v="thermo" class="[^"]*" disabled/.test(ui.innerHTML));
   await klick({ act: 'chart', c: 'leistung' }, 30); pruefe('Container Leistung'); erwarte('Leistung heute als kW-Kurve', ui.innerHTML.includes('data-chart="kw-magazin"'));
   await klick({ act: 'tab', v: 'heizung' }, 30);
-  erwarte('Heizung: Frostschutz ein/aus, Urlaub-Auswahl, Modus je Container', ui.innerHTML.includes('aus über') && ui.innerHTML.includes('data-k="urlaub"') && ui.innerHTML.includes('data-jm="polier"'));
-  neu(); await klick({ act: 'st', k: 'frost_aus', d: '0.5' }); await klick({ act: 'e-wert', k: 'urlaub', v: 'absenk' });
+  erwarte('Heizung als Kacheln: Heute-Karte und 8 Kacheln', ui.innerHTML.includes('hz-held') && (ui.innerHTML.match(/class="glas-panel hz-kachel"/g) || []).length === 8);
+  const hzOffen = async k => { await klick({ act: 'hz-auf', k }, 20); return ui.innerHTML; };
+  erwarte('Heizung: Frostschutz ein/aus (Regeln), Urlaub-Auswahl, Modus je Container', (await hzOffen('regeln')).includes('aus über') && (await hzOffen('urlaub')).includes('data-k="urlaub"') && (await hzOffen('container')).includes('data-jm="polier"'));
+  await hzOffen('regeln'); neu(); await klick({ act: 'st', k: 'frost_aus', d: '0.5' }); await hzOffen('urlaub'); await klick({ act: 'e-wert', k: 'urlaub', v: 'absenk' });
   erwarte('Frostschutz aus und Urlaub über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frost_aus"]' && a.wert === 7.5)
     && letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frei_modus"]' && a.wert === 'absenk'));
   pruefe('Heizung absenken'); erwarte('absenken auf … °C', ui.innerHTML.includes('data-k="absenk"'));
@@ -687,10 +696,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('Beginn/Ende/Heizperiode über den Options-Dialog', o && o[2].ende === '2027-05-28' && o[2].heizperiode_bis === '3' && o[2].heizperiode_von === '10' && o[2].status === 'aktiv'); }
   neu(); await klick({ act: 'e-bool', k: 'erklaer' });
   erwarte('Erklärungen abschalten', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["erklaer"]' && a.wert === false));
-  await klick({ act: 'tab', v: 'heizung' }, 20); erwarte('ohne Erklärungen keine „ⓘ“', !ui.innerHTML.includes('class="erkl"'));
-  await klick({ act: 'e-bool', k: 'erklaer' }); await klick({ act: 'tab', v: 'heizung' }, 20); erwarte('mit Erklärungen „ⓘ“', ui.innerHTML.includes('class="erkl"'));
+  await klick({ act: 'tab', v: 'heizung' }, 20); await klick({ act: 'hz-auf', k: 'regeln' }, 20); erwarte('ohne Erklärungen keine „ⓘ“', !ui.innerHTML.includes('class="erkl"'));
+  await klick({ act: 'e-bool', k: 'erklaer' }); await klick({ act: 'tab', v: 'heizung' }, 20); await klick({ act: 'hz-auf', k: 'regeln' }, 20); erwarte('mit Erklärungen „ⓘ“', ui.innerHTML.includes('class="erkl"'));
   /* Kleinigkeiten nach 0.7.8: Frostschutz auch bei Automatik aus, Kälte-Frühstart unter 0 °C */
-  await klick({ act: 'tab', v: 'heizung' }, 20);
+  await klick({ act: 'tab', v: 'heizung' }, 20); await klick({ act: 'hz-auf', k: 'regeln' }, 20);
   erwarte('Schalter „auch bei Automatik aus“', ui.innerHTML.includes('data-k="frost_immer"'));
   neu(); await klick({ act: 'e-bool', k: 'frost_immer' });
   erwarte('frost_immer über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frost_immer"]' && a.wert === true));

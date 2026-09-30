@@ -272,6 +272,9 @@ Abweichungen vom Mockup auf der Seite (Stufe 3, 30.09.2026 – was das echte Sys
   Shelly (ohne Zähler „–“). Modus-Standard ohne gesetzten Wert wie 0.7: mit Fühler Thermostat, sonst Zeitplan.
   Frostschutz „aus über“ ohne gesetzten Wert = Grenze + 2 °C. „Alles aus“ im Urlaub schaltet auch den Frostschutz ab
   (Mockup-Text). Die Stepper „ein unter“/„aus über“ lassen sich nicht übereinander schieben.
+- Reiter Heizung (0.7.11, Mockup `heizung-varianten.html` Variante A, abgenommen 30.09.2026): Heute-Karte + 8 Kacheln;
+  die Einblendungen zeigen die bisherigen Blöcke unverändert („Heute“ zusammen mit „Wann heizt was“, „Arbeitszeit“
+  zusammen mit „Ausnahmen“). Kacheln am Handy 2, ab 700 px Breite 4 Spalten.
 - Versions-Hinweis (Herbert 30.09.2026, nicht im Mockup): oben auf der Seite „Neue Version … – bitte neu laden“ mit
   Knopf, wenn die Version von HA (`baustelle/struktur`) oder die neueste in `changelog.json` auf der Platte (höchstens
   alle 10 min, am Speicher vorbei) neuer ist als `SEITE_VERSION` der geladenen Seite. „Neu laden“ holt

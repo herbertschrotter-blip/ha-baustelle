@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.11",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Reiter **Heizung übersichtlicher** (Herbert: „sehr unübersichtlich“; Mockup `heizung-varianten.html`, Variante A abgenommen): oben eine große Karte **Heute** (Status, Zeitstrahl, greifende Regeln als Chips), darunter **Kacheln** mit Kurzwert – Diese Woche, Wann heizt was, Container, Arbeitszeit, Ausnahmen, Regeln, Kleidung trocknen, Urlaub & Feiertage. Ein Tipp öffnet die Details von unten; die Inhalte sind die bisherigen."
+    ]
+  },
+  {
     "version": "0.7.10",
     "datum": "2026-09-30",
     "punkte": [

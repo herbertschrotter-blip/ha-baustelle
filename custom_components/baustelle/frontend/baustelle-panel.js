@@ -645,6 +645,24 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .warn-zeile.stoerung b { color: var(--rot); } .warn-zeile.hinweis b { color: var(--amber); } .warn-zeile .leise { display: block; font-size: 12px; margin-top: 2px; }
 .p-schacht { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; margin-bottom: 8px; } .p-illu .bc { max-width: 96px; }
 .tab-scroll { overflow-x: auto; } .je-geraet td, .je-geraet th { white-space: nowrap; padding-left: 8px; } .je-geraet td:first-child { white-space: normal; padding-left: 0; }
+/* 0.7.11 – Reiter Heizung als Kacheln (Mockup heizung-varianten.html, Variante A) */
+.hz-held { padding: 14px 16px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; }
+.hz-held-kopf { display: flex; justify-content: space-between; align-items: flex-start; }
+.hz-status { font-size: 22px; font-weight: 600; margin-top: 2px; } .hz-status.an { color: var(--amber); }
+.hz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hz-chip { font-size: 12px; padding: 4px 9px; border-radius: 12px; background: rgba(255,255,255,.12); white-space: nowrap; }
+.hell .hz-chip { background: rgba(0,0,0,.06); }
+.hz-raster { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 700px) { .hz-raster { grid-template-columns: repeat(4, 1fr); } }
+.hz-kachel { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; text-align: left; min-height: 118px; animation: rein .45s ease-out backwards; }
+.hz-k-kopf { display: flex; justify-content: space-between; width: 100%; }
+.hz-sym { font-size: 20px; line-height: 1; }
+.hz-k-titel { font-size: 12px; color: var(--ink2); margin-top: 6px; }
+.hz-k-wert { font-size: 17px; font-weight: 600; line-height: 1.2; }
+.hz-k-unter { font-size: 11.5px; line-height: 1.35; }
+.hz-mini { display: flex; align-items: flex-end; gap: 3px; height: 22px; margin: 3px 0 1px; width: 100%; }
+.hz-mini i { flex: 1; background: var(--amber); opacity: .55; border-radius: 2px 2px 0 0; } .hz-mini i.heute { opacity: 1; }
+.hz-innen { padding: 4px 0 8px; } .hz-innen + .hz-innen { border-top: 1px solid var(--gridc); padding-top: 12px; }
 `;
 
 /* Himmel hinter Glas (mockups/quelle/himmel.frag + himmel.js) */
@@ -846,6 +864,10 @@ const FREI_TEXT = { frost: 'nur Frostschutz', absenk: 'abgesenkt', aus: 'alles a
 /* Erklärtexte „ⓘ“ (abschaltbar unter Einstellungen › App) */
 const erkl = (an, text) => an ? `<div class="erkl">ⓘ ${text}</div>` : '';
 const STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, '0'));
+/* Reiter Heizung als Kacheln: Schlüssel, Titel des bisherigen Blocks, Symbol, Name der Einblendung */
+const HZ_TEILE = [['heute', 'Heute', '🕖', 'Heute'], ['wann', 'Wann welche Heizung heizt', '🔥', 'Wann heizt was'], ['plan', 'Heizplan · diese Woche', '📅', 'Diese Woche'],
+  ['az', 'Arbeitszeit', '👷', 'Arbeitszeit'], ['ausn', 'Ausnahmen', '✳️', 'Ausnahmen'], ['regeln', 'So wird geheizt', '⚙️', 'Regeln'],
+  ['trocknen', '👕 Kleidung trocknen', '👕', 'Kleidung trocknen'], ['container', 'Je Container', '🏠', 'Container'], ['urlaub', 'Urlaub &amp; Feiertage', '🏖', 'Urlaub & Feiertage']];
 const ARTEN = { m_offline: 'offline', m_trocken: 'trockenlauf', m_dauer: 'dauerlauf', m_zyklen: 'zyklen_oft', m_leistung: 'keine_leistung', m_frost: 'frostgefahr',
   m_kalt: 'zu_kalt', m_fuehler: 'fuehler_fehlt', m_wetter: 'kein_wetter', m_hand: 'hand_zu_lange' };
 /* Abschnitte der Integration → Klassen der Zeitleiste im Mockup */
@@ -991,7 +1013,7 @@ function phaseAusSonne(sonne) {
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.7.10';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.7.11';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1796,7 +1818,68 @@ class BaustellePanel extends HTMLElement {
   stepper(k, d, fmt) { const e = this.d.e; return `<span class="stepper"><button data-act="st" data-k="${k}" data-d="${-d}">−</button><b>${fmt(e[k])}</b><button data-act="st" data-k="${k}" data-d="${d}">+</button></span>`; }
   feiertage() { const k = this._kalender(this.d.optionen.feiertag_kalender); return k === null ? null : k.filter(f => f.von > this.z.HEUTE).sort((a, b) => a.von.localeCompare(b.von)); }
   urlaube() { const k = this._kalender(this.d.optionen.urlaub_kalender); return k === null ? null : k.filter(u => u.bis >= this.z.HEUTE).sort((a, b) => a.von.localeCompare(b.von)); }
+  /* ---- Heizung als Kacheln (0.7.11, Mockup heizung-varianten.html Variante A, abgenommen 30.09.2026) ----
+     Große Karte „Heute“, darunter die Hauptteile als Kacheln mit Kurzwert; ein Tipp öffnet den bisherigen Block als
+     Einblendung (heizungBloecke – Inhalte unverändert). */
+  hzTeile() {
+    const html = this.heizungBloecke(), stuecke = html.split(/(?=<div class="glas-panel block">)/), teile = {};
+    for (const [k, titel] of HZ_TEILE) { const x = stuecke.find(y => y.includes(`<b>${titel}</b>`)); teile[k] = x ? x.trim() : ''; }
+    return teile;
+  }
+  hzKurz() {
+    const d = this.d, e = d.e, az = this.azJetzt, C = d.bereiche.filter(b => !b.pumpe), H = this.z.HEUTE;
+    const ausn = d.ausnahmen.filter(a => a.datum >= H).sort((a, b) => a.datum.localeCompare(b.datum));
+    const ft = this.feiertage(), ur = this.urlaube(), naechsterFt = ft && ft[0];
+    const modi = MODI.map(([k, t]) => [t, C.filter(b => b.modus === k).length]).filter(x => x[1]);
+    const woche = TAGE.map(t => { const p = this.planTag(t); return p && zahl(p.ende) && zahl(p.extra) ? Math.max(0, p.ende - p.extra) / 60 : 0; });
+    const L = this.last(), zeiten = t => az && az.tage[t] ? az.tage[t].join('–') : 'frei';
+    return {
+      woche, plan: `${woche.filter(Boolean).length} Heiztage · ${de(summe(woche), 0)} h`,
+      wann: `${L.laufen} von ${L.hk.length} Heizkörpern an`,
+      az: az ? esc(az.name || 'Arbeitszeit') : 'keine Arbeitszeit', az2: az ? `Mo ${zeiten('Mo')} · Fr ${zeiten('Fr')}` : 'unter Arbeitszeit anlegen',
+      ausn: ausn.length ? `${ausn.length} geplant` : 'keine', ausn2: ausn.length ? `nächste ${wtag(ausn[0].datum)} ${kurzDatum(ausn[0].datum)}` : 'Samstag, länger, frei …',
+      regeln: `Soll ${de(e.soll, 1)} °C`, regeln2: `vor ${e.vorheizen} · nach ${e.nachheizen} min · Grenze ${de(e.grenze, 0)} °C · ${e.frost ? `Frost ${de(e.frost_temp, 1)}–${de(e.frost_aus, 1)} °C` : 'Frostschutz aus'}`,
+      trocknen: `ab ${de(e.tr_mm, 1)} mm Regen`, trocknen2: `+${e.tr_laenger} min · früher ${e.tr_frueher} min`,
+      container: `${C.length} Container`, container2: modi.map(([t, n]) => `${n} ${t}`).join(' · ') || '–',
+      urlaub: ur === null ? 'Lädt …' : ur.length ? `${ur.length} Urlaub` : 'kein Urlaub', urlaub2: naechsterFt ? `Feiertag ${wtag(naechsterFt.von)} ${kurzDatum(naechsterFt.von)}` : e.feiertag_frei ? '' : 'an Feiertagen wird gearbeitet',
+    };
+  }
+  hzHeld() {
+    const d = this.d, e = d.e, H = this.z.HEUTE, p = this.planTag(this.z.HEUTE_TAG), hg = d.heizgrenze || {}, pm = d.plan[plusTage(H, 1)], L = this.last();
+    const heizt = /heizt|♨/.test(this.statusText());
+    const chips = [
+      !e.auto ? '⏸ Automatik aus' : '',
+      p ? `🕖 ${uhr(p.a)}–${uhr(p.b)}` : `🕖 ${this.freiText(H)}`,
+      hg.zu_warm ? '🌡 zu warm – kein Heizen' : '',
+      p && p.codes.includes('trocknen') ? `🌧 trocknen +${e.tr_laenger} min` : '',
+      p && p.codes.includes('fruehstart') ? '❄ Frühstart heute' : pm && (pm.gruende || []).includes('fruehstart') ? '❄ Frühstart morgen' : '',
+      e.staffel && L.warten ? `⚡ ${L.warten} wartet` : '',
+      d.jetztBis ? `♨ alle heizen bis ${d.jetztBis}` : '',
+    ].filter(Boolean).map(c => `<span class="hz-chip">${c}</span>`).join('');
+    return `<div class="glas-panel hz-held klickbar" data-act="hz-auf" data-k="heute" role="button" tabindex="0">
+      <div class="hz-held-kopf"><div><div class="glas-klein">HEUTE · ${this.z.HEUTE_TAG} ${kurzDatum(H)}</div><div class="hz-status ${heizt ? 'an' : ''}">${esc(this.statusText())}</div></div><span class="chev">›</span></div>
+      <div class="tl">${this.zeitstrahl(p, true)}<div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div></div>
+      ${chips ? `<div class="hz-chips">${chips}</div>` : ''}</div>`;
+  }
   v_heizung() {
+    const d = this.d, k = this.hzKurz(), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), max = Math.max(1, ...k.woche);
+    const kachel = (id, sym, titel, wert, unter, extra = '') => `<button class="glas-panel hz-kachel" data-act="hz-auf" data-k="${id}">
+      <span class="hz-k-kopf"><span class="hz-sym">${sym}</span><span class="chev">›</span></span>
+      <span class="hz-k-titel">${titel}</span><b class="hz-k-wert">${wert}</b>${extra}<span class="leise hz-k-unter">${unter || ''}</span></button>`;
+    const mini = `<span class="hz-mini">${k.woche.map((h, i) => `<i style="height:${Math.max(3, h / max * 100)}%" class="${i === heuteNr ? 'heute' : ''}"></i>`).join('')}</span>`;
+    return `${this.kopf('Heizung', esc(d.titel), `<div>${schalter(d.e.auto, 'auto')}</div>`)}${this.hzHeld()}
+      <div class="hz-raster">
+        ${kachel('plan', '📅', 'Diese Woche', k.plan, 'Heizplan aus Arbeitszeit und Wetter', mini)}
+        ${kachel('wann', '🔥', 'Wann heizt was', k.wann, 'gemessen je Heizkörper')}
+        ${kachel('container', '🏠', 'Container', k.container, k.container2)}
+        ${kachel('az', '👷', 'Arbeitszeit', k.az, k.az2)}
+        ${kachel('ausn', '✳️', 'Ausnahmen', k.ausn, k.ausn2)}
+        ${kachel('regeln', '⚙️', 'Regeln', k.regeln, k.regeln2)}
+        ${kachel('trocknen', '👕', 'Kleidung trocknen', k.trocknen, k.trocknen2)}
+        ${kachel('urlaub', '🏖', 'Urlaub & Feiertage', k.urlaub, k.urlaub2)}
+      </div>`;
+  }
+  heizungBloecke() {
     const d = this.d, e = d.e, st = (k, s, fmt) => this.stepper(k, s, fmt);
     const grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, mm = v => `${de(v, 1)} mm`;
     const p = this.planTag(this.z.HEUTE_TAG), az = this.azJetzt, hg = d.heizgrenze || {}, w = d.wetter || {};
@@ -2307,6 +2390,9 @@ class BaustellePanel extends HTMLElement {
     const s = this.s.sheet, d = this.d, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
     const griff = '<div class="griff"></div>';
     if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
+    if (s.art === 'hz') { const T = this.hzTeile(), def = HZ_TEILE.find(x => x[0] === s.k) || HZ_TEILE[0];
+      const inhalt = s.k === 'heute' ? T.heute + T.wann : s.k === 'az' ? T.az + T.ausn : T[s.k];
+      return `${griff}<div class="block-kopf"><h3>${def[2]} ${esc(def[3])}</h3></div>${(inhalt || '').replace(/class="glas-panel block"/g, 'class="block hz-innen"')}${knopf('Schließen')}`; }
     if (s.art === 'wetter') {
       const a = s.wa || 'std', e = d.e, ws = this.zustand(d.wetterEid), w = d.wetter || {};
       const folge = (t, mm) => [zahl(t) && t < e.frueh_temp ? '<span class="w-folge blau">Frühstart</span>' : '', zahl(mm) && mm >= e.tr_mm ? '<span class="w-folge amber">Kleidung trocknen</span>' : '',
@@ -2718,6 +2804,7 @@ class BaustellePanel extends HTMLElement {
       case 'jetzt-an': return this.aktion('jetzt_heizen', { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`);
       case 'jetzt-aus': return this.aktion('jetzt_heizen', { minuten: null }, 'Zurück zum Plan');
       case 'b-auto': return this.setzen(['bereiche', b.id, 'auto'], !b.auto);
+      case 'hz-auf': S.sheet = { art: 'hz', k: el.dataset.k }; return neu();
       case 'modus': { const x = d.bereiche.find(y => y.id === el.dataset.id), m = el.dataset.v; if (!x || x.modus === m) return undefined;
         return this.setzen(['bereiche', x.id, 'modus'], m, `${x.name}: ${(MODI.find(q => q[0] === m) || [m, m])[1]}`); }
       case 'p-chart': S.pchart = el.dataset.v; return neu();

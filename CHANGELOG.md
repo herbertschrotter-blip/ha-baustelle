@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.11] – 2026-09-30
+
+- Reiter **Heizung übersichtlicher** (Herbert: „sehr unübersichtlich“; Mockup `heizung-varianten.html`, Variante A
+  abgenommen): oben eine große Karte **Heute** (Status, Zeitstrahl, greifende Regeln als Chips), darunter **Kacheln**
+  mit Kurzwert – Diese Woche, Wann heizt was, Container, Arbeitszeit, Ausnahmen, Regeln, Kleidung trocknen, Urlaub &
+  Feiertage. Ein Tipp öffnet die Details von unten; die Inhalte sind die bisherigen.
+
 ## [0.7.10] – 2026-09-30
 
 - Himmel (WU-0001): **Sonne wandert** tagesaktuell von Aufgang (links) bis Untergang (rechts) nach `sun.sun`, nachts der
