@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.1] – 2026-09-30
+
+- Wetter nachts (FE-0005): Open-Meteo meldet nachts „sonnig“ bzw. „heiter“ – die Seite zeigt jetzt wie die
+  Wetterkarten von HA nachts „Klar“ mit Mond bzw. Mond mit Wolke; auch in der stündlichen Vorhersage und im
+  Tagesverlauf für Stunden nach Sonnenuntergang und vor Sonnenaufgang.
+
 ## [0.8.0] – 2026-09-30
 
 - Neu: **Lernende Regelung** je Container mit Fühler (Schalter startet aus; Modus Thermostat, Bei Bedarf, Absenken).

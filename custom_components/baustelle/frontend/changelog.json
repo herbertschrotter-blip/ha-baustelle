@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.1",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Wetter nachts (FE-0005): Open-Meteo meldet nachts „sonnig“ bzw. „heiter“ – die Seite zeigt jetzt wie die Wetterkarten von HA nachts „Klar“ mit Mond bzw. Mond mit Wolke; auch in der stündlichen Vorhersage und im Tagesverlauf für Stunden nach Sonnenuntergang und vor Sonnenaufgang."
+    ]
+  },
+  {
     "version": "0.8.0",
     "datum": "2026-09-30",
     "punkte": [

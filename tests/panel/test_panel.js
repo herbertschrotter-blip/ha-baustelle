@@ -517,6 +517,17 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     Date.now = () => jetzt; const kw = panel.verbrauch(dd, 'polier', 'Tag'); Date.now = echt;
     panel._hass.states[en] = zustand; delete panel.cache[`s:${dd.entry}:Tag:${dd.z.HEUTE}`];
     erwarte(`WU-0002: Stunde 19 = 5-Minuten-Werte + Rest bis jetzt (${kw && kw[19]})`, kw && Math.abs(kw[18] - 1.0) < 1e-9 && Math.abs(kw[19] - (.75 + .15)) < 1e-9); }
+  /* FE-0005: nachts meldet Open-Meteo „sunny“ – die Seite zeigt „Klar“ mit Mond, tagsüber weiter „Sonnig“ */
+  { const nacht = { state: 'below_horizon', attributes: { elevation: -20, next_rising: new Date(Date.now() + 8 * 36e5).toISOString(), next_setting: new Date(Date.now() + 20 * 36e5).toISOString() } };
+    const we = panel.d.wetterEid, sonnig = { entity_id: we, ...(states[we] || { attributes: { temperature: 12 } }), state: 'sunny' };
+    panel.hass = { ...hass, states: { ...states, [we]: sonnig, 'sun.sun': nacht } }; await ruhe();
+    await klick({ act: 'tab', v: 'uebersicht' }, 20);
+    erwarte('FE-0005: nachts „Klar“ mit Mond statt „Sonnig“', ui.innerHTML.includes('aria-label="clear-night"') && /Klar/.test(ui.innerHTML) && !/Sonnig/.test(ui.innerHTML));
+    erwarte('FE-0005: Vorhersage-Stunde nach Sonnenuntergang', panel.nachtWetter('sunny', Date.now() + 21 * 36e5) === 'clear-night' && panel.nachtWetter('partlycloudy', Date.now() + 21 * 36e5) === 'partlycloudy-night'
+      && panel.nachtWetter('sunny', Date.now() + 12 * 36e5) === 'sunny' && panel.nachtWetter('rainy', Date.now() + 21 * 36e5) === 'rainy');
+    panel.hass = { ...hass, states: { ...states, [we]: sonnig } }; await ruhe(); await klick({ act: 'tab', v: 'uebersicht' }, 20);
+    erwarte('FE-0005: tagsüber weiter „Sonnig“', ui.innerHTML.includes('aria-label="sunny"') && /Sonnig/.test(ui.innerHTML));
+    panel.hass = hass; await ruhe(); }
   /* 0.8: lernende Regelung – Schalter, Regelungszeile, Lernstand, Setzen und Zurücksetzen */
   { await klick({ act: 'container', id: 'polier' }, 20);
     const pol0 = () => panel.d.bereiche.find(x => x.id === 'polier'); let pol = pol0(); pol.modus = 'thermo';
