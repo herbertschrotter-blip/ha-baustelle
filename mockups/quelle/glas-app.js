@@ -253,7 +253,26 @@ function verbrauch(bereiche, cid, zeitraum) {
 }
 
 /* ---------- Stimmung: Hintergrund nach Tageszeit (sun.sun) und Wetter (weather.*) ---------- */
-const STIMMUNG = { phase: 'tag', wetter: 'regen' };
+const STIMMUNG = { phase: 'tag', wetter: 'klar', zeit: Date.now() };
+/* Vorführung: sun.sun für Datum und Uhrzeit nachgebildet (Mitteleuropa, etwa 47° N / 15° O) – im Panel kommt es aus HA */
+function vorfuehrSonne(ms) {
+  const rad = Math.PI / 180, breite = 47 * rad, d = new Date(ms);
+  const tag = n => { const t0 = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate() + n), nr = (t0 - Date.UTC(d.getFullYear(), 0, 0)) / 864e5;
+    const dekl = 23.44 * rad * Math.sin(2 * Math.PI * (nr - 81) / 365), mittag = t0 + 11 * 36e5;   // Sonnenmittag bei 15° O ≈ 11:00 UTC
+    const halb = Math.acos(-Math.tan(breite) * Math.tan(dekl)) / Math.PI * 12 * 36e5;
+    return { dekl, mittag, auf: mittag - halb, ab: mittag + halb }; };
+  const h = tag(0), m = tag(1), w = (ms - h.mittag) / 36e5 * 15 * rad;
+  const hoehe = Math.asin(Math.sin(breite) * Math.sin(h.dekl) + Math.cos(breite) * Math.cos(h.dekl) * Math.cos(w)) / rad;
+  const iso = x => new Date(x).toISOString();
+  return { state: hoehe > -.83 ? 'above_horizon' : 'below_horizon', attributes: { elevation: +hoehe.toFixed(2), rising: ms < h.mittag,
+    next_rising: iso(ms < h.auf ? h.auf : m.auf), next_setting: iso(ms < h.ab ? h.ab : m.ab) } };
+}
+/* Tageszeit aus sun.sun wie im Panel: Nacht unter −6°, Morgen/Abend bis 12° über dem Horizont */
+function phaseAusSonne(sonne) {
+  const a = sonne.attributes, hoehe = a.elevation;
+  return hoehe < -6 ? 'nacht' : hoehe < 12 ? (a.rising === false ? 'abend' : 'morgen') : 'tag';
+}
+STIMMUNG.phase = phaseAusSonne(vorfuehrSonne(STIMMUNG.zeit));
 const WETTER_ANZEIGE = { klar: ['sunny', 'Sonnig'], wolkig: ['cloudy', 'Bewölkt'], regen: ['rainy', 'Regen · 6 mm'], nebel: ['fog', 'Nebel'],
   schnee: ['snowy', 'Schnee · 2 cm'], gewitter: ['lightning-rainy', 'Gewitter · 9 mm'] };
 const wetterJetzt = () => { const [w, t] = WETTER_ANZEIGE[STIMMUNG.wetter]; return [w === 'sunny' && STIMMUNG.phase === 'nacht' ? 'clear-night' : w, w === 'sunny' && STIMMUNG.phase === 'nacht' ? 'Klar' : t]; };
@@ -292,7 +311,9 @@ class App {
     const { phase, wetter } = STIMMUNG;
     if (this.bg.dataset.phase !== phase || this.bg.dataset.wetter !== wetter) this.bg.querySelector('.partikel').innerHTML = partikel(phase, wetter);
     this.bg.dataset.phase = phase; this.bg.dataset.wetter = wetter;
-    this.himmel?.setze(phase, wetter, document.body.classList.contains('hell'));
+    const sonne = vorfuehrSonne(STIMMUNG.zeit), lauf = himmelLauf(sonne, STIMMUNG.zeit);
+    this.himmel?.setze(phase, wetter, document.body.classList.contains('hell'), sonne, lauf);
+    this.bg.style.setProperty('--sonne-x', (lauf.uSonnePos[0] * 100).toFixed(1) + '%'); this.bg.style.setProperty('--sonne-y', (lauf.uSonnePos[1] * 100).toFixed(1) + '%');
     if (neuZeichnen) this.render();
   }
   get azListe() { return [...this.d.arbeitszeiten].sort((a, b) => a.ab.localeCompare(b.ab)); }
@@ -1439,6 +1460,29 @@ class App {
 }
 document.querySelectorAll('.app').forEach(el => new App(el));
 document.getElementById('modus').onclick = () => { document.body.classList.toggle('hell'); APPS.forEach(a => a.stimmung(false)); };
-for (const [id, k] of [['phase', 'phase'], ['wetter', 'wetter']]) {
-  const el = document.getElementById(id); if (el) el.onchange = () => { STIMMUNG[k] = el.value; APPS.forEach(a => a.stimmung()); };
+{ const el = document.getElementById('wetter'); if (el) el.onchange = () => { STIMMUNG.wetter = el.value; APPS.forEach(a => a.stimmung()); }; }
+/* Vorführ-Leiste: Datum und Uhrzeit bestimmen den Sonnenstand; Zeitraffer = ein Tag in 48 s */
+const datumEl = document.getElementById('datum'), uhrEl = document.getElementById('uhr'), uhrText = document.getElementById('uhr-text'), rafferEl = document.getElementById('raffer');
+const zwei = n => String(n).padStart(2, '0');
+function zeitAnzeigen() {
+  const d = new Date(STIMMUNG.zeit);
+  if (datumEl) datumEl.value = `${d.getFullYear()}-${zwei(d.getMonth() + 1)}-${zwei(d.getDate())}`;
+  if (uhrEl) uhrEl.value = d.getHours() * 60 + d.getMinutes();
+  if (uhrText) uhrText.textContent = `${zwei(d.getHours())}:${zwei(d.getMinutes())}`;
 }
+function zeitSetzen(ms, neuZeichnen = true) {
+  const alt = STIMMUNG.phase; STIMMUNG.zeit = ms; STIMMUNG.phase = phaseAusSonne(vorfuehrSonne(ms));
+  zeitAnzeigen(); APPS.forEach(a => a.stimmung(neuZeichnen || alt !== STIMMUNG.phase));
+}
+function zeitAusLeiste() {
+  const [j, m, t] = (datumEl.value || '').split('-').map(Number), d = new Date(STIMMUNG.zeit);
+  if (j) d.setFullYear(j, m - 1, t); d.setHours(0, +uhrEl.value, 0, 0); return d.getTime();
+}
+if (datumEl) datumEl.onchange = () => zeitSetzen(zeitAusLeiste());
+if (uhrEl) uhrEl.oninput = () => zeitSetzen(zeitAusLeiste(), false);
+let raffer = null;
+if (rafferEl) rafferEl.onclick = () => {
+  if (raffer) { clearInterval(raffer); raffer = null; rafferEl.textContent = '▶ Zeitraffer'; return; }
+  rafferEl.textContent = '⏸ Zeitraffer'; raffer = setInterval(() => zeitSetzen(STIMMUNG.zeit + 6 * 6e4, false), 200);
+};
+zeitAnzeigen();

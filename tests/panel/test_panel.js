@@ -36,7 +36,7 @@ const ZUSTAENDE = !REFERENZ && zustaendeDatei && fs.existsSync(zustaendeDatei) ?
 
 /* ---------- minimales DOM (wie mockups/quelle/vorschau/pruefen.cjs) ---------- */
 const klassen = () => { const s = new Set(); return { add: k => s.add(k), remove: k => s.delete(k), toggle: (k, an) => ((an ?? !s.has(k)) ? s.add(k) : s.delete(k)), contains: k => s.has(k), liste: s }; };
-const element = (name = 'div') => ({ tagName: name.toUpperCase(), dataset: {}, style: {}, classList: klassen(), innerHTML: '', textContent: '', scrollTop: 0, offsetWidth: 100, offsetHeight: 30, clientWidth: 390, clientHeight: 844,
+const element = (name = 'div') => ({ tagName: name.toUpperCase(), dataset: {}, style: { setProperty(k, v) { this[k] = v; } }, classList: klassen(), innerHTML: '', textContent: '', scrollTop: 0, offsetWidth: 100, offsetHeight: 30, clientWidth: 390, clientHeight: 844,
   kinder: {}, querySelector(s) { return this.kinder[s] ||= element(); }, querySelectorAll() { return []; }, insertBefore() {}, appendChild() {}, addEventListener() {},
   getBoundingClientRect: () => ({ left: 0, top: 0, width: 390, height: 844 }) });
 const downloads = [], events = [];
@@ -424,6 +424,21 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Dunkel nach Theme', !panel.wurzel.classList.contains('hell'));
   panel.hass = { ...hass, themes: { darkMode: false }, states: { ...states, 'sun.sun': { state: 'below_horizon', attributes: { elevation: -20 } } } }; await ruhe();
   erwarte('Hell nach Theme, Nacht nach sun.sun', panel.wurzel.classList.contains('hell') && panel.bg.dataset.phase === 'nacht');
+  /* WU-0001: Sonne wandert von Aufgang (links) bis Untergang (rechts), nachts der Mond; Mondphase aus dem Datum */
+  const bahn = async (state, stdAuf, stdAb) => { const t0 = Date.now(), iso = h => new Date(t0 + h * 36e5).toISOString();
+    panel.hass = { ...hass, states: { ...states, 'sun.sun': { state, attributes: { elevation: state === 'above_horizon' ? 20 : -20, rising: false, next_rising: iso(stdAuf), next_setting: iso(stdAb) } } } };
+    await ruhe(); return panel.lauf; };
+  const morgens = await bahn('above_horizon', 23, 10), mittags = await bahn('above_horizon', 19, 5), abends = await bahn('above_horizon', 15, 1), nachts = await bahn('below_horizon', 6, 20);
+  erwarte('WU-0001: Sonne morgens links, mittags oben Mitte, abends rechts',
+    morgens.uSonnePos[0] < .3 && Math.abs(mittags.uSonnePos[0] - .5) < .02 && mittags.uSonnePos[1] < morgens.uSonnePos[1] && abends.uSonnePos[0] > .7);
+  erwarte('WU-0001: nachts wandert der Mond (4 h nach Untergang von 10 h Nacht → 40 %)', Math.abs(nachts.uMondPos[0] - (.08 + .84 * .4)) < .02);
+  erwarte('WU-0001: CSS-Rückfall folgt der Sonne', panel.bg.style['--sonne-x'] === (nachts.uSonnePos[0] * 100).toFixed(1) + '%');
+  const echtJetzt = Date.now;
+  Date.now = () => Date.parse('2026-08-28T04:13:00Z'); const mVoll = await bahn('below_horizon', 6, 20);      // Mondfinsternis = Vollmond
+  Date.now = () => Date.parse('2026-08-12T17:46:00Z'); const mNeu = await bahn('below_horizon', 6, 20);       // Sonnenfinsternis = Neumond
+  Date.now = () => Date.parse('2026-10-14T19:00:00Z'); const mSichel = await bahn('below_horizon', 6, 20);    // junge Sichel, zunehmend
+  Date.now = echtJetzt;
+  erwarte('WU-0001: Mondphase Vollmond/Neumond/zunehmende Sichel', mVoll.uMondK < -.98 && mNeu.uMondK > .98 && mSichel.uMondK > .3 && mSichel.uMondSeite === 1);
   panel.hass = hass; await ruhe();
   erwarte('Changelog geladen', Array.isArray(panel.changelog) && panel.changelog.length === 2);
 

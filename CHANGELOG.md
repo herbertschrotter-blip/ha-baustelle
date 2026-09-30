@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.10] – 2026-09-30
+
+- Himmel (WU-0001): **Sonne wandert** tagesaktuell von Aufgang (links) bis Untergang (rechts) nach `sun.sun`, nachts der
+  **Mond mit echter Mondphase** (aus dem Datum gerechnet); die Farben gleiten **stufenlos nach dem Sonnenstand** statt
+  vier harter Stimmungen; die **Sonne ist deutlich gedämpft**, damit die Schrift auf den Kacheln lesbar bleibt.
+  Mockup `glas.html` mit Datum, Uhrzeit und Zeitraffer in der Vorführ-Leiste.
+
 ## [0.7.9] – 2026-09-30
 
 - Bericht: **Heiztage** zählen wie Seite und Integration – Tage, an denen ein Container geheizt hat (Heizzeit), nicht

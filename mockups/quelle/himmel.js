@@ -40,7 +40,40 @@ function himmelZiel(phase, wetter, hell) {
     uWolken: w, uRegen: wetter === 'regen' ? 1 : gew ? 1.5 : 0, uSchnee: wetter === 'schnee' ? 1 : 0, uNebel: wetter === 'nebel' ? 1 : 0,
     uSonne: wetter === 'klar' && !nacht ? 1 : 0, uNachtKlar: wetter === 'klar' && nacht ? 1 : 0,
     uSonnePos: sonne[0], uSonneF: sonne[1].map(v => v * (hell ? .8 : 1)),
+    uMondPos: [.8, .13], uMondK: -1, uMondSeite: 1,
   };
+}
+
+/* Stufenlos nach Sonnenstand: Farben gleiten zwischen den Stimmungen. Unter −8° Nacht, bis 0° Dämmerung,
+   0–4° Morgen-/Abendrot, bis 15° Übergang zum Tag. steigt = Vormittag (Morgen), sonst Nachmittag (Abend). */
+function himmelZielBei(hoehe, steigt, wetter, hell) {
+  const anteil = (a, b) => Math.min(1, Math.max(0, (hoehe - a) / (b - a))), warm = steigt ? 'morgen' : 'abend';
+  const [a, b, w] = hoehe < 0 ? ['nacht', warm, anteil(-8, 0)] : [warm, 'tag', anteil(4, 15)];
+  const za = himmelZiel(a, wetter, hell), zb = himmelZiel(b, wetter, hell);
+  const m = (x, y) => Array.isArray(x) ? x.map((v, i) => v + (y[i] - v) * w) : x + (y - x) * w;
+  return Object.fromEntries(Object.keys(za).map(n => [n, m(za[n], zb[n])]));
+}
+
+/* Lauf von Sonne und Mond auf einem Bogen von links (Aufgang) nach rechts (Untergang), tagesaktuell aus sun.sun
+   (next_rising/next_setting). Nachts läuft der Mond denselben Bogen vom Untergang bis zum nächsten Aufgang. */
+function himmelsBahn(sonne, jetzt = Date.now()) {
+  const a = (sonne && sonne.attributes) || {}, auf = Date.parse(a.next_rising), ab = Date.parse(a.next_setting);
+  const oben = !sonne || sonne.state !== 'below_horizon';
+  let t = .5;
+  if (Number.isFinite(auf) && Number.isFinite(ab)) {
+    const start = (oben ? auf : ab) - 864e5, ende = oben ? ab : auf;   // letzter Aufgang/Untergang ≈ nächster − 1 Tag
+    if (ende > start) t = Math.min(1, Math.max(0, (jetzt - start) / (ende - start)));
+  }
+  return { t, oben };
+}
+/* Mondalter 0…1 (0 Neumond, .5 Vollmond) aus dem Datum: Neumond 6.1.2000 18:14 UTC, synodischer Monat 29,530589 Tage */
+function mondAlter(jetzt = Date.now()) { const p = ((jetzt - Date.UTC(2000, 0, 6, 18, 14)) / 864e5 / 29.530588853) % 1; return p < 0 ? p + 1 : p; }
+const himmelsBogen = t => [.08 + .84 * t, .4 - .3 * Math.sin(Math.PI * t)];
+/* Werte für Sonne und Mond; in der Dämmerung (Sonne knapp unter dem Horizont) steht die Sonne am Rand */
+function himmelLauf(sonne, jetzt = Date.now()) {
+  const b = himmelsBahn(sonne, jetzt), alter = mondAlter(jetzt), steigt = sonne && sonne.attributes && sonne.attributes.rising;
+  return { uSonnePos: himmelsBogen(b.oben ? b.t : steigt === false ? 1 : 0), uMondPos: himmelsBogen(b.oben ? .5 : b.t),
+    uMondK: Math.cos(2 * Math.PI * alter), uMondSeite: alter < .5 ? 1 : -1 };
 }
 
 const HIMMEL_VS = 'attribute vec2 a; void main() { gl_Position = vec4(a, 0., 1.); }';
@@ -66,7 +99,12 @@ class Himmel {
     this.t0 = performance.now(); this.letzt = 0; this.schleife = this.schleife.bind(this); requestAnimationFrame(this.schleife);
   }
   groesse() { const d = Math.min(devicePixelRatio || 1, 1.5); this.dpr = d; this.cv.width = Math.round(this.bg.clientWidth * d); this.cv.height = Math.round(this.bg.clientHeight * d); this.gl.viewport(0, 0, this.cv.width, this.cv.height); }
-  setze(phase, wetter, hell) { this.ziel = himmelZiel(phase, wetter, hell); this.gewitter = wetter === 'gewitter'; if (!this.jetzt) this.jetzt = JSON.parse(JSON.stringify(this.ziel)); }
+  /* Stimmung setzen: mit Sonnenhöhe stufenlos, sonst nach Tageszeit; lauf = Sonne und Mond (himmelLauf) */
+  setze(phase, wetter, hell, sonne = null, lauf = null) {
+    const a = sonne && sonne.attributes, hoehe = a ? Number(a.elevation) : NaN;
+    this.ziel = { ...(Number.isFinite(hoehe) ? himmelZielBei(hoehe, a.rising !== false, wetter, hell) : himmelZiel(phase, wetter, hell)), ...lauf };
+    this.gewitter = wetter === 'gewitter'; if (!this.jetzt) this.jetzt = JSON.parse(JSON.stringify(this.ziel));
+  }
   u(n, v) { const l = this.loc[n] ??= this.gl.getUniformLocation(this.pr, n); if (l === null) return;
     Array.isArray(v) ? this.gl['uniform' + v.length + 'fv'](l, v) : this.gl.uniform1f(l, v); }
   schleife(ms) {

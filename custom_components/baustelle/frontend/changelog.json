@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.10",
+    "datum": "2026-09-30",
+    "punkte": [
+      "Himmel (WU-0001): **Sonne wandert** tagesaktuell von Aufgang (links) bis Untergang (rechts) nach `sun.sun`, nachts der **Mond mit echter Mondphase** (aus dem Datum gerechnet); die Farben gleiten **stufenlos nach dem Sonnenstand** statt vier harter Stimmungen; die **Sonne ist deutlich gedämpft**, damit die Schrift auf den Kacheln lesbar bleibt. Mockup `glas.html` mit Datum, Uhrzeit und Zeitraffer in der Vorführ-Leiste."
+    ]
+  },
+  {
     "version": "0.7.9",
     "datum": "2026-09-30",
     "punkte": [

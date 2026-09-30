@@ -13,7 +13,8 @@ body.hell { background: #d9dee5; color: #111; }
 
 /* Farben der Diagramme (validierte Palette, eigene Stufen für dunkel) */
 .ui { position: absolute; inset: 0; }
-.bar select { background: #2c2c2e; color: #fff; border: 1px solid #636366; border-radius: 8px; padding: 4px 6px; font: inherit; }
+.bar select, .bar input[type=date] { background: #2c2c2e; color: #fff; border: 1px solid #636366; border-radius: 8px; padding: 4px 6px; font: inherit; }
+.bar input[type=range] { width: 160px; vertical-align: middle; } #uhr-text { display: inline-block; min-width: 3em; font-variant-numeric: tabular-nums; }
 .app { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
   --ink: #fff; --ink2: rgba(255,255,255,.66); --gridc: rgba(255,255,255,.14); --axisc: rgba(255,255,255,.55); --amber: #ff9f0a; --rot: #ff6961; --blau: #64a8ff;
   --panel: rgba(255,255,255,.05); --panel-rand: rgba(255,255,255,.2); --sheet: rgba(28,32,44,.82);
@@ -84,7 +85,7 @@ body.hell { background: #d9dee5; color: #111; }
 .stern { width: var(--s); height: var(--s); border-radius: 50%; background: #fff; box-shadow: 0 0 4px #fff; animation: funkeln 3.5s ease-in-out infinite; animation-delay: var(--v); }
 .hell .stern { background: #fffbe8; box-shadow: 0 0 4px #7d8fd0; }
 @keyframes funkeln { 50% { opacity: .2; } }
-.strahlen { top: -300px; left: -300px; width: 720px; height: 720px; border-radius: 50%;
+.strahlen { top: calc(var(--sonne-y, 8%) - 360px); left: calc(var(--sonne-x, 8%) - 360px); width: 720px; height: 720px; border-radius: 50%;
   background: repeating-conic-gradient(from 0deg, rgba(255,236,170,.14) 0 6deg, transparent 6deg 18deg);
   -webkit-mask: radial-gradient(circle, #000 12%, transparent 62%); mask: radial-gradient(circle, #000 12%, transparent 62%); animation: drehen 90s linear infinite; }
 @keyframes drehen { to { transform: rotate(360deg); } }

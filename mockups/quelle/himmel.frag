@@ -15,6 +15,7 @@ uniform vec3 uDunstC; uniform float uDunst;
 uniform vec3 uWolkeD, uWolkeH, uNebelC;
 uniform float uWolken, uRegen, uSchnee, uNebel, uSonne, uNachtKlar, uBlitz, uBlitzX;
 uniform vec2 uSonnePos; uniform vec3 uSonneF;
+uniform vec2 uMondPos; uniform float uMondK, uMondSeite;   // Mond: Ort, cos(2π·Mondalter), +1 zunehmend / −1 abnehmend
 
 vec2 R;
 
@@ -60,9 +61,10 @@ vec3 szene(vec2 p) {
     vec2 d = p - uSonnePos * R;
     float r = length(d) / R.y;
     float ang = atan(d.y, d.x);
-    float strahl = pow(rausch(vec2(ang * 11., uTime * .04)), 4.) * exp(-r * 4.) * smoothstep(.02, .08, r) * .16;
-    col += uSonneF * (exp(-r * 7.) * .28 + exp(-r * 30.) * .55 + strahl) * uSonne;
-    col = mix(col, vec3(1., .98, .93), smoothstep(.026, .019, r) * uSonne);
+    float strahl = pow(rausch(vec2(ang * 11., uTime * .04)), 4.) * exp(-r * 4.) * smoothstep(.02, .08, r) * .05;
+    // gedämpft, damit die Schrift auf dem Glas davor lesbar bleibt
+    col += uSonneF * (exp(-r * 7.) * .08 + exp(-r * 30.) * .14 + strahl) * uSonne;
+    col = mix(col, vec3(1., .98, .93), smoothstep(.016, .011, r) * .55 * uSonne);
   }
 
   if (uNachtKlar > .01) {
@@ -71,11 +73,15 @@ vec3 szene(vec2 p) {
     float s = smoothstep(.05 + .05 * n.z, 0., length(f - (n.xy - .5) * .7)) * step(.6, n.z);
     s *= .55 + .45 * sin(uTime * (1. + n.x * 3.) + n.y * 6.28);
     col += vec3(.9, .95, 1.) * s * smoothstep(.9, .25, uv.y) * uNachtKlar;
-    vec2 mp = vec2(.8, .13) * R;
-    float mr = length(p - mp);
-    col += vec3(.55, .65, .9) * exp(-mr / 70.) * .35 * uNachtKlar;
+    vec2 mp = uMondPos * R, mq = (p - mp) / 20.;
+    float mr = length(p - mp), anteil = .5 - .5 * uMondK;   // beleuchteter Anteil der Scheibe
+    col += vec3(.55, .65, .9) * exp(-mr / 70.) * .35 * (.2 + .8 * anteil) * uNachtKlar;
     float scheibe = smoothstep(21., 19.5, mr);
-    col = mix(col, vec3(.95, .94, .88) - fbm((p - mp) * .14) * .3, scheibe * uNachtKlar);
+    // Schattengrenze: beleuchtet, wo x (zur Lichtseite) über uMondK·√(1−y²) liegt
+    float grenze = uMondK * sqrt(max(1. - mq.y * mq.y, 0.));
+    float licht = smoothstep(grenze - .06, grenze + .06, mq.x * uMondSeite);
+    vec3 mf = vec3(.95, .94, .88) - fbm((p - mp) * .14) * .3;
+    col = mix(col, mix(col * .75 + mf * .06, mf, licht), scheibe * uNachtKlar);
   }
 
   if (uWolken > .01) {

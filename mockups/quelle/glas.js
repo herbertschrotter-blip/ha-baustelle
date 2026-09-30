@@ -28,9 +28,10 @@ ${bcCss}
 ${css}</style></head>
 <body>
 <div class="bar"><b>Baustelle · Glas · klickbarer Prototyp</b><button id="modus">Hell / Dunkel</button>
-<label>Tageszeit <select id="phase"><option value="morgen">Morgen</option><option value="tag" selected>Tag</option><option value="abend">Abend</option><option value="nacht">Nacht</option></select></label>
-<label>Wetter <select id="wetter"><option value="klar">klar</option><option value="wolkig">bewölkt</option><option value="regen" selected>Regen</option><option value="gewitter">Gewitter</option><option value="nebel">Nebel</option><option value="schnee">Schnee</option></select></label>
-<span class="leise">Vorführung: Tageszeit kommt später aus sun.sun, Wetter aus der Wetter-Entität</span></div>
+<label>Datum <input type="date" id="datum"></label>
+<label>Uhrzeit <input type="range" id="uhr" min="0" max="1435" step="5"> <span id="uhr-text"></span></label><button id="raffer">▶ Zeitraffer</button>
+<label>Wetter <select id="wetter"><option value="klar" selected>klar</option><option value="wolkig">bewölkt</option><option value="regen">Regen</option><option value="gewitter">Gewitter</option><option value="nebel">Nebel</option><option value="schnee">Schnee</option></select></label>
+<span class="leise">Vorführung: Sonnenstand wie sun.sun (hier nachgebildet für etwa 47° N), Mondphase aus dem Datum, Wetter aus der Wetter-Entität</span></div>
 <div class="buehne">
   <div><h2>Handy · 390 px</h2><div class="telefon"><div class="app"></div></div></div>
   <div><h2>Desktop</h2><div class="desktop"><div class="app"></div></div></div>
