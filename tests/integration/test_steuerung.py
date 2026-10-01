@@ -937,6 +937,45 @@ async def test_zusatz_heizkoerper_nur_bei_bedarf(hass: HomeAssistant, freezer, s
     assert an("switch.hk1") and an("switch.hk2")
 
 
+async def test_lernen_tuer_offen(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """WU-0009: kühlt der Raum beim Heizen ab (draußen nicht kälter), ist die Tür vermutlich offen – Lernen pausiert,
+    Hinweis im Protokoll und für die Seite; ein offener Türkontakt schützt das Lernen ebenso."""
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    st.einstellungen.bereich(C1)["soll"] = 20.0
+    st.einstellung_setzen(("bereiche", C1, "lernen"), True)
+    hass.states.async_set("sensor.aussen", "5.0")
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    t = dt_util.parse_datetime(ZEHN_UHR)
+
+    async def minute(temp: float) -> None:
+        nonlocal t
+        hass.states.async_set("sensor.temp_c1", str(temp))
+        t += timedelta(minutes=1)
+        freezer.move_to(t)
+        st.auswerten()
+        await hass.async_block_till_done()
+
+    for i in range(5):
+        await minute(16.0 + 0.05 * i)
+    assert st.lz["lernen"][C1]["auf"] is not None              # Aufheizen wird gemessen
+    for i in range(12):
+        await minute(16.2 - 0.04 * i)                          # beim Heizen kälter
+    stand = st.lz["lernen"][C1]
+    assert stand["offen"]["art"] == "vermutet" and stand["auf"] is None
+    assert any("Tür vermutlich offen" in p[3] for p in st.e["protokoll"])
+    assert struktur(hass, baustelle)["laufzeit"]["container"][C1]["lernen"]["offen"]["art"] == "vermutet"
+    assert hass.states.get("switch.hk1").state == "on"         # die Heizung läuft weiter
+    # Türkontakt
+    st.lz["lernen"].pop(C1)
+    st.einstellungen.bereich(C1)["tuer"] = "binary_sensor.tuer_c1"
+    hass.states.async_set("binary_sensor.tuer_c1", "on")
+    await minute(16.0)
+    assert st.lz["lernen"][C1]["offen"]["art"] == "kontakt"
+
+
 async def test_geraet_inaktiv(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
     """WU-0004: inaktives Gerät wird einmal ausgeschaltet, dann schaltet die Automatik es nicht mehr und es meldet nichts."""
     st = baustelle.runtime_data

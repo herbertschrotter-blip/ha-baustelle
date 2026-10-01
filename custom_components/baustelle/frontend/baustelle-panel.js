@@ -1218,7 +1218,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.13';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.14';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1745,6 +1745,11 @@ class BaustellePanel extends HTMLElement {
   get azListe() { return [...this.d.arbeitszeiten].sort((a, b) => a.ab.localeCompare(b.ab)); }
   get azJetzt() { const L = this.azListe; return L.filter(a => a.ab <= this.z.HEUTE).at(-1) || L[0] || null; }
   /* Heizplan eines Tages – berechnet von der Integration (plan_woche), hier nur in Text übersetzt */
+  /* WU-0009: Tür offen – die lernende Regelung lernt so lange nicht (Zustand von der Integration, lernen.offen) */
+  offenText(b) {
+    const o = b.lern && b.lern.offen; if (!o) return '';
+    return o.art === 'vermutet' ? '🚪 Tür vermutlich offen – kühlt beim Heizen ab, lernt gerade nicht' : '🚪 Tür offen – lernt gerade nicht';
+  }
   aufheizTeil(b) {
     const a = (b.lern && b.lern.aufheizen) || {}, w = b.lern && b.lern.warm, n0 = (b.lern && b.lern.auf_n) || 3;
     const z = x => x ? `<div><b>${de(x.rate)} °C/h</b><span class="leise">${x.n}× gemessen${x.n < n0 ? ' · noch zu wenig' : ''}</span></div>` : '<div><span class="leise">noch nicht gelernt</span></div>';
@@ -2196,7 +2201,7 @@ class BaustellePanel extends HTMLElement {
   sollAktiv(b) { return !!b.fuehler && b.t !== null && ['thermo', 'bedarf'].includes(b.modus); }   // Soll gilt nur, wenn die Integration nach dem Fühler regelt
   cRegelText(b) {
     const soll = b.soll ?? this.d.e.soll;
-    if (b.modus === 'thermo' && b.lern && b.lern.an) return `🧠 Thermostat · lernend – ${b.lern.anteil !== null ? `${b.lern.anteil} % je ${b.lern.zyklus_min} min · ` : ''}Nachlauf +${de(b.lern.erwartet)} °C → aus bei ${de(b.lern.aus_bei)} °C${b.lern.warm && this.warmText(b, true) ? ` · ${this.warmText(b, true)}` : ''}`;
+    if (b.modus === 'thermo' && b.lern && b.lern.an) return `🧠 Thermostat · lernend – ${b.lern.anteil !== null ? `${b.lern.anteil} % je ${b.lern.zyklus_min} min · ` : ''}Nachlauf +${de(b.lern.erwartet)} °C → aus bei ${de(b.lern.aus_bei)} °C${b.lern.warm && this.warmText(b, true) ? ` · ${this.warmText(b, true)}` : ''}${this.offenText(b) ? ` · ${this.offenText(b)}` : ''}`;
     return { thermo: `Thermostat regelt in der Heizzeit auf ${de(soll)} °C`, plan: 'Zeitplan – der Heizkörperthermostat regelt', hand: 'Hand – die Automatik schaltet nicht',
       bedarf: `nur bei Bedarf${b.fuehler ? ` · regelt auf ${de(soll)} °C` : ''}`, aus: 'Aus – nur Frostschutz' }[b.modus] || '';
   }
@@ -3346,6 +3351,7 @@ class BaustellePanel extends HTMLElement {
         return z && z.n ? `<b>+${de(z.grad)} °C</b><span class="leise">${de(z.min, 0)} min · ${z.n}×</span>` : '<span class="leise">noch nicht gelernt</span>'; };
       const tr = l.treffer || [], mittel = tr.length ? tr.reduce((x, y) => x + Math.abs(y), 0) / tr.length : null;
       return `${griff}<div class="block-kopf"><h3>Lernstand · ${esc(b.name)}</h3><span class="leise">${l.zyklen} Heizzyklen gemessen</span></div>
+        ${this.offenText(b) ? `<div class="wa-heute">${this.offenText(b)}. Laufende Messungen sind verworfen; gelernt wird wieder 10 min, nachdem es vorbei ist.</div>` : ''}
         <div class="gruppe-t">Regelung (TPI, ${l.zyklus_min}-min-Zyklen)</div>
         ${balkenK('K innen – Trägheit des Raums', l.kint)}${balkenK('K außen – Wärmeverlust nach außen', l.kext)}
         <div class="leise">Einschaltanteil = K innen × (Soll − innen − Nachlauf) + K außen × (Soll − außen)</div>

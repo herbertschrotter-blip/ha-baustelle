@@ -824,6 +824,11 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('AN-0004: Bearbeiten mit eigenem „Warm ab“', ui.innerHTML.includes('🧠 Warm ab') && ui.innerHTML.includes('data-act="warm-eigen"'));
     neu(); await klick({ act: 'warm-eigen', k: 'vor', d: '5' }, 10);
     erwarte('AN-0004: eigener Wert je Container', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `bereiche.${b0.id}.warm_vor`));
+    c.lernen.offen = { art: 'vermutet', seit: '2026-09-29T10:00:00+02:00' }; nachPanel();   // WU-0009
+    await klick({ act: 'container', id: b0.id }, 10);
+    erwarte('WU-0009: Hinweis „Tür vermutlich offen“ im Container', ui.innerHTML.includes('Tür vermutlich offen – kühlt beim Heizen ab, lernt gerade nicht'));
+    await klick({ act: 'sheet', s: 'lernen' }, 10); erwarte('WU-0009: Hinweis im Lernstand', ui.innerHTML.includes('Laufende Messungen sind verworfen'));
+    await klick({ act: 'zu' }, 5); c.lernen.offen = null;
     c.lernen.warm = { ...c.lernen.warm, gelernt: false, n: 1, plan: null }; nachPanel();
     erwarte('AN-0004: lernt noch', panel.warmText(b()).startsWith('lernt noch (1/3 Aufheizungen bei Kälte)'));
     await klick({ act: 'zu' }, 5); Object.keys(c).forEach(k => delete c[k]); Object.assign(c, alt); nachPanel(); await klick({ act: 'tab', v: 'einst' }, 30); }

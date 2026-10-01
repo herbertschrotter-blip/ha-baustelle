@@ -19,6 +19,11 @@ Dazu lernt jeder Container selbst:
   braucht – der Heizplan beginnt dann selbst so früh, dass das Soll rechtzeitig erreicht ist (`arbeitszeit.WarmAb`).
   Die Kälte steckt in der Rate, darum braucht ein lernender Container keinen Kälte-Frühstart.
 
+**Tür offen** (WU-0009): Ein offener Türkontakt oder ein Raum, der beim durchgehenden Heizen in `OFFEN_FENSTER_MIN`
+Minuten um mindestens `OFFEN_ABFALL` °C kälter wird, obwohl es draußen kaum kälter wird („Tür vermutlich offen“, wie die
+Fenster-offen-Erkennung von Versatile Thermostat), verwirft die laufenden Messungen (Aufheizen, Nachlauf, K außen); bis
+`OFFEN_RUHE_MIN` Minuten danach beginnt keine neue.
+
 Alle Werte sind begrenzt; ohne Messung gilt Nachlauf 0 und die Startwerte – dann verhält sich die Regelung wie TPI.
 Zeiten sind `datetime` (mit Zone), Temperaturen °C.
 """
@@ -58,6 +63,10 @@ AUF_MAX_MIN = 240
 AUF_N = 3                      # ab so vielen Messungen je Außenband rechnet der Container den Beginn selbst
 AUF_GRENZEN = (0.2, 20.0)      # °C je Stunde
 AUF_RASTER_MIN = 5             # Aufheizdauer auf 5 min aufgerundet (ruhiger Plan)
+OFFEN_FENSTER_MIN = 10         # Tür vermutlich offen: in so vielen Minuten durchgehenden Heizens …
+OFFEN_ABFALL = 0.3             # … so viel °C kälter geworden …
+OFFEN_AUSSEN = 0.2             # … während es draußen höchstens so viel kälter wurde
+OFFEN_RUHE_MIN = 10            # danach so lange nichts lernen
 
 
 # ---------------------------------------------------------------------------------------------------------- Regeln
@@ -153,7 +162,8 @@ def kext_neu(kext: float, mittel_unter_soll: float) -> float:
 def neuer_stand() -> dict[str, Any]:
     """Lernstand eines Containers (JSON-fähig, im Store unter laufzeit.lernen.<container>)."""
     return {"kint": KINT_START, "kext": KEXT_START, "n_kint": 0, "n_kext": 0, "nachlauf": {}, "treffer": [], "zyklen": 0,
-            "ein": [], "beob": None, "zyklus": None, "letzte": None, "aufheizen": {}, "auf": None}
+            "ein": [], "beob": None, "zyklus": None, "letzte": None, "aufheizen": {}, "auf": None,
+            "verlauf": [], "ruhe_bis": None, "offen": None}
 
 
 def _zeit(text: str | None) -> datetime | None:
@@ -166,16 +176,28 @@ def _iso(zeit: datetime) -> str:
 
 def takt(
     stand: dict[str, Any], *, jetzt: datetime, heizt: bool, innen: float | None, soll: float, aussen: float | None,
-    art: str, regelt: bool, anzahl: int = 1,
+    art: str, regelt: bool, anzahl: int = 1, tuer_offen: bool = False,
 ) -> dict[str, Any]:
     """Eine Minute Lernen: Ein-Zeiten mitschreiben, Nachlauf nach dem Ausschalten beobachten, K-Werte anpassen.
 
     `heizt`: ein Heizkörper des Containers zieht gerade Strom. `art`: „oel“ oder „konvektor“ (was eingeschaltet ist
     bzw. zuletzt war). `regelt`: der Container regelt gerade selbst (lernender Thermostat) – nur dann wird K außen
-    gelernt. `anzahl`: so viele Heizkörper ziehen gerade Strom (Aufheizen je Anzahl). Gibt den neuen Stand zurück (der
-    alte bleibt unverändert).
+    gelernt. `anzahl`: so viele Heizkörper ziehen gerade Strom (Aufheizen je Anzahl). `tuer_offen`: Türkontakt offen.
+    Gibt den neuen Stand zurück (der alte bleibt unverändert).
     """
     s = {**neuer_stand(), **stand}
+    # Tür offen (WU-0009): Verlauf der letzten Minuten, Erkennung am Temperaturabfall, Ruhezeit
+    grenze_v = jetzt.timestamp() - (OFFEN_FENSTER_MIN + 1) * 60
+    s["verlauf"] = [v for v in s["verlauf"] if _zeit(v[0]).timestamp() > grenze_v] + [[_iso(jetzt), innen, aussen, heizt]]
+    vermutet = tuer_vermutet(s["verlauf"], jetzt)
+    if tuer_offen or vermutet:
+        if s["offen"] is None:
+            s["offen"] = {"art": "kontakt" if tuer_offen else "vermutet", "seit": _iso(jetzt)}
+        s["ruhe_bis"] = _iso(datetime.fromtimestamp(jetzt.timestamp() + OFFEN_RUHE_MIN * 60, jetzt.tzinfo))
+        s["auf"] = s["beob"] = s["zyklus"] = None
+    elif s["offen"] is not None and (s["ruhe_bis"] is None or jetzt >= _zeit(s["ruhe_bis"])):
+        s["offen"] = None
+    ruhe = s["ruhe_bis"] is not None and jetzt < _zeit(s["ruhe_bis"])
     log = [(_zeit(a), _zeit(e)) for a, e in s["ein"]]
     lief = bool(log) and log[-1][1] is None
     # Ein-Zeiten der letzten zwei Stunden
@@ -188,7 +210,7 @@ def takt(
         log[-1] = (start, jetzt)
         # Ausgangswert: Temperatur der letzten Heizminute – das Ausschalten wird erst eine Minute später gesehen
         ab = s["letzte"] if s["letzte"] is not None else innen
-        if ab is not None:
+        if ab is not None and not ruhe:
             dauer = ein_minuten(log, jetzt)
             s["beob"] = {"aus": _iso(jetzt), "temp": ab, "spitze": max(ab, innen if innen is not None else ab),
                          "spitze_zeit": _iso(jetzt), "soll": soll, "schluessel": schluessel(art, klasse(dauer), band(aussen))}
@@ -200,9 +222,10 @@ def takt(
         anders = heizt and int(auf.get("n", 1)) != anzahl     # ein Heizkörper mehr oder weniger: neue Messung
         if not heizt or anders or (innen is not None and innen >= soll - SPITZE_VORBEI) or dauer_auf >= AUF_MAX_MIN:
             s = _auf_ende(s, dauer_auf, ende_temp)
-            if anders and innen is not None and innen <= soll - AUF_AB_GRAD:
+            if anders and not ruhe and innen is not None and innen <= soll - AUF_AB_GRAD:
                 s["auf"] = {"start": _iso(jetzt), "temp": innen, "band": band(aussen), "n": anzahl}
-    elif heizt and not lief and innen is not None and innen <= soll - AUF_AB_GRAD:
+    elif heizt and not ruhe and innen is not None and innen <= soll - AUF_AB_GRAD and (not lief or s["ruhe_bis"] is not None):
+        s["ruhe_bis"] = None     # nach einer Ruhezeit beginnt die Messung neu, auch wenn der Heizkörper durchlief
         s["auf"] = {"start": _iso(jetzt), "temp": innen, "band": band(aussen), "n": anzahl}
     if innen is not None:
         s["letzte"] = innen
@@ -218,7 +241,7 @@ def takt(
             s = _beob_ende(s, jetzt, abbruch=False)
     # K außen: ruhiger Zyklus nahe am Soll (je ZYKLUS_MIN Minuten ein Mittelwert)
     z = s["zyklus"]
-    if not regelt or innen is None or abs(soll - innen) >= 1.0:
+    if not regelt or ruhe or innen is None or abs(soll - innen) >= 1.0:
         s["zyklus"] = None
     elif z is None or (jetzt - _zeit(z["start"])).total_seconds() / 60 >= ZYKLUS_MIN:
         if z is not None and z["n"] >= ZYKLUS_MIN - 1:
@@ -228,6 +251,20 @@ def takt(
     else:
         s["zyklus"] = {**z, "summe": z["summe"] + soll - innen, "n": z["n"] + 1}
     return s
+
+
+def tuer_vermutet(verlauf: list[list[Any]], jetzt: datetime) -> bool:
+    """Raum in den letzten `OFFEN_FENSTER_MIN` Minuten durchgehend geheizt und dabei um `OFFEN_ABFALL` °C kälter,
+    draußen höchstens `OFFEN_AUSSEN` °C kälter (ohne Außenwert: nur der Raum)."""
+    fenster = [v for v in verlauf if (jetzt - _zeit(v[0])).total_seconds() / 60 <= OFFEN_FENSTER_MIN]
+    if len(fenster) < 2 or (jetzt - _zeit(fenster[0][0])).total_seconds() / 60 < OFFEN_FENSTER_MIN - 1:
+        return False
+    if not all(v[3] for v in fenster) or fenster[0][1] is None or fenster[-1][1] is None:
+        return False
+    innen_ab = fenster[0][1] - fenster[-1][1]
+    aussen = [v[2] for v in fenster if v[2] is not None]
+    aussen_ab = aussen[0] - aussen[-1] if len(aussen) >= 2 else 0.0
+    return innen_ab >= OFFEN_ABFALL and aussen_ab <= OFFEN_AUSSEN
 
 
 def _auf_ende(s: dict[str, Any], minuten: float, temp: float | None) -> dict[str, Any]:
@@ -292,5 +329,6 @@ def anzeige(stand: Mapping[str, Any]) -> dict[str, Any]:
         "nachlauf": {k: {"grad": v[0], "min": v[1], "n": v[2]} for k, v in s["nachlauf"].items()},
         "treffer": list(s["treffer"]),
         "aufheizen": {k: {"rate": v[0], "n": v[1]} for k, v in s["aufheizen"].items()},
+        "offen": s["offen"], "ruhe_bis": s["ruhe_bis"],
         "auf_n": AUF_N,
     }

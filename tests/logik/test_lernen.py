@@ -8,6 +8,7 @@ from logik.lernen import (
     KEXT_START,
     KINT_START,
     AUF_N,
+    OFFEN_RUHE_MIN,
     STOPP_AB_MIN,
     Tpi,
     anzeige,
@@ -19,6 +20,7 @@ from logik.lernen import (
     nachlauf_erwartet,
     neuer_stand,
     takt,
+    tuer_vermutet,
     tpi_anteil,
     tpi_ein,
 )
@@ -162,3 +164,40 @@ def test_aufheizen_je_anzahl_heizkoerper():
         tt += timedelta(minutes=1)
     s2 = takt(s2, jetzt=tt, heizt=True, innen=15.6, soll=20.0, aussen=0.0, art="oel", regelt=True, anzahl=2)
     assert s2["aufheizen"]["kalt|1"][1] == 1 and s2["auf"]["n"] == 2
+
+
+# ---------------------------------------------------------------- WU-0009: Tür offen schützt das Lernen
+def _heizen(s, t, temps, aussen=5.0, tuer=False):
+    for temp in temps:
+        s = takt(s, jetzt=t, heizt=True, innen=temp, soll=20.0, aussen=aussen, art="oel", regelt=True, tuer_offen=tuer)
+        t += timedelta(minutes=1)
+    return s, t
+
+
+def test_tuer_vermutet_beim_heizen_kaelter():
+    s, t = _heizen(neuer_stand(), T0, [16.0 + 0.05 * i for i in range(10)])        # heizt, wird wärmer: Aufheizen läuft
+    assert s["auf"] is not None and s["offen"] is None
+    s, t = _heizen(s, t, [16.5 - 0.04 * i for i in range(12)])                       # beim Heizen 0,44 °C kälter
+    assert s["offen"]["art"] == "vermutet" and s["auf"] is None and s["aufheizen"] == {}
+    assert anzeige(s)["offen"]["art"] == "vermutet"
+    # wieder wärmer: nach der Ruhezeit beginnt eine neue Messung
+    s, t = _heizen(s, t, [16.1 + 0.03 * i for i in range(OFFEN_RUHE_MIN + 2)])
+    assert s["offen"] is None and s["auf"] is not None
+
+
+def test_draussen_kaelter_ist_keine_offene_tuer():
+    s, t = _heizen(neuer_stand(), T0, [17.0 - 0.04 * i for i in range(12)], aussen=5.0)
+    assert s["offen"] is not None
+    v = [[(T0 + timedelta(minutes=i)).isoformat(), 17.0 - 0.04 * i, 5.0 - 0.1 * i, True] for i in range(11)]
+    assert tuer_vermutet(v, T0 + timedelta(minutes=10)) is False                       # draußen 1 °C kälter
+    v2 = [[x[0], x[1], 5.0, x[3]] for x in v]
+    assert tuer_vermutet(v2, T0 + timedelta(minutes=10)) is True
+    v3 = [[x[0], x[1], 5.0, i != 4] for i, x in enumerate(v)]
+    assert tuer_vermutet(v3, T0 + timedelta(minutes=10)) is False                      # nicht durchgehend geheizt
+
+
+def test_tuerkontakt_verwirft_nachlauf_und_zyklus():
+    s, t = _lauf(neuer_stand(), 30, [19.0, 19.2])                                      # nach dem Ausschalten: Nachlauf wird beobachtet
+    assert s["beob"] is not None
+    s = takt(s, jetzt=t, heizt=False, innen=19.3, soll=20.0, aussen=0.0, art="oel", regelt=True, tuer_offen=True)
+    assert s["beob"] is None and s["offen"]["art"] == "kontakt" and s["nachlauf"] == {}

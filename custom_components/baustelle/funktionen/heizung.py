@@ -470,12 +470,22 @@ class Heizung(Funktion):
             alt = self.lern_staende.get(info.id) or lernen.neuer_stand()
             neu = lernen.takt(
                 alt, jetzt=jetzt, heizt=any(self._zieht_strom(g) for g in heizer), anzahl=sum(1 for g in heizer if self._zieht_strom(g)),
-                innen=self.st.temperatur(info.fuehler),
+                tuer_offen=self._tuer_offen(e), innen=self.st.temperatur(info.fuehler),
                 soll=self.soll_temperatur(info.id), aussen=wetter.aussen, art=self._lern_art(info.id), regelt=regelt,
             )
+            vorher, jetzt_offen = (alt.get("offen") or {}).get("art"), (neu.get("offen") or {}).get("art")
+            if jetzt_offen == "vermutet" and vorher != "vermutet":   # WU-0009
+                self.st.protokoll("warnung", info.id, "Tür vermutlich offen – der Raum kühlt beim Heizen ab, die lernende Regelung lernt so lange nicht")
+            elif vorher == "vermutet" and jetzt_offen is None:
+                self.st.protokoll("ok", info.id, "Raum wird wieder wärmer – die lernende Regelung lernt weiter")
             if neu != alt:
                 self.lern_staende[info.id] = neu
                 self.st.einstellungen.speichern()
+
+    def _tuer_offen(self, e: Mapping[str, Any]) -> bool:
+        """Türkontakt des Containers offen (WU-0009: schützt das Lernen)."""
+        tuer = e.get("tuer")
+        return bool(tuer) and (z := self.st.hass.states.get(tuer)) is not None and z.state == STATE_ON
 
     def lern_anzeige(self, bid: str) -> dict[str, Any] | None:
         """Lernstand für die Seite (api: laufzeit.container.<id>.lernen); None ohne Fühler."""

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.14] – 2026-10-01
+
+- Tür offen schützt die lernende Regelung (WU-0009): wird der Raum beim Heizen kälter, obwohl es draußen kaum kälter
+  wird (0,3 °C in 10 min), ist die Tür vermutlich offen – laufende Messungen (Aufheizen, Nachlauf, K außen) werden
+  verworfen und 10 min danach nichts gelernt; ein offener Türkontakt wirkt ebenso. Hinweis im Container, im
+  Lernstand und im Protokoll; die Heizung läuft weiter.
+
 ## [0.8.13] – 2026-10-01
 
 - Zusatz-Heizkörper nur bei Bedarf (AN-0006): in Containern mit zwei oder mehr Heizkörpern heizt zuerst einer; der
