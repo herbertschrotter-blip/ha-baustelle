@@ -976,6 +976,28 @@ async def test_lernen_tuer_offen(hass: HomeAssistant, baustelle, freezer, shelly
     assert st.lz["lernen"][C1]["offen"]["art"] == "kontakt"
 
 
+async def test_geraete_links(hass: HomeAssistant, baustelle) -> None:
+    """WU-0010: je Entität das Gerät aus dem Geräteregister – Website (nur http/https), HA-Seite, Modell, Batterie."""
+    quelle = MockConfigEntry(domain="shelly", title="Shelly")
+    quelle.add_to_hass(hass)
+    for eid in ("switch.hk1", "sensor.temp_c1"):   # sonst vergibt das Register einen anderen Namen
+        hass.states.async_remove(eid)
+    dreg, ereg = dr.async_get(hass), er.async_get(hass)
+    shelly = dreg.async_get_or_create(config_entry_id=quelle.entry_id, identifiers={("shelly", "hk1")}, name="Shelly HK1",
+                                      manufacturer="Shelly", model="Plus Plug S", configuration_url="http://192.0.2.10")
+    ereg.async_get_or_create("switch", "shelly", "hk1-schalter", suggested_object_id="hk1", device_id=shelly.id)
+    funk = dreg.async_get_or_create(config_entry_id=quelle.entry_id, identifiers={("shelly", "t1")}, name="Fühler C1",
+                                    configuration_url="homeassistant://config/zha")
+    ereg.async_get_or_create("sensor", "shelly", "t1-temp", suggested_object_id="temp_c1", device_id=funk.id)
+    ereg.async_get_or_create("sensor", "shelly", "t1-bat", suggested_object_id="temp_c1_batterie", device_id=funk.id,
+                             original_device_class="battery")
+    links = struktur(hass, baustelle)["geraete_links"]
+    assert links["switch.hk1"]["web"] == "http://192.0.2.10" and links["switch.hk1"]["modell"] == "Plus Plug S"
+    assert links["switch.hk1"]["ha"] == f"/config/devices/device/{shelly.id}"
+    assert links["sensor.temp_c1"]["web"] is None and links["sensor.temp_c1"]["batterie"] == "sensor.temp_c1_batterie"
+    assert links["sensor.aussen"] == {"web": None, "ha": None, "geraet": None, "hersteller": None, "modell": None, "batterie": None}
+
+
 async def test_geraet_inaktiv(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
     """WU-0004: inaktives Gerät wird einmal ausgeschaltet, dann schaltet die Automatik es nicht mehr und es meldet nichts."""
     st = baustelle.runtime_data

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.19] – 2026-10-01
+
+- Geräteübersicht (WU-0010): Einstellungen › Geräte zeigt alle eingebundenen Geräte nach Funktion – Schaltgeräte,
+  Temperaturfühler, Türkontakte, Wetter und Regen – mit Ort, Zustand, Modell und Batterie; ein Klick öffnet die
+  Website des Geräts (z. B. Shelly-Oberfläche), ohne Website die Geräteseite in Home Assistant.
+
 ## [0.8.18] – 2026-10-01
 
 Letzte Entscheidungen aus den Szenarien:

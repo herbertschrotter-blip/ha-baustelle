@@ -46,6 +46,7 @@ Auswertung waren noch alt“).
 | `warm-ab.html` (AN-0004) | „Warm ab“ für lernende Container auf dem Master-Mockup (Quelle `quelle/archiv/warm-ab.js`): Heizung › Regeln „Soll erreicht / Warm halten / Frühestens“, Hinweise „nicht für lernende Container“ bei Vorheizen, Nachheizen und Kälte-Frühstart, Heute je Container der gelernte Beginn, Container-Kopf, Lernstand „Aufheizen“ (kalt/mild, °C/h), Bearbeiten mit eigenem Wert | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.11 |
 | `glas.html` (FE-0009, AN-0005) | Container-Kacheln mit eigenem Diagramm: Leistung einer Stunde (jeder Messwert, Stunden-Chips, Tag mit ‹ › und Kalender), Verbrauch, Kosten in €, Heizzeit – direkt im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.12 |
 | `glas.html` (AN-0006) | Zusatz-Heizkörper nur bei Bedarf: Schwellen unter Heizung › Regeln, Schalter im Container (ab 2 Heizkörpern), „Zusatz-Heizkörper“ im Gerät, Chips „Haupt“/„Zusatz – wartet“, Aufheizen je Anzahl – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.13 |
+| `glas.html` (WU-0010) | Einstellungen › Geräte: alle Geräte nach Funktion mit Ort, Zustand, Modell, Batterie; Klick → Website bzw. HA-Geräteseite – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.19 |
 
 Bewusst offen bzw. für den Bau festgelegt:
 - Animationen und Zeitleiste im Zeitplan brauchen eine eigene Karte; erste Stufe mit eingebauten Karten

@@ -738,6 +738,8 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .wa-tab > b { font-size: 12px; color: var(--ink2); font-weight: 500; } .wa-tab > div b { font-size: 15px; } .wa-tab > div .leise { display: block; font-size: 11px; }
 .wa-heute { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(255,159,10,.12); margin: 6px 0; font-size: 13px; } .wa-heute b { font-size: 15px; }
 .lh-stunden { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: thin; } .lh-stunden .chip { flex: 0 0 auto; min-width: 38px; padding: 4px 6px; font-size: 12px; }
+.zeile.ger { display: grid; grid-template-columns: 28px 1fr auto 14px; gap: 2px 10px; align-items: center; text-decoration: none; color: inherit; }
+.ger-ic { font-size: 17px; text-align: center; } .ger-z { font-size: 12.5px; text-align: right; white-space: nowrap; } a.zeile.ger:hover { background: rgba(127,127,127,.1); }
 .aw-leiste { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; } .aw-leiste .seg { margin: 0; }
 .aw-delta { font-style: normal; font-size: 12px; margin-left: 6px; } .aw-delta.mehr { color: #ff9f0a; } .aw-delta.weniger { color: #30d158; } .gruen-t { color: #30d158; }
 .aw-raster { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 110px; gap: 12px; grid-auto-flow: dense; }
@@ -1218,7 +1220,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.18';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.19';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -2921,6 +2923,34 @@ class BaustellePanel extends HTMLElement {
     const h = this._einstAlt ||= this.einstBloecke(), x = h.split('<div class="glas-panel liste">').find(t => t.startsWith(`<div class="gruppe">${titel}</div>`));
     return x ? '<div class="glas-panel liste">' + x : '';
   }
+  /* WU-0010: alle eingebundenen Geräte nach Funktion – Ort, Zustand, Batterie; Klick öffnet die Gerätewebsite
+     (configuration_url), sonst die Geräteseite in HA (Links von der Integration: geraete_links) */
+  geraeteListe() {
+    const d = this.d, L = (d.r && d.r.geraete_links) || {}, o = d.optionen || {}, z = eid => this._hass && this._hass.states[eid];
+    const weg = s => !s || s.state === 'unavailable' || s.state === 'unknown';
+    let n = 0, offline = 0;
+    const zeile = (eid, ic, ort, text, schlecht) => {
+      n++; if (schlecht) offline++;
+      const l = L[eid] || {}, href = l.web || l.ha, bat = l.batterie && z(l.batterie), name = this.name(eid) || eid;
+      const inhalt = `<span class="ger-ic">${ic}</span><div><b>${esc(name)}</b><div class="leise">${esc(ort)}${l.modell ? ` · ${esc(l.modell)}` : ''}${l.web ? ' · Website' : ''}</div></div>
+        <span class="ger-z ${schlecht ? 'rot-t' : ''}">${text}${bat && zahl(bat.state) ? ` · 🔋 ${de(+bat.state, 0)} %` : ''}</span>${href ? '<span class="chev">↗</span>' : ''}`;
+      return href ? `<a class="zeile ger" href="${esc(href)}" target="_blank" rel="noopener" title="${l.web ? 'Website des Geräts öffnen' : 'Gerät in Home Assistant öffnen'}">${inhalt}</a>` : `<div class="zeile ger">${inhalt}</div>`;
+    };
+    const wert = eid => { const s = z(eid); if (weg(s)) return ['meldet nichts', true]; const e = (s.attributes || {}).unit_of_measurement || '';
+      return [zahl(s.state) ? `${de(+s.state)} ${esc(e)}` : esc(s.state), false]; };
+    const C = d.bereiche;
+    const schalt = C.flatMap(b => b.geraete.map(g => zeile(g.schalter, g.heizer ? '♨' : b.pumpe ? '💧' : '⏻', `${b.name} · ${g.typ}${g.aktiv ? '' : ' · inaktiv'}`,
+      !g.erreichbar ? 'nicht erreichbar' : g.an ? `an · ${de(zahl(g.kwJetzt) ? g.kwJetzt : g.kw, 2)} kW` : 'aus', !g.erreichbar)));
+    const temp = [...C.filter(b => b.fuehler).map(b => { const [t, x] = wert(b.fuehler); return zeile(b.fuehler, '🌡', b.name, t, x); }),
+      ...(o.temp_sensor ? [(() => { const [t, x] = wert(o.temp_sensor); return zeile(o.temp_sensor, '🌡', 'Außen', t, x); })()] : [])];
+    const tuer = C.filter(b => b.tuer).map(b => { const s = z(b.tuer.eid); return zeile(b.tuer.eid, '🚪', b.name, weg(s) ? 'meldet nichts' : s.state === 'on' ? 'offen' : 'zu', weg(s)); });
+    const wetter = [o.wetter && zeile(o.wetter, '☁', 'Wetter', weg(z(o.wetter)) ? 'meldet nichts' : esc(WETTER_TEXT[z(o.wetter).state] || z(o.wetter).state), weg(z(o.wetter))),
+      o.regen_sensor && (() => { const [t, x] = wert(o.regen_sensor); return zeile(o.regen_sensor, '🌧', 'Regen', t, x); })()].filter(Boolean);
+    const teil = (titel, zeilen) => zeilen.length ? `<div class="glas-panel liste"><div class="gruppe">${titel} · ${zeilen.length}</div>${zeilen.join('')}</div>` : '';
+    const html = teil('Schaltgeräte', schalt) + teil('Temperaturfühler', temp) + teil('Türkontakte', tuer) + teil('Wetter und Regen', wetter)
+      + '<div class="leise p-fuss">Tippen öffnet die Website des Geräts (z. B. die Shelly-Oberfläche); ohne Website die Geräteseite in Home Assistant.</div>';
+    return { html, n, offline };
+  }
   einstGruppen() {
     const d = this.d, e = d.e, o = d.optionen, hz = this.hzTeile(), st = (k, s, fmt) => this.stepper(k, s, fmt), M = this.meldungen();
     this._einstAlt = null;
@@ -2942,6 +2972,7 @@ class BaustellePanel extends HTMLElement {
           + (hz.regeln || '') + (hz.trocknen || '') + (hz.urlaub || '')
           + liste('Zeiten', knopf('Arbeitszeit', 'ändern, neue ab Datum', 'hz-auf', 'data-k="az"') + knopf('Ausnahmen', 'einmalig', 'hz-auf', 'data-k="ausn"') + knopf('Heizplan · diese Woche', 'ansehen', 'hz-auf', 'data-k="plan"')) },
       { k: 'container', ic: '🏠', t: 'Container & Geräte', kurz: `${cont.length} Container · ${pumpen.length} ${pumpen.length === 1 ? 'Schacht' : 'Schächte'} · ${geraete} Geräte`, html: this.einstBlock('Container und Geräte') + (hz.container || '') },
+      (() => { const gl = this.geraeteListe(); return { k: 'geraete', ic: '🔌', t: 'Geräte', kurz: `${gl.n} Geräte${gl.offline ? ` · ${gl.offline} meldet nichts` : ' · alle erreichbar'}`, html: gl.html }; })(),
       { k: 'pumpen', ic: '💧', t: 'Pumpen', kurz: pumpen.length ? `offline nach ${e.offline_min} min · Trockenlauf unter ${e.trocken_w} W` : 'keine Schächte',
         html: liste('Überwachung der Pumpen', zeile('Offline – melden nach', st('offline_min', 1, v => `${v} min`)) + zeile('Trockenlauf unter', st('trocken_w', 5, v => `${v} W`))
           + zeile('Dauerlauf länger als', st('dauer_min', 5, v => `${v} min`)) + zeile('Schaltet oft ab', st('zyklen_h', 1, v => `${v} / h`))

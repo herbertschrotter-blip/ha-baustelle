@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .auswertung import beginn_der_baustelle
-from .const import ART_CONTAINER, CONF_ENERGIE, CONF_LEISTUNG, CONF_STATUS, STATUS_AKTIV
+from .const import (
+    ART_CONTAINER, CONF_ENERGIE, CONF_LEISTUNG, CONF_REGEN_SENSOR, CONF_STATUS, CONF_TEMP_SENSOR, CONF_WETTER, STATUS_AKTIV,
+)
 from .funktionen import aktive
 from .funktionen.heizung import Heizung
 from .funktionen.pumpen import Pumpen
@@ -225,5 +227,35 @@ def struktur(hass: HomeAssistant, entry: ConfigEntry, version: str = "") -> dict
         einstellungen={k: v for k, v in st.e.items() if k not in NICHT_IN_EINSTELLUNGEN},
         zaehler={k: v for k, v in st.zaehler.items() if not k.startswith("stand:")},
         laufzeit=laufzeit(st),
+        geraete_links=_geraete_links(hass, st, entry),   # WU-0010: Geräteübersicht
     )
     return daten
+
+
+def _geraete_links(hass: HomeAssistant, st: Steuerung, entry: ConfigEntry) -> dict[str, dict[str, Any]]:
+    """Je benutzter Entität das Gerät aus dem Geräteregister (WU-0010): Website (`configuration_url`, nur http/https),
+    Geräteseite in HA, Name, Hersteller, Modell und ein Batterie-Sensor am selben Gerät."""
+    ents: set[str | None] = set()
+    for g in st.geraete.values():
+        ents |= {g.schalter, g.leistung, g.energie}
+    for b in st.bereiche.values():
+        ents |= {b.fuehler, st.einstellungen.bereich(b.id).get("tuer")}
+    ents |= {entry.options.get(k) for k in (CONF_TEMP_SENSOR, CONF_REGEN_SENSOR, CONF_WETTER)}
+    ereg, dreg = er.async_get(hass), dr.async_get(hass)
+    links: dict[str, dict[str, Any]] = {}
+    for eid in sorted(e for e in ents if e):
+        eintrag = ereg.async_get(eid)
+        geraet = dreg.async_get(eintrag.device_id) if eintrag is not None and eintrag.device_id else None
+        if geraet is None:
+            links[eid] = {"web": None, "ha": None, "geraet": None, "hersteller": None, "modell": None, "batterie": None}
+            continue
+        url = str(geraet.configuration_url or "")
+        batterie = next((x.entity_id for x in er.async_entries_for_device(ereg, geraet.id)
+                         if (x.device_class or x.original_device_class) == "battery" and x.entity_id.startswith("sensor.")), None)
+        links[eid] = {
+            "web": url if url.startswith(("http://", "https://")) else None,
+            "ha": f"/config/devices/device/{geraet.id}",
+            "geraet": geraet.name_by_user or geraet.name, "hersteller": geraet.manufacturer, "modell": geraet.model,
+            "batterie": batterie,
+        }
+    return links

@@ -206,6 +206,9 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `stufen_min` (min Laufzeit des ersten), `stufen_anstieg` (°C), `stufen_kalt` (°C außen). `laufzeit.container.<id>.stufen`
   (ab zwei Heizkörpern, sonst `null`): `{an, haupt: [ids], zusatz: [ids], zusatz_an, grund, text}`; `laufzeit.geraete.<id>.zusatz`.
   Aufheizen lernt je Anzahl laufender Heizkörper: `lernen.aufheizen` mit Schlüsseln `kalt|1`, `mild|2` …; `lernen.warm.anzahl`.
+- Geräteübersicht (WU-0010): `geraete_links` = `{entity_id: {web (configuration_url, nur http/https), ha (Geräteseite),
+  geraet, hersteller, modell, batterie (Batterie-Sensor am Gerät)}}` für alle benutzten Entitäten (Schalter, Leistung,
+  Energie, Fühler, Türkontakte, Außen, Regen, Wetter); ohne Geräteeintrag alle Felder `null`.
 - Szenarien (Runde 2): je Gerät `geraete.<id>.nenn_kw` (kW ohne Messung, `null` = Standard: Heizkörper 2,0, Pumpe 0,8);
   `geraete[].nenn_kw_eigen` in der Struktur. `lz.tuer_trotzdem` (intern). Warnungen `keine_leistung`/`zu_kalt` nur bei
   Modus thermo/bedarf, `hand_zu_lange` nicht im Modus Hand. `bereiche.<id>.lernen = true` ohne Fühler wird abgelehnt.

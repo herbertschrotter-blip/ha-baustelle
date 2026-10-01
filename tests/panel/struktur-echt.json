@@ -1282,6 +1282,168 @@
     "schacht_p1": false
    },
    "erreichbar": true
+  },
+  "geraete_links": {
+   "binary_sensor.tuer_magazin": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.aussen": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.magazin_r1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.magazin_t1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.magazin_temperatur": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_k1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_k2_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.polier_k1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.polier_r1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.polier_temperatur": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.regen": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.schacht_p1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.magazin_r1": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.magazin_t1": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.mannschaft_k1": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.mannschaft_k2": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.polier_k1": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.polier_r1": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.schacht_p1": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "weather.kalsdorf": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   }
   }
  },
  {
@@ -1619,6 +1781,24 @@
    },
    "pumpe_laeuft": {},
    "erreichbar": true
+  },
+  "geraete_links": {
+   "sensor.buero_r1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.buero_r1": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   }
   }
  }
 ]

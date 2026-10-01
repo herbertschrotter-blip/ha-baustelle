@@ -836,12 +836,19 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'zu' }, 5); Object.keys(c).forEach(k => delete c[k]); Object.assign(c, alt); nachPanel(); await klick({ act: 'tab', v: 'einst' }, 30); }
   /* WU-0007: alle Einstellungen in Gruppen mit Seitenleiste (Handy: Chips) */
   { const gruppe = async g => { await klick({ act: 'ev-gruppe', v: g }, 20); pruefe(`Einstellungen ${g}`); return ui.innerHTML; };
-    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'container', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
+    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
     const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'data-act="auto"', 'data-k="frost_aussen"'],
-      container: ['Container und Geräte', 'Je Container'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Preis je kWh', 'Staffelung'], firmen: ['Firma hinzufügen'],
+      container: ['Container und Geräte', 'Je Container'],
+      geraete: ['Schaltgeräte', 'class="zeile ger"'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Preis je kWh', 'Staffelung'], firmen: ['Firma hinzufügen'],
       meldungen: ['Test-Nachricht senden', 'data-k="kalt_min"', 'data-k="hand_h"'], bericht: ['Wie oft'], app: ['Erklärungen anzeigen', 'Melden-Knopf', 'data-act="aw-vorlage" data-v="misch"'],
       dev: ['Meldungen', 'data-act="ev-dev"'], ueber: ['Version'] };
     for (const [g, texte] of Object.entries(soll)) { const h = await gruppe(g); const fehlt = texte.filter(t => !h.includes(t)); erwarte(`WU-0007: Gruppe ${g} – fehlt ${fehlt.join(', ')}`, !fehlt.length); }
+    { const h = await gruppe('geraete'), L = (panel.d.r && panel.d.r.geraete_links) || {};   // WU-0010
+      if (REFERENZ) {
+        erwarte('WU-0010: Geräte nach Funktion', ['Schaltgeräte', 'Temperaturfühler', 'Türkontakte', 'Wetter und Regen'].every(t => h.includes(t)));
+        const web = Object.entries(L).find(([, l]) => l.web), ha = Object.entries(L).find(([, l]) => !l.web && l.ha);
+        erwarte('WU-0010: Klick öffnet Website bzw. HA-Geräteseite', (!web || h.includes(`href="${web[1].web}" target="_blank"`)) && (!ha || h.includes(`href="${ha[1].ha}"`)));
+      } }
     await gruppe('dev'); await klick({ act: 'ev-dev', v: 'werkzeuge' }, 20);
     erwarte('WU-0007: Entwicklung › Werkzeuge', ui.innerHTML.includes('Diagnose herunterladen') && !ui.innerHTML.includes('Melden-Knopf in jedem Fenster'));
     await gruppe('meldungen'); neu(); const k0 = panel.d.e.kalt_min; await klick({ act: 'st', k: 'kalt_min', d: '15' }, 10);

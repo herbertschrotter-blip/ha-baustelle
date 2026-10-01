@@ -1763,6 +1763,352 @@
      "An Handy Herbert: „Pumpenschacht Nord: Dauerlauf 25 min“"
     ]
    ]
+  },
+  "geraete_links": {
+   "binary_sensor.tuer_magazin": {
+    "web": null,
+    "ha": "/config/devices/device/beispiel0",
+    "geraet": "Tuer Magazin",
+    "hersteller": "Shelly",
+    "modell": "BLU Door/Window",
+    "batterie": null
+   },
+   "binary_sensor.tuer_polier": {
+    "web": null,
+    "ha": "/config/devices/device/beispiel1",
+    "geraet": "Tuer Polier",
+    "hersteller": "Shelly",
+    "modell": "BLU Door/Window",
+    "batterie": null
+   },
+   "sensor.besprechung_r_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.besprechung_r_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.besprechung_temperatur": {
+    "web": null,
+    "ha": "/config/devices/device/beispiel4",
+    "geraet": "Besprechung Temperatur",
+    "hersteller": "Shelly",
+    "modell": "H&T Gen3",
+    "batterie": null
+   },
+   "sensor.lager_r_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.lager_r_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.magazin_r_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.magazin_r_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.magazin_s_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.magazin_s_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_k_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_k_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_r1_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_r1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_t_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_t_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.mannschaft_temperatur": {
+    "web": null,
+    "ha": "/config/devices/device/beispiel17",
+    "geraet": "Mannschaft Temperatur",
+    "hersteller": "Shelly",
+    "modell": "H&T Gen3",
+    "batterie": null
+   },
+   "sensor.polier_r1_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.polier_r1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.polier_r2_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.polier_r2_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.polier_temperatur": {
+    "web": null,
+    "ha": "/config/devices/device/beispiel22",
+    "geraet": "Polier Temperatur",
+    "hersteller": "Shelly",
+    "modell": "H&T Gen3",
+    "batterie": null
+   },
+   "sensor.sanitaer_f_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.sanitaer_f_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.sanitaer_temperatur": {
+    "web": null,
+    "ha": "/config/devices/device/beispiel25",
+    "geraet": "Sanitaer Temperatur",
+    "hersteller": "Shelly",
+    "modell": "H&T Gen3",
+    "batterie": null
+   },
+   "sensor.schacht_p1_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.schacht_p1_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.schacht_p2_energie": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "sensor.schacht_p2_leistung": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   },
+   "switch.besprechung_r": {
+    "web": "http://192.0.2.50",
+    "ha": "/config/devices/device/beispiel30",
+    "geraet": "Besprechung R",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.lager_r": {
+    "web": "http://192.0.2.51",
+    "ha": "/config/devices/device/beispiel31",
+    "geraet": "Lager R",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.magazin_r": {
+    "web": "http://192.0.2.52",
+    "ha": "/config/devices/device/beispiel32",
+    "geraet": "Magazin R",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.magazin_s": {
+    "web": "http://192.0.2.53",
+    "ha": "/config/devices/device/beispiel33",
+    "geraet": "Magazin S",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.mannschaft_k": {
+    "web": "http://192.0.2.54",
+    "ha": "/config/devices/device/beispiel34",
+    "geraet": "Mannschaft K",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.mannschaft_r1": {
+    "web": "http://192.0.2.55",
+    "ha": "/config/devices/device/beispiel35",
+    "geraet": "Mannschaft R1",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.mannschaft_t": {
+    "web": "http://192.0.2.56",
+    "ha": "/config/devices/device/beispiel36",
+    "geraet": "Mannschaft T",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.polier_r1": {
+    "web": "http://192.0.2.57",
+    "ha": "/config/devices/device/beispiel37",
+    "geraet": "Polier R1",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.polier_r2": {
+    "web": "http://192.0.2.58",
+    "ha": "/config/devices/device/beispiel38",
+    "geraet": "Polier R2",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.sanitaer_f": {
+    "web": "http://192.0.2.59",
+    "ha": "/config/devices/device/beispiel39",
+    "geraet": "Sanitaer F",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.schacht_p1": {
+    "web": "http://192.0.2.60",
+    "ha": "/config/devices/device/beispiel40",
+    "geraet": "Schacht P1",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "switch.schacht_p2": {
+    "web": "http://192.0.2.61",
+    "ha": "/config/devices/device/beispiel41",
+    "geraet": "Schacht P2",
+    "hersteller": "Shelly",
+    "modell": "Plus Plug S",
+    "batterie": null
+   },
+   "weather.dobl": {
+    "web": null,
+    "ha": null,
+    "geraet": null,
+    "hersteller": null,
+    "modell": null,
+    "batterie": null
+   }
   }
  },
  {
@@ -2501,7 +2847,8 @@
      "Alle Container jetzt heizen bis 17:20"
     ]
    ]
-  }
+  },
+  "geraete_links": {}
  },
  {
   "baustelle": {
@@ -2805,7 +3152,8 @@
    "heizgrenze": {},
    "termine": [],
    "protokoll": []
-  }
+  },
+  "geraete_links": {}
  },
  {
   "baustelle": {
@@ -3059,6 +3407,7 @@
    "heizgrenze": {},
    "termine": [],
    "protokoll": []
-  }
+  },
+  "geraete_links": {}
  }
 ]
