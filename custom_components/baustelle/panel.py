@@ -464,7 +464,8 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Required("entry_id"): str,
     vol.Required("aktion"): vol.In(
         ["bedarf", "bedarf_aus", "boost", "jetzt_heizen", "schalten", "automatik", "warnung_stumm", "bericht_senden",
-         "test_meldung", "lern_reset", "aktiv", "gefuehl", "soll_versch", "soll_versch_weg", "gefuehl_vergessen"]
+         "test_meldung", "lern_reset", "aktiv", "gefuehl", "soll_versch", "soll_versch_weg", "gefuehl_vergessen",
+         "zuruecksetzen"]
     ),
     vol.Optional("bereich"): str,
     vol.Optional("geraet"): str,
@@ -596,6 +597,18 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
     elif aktion == "gefuehl_vergessen":
         lz["gefuehl"] = []
         st.protokoll("einstellung", None, "Soll gleitend: gelerntes Gefühl vergessen")
+    elif aktion == "zuruecksetzen":
+        # Herbert 01.10.2026: alle Zähler (Verbrauch, Kosten, Heizzeit, Heiztage, Pumpzeit, ohne Automatik, Ø-Leistung,
+        # Auf-/Abkühlraten, fairer Vergleich) und alles Gelernte (lernende Regelung, Warm ab, Gefühl, Außenmittel, + / −)
+        # auf null; Einstellungen, Protokoll und die Langzeitstatistik von HA bleiben. Neu laden leert auch den Speicher.
+        st.zaehler.clear()
+        for key, leer in (("lernen", {}), ("warm_start", {}), ("aussen_tage", {}), ("gefuehl", []), ("soll_versch", {}),
+                          ("fuehler_zuletzt", {})):
+            lz[key] = leer
+        st.protokoll("einstellung", None, "Alle Zähler und alles Gelernte zurückgesetzt")
+        connection.send_result(msg["id"], {"ok": True})
+        hass.config_entries.async_schedule_reload(st.entry.entry_id)
+        return
     elif aktion == "bericht_senden":
         await st.nachrichten.async_bericht_senden(msg.get("art") or "woche")
         connection.send_result(msg["id"], {"ok": True})

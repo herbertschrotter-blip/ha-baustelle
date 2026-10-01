@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.37] – 2026-10-01
+
+- Neue Aktion „zuruecksetzen“ (Herbert 01.10.2026): alle Zähler (Verbrauch, Kosten, Heizzeit, Heiztage, Pumpzeit,
+  ohne Automatik, Ø-Leistung, Auf-/Abkühlraten, fairer Vergleich) und alles Gelernte (lernende Regelung, Warm ab,
+  Gefühl, Außenmittel, + / −) auf null; Einstellungen, Protokoll und die Langzeitstatistik von HA bleiben. Die
+  Integration lädt danach neu.
+
 ## [0.8.36] – 2026-10-01
 
 - Soll gleitend nach draußen und nach dem Gefühl (Herbert 01.10.2026): unter Heizung › Regeln wählbar „fest“ oder

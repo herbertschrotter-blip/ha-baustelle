@@ -171,3 +171,21 @@ async def test_soll_gleitend(hass: HomeAssistant, baustelle, freezer, shellys, h
     assert st.lz["gefuehl"] == []
     await ws.send_json({"id": 6, "type": "baustelle/setzen", "entry_id": e, "pfad": ["heizung", "gleit_min"], "wert": 19.0})
     assert (await ws.receive_json())["success"]                               # Untergrenze frei einstellbar
+
+
+async def test_alles_zuruecksetzen(hass: HomeAssistant, baustelle, freezer, shellys, hass_ws_client) -> None:
+    """Herbert 01.10.2026: alle Zähler und alles Gelernte auf null; Einstellungen bleiben, die Integration lädt neu."""
+    ws = await hass_ws_client(hass)
+    st = baustelle.runtime_data
+    st.zaehler.update({"energie": 12.0, "heiztage": 3, f"abkuehl:{C1}": 1.2, f"stand:{HK1}": 5.0})
+    st.lz["lernen"][C1] = {"kint": 0.5}
+    st.lz["gefuehl"] = [["2026-10-01", 6.0, -1]]
+    st.e["heizung"]["soll"] = 21.5
+    await ws.send_json({"id": 1, "type": "baustelle/aktion", "entry_id": baustelle.entry_id, "aktion": "zuruecksetzen"})
+    assert (await ws.receive_json())["success"]
+    await hass.async_block_till_done()
+    neu = hass.config_entries.async_get_entry(baustelle.entry_id).runtime_data
+    assert neu is not st                                                       # neu geladen
+    assert not any(k in neu.zaehler for k in ("energie", "heiztage", f"abkuehl:{C1}", f"stand:{HK1}"))
+    assert neu.lz["lernen"] == {} and neu.lz["gefuehl"] == [] and neu.e["heizung"]["soll"] == 21.5
+    assert any("zurückgesetzt" in p[3] for p in neu.e["protokoll"])
