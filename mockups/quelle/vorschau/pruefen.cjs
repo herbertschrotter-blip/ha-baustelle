@@ -4,7 +4,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const repo = path.join(__dirname, '..', '..', '..');
-const html = fs.readFileSync(path.join(repo, 'mockups', 'glas.html'), 'utf8');
+const html = fs.readFileSync(process.argv[2] ? path.resolve(process.argv[2]) : path.join(repo, 'mockups', 'glas.html'), 'utf8');   // anderes Mockup: Pfad als Argument
 const skripte = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1].replace(/<\\\/script/gi, '</script'));
 const f = [];
 
@@ -15,7 +15,7 @@ const element = (name = 'div') => ({ tagName: name.toUpperCase(), dataset: {}, s
 class HTMLElement {
   constructor() { this.dataset = {}; this.style = { setProperty() {} }; }
   attachShadow() { const teile = {}; this.shadowRoot = { teile, set innerHTML(v) { this._h = v; }, get innerHTML() { return this._h; }, activeElement: null,
-    querySelector: s => teile[s] ||= element(), querySelectorAll: () => [], addEventListener() {} }; return this.shadowRoot; }
+    querySelector: s => teile[s] ||= element(), querySelectorAll: () => [], addEventListener() {}, appendChild() {} }; return this.shadowRoot; }
   dispatchEvent() { return true; }
 }
 const registry = {}, felder = {};
@@ -26,7 +26,7 @@ global.localStorage = { getItem: () => null, setItem() {} };
 global.setInterval = () => 1; global.clearInterval = () => {}; global.Response = class { constructor(b, o = {}) { this.ok = (o.status || 200) < 400; this._b = b; } async json() { return JSON.parse(this._b); } };
 global.fetch = async () => new global.Response('null');
 console.warn = () => {};
-try { (0, eval)(skripte.join('\n;\n') + '\n;globalThis.P = P;'); } catch (e) { console.error('Skript bricht ab:', e); process.exit(1); }
+try { (0, eval)(skripte.join('\n;\n') + '\n;globalThis.P = P; globalThis.evVar = v => { EV_VAR = v; };'); } catch (e) { console.error('Skript bricht ab:', e); process.exit(1); }
 
 const ruhe = async (n = 30) => { for (let i = 0; i < n; i++) await new Promise(r => setImmediate(r)); };
 (async () => {

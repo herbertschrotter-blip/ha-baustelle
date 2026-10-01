@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.8] – 2026-10-01
+
+- Einstellungen neu (WU-0007, Mockup einstellungen-varianten.html Variante 1 abgenommen): alle Einstellungen an einer
+  Stelle in Gruppen – Baustelle (mit Wetter und Kalendern), Heizung, Container & Geräte, Pumpen, Strom & Staffelung,
+  Firmen, Meldungen, Bericht, Ansicht, Entwicklung (Untermenü Meldungen/Werkzeuge) und Über; links eine Seitenleiste
+  mit Kurzinfo je Gruppe, auf dem Handy Chips oben.
+- Neu einstellbar: Schwellen „zu kalt trotz Heizung nach“ und „Handbetrieb länger als“, Regenmenge, Feiertags- und
+  Termine-Kalender direkt aus den Einstellungen, Automatik je Pumpenschacht, Auswertung auf Vorschlag zurücksetzen.
+
 ## [0.8.7] – 2026-10-01
 
 - Früheren Zeitraum wählen (FE-0008, Mockup glas.html Variante 4 abgenommen): in der Auswertung, in der

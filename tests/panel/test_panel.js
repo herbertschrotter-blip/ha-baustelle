@@ -747,7 +747,22 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Alle laufenden: ohne Je Gerät und Temperaturen', !ui.innerHTML.includes('Je Gerät') && !ui.innerHTML.includes('data-act="tv"'));
   await klick({ act: 'aw-scope', v: 'diese' }, 30);
   await klick({ act: 'tab', v: 'einst' }, 30);
-  erwarte('Einstellungen: Beginn/Ende, Heizperiode, Erklärungen, Test-Nachricht', ['Beginn und Ende', 'Heizperiode', 'Erklärungen anzeigen', 'Test-Nachricht senden'].every(t => ui.innerHTML.includes(t)));
+  /* WU-0007: alle Einstellungen in Gruppen mit Seitenleiste (Handy: Chips) */
+  { const gruppe = async g => { await klick({ act: 'ev-gruppe', v: g }, 20); pruefe(`Einstellungen ${g}`); return ui.innerHTML; };
+    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'container', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
+    const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'data-act="auto"'],
+      container: ['Container und Geräte', 'Je Container'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Preis je kWh', 'Staffelung'], firmen: ['Firma hinzufügen'],
+      meldungen: ['Test-Nachricht senden', 'data-k="kalt_min"', 'data-k="hand_h"'], bericht: ['Wie oft'], app: ['Erklärungen anzeigen', 'Melden-Knopf', 'data-act="aw-vorlage" data-v="misch"'],
+      dev: ['Meldungen', 'data-act="ev-dev"'], ueber: ['Version'] };
+    for (const [g, texte] of Object.entries(soll)) { const h = await gruppe(g); const fehlt = texte.filter(t => !h.includes(t)); erwarte(`WU-0007: Gruppe ${g} – fehlt ${fehlt.join(', ')}`, !fehlt.length); }
+    await gruppe('dev'); await klick({ act: 'ev-dev', v: 'werkzeuge' }, 20);
+    erwarte('WU-0007: Entwicklung › Werkzeuge', ui.innerHTML.includes('Diagnose herunterladen') && !ui.innerHTML.includes('Melden-Knopf in jedem Fenster'));
+    await gruppe('meldungen'); neu(); const k0 = panel.d.e.kalt_min; await klick({ act: 'st', k: 'kalt_min', d: '15' }, 10);
+    erwarte('WU-0007: Schwelle „zu kalt“ einstellbar', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'meldungen_einst.kalt_min' && m.wert === k0 + 15));
+    const schacht = panel.d.bereiche.find(b => b.pumpe);
+    if (schacht) { neu(); await klick({ act: 'b-auto', id: schacht.id }, 10); erwarte('WU-0007: Automatik je Schacht aus den Einstellungen', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `bereiche.${schacht.id}.auto`)); }
+    await klick({ act: 'tab', v: 'pumpen' }, 10); await klick({ act: 'tab-einst', g: 'meldungen' }, 20); erwarte('WU-0007: Pumpen › Meldungen öffnet die Gruppe Meldungen', panel.s.view === 'einst' && ui.innerHTML.includes('data-k="kalt_min"'));
+    await gruppe('baustelle'); }
   neu(); await klick({ act: 'test-meldung' }, 20);
   erwarte('Test-Nachricht über baustelle/aktion', letzte('baustelle/aktion').some(a => a.aktion === 'test_meldung'));
   await klick({ act: 'sheet', s: 'zeitraum-bs' }); pruefe('Beginn, Ende, Heizperiode');
