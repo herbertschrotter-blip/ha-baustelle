@@ -63,7 +63,7 @@ def test_tuer_offen_nach_pause():
     assert soll(tuer_offen_min=3) == Soll(False, SollGrund.TUER_OFFEN)
     assert soll(tuer_offen_min=2.5) == Soll(True, SollGrund.ARBEITSZEIT)
     assert soll(tuer_offen_min=6, boost=True) == Soll(False, SollGrund.TUER_OFFEN)
-    assert soll(tuer_offen_min=6, auto=False) == Soll(False, SollGrund.TUER_OFFEN)
+    assert soll(tuer_offen_min=6, auto=False) == Soll(None, SollGrund.HAND)   # Hand: die Tür schaltet nichts (Szenarien)
 
 
 def test_container_automatik_aus_ist_hand():
@@ -258,3 +258,34 @@ def test_frost_im_modus_hand_endet():
     assert soll(minute=t(22), temperatur=4.0, auto=False) == Soll(True, SollGrund.FROST)
     assert soll(minute=t(22), temperatur=8.0, auto=False, frost_vorher=True) == Soll(False, SollGrund.HAND)
     assert soll(minute=t(22), temperatur=8.0, auto=False, frost_vorher=False) == Soll(None, SollGrund.HAND)
+
+
+def test_tuer_pausiert_nur_wenn_sonst_geheizt_wuerde():
+    """Szenarien (Herbert 01.10.2026): außerhalb der Heizzeit, Modus aus oder bereit ist die offene Tür nur ein Hinweis."""
+    assert soll(tuer_offen_min=10, minute=t(22)) == Soll(False, SollGrund.AUSSERHALB)
+    assert soll(tuer_offen_min=10, modus="aus") == Soll(False, SollGrund.AUS)
+    # läuft gerade ein Heizkörper (z. B. von Hand), pausiert die Tür trotzdem
+    assert soll(tuer_offen_min=10, minute=t(22), laeuft_gerade=True) == Soll(False, SollGrund.TUER_OFFEN)
+    assert soll(tuer_offen_min=6, auto=False, laeuft_gerade=True) == Soll(False, SollGrund.TUER_OFFEN)
+    # die Pause hält, solange die Tür offen ist – auch wenn danach nichts mehr läuft
+    assert soll(tuer_offen_min=8, auto=False, tuer_vorher=True) == Soll(False, SollGrund.TUER_OFFEN)
+    assert soll(tuer_offen_min=None, auto=False, tuer_vorher=True) == Soll(None, SollGrund.HAND)
+
+
+def test_frostschutz_ohne_fuehler_nach_aussen():
+    """Ohne Fühler: ein unter `frost_aussen`, aus erst ab `frost_aussen` + 2 °C."""
+    assert soll(minute=t(22), temperatur=None, aussen=-4.0, frost_aussen=-3.0) == Soll(True, SollGrund.FROST)
+    assert soll(minute=t(22), temperatur=None, aussen=-2.0, frost_aussen=-3.0).grund is SollGrund.AUSSERHALB
+    assert soll(minute=t(22), temperatur=None, aussen=-2.0, frost_aussen=-3.0, frost_vorher=True) == Soll(True, SollGrund.FROST)
+    assert soll(minute=t(22), temperatur=None, aussen=-1.0, frost_aussen=-3.0, frost_vorher=True).grund is not SollGrund.FROST
+    assert soll(minute=t(22), temperatur=None, aussen=-8.0, frost_aussen=None).grund is SollGrund.AUSSERHALB   # ausgeschaltet
+
+
+def test_letzter_wert_ueberbrueckt():
+    from datetime import datetime, timedelta
+    from logik.regelung import FUEHLER_HALTEN_MIN, letzter_wert
+    t0 = datetime(2026, 10, 1, 7, 0)
+    assert letzter_wert(19.0, (t0, 18.0), t0, 15) == 19.0
+    assert letzter_wert(None, (t0, 18.0), t0 + timedelta(minutes=FUEHLER_HALTEN_MIN), 15) == 18.0
+    assert letzter_wert(None, (t0, 18.0), t0 + timedelta(minutes=16), 15) is None
+    assert letzter_wert(None, None, t0, 15) is None

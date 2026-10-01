@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.15",
+   "version": "0.8.16",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -313,6 +313,7 @@
     "frei_modus": "frost",
     "absenk": 10.0,
     "frost_immer": false,
+    "frost_aussen": -3.0,
     "trocknen_ab_mm": 2.0,
     "trocknen_laenger_min": 45,
     "trocknen_frueher_min": 15,
@@ -1293,7 +1294,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.15",
+   "version": "0.8.16",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1384,6 +1385,7 @@
     "frei_modus": "frost",
     "absenk": 10.0,
     "frost_immer": false,
+    "frost_aussen": -3.0,
     "trocknen_ab_mm": 2.0,
     "trocknen_laenger_min": 45,
     "trocknen_frueher_min": 15,

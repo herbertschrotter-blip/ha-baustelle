@@ -24,17 +24,36 @@ Aus 0.6.3 zurück (Herbert 30.09.2026, Mockup glas.html):
   schaltet nur der Frostschutz ein und nach dem Frost einmal aus; sonst bleibt bei Automatik aus alles, wie es ist.
 - Urlaub und freie Feiertage (`frei`): `frei_modus` `frost` (nur Frostschutz), `absenk` (mit Fühler auf `absenk`, ohne
   Fühler nur Frostschutz) oder `aus` (alles aus, auch kein Frostschutz).
+
+Aus den Szenarien (Herbert 01.10.2026):
+- Fühler weg (oder beim Start kurz unbekannt): `FUEHLER_HALTEN_MIN` gilt der letzte Wert (`letzter_wert`), danach wie
+  ohne Fühler (in der Heizzeit an, der Heizkörperthermostat regelt). Außentemperatur weg: `AUSSEN_HALTEN_MIN`.
+- Frostschutz ohne Fühler nach der Außentemperatur: ein unter `frost_aussen`, aus ab `frost_aussen + FROST_SPANNE`.
+- Tür offen pausiert nur, wenn sonst geheizt würde oder gerade ein Heizkörper läuft (auch von Hand); sonst ist es ein
+  Hinweis (der Grund bleibt der eigentliche).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 
 from .arbeitszeit import Plan
 from .lernen import Tpi, tpi_anteil, tpi_ein
 
 FROST_SPANNE = 2.0
+FUEHLER_HALTEN_MIN = 15
+AUSSEN_HALTEN_MIN = 360
+
+
+def letzter_wert(aktuell: float | None, zuletzt: tuple[datetime, float] | None, jetzt: datetime, halten_min: float) -> float | None:
+    """Messwert mit Überbrückung: fehlt er, gilt der letzte gültige bis `halten_min` Minuten lang."""
+    if aktuell is not None:
+        return aktuell
+    if zuletzt is not None and 0 <= (jetzt - zuletzt[0]).total_seconds() / 60 <= halten_min:
+        return zuletzt[1]
+    return None
 
 
 class SollGrund(StrEnum):
@@ -92,6 +111,10 @@ class LageContainer:
     absenk: float = 10.0
     frost_immer: bool = False
     tpi: Tpi | None = None      # lernende Regelung (0.8): statt Hysterese TPI mit gelerntem Nachlauf
+    laeuft_gerade: bool = False         # ein Heizkörper läuft gerade, auch von Hand (Tür pausiert dann)
+    tuer_vorher: bool = False           # war zuletzt wegen offener Tür pausiert (die Pause hält, bis die Tür zu ist)
+    aussen: float | None = None         # Außentemperatur (Frostschutz ohne Fühler)
+    frost_aussen: float | None = None   # ohne Fühler: Frostschutz ein unter dieser Außentemperatur (None = aus)
 
 
 @dataclass(frozen=True)
@@ -121,8 +144,13 @@ def frost_aus(lage: LageContainer) -> float:
 
 def frostschutz(lage: LageContainer) -> bool:
     """Frostschutz: ein unter der Grenze, aus erst ab `frost_aus`; im Urlaub mit „alles aus“ gar nicht."""
-    if not lage.frost or lage.temperatur is None or (lage.frei and lage.frei_modus == "aus"):
+    if not lage.frost or (lage.frei and lage.frei_modus == "aus"):
         return False
+    if lage.temperatur is None:   # ohne Fühler: nach der Außentemperatur
+        if lage.frost_aussen is None or lage.aussen is None:
+            return False
+        grenze = lage.frost_aussen + (FROST_SPANNE if lage.frost_vorher else 0.0)
+        return lage.aussen < grenze
     if lage.frost_vorher:
         return lage.temperatur < round(frost_aus(lage), 3)
     return lage.temperatur < lage.frost_grenze
@@ -189,8 +217,14 @@ def soll_container(lage: LageContainer, tuer_pause_min: int) -> Soll:
         return Soll(None, SollGrund.AUTOMATIK_AUS)
     if frostschutz(lage):
         return Soll(True, SollGrund.FROST)
-    if lage.tuer_offen_min is not None and lage.tuer_offen_min >= tuer_pause_min:
-        return Soll(False, SollGrund.TUER_OFFEN)
+    s = _ohne_tuer(lage)
+    if lage.tuer_offen_min is not None and lage.tuer_offen_min >= tuer_pause_min and (s.ein or lage.laeuft_gerade or lage.tuer_vorher):
+        return Soll(False, SollGrund.TUER_OFFEN)   # pausiert nur, wenn geheizt würde oder gerade wird (auch von Hand)
+    return s
+
+
+def _ohne_tuer(lage: LageContainer) -> Soll:
+    """Die Reihenfolge ab „Hand“ (ohne Automatik aus, Frost und Tür)."""
     if not lage.auto:
         if lage.frost_vorher:
             return Soll(False, SollGrund.HAND)   # Frost vorbei: einmal aus, danach schaltet die Automatik nichts (Szenario-Befund)

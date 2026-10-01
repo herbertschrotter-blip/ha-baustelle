@@ -422,7 +422,7 @@ def test_ueber_mitternacht():
     lager = GeraetZustand(id="g1", bereich="lager", erreichbar=False, offline_seit=datetime(2026, 9, 30, 23, 59))
     w = {x.art: x for x in pruefe(zustand(g, lager, container=[tuer]), EINST, mitternacht)}
     assert titel(w["hand_zu_lange"]) == "Steckdose seit 8 h auf Hand"
-    assert w["tuer_offen"].werte == {"minuten": 7, "nachricht": False}
+    assert w["tuer_offen"].werte == {"minuten": 7, "nachricht": False, "pausiert": True}
     assert w["offline"].seit == datetime(2026, 9, 30, 23, 59)
 
 

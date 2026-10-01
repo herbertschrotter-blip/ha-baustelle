@@ -206,6 +206,10 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `stufen_min` (min Laufzeit des ersten), `stufen_anstieg` (°C), `stufen_kalt` (°C außen). `laufzeit.container.<id>.stufen`
   (ab zwei Heizkörpern, sonst `null`): `{an, haupt: [ids], zusatz: [ids], zusatz_an, grund, text}`; `laufzeit.geraete.<id>.zusatz`.
   Aufheizen lernt je Anzahl laufender Heizkörper: `lernen.aufheizen` mit Schlüsseln `kalt|1`, `mild|2` …; `lernen.warm.anzahl`.
+- Szenarien (Herbert 01.10.2026): `heizung.frost_aussen` (°C, `null` = aus; Standard −3): Frostschutz für Container
+  ohne Fühler nach der Außentemperatur (aus ab +2 °C). Fühler kurz weg: 15 min der letzte Wert (`laufzeit.fuehler_zuletzt`
+  intern), Außenwert weg: Wetter-Entität, sonst der letzte bis 6 h. Tür offen pausiert nur, wenn geheizt würde oder ein
+  Heizkörper läuft; sonst Warnung `tuer_offen` mit `werte.pausiert = false` (Hinweis ohne „Trotzdem heizen“).
 - Tür offen schützt das Lernen (WU-0009): `lernen.offen` = `{art: "vermutet"|"kontakt", seit}` oder `null`, `lernen.ruhe_bis`
   (bis dahin keine neue Messung). Vermutet: beim durchgehenden Heizen in 10 min ≥ 0,3 °C kälter, außen ≤ 0,2 °C kälter.
 - Gerät aktiv/inaktiv (WU-0004): `baustelle/aktion` `aktiv` mit `geraet` und `an` (bool). Inaktiv: einmal ausschalten,

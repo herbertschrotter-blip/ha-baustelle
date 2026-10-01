@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.16] – 2026-10-01
+
+Entscheidungen zu den Fragen aus den Szenarien:
+
+- Fühler kurz weg (Funkaussetzer, HA-Neustart): 15 min gilt der letzte Wert, danach wie ohne Fühler (in der Heizzeit
+  an, der Heizkörperthermostat regelt) – ein warmer Container geht nicht mehr gleich an.
+- Frostschutz auch für Container ohne Fühler: nach der Außentemperatur (ein unter −3 °C, aus ab −1 °C; einstellbar
+  unter Heizung › Regeln › Frostschutz).
+- Tür offen, wenn ohnehin nicht geheizt wird (nachts, Modus aus, bei Bedarf bereit, Automatik aus): Sicherheitshinweis
+  „Tür offen“ statt „Heizung pausiert“, ohne Knopf „Trotzdem heizen“; die Kachel zeigt „… · 🚪 Tür offen“. Läuft ein
+  Heizkörper (auch von Hand), pausiert die Tür wie bisher, bis sie zu ist.
+- Außenfühler weg: Temperatur der Wetter-Entität, sonst der letzte Wert bis 6 h – die Heizgrenze gilt weiter.
+
 ## [0.8.15] – 2026-10-01
 
 Korrekturen aus dem Durchspielen aller Szenarien (191 neue Szenario-Tests, `tests/integration/test_szenario_*.py`):

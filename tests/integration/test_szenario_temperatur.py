@@ -100,7 +100,7 @@ async def test_frost_hysterese_ein_unter_grenze_aus_ueber_frost_aus(hass: HomeAs
     hass.states.async_set("sensor.temp_c1", "5.5")             # wieder zwischen den Schwellen: bleibt aus
     await _zu(hass, freezer, "2026-09-29 22:30:00+02:00", st)
     assert not _an(hass, "switch.hk1")
-    assert not _an(hass, "switch.hk2")                         # Container 2 ohne Fühler: kein Frostschutz
+    assert not _an(hass, "switch.hk2")                         # Container 2 ohne Fühler: außen 4,5 °C, kein Frost
 
 
 @pytest.mark.parametrize(("frost_aus", "noch_an", "aus_bei"), [(8.5, "8.4", "8.5"), (4.0, "6.9", "7.0")])
@@ -141,26 +141,53 @@ async def test_frost_immer_bei_automatik_aus(hass: HomeAssistant, freezer, shell
     assert len(shellys.aufrufe) == anzahl and _an(hass, "switch.hk1")
 
 
-async def test_frost_ohne_fuehler_nichts(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """FRAGE: Container ohne Fühler hat keinen Frostschutz – auch bei −10 °C außen bleibt er nachts aus.
-    (Tatsächliches Verhalten; ob die Außentemperatur einspringen soll, ist offen.)"""
+async def test_frost_ohne_fuehler_nach_aussen(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    """Szenarien, Herbert 01.10.2026: Container ohne Fühler – Frostschutz nach der Außentemperatur (`frost_aussen`
+    −3 °C): ein unter −3 °C, aus erst ab −1 °C (Spanne 2 °C), dazwischen bleibt der Zustand."""
     entry, st = await _neu(hass, freezer, shellys, DI_21)
+    hass.states.async_set("sensor.aussen", "-3.0")
+    await _automatik(hass, st)
+    assert not _an(hass, "switch.hk2") and st.daten.grund[C2] == "ausserhalb"   # genau −3: noch kein Frost
+    hass.states.async_set("sensor.aussen", "-10")
+    await _zu(hass, freezer, "2026-09-29 21:01:00+02:00", st)
+    assert _an(hass, "switch.hk2") and st.daten.grund[C2] == "frost" and st.daten.text[C2] == "Frostschutz"
+    hass.states.async_set("sensor.aussen", "-1.1")
+    await _zu(hass, freezer, "2026-09-29 21:20:00+02:00", st)
+    assert _an(hass, "switch.hk2") and st.daten.grund[C2] == "frost"          # Hysterese: hält bis −1 °C
+    hass.states.async_set("sensor.aussen", "-1.0")
+    await _zu(hass, freezer, "2026-09-29 21:40:00+02:00", st)
+    assert not _an(hass, "switch.hk2") and st.daten.grund[C2] == "ausserhalb"
+    hass.states.async_set("sensor.aussen", "-2.0")
+    await _zu(hass, freezer, "2026-09-29 22:00:00+02:00", st)
+    assert not _an(hass, "switch.hk2")
+
+
+@pytest.mark.parametrize(("aendern", "wert"), [("frost_aussen", None), ("frost", False), ("frei_modus", "aus")])
+async def test_frost_ohne_fuehler_abgeschaltet(hass: HomeAssistant, freezer, shellys, nachrichten, aendern, wert) -> None:
+    """Szenarien, Herbert 01.10.2026: ohne Fühler kein Frostschutz, wenn `frost_aussen` None ist, der Frostschutz aus
+    ist oder an freien Tagen `frei_modus` „aus“ gilt."""
+    if aendern == "frei_modus":
+        _kalender(hass, FEIERTAG_DI)
+        entry, st = await _neu(hass, freezer, shellys, DI_10, feiertag_kalender="calendar.feiertage")
+    else:
+        entry, st = await _neu(hass, freezer, shellys, DI_21)
+    st.e["heizung"][aendern] = wert
     hass.states.async_set("sensor.aussen", "-10")
     await _automatik(hass, st)
-    assert not _an(hass, "switch.hk2")
-    assert st.daten.grund[C2] == "ausserhalb"
-    assert not any(w.art == "frostgefahr" and w.bereich == C2 for w in st.daten.warnungen)
+    assert not _an(hass, "switch.hk2") and st.daten.grund[C2] != "frost"
 
 
 async def test_frost_fuehler_faellt_aus_beendet_frostschutz(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """FRAGE: läuft der Frostschutz und der Fühler wird `unavailable`, schaltet der Heizkörper aus (keine Temperatur →
-    kein Frost). Tatsächliches Verhalten festgehalten."""
+    """Szenarien, Herbert 01.10.2026: läuft der Frostschutz und der Fühler wird `unavailable`, gilt bis 15 min der
+    letzte Wert (Frostschutz läuft weiter); danach wie ohne Fühler – außen 4,5 °C, also kein Frost, aus."""
     entry, st = await _neu(hass, freezer, shellys, DI_21)
     hass.states.async_set("sensor.temp_c1", "3.0")
     await _automatik(hass, st)
     assert _an(hass, "switch.hk1")
     hass.states.async_set("sensor.temp_c1", "unavailable")
     await _zu(hass, freezer, "2026-09-29 21:10:00+02:00", st)
+    assert _an(hass, "switch.hk1") and st.daten.grund[C1] == "frost"
+    await _zu(hass, freezer, "2026-09-29 21:20:00+02:00", st)
     assert not _an(hass, "switch.hk1") and st.daten.grund[C1] == "ausserhalb"
 
 
@@ -494,7 +521,8 @@ async def test_stufen_sehr_kalt(hass: HomeAssistant, freezer, shellys, nachricht
 
 
 async def test_stufen_kalt_ohne_aussentemperatur(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """Außentemperatur fällt aus: „außergewöhnlich kalt“ entfällt, der Zusatz geht (nahe am Soll) aus."""
+    """Szenarien, Herbert 01.10.2026: Außentemperatur fällt aus – der letzte Wert (−8 °C) gilt bis 6 h, der Zusatz
+    bleibt „außergewöhnlich kalt“ an; danach ist außen unbekannt, „kalt“ entfällt, der Zusatz geht (nahe am Soll) aus."""
     entry, st = await _zwei_in_c1(hass, freezer, shellys)
     hass.states.async_set("sensor.temp_c1", "19.6")
     hass.states.async_set("sensor.aussen", "-8.0")
@@ -502,6 +530,11 @@ async def test_stufen_kalt_ohne_aussentemperatur(hass: HomeAssistant, freezer, s
     assert _an(hass, "switch.hk2")
     hass.states.async_set("sensor.aussen", "unavailable")
     await _zu(hass, freezer, "2026-09-29 10:05:00+02:00", st)
+    assert _an(hass, "switch.hk1") and _an(hass, "switch.hk2")
+    assert _lz(hass, entry)["wetter"]["aussen"] == -8.0
+    hass.states.async_set("sensor.temp_c1", "19.9")            # Raum kommt voran (sonst „schafft es nicht“ nach 6 h)
+    await _zu(hass, freezer, "2026-09-29 16:01:00+02:00", st)          # 6 h 1 min ohne Außenwert
+    assert _lz(hass, entry)["wetter"]["aussen"] is None
     assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk2")
 
 
@@ -531,14 +564,21 @@ async def test_stufen_beim_absenken(hass: HomeAssistant, freezer, shellys, nachr
 
 # ====================================================================== Sprünge: Wetterwerte fehlen
 async def test_aussentemperatur_faellt_aus_ueber_heizgrenze(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """FRAGE: über der Heizgrenze fällt der Außenfühler aus → ohne Bezug gilt „nicht zu warm“, es wird wieder geheizt
-    (sicher gegen Kälte, aber Heizen im Sommer möglich). Tatsächliches Verhalten festgehalten."""
+    """Szenarien, Herbert 01.10.2026: über der Heizgrenze fällt der Außenfühler aus (ohne Wetter-Entität) → der letzte
+    gemessene Wert gilt bis 6 h, es bleibt „zu warm“; erst danach ist außen unbekannt, ohne Bezug gilt „nicht zu
+    warm“ und es wird wieder geheizt."""
     entry, st = await _neu(hass, freezer, shellys)
     hass.states.async_set("sensor.aussen", "17")
     await _automatik(hass, st)
     assert not _an(hass, "switch.hk2")
     hass.states.async_set("sensor.aussen", "unavailable")
     await _zu(hass, freezer, "2026-09-29 10:05:00+02:00", st)
+    lz = _lz(hass, entry)
+    assert lz["wetter"]["aussen"] == 17.0 and lz["heizgrenze"]["zu_warm"] is True
+    assert not _an(hass, "switch.hk2")
+    await _zu(hass, freezer, "2026-09-29 16:00:00+02:00", st)          # genau 6 h: gilt noch
+    assert _lz(hass, entry)["heizgrenze"]["zu_warm"] is True and not _an(hass, "switch.hk2")
+    await _zu(hass, freezer, "2026-09-29 16:01:00+02:00", st)          # danach unbekannt
     lz = _lz(hass, entry)
     assert lz["wetter"]["aussen"] is None and lz["heizgrenze"] == {"bezug": None, "zu_warm": False}
     assert _an(hass, "switch.hk2") and st.daten.status == "heizt"
@@ -589,12 +629,25 @@ async def test_vorhersage_dienst_meldet_fehler(hass: HomeAssistant, freezer, she
 
 
 async def test_fuehler_faellt_aus_in_der_arbeitszeit(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """Fühler `unavailable` in der Arbeitszeit: der Container heizt ohne Thermostat durch (wie ohne Fühler)."""
+    """Szenarien, Herbert 01.10.2026: Fühler `unavailable` in der Arbeitszeit – bis 15 min gilt der letzte Wert
+    (20,5 °C, bleibt aus), danach heizt der Container ohne Thermostat durch (wie ohne Fühler)."""
     entry, st = await _neu(hass, freezer, shellys)
     hass.states.async_set("sensor.temp_c1", "20.5")
     await _automatik(hass, st)
     assert not _an(hass, "switch.hk1")
     hass.states.async_set("sensor.temp_c1", "unavailable")
     await _zu(hass, freezer, "2026-09-29 10:05:00+02:00", st)
+    assert not _an(hass, "switch.hk1") and st.daten.grund[C1] == "arbeitszeit"
+    await _zu(hass, freezer, "2026-09-29 10:16:00+02:00", st)
+    assert _an(hass, "switch.hk1") and st.daten.grund[C1] == "arbeitszeit"
+    assert st.daten.text[C1] == "an · Thermostat regelt"
+
+
+async def test_fuehler_beim_start_unbekannt(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    """Szenarien, Herbert 01.10.2026: meldet der Fühler schon beim Start nichts (kein letzter Wert), gilt sofort
+    „wie ohne Fühler“ – in der Arbeitszeit an, der Heizkörperthermostat regelt."""
+    entry, st = await _neu(hass, freezer, shellys)
+    hass.states.async_set("sensor.temp_c1", "unknown")
+    await _automatik(hass, st)
     assert _an(hass, "switch.hk1") and st.daten.grund[C1] == "arbeitszeit"
     assert st.daten.text[C1] == "an · Thermostat regelt"

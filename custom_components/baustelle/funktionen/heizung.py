@@ -45,7 +45,7 @@ from ..logik.arbeitszeit import (
     tagesplan,
     uhrzeit,
 )
-from ..logik.regelung import HandEnde, LageContainer, Soll, SollGrund, hand_ende, soll_container
+from ..logik.regelung import FUEHLER_HALTEN_MIN, HandEnde, LageContainer, Soll, SollGrund, hand_ende, letzter_wert, soll_container
 from ..logik.zaehlen import (
     ABKUEHL_MIN_H,
     AUFHEIZ_MIN_H,
@@ -114,6 +114,7 @@ class Heizung(Funktion):
         self._zu_warm_vorher: bool | None = None
         self.tuer_trotzdem: set[str] = set()  # Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist
         self._frost: dict[str, bool] = {}
+        self._tuer_pause: dict[str, bool] = {}   # war zuletzt wegen offener Tür pausiert
         self._unter_soll_seit: dict[str, datetime] = {}
         self._hand_phase: dict[str, bool] = {}
         self._phase: dict[str, tuple[bool, datetime, float]] = {}  # Bereich → (heizt, seit, Temperatur beim Beginn)
@@ -336,7 +337,7 @@ class Heizung(Funktion):
                     plan = Plan(start=minute, vor=minute, a=minute, b=max(minute + 1, ende), nach=max(minute + 1, ende),
                                 ende=max(minute + 1, ende))
                 frei, warm = False, False
-            temp = st.temperatur(info.fuehler)
+            temp = self.temperatur_gehalten(bid, info.fuehler, jetzt)   # Fühler kurz weg: letzter Wert (Szenarien)
             soll_t = self.soll_temperatur(bid)
             tuer_min = None
             tuer = e.get("tuer")
@@ -363,13 +364,33 @@ class Heizung(Funktion):
                 modus=self.modus(bid), frost_aus=None if h.get("frost_aus") is None else float(h["frost_aus"]),
                 frei_modus=str(h.get("frei_modus") or "frost"), absenk=float(h.get("absenk") or 10.0),
                 frost_immer=bool(h.get("frost_immer")), tpi=self._tpi(info, e, temp, soll_t, wetter, jetzt),
+                aussen=wetter.aussen, frost_aussen=None if h.get("frost_aussen") is None else float(h["frost_aussen"]),
+                laeuft_gerade=any((z := hass.states.get(g.schalter)) is not None and z.state == STATE_ON
+                                  for g in st.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER),
+                tuer_vorher=self._tuer_pause.get(bid, False),
             )
             soll = soll_container(lage, int(h["tuer_pause_min"]))
             self._lern_grund[bid] = soll.grund
             self._frost[bid] = soll.grund == SollGrund.FROST
+            self._tuer_pause[bid] = soll.grund == SollGrund.TUER_OFFEN
             self._stufen_rechnen(bid, soll, temp, soll_t, wetter, jetzt, plan, minute, warm_ab)
             ergebnis[bid] = (soll, lage)
         return ergebnis
+
+    def temperatur_gehalten(self, bid: str, fuehler: str | None, jetzt: datetime) -> float | None:
+        """Raumtemperatur; meldet der Fühler kurz nichts (Funk, HA-Start), gilt bis 15 min der letzte Wert (logik/regelung)."""
+        if not fuehler:
+            return None
+        wert = self.st.temperatur(fuehler)
+        zuletzt = self.st.lz.setdefault("fuehler_zuletzt", {})
+        if wert is not None:
+            if not zuletzt.get(bid) or zuletzt[bid][1] != wert:
+                zuletzt[bid] = [jetzt.isoformat(timespec="seconds"), wert]
+            else:
+                zuletzt[bid][0] = jetzt.isoformat(timespec="seconds")
+            return wert
+        z = zuletzt.get(bid)
+        return letzter_wert(None, (zeit(z[0]), float(z[1])) if z and zeit(z[0]) else None, jetzt, FUEHLER_HALTEN_MIN)
 
     # ------------------------------------------------------------------ Zusatz-Heizkörper (AN-0006, logik/stufen)
     def heizer_von(self, bid: str) -> list[GeraetInfo]:
@@ -658,7 +679,7 @@ class Heizung(Funktion):
 
     def warnung_protokoll(self, w: Warnung) -> tuple[str, str] | None:
         if w.art == warn_logik.Art.TUER_OFFEN:
-            return "schalten", "Tür offen – Heizung pausiert"
+            return ("schalten", "Tür offen – Heizung pausiert") if w.werte.get("pausiert", True) else ("warnung", "Tür offen")
         return None
 
     def warnungen(self, jetzt: datetime, soll: SollJeBereich) -> list[warn_logik.ContainerZustand]:
@@ -678,10 +699,11 @@ class Heizung(Funktion):
             frost = s_c is not None and s_c[0].grund == SollGrund.FROST   # Frost geht vor: nicht „pausiert“ melden (Szenario-Befund)
             if tuer and not frost and info.id not in self.tuer_trotzdem and (s := st.hass.states.get(tuer)) is not None and s.state == STATE_ON:
                 tuer_seit = dt_util.as_local(s.last_changed)
+            pausiert = s_c is not None and s_c[0].grund == SollGrund.TUER_OFFEN   # sonst: Sicherheitshinweis (Szenarien)
             liste.append(
                 warn_logik.ContainerZustand(
                     id=info.id, temperatur=temp, soll=soll_t, in_arbeitszeit=in_az, fuehler=bool(info.fuehler),
-                    unter_soll_seit=self._unter_soll_seit.get(info.id), tuer_offen_seit=tuer_seit,
+                    unter_soll_seit=self._unter_soll_seit.get(info.id), tuer_offen_seit=tuer_seit, tuer_pausiert=pausiert,
                 )
             )
         return liste
@@ -738,6 +760,8 @@ class Heizung(Funktion):
             text = f"aus bis {naechster}" if naechster else "aus"
         if an and not heizer_an and zustand == "aus":
             text = "aus · Steckdose an"
+        if zustand in ("aus", "bereit") and grund != SollGrund.TUER_OFFEN and self._tuer_offen(e):
+            text = f"{text} · 🚪 Tür offen"
         return zustand, text, str(grund)
 
     def _zieht_strom(self, g: GeraetInfo) -> bool:

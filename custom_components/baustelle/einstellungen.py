@@ -65,6 +65,7 @@ STANDARD: dict[str, Any] = {
         "frei_modus": "frost",    # Urlaub und freie Feiertage: frost | absenk | aus (neu 0.7.8)
         "absenk": 10.0,
         "frost_immer": False,     # Frostschutz auch bei ausgeschalteter Automatik (startet aus)
+        "frost_aussen": -3.0,     # ohne Fühler: Frostschutz ein unter dieser Außentemperatur (None = aus; Szenarien)
         "trocknen_ab_mm": 2.0,
         "trocknen_laenger_min": 45,
         "trocknen_frueher_min": 15,

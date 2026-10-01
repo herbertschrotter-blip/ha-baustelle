@@ -286,16 +286,42 @@ async def test_hand_modus_ohne_fuehler_text(hass: HomeAssistant, freezer, shelly
     assert (_c(b)["grund"], _c(b)["text"]) == ("hand", "an · Thermostat regelt")
 
 
-async def test_aus_ohne_fuehler_kein_frostschutz(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
-    """FRAGE: Modus Aus ohne Fühler zeigt „aus · nur Frostschutz“, obwohl ohne Fühler kein Frostschutz möglich ist
-    (regelung.frostschutz braucht eine Temperatur). Geprüft wird das tatsächliche Verhalten."""
+async def test_aus_ohne_fuehler_frostschutz_nach_aussen(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
+    """Szenarien, Herbert 01.10.2026: ohne Fühler gilt der Frostschutz nach der Außentemperatur (`frost_aussen`,
+    Standard −3 °C): ein unter −3 °C, aus erst ab −1 °C (Spanne 2 °C) – auch im Modus Aus („aus · nur Frostschutz“)."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client, fuehler=False)
     assert (await _modus(b, "aus"))["success"]
     hass.states.async_set("sensor.aussen", "-10.0")
     await _zu(b, "nachts")
     await _automatik(b)
     c = _c(b)
+    assert _an(b) and (c["zustand"], c["grund"], c["text"]) == ("frost", "frost", "Frostschutz")
+    hass.states.async_set("sensor.aussen", "-1.5")              # über −3, aber unter −1: bleibt an
+    await _zu(b, "2026-09-30 02:20:00+02:00")
+    assert _an(b) and _c(b)["grund"] == "frost"
+    hass.states.async_set("sensor.aussen", "-1.0")              # ab −1 °C aus
+    await _zu(b, "2026-09-30 02:40:00+02:00")
+    c = _c(b)
     assert not _an(b) and (c["zustand"], c["grund"], c["text"]) == ("aus", "aus", "aus · nur Frostschutz")
+    hass.states.async_set("sensor.aussen", "-2.5")              # zwischen −3 und −1: bleibt aus
+    await _zu(b, "2026-09-30 03:00:00+02:00")
+    assert not _an(b)
+
+
+@pytest.mark.parametrize("abschalten", ["frost_aussen", "frost"])
+async def test_ohne_fuehler_frostschutz_abschaltbar(
+    hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client, abschalten,
+) -> None:
+    """Szenarien, Herbert 01.10.2026: `frost_aussen` None schaltet den Frostschutz ohne Fühler ab; ist der
+    Frostschutz ganz aus (`heizung.frost`), gilt er ohne Fühler auch nicht."""
+    b = await _aufbau(hass, freezer, shellys, hass_ws_client, fuehler=False)
+    wert = None if abschalten == "frost_aussen" else False
+    assert (await b.rufe("baustelle/setzen", pfad=["heizung", abschalten], wert=wert))["success"]
+    assert (await _modus(b, "aus"))["success"]
+    hass.states.async_set("sensor.aussen", "-10.0")
+    await _zu(b, "nachts")
+    await _automatik(b)
+    assert not _an(b) and _c(b)["grund"] == "aus"
 
 
 # ---------------------------------------------------------------------- Tür
@@ -332,13 +358,18 @@ async def test_tuer_offen_frostschutz_geht_vor(hass: HomeAssistant, freezer, she
     assert _an(b) and _c(b)["grund"] == "frost"
 
 
-@pytest.mark.parametrize(("modus", "zeit"), [("thermo", "nachts"), ("aus", "arbeitszeit"), ("bedarf", "arbeitszeit")])
+@pytest.mark.parametrize(("modus", "zeit", "zustand", "grund", "text"), [
+    ("thermo", "nachts", "aus", "ausserhalb", "aus bis 06:15"),
+    ("aus", "arbeitszeit", "aus", "aus", "aus · nur Frostschutz"),
+    ("bedarf", "arbeitszeit", "bereit", "bereit", "bei Bedarf · nur Frostschutz"),
+], ids=["thermo-nachts", "aus-arbeitszeit", "bedarf-arbeitszeit"])
 async def test_tuer_offen_wenn_ohnehin_nicht_geheizt(
-    hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client, modus, zeit,
+    hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client, modus, zeit, zustand, grund, text,
 ) -> None:
-    """FRAGE: Tür offen, obwohl der Container gerade gar nicht heizen würde (nachts, Modus Aus, Bedarf bereit):
-    Kachel „pausiert · Tür offen“, Hinweis „Heizt wieder, sobald die Tür zu ist“ und nach 10 min Handy-Nachricht
-    „Die Heizung ist pausiert …“ mit Knopf „Trotzdem heizen“. Geprüft wird das tatsächliche Verhalten."""
+    """Szenarien, Herbert 01.10.2026: Tür offen, obwohl der Container gerade gar nicht heizen würde (nachts, Modus
+    Aus, Bedarf bereit), pausiert nichts: der eigentliche Grund bleibt, die Kachel zeigt „… · 🚪 Tür offen“, die
+    Warnung `tuer_offen` ist nur ein Hinweis (`pausiert` False), Protokoll „Tür offen“ (Warnung), nach 10 min
+    Handy-Nachricht „Es wird gerade nicht geheizt …“ ohne Knopf „Trotzdem heizen“; Tür zu: „Tür wieder zu“."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client, tuer=True)
     await _temp(b, "17.0")
     assert (await _modus(b, modus))["success"]
@@ -348,9 +379,20 @@ async def test_tuer_offen_wenn_ohnehin_nicht_geheizt(
     hass.states.async_set(TUER, "on")
     await _zu(b, start.replace(":00:00+", ":11:00+").replace(":30:00+", ":41:00+"))
     c = _c(b)
-    assert not _an(b) and (c["zustand"], c["grund"], c["text"]) == ("pause", "tuer_offen", "pausiert · Tür offen")
+    assert not _an(b) and (c["zustand"], c["grund"], c["text"]) == (zustand, grund, f"{text} · 🚪 Tür offen")
     assert ("tuer_offen", C1, None) in _warn(b)
-    assert [n.data["title"] for n in nachrichten if "Tür" in n.data["title"]] == ["🚪 Container 1: Tür seit 11 min offen"]
+    w = next(w for w in b.st.daten.warnungen if w.art == "tuer_offen")
+    assert w.werte["pausiert"] is False
+    assert "Tür offen" in _texte(b, "warnung") and "Tür offen – Heizung pausiert" not in _texte(b)
+    tuer_n = [n for n in nachrichten if "Tür" in n.data["title"]]
+    assert [n.data["title"] for n in tuer_n] == ["🚪 Container 1: Tür seit 11 min offen"]
+    assert tuer_n[0].data["message"] == "Es wird gerade nicht geheizt – bitte prüfen, ob die Tür offen bleiben soll."
+    assert [a["title"] for a in tuer_n[0].data["data"]["actions"]] == ["1 h stumm"]
+    hass.states.async_set(TUER, "off")
+    await _zu(b, start.replace(":00:00+", ":12:00+").replace(":30:00+", ":42:00+"))
+    c = _c(b)
+    assert ("tuer_offen", C1, None) not in _warn(b) and (c["grund"], c["text"]) == (grund, text)
+    assert "Tür wieder zu" in _texte(b, "ok")
 
 
 # ---------------------------------------------------------------------- zwei Heizkörper
@@ -398,9 +440,10 @@ async def test_zwei_heizkoerper_mit_staffelung_nacheinander(
 async def test_fuehler_faellt_aus_waehrend_thermo(
     hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client, ausfall,
 ) -> None:
-    """FRAGE: Fühler fällt im Modus Thermostat aus, während der Raum über Soll ist (Heizkörper aus): der Container
-    verhält sich wie ohne Fühler – Heizkörper an, „an · Thermostat regelt“ –, dazu die Warnung `fuehler_fehlt`.
-    Regelt der Fühler wieder, schaltet der Thermostat ab. Geprüft wird das tatsächliche Verhalten."""
+    """Szenarien, Herbert 01.10.2026: Fühler fällt im Modus Thermostat aus, während der Raum über Soll ist
+    (Heizkörper aus): bis 15 min gilt der letzte Wert (bleibt aus), danach verhält sich der Container wie ohne
+    Fühler – Heizkörper an, „an · Thermostat regelt“ –, dazu die Warnung `fuehler_fehlt`. Regelt der Fühler wieder,
+    schaltet der Thermostat ab."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client)
     await _temp(b, "21.0")
     await _zu(b, "arbeitszeit")
@@ -408,13 +451,17 @@ async def test_fuehler_faellt_aus_waehrend_thermo(
     assert not _an(b)
     await _temp(b, ausfall)
     await _zu(b, "2026-09-29 10:01:00+02:00")
+    assert not _an(b) and _c(b)["grund"] == "arbeitszeit"     # letzter Wert 21,0 °C gilt noch
+    await _zu(b, "2026-09-29 10:15:00+02:00")
+    assert not _an(b)                                          # 15 min: noch gehalten
+    await _zu(b, "2026-09-29 10:16:00+02:00")
     c = _c(b)
     assert _an(b) and (c["zustand"], c["grund"], c["text"], c["modus"], c["temperatur"]) == (
         "heizt", "arbeitszeit", "an · Thermostat regelt", "thermo", None)
     assert ("fuehler_fehlt", C1, None) in _warn(b)
     assert struktur(hass, b.entry)["laufzeit"]["container"][C1]["lernen"]["anteil"] is None
     await _temp(b, "21.0")
-    await _zu(b, "2026-09-29 10:02:00+02:00")
+    await _zu(b, "2026-09-29 10:17:00+02:00")
     assert not _an(b) and ("fuehler_fehlt", C1, None) not in _warn(b)
 
 
@@ -431,16 +478,25 @@ async def test_fuehler_faellt_aus_beim_heizen(hass: HomeAssistant, freezer, shel
     assert ("fuehler_fehlt", C1, None) in _warn(b)
 
 
-async def test_fuehler_faellt_aus_nachts_kein_frostschutz(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
-    """Nachts ohne Messwert: kein Frostschutz möglich, Heizkörper bleibt aus, Warnung `fuehler_fehlt` (Störung)."""
+@pytest.mark.parametrize(("aussen", "frost_danach"), [("4.5", False), ("-5.0", True)], ids=["aussen-mild", "aussen-frost"])
+async def test_fuehler_faellt_aus_nachts_frostschutz(
+    hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client, aussen, frost_danach,
+) -> None:
+    """Szenarien, Herbert 01.10.2026: Nachts fällt der Fühler im Frostschutz aus: bis 15 min gilt der letzte Wert
+    (Frostschutz läuft weiter), danach wie ohne Fühler – Frostschutz nach der Außentemperatur (ein unter −3 °C),
+    sonst aus (außerhalb der Heizzeit). Warnung `fuehler_fehlt` (Störung)."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client)
+    hass.states.async_set("sensor.aussen", aussen)
     await _temp(b, "4.0")
     await _zu(b, "nachts")
     await _automatik(b)
     assert _an(b) and _c(b)["grund"] == "frost"
     await _temp(b, "unavailable")
-    await _zu(b, "2026-09-30 02:20:00+02:00")                 # nach dem Mindestlauf
-    assert not _an(b) and _c(b)["grund"] == "ausserhalb"
+    await _zu(b, "2026-09-30 02:10:00+02:00")
+    assert _an(b) and _c(b)["grund"] == "frost"                 # letzter Wert 4,0 °C gilt noch
+    await _zu(b, "2026-09-30 02:20:00+02:00")                 # 20 min ohne Wert (und nach dem Mindestlauf)
+    assert _an(b) is frost_danach
+    assert _c(b)["grund"] == ("frost" if frost_danach else "ausserhalb")
     w = next(x for x in struktur(hass, b.entry)["laufzeit"]["warnungen"] if x["art"] == "fuehler_fehlt")
     assert w["bereich"] == C1
 
@@ -543,6 +599,22 @@ async def test_tuer_im_modus_hand(hass: HomeAssistant, freezer, shellys, nachric
     assert not _an(b) and (_c(b)["grund"], _c(b)["text"]) == ("hand", "aus")
 
 
+async def test_tuer_im_modus_hand_heizkoerper_aus(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
+    """Szenarien, Herbert 01.10.2026: Modus Hand ohne laufenden Heizkörper – die Tür schaltet nichts; Grund bleibt
+    „hand“, die Kachel zeigt „aus · 🚪 Tür offen“, die Warnung ist nur ein Hinweis."""
+    b = await _aufbau(hass, freezer, shellys, hass_ws_client, tuer=True)
+    await _temp(b, "17.0")
+    assert (await _modus(b, "hand"))["success"]
+    await _zu(b, "arbeitszeit")
+    await _automatik(b)
+    hass.states.async_set(TUER, "on")
+    await _zu(b, "2026-09-29 10:04:00+02:00")
+    c = _c(b)
+    assert not _an(b) and (c["grund"], c["text"]) == ("hand", "aus · 🚪 Tür offen")
+    assert [a for a in shellys.aufrufe if a[0] == "switch.hk1"] == []
+    assert next(w for w in b.st.daten.warnungen if w.art == "tuer_offen").werte["pausiert"] is False
+
+
 async def test_geraete_hand_im_modus_hand(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
     """FRAGE: Im Modus Hand wird ein in HA geschalteter Heizkörper zusätzlich Gerät-Hand; nach 8 h kommt
     „✋ … seit 8 h auf Hand“ aufs Handy, die Automatik übernimmt aber nie (Soll None, heizung.py:587).
@@ -583,3 +655,4 @@ async def test_heizkoerper_an_zieht_keinen_strom(
     await _zu(b, "2026-09-29 10:05:00+02:00")
     assert _an(b) and (_c(b)["zustand"], _c(b)["text"]) == ("aus", "an · zieht keinen Strom")
     assert (("keine_leistung", C1, HK1) in _warn(b)) is warnung
+

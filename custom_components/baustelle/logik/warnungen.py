@@ -139,6 +139,7 @@ class ContainerZustand:
     batterie: float | None = None
     unter_soll_seit: datetime | None = None
     tuer_offen_seit: datetime | None = None
+    tuer_pausiert: bool = True      # Tür pausiert die Heizung (sonst nur ein Sicherheitshinweis, Szenarien)
 
 
 @dataclass(frozen=True)
@@ -353,6 +354,7 @@ def _pruefe_container(c: ContainerZustand, einst: WarnEinstellungen, jetzt: date
                     c.id,
                     minuten=int(offen),
                     nachricht=offen >= einst.tuer_melden_min,
+                    pausiert=c.tuer_pausiert,
                 )
             )
     return w

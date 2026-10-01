@@ -121,8 +121,8 @@ class Nachrichten:
         name = self.st.bereiche[w.bereich].name if w.bereich in self.st.bereiche else None
         titel, text = texte.nachricht(w, name)
         if w.art == warn_logik.Art.TUER_OFFEN:
-            aktionen = [self._aktion("trotzdem", w.bereich or "", "Trotzdem heizen"),
-                        self._aktion("stumm_1h", w.key, "1 h stumm")]
+            aktionen = ([self._aktion("trotzdem", w.bereich or "", "Trotzdem heizen")] if w.werte.get("pausiert", True) else []) + [
+                self._aktion("stumm_1h", w.key, "1 h stumm")]
         elif w.art == warn_logik.Art.HAND_ZU_LANGE:
             aktionen = [self._aktion("automatik", w.geraet or "", "Automatik übernehmen"),
                         self._aktion("stumm_morgen", w.key, "So lassen")]

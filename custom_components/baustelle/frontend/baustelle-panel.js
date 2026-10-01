@@ -983,7 +983,7 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
   staffel: ['staffel', 'an'], nutzbar: ['staffel', 'nutzbar_prozent'], max_gleich: ['staffel', 'max_gleichzeitig'], min_lauf: ['staffel', 'min_lauf_min'],
   min_pause: ['staffel', 'min_pause_min'], takt: ['staffel', 'takt_min'], tuer_pause: ['heizung', 'tuer_pause_min'], tuer_melden: ['heizung', 'tuer_melden_min'],
   knoepfe: ['meldungen_einst', 'knoepfe'], bericht: ['bericht', 'haeufigkeit'], bericht_handy: ['bericht', 'handy'], bericht_mail: ['bericht', 'mail'],
-  mail: ['bericht', 'mail_an'], bericht_csv: ['bericht', 'csv'], vorheizen: ['heizung', 'vorheizen_min'], nachheizen: ['heizung', 'nachheizen_min'], warm_vor: ['heizung', 'warm_vor_min'], warm_nach: ['heizung', 'warm_nach_min'], warm_max: ['heizung', 'warm_max_min'], stufen_abstand: ['heizung', 'stufen_abstand'], stufen_min: ['heizung', 'stufen_min'], stufen_anstieg: ['heizung', 'stufen_anstieg'], stufen_kalt: ['heizung', 'stufen_kalt'],
+  mail: ['bericht', 'mail_an'], bericht_csv: ['bericht', 'csv'], vorheizen: ['heizung', 'vorheizen_min'], nachheizen: ['heizung', 'nachheizen_min'], warm_vor: ['heizung', 'warm_vor_min'], frost_aussen: ['heizung', 'frost_aussen'], warm_nach: ['heizung', 'warm_nach_min'], warm_max: ['heizung', 'warm_max_min'], stufen_abstand: ['heizung', 'stufen_abstand'], stufen_min: ['heizung', 'stufen_min'], stufen_anstieg: ['heizung', 'stufen_anstieg'], stufen_kalt: ['heizung', 'stufen_kalt'],
   soll: ['heizung', 'soll'], grenze: ['heizung', 'heizgrenze'], basis: ['heizung', 'heizgrenze_basis'], fruehstart: ['heizung', 'fruehstart'],
   frueh_temp: ['heizung', 'fruehstart_unter'], frueh_min: ['heizung', 'fruehstart_min'], frost: ['heizung', 'frost'], frost_temp: ['heizung', 'frost_grenze'],
   tr_mm: ['heizung', 'trocknen_ab_mm'], tr_laenger: ['heizung', 'trocknen_laenger_min'], tr_frueher: ['heizung', 'trocknen_frueher_min'],
@@ -996,7 +996,7 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
 const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], min_pause: [0, 120], takt: [5, 240], tuer_pause: [1, 120], tuer_melden: [1, 240],
   vorheizen: [0, 240], nachheizen: [0, 240], soll: [5, 30], grenze: [0, 30], frueh_temp: [-15, 20], frueh_min: [0, 240], frost_temp: [0, 15],
   tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480],
-  frost_aus: [1, 20], absenk: [5, 20], offline_min: [1, 1440], trocken_w: [5, 5000], dauer_min: [5, 1440], zyklen_h: [2, 200], kalt_min: [15, 1440], hand_h: [1, 240], warm_vor: [0, 240], warm_nach: [0, 240], warm_max: [15, 480], stufen_abstand: [0.5, 10], stufen_min: [5, 240], stufen_anstieg: [0, 5], stufen_kalt: [-30, 15] };
+  frost_aus: [1, 20], absenk: [5, 20], offline_min: [1, 1440], trocken_w: [5, 5000], dauer_min: [5, 1440], zyklen_h: [2, 200], kalt_min: [15, 1440], hand_h: [1, 240], warm_vor: [0, 240], warm_nach: [0, 240], frost_aussen: [-20, 10], warm_max: [15, 480], stufen_abstand: [0.5, 10], stufen_min: [5, 240], stufen_anstieg: [0, 5], stufen_kalt: [-30, 15] };
 /* Modus je Container (0.7.8): wie im Mockup, Thermostat nur mit Fühler */
 const MODI = [['plan', 'Zeitplan'], ['thermo', 'Thermostat'], ['bedarf', 'Bei Bedarf'], ['hand', 'Hand'], ['aus', 'Aus']];
 const MODUS_TEXT = { plan: 'an in der Heizzeit – der Thermostat am Heizkörper regelt', thermo: 'in der Heizzeit auf das Soll nach dem Fühler',
@@ -1218,7 +1218,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.15';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.16';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1419,7 +1419,7 @@ class BaustellePanel extends HTMLElement {
       staffel: st.an !== false, nutzbar: v(st.nutzbar_prozent, 67), max_gleich: v(st.max_gleichzeitig, 5), min_lauf: v(st.min_lauf_min, 10), min_pause: v(st.min_pause_min, 5), takt: v(st.takt_min, 15),
       tuer_pause: v(h.tuer_pause_min, 3), tuer_melden: v(h.tuer_melden_min, 10), knoepfe: me.knoepfe !== false,
       bericht: be.haeufigkeit || 'aus', bericht_handy: be.handy !== false, bericht_mail: !!be.mail, mail: be.mail_an || '', mail_dienst: be.mail_dienst || '', bericht_csv: be.csv !== false,
-      vorheizen: v(h.vorheizen_min, 45), nachheizen: v(h.nachheizen_min, 15), warm_vor: v(h.warm_vor_min, 0), warm_nach: v(h.warm_nach_min, 0), warm_max: v(h.warm_max_min, 120), stufen_abstand: v(h.stufen_abstand, 1.5), stufen_min: v(h.stufen_min, 30), stufen_anstieg: v(h.stufen_anstieg, 0.3), stufen_kalt: v(h.stufen_kalt, -5), soll: v(h.soll, 20), grenze: v(h.heizgrenze, 15), basis: h.heizgrenze_basis === 'jetzt' ? 'jetzt' : 'Tageshöchstwert',
+      vorheizen: v(h.vorheizen_min, 45), nachheizen: v(h.nachheizen_min, 15), warm_vor: v(h.warm_vor_min, 0), frost_aussen: h.frost_aussen === null ? null : v(h.frost_aussen, -3), warm_nach: v(h.warm_nach_min, 0), warm_max: v(h.warm_max_min, 120), stufen_abstand: v(h.stufen_abstand, 1.5), stufen_min: v(h.stufen_min, 30), stufen_anstieg: v(h.stufen_anstieg, 0.3), stufen_kalt: v(h.stufen_kalt, -5), soll: v(h.soll, 20), grenze: v(h.heizgrenze, 15), basis: h.heizgrenze_basis === 'jetzt' ? 'jetzt' : 'Tageshöchstwert',
       fruehstart: h.fruehstart !== false, frueh_temp: v(h.fruehstart_unter, 0), frueh_min: v(h.fruehstart_min, 30), frost: h.frost !== false, frost_temp: v(h.frost_grenze, 5),
       tr_mm: v(h.trocknen_ab_mm, 2), tr_laenger: v(h.trocknen_laenger_min, 45), tr_frueher: v(h.trocknen_frueher_min, 15),
       empfaenger: (me.empfaenger || opt.empfaenger || []).map(namen).join(', ') || 'keiner gewählt',
@@ -2417,6 +2417,7 @@ class BaustellePanel extends HTMLElement {
         <div class="zeile"><div><b>Frostschutz</b><div class="leise">hält jeden Container über der Grenze, auch außerhalb der Arbeitszeit</div></div>${schalter(e.frost, 'e-bool', 'data-k="frost"')}</div>
         ${e.frost ? `<div class="zeile unter"><span>ein unter</span>${st('frost_temp', .5, grad)}</div>
         <div class="zeile unter"><span>aus über</span>${st('frost_aus', .5, grad)}</div>
+        <div class="zeile unter"><div><span>ohne Fühler: ein, wenn draußen unter</span><div class="leise">aus erst 2 °C darüber; der Heizkörperthermostat regelt dann selbst</div></div>${e.frost_aussen === null ? '<span class="leise">aus</span>' : st('frost_aussen', 1, v => `${de(v, 0).replace('-', '−')} °C`)}</div>
         <div class="zeile unter"><div><span>auch bei Automatik aus</span><div class="leise">schaltet dann nur den Frostschutz, sonst nichts</div></div>${schalter(e.frost_immer, 'e-bool', 'data-k="frost_immer"')}</div>` : ''}
         ${erkl(e.erklaer, 'Vorheizen und Nachheizen gelten jeden Arbeitstag. Die Verlängerungen zählen zusammen: vor der Arbeit Vorheizen + Kälte-Frühstart + früher nach Regen, danach Nachheizen + Kleidung trocknen (AN-0003). Die Heizgrenze verhindert Heizen an warmen Tagen. Der Frostschutz springt unter „ein“ an und hört erst über „aus“ wieder auf, damit der Heizkörper nicht dauernd ein- und ausschaltet. Ohne Fühler kennt die Integration keine Innentemperatur – der Frostschutz braucht einen Fühler.')}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen zusätzlich zum Nachheizen</span></div>

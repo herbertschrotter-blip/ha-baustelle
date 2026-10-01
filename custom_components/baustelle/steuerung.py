@@ -77,7 +77,7 @@ from .funktionen.basis import (
     zahl as _zahl,
     zeit as _zeit,
 )
-from .logik import staffel as staffel_logik, warnungen as warn_logik
+from .logik import regelung as regel_logik, staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import Arbeitszeit, Ausnahme, WetterTag
 from .logik.zaehlen import energie_zuwachs, leistung_integriert
 from . import texte
@@ -506,6 +506,11 @@ class Steuerung:
             zustand = w.state if w.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN) else None
             if aussen is None and isinstance(w.attributes.get(ATTR_TEMPERATURE), (int, float)):
                 aussen = float(w.attributes[ATTR_TEMPERATURE])
+        # Außenwert fehlt ganz: der letzte gemessene gilt bis 6 h (logik/regelung, Szenarien), sonst „unbekannt“
+        if aussen is not None:
+            self.lz["aussen_zuletzt"] = [jetzt.isoformat(timespec="seconds"), aussen]
+        elif (z := self.lz.get("aussen_zuletzt")) and (t := dt_util.parse_datetime(str(z[0]))) is not None:
+            aussen = regel_logik.letzter_wert(None, (t, float(z[1])), jetzt, regel_logik.AUSSEN_HALTEN_MIN)
         tag = self._wetter_tag(heute)
         regen = _zahl(self.hass.states.get(o[CONF_REGEN_SENSOR])) if o.get(CONF_REGEN_SENSOR) else None
         if regen is not None:

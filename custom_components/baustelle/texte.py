@@ -32,6 +32,8 @@ SYMBOL: dict[str, str] = {Art.TUER_OFFEN: "🚪", Art.HAND_ZU_LANGE: "✋", Art.
 def hilfe(w: Warnung, tuer_melden_min: float = 10) -> str:
     """Hilfetext einer Warnung (Mockup `hilfe`)."""
     text = HILFE.get(w.art, "")
+    if w.art == Art.TUER_OFFEN and not w.werte.get("pausiert", True):
+        text = "Gerade wird nicht geheizt – ein Hinweis, falls die Tür nicht offen bleiben soll. Nach {melden} min kommt eine Nachricht aufs Handy."
     return text.format(grenze=_zahl(w.werte.get("grenze", 5), 0), melden=int(tuer_melden_min))
 
 
@@ -52,7 +54,8 @@ def nachricht(w: Warnung, bereich_name: str | None) -> tuple[str, str]:
         case Art.TUER_OFFEN:
             return (
                 f"🚪 {ort}: Tür seit {w.werte.get('minuten', 0)} min offen",
-                "Die Heizung ist pausiert und heizt wieder, sobald die Tür zu ist.",
+                "Die Heizung ist pausiert und heizt wieder, sobald die Tür zu ist." if w.werte.get("pausiert", True)
+                else "Es wird gerade nicht geheizt – bitte prüfen, ob die Tür offen bleiben soll.",
             )
         case Art.HAND_ZU_LANGE:
             stunden = int(w.werte.get("stunden", 0))
@@ -70,7 +73,7 @@ def wieder_ok(w: Warnung) -> str:
         case Art.TROCKENLAUF | Art.DAUERLAUF | Art.ZYKLEN_OFT:
             return f"{name or 'Pumpe'} wieder normal"
         case Art.TUER_OFFEN:
-            return "Tür zu – Heizung läuft weiter"
+            return "Tür zu – Heizung läuft weiter" if w.werte.get("pausiert", True) else "Tür wieder zu"
     return f"wieder in Ordnung: {titel(w)}"
 
 
