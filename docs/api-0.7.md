@@ -37,6 +37,11 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
                 "rang": ["<gid>", "…"]},   // oben zuerst an, unten gibt zuerst ab (Bedarf in °C, logik/bedarf)
     // je Container zusätzlich laufzeit.container.<id>.bedarf (Staffelung): {"summe", "jetzt", "abkuehlen", "abkuehl_h",
     //   "gemessen", "trend_h", "nachlauf", "aufheiz_h", "ziel", "gerecht", "heiz_min", "horizont_min"} – °C bzw. °C/h, min
+    // Soll gleitend (logik/soll): laufzeit.soll_gleitend = {"aussen_mittel", "tage", "start", "gefuehl", "soll", "n", "schritt",
+    //   "kurve": [[t_außen, start, soll], …], "rueck": [[t_außen, -1|0|1], …]} oder null; je Container laufzeit.container.<id>.soll =
+    //   {"wert", "versch", "versch_bis", "eigen"}. Einstellungen heizung.soll_art (fest|gleitend), gleit_min, gleit_max,
+    //   gleit_je, gleit_bezug, gleit_tage; Aktionen baustelle/aktion gefuehl {bereich, wert}, soll_versch {bereich, d},
+    //   soll_versch_weg {bereich}, gefuehl_vergessen.
     "warnungen": [{"key": "", "art": "", "stufe": "stoerung|hinweis", "bereich": "<bid>|null", "geraet": "<gid>|null",
                    "titel": "nicht erreichbar", "hilfe": "", "seit": "ISO", "stumm_bis": "ISO|null"}],
     "wetter": {"aussen": 4.2, "aussen_max": 9, "frueh_min": -1.2, "regen_vortag": 6, "regen_heute": 6, "zustand": "rainy"},

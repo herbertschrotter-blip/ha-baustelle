@@ -142,6 +142,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "lernen": heizung.lern_anzeige(bid) if info.art == ART_CONTAINER else None,   # lernende Regelung (0.8)
             "stufen": heizung.stufen_anzeige(bid) if info.art == ART_CONTAINER else None,   # Zusatz-Heizkörper (AN-0006)
             "bedarf": heizung.bedarf_anzeige(bid) if info.art == ART_CONTAINER else None,   # Bedarf in °C (Staffelung)
+            "soll": heizung.soll_anzeige(bid) if info.art == ART_CONTAINER else None,   # Soll jetzt (fest/gleitend)
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}
@@ -178,6 +179,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
         "plan_woche": _plan_woche(st, heute) if heizung.aktiv() else [],
         "abschnitte": _abschnitte(st, heute, jetzt) if heizung.aktiv() else {},
         "staffel": d.staffel,
+        "soll_gleitend": heizung.gleit_anzeige() if heizung.aktiv() else None,   # Soll gleitend (Herbert 01.10.2026)
         "warnungen": warnungen,
         "wetter": {"aussen": w.aussen, "aussen_max": w.aussen_max, "frueh_min": w.frueh, "regen_vortag": w.regen_vortag,
                    "regen_heute": w.regen_heute, "zustand": w.zustand},

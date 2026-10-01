@@ -58,6 +58,12 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("heizung", "stufen_kalt"): vol.All(ZAHL, vol.Range(-30, 15)),
     ("heizung", "soll"): vol.All(ZAHL, vol.Range(5, 30)),
     ("heizung", "toleranz"): vol.All(ZAHL, vol.Range(0.1, 3)),
+    ("heizung", "soll_art"): vol.In(["fest", "gleitend"]),   # Soll gleitend (Herbert 01.10.2026)
+    ("heizung", "gleit_min"): vol.All(ZAHL, vol.Range(5, 30)),
+    ("heizung", "gleit_max"): vol.All(ZAHL, vol.Range(5, 30)),
+    ("heizung", "gleit_je"): vol.All(ZAHL, vol.Range(0, 0.5)),
+    ("heizung", "gleit_bezug"): vol.All(ZAHL, vol.Range(0, 20)),
+    ("heizung", "gleit_tage"): vol.All(GANZ, vol.Range(1, 7)),
     ("heizung", "heizgrenze"): vol.All(ZAHL, vol.Range(0, 30)),
     ("heizung", "heizgrenze_basis"): vol.In(["jetzt", "tageshoechst"]),
     ("heizung", "fruehstart"): cv.boolean,
@@ -458,7 +464,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Required("entry_id"): str,
     vol.Required("aktion"): vol.In(
         ["bedarf", "bedarf_aus", "boost", "jetzt_heizen", "schalten", "automatik", "warnung_stumm", "bericht_senden",
-         "test_meldung", "lern_reset", "aktiv"]
+         "test_meldung", "lern_reset", "aktiv", "gefuehl", "soll_versch", "soll_versch_weg", "gefuehl_vergessen"]
     ),
     vol.Optional("bereich"): str,
     vol.Optional("geraet"): str,
@@ -468,6 +474,8 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Optional("an"): bool,
     vol.Optional("key"): str,
     vol.Optional("art"): vol.In(["woche", "monat"]),
+    vol.Optional("wert"): vol.In([-1, 0, 1]),                       # Gefühl: zu kalt | passt | zu warm
+    vol.Optional("d"): vol.All(vol.Coerce(float), vol.Range(-5, 5)),   # + / − am Rad (Soll gleitend)
 })
 @websocket_api.async_response
 async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
@@ -567,6 +575,27 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         lz.setdefault("lernen", {}).pop(bid, None)
         lz.setdefault("warm_start", {}).pop(bid, None)   # auch der festgehaltene Beginn von heute (Szenario-Befund)
         st.protokoll("einstellung", bid, f"{st.bereiche[bid].name}: Lernstand zurückgesetzt")
+    elif aktion in ("gefuehl", "soll_versch", "soll_versch_weg"):   # Soll gleitend (Herbert 01.10.2026)
+        bid = msg.get("bereich")
+        if bid not in st.bereiche:
+            connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Container nicht gefunden")
+            return
+        hz = Heizung.von(st)
+        if aktion == "gefuehl":
+            if "wert" not in msg:
+                _fehler(connection, msg, "gefuehl braucht wert")
+                return
+            hz.gefuehl_merken(bid, int(msg["wert"]), jetzt)
+        elif aktion == "soll_versch":
+            if "d" not in msg:
+                _fehler(connection, msg, "soll_versch braucht d")
+                return
+            hz.soll_verschieben(bid, float(msg["d"]), jetzt)
+        else:
+            hz.soll_versch_weg(bid)
+    elif aktion == "gefuehl_vergessen":
+        lz["gefuehl"] = []
+        st.protokoll("einstellung", None, "Soll gleitend: gelerntes Gefühl vergessen")
     elif aktion == "bericht_senden":
         await st.nachrichten.async_bericht_senden(msg.get("art") or "woche")
         connection.send_result(msg["id"], {"ok": True})

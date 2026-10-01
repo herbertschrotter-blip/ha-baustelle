@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 
 
@@ -129,3 +131,43 @@ async def test_ohne_automatik_je_container(hass: HomeAssistant, baustelle, freez
     await ws.send_json({"id": 2, "type": "baustelle/ohne", "entry_id": baustelle.entry_id, "bereich": C1, "zeitraum": "Tag", "basis": "typ"})
     r = (await ws.receive_json())["result"]
     assert r["basis"] == "typ" and r["kw"] == 2.0     # einziger Ölradiator: Ø des Typs = eigener Wert
+
+
+async def test_soll_gleitend(hass: HomeAssistant, baustelle, freezer, shellys, hass_ws_client) -> None:
+    """Herbert 01.10.2026: Soll gleitend nach dem Außenmittel und dem Gefühl; eigenes Soll als Verschiebung; + / − am Rad
+    bis morgen früh und als Gefühl gemerkt; „↺ gleitend“ setzt zurück."""
+    from custom_components.baustelle.daten import struktur
+    from custom_components.baustelle.funktionen.heizung import Heizung
+    ws = await hass_ws_client(hass)
+    st, hz, e = baustelle.runtime_data, Heizung.von(baustelle.runtime_data), baustelle.entry_id
+    freezer.move_to("2026-10-01 10:00:00+02:00")
+    st.lz["aussen_tage"] = {"2026-09-30": [6.0 * 60, 60], "2026-09-29": [2.0 * 60, 60], "2026-10-01": [10.0, 1]}
+    assert hz.soll_temperatur(C1) == 20.0                                    # fest wie bisher
+    st.einstellung_setzen(("heizung", "soll_art"), "gleitend")
+    t_m = (6.0 + 0.8 * 2.0) / 1.8
+    assert hz.aussen_mittel() == pytest.approx(t_m)
+    assert hz.soll_temperatur(C1) == pytest.approx(21 + 0.1 * (12 - t_m), abs=0.01)
+    st.einstellungen.bereich(C2)["soll"] = 21.0                              # eigenes Soll: +1 gegenüber der Baustelle
+    assert hz.soll_temperatur(C2) == pytest.approx(hz.soll_temperatur(C1) + 1.0, abs=0.01)
+    vorher = hz.soll_temperatur(C1)
+    await ws.send_json({"id": 1, "type": "baustelle/aktion", "entry_id": e, "aktion": "soll_versch", "bereich": C1, "d": 0.5})
+    assert (await ws.receive_json())["success"]
+    gefuehlt = 0.15   # + zählt wie „zu kalt“ beim selben Außenmittel
+    assert hz.soll_temperatur(C1) == pytest.approx(vorher + gefuehlt + 0.5, abs=0.01)
+    lz = struktur(hass, baustelle)["laufzeit"]
+    assert lz["container"][C1]["soll"]["versch"] == 0.5 and lz["container"][C1]["soll"]["versch_bis"].startswith("2026-10-02T03:00")
+    assert lz["soll_gleitend"]["n"] == 1 and len(lz["soll_gleitend"]["kurve"]) == 31
+    freezer.move_to("2026-10-02 03:01:00+02:00")                              # morgen früh: wieder gleitend
+    assert hz.versch(C1) == 0.0
+    await ws.send_json({"id": 2, "type": "baustelle/aktion", "entry_id": e, "aktion": "soll_versch", "bereich": C1, "d": -0.5})
+    await ws.receive_json()
+    await ws.send_json({"id": 3, "type": "baustelle/aktion", "entry_id": e, "aktion": "soll_versch_weg", "bereich": C1})
+    await ws.receive_json()
+    assert hz.versch(C1) == 0.0 and [x[2] for x in st.lz["gefuehl"]] == [-1, 1]
+    await ws.send_json({"id": 4, "type": "baustelle/aktion", "entry_id": e, "aktion": "gefuehl", "bereich": C1, "wert": 0})
+    await ws.receive_json()
+    await ws.send_json({"id": 5, "type": "baustelle/aktion", "entry_id": e, "aktion": "gefuehl_vergessen"})
+    await ws.receive_json()
+    assert st.lz["gefuehl"] == []
+    await ws.send_json({"id": 6, "type": "baustelle/setzen", "entry_id": e, "pfad": ["heizung", "gleit_min"], "wert": 19.0})
+    assert (await ws.receive_json())["success"]                               # Untergrenze frei einstellbar

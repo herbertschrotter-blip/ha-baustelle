@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.36",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Soll gleitend nach draußen und nach dem Gefühl (Herbert 01.10.2026): unter Heizung › Regeln wählbar „fest“ oder „gleitend“. Gleitend richtet sich das Soll nach dem Mittel der Außentemperatur der letzten Tage (wie EN 16798-1: nach kalten Tagen wärmer, weil Wände und Körper ausgekühlt sind) zwischen „mindestens“ und „höchstens“ – mit Rechnung „Soll heute“ und Kurve. Im Container gibt es unter dem Rad „zu kalt / passt / zu warm“; + / − verschiebt das Soll bis morgen früh und zählt als Gefühl, „↺ gleitend“ setzt zurück. Das Gefühl lernt für die ganze Baustelle (je Rückmeldung 0,15 °C bei ähnlichem Wetter, höchstens ±1,5 °C). Ein eigenes Soll im Container gilt dann als Verschiebung. Hinweis, wenn „mindestens“ unter 21 °C liegt (§ 36 BauV)."
+    ]
+  },
+  {
     "version": "0.8.35",
     "datum": "2026-10-01",
     "punkte": [

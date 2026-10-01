@@ -43,6 +43,13 @@ STANDARD: dict[str, Any] = {
         "vorheizen_min": 45,
         "nachheizen_min": 15,
         "soll": 20.0,
+        # Soll gleitend nach draußen und nach dem Gefühl (Herbert 01.10.2026, logik/soll): fest | gleitend
+        "soll_art": "fest",
+        "gleit_min": 21.0,        # § 36 BauV: Aufenthaltsräume mindestens 21 °C (frei einstellbar)
+        "gleit_max": 24.0,
+        "gleit_je": 0.1,          # °C wärmer je Grad, um den das Außenmittel unter `gleit_bezug` liegt
+        "gleit_bezug": 12.0,
+        "gleit_tage": 3,
         "toleranz": 0.3,
         "heizgrenze": 15.0,
         "heizgrenze_basis": "tageshoechst",
@@ -87,7 +94,8 @@ STANDARD: dict[str, Any] = {
     # „frueher“: Nachricht „Noch früher“ – Tag (ISO) → zusätzliche Minuten Frühstart; „regen“: Regen je Tag (mm) für
     # „nach Regen früher“ am Folgetag
     "laufzeit": {"bedarf_bis": {}, "boost_bis": {}, "jetzt_bis": None, "hand": {}, "frueher": {}, "regen": {},
-                 "lernen": {}, "warm_start": {}},   # lernen: Lernstand je Container (logik/lernen, 0.8)
+                 "lernen": {}, "warm_start": {},
+                 "aussen_tage": {}, "gefuehl": [], "soll_versch": {}},   # Soll gleitend: Tagesmittel außen, Rückmeldungen, + / −   # lernen: Lernstand je Container (logik/lernen, 0.8)
     "meldungen_einst": {
         "empfaenger": [],
         "knoepfe": True,

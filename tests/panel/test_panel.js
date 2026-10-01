@@ -719,6 +719,29 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const S = letzte('baustelle/setzen').map(a => `${a.pfad.join('.')}=${a.wert}`);
     erwarte('AN-0012: neue Regler setzen die Integration (' + S.join(', ') + ')', ['heizung.toleranz=0.4', 'heizung.hand_nachfrist_min=35', 'heizung.fuehler_halten_min=20', 'heizung.zieht_strom_w=55'].every(x => S.includes(x)));
     await klick({ act: 'zu' }); }
+  /* Soll gleitend (Herbert 01.10.2026): Regeln mit Rechnung und Kurve, Gefühl und + / − im Container, alles über die Integration */
+  { const e = panel.d.e, alt = [e.soll_art, panel.d.sollG];
+    e.soll_art = 'gleitend';
+    panel.d.sollG = { aussen_mittel: 6.4, tage: 3, start: 21.56, gefuehl: 0.15, soll: 21.71, n: 1, schritt: 0.15, rueck: [[6.0, -1]],
+      kurve: [...Array(31)].map((_, i) => [i - 10, Math.max(21, Math.min(24, 21 + 0.1 * (12 - (i - 10)))), Math.max(21, Math.min(24, 21.15 + 0.1 * (12 - (i - 10))))]) };
+    const h = await hzOffen('regeln'); pruefe('Regeln Soll gleitend');
+    erwarte('Soll gleitend: Rechnung, Kurve, Regler', ['Soll heute', 'sg-kurve', 'data-k="gleit_min"', 'data-k="gleit_tage"', 'data-act="sg-vergessen"'].every(t => h.includes(t)) && h.includes('21,7 °C'));
+    neu(); await klick({ act: 'e-wert', k: 'soll_art', v: 'fest' }); await klick({ act: 'st', k: 'gleit_min', d: '-0.5' });
+    erwarte('Soll gleitend: Umschalten und Untergrenze über baustelle/setzen', letzte('baustelle/setzen').some(a => a.pfad.join('.') === 'heizung.soll_art' && a.wert === 'fest')
+      && letzte('baustelle/setzen').some(a => a.pfad.join('.') === 'heizung.gleit_min' && a.wert === 20.5));
+    await klick({ act: 'zu' });
+    const G = { ...alt[1] || {}, ...{ aussen_mittel: 6.4, tage: 3, start: 21.56, gefuehl: 0.15, soll: 21.71, n: 1, schritt: 0.15, rueck: [], kurve: [] } };
+    panel.d.e.soll_art = 'gleitend'; panel.d.sollG = G;   // die Daten wurden nach dem Setzen neu geladen
+    const b = panel.d.bereiche.find(x => x.fuehler && !x.pumpe && x.t !== null);
+    if (b) { const altB = [b.modus, b.sollJ]; b.modus = 'thermo'; b.sollJ = { wert: 22.21, versch: 0.5, versch_bis: '2026-09-30T03:00:00+02:00', eigen: null };
+      await klick({ act: 'container', id: b.id }, 20); pruefe('Container Soll gleitend');
+      erwarte('Container: Gefühl, Verschiebung, gültiges Soll im Rad', ['data-act="sg-gefuehl"', '↺ gleitend', 'bis morgen früh', 'Soll 22,2'].every(t => ui.innerHTML.includes(t)));
+      neu(); await klick({ act: 'c-soll', d: '0.5' }); await klick({ act: 'sg-gefuehl', v: '-1' }); await klick({ act: 'sg-zurueck', id: b.id });
+      const A = letzte('baustelle/aktion').map(a => a.aktion);
+      erwarte('Container: + / − verschiebt, Gefühl, zurück (' + A.join(', ') + ')', A.includes('soll_versch') && A.includes('gefuehl') && A.includes('soll_versch_weg')
+        && !letzte('baustelle/setzen').some(a => a.pfad[2] === 'soll'));
+      [b.modus, b.sollJ] = altB; }
+    [panel.d.e.soll_art, panel.d.sollG] = alt; await klick({ act: 'tab', v: 'heizung' }, 10); }
   erwarte('Heizung: Frostschutz ein/aus (Regeln), Urlaub-Auswahl, Modus je Container', (await hzOffen('regeln')).includes('aus über') && (await hzOffen('urlaub')).includes('data-k="urlaub"') && (await hzOffen('container')).includes('data-jm="polier"'));
   await hzOffen('regeln'); neu(); await klick({ act: 'st', k: 'frost_aus', d: '0.5' }); await hzOffen('urlaub'); await klick({ act: 'e-wert', k: 'urlaub', v: 'absenk' });
   erwarte('Frostschutz aus und Urlaub über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frost_aus"]' && a.wert === 7.5)

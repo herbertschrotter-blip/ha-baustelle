@@ -796,6 +796,16 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .sr-auf { grid-column: 2 / -1; display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 12.5px; padding: 6px 10px; margin-top: 4px; border-radius: 10px; background: rgba(120,120,128,.12); }
 .sr-auf b { text-align: right; font-weight: 500; white-space: nowrap; } .sr-auf .summe { border-top: 1px solid var(--gridc); padding-top: 3px; font-weight: 600; }
 .sr-zust { grid-column: 2 / -1; font-size: 12px; }
+/* Soll gleitend (Herbert 01.10.2026) */
+.sg-heute { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 13px; padding: 8px 12px; border-radius: 12px; background: rgba(120,120,128,.12); margin: 6px 0; }
+.sg-heute b { text-align: right; font-weight: 500; white-space: nowrap; } .sg-heute .summe { border-top: 1px solid var(--gridc); padding-top: 4px; font-weight: 600; font-size: 15px; }
+.sg-kurve { width: 100%; height: 150px; display: block; margin: 4px 0; } .sg-kurve .ax { font-size: 9px; fill: var(--ink2); } .sg-kurve .gr { stroke: var(--gridc); stroke-width: 1; }
+.sg-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--ink2); margin-bottom: 6px; } .sg-leg i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+.sg-box { margin: 14px 0 4px; } .sg-gefuehl { display: flex; gap: 8px; justify-content: center; margin: 0 0 4px; }
+.sg-gefuehl button { flex: 1; max-width: 120px; white-space: nowrap; padding: 9px 6px; border-radius: 14px; border: 0; background: rgba(120,120,128,.18); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.sg-gefuehl button:active { background: var(--amber); color: #1a1000; }
+.sg-versch { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 2px 0 6px; font-size: 13px; } .sg-versch b { color: var(--amber); }
+.sg-gefuehl-t { text-align: center; font-size: 11.5px; color: var(--ink2); }
 /* AN-0012: Regeln nach Tagesablauf */
 .rv-kopf { display: flex; align-items: baseline; gap: 8px; margin: 14px 2px 4px; } .rv-kopf b { font-size: 16px; } .rv-kopf .leise { font-size: 12px; }
 .rv-karte { border-radius: 16px; background: rgba(120,120,128,.10); padding: 2px 12px; margin-bottom: 6px; } .rv-karte > .zeile:first-child { border-top: 0; }
@@ -1067,7 +1077,8 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
   min_pause: ['staffel', 'min_pause_min'], takt: ['staffel', 'takt_min'], tuer_pause: ['heizung', 'tuer_pause_min'], tuer_melden: ['heizung', 'tuer_melden_min'],
   knoepfe: ['meldungen_einst', 'knoepfe'], bericht: ['bericht', 'haeufigkeit'], bericht_handy: ['bericht', 'handy'], bericht_mail: ['bericht', 'mail'],
   mail: ['bericht', 'mail_an'], bericht_csv: ['bericht', 'csv'], vorheizen: ['heizung', 'vorheizen_min'], nachheizen: ['heizung', 'nachheizen_min'], warm_vor: ['heizung', 'warm_vor_min'], frost_aussen: ['heizung', 'frost_aussen'], warm_nach: ['heizung', 'warm_nach_min'], warm_max: ['heizung', 'warm_max_min'], stufen_abstand: ['heizung', 'stufen_abstand'], stufen_min: ['heizung', 'stufen_min'], stufen_anstieg: ['heizung', 'stufen_anstieg'], stufen_kalt: ['heizung', 'stufen_kalt'],
-  soll: ['heizung', 'soll'], grenze: ['heizung', 'heizgrenze'], basis: ['heizung', 'heizgrenze_basis'], fruehstart: ['heizung', 'fruehstart'],
+  soll: ['heizung', 'soll'], soll_art: ['heizung', 'soll_art'], gleit_min: ['heizung', 'gleit_min'], gleit_max: ['heizung', 'gleit_max'],
+  gleit_je: ['heizung', 'gleit_je'], gleit_bezug: ['heizung', 'gleit_bezug'], gleit_tage: ['heizung', 'gleit_tage'], grenze: ['heizung', 'heizgrenze'], basis: ['heizung', 'heizgrenze_basis'], fruehstart: ['heizung', 'fruehstart'],
   frueh_temp: ['heizung', 'fruehstart_unter'], frueh_min: ['heizung', 'fruehstart_min'], frost: ['heizung', 'frost'], frost_temp: ['heizung', 'frost_grenze'],
   tr_mm: ['heizung', 'trocknen_ab_mm'], tr_laenger: ['heizung', 'trocknen_laenger_min'], tr_frueher: ['heizung', 'trocknen_frueher_min'],
   dauer_min: ['meldungen_einst', 'dauerlauf_min'], kalt_min: ['meldungen_einst', 'kalt_min'], hand_h: ['meldungen_einst', 'hand_h'], zyklen_h: ['meldungen_einst', 'zyklen_h'],
@@ -1077,7 +1088,7 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
 /* Grenzen der Stepper: Untergrenze wie im Mockup, sonst die erlaubten Werte der Integration (panel.py SETZEN) –
    so schickt die Seite nie einen Wert, den die Integration ablehnt */
 const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], min_pause: [0, 120], takt: [5, 240], tuer_pause: [1, 120], tuer_melden: [1, 240],
-  vorheizen: [0, 240], nachheizen: [0, 240], soll: [5, 30], grenze: [0, 30], frueh_temp: [-15, 20], frueh_min: [0, 240], frost_temp: [0, 15],
+  vorheizen: [0, 240], nachheizen: [0, 240], soll: [5, 30], gleit_min: [5, 30], gleit_max: [5, 30], gleit_je: [0, 0.5], gleit_bezug: [0, 20], gleit_tage: [1, 7], grenze: [0, 30], frueh_temp: [-15, 20], frueh_min: [0, 240], frost_temp: [0, 15],
   tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480], toleranz: [0.1, 3], hand_nachfrist: [0, 240], fuehler_halten: [0, 120], zieht_w: [5, 500],
   frost_aus: [1, 20], absenk: [5, 20], offline_min: [1, 1440], trocken_w: [5, 5000], dauer_min: [5, 1440], zyklen_h: [2, 200], kalt_min: [15, 1440], hand_h: [1, 240], warm_vor: [0, 240], warm_nach: [0, 240], frost_aussen: [-20, 10], warm_max: [15, 480], stufen_abstand: [0.5, 10], stufen_min: [5, 240], stufen_anstieg: [0, 5], stufen_kalt: [-30, 15] };
 /* Modus je Container (0.7.8): wie im Mockup, Thermostat nur mit Fühler */
@@ -1350,7 +1361,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.35';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.36';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1547,7 +1558,8 @@ class BaustellePanel extends HTMLElement {
     const h = e0.heizung || {}, st = e0.staffel || {}, me = e0.meldungen_einst || {}, ar = me.arten || {}, be = e0.bericht || {};
     const v = (x, std) => zahl(x) ? Number(x) : std;
     const namen = s => { const x = this._hass && this._hass.states[`notify.${s}`]; return (x && x.attributes.friendly_name) || String(s).replace(/^mobile_app_/, '').replace(/_/g, ' '); };
-    const e = { preis: v(e0.preis, 0), feiertag_frei: h.feiertag_frei !== false, boost_min: v(h.boost_min, 30), toleranz: v(h.toleranz, 0.3), hand_nachfrist: v(h.hand_nachfrist_min, 30),
+    const e = { preis: v(e0.preis, 0), feiertag_frei: h.feiertag_frei !== false, boost_min: v(h.boost_min, 30), soll_art: h.soll_art === 'gleitend' ? 'gleitend' : 'fest', gleit_min: v(h.gleit_min, 21), gleit_max: v(h.gleit_max, 24),
+      gleit_je: v(h.gleit_je, 0.1), gleit_bezug: v(h.gleit_bezug, 12), gleit_tage: v(h.gleit_tage, 3), toleranz: v(h.toleranz, 0.3), hand_nachfrist: v(h.hand_nachfrist_min, 30),
       fuehler_halten: v(h.fuehler_halten_min, 15), zieht_w: v(h.zieht_strom_w, 50), melden: e0.melden_knopf !== false,
       staffel: st.an !== false, nutzbar: v(st.nutzbar_prozent, 67), max_gleich: v(st.max_gleichzeitig, 5), min_lauf: v(st.min_lauf_min, 10), min_pause: v(st.min_pause_min, 5), takt: v(st.takt_min, 15),
       tuer_pause: v(h.tuer_pause_min, 3), tuer_melden: v(h.tuer_melden_min, 10), knoepfe: me.knoepfe !== false,
@@ -1578,7 +1590,7 @@ class BaustellePanel extends HTMLElement {
       const tuer = eb.tuer ? { eid: eb.tuer, sensor: (tuerS && tuerS.attributes.friendly_name) || eb.tuer, offen: c.tuer && c.tuer.offen ? Math.max(1, this.minSeitAb(c.tuer.seit, jetztMs) ?? 1) : 0 } : undefined;
       return { id: b.id, name: b.name || b.id, f: zahl(b.nr) ? Number(b.nr) : i, art: b.art, pumpe, fuehler: b.fuehler || null, z: zst, grund: c.grund || null,
         t: zahl(c.temperatur) ? Number(c.temperatur) : null, kw: zahl(c.kw) ? Number(c.kw) : null, text: c.text || '', geraete,
-        auto: eb.auto !== false, trocknen: !!eb.trocknen, stufenAn: !!eb.stufen, stufen: c.stufen || null, bedarfGrad: c.bedarf || null, soll: zahl(eb.soll) ? Number(eb.soll) : undefined, bedarf: !!eb.bedarf, prio: eb.prio || 'normal',
+        auto: eb.auto !== false, trocknen: !!eb.trocknen, stufenAn: !!eb.stufen, stufen: c.stufen || null, sollJ: c.soll || null, bedarfGrad: c.bedarf || null, soll: zahl(eb.soll) ? Number(eb.soll) : undefined, bedarf: !!eb.bedarf, prio: eb.prio || 'normal',
         anschluss: eb.anschluss || (anschluesse[0] && anschluesse[0].id) || null, firma: c.firma || 'eigen', tuer, offline,
         bedarfBisIso: c.bedarf_bis || null, bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
         boost: !!c.boost_bis, boostBis: c.boost_bis || null,
@@ -1601,7 +1613,7 @@ class BaustellePanel extends HTMLElement {
     return { r, entry: bs.entry_id, titel: bs.titel || 'Baustelle', aktiv, geladen: bs.geladen !== false, version: bs.version, optionen: opt, ent: r.entitaeten || {}, z, e,
       funktionen: r.funktionen || ['heizung', 'pumpen'],
       bereiche, anschluesse, firmen, zuordnung, arbeitszeiten, ausnahmen: (e0.ausnahmen || []).map(a => ({ datum: a.datum, art: a.art in AUSNAHME ? a.art : 'zeiten', von: a.von || '07:00', bis: a.bis || '16:30', notiz: a.notiz || '' })),
-      warnungen, termine, plan, frei, freiName, abschnitte: lz.abschnitte || {}, staffel: lz.staffel || null, wetter: lz.wetter || {}, heizgrenze: lz.heizgrenze || {},
+      warnungen, termine, plan, frei, freiName, abschnitte: lz.abschnitte || {}, staffel: lz.staffel || null, sollG: lz.soll_gleitend || null, wetter: lz.wetter || {}, heizgrenze: lz.heizgrenze || {},
       status: lz.status || (aktiv ? 'bereit' : 'abgeschlossen'), statusText: lz.status_text || '', jetztBis: lz.jetzt_bis ? this.lokal(lz.jetzt_bis, zone).slice(11, 16) : null,
       protokoll: (lz.protokoll || []).map(p => this.protokollZeile(p, z)), zaehler: zl, termineKal: e0.termine_kalender || null, wetterEid,
       beginn: bs.beginn || opt.beginn || null, beginnAuto: bs.beginn_auto === true, ende: opt.ende || null,   // Beginn leer = Tag der Anlage (AN-0002)
@@ -2340,7 +2352,7 @@ class BaustellePanel extends HTMLElement {
   v_schacht() {
     const d = this.d, b = this.b, tl = this.zeitleiste(b);
     const { tabs, c, mitVb, chart, kennz, zr } = this.containerLive(b);
-    const soll = b.soll ?? d.e.soll;
+    const soll = this.sollVon(b);
     return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
         <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
       <div class="glas-panel c-held ${b.z}" style="--c:${FARBE[b.z]}">
@@ -2383,16 +2395,18 @@ class BaustellePanel extends HTMLElement {
   }
 
   /* ============ Container-Ansicht (WU-0004, Mockup glas.html „D mit Thermostat-Rad“, abgenommen 30.09.2026) ============ */
+  /* gültiges Soll eines Containers von der Integration (fest oder gleitend, mit + / −), sonst eingestellt */
+  sollVon(b) { return b.sollJ && zahl(b.sollJ.wert) ? b.sollJ.wert : b.soll ?? this.d.e.soll; }
   sollAktiv(b) { return !!b.fuehler && b.t !== null && ['thermo', 'bedarf'].includes(b.modus); }   // Soll gilt nur, wenn die Integration nach dem Fühler regelt
   cRegelText(b) {
-    const soll = b.soll ?? this.d.e.soll;
+    const soll = this.sollVon(b);
     if (b.modus === 'thermo' && b.lern && b.lern.an) return `🧠 Thermostat · lernend – ${b.lern.anteil !== null ? `${b.lern.anteil} % je ${b.lern.zyklus_min} min · ` : ''}Nachlauf +${de(b.lern.erwartet)} °C → aus bei ${de(b.lern.aus_bei)} °C${b.lern.warm && this.warmText(b, true) ? ` · ${this.warmText(b, true)}` : ''}${this.offenText(b) ? ` · ${this.offenText(b)}` : ''}`;
     return { thermo: `Thermostat regelt in der Heizzeit auf ${de(soll)} °C`, plan: 'Zeitplan – der Heizkörperthermostat regelt', hand: 'Hand – die Automatik schaltet nicht',
       bedarf: `nur bei Bedarf${b.fuehler ? ` · regelt auf ${de(soll)} °C` : ''}`, aus: 'Aus – nur Frostschutz' }[b.modus] || '';
   }
   /* Thermostat-Rad: Strichkranz 5–30 °C, zwischen Ist und Soll farbig, Soll-Knopf, − + in der Öffnung unten */
   cRad(b) {
-    const mitSoll = this.sollAktiv(b), soll = b.soll ?? this.d.e.soll, t = b.t, dd = t - soll;
+    const mitSoll = this.sollAktiv(b), soll = this.sollVon(b), t = b.t, dd = t - soll;
     const farbe = !mitSoll ? 'var(--ink)' : dd > .5 ? '#ff9f0a' : dd < -.5 ? '#64a8ff' : '#30d158';
     const w = x => Math.max(0, Math.min(1, (x - 5) / 25)), R = 78, ang = f => (135 + 270 * f) * Math.PI / 180;
     const [von, bis] = mitSoll ? [Math.min(w(t), w(soll)), Math.max(w(t), w(soll))] : [0, w(t)];
@@ -2407,12 +2421,21 @@ class BaustellePanel extends HTMLElement {
       ${mitSoll ? `<div class="c-rad-pm"><button class="c-pm" data-act="c-soll" data-d="-0.5" aria-label="Soll niedriger">${IC_MINUS}</button><button class="c-pm" data-act="c-soll" data-d="0.5" aria-label="Soll höher">${IC_PLUS}</button></div>`
         : `<div class="leise c-ohne-t">${ohne}</div>`}</div>`;
   }
+  /* Soll gleitend (Herbert 01.10.2026, Mockup soll-gleitend.html): Gefühl unter dem Rad, Verschiebung mit „↺ gleitend“ */
+  cGefuehl(b) {
+    if (!this.sollAktiv(b)) return '';
+    const S = b.sollJ || {}, gl = this.d.e.soll_art === 'gleitend', G = this.d.sollG;
+    const knopf = (v, t) => `<button data-act="sg-gefuehl" data-v="${v}">${t}</button>`;
+    return `<div class="sg-box"><div class="sg-gefuehl">${knopf(-1, '🥶 zu kalt')}${knopf(0, '👍 passt')}${knopf(1, '🥵 zu warm')}</div>
+      ${gl && S.versch ? `<div class="sg-versch"><span>gleitend ${G ? de(G.soll, 1) : '–'} °C <b>${S.versch > 0 ? '+' : '−'}${de(Math.abs(S.versch), 1)}</b> · bis morgen früh</span><button class="glas-panel chip" data-act="sg-zurueck" data-id="${b.id}">↺ gleitend</button></div>` : ''}
+      <div class="sg-gefuehl-t">${gl ? (S.versch ? '+ / − lernt mit wie „zu kalt“ / „zu warm“' : `Soll gleitend ${de(this.sollVon(b), 1)} °C – dein Gefühl hilft beim Lernen`) : 'hilft beim gleitenden Soll (Heizung › Regeln)'}</div></div>`;
+  }
   cOhneFuehler(b) { return `<div class="c-ohne glas-panel"><small>LEISTUNG JETZT</small><b>${de(kwVon(b))}<small> kW</small></b><span class="leise">kein Fühler – der Heizkörperthermostat regelt</span></div>`; }
   /* Tagesdiagramm: Heizzeit als Band, innen/außen, Soll gestrichelt, geheizte Stunden als Balken, Jetzt-Marke */
   cTag(b, vs = 0) {
     const d = this.d, innen = b.fuehler ? this.reihe(d, b.fuehler, 'Tag', vs) : [], aussen = this.reihe(d, this.eid(d, d.entry, 'aussen'), 'Tag', vs), kw = this.verbrauch(d, b.id, 'Tag', vs);
     if (!aussen || !kw || !innen) return LAEDT;
-    const W = 640, H = 220, L = 34, Rr = 10, T = 12, B = 44, mitSoll = this.sollAktiv(b), soll = b.soll ?? d.e.soll, farbe = BEREICH_FARBEN[b.f % BEREICH_FARBEN.length];
+    const W = 640, H = 220, L = 34, Rr = 10, T = 12, B = 44, mitSoll = this.sollAktiv(b), soll = this.sollVon(b), farbe = BEREICH_FARBEN[b.f % BEREICH_FARBEN.length];
     const x = h => L + (W - L - Rr) * h / 24, alle = [...innen, ...aussen, ...(mitSoll ? [soll] : [])].filter(zahl);
     const lo = Math.floor(Math.min(...(alle.length ? alle : [15])) - 1), hi = Math.ceil(Math.max(...(alle.length ? alle : [25])) + 1), y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
     const pfad = v => v.map((t, h) => !zahl(t) ? '' : `${h && zahl(v[h - 1]) ? 'L' : 'M'}${x(h + .5).toFixed(1)} ${y(t).toFixed(1)}`).join(' ');
@@ -2461,7 +2484,7 @@ class BaustellePanel extends HTMLElement {
           <div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b))}</div><div class="leise">${esc(this.cRegelText(b))}</div></div>
           <div class="c-d-knoepfe"><div class="seg klein">${MODI.map(([k, t]) => `<button data-act="modus" data-id="${b.id}" data-v="${k}" class="${b.modus === k ? 'on' : ''}" ${k === 'thermo' && !b.fuehler ? 'disabled title="kein Temperaturfühler"' : ''}>${t}</button>`).join('')}</div>
             <button class="glas-panel chip ${b.boost ? 'amber' : ''}" data-act="boost" data-id="${b.id}">⚡ ${b.boost ? 'Aufheizen beenden' : 'Schnell aufheizen'}</button></div></div>
-        <div class="c-kern">${b.fuehler && b.t !== null ? this.cRad(b) : this.cOhneFuehler(b)}</div>
+        <div class="c-kern">${b.fuehler && b.t !== null ? this.cRad(b) + this.cGefuehl(b) : this.cOhneFuehler(b)}</div>
       </div>
       <div class="c-kacheln c-live-kennz">${kacheln}</div>
       ${b.bedarf ? this.bedarfBlock(b) : ''}
@@ -2554,6 +2577,41 @@ class BaustellePanel extends HTMLElement {
   }
   /* AN-0012: Regeln nach Tagesablauf gruppiert (Mockup regeln-varianten.html, Variante B, abgenommen 01.10.2026) – auch die bisher
      festen Werte: einstellbar (Schaltabstand, „heizt tatsächlich ab“, Handbetrieb übernehmen, Fühler ohne Wert) oder als „Feste Regeln“ */
+  /* Solltemperatur fest oder gleitend – alle Zahlen von der Integration (laufzeit.soll_gleitend, logik/soll) */
+  sollBlock(z) {
+    const e = this.d.e, G = this.d.sollG, gl = e.soll_art === 'gleitend', grad = v => `${de(v, 1)} °C`;
+    const kopf = z('🌡 Solltemperatur', 'für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat',
+      `<div class="seg klein">${[['fest', 'fest'], ['gleitend', 'gleitend']].map(([k, t]) => `<button data-act="e-wert" data-k="soll_art" data-v="${k}" class="${e.soll_art === k ? 'on' : ''}">${t}</button>`).join('')}</div>`);
+    if (!gl) return kopf + z('Soll', '', this.stepper('soll', .5, grad), true);
+    const st = (k, s, fmt) => this.stepper(k, s, fmt), f = v => `${v >= 0 ? '+' : '−'}${de(Math.abs(v), 1)} °C`;
+    const heute = !G ? '<div class="leise">Noch keine Außentemperatur – bis dahin gilt das feste Soll.</div>'
+      : `<div class="sg-heute"><span>Grundwert („mindestens“)${e.gleit_min >= 21 ? ' – Aufenthaltsräume (§ 36 BauV)' : ''}</span><b>${grad(e.gleit_min)}</b>
+        <span>kalte Tage: Außenmittel der letzten ${G.tage} Tage ${de(G.aussen_mittel, 1)} °C</span><b>${f(G.start - e.gleit_min)}</b>
+        <span>dein Gefühl: ${G.n} ${G.n === 1 ? 'Rückmeldung' : 'Rückmeldungen'} bei ähnlichem Wetter (je ${de(G.schritt, 2)} °C)</span><b>${f(G.gefuehl)}</b>
+        <span class="summe">Soll heute</span><b class="summe">${grad(G.soll)}</b></div>${this.sollKurve(G)}`;
+    return kopf + heute
+      + z('mindestens', e.gleit_min < 21 ? '<span class="amber-t">unter 21 °C – § 36 BauV verlangt für Aufenthaltsräume 21 °C</span>' : 'nie darunter (§ 36 BauV: Aufenthaltsräume 21 °C)', st('gleit_min', .5, grad), true)
+      + z('höchstens', '', st('gleit_max', .5, grad), true)
+      + z('wärmer je Grad kälter draußen', `unter ${de(e.gleit_bezug, 0)} °C Außenmittel`, st('gleit_je', .05, v => `+${de(v, 2)} °C`), true)
+      + z('ab Außenmittel unter', '', st('gleit_bezug', 1, v => `${de(v, 0)} °C`), true)
+      + z('Außenmittel über', 'wie EN 16798-1: jüngere Tage zählen mehr', st('gleit_tage', 1, v => `${v} ${v === 1 ? 'Tag' : 'Tage'}`), true)
+      + z('dein Gefühl', '„zu kalt / passt / zu warm“ und + / − im Container verschieben das Soll bei ähnlichem Wetter, höchstens ±1,5 °C', '<button class="rv-link" data-act="sg-vergessen">vergessen</button>', true)
+      + '<div class="leise">Ein eigenes Soll im Container gilt als Verschiebung gegenüber dem der Baustelle (Je Container).</div>';
+  }
+  sollKurve(G) {
+    const W = 320, H = 150, L = 30, R = 8, T = 8, U = 18, K = G.kurve || [], ys = K.flatMap(k => [k[1], k[2]]), lo = Math.floor(Math.min(20, ...ys)), hi = Math.ceil(Math.max(lo + 3, ...ys));
+    const x = t => L + (t + 10) / 30 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U), soll = t => { const k = K.find(q => q[0] === Math.round(t)); return k ? k[2] : G.soll; };
+    const pfad = i => K.map((k, n) => `${n ? 'L' : 'M'}${x(k[0]).toFixed(1)} ${y(k[i]).toFixed(1)}`).join('');
+    const raster = [...Array(hi - lo + 1)].map((_, i) => lo + i).map(v => `<line class="gr" x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="ax" x="${L - 4}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end">${v}°</text>`).join('')
+      + [-10, 0, 10, 20].map(t => `<text class="ax" x="${x(t)}" y="${H - 4}" text-anchor="middle">${t}° außen</text>`).join('');
+    const unter = lo < 21 ? `<rect x="${L}" y="${y(Math.min(21, hi)).toFixed(1)}" width="${W - L - R}" height="${(H - U - y(Math.min(21, hi))).toFixed(1)}" fill="rgba(255,69,58,.08)"/>` : '';
+    const punkte = (G.rueck || []).map(([t, r]) => `<circle cx="${x(Math.max(-10, Math.min(20, t))).toFixed(1)}" cy="${y(soll(t) - r * .35).toFixed(1)}" r="4" fill="${r < 0 ? '#64a8ff' : r > 0 ? '#ff9f0a' : '#30d158'}"/>`).join('');
+    const tm = Math.max(-10, Math.min(20, G.aussen_mittel));
+    return `<svg class="sg-kurve" viewBox="0 0 ${W} ${H}">${raster}${unter}<path d="${pfad(1)}" fill="none" stroke="var(--ink2)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <path d="${pfad(2)}" fill="none" stroke="var(--amber)" stroke-width="2.5"/>${punkte}<line x1="${x(tm).toFixed(1)}" x2="${x(tm).toFixed(1)}" y1="${T}" y2="${H - U}" stroke="var(--ink)" stroke-dasharray="2 3"/>
+      <circle cx="${x(tm).toFixed(1)}" cy="${y(G.soll).toFixed(1)}" r="6" fill="#fff" stroke="var(--amber)" stroke-width="3"/></svg>
+      <div class="sg-leg"><span><i style="background:var(--amber)"></i>Soll (mit deinem Gefühl)</span><span><i style="background:var(--ink2)"></i>Startwert nach draußen</span><span><i style="background:#64a8ff"></i>zu kalt</span><span><i style="background:#30d158"></i>passt</span><span><i style="background:#ff9f0a"></i>zu warm</span>${unter ? '<span><i style="background:rgba(255,69,58,.35)"></i>unter 21 °C</span>' : ''}</div>`;
+  }
   regelnInhalt(lernend, C) {
     const e = this.d.e, st = (k, s, fmt) => this.stepper(k, s, fmt), grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, minus = v => `${de(v, 0).replace('-', '−')} °C`;
     const z = (titel, text, ctrl, unter) => `<div class="zeile${unter ? ' unter' : ''}"><div>${unter ? `<span>${titel}</span>` : `<b>${titel}</b>`}${text ? `<div class="leise">${text}</div>` : ''}</div>${ctrl || ''}</div>`;
@@ -2566,7 +2624,7 @@ class BaustellePanel extends HTMLElement {
       lernend: z('🧠 Lernende Container', `heizen selbst so früh, dass das Soll rechtzeitig erreicht ist – statt Vorheizen, Kälte-Frühstart und Nachheizen. Bis genug gelernt ist, gelten die Werte oben.${lernend.length ? ` Jetzt: ${lernend.map(b => esc(b.name)).join(', ')}.` : ' Gilt für Container mit Fühler, Modus Thermostat und lernender Regelung.'}`, ''),
       warm_vor: z('Soll erreicht', 'vor Arbeitsbeginn, z. B. zum Umziehen', st('warm_vor', 5, v => v ? `${v} min vorher` : 'bei Beginn'), true),
       warm_max: z('Frühestens', 'vor Arbeitsbeginn – Grenze, falls der Raum sehr kalt ist', st('warm_max', 15, v => `${v} min vorher`), true),
-      soll: z('🌡 Solltemperatur', 'für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat', st('soll', .5, grad)),
+      soll: this.sollBlock(z),
       toleranz: z('Schaltabstand ± um das Soll', 'Thermostat: ein unter Soll − Abstand, aus über Soll + Abstand', st('toleranz', .1, v => `± ${de(v, 1)} °C`), true),
       grenze: z('Heizgrenze', 'nicht heizen, wenn es wärmer ist', st('grenze', .5, grad)),
       basis: z('Grundlage', '', `<div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div>`, true),
@@ -2639,7 +2697,7 @@ class BaustellePanel extends HTMLElement {
         <div class="zeile"><span>zusätzlich nach dem Nachheizen</span>${st('tr_laenger', 5, min)}</div>
         <div class="zeile"><span>am nächsten Morgen früher</span>${st('tr_frueher', 5, min)}</div></div>
       <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">Modus · Trocknen · Soll</span></div>
-        ${C.map(b => { const soll = b.soll ?? e.soll;
+        ${C.map(b => { const soll = this.sollVon(b);
           return `<div class="jc"><div class="jc-name"><b>${esc(b.name)}</b><span class="leise">${b.offline ? 'offline' : b.t !== null ? `🌡 ${de(b.t)} °C` : 'ohne Fühler'}</span></div>
             <div class="jc-ctrl"><select class="jc-modus" data-jm="${b.id}" title="Modus" aria-label="Modus ${esc(b.name)}">${MODI.map(([k, t]) => `<option value="${k}" ${b.modus === k ? 'selected' : ''} ${k === 'thermo' && !b.fuehler ? 'disabled' : ''}>${t}</option>`).join('')}</select>
               <span class="jc-l">👕</span>${schalter(b.trocknen, 'tr-b', `data-id="${b.id}"`).replace('class="sw', 'class="sw klein')}
@@ -2877,7 +2935,7 @@ class BaustellePanel extends HTMLElement {
     const pfeil = dl => zahl(dl) ? `<em class="${dl > 0 ? 'mehr' : 'weniger'}">${dl > 0 ? '▲' : '▼'} ${Math.abs(dl)} %</em>` : '';
     const zr = this.zeitraum(c.z, c.v), zrc = this.zeitraum(c.zc, c.vc), wann = this.zrText(c.z, c.v), wannC = this.zrText(c.zc, c.vc);
     const lab = (z, labels) => z === 'Tag' ? labels.map((h, i) => i % 6 ? '' : h) : z === 'Woche' ? TAGE : labels;
-    const heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), soll = b ? b.soll ?? d.e.soll : null;
+    const heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), soll = b ? this.sollVon(b) : null;
     switch (x.k) {
       case 'b-kosten': { const r = this.kkSumme(c);
         return { zahl: zahl(S.eur) ? de(S.eur, 0) : '–', einh: '€', wo: wann, vgl: `${f(S.kwh, 0)} kWh ${pfeil((S.veraenderung || {}).kwh)} zu ${this.zrVgl(c.z, c.v)}`, funke: r,
@@ -3155,7 +3213,7 @@ class BaustellePanel extends HTMLElement {
         const mitFuehler = B && zahl(B.jetzt);
         const wert = B ? `<div class="sr-bedarf">${f(B.summe)} °C<small>${mitFuehler ? `Bedarf in ${B.horizont_min} min` : 'ohne Fühler'}</small></div>` : '<div class="sr-bedarf">–<small>noch nicht gerechnet</small></div>';
         const teile = !B ? '' : mitFuehler ? [
-          [`jetzt ${de(b.t, 1)} °C, Soll ${de(b.soll ?? d.e.soll, 1)} °C`, B.jetzt],
+          [`jetzt ${de(b.t, 1)} °C, Soll ${de(this.sollVon(b), 1)} °C`, B.jetzt],
           ...(zahl(B.abkuehlen) ? [[`kühlt ohne Heizen ${de(B.abkuehl_h, 1)} °C/h ab (${B.gemessen ? 'gemessen' : 'gelernt'}) → in ${B.horizont_min} min`, B.abkuehlen]] : []),
           ...(B.nachlauf ? [['heizt nach dem Aus noch nach (gelernt)', B.nachlauf]] : []),
           ...(B.ziel ? [[`schafft das Soll bis Arbeitsbeginn nicht (${zahl(B.aufheiz_h) ? `${de(B.aufheiz_h, 1)} °C/h gelernt` : 'gelernt'})`, B.ziel]] : []),
@@ -3737,7 +3795,7 @@ class BaustellePanel extends HTMLElement {
     }
     if (s.art === 'bedarf') {
       const b = d.bereiche.find(x => x.id === s.cid); if (!b) { this.s.sheet = null; return ''; }
-      const ende = this.arbeitsende(), warm = b.t !== null ? Math.max(0, Math.round(((b.soll ?? d.e.soll) - b.t) * 4)) : null;
+      const ende = this.arbeitsende(), warm = b.t !== null ? Math.max(0, Math.round((this.sollVon(b) - b.t) * 4)) : null;
       return `${griff}<h3>${esc(b.name)} heizen</h3><div class="leise">Jetzt ${b.t !== null ? `${de(b.t)} °C` : 'ohne Fühler'} · wird ${b.t !== null ? `in etwa ${warm} min warm` : 'sofort eingeschaltet'}</div>
         <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">alle Heizkörper zugleich, Vorrang in der Staffelung</div></div>${schalter(s.boost, 'bedarf-boost')}</div>
         <div class="bedarf-dauer gross">${[['60', '1 Stunde'], ['120', '2 Stunden'], ...(ende ? [['ende', `bis Arbeitsende (${ende})`]] : []), ['abend', 'bis 19:00']].map(([v, t]) => `<button class="knopf" data-act="bedarf-an" data-id="${b.id}" data-v="${v}">▶ ${t}</button>`).join('')}</div>
@@ -3869,7 +3927,7 @@ class BaustellePanel extends HTMLElement {
     /* Lernende Regelung (0.8): Lernstand eines Containers (Mockup glas.html, abgenommen 30.09.2026) */
     if (s.art === 'lernen') {
       const b = this.b, l = b && b.lern; if (!l) { this.s.sheet = null; return ''; }
-      const kalt = (s.lk || 'kalt') === 'kalt', soll = b.soll ?? d.e.soll, bd = kalt ? 'kalt' : 'mild';
+      const kalt = (s.lk || 'kalt') === 'kalt', soll = this.sollVon(b), bd = kalt ? 'kalt' : 'mild';
       const balkenK = (name, k) => `<div class="zeile"><div><b>${name}</b> ${de(k.wert, 3)} <span class="leise">(Start ${de(k.start, 2)})</span>
           <div class="lern-fort"><i style="width:${Math.round(k.fort * 100)}%"></i></div></div><span class="leise">${k.fort >= 1 ? 'gelernt' : `${Math.round(k.fort * 50)}/50 Zyklen`}</span></div>`;
       const zelle = (art, kl) => { const z = (l.nachlauf || {})[`${art}|${kl}|${bd}`];
@@ -4114,6 +4172,9 @@ class BaustellePanel extends HTMLElement {
       case 'kk-nureur': S.sheet.nurEur = !S.sheet.nurEur; S.sheet.k = null; return neu();
       case 'kk-hinzu': return this.kkHinzu(S.sheet);
       case 'kk-layout': S.kkLayout = !S.kkLayout; return neu();
+      case 'sg-gefuehl': { const v = +el.dataset.v; return this.aktion('gefuehl', { bereich: b.id, wert: v }, v === 0 ? 'Gemerkt: passt' : `Gemerkt: ${v < 0 ? 'zu kalt' : 'zu warm'} – das Soll lernt mit`); }
+      case 'sg-zurueck': return this.aktion('soll_versch_weg', { bereich: el.dataset.id }, 'Zurück auf gleitendes Soll');
+      case 'sg-vergessen': return this.aktion('gefuehl_vergessen', {}, 'Gelerntes Gefühl vergessen – es gilt der Startwert nach draußen');
       case 'sr-auf': { const o = S.srOffen ||= [], id = el.dataset.id; if (o.includes(id)) o.splice(o.indexOf(id), 1); else o.push(id); return neu(); }
       case 'kk-dia': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; if (!x) return; x.dia = x.dia === false; this.kkMerken(ort); return neu(); }
       case 'kk-auf': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; return x ? this.kkAuf(x, ort) : undefined; }
@@ -4122,7 +4183,9 @@ class BaustellePanel extends HTMLElement {
       case 'aw-hoch': case 'aw-runter': { const Lg = this.awAuswahl(), i = +el.dataset.i, j = a === 'aw-hoch' ? i - 1 : i + 1; if (j < 0 || j >= Lg.length) return; [Lg[i], Lg[j]] = [Lg[j], Lg[i]]; this.awMerken(); return neu(); }
       case 'aw-vorlage': this.awVorlage(el.dataset.v); if (S.sheet && S.sheet.art === 'kk-katalog') S.sheet = null; neu(); return this.toast(`Vorlage „${AW_VORLAGEN[el.dataset.v][0]}“ übernommen`);
       case 'aw-detail': S.sheet = { art: 'aw-detail', k: el.dataset.k }; return neu();
-      case 'c-soll': { const x = b, soll = Math.max(5, Math.min(30, (x.soll ?? d.e.soll) + +el.dataset.d)); return this.setzen(['bereiche', x.id, 'soll'], soll); }
+      case 'c-soll': if (d.e.soll_art === 'gleitend') {   // gleitend: bis morgen früh verschieben und als Gefühl merken (Herbert 01.10.2026)
+        const dd = +el.dataset.d; return this.aktion('soll_versch', { bereich: b.id, d: dd }, `Soll heute ${dd > 0 ? 'wärmer' : 'kühler'} – ab morgen früh wieder gleitend · als „${dd > 0 ? 'zu kalt' : 'zu warm'}“ gemerkt`); }
+      { const x = b, soll = Math.max(5, Math.min(30, (x.soll ?? d.e.soll) + +el.dataset.d)); return this.setzen(['bereiche', x.id, 'soll'], soll); }
       case 'cvd': S.cvd = el.dataset.v; return neu();
       case 'g-aktiv': { const g = b.geraete[+el.dataset.i]; return this.aktion('aktiv', { geraet: g.id, an: !g.aktiv }, g.aktiv ? `${g.n} inaktiv – die Automatik lässt es aus` : `${g.n} wieder aktiv`); }
       case 'g-automatik': { const g = b.geraete[+el.dataset.i]; return this.aktion('automatik', { geraet: g.id }, `${g.n}: Automatik übernimmt`); }

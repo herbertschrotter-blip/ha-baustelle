@@ -29,7 +29,7 @@ from ..const import (
     ZIEHT_STROM_W,
 )
 from .. import texte
-from ..logik import bedarf as bedarf_logik, lernen, stufen
+from ..logik import bedarf as bedarf_logik, lernen, soll as soll_logik, stufen
 from ..logik import warnungen as warn_logik
 from ..logik.arbeitszeit import (
     AusnahmeArt,
@@ -86,6 +86,7 @@ MODI = tuple(MODUS_TEXT)
 STANDARD_HEIZ_KW = 2.0  # Heizkörper ohne Messung (Mockup: 2,0 kW)
 FRUEHSTART_NACHRICHT = time(18, 0)  # Abend vorher: „Morgen −4 °C – Vorheizen startet schon um …“
 FRUEHER_MIN = 30  # Knopf „Noch früher“
+VERSCH_BIS = time(3, 0)  # + / − am Rad (Soll gleitend) gilt bis morgen früh, vor dem Vorheizen
 WETTER_PROTOKOLL_AB = time(5, 0)  # Mockup: „05:00 wetter …“
 
 
@@ -136,6 +137,7 @@ class Heizung(Funktion):
         self._warm_vor: dict[str, int] = {}
         self.bedarf_jetzt: dict[str, bedarf_logik.Bedarf] = {}
         self._abkuehl_zuletzt: dict[str, float] = {}   # zuletzt gemessene Abkühlung ohne Heizen (°C/h)
+        self._aussen_minute: int | None = None
 
     # ------------------------------------------------------------------ Einstellungen je Container
     def modus(self, bid: str) -> str:
@@ -151,8 +153,104 @@ class Heizung(Funktion):
         return "thermo" if info is not None and info.fuehler else "plan"
 
     def soll_temperatur(self, bid: str) -> float:
-        b = self.st.einstellungen.bereich(bid)
-        return float(b["soll"] if b.get("soll") is not None else self.st.e["heizung"]["soll"])
+        """Soll eines Containers: fest (eigenes oder das der Baustelle) oder gleitend (Herbert 01.10.2026) – dann gilt ein
+        eigenes Soll als Verschiebung gegenüber dem der Baustelle, dazu + / − am Rad bis morgen früh."""
+        b, h = self.st.einstellungen.bereich(bid), self.st.e["heizung"]
+        if h.get("soll_art") != "gleitend":
+            return float(b["soll"] if b.get("soll") is not None else h["soll"])
+        g = self.gleit_info()
+        wert = g["soll"] if g is not None else float(h["soll"])
+        if b.get("soll") is not None:
+            wert += float(b["soll"]) - float(h["soll"])
+        return round(wert + self.versch(bid), 2)
+
+    # ------------------------------------------------------------------ Soll gleitend (logik/soll)
+    def gleit_regeln(self) -> soll_logik.GleitRegeln:
+        h = self.st.e["heizung"]
+        return soll_logik.GleitRegeln(minimum=float(h.get("gleit_min", 21.0)), maximum=float(h.get("gleit_max", 24.0)),
+                                      je_grad=float(h.get("gleit_je", 0.1)), bezug=float(h.get("gleit_bezug", 12.0)),
+                                      tage=int(h.get("gleit_tage", 3)))
+
+    def aussen_mittel(self, jetzt: datetime | None = None) -> float | None:
+        """Gleitendes Mittel der Tagesmittel außen (logik/soll, wie EN 16798-1); ohne Vortage das von heute."""
+        jetzt = jetzt or dt_util.now()
+        roh = self.st.lz.get("aussen_tage") or {}
+        tage = {date.fromisoformat(t): v[0] / v[1] for t, v in roh.items() if v and v[1]}
+        heute = tage.pop(jetzt.date(), None)
+        t_m = soll_logik.aussen_mittel(tage, jetzt.date(), self.gleit_regeln().tage, heute)
+        return t_m if t_m is not None else self.st.daten.wetter.aussen
+
+    def gefuehl_liste(self) -> list[tuple[float, int]]:
+        return [(float(x[1]), int(x[2])) for x in self.st.lz.get("gefuehl") or []]
+
+    def gleit_info(self) -> dict[str, Any] | None:
+        """Soll gleitend der Baustelle jetzt: Außenmittel, Startwert, Gefühl, Soll – None ohne Außentemperatur."""
+        t_m = self.aussen_mittel()
+        if t_m is None:
+            return None
+        r, rueck = self.gleit_regeln(), self.gefuehl_liste()
+        return {"aussen_mittel": round(t_m, 2), "tage": r.tage, "start": round(soll_logik.startwert(t_m, r), 2),
+                "gefuehl": round(soll_logik.gefuehl(rueck, t_m), 2), "soll": soll_logik.gleitend(t_m, r, rueck),
+                "n": sum(1 for x, _ in rueck if abs(x - t_m) <= soll_logik.GEFUEHL_UMKREIS)}
+
+    def gleit_anzeige(self) -> dict[str, Any] | None:
+        """Für die Seite (laufzeit.soll_gleitend): Werte von jetzt, Kurve und Rückmeldungen."""
+        g = self.gleit_info()
+        if g is None:
+            return None
+        return {**g, "kurve": soll_logik.kurve(self.gleit_regeln(), self.gefuehl_liste()),
+                "rueck": [[round(x, 1), r] for x, r in self.gefuehl_liste()[-60:]], "schritt": soll_logik.GEFUEHL_SCHRITT}
+
+    def soll_anzeige(self, bid: str) -> dict[str, Any]:
+        """Soll eines Containers für die Seite (laufzeit.container.<id>.soll)."""
+        b, h = self.st.einstellungen.bereich(bid), self.st.e["heizung"]
+        v = (self.st.lz.get("soll_versch") or {}).get(bid)
+        return {"wert": self.soll_temperatur(bid), "versch": self.versch(bid), "versch_bis": v[1] if v and self.versch(bid) else None,
+                "eigen": round(float(b["soll"]) - float(h["soll"]), 2) if b.get("soll") is not None else None}
+
+    def versch(self, bid: str) -> float:
+        """+ / − am Rad (Soll gleitend): gilt bis morgen früh."""
+        v = (self.st.lz.get("soll_versch") or {}).get(bid)
+        bis = zeit(v[1]) if v else None
+        return float(v[0]) if v and bis is not None and bis > dt_util.now() else 0.0
+
+    def gefuehl_merken(self, bid: str, wert: int, jetzt: datetime) -> None:
+        """„zu kalt / passt / zu warm“ – gemeinsam für die Baustelle beim Außenmittel von jetzt."""
+        t_m = self.aussen_mittel(jetzt)
+        if t_m is None:
+            return
+        liste = self.st.lz.setdefault("gefuehl", [])
+        liste.append([jetzt.date().isoformat(), round(t_m, 2), wert])
+        del liste[:-300]
+        text = {-1: "zu kalt", 0: "passt", 1: "zu warm"}[wert]
+        self.st.protokoll("einstellung", bid, f"{self.st.bereiche[bid].name}: {text} bei {warn_logik._zahl(t_m)} °C Außenmittel")
+
+    def soll_verschieben(self, bid: str, d: float, jetzt: datetime) -> None:
+        """+ / − am Rad: Soll bis morgen früh verschieben und als Gefühl merken (+ = zu kalt, − = zu warm)."""
+        neu = round(self.versch(bid) + d, 2)
+        bis = datetime.combine(jetzt.date() + timedelta(days=1), VERSCH_BIS, tzinfo=jetzt.tzinfo)
+        versch = self.st.lz.setdefault("soll_versch", {})
+        if neu:
+            versch[bid] = [neu, bis.isoformat(timespec="seconds")]
+        else:
+            versch.pop(bid, None)
+        self.gefuehl_merken(bid, -1 if d > 0 else 1, jetzt)
+
+    def soll_versch_weg(self, bid: str) -> None:
+        if (self.st.lz.get("soll_versch") or {}).pop(bid, None) is not None:
+            self.st.protokoll("einstellung", bid, f"{self.st.bereiche[bid].name}: zurück auf gleitendes Soll")
+
+    def _aussen_merken(self, jetzt: datetime, aussen: float | None) -> None:
+        """Einmal je Minute die Außentemperatur ins Tagesmittel (10 Tage)."""
+        minute = int(jetzt.timestamp() // 60)
+        if aussen is None or self._aussen_minute == minute:
+            return
+        self._aussen_minute = minute
+        roh = self.st.lz.setdefault("aussen_tage", {})
+        t = roh.setdefault(jetzt.date().isoformat(), [0.0, 0])
+        t[0], t[1] = round(t[0] + aussen, 2), t[1] + 1
+        for alt in [k for k in roh if k < (jetzt.date() - timedelta(days=10)).isoformat()]:
+            del roh[alt]
 
     def jetzt_bis(self, jetzt: datetime) -> datetime | None:
         bis = zeit(self.st.lz.get("jetzt_bis"))
@@ -667,6 +765,7 @@ class Heizung(Funktion):
 
     def nach_schalten(self, jetzt: datetime, wetter: WetterWerte) -> None:
         """Einmal am Morgen die Wetter-Entscheidung ins Protokoll (Mockup „05:00 wetter …“), dazu jeder Wechsel."""
+        self._aussen_merken(jetzt, wetter.aussen)   # Soll gleitend: Tagesmittel außen
         self._lernen(jetzt, wetter)
         st = self.st
         zu_warm = self.zu_warm(wetter)

@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.35",
+   "version": "0.8.36",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -304,6 +304,12 @@
     "vorheizen_min": 45,
     "nachheizen_min": 15,
     "soll": 20.0,
+    "soll_art": "fest",
+    "gleit_min": 21.0,
+    "gleit_max": 24.0,
+    "gleit_je": 0.1,
+    "gleit_bezug": 12.0,
+    "gleit_tage": 3,
     "toleranz": 0.3,
     "heizgrenze": 15.0,
     "heizgrenze_basis": "tageshoechst",
@@ -592,6 +598,12 @@
       "heiz_min": 35,
       "horizont_min": 15
      },
+     "soll": {
+      "wert": 20.0,
+      "versch": 0.0,
+      "versch_bis": null,
+      "eigen": null
+     },
      "firma": "eigen"
     },
     "mannschaft": {
@@ -630,6 +642,12 @@
       "gerecht": 0.2,
       "heiz_min": 0,
       "horizont_min": 15
+     },
+     "soll": {
+      "wert": 20.0,
+      "versch": 0.0,
+      "versch_bis": null,
+      "eigen": null
      },
      "firma": "eigen"
     },
@@ -686,6 +704,12 @@
       "heiz_min": 25,
       "horizont_min": 15
      },
+     "soll": {
+      "wert": 20.0,
+      "versch": 0.0,
+      "versch_bis": null,
+      "eigen": null
+     },
      "firma": "huber"
     },
     "schacht": {
@@ -701,6 +725,7 @@
      "lernen": null,
      "stufen": null,
      "bedarf": null,
+     "soll": null,
      "firma": "eigen"
     }
    },
@@ -1136,6 +1161,173 @@
      "polier_r1"
     ]
    },
+   "soll_gleitend": {
+    "aussen_mittel": 4.8,
+    "tage": 3,
+    "start": 21.72,
+    "gefuehl": 0,
+    "soll": 21.72,
+    "n": 0,
+    "kurve": [
+     [
+      -10,
+      23.2,
+      23.2
+     ],
+     [
+      -9,
+      23.1,
+      23.1
+     ],
+     [
+      -8,
+      23.0,
+      23.0
+     ],
+     [
+      -7,
+      22.9,
+      22.9
+     ],
+     [
+      -6,
+      22.8,
+      22.8
+     ],
+     [
+      -5,
+      22.7,
+      22.7
+     ],
+     [
+      -4,
+      22.6,
+      22.6
+     ],
+     [
+      -3,
+      22.5,
+      22.5
+     ],
+     [
+      -2,
+      22.4,
+      22.4
+     ],
+     [
+      -1,
+      22.3,
+      22.3
+     ],
+     [
+      0,
+      22.2,
+      22.2
+     ],
+     [
+      1,
+      22.1,
+      22.1
+     ],
+     [
+      2,
+      22.0,
+      22.0
+     ],
+     [
+      3,
+      21.9,
+      21.9
+     ],
+     [
+      4,
+      21.8,
+      21.8
+     ],
+     [
+      5,
+      21.7,
+      21.7
+     ],
+     [
+      6,
+      21.6,
+      21.6
+     ],
+     [
+      7,
+      21.5,
+      21.5
+     ],
+     [
+      8,
+      21.4,
+      21.4
+     ],
+     [
+      9,
+      21.3,
+      21.3
+     ],
+     [
+      10,
+      21.2,
+      21.2
+     ],
+     [
+      11,
+      21.1,
+      21.1
+     ],
+     [
+      12,
+      21.0,
+      21.0
+     ],
+     [
+      13,
+      21.0,
+      21.0
+     ],
+     [
+      14,
+      21.0,
+      21.0
+     ],
+     [
+      15,
+      21.0,
+      21.0
+     ],
+     [
+      16,
+      21.0,
+      21.0
+     ],
+     [
+      17,
+      21.0,
+      21.0
+     ],
+     [
+      18,
+      21.0,
+      21.0
+     ],
+     [
+      19,
+      21.0,
+      21.0
+     ],
+     [
+      20,
+      21.0,
+      21.0
+     ]
+    ],
+    "rueck": [],
+    "schritt": 0.15
+   },
    "warnungen": [
     {
      "key": "offline:magazin:magazin_t1",
@@ -1542,7 +1734,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.35",
+   "version": "0.8.36",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1616,6 +1808,12 @@
     "vorheizen_min": 45,
     "nachheizen_min": 15,
     "soll": 20.0,
+    "soll_art": "fest",
+    "gleit_min": 21.0,
+    "gleit_max": 24.0,
+    "gleit_je": 0.1,
+    "gleit_bezug": 12.0,
+    "gleit_tage": 3,
     "toleranz": 0.3,
     "heizgrenze": 15.0,
     "heizgrenze_basis": "tageshoechst",
@@ -1771,6 +1969,12 @@
       "heiz_min": 0,
       "horizont_min": 15
      },
+     "soll": {
+      "wert": 20.0,
+      "versch": 0.0,
+      "versch_bis": null,
+      "eigen": null
+     },
      "firma": "eigen"
     }
    },
@@ -1853,6 +2057,7 @@
     ],
     "rang": []
    },
+   "soll_gleitend": null,
    "warnungen": [],
    "wetter": {
     "aussen": null,
