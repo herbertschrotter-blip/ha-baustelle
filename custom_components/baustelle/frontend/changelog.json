@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.9",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Neuer Container (WU-0008): die Heizungsart wird erst abgefragt, wenn gleich ein Shelly gewählt ist („Welche Heizung hängt an diesem Shelly?“); ohne Shelly nur der Hinweis, dass Heizungen später unter „Bearbeiten“ dazukommen."
+    ]
+  },
+  {
     "version": "0.8.8",
     "datum": "2026-10-01",
     "punkte": [

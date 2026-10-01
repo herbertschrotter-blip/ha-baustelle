@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.9] – 2026-10-01
+
+- Neuer Container (WU-0008): die Heizungsart wird erst abgefragt, wenn gleich ein Shelly gewählt ist („Welche Heizung
+  hängt an diesem Shelly?“); ohne Shelly nur der Hinweis, dass Heizungen später unter „Bearbeiten“ dazukommen.
+
 ## [0.8.8] – 2026-10-01
 
 - Einstellungen neu (WU-0007, Mockup einstellungen-varianten.html Variante 1 abgenommen): alle Einstellungen an einer

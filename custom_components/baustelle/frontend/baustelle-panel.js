@@ -1200,7 +1200,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.8';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.9';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -3165,7 +3165,8 @@ class BaustellePanel extends HTMLElement {
       <div class="feld">Art<div class="seg klein">${['Container', 'Pumpenschacht'].map(v => `<button data-act="neu-art" data-v="${v}" class="${f.art === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
       <label class="feld">Temperaturfühler<select data-neu="fuehler">${this.optionen(fuehler, f.fuehler, '– keiner –')}</select></label>
       <label class="feld">Shelly<select data-neu="schalter">${this.optionen(this.freieSchalter().map(([v, n]) => [v, `${n} (${v})`]), f.schalter, '– später –')}</select></label>
-      <label class="feld">${schacht ? 'Gerät' : 'Heizkörper'}<select data-neu="typ">${this.optionen((schacht ? ['Pumpe'] : ['Ölradiator', 'Konvektor']).map(t => [t, t]), f.typ)}</select></label>
+      ${f.schalter ? `<label class="feld">${schacht ? 'Welches Gerät hängt an diesem Shelly?' : 'Welche Heizung hängt an diesem Shelly?'}<select data-neu="typ">${this.optionen((schacht ? ['Pumpe'] : ['Ölradiator', 'Konvektor']).map(t => [t, t]), f.typ)}</select></label>`
+        : `<div class="leise">Ohne Shelly wird nur der ${schacht ? 'Schacht' : 'Container'} angelegt – ${schacht ? 'Pumpen' : 'Heizungen'} kommen später unter „Bearbeiten“ dazu.</div>`}
       ${knopf('Anlegen', 'neu-anlegen', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'bereich') {
@@ -3652,7 +3653,7 @@ class BaustellePanel extends HTMLElement {
     if (ds.fnc !== undefined) sh.form.neu[+ds.fnc].name = el.value;
     if (ds.b === 'name' && sh && sh.edit) sh.edit.name = el.value;
     if (ds.azt) sh.form.tage[ds.azt][+ds.p] = el.value;
-    if (ds.neu) sh.form[ds.neu] = el.value;
+    if (ds.neu) { sh.form[ds.neu] = el.value; if (ds.neu === 'schalter') this.render(); }   // WU-0008: Heizungsart erst mit Shelly abfragen
     if (ds.wq) sh.form[ds.wq] = el.value;
     if (ds.nm) sh.form.name = el.value;
     if (ds.bsz) sh.form[ds.bsz] = el.value;

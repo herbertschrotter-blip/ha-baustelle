@@ -285,7 +285,11 @@ async function allgemein() {
   const belegt = new Set(STRUKTUR.flatMap(b => [...b.geraete.map(g => g.schalter), ...Object.values(b.entitaeten)]));
   const frei = Object.keys(states).filter(e => e.startsWith('switch.') && !belegt.has(e)).sort();
   if (frei.length) {
-    neu(); await klick({ act: 'sheet', s: 'container-neu' }); eingabe({ neu: 'name' }, 'Lager Ost'); eingabe({ neu: 'schalter' }, frei[0]); eingabe({ neu: 'typ' }, 'Konvektor');
+    neu(); await klick({ act: 'sheet', s: 'container-neu' }); eingabe({ neu: 'name' }, 'Lager Ost');
+    erwarte('WU-0008: ohne Shelly keine Frage nach der Heizung', !ui.innerHTML.includes('data-neu="typ"') && ui.innerHTML.includes('kommen später unter „Bearbeiten“'));
+    eingabe({ neu: 'schalter' }, frei[0]); await ruhe();
+    erwarte('WU-0008: mit Shelly fragt der Dialog, welche Heizung daran hängt', ui.innerHTML.includes('Welche Heizung hängt an diesem Shelly?') && ui.innerHTML.includes('data-neu="typ"'));
+    eingabe({ neu: 'typ' }, 'Konvektor');
     await klick({ act: 'neu-anlegen' }, 40);
     erwarte('Neuer Container über die Subentry-Dialoge', api.filter(a => a[1] === 'config/config_entries/subentries/flow').length === 2);
   }
@@ -858,7 +862,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'sheet', s: 'wetter' }, 20); await klick({ act: 'wa', v: 'tag' }, 20);
   erwarte('Tagesverlauf um 16:20: Morgen und Mittag vorbei, Nachmittag nicht', (ui.innerHTML.match(/class="vorbei"/g) || []).length === 2);
   for (const s of ['name', 'baustelle-neu', 'wetterquelle']) { await klick({ act: 'sheet', s }, 20); erwarte(`Einblendung ${s}: nur „Speichern“ wie im Mockup`, !/data-act="zu">Abbrechen/.test(ui.innerHTML)); }
-  await klick({ act: 'sheet', s: 'container-neu' }, 20); erwarte('Neuer Container: Heizkörper Ölradiator/Konvektor wie im Mockup', !/<option value="Steckdose"/.test(ui.innerHTML) && /<option value="Konvektor"/.test(ui.innerHTML));
+  await klick({ act: 'sheet', s: 'container-neu' }, 20); eingabe({ neu: 'schalter' }, (panel.freieSchalter()[0] || ['switch.x'])[0]); await ruhe();   // WU-0008: Art erst mit Shelly
+  erwarte('Neuer Container: Heizkörper Ölradiator/Konvektor wie im Mockup', !/<option value="Steckdose"/.test(ui.innerHTML) && /<option value="Konvektor"/.test(ui.innerHTML));
   await klick({ act: 'zu' }); struktur = vorher; await panel._laden(); await ruhe(20);
 
   /* Adresse aus einer Handy-Nachricht */
