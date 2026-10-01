@@ -40,7 +40,6 @@ from .const import (
     STATUS_AKTIV,
     SUB_BEREICH,
     SUB_GERAET,
-    TYPEN,
 )
 from .logik import auswertung as a
 from .logik import zeitraum
@@ -361,11 +360,24 @@ async def async_auswertung(
     punkte = a.tageswerte(roh_w, en, aussen, heute, zone)
     # Ölradiator oder Konvektor: Heiztage wie im Verlauf (Zähler, sonst aus der Heizzeit)
     verlauf = await async_verlauf(hass, q)
-    typ = a.typ_vergleich(
-        [{"id": b["id"], "geraete": [g for g in q.geraete if g["bereich"] == b["id"]]} for b in q.bereiche], q.zaehler,
-        {t: _zustand(hass, q.eid(eid, f"energie_{t}")) for t in TYPEN},
-        {t: _zustand(hass, q.eid(eid, f"heizzeit_{t}")) for t in TYPEN}, verlauf["heiztage"], preis,
-    )
+    # Ölradiator oder Konvektor – fair (AN-0008): nur Zeiten im Modus Thermostat mit Fühler, kWh je Gradstunde
+    from .funktionen.heizung import Heizung   # hier, sonst Kreis-Import (heizung → steuerung → auswertung)
+    z = q.zaehler
+    typ = a.typ_vergleich_fair([
+        {"id": b["id"], "name": b["name"], "typen": [g["typ"] for g in q.geraete if g["bereich"] == b["id"] and g["rolle"] == ROLLE_HEIZKOERPER],
+         "fuehler": bool(q.st and q.st.bereiche.get(b["id"]) and q.st.bereiche[b["id"]].fuehler),
+         "modus": Heizung.von(q.st).modus(b["id"]) if q.st is not None else None,
+         "kwh": z.get(f"vgl_kwh:{b['id']}"), "gradh": z.get(f"vgl_gradh:{b['id']}"),
+         "auf": z.get(f"vgl_aufheiz:{b['id']}"), "ab": z.get(f"vgl_abkuehl:{b['id']}")}
+        for b in q.bereiche if b["art"] == ART_CONTAINER
+    ])
+    # Was die Ölradiatoren gegenüber Konvektoren gespart haben – ihr Verbrauch im Zeitraum, umgerechnet (AN-0008)
+    oel_ids = [i for bid in typ["oelradiator"]["ids"] for i in q.energie_ids(bid)]
+    typ["ersparnis"] = None
+    if typ["vergleichbar"] and oel_ids:
+        roh_o = await async_statistik(hass, oel_ids, a.mitternacht(zr.von, zone), a.mitternacht(zr.bis, zone), zr.periode, {"change"})
+        oel = a.verbrauch(a.reihen(zr, {i: roh_o.get(i, []) for i in oel_ids}, zone), oel_ids, zr.n)
+        typ["ersparnis"] = a.typ_ersparnis(oel, typ, preis)
     rang = a.rangliste([c for s in jetzt for c in s["je_container"]], preis)
     gerade = a.wetter_kosten(a.wetter_einfluss(punkte), preis)
     oa = a.ohne_automatik(summen["kwh"], summen["ohne"], preis)

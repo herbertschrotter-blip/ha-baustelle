@@ -207,7 +207,8 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
     assert 5 <= len(punkte) <= 30 and r["wetter"]["gerade"]["k"] is not None
     g = r["wetter"]["gerade"]
     assert g["eur_je_grad"] == (pytest.approx(-g["k"] * 0.25) if g["k"] < 0 else None)
-    assert set(r["typ"]) == {"oelradiator", "konvektor", "weniger"}
+    assert set(r["typ"]) == {"oelradiator", "konvektor", "weniger", "vergleichbar", "ausgeschlossen", "ersparnis"}   # AN-0008: fair
+    assert set(r["typ"]["oelradiator"]) == {"kwh_gradh", "auf", "ab", "container", "ids"}
     # WU-0005: Rangliste je Container (Summe = kWh der Container) und „Was fällt auf“
     rang = r["rangliste"]
     assert [c["bereich"] for c in rang] and all(c["baustelle"] == baustelle.title for c in rang)

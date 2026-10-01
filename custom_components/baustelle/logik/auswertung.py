@@ -549,10 +549,72 @@ def typ_vergleich(
     return ergebnis
 
 
+VGL_MIN_GRADH = 20.0   # ab so vielen Gradstunden zählt ein Container im Vergleich
+
+
+def typ_vergleich_fair(container: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Ölradiator oder Konvektor – fair verglichen (AN-0008, Herbert 01.10.2026).
+
+    Gezählt werden nur Zeiten, in denen ein Container mit Fühler im Modus Thermostat geregelt wurde (Zähler `vgl_*`),
+    und nur Container mit einem einzigen Heizkörper-Typ (gemischte zählen für keinen). Kennzahl ist kWh je Gradstunde
+    (Strom je Stunde und °C, um den es drinnen wärmer ist als draußen), dazu Aufheiz- und Abkühlrate.
+
+    `container`: `[{"id", "name", "typen": [..], "fuehler": bool, "modus", "kwh", "gradh", "auf", "ab"}]`.
+    """
+    zaehlen: dict[str, list[Mapping[str, Any]]] = {"oelradiator": [], "konvektor": []}
+    ausgeschlossen: list[dict[str, str]] = []
+    for c in container:
+        typen = sorted(set(c.get("typen") or []))
+        if not typen:
+            continue
+        if len(typen) > 1:
+            grund = "Ölradiator und Konvektor gemischt"
+        elif not c.get("fuehler"):
+            grund = "ohne Fühler"
+        elif not (ist_zahl(c.get("gradh")) and float(c["gradh"]) >= VGL_MIN_GRADH):
+            grund = "noch zu wenig im Modus Thermostat gemessen" if c.get("modus") == "thermo" else "nicht im Modus Thermostat"
+        else:
+            zaehlen.setdefault(typen[0], []).append(c)
+            continue
+        ausgeschlossen.append({"name": str(c.get("name") or c.get("id")), "grund": grund})
+
+    def mittel_von(liste: Sequence[Mapping[str, Any]], k: str) -> float | None:
+        werte = [float(c[k]) for c in liste if ist_zahl(c.get(k))]
+        return summe(werte) / len(werte) if werte else None
+
+    ergebnis: dict[str, Any] = {}
+    for typ in ("oelradiator", "konvektor"):
+        liste = zaehlen.get(typ, [])
+        gradh = summe(float(c["gradh"]) for c in liste)
+        kwh = summe(float(c["kwh"]) for c in liste if ist_zahl(c.get("kwh")))
+        ergebnis[typ] = {"kwh_gradh": kwh / gradh if gradh else None, "auf": mittel_von(liste, "auf"),
+                         "ab": mittel_von(liste, "ab"), "container": [str(c.get("name") or c.get("id")) for c in liste],
+                         "ids": [str(c.get("id")) for c in liste]}
+    o, k = ergebnis["oelradiator"]["kwh_gradh"], ergebnis["konvektor"]["kwh_gradh"]
+    ergebnis["weniger"] = js_runden((1 - o / k) * 100) if o is not None and k is not None and k > 0 else None
+    ergebnis["vergleichbar"] = o is not None and k is not None
+    ergebnis["ausgeschlossen"] = ausgeschlossen
+    return ergebnis
+
+
 # ------------------------------------------------------------------ Wetter-Einfluss
 
 WETTER_TAGE = 30
 WETTER_MIN_TAGE = 5
+
+
+def typ_ersparnis(oel: Sequence[float], typ: Mapping[str, Any], preis: float) -> dict[str, Any] | None:
+    """Was die Ölradiatoren gegenüber Konvektoren gespart haben (AN-0008): ihr tatsächlicher Verbrauch je Periode und
+    derselbe Verbrauch mal dem Faktor Konvektor ÷ Ölradiator (kWh je Gradstunde) – „mit Konvektoren“. None, solange
+    der faire Vergleich fehlt."""
+    o, k = typ["oelradiator"]["kwh_gradh"], typ["konvektor"]["kwh_gradh"]
+    if not typ.get("vergleichbar") or not o or k is None:
+        return None
+    faktor = k / o
+    waere = [round(v * faktor, 3) for v in oel]
+    erspart = summe(waere) - summe(oel)
+    return {"faktor": faktor, "oel": [round(v, 3) for v in oel], "konvektor": waere, "oel_kwh": summe(oel),
+            "konvektor_kwh": summe(waere), "erspart_kwh": erspart, "erspart_eur": erspart * preis}
 
 
 def tageswerte_zeitraum(heute: date) -> tuple[date, date]:

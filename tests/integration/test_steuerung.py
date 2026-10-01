@@ -998,6 +998,20 @@ async def test_geraete_links(hass: HomeAssistant, baustelle) -> None:
     assert links["sensor.aussen"] == {"web": None, "ha": None, "geraet": None, "hersteller": None, "modell": None, "batterie": None}
 
 
+async def test_fairer_vergleich_zaehlt_nur_im_thermostat(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """AN-0008: Zähler `vgl_*` nur, wenn der Container mit Fühler im Modus Thermostat regelt und nur einen Typ hat."""
+    st = baustelle.runtime_data
+    hz = Heizung.von(st)
+    st.einstellungen.bereich(C1)["modus"] = "thermo"
+    assert hz.vergleichbar(C1) and not hz.vergleichbar(C2)          # C2 ohne Fühler
+    hz.energie_buchen(st.geraete[HK1], 1.5)
+    assert st.zaehler[f"vgl_kwh:{C1}"] == 1.5
+    st.einstellungen.bereich(C1)["modus"] = "plan"
+    assert not hz.vergleichbar(C1)
+    hz.energie_buchen(st.geraete[HK1], 1.0)
+    assert st.zaehler[f"vgl_kwh:{C1}"] == 1.5 and st.zaehler["energie_heizen"] >= 2.5   # gezählt, aber nicht im Vergleich
+
+
 async def test_geraet_inaktiv(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
     """WU-0004: inaktives Gerät wird einmal ausgeschaltet, dann schaltet die Automatik es nicht mehr und es meldet nichts."""
     st = baustelle.runtime_data

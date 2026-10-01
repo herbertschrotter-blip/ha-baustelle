@@ -112,7 +112,13 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
         veraenderung: { kwh: kwh ? 11 : null, heizzeit: 6, pumpzeit: pumpen ? 8 : null }, ohne_automatik: kwh ? { ohne_eur: kwh * 3 * preis, gespart_eur: kwh * 2 * preis, prozent: 66.7 } : null },
       je_geraet: (g ? g.erwartet.zeilen : b.geraete.map(x => ({ bereich: x.bereich, geraet: x.id, mittel: null, kwh: 1.5, std: null }))).map(z => ({ ...z, eur: z.kwh === null ? null : z.kwh * preis })),
       wetter: w ? { punkte: w.erwartet.punkte, gerade: w.erwartet.regression && { ...w.erwartet.regression, eur_je_grad: w.erwartet.regression.k < 0 ? -w.erwartet.regression.k * preis : null } } : { punkte: [], gerade: null },
-      typ: tv ? tv.erwartet : { oelradiator: leer, konvektor: leer, weniger: null },
+      // AN-0008: fairer Vergleich (kWh je Gradstunde, nur Thermostat mit Fühler, ein Typ je Container)
+    typ: REFERENZ ? { oelradiator: { kwh_gradh: 0.085, auf: 2.1, ab: 0.6, container: ['Poliercontainer'] }, konvektor: { kwh_gradh: 0.102, auf: 3.0, ab: 1.1, container: ['Sanitär'] },
+      weniger: 17, vergleichbar: true, ausgeschlossen: [{ name: 'Mannschaft', grund: 'Ölradiator und Konvektor gemischt' }, { name: 'Magazin', grund: 'ohne Fühler' }],
+      ersparnis: (() => { const n = perioden(m.zeitraum, b.baustelle.heute || '2026-09-29'), oel = Array.from({ length: n }, (_, i) => m.zeitraum === 'Tag' ? (i >= 6 && i < 17 ? 1.4 : 0) : 9 + (i % 4)),
+        f = 0.102 / 0.085, k = oel.map(v => +(v * f).toFixed(3)), so = oel.reduce((a, x) => a + x, 0), sk = k.reduce((a, x) => a + x, 0);
+        return { faktor: f, oel, konvektor: k, oel_kwh: so, konvektor_kwh: sk, erspart_kwh: sk - so, erspart_eur: (sk - so) * preis }; })() }
+      : { oelradiator: { kwh_gradh: null, auf: null, ab: null, container: [], ids: [] }, konvektor: { kwh_gradh: null, auf: null, ab: null, container: [], ids: [] }, weniger: null, vergleichbar: false, ausgeschlossen: [], ersparnis: null },
       heizperiode: { ende: '2026-04-30', bis: ende && ende < '2026-04-30' ? ende : '2026-04-30' }, heiztage: zl.heiztage ?? 0,
       hochrechnung: { bisher_kwh: 412, bisher_eur: 115.36, mit_kwh: 2310, mit_eur: 646.8, ohne_kwh: 10626, ohne_eur: 2975.28, gespart_eur: 2328.48 },
       // WU-0005: Rangliste und Erkenntnisse (wie logik/auswertung.rangliste/erkenntnisse)

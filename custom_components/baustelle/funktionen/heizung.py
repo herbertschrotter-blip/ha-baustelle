@@ -879,6 +879,16 @@ class Heizung(Funktion):
         self.st.zaehler_plus("energie_heizen", kwh)
         if g.rolle == ROLLE_HEIZKOERPER:
             self.st.zaehler_plus(f"energie_typ:{g.typ}", kwh)
+            if self.vergleichbar(g.bereich):
+                self.st.zaehler_plus(f"vgl_kwh:{g.bereich}", kwh)
+
+    def vergleichbar(self, bid: str) -> bool:
+        """Zählt der Container gerade für den fairen Vergleich Ölradiator/Konvektor (AN-0008)? Mit Fühler, im Modus
+        Thermostat und nur ein Heizkörper-Typ."""
+        info = self.st.bereiche.get(bid)
+        if info is None or info.art != ART_CONTAINER or not info.fuehler or self.modus(bid) != "thermo":
+            return False
+        return len({g.typ for g in self.heizer_von(bid)}) == 1
 
     def zaehlen_ende(self, jetzt: datetime, stunden: float) -> None:
         """„Ohne Automatik“ (24-h-Dauerbetrieb) und Heiztage."""
@@ -898,6 +908,9 @@ class Heizung(Funktion):
             self._phase.pop(bid, None)
             return
         st.zaehler_plus(f"gradh:{bid}", gradstunden(innen, st.daten.wetter.aussen, stunden))
+        fair = self.vergleichbar(bid)   # AN-0008: nur im Modus Thermostat mit Fühler und einem Typ
+        if fair:
+            st.zaehler_plus(f"vgl_gradh:{bid}", gradstunden(innen, st.daten.wetter.aussen, stunden))
         phase = self._phase.get(bid)
         if phase is None or phase[0] != heizt:
             self._phase[bid] = (heizt, jetzt, innen)
@@ -909,6 +922,8 @@ class Heizung(Funktion):
         key = f"aufheiz:{bid}" if heizt else f"abkuehl:{bid}"
         if aenderung is not None and (aenderung > 0 if heizt else aenderung < 0):
             st.zaehler[key] = mittel(st.zaehler.get(key), abs(aenderung))
+            if fair:
+                st.zaehler[f"vgl_{key}"] = mittel(st.zaehler.get(f"vgl_{key}"), abs(aenderung))
             st.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
         self._phase[bid] = (heizt, jetzt, innen)
 

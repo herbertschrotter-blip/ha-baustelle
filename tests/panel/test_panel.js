@@ -949,8 +949,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'aw-scope', v: 'diese' }); await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 40); const h = ui.innerHTML;
     erwarte('Auswertung über baustelle/auswertung (Zeitraum, Versatz, Scope)', letzte('baustelle/auswertung').some(a => a.entry_id === 'dobl' && a.zeitraum === 'Monat' && a.versatz === 0 && a.scope === 'diese'));
     erwarte('Abrechnung über baustelle/abrechnung', letzte('baustelle/abrechnung').some(a => a.entry_id === 'dobl' && a.zeitraum === 'Monat' && a.scope === 'diese'));
-    const T = fall('typvergleich', 'dobl');
-    erwarte('Ölradiator/Konvektor: Werte der Integration', h.includes(`<td>${deT(T.oelradiator.kwh_h, 2)}</td>`) && h.includes(`${deT(T.konvektor.kwh_h, 2)}`) && h.includes(`verbraucht rund ${T.weniger} % weniger`));
+    // AN-0008: fairer Vergleich – kWh je Gradstunde, zählende und ausgeschlossene Container (Werte des Beispiel-hass)
+    erwarte('Ölradiator/Konvektor: Werte der Integration (fair)', h.includes('kWh je Gradstunde') && h.includes(`>${deT(0.085, 3)}<`) && h.includes(`${deT(0.102, 3)}`)
+      && h.includes('verbraucht rund 17 % weniger') && h.includes('Poliercontainer</td>') && h.includes('Mannschaft (Ölradiator und Konvektor gemischt)'));
+    erwarte('AN-0008: Ersparnis Ölradiator gegen Konvektor mit Diagramm', h.includes('kWh mit Konvektoren') && h.includes('erspart') && h.includes('data-chart="typ-er-') && h.includes('mit Konvektoren</span>'));
     const Z = fall('abrechnung', 'dobl diese Monat').zeilen;
     erwarte('Abrechnung nach Firma: Firmen und kWh der Integration', Z.length > 1 && Z.every(z => h.includes(`<b>${esc(z.firma)}</b>`) && h.includes(`${deT(z.kwh, 0)} kWh · `)));
     const G = fall('je-geraet', 'dobl Monat').zeilen.filter(z => z.kwh !== null);

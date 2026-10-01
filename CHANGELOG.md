@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.24] – 2026-10-01
+
+- Ölradiator oder Konvektor – fair verglichen (AN-0008): gezählt werden nur Zeiten, in denen ein Container mit Fühler
+  im Modus Thermostat geregelt wird, und nur Container mit einem Typ (gemischte zählen nicht); Kennzahl ist kWh je
+  Gradstunde (Strom je Stunde und °C innen über außen) statt kWh je Heizstunde; die Auswertung zeigt, welche Container
+  zählen und warum andere nicht. Neue Zähler ab dieser Version.
+- Dazu, was die Ölradiatoren gegenüber Konvektoren gespart haben: tatsächlicher Verbrauch der Ölradiatoren gegen
+  „mit Konvektoren“ (gleicher Verbrauch mal Faktor aus dem Vergleich) als Diagramm und Kennzahlen.
+
 ## [0.8.23] – 2026-10-01
 
 - Ohne Automatik je Container (WU-0013): in der Verbrauchs-Einblendung des Containers Kennzahlen „kWh ohne

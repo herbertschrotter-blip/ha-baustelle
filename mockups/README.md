@@ -49,6 +49,7 @@ Auswertung waren noch alt“).
 | `glas.html` (WU-0010) | Einstellungen › Geräte: alle Geräte nach Funktion mit Ort, Zustand, Modell, Batterie; Klick → Website bzw. HA-Geräteseite – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.19 |
 | `glas.html` (WU-0011) | Leistung: Umschalter Stunde/Tag, Schieberegler 0–23 Uhr mit Rasterung statt Stunden-Knöpfen, ganzer Tag 0–24 Uhr – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.20 |
 | `glas.html` (WU-0013, AN-0007) | Container-Verbrauch mit „ohne Automatik“ (Ø je Gerät/Typ, Kennzahlen, gestrichelte Linie, Erklärung) – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.23 |
+| `glas.html` (AN-0008) | Ölradiator oder Konvektor fair (kWh je Gradstunde, nur Thermostat mit Fühler, zählende/ausgeschlossene Container) mit Ersparnis-Diagramm Ölradiatoren gegen „mit Konvektoren“ – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.24 |
 
 Bewusst offen bzw. für den Bau festgelegt:
 - Animationen und Zeitleiste im Zeitplan brauchen eine eigene Karte; erste Stufe mit eingebauten Karten

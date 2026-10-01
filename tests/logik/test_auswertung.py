@@ -336,3 +336,36 @@ def test_ohne_kw_je_geraet_oder_typ():
     assert ohne_kw(geraete, mittel, "geraet") == {"a": 2.0, "b": 1.6, "c": 1.5, "d": 1.5}   # d ohne Messung: Ø des Typs
     assert ohne_kw(geraete, mittel, "typ") == {"a": 1.8, "b": 1.8, "c": 1.5, "d": 1.5}
     assert ohne_kw([("x", "konvektor")], {}, "geraet") == {}
+
+
+def test_typ_vergleich_fair():
+    """AN-0008: nur Thermostat mit Fühler, nur Container mit einem Typ, Kennzahl kWh je Gradstunde."""
+    from logik.auswertung import typ_vergleich_fair
+    c = [
+        {"id": "a", "name": "Polier", "typen": ["oelradiator"], "fuehler": True, "modus": "thermo", "kwh": 30.0, "gradh": 300.0, "auf": 2.0, "ab": 0.5},
+        {"id": "b", "name": "Mannschaft", "typen": ["konvektor"], "fuehler": True, "modus": "thermo", "kwh": 40.0, "gradh": 320.0, "auf": 3.0, "ab": 1.0},
+        {"id": "c", "name": "Magazin", "typen": ["oelradiator", "konvektor"], "fuehler": True, "modus": "thermo", "kwh": 9.0, "gradh": 90.0},
+        {"id": "d", "name": "Lager", "typen": ["oelradiator"], "fuehler": False, "modus": "plan"},
+        {"id": "e", "name": "Sanitär", "typen": ["konvektor"], "fuehler": True, "modus": "plan", "kwh": 0, "gradh": 0},
+        {"id": "f", "name": "Büro", "typen": ["konvektor"], "fuehler": True, "modus": "thermo", "kwh": 1.0, "gradh": 5.0},
+        {"id": "g", "name": "Schacht", "typen": []},
+    ]
+    r = typ_vergleich_fair(c)
+    assert r["vergleichbar"] and r["oelradiator"]["kwh_gradh"] == 0.1 and r["konvektor"]["kwh_gradh"] == 0.125
+    assert r["weniger"] == 20 and r["oelradiator"]["container"] == ["Polier"] and r["konvektor"]["container"] == ["Mannschaft"]
+    assert {(x["name"], x["grund"]) for x in r["ausgeschlossen"]} == {
+        ("Magazin", "Ölradiator und Konvektor gemischt"), ("Lager", "ohne Fühler"), ("Sanitär", "nicht im Modus Thermostat"),
+        ("Büro", "noch zu wenig im Modus Thermostat gemessen")}
+    nur_einer = typ_vergleich_fair(c[:1])
+    assert not nur_einer["vergleichbar"] and nur_einer["weniger"] is None and nur_einer["konvektor"]["kwh_gradh"] is None
+
+
+def test_typ_ersparnis():
+    """AN-0008: Verbrauch der Ölradiatoren gegen „mit Konvektoren“ (Faktor kWh je Gradstunde)."""
+    from logik.auswertung import typ_ersparnis
+    typ = {"oelradiator": {"kwh_gradh": 0.1}, "konvektor": {"kwh_gradh": 0.125}, "vergleichbar": True}
+    r = typ_ersparnis([4.0, 0.0, 8.0], typ, 0.3)
+    assert r["faktor"] == 1.25 and r["konvektor"] == [5.0, 0.0, 10.0] and r["erspart_kwh"] == 3.0 and r["erspart_eur"] == pytest.approx(0.9)
+    mehr = typ_ersparnis([10.0], {"oelradiator": {"kwh_gradh": 0.2}, "konvektor": {"kwh_gradh": 0.1}, "vergleichbar": True}, 0.3)
+    assert mehr["erspart_kwh"] == -5.0                     # Ölradiator braucht mehr: negativ
+    assert typ_ersparnis([1.0], {**typ, "vergleichbar": False}, 0.3) is None
