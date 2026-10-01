@@ -86,6 +86,7 @@ from .texte import GRUND_TEXT
 _LOGGER = logging.getLogger(__name__)
 
 MAX_SCHRITT_H = 5 / 60  # längere Lücken (Neustart) zählen nicht als Laufzeit
+HOCHFAHREN_UNSICHER = timedelta(minutes=2)  # so lange nach dem Start kann last_changed nur den Start zeigen (WU-0015)
 FEHLT_NACH = timedelta(minutes=10)  # so lange darf eine Entität nach dem Start fehlen (andere Integrationen laden)
 STABIL_S = 60  # Staffelung: kleinster freier Wert der letzten Minute
 ANLAUF_S = 20  # Staffelung: Geräte gehen nacheinander an, höchstens eines je 20 s (kein gemeinsamer Einschaltstoß)
@@ -710,13 +711,18 @@ class Steuerung:
             seit = dt_util.as_local(zustand.last_changed) if zustand is not None else None
             if seit is not None and seit > jetzt:
                 seit = None  # Uhr zurückgestellt: Zeitpunkt unbekannt
+            # WU-0015: nach einem Neustart zeigt last_changed den Start, nicht das echte Schalten – ein Gerät, das die
+            # Integration seither nicht selbst geschaltet hat, war wohl länger aus: keine Mindestpause ab dem Start
+            seit_unbekannt = (
+                seit is not None and seit <= self._gestartet + HOCHFAHREN_UNSICHER and g.id not in self._letzter_befehl
+            )
             vorrang = self.funktion_von(g).staffel_vorrang(s_c, schaltet) if s_c is not None else {}
             lasten.append(
                 staffel_logik.Last(
                     id=g.id, anschluss=e.get("anschluss") or "", kw=kw, heizer=schaltet, an=an, gruppe=g.bereich,
                     will=bool(schaltet and ein), prio=PRIO.get(e.get("prio") or "normal", 1), **vorrang,
                     an_seit_min=_minuten_seit(seit, jetzt) if an else 0.0,
-                    aus_seit_min=_minuten_seit(seit, jetzt) if not an else 1e9,
+                    aus_seit_min=_minuten_seit(seit, jetzt) if not an and not seit_unbekannt else 1e9,
                     wartet_seit_min=_minuten_seit(self._wartet_seit.get(g.id), jetzt) if g.id in self._wartet_seit else 0.0,
                 )
             )

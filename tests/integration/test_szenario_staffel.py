@@ -17,6 +17,7 @@ import voluptuous as vol
 
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers.entity_component import DATA_INSTANCES
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.baustelle.const import DOMAIN
@@ -623,3 +624,18 @@ async def test_plan_und_thermo_am_kleinen_anschluss(hass: HomeAssistant, freezer
     assert not _an(hass, "switch.hk1")
     await _minuten(hass, freezer, st, 1)
     assert _an(hass, "switch.hk2")
+
+
+async def test_nach_neustart_keine_mindestpause_ab_dem_start(hass: HomeAssistant, freezer, shellys) -> None:
+    """WU-0015: nach einem Neustart zeigt last_changed den Start – ein Heizkörper, der vorher stundenlang aus war,
+    musste trotzdem die Mindestpause abwarten (Herbert: „springt nicht sofort an“). Jetzt schaltet er gleich ein;
+    nach eigenem Ausschalten gilt die Pause wie bisher."""
+    entry, st = await _start(hass, freezer, shellys, a1=(32, 3, 0.0), staffel={"min_pause_min": 30}, automatik=False)
+    freezer.move_to(ANLAGE)
+    st._gestartet = dt_util.now()                        # HA startet: die Zustände der Shellys kommen jetzt erst an
+    hass.states.async_set("switch.hk1", "on")
+    hass.states.async_set("switch.hk1", "off", force_update=True)
+    freezer.move_to(ZEHN)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert _an(hass, "switch.hk1") and _warte(hass, entry, HK1) is None

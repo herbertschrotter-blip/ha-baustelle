@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.32] – 2026-10-01
+
+- Heizung springt nach einem Neustart gleich an (WU-0015): nach dem Start von Home Assistant zeigt „zuletzt
+  geändert“ der Shellys den Start, nicht das echte Ausschalten – die Staffelung ließ deshalb auch Heizkörper, die
+  seit Stunden aus waren, erst die Mindestpause (5 min) abwarten. Jetzt gilt die Mindestpause nur nach eigenem
+  Schalten.
+
 ## [0.8.31] – 2026-10-01
 
 - Heizung › Regeln (AN-0012) nach Tagesablauf gruppiert: Vor der Arbeit · In der Arbeitszeit · Nach der Arbeit ·
