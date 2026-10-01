@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.6",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Heizung › „Wann welche Heizung heizt“ (FE-0007): Container ohne Heizkörper erscheinen jetzt auch, mit dem Hinweis „noch kein Heizkörper“ und einem Knopf, der den Container zum Zuordnen öffnet (Tag- und Wochenansicht)."
+    ]
+  },
+  {
     "version": "0.8.5",
     "datum": "2026-10-01",
     "punkte": [

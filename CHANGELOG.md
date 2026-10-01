@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.6] – 2026-10-01
+
+- Heizung › „Wann welche Heizung heizt“ (FE-0007): Container ohne Heizkörper erscheinen jetzt auch, mit dem Hinweis
+  „noch kein Heizkörper“ und einem Knopf, der den Container zum Zuordnen öffnet (Tag- und Wochenansicht).
+
 ## [0.8.5] – 2026-10-01
 
 - Verlauf neu (WU-0006, Mockup glas.html abgenommen): Reiter **Baustellen** – Summe über alle und je Baustelle eine

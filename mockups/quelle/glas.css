@@ -367,6 +367,7 @@ body.hell { background: #d9dee5; color: #111; }
 
 .hp-zeile.ausn .hp-tag b::after { content: ' •'; color: var(--blau); }
 
+.hz-ohne { margin: 4px 0 2px; } .hz-wz-ohne { grid-column: 2 / -1; text-align: left; font: inherit; font-size: 11.5px; background: none; border: 1px dashed var(--divider-color); border-radius: 8px; padding: 4px 8px; cursor: pointer; color: var(--secondary-text-color); }
 .hz-c { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font-size: 12.5px; } .hz-cn { font-weight: 600; } .hz-cp { font-size: 11px; }
 .hz-g { padding-left: 10px; color: var(--ink2); font-size: 11.5px; }
 .tl-spur.hz { height: 12px; }

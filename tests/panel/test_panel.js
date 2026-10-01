@@ -533,6 +533,14 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     panel.hass = { ...hass, states: { ...states, [we]: sonnig } }; await ruhe(); await klick({ act: 'tab', v: 'uebersicht' }, 20);
     erwarte('FE-0005: tagsüber weiter „Sonnig“', ui.innerHTML.includes('aria-label="sunny"') && /Sonnig/.test(ui.innerHTML));
     panel.hass = hass; await ruhe(); }
+  /* FE-0007: Container ohne Heizkörper erscheint in „Wann welche Heizung heizt“ mit Hinweis und Weg zum Zuordnen */
+  { await klick({ act: 'tab', v: 'heizung' }, 20);
+    const leer = { ...panel.d.bereiche.find(b => !b.pumpe), id: 'mannschaft', name: 'Mannschaft 01', geraete: [] }; panel.d.bereiche.push(leer);
+    panel.s.hzArt = 'tag'; await klick({ act: 'hz-auf', k: 'wann' }, 20);
+    erwarte('FE-0007: Tag – Container ohne Heizkörper mit Hinweis und Knopf', ui.innerHTML.includes('Mannschaft 01') && ui.innerHTML.includes('noch kein Heizkörper') && ui.innerHTML.includes('data-act="container" data-id="mannschaft"'));
+    panel.s.hzArt = 'woche'; panel.render();
+    erwarte('FE-0007: Woche – Zeile für Container ohne Heizkörper', ui.innerHTML.includes('hz-wz-ohne') && ui.innerHTML.includes('noch kein Heizkörper · zuordnen'));
+    panel.s.hzArt = 'tag'; panel.d.bereiche.pop(); panel.s.sheet = null; panel.render(); }
   /* 0.8: lernende Regelung – Schalter, Regelungszeile, Lernstand, Setzen und Zurücksetzen */
   { await klick({ act: 'container', id: 'polier' }, 20);
     const pol0 = () => panel.d.bereiche.find(x => x.id === 'polier'); let pol = pol0(); pol.modus = 'thermo';

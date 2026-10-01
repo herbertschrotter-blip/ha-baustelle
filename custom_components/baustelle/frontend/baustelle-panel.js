@@ -530,6 +530,7 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 
 .hp-zeile.ausn .hp-tag b::after { content: ' •'; color: var(--blau); }
 
+.hz-ohne { margin: 4px 0 2px; } .hz-wz-ohne { grid-column: 2 / -1; text-align: left; font: inherit; font-size: 11.5px; background: none; border: 1px dashed var(--divider-color); border-radius: 8px; padding: 4px 8px; cursor: pointer; color: var(--secondary-text-color); }
 .hz-c { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; font-size: 12.5px; } .hz-cn { font-weight: 600; } .hz-cp { font-size: 11px; }
 .hz-g { padding-left: 10px; color: var(--ink2); font-size: 11.5px; }
 .tl-spur.hz { height: 12px; }
@@ -1150,7 +1151,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.5';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.6';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1676,17 +1677,19 @@ class BaustellePanel extends HTMLElement {
     const A = 4 * 60, B = 21 * 60, x = m => Math.max(0, Math.min(100, (m - A) / (B - A) * 100)), breite = (a, b) => Math.max(0, x(b) - x(a));
     const std = segs => segs.reduce((a, q) => a + (q[1] - q[0]), 0) / 60;
     const HZ = b => b.geraete.filter(g => g.heizer);
+    const ohne = b => `<div class="hz-c"><span class="hz-cn">${esc(b.name)}</span><span class="leise hz-cp">noch kein Heizkörper</span></div>
+      <div class="hz-ohne"><button class="chip glas-panel" data-act="container" data-id="${b.id}">+ Heizkörper zuordnen</button></div>`;   // FE-0007: Container ohne Heizkörper trotzdem zeigen
     const tagNr = TAGE.indexOf(tag), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), jetzt = minu(this.z.JETZT);
     this.mess = this.messung();
     const kopf = `<div class="block-kopf"><b>Wann welche Heizung heizt</b><div class="seg klein">${[['tag', 'Tag'], ['woche', 'Woche']].map(([k, t]) => `<button data-act="hz-art" data-v="${k}" class="${art === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
     if (this.mess === null) return `<div class="glas-panel block">${kopf}${LAEDT}</div>`;
     let inhalt;
-    if (!C.some(b => HZ(b).length)) inhalt = '<div class="leer">Keine Heizkörper</div>';
+    if (!C.length) inhalt = '<div class="leer">Keine Container</div>';
     else if (art === 'tag') {
       const zukunft = tagNr > heuteNr, heute = tagNr === heuteNr;
       inhalt = `<div class="vb-wer">${this.z.WOCHE.map(([t, d]) => `<button data-act="hz-tag" data-v="${t}" class="${t === tag ? 'on' : ''}">${t === this.z.HEUTE_TAG ? 'heute' : t} ${d.slice(0, 2)}.</button>`).join('')}</div>
         <div class="leise">${zukunft ? 'Noch nichts gemessen – blass der Plan.' : heute ? 'Bis jetzt gemessen, danach blass der Plan.' : 'Gemessen an der Leistung: kräftig = zieht Strom (über 50 W).'}</div>
-        <div class="hz-tag">${C.filter(b => HZ(b).length).map(b => { const plan = this.heizzeiten(b, tag), ph = std(plan);
+        <div class="hz-tag">${C.map(b => { if (!HZ(b).length) return ohne(b); const plan = this.heizzeiten(b, tag), ph = std(plan);
           return `<div class="hz-c"><span class="hz-cn">${esc(b.name)}${b.bedarf ? ' <span class="leise">bei Bedarf</span>' : ''}${b.offline ? ' <span class="rot-t">offline</span>' : ''}</span><span class="leise hz-cp">${ph ? `${de(ph)} h geplant` : b.bedarf ? 'kein Termin' : !b.auto ? 'Hand' : 'frei'}</span></div>
             ${HZ(b).map(g => { const a = this.aktiv(b, g, tag), ah = std(a.an);
               return `<div class="hz-zeile"><span class="hz-n hz-g">${esc(g.n)}</span>
@@ -1698,10 +1701,10 @@ class BaustellePanel extends HTMLElement {
           <div class="hz-zeile achse"><span></span><div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div><span></span></div></div>
         <div class="hp-legende"><span><i class="hz-an"></i>zieht Strom</span><span><i class="hz-plan"></i>geplant</span><span><i class="hz-off"></i>offline</span><span class="leise">Lücken im Plan: Thermostat, Staffelung, Tür offen</span></div>`;
     } else {
-      const zeilen = C.flatMap(b => HZ(b).map(g => ({ b, g, h: TAGE.map((t, k) => k > heuteNr ? std(this.heizzeiten(b, t)) : std(this.aktiv(b, g, t).an)) })));
-      const max = Math.max(...zeilen.flatMap(z => z.h), 1);
+      const zeilen = C.flatMap(b => HZ(b).length ? HZ(b).map(g => ({ b, g, h: TAGE.map((t, k) => k > heuteNr ? std(this.heizzeiten(b, t)) : std(this.aktiv(b, g, t).an)) })) : [{ b, g: null, h: null }]);
+      const max = Math.max(...zeilen.flatMap(z => z.h || []), 1);
       inhalt = `<div class="hz-woche"><div class="hz-wk"><span></span>${this.z.WOCHE.map(([t, d]) => `<span class="${t === this.z.HEUTE_TAG ? 'heute' : ''}">${t}<br><small>${d.slice(0, 2)}.</small></span>`).join('')}<span>Σ</span></div>
-        ${zeilen.map(({ b, g, h }) => `<div class="hz-wz"><span class="hz-n">${esc(b.name)} <span class="leise">· ${esc(g.n)}</span></span>${h.map((v, k) => `<button class="hz-zelle ${k > heuteNr ? 'geplant' : ''}" data-act="hz-tag" data-v="${TAGE[k]}" data-art="tag" style="--a:${v ? .15 + .75 * v / max : 0}" title="${esc(b.name)} · ${esc(g.n)} ${TAGE[k]}: ${de(v)} h ${k > heuteNr ? 'geplant' : 'gemessen'}">${v ? de(v, v % 1 ? 1 : 0) : ''}</button>`).join('')}<b class="hz-sum">${de(h.slice(0, heuteNr + 1).reduce((a, v) => a + v, 0), 0)} h</b></div>`).join('')}</div>
+        ${zeilen.map(({ b, g, h }) => !g ? `<div class="hz-wz"><span class="hz-n">${esc(b.name)}</span><button class="hz-wz-ohne leise" data-act="container" data-id="${b.id}">noch kein Heizkörper · zuordnen</button></div>` : `<div class="hz-wz"><span class="hz-n">${esc(b.name)} <span class="leise">· ${esc(g.n)}</span></span>${h.map((v, k) => `<button class="hz-zelle ${k > heuteNr ? 'geplant' : ''}" data-act="hz-tag" data-v="${TAGE[k]}" data-art="tag" style="--a:${v ? .15 + .75 * v / max : 0}" title="${esc(b.name)} · ${esc(g.n)} ${TAGE[k]}: ${de(v)} h ${k > heuteNr ? 'geplant' : 'gemessen'}">${v ? de(v, v % 1 ? 1 : 0) : ''}</button>`).join('')}<b class="hz-sum">${de(h.slice(0, heuteNr + 1).reduce((a, v) => a + v, 0), 0)} h</b></div>`).join('')}</div>
         <div class="leise">Stunden, in denen der Heizkörper Strom gezogen hat (heute bis jetzt); kommende Tage blass und kursiv = geplant. Σ = bisher gemessen. Tippen zeigt den Tag.</div>`;
     }
     return `<div class="glas-panel block">${kopf}${inhalt}</div>`;
