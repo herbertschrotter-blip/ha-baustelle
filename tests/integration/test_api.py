@@ -10,7 +10,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 
 
-from .conftest import C1, C2, HK2
+from .conftest import C1, C2, HK1, HK2
 
 BEISPIEL = Path(__file__).resolve().parents[1] / "panel" / "struktur-0.7.json"
 
@@ -112,3 +112,20 @@ async def test_struktur_wie_beispiel(hass: HomeAssistant, baustelle, freezer, sh
     assert lz["termine"] and lz["warnungen"] and lz["protokoll"] and lz["plan_woche"] and lz["staffel"]["anschluesse"]
     assert lz["container"][C1]["tuer"]["offen"] is True and lz["geraete"][HK2]["hand_seit"]
     assert vertrag_pruefen(beispiel[0], echt) == []
+
+
+async def test_ohne_automatik_je_container(hass: HomeAssistant, baustelle, freezer, shellys, hass_ws_client) -> None:
+    """WU-0013: „ohne Automatik“ eines Containers – Ø-Leistung je Gerät bzw. je Typ, 24/7 seit Beginn bis jetzt."""
+    ws = await hass_ws_client(hass)
+    st = baustelle.runtime_data
+    st.zaehler[f"mittel:{HK1}"] = 2000.0     # Ölradiator in Container 1
+    st.zaehler[f"mittel:{HK2}"] = 1500.0     # Konvektor in Container 2
+    freezer.move_to("2026-09-29 10:30:00+02:00")
+    await ws.send_json({"id": 1, "type": "baustelle/ohne", "entry_id": baustelle.entry_id, "bereich": C1, "zeitraum": "Tag"})
+    r = (await ws.receive_json())["result"]
+    assert r["kw"] == 2.0 and r["reihe"][:10] == [2.0] * 10 and r["reihe"][10] == 1.0 and sum(r["reihe"][11:]) == 0
+    assert r["ohne_kwh"] == 21.0 and r["geraete"] == [{"id": HK1, "typ": "oelradiator", "kw": 2.0}]
+    assert r["ergebnis"] is not None and r["ergebnis"]["ohne_eur"] == 21.0 * r["preis"]
+    await ws.send_json({"id": 2, "type": "baustelle/ohne", "entry_id": baustelle.entry_id, "bereich": C1, "zeitraum": "Tag", "basis": "typ"})
+    r = (await ws.receive_json())["result"]
+    assert r["basis"] == "typ" and r["kw"] == 2.0     # einziger Ölradiator: Ø des Typs = eigener Wert

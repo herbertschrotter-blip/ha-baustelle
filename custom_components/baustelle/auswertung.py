@@ -35,6 +35,7 @@ from .const import (
     CONF_STATUS,
     CONF_TYP,
     DOMAIN,
+    ROLLE_HEIZKOERPER,
     ROLLE_PUMPE,
     STATUS_AKTIV,
     SUB_BEREICH,
@@ -303,6 +304,33 @@ async def async_verlauf(hass: HomeAssistant, q: Quelle) -> dict[str, Any]:
                                                strict=True)]},
         "csv": a.csv_text(a.csv_monate(q.entry.title, q.preis, je_monat)),
     }
+
+
+async def async_ohne(
+    hass: HomeAssistant, entry: ConfigEntry, bereich: str, art: str, versatz: int = 0, basis: str = "geraet"
+) -> dict[str, Any]:
+    """Befehl `baustelle/ohne` (WU-0013): „ohne Automatik“ eines Containers im Zeitraum – seine Heizkörper mit ihrer
+    Ø-Leistung im Betrieb (je Gerät gemessen oder je Typ gemittelt) 24/7 ab Beginn der Baustelle bis jetzt, dazu der
+    tatsächliche Verbrauch und das Gesparte."""
+    zone, jetzt = _zone(), dt_util.now()
+    zr = a.zeitraum(art, jetzt.date(), versatz)
+    q = quelle(hass, entry)
+    heizer_alle = [g for g in q.geraete if g["rolle"] == ROLLE_HEIZKOERPER]
+    mittel = {g["id"]: (q.st.zaehler.get(f"mittel:{g['id']}") if q.st is not None else None) for g in heizer_alle}
+    kw = a.ohne_kw([(g["id"], str(g["typ"] or "")) for g in heizer_alle], mittel, basis)
+    eigene = [g for g in heizer_alle if g["bereich"] == bereich]
+    kw_summe = sum(kw.get(g["id"], 0.0) for g in eigene)
+    beginn, _ = beginn_der_baustelle(entry)
+    stunden = a.stunden_je_periode(zr, a.mitternacht(beginn, zone), jetzt, zone)
+    reihe = [round(kw_summe * h, 3) for h in stunden]
+    ids = q.energie_ids(bereich)
+    roh = await async_statistik(hass, ids, a.mitternacht(zr.von, zone), a.mitternacht(zr.bis, zone), zr.periode, {"change"}) if ids else {}
+    w = a.reihen(zr, {i: roh.get(i, []) for i in ids}, zone)
+    kwh = a.summe(a.verbrauch(w, ids, zr.n))
+    ohne = a.summe(reihe)
+    return {"zeitraum": _zeitraum_dict(zr), "basis": basis, "preis": q.preis, "kw": round(kw_summe, 3), "reihe": reihe,
+            "ohne_kwh": ohne, "kwh": kwh, "ergebnis": a.ohne_automatik(kwh, ohne, q.preis),
+            "geraete": [{"id": g["id"], "typ": g["typ"], "kw": kw.get(g["id"])} for g in eigene]}
 
 
 async def async_auswertung(

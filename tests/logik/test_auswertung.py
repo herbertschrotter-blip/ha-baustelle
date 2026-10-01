@@ -309,3 +309,30 @@ def test_verlauf_je_tag():
                {"start": datetime(2026, 9, 28, 22, 0, tzinfo=timezone.utc).timestamp() * 1000, "change": 3.5}]
     w = a.verlauf_werte(energie, {}, zone)
     assert w["je_tag"] == {"2026-09-30": 5.0, "2026-09-29": 3.5} and w["je_monat"] == {"2026-09": 8.5}
+
+
+# ---------------------------------------------------------------- WU-0013: „ohne Automatik“ je Container
+def test_stunden_je_periode_ab_beginn_bis_jetzt():
+    from datetime import datetime, timedelta, timezone as tz
+    from logik.auswertung import stunden_je_periode, zeitraum
+    wien = tz(timedelta(hours=2))
+    zr = zeitraum("Tag", date(2026, 9, 29))
+    jetzt = datetime(2026, 9, 29, 10, 30, tzinfo=wien)
+    h = stunden_je_periode(zr, datetime(2026, 9, 29, 0, 0, tzinfo=wien), jetzt, wien)
+    assert len(h) == 24 and h[:10] == [1.0] * 10 and h[10] == 0.5 and sum(h[11:]) == 0
+    woche = zeitraum("Woche", date(2026, 9, 30))
+    ab = datetime(2026, 9, 29, 12, 0, tzinfo=wien)   # Beginn der Baustelle Dienstag Mittag
+    h = stunden_je_periode(woche, ab, datetime(2026, 10, 1, 6, 0, tzinfo=wien), wien)
+    assert h == [0.0, 12.0, 24.0, 6.0, 0.0, 0.0, 0.0]
+    jahr = zeitraum("Jahr", date(2026, 9, 30))
+    h = stunden_je_periode(jahr, datetime(2026, 1, 1, tzinfo=wien), datetime(2026, 3, 1, tzinfo=wien), wien)
+    assert h[0] == 31 * 24 and h[1] == 28 * 24 and sum(h[2:]) == 0
+
+
+def test_ohne_kw_je_geraet_oder_typ():
+    from logik.auswertung import ohne_kw
+    geraete = [("a", "oelradiator"), ("b", "oelradiator"), ("c", "konvektor"), ("d", "konvektor")]
+    mittel = {"a": 2000.0, "b": 1600.0, "c": 1500.0, "d": None}
+    assert ohne_kw(geraete, mittel, "geraet") == {"a": 2.0, "b": 1.6, "c": 1.5, "d": 1.5}   # d ohne Messung: Ø des Typs
+    assert ohne_kw(geraete, mittel, "typ") == {"a": 1.8, "b": 1.8, "c": 1.5, "d": 1.5}
+    assert ohne_kw([("x", "konvektor")], {}, "geraet") == {}

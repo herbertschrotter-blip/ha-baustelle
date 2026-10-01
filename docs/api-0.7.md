@@ -206,6 +206,9 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `stufen_min` (min Laufzeit des ersten), `stufen_anstieg` (°C), `stufen_kalt` (°C außen). `laufzeit.container.<id>.stufen`
   (ab zwei Heizkörpern, sonst `null`): `{an, haupt: [ids], zusatz: [ids], zusatz_an, grund, text}`; `laufzeit.geraete.<id>.zusatz`.
   Aufheizen lernt je Anzahl laufender Heizkörper: `lernen.aufheizen` mit Schlüsseln `kalt|1`, `mild|2` …; `lernen.warm.anzahl`.
+- Ohne Automatik je Container (WU-0013): `baustelle/ohne` mit `entry_id`, `bereich`, `zeitraum`, `versatz`, `basis`
+  (`geraet` | `typ`) → `{zeitraum, basis, preis, kw, reihe: [kWh je Periode], ohne_kwh, kwh, ergebnis: {ohne_eur,
+  gespart_eur, prozent} | null, geraete: [{id, typ, kw}]}`; 24/7 ab Beginn der Baustelle bis jetzt.
 - Geräteübersicht (WU-0010): `geraete_links` = `{entity_id: {web (configuration_url, nur http/https), ha (Geräteseite),
   geraet, hersteller, modell, batterie (Batterie-Sensor am Gerät)}}` für alle benutzten Entitäten (Schalter, Leistung,
   Energie, Fühler, Türkontakte, Außen, Regen, Wetter); ohne Geräteeintrag alle Felder `null`.

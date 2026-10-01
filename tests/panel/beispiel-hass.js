@@ -129,6 +129,10 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
         case 'recorder/statistics_during_period': return statistik(m);
         case 'baustelle/auswertung': return fakeAuswertung(m);
         case 'baustelle/abrechnung': return fakeAbrechnung(m);
+        case 'baustelle/ohne': { const n = { Tag: 24, Woche: 7, Monat: 30, Jahr: 12 }[m.zeitraum] || 24, kw = m.basis === 'typ' ? 1.8 : 2.0;   // WU-0013
+          const reihe = Array.from({ length: n }, (_, i) => m.zeitraum === 'Tag' ? (i <= 16 ? kw : 0) : kw * 24 * (i < 5 ? 1 : 0)), ohne = reihe.reduce((a, b) => a + b, 0), kwh = ohne * 0.35;
+          return { zeitraum: { art: m.zeitraum, n }, basis: m.basis || 'geraet', preis: 0.28, kw, reihe, ohne_kwh: ohne, kwh,
+            ergebnis: { ohne_eur: ohne * 0.28, gespart_eur: (ohne - kwh) * 0.28, prozent: 65 }, geraete: [] }; }
         case 'history/history_during_period': return verlauf(m);
         case 'baustelle/protokoll': { const b = welt().find(x => x.baustelle.entry_id === m.entry_id); const p = b.laufzeit.protokoll.length ? b.laufzeit.protokoll : [['2026-04-17T12:00:00+02:00', 'einstellung', null, 'Baustelle abgeschlossen – Heizung aus, Werte gespeichert'], ['2026-03-03T06:00:00+02:00', 'warnung', `${m.entry_id}-3`, 'Frostgefahr 3,8 °C trotz Frostschutz'], ['2026-03-02T11:00:00+02:00', 'ok', `${m.entry_id}-3`, 'wieder über 5 °C']];
           return [...p, ...p.map(e => [e[0].replace('2026-09-2', '2026-09-1'), ...e.slice(1)])].slice(0, m.limit); }

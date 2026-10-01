@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.23] – 2026-10-01
+
+- Ohne Automatik je Container (WU-0013): in der Verbrauchs-Einblendung des Containers Kennzahlen „kWh ohne
+  Automatik“, „gespart“ und „% weniger“ für den gewählten Zeitraum und eine gestrichelte Linie im Diagramm; Basis
+  wählbar: Ø-Leistung je Gerät (gemessen) oder je Typ (Ø aller Ölradiatoren bzw. Konvektoren). Gerechnet von der
+  Integration (neuer Befehl `baustelle/ohne`, 24/7 ab Beginn der Baustelle bis jetzt).
+- Erklärung, woher „ohne Automatik“ und das Gesparte kommen (AN-0007), in der Auswertung und im Container.
+- Einblendungen drücken nichts mehr zusammen (die Chip-Reihe unter „stapeln nach“ war bei viel Inhalt verdeckt).
+
 ## [0.8.22] – 2026-10-01
 
 - Leistung im Container (WU-0012, Nachtrag): der Streifen des Stundenreglers ist nur in Stunden mit Verbrauch farbig

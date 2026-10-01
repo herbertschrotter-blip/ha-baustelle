@@ -791,6 +791,14 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('WU-0011: ganzer Tag 0–24 Uhr', ui.innerHTML.includes('ganzer Tag') && !ui.innerHTML.includes('data-lh') && tagAuf && panel.lokal(Date.parse(tagAuf.start_time), panel.z.zone).slice(11, 16) === '00:00');
     await klick({ act: 'lh-art', v: 'stunde' }, 30);
     await klick({ act: 'zr-schritt', ziel: 'sheet', max: '30', d: '1' }, 30); pruefe('Leistung gestern'); erwarte('AN-0005: gestern', ui.innerHTML.includes('<b>Gestern</b>'));
+    await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'verbrauch', id: b.id }, 30); pruefe('Verbrauch mit ohne Automatik');
+    if (b.geraete.some(g => g.heizer)) {   // WU-0013
+      erwarte('WU-0013: ohne Automatik je Container', ui.innerHTML.includes('kWh ohne Automatik') && ui.innerHTML.includes('gespart') && ui.innerHTML.includes('stroke-dasharray="5 4"') && ui.innerHTML.includes('data-act="oh-basis"'));
+      neu(); await klick({ act: 'oh-basis', v: 'typ' }, 30);
+      erwarte('WU-0013: Basis je Typ fragt die Integration', aufrufe.some(m => m.type === 'baustelle/ohne' && m.basis === 'typ' && m.bereich === b.id));
+      erwarte('AN-0007: Erklärung der Rechnung', ui.innerHTML.includes('So rechnet „ohne Automatik“'));
+      erwarte('Einblendung drückt nichts zusammen (Chip-Reihe bleibt sichtbar)', /\.sheet > \* \{ flex-shrink: 0; \}/.test(fs.readFileSync(datei, 'utf8')));
+    }
     await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'verbrauch', t: 'eur', id: b.id }, 30); pruefe('Kosten');
     erwarte('FE-0009: Kosten-Kachel zeigt € ', ui.innerHTML.includes('<h3>Kosten</h3>') && ui.innerHTML.includes('€ je Stunde'));
     await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'heizzeit-c', id: b.id }, 30); pruefe('Heizzeit');

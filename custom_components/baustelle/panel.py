@@ -178,7 +178,7 @@ async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
     hass.data[DATA_MELDUNGEN] = Meldungen(hass)
     hass.async_create_task(hass.data[DATA_MELDUNGEN].async_laden(), "baustelle_meldungen_laden")  # lesbare Kopie beim Start
     for befehl in (ws_struktur, ws_setzen, ws_liste, ws_aktion, ws_bericht, ws_protokoll, ws_meldungen, ws_meldung,
-                   ws_auswertung, ws_abrechnung):
+                   ws_auswertung, ws_abrechnung, ws_ohne):
         websocket_api.async_register_command(hass, befehl)
 
 
@@ -619,6 +619,18 @@ async def ws_auswertung(hass: HomeAssistant, connection: websocket_api.ActiveCon
     else:
         ergebnis = await auswertung.async_auswertung(hass, entry, msg["zeitraum"], msg["versatz"], msg["scope"])
     connection.send_result(msg["id"], ergebnis)
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "baustelle/ohne", **ZEITRAUM, vol.Required("bereich"): str,
+    vol.Optional("basis", default="geraet"): vol.In(["geraet", "typ"]),
+})
+@websocket_api.async_response
+async def ws_ohne(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """„Ohne Automatik“ eines Containers im Zeitraum (WU-0013)."""
+    if (entry := _eintrag(hass, connection, msg)) is None:
+        return
+    connection.send_result(msg["id"], await auswertung.async_ohne(hass, entry, msg["bereich"], msg["zeitraum"], msg["versatz"], msg["basis"]))
 
 
 @websocket_api.websocket_command({vol.Required("type"): "baustelle/abrechnung", **ZEITRAUM})

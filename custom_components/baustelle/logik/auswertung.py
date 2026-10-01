@@ -395,6 +395,41 @@ def veraenderung(jetzt: float | None, vorher: float | None) -> int | None:
     return js_runden((jetzt - vorher) / vorher * 100)
 
 
+def perioden_grenzen(zr: Zeitraum, zone: tzinfo) -> list[datetime]:
+    """Beginn jeder Periode des Zeitraums und das Ende (n + 1 Zeitpunkte, UTC) – Stunde, Tag oder Monat."""
+    beginn = mitternacht(zr.von, zone)
+    if zr.periode == "hour":
+        ende = mitternacht(zr.bis, zone)
+        return [min(beginn + timedelta(hours=i), ende) for i in range(zr.n)] + [ende]
+    if zr.periode == "day":
+        return [mitternacht(zr.von + timedelta(days=i), zone) for i in range(zr.n + 1)]
+    return [mitternacht(date(zr.von.year + (i // 12), i % 12 + 1, 1), zone) for i in range(zr.n + 1)]
+
+
+def stunden_je_periode(zr: Zeitraum, ab: datetime, bis: datetime, zone: tzinfo) -> list[float]:
+    """Stunden je Periode, die in [ab, bis) liegen – „ohne Automatik“ läuft 24/7, aber erst ab Beginn und bis jetzt."""
+    g = perioden_grenzen(zr, zone)
+    return [max(0.0, (min(e, bis) - max(s, ab)).total_seconds() / 3600) for s, e in zip(g, g[1:])]
+
+
+def ohne_kw(geraete: Sequence[tuple[str, str]], mittel_w: Mapping[str, float | None], basis: str) -> dict[str, float]:
+    """Leistung je Heizkörper für „ohne Automatik“ (WU-0013): `geraet` = seine gemessene Ø-Leistung im Betrieb,
+    `typ` = Ø aller Heizkörper desselben Typs (Ölradiator/Konvektor); ohne Messung: Ø des Typs, sonst nicht dabei.
+    `geraete`: (id, typ) aller Heizkörper der Baustelle; Ergebnis in kW."""
+    je_typ: dict[str, list[float]] = {}
+    for gid, typ in geraete:
+        if ist_zahl(mittel_w.get(gid)):
+            je_typ.setdefault(typ, []).append(float(mittel_w[gid]))   # type: ignore[arg-type]
+    typ_mittel = {t: sum(v) / len(v) for t, v in je_typ.items()}
+    kw: dict[str, float] = {}
+    for gid, typ in geraete:
+        eigen = mittel_w.get(gid)
+        wert = typ_mittel.get(typ) if basis == "typ" or not ist_zahl(eigen) else float(eigen)   # type: ignore[arg-type]
+        if wert is not None:
+            kw[gid] = round(wert / 1000, 3)
+    return kw
+
+
 def ohne_automatik(kwh: float, ohne: float, preis: float) -> dict[str, float] | None:
     """„Ohne Automatik“: Kosten im Dauerbetrieb (`ohne` kWh), gespart in € und % dagegen; ohne Wert (0) None."""
     if ohne <= 0:

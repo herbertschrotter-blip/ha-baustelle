@@ -581,6 +581,7 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .sheet { position: absolute; left: 8px; right: 8px; bottom: 8px; max-height: 82%; overflow-y: auto; z-index: 21; padding: 8px 18px 18px; background: var(--sheet);
   transform: translateY(110%); transition: transform .32s cubic-bezier(.2,.8,.2,1); border-radius: 28px; display: flex; flex-direction: column; gap: 10px; }
 .sheet.an { transform: none; }
+.sheet > * { flex-shrink: 0; }   /* nichts zusammendrücken – die Einblendung scrollt (sonst verschwindet z. B. die Chip-Reihe) */
 .sheet h3 { margin: 4px 0 0; font-size: 20px; }
 .griff { width: 40px; height: 5px; border-radius: 3px; background: var(--ink2); opacity: .5; margin: 0 auto 4px; }
 .bs-zeile .bs-wahl { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; text-align: left; }
@@ -1127,13 +1128,14 @@ function streu(id, pkt, k, d0) {
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}<text x="${W - R}" y="${H - 8}" class="ax" text-anchor="end" dx="0" opacity="0">.</text>${trend}${punkte}<g class="hover"></g></svg>
     <div class="legende"><span><i style="background:var(--s1)"></i>ein Heiztag</span><span><i style="background:var(--s2)"></i>Trend</span><span class="leise">x: Tagesmittel außen · y: kWh</span></div>`;
 }
-function flaeche(id, reihen, labels, einheit, jedes) {
+function flaeche(id, reihen, labels, einheit, jedes, vergleich = null) {   // vergleich: { name, v } gestrichelt (WU-0013)
   const W = 320, H = 160, L = 30, R = 8, T = 10, U = 22, n = labels.length, viele = reihen.length > 1;
   reihen = reihen.map(r => ({ ...r, v: labels.map((_, i) => zahl(r.v[i]) ? Number(r.v[i]) : 0) }));
   // gestapelt: jede Reihe liegt auf der Summe der darunterliegenden, die oberste Kante ist die Summe der Auswahl
   let unten = Array(n).fill(0);
   const lagen = reihen.map(r => { const u = unten, o = r.v.map((v, i) => u[i] + v); unten = o; return { ...r, u, o }; });
-  const hi0 = Math.max(...unten, 0) * 1.1 || 1;
+  const vv = vergleich ? labels.map((_, i) => zahl(vergleich.v[i]) ? Number(vergleich.v[i]) : 0) : null;
+  const hi0 = Math.max(...unten, ...(vv || []), 0) * 1.1 || 1;
   const stufe = [.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000].find(st => hi0 / st <= 5) || 10000, hi = Math.ceil(hi0 / stufe) * stufe;
   const x = i => L + i / Math.max(1, n - 1) * (W - L - R), y = v => T + (1 - v / hi) * (H - T - U);
   const raster = [...Array(Math.round(hi / stufe) + 1)].map((_, k) => k * stufe).map(v =>
@@ -1146,9 +1148,10 @@ function flaeche(id, reihen, labels, einheit, jedes) {
   const flaechen = lagen.map((r, k) => `<path class="fl-flaeche" style="animation-delay:${k * 40}ms" d="${linieD(r.o)}${zurueck(r.u)}z" fill="url(#${g(k)})"/>`).join('');
   const kanten = lagen.map(r => `<path class="fl-linie" d="${linieD(r.o)}" fill="none" stroke="${viele ? 'var(--trenn)' : r.farbe}" stroke-width="${viele ? 1.5 : 2}" stroke-linejoin="round"/>`).join('');
   const oben = viele ? `<path d="${linieD(unten)}" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>` : '';
-  CHARTS[id] = { art: 'flaeche', x0: L, x1: W - R, W, n, reihen: lagen, labels, einheit, y };
-  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${raster}${achse}${flaechen}${kanten}${oben}<g class="hover"></g></svg>
-    ${viele ? `<div class="legende">${[...lagen].reverse().map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}</div>` : ''}`;
+  const vglSvg = vv ? `<path d="${linieD(vv)}" fill="none" stroke="var(--ink2)" stroke-width="1.6" stroke-dasharray="5 4" stroke-linejoin="round"/>` : '';
+  CHARTS[id] = { art: 'flaeche', x0: L, x1: W - R, W, n, reihen: lagen, labels, einheit, y, vergleich: vv, vglName: vergleich && vergleich.name };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${raster}${achse}${flaechen}${kanten}${oben}${vglSvg}<g class="hover"></g></svg>
+    ${viele || vv ? `<div class="legende">${[...lagen].reverse().map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}${vv ? `<span><i class="gestr"></i>${esc(vergleich.name)}</span>` : ''}</div>` : ''}`;
 }
 
 /* ---------- Stimmung: Hintergrund nach Tageszeit (sun.sun) und Wetter (weather.*) ---------- */
@@ -1229,7 +1232,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.22';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.23';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1958,6 +1961,10 @@ class BaustellePanel extends HTMLElement {
     const was = st.gruppe === 'firma' ? 'Firmen' : alle ? 'Baustellen' : 'Container';
     const titel = !aus.length ? `${esc(summenName)} · Summe` : aus.length === 1 ? esc(aus[0].name) : `${aus.length} ${was} gestapelt`;
     const eur = st.t === 'eur', f = eur ? this.d.e.preis : 1;   // FE-0009: Kosten-Kachel zeigt denselben Verlauf in € (kWh × Preis)
+    // WU-0013: ein Container mit Heizkörpern – „ohne Automatik“ von der Integration (baustelle/ohne)
+    const einC = ziel === 'sheet' && st.auswahl.length === 1 ? this.d.bereiche.find(b => b.id === st.auswahl[0] && !b.pumpe && b.geraete.some(g => g.heizer)) : null;
+    const basis = st.ohneBasis || 'geraet';
+    const oa = einC ? this._holen(`oh:${this.d.entry}:${einC.id}:${z}:${st.v || 0}:${basis}`, () => this._hass.callWS({ type: 'baustelle/ohne', entry_id: this.d.entry, bereich: einC.id, zeitraum: z, versatz: st.v || 0, basis })) : undefined;
     const werte = Q.map(q => ({ q, v: q.v(z) })), laedt = werte.some(x => !x.v);
     const reihen = laedt ? [] : aus.length ? werte.filter(x => st.auswahl.includes(x.q.id)).map(({ q, v }) => ({ name: q.name, v, farbe: q.farbe }))
       : [{ name: 'Summe', v: addieren(werte.map(x => x.v)).length ? addieren(werte.map(x => x.v)) : Array(zr.n).fill(0), farbe: 'var(--s1)' }];
@@ -1974,8 +1981,13 @@ class BaustellePanel extends HTMLElement {
         ${Q.map(q => `<button data-act="vb-wer" ${zd} data-id="${esc(q.id)}" class="${st.auswahl.includes(q.id) ? 'on' : ''}"><i style="background:${q.farbe}"></i>${esc(q.name)}${st.auswahl.includes(q.id) ? ' ✓' : ''}</button>`).join('')}</div>
       ${kennzahlen ? `<div class="kennz"><div><b>${laedt ? '–' : de(sum, sum < 100 ? 1 : 0)}</b><span>kWh ${{ Tag: 'heute', Woche: 'diese Woche', Monat: 'im Monat', Jahr: 'im Jahr' }[z]}${reihen.length > 1 ? ' zusammen' : ''}</span></div>
         <div><b>${laedt ? '–' : de(sum * p, 2)} €</b><span>Kosten</span></div><div><b>${laedt ? '–' : wo}</b><span>Spitze ${laedt ? '–' : de(spitze, 1)} kWh</span></div></div>` : ''}
+      ${einC ? `<div class="vb-gruppe"><span class="leise">ohne Automatik mit</span><div class="seg klein">${[['geraet', 'Ø je Gerät'], ['typ', 'Ø je Typ']].map(([k, t]) => `<button data-act="oh-basis" data-v="${k}" class="${basis === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+        ${oa && oa.ergebnis ? `<div class="kennz"><div><b>${de(oa.ohne_kwh, oa.ohne_kwh < 100 ? 1 : 0)}</b><span>kWh ohne Automatik</span></div><div><b>${de(oa.ergebnis.gespart_eur, 2)} €</b><span>gespart</span></div><div><b>${de(oa.ergebnis.prozent, 0)} %</b><span>weniger</span></div></div>`
+          : oa ? '<div class="leise">Noch keine gemessene Leistung der Heizkörper – „ohne Automatik“ folgt nach dem ersten Heizen.</div>' : ''}
+        <div class="leise">So rechnet „ohne Automatik“: ${basis === 'typ' ? 'die Ø-Leistung aller Heizkörper desselben Typs (Ölradiator bzw. Konvektor)' : 'jeder Heizkörper mit seiner gemessenen Ø-Leistung im Betrieb (ab 50 W)'} rund um die Uhr seit Beginn der Baustelle; gespart = ohne Automatik − tatsächlich verbraucht, mal Strompreis.</div>` : ''}
       <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · gestapelt, oberste Kante = Summe' : ''}</div>
-      <div class="chart-wrap">${laedt ? LAEDT : flaeche(`vb-${ziel}-${this.s.awScope || ''}-${st.gruppe || ''}-${aus.map(q => q.id).join('_') || 'alle'}-${z}${eur ? '-eur' : ''}`, eur ? reihen.map(r => ({ ...r, v: r.v.map(x => (x || 0) * f) })) : reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3)}</div>
+      <div class="chart-wrap">${laedt ? LAEDT : flaeche(`vb-${ziel}-${this.s.awScope || ''}-${st.gruppe || ''}-${aus.map(q => q.id).join('_') || 'alle'}-${z}${eur ? '-eur' : ''}`, eur ? reihen.map(r => ({ ...r, v: r.v.map(x => (x || 0) * f) })) : reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3,
+        oa && oa.ergebnis ? { name: 'ohne Automatik', v: oa.reihe.map(x => x * f) } : null)}</div>
       ${reihen.length > 1 ? `<div class="vb-je">${reihen.map(r => { const su = summe(r.v), sp = Math.max(...r.v, 0);
           return `<div><i style="background:${r.farbe}"></i><span class="n">${esc(r.name)}</span><b>${de(su, su < 100 ? 1 : 0)} kWh</b><span>${de(su * p, 2)} €</span><span class="leise">Spitze ${su > 0 ? labels[r.v.indexOf(sp)] : '–'}</span></div>`; }).join('')}</div>` : ''}`;
   }
@@ -2554,7 +2566,7 @@ class BaustellePanel extends HTMLElement {
         <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${Math.min(100, kwh / ohne * 100)}%;background:var(--s1)"></i></span><span class="hb-w">${de(S.eur, 0)} €</span></div>
         <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(oa.ohne_eur, 0)} €</span></div>
         <div class="gespart">gespart <b>${de(oa.gespart_eur, 2)} €</b> · ${de(oa.prozent, 0)} %</div>`}
-        ${erkl(d.e.erklaer, '„Ohne Automatik“ rechnet mit der gemessenen Leistung je Heizkörper, als liefe er rund um die Uhr – so, wie es ohne Steuerung oft ist.')}</div>`,
+        <div class="leise">So rechnet „ohne Automatik“: jeder Heizkörper mit seiner gemessenen Ø-Leistung im Betrieb (ab 50 W) rund um die Uhr seit Beginn der Baustelle; gespart = ohne Automatik − tatsächlich verbraucht, mal Strompreis.</div></div>`,   // AN-0007: woher der Vergleich kommt
       hochrechnung: alle ? '' : this.hochrechnung(A),
       vergleich: `<div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">nur zum Vergleich · aus eigenen Messungen</span></div>
         <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
@@ -3553,6 +3565,7 @@ class BaustellePanel extends HTMLElement {
       case 'wa': S.sheet.wa = el.dataset.v; return neu();
       case 'lh-h': S.sheet.h = +el.dataset.v; return neu();   // AN-0005: Stunde der Leistung
       case 'lh-art': S.sheet.lart = el.dataset.v; return neu();   // WU-0011: Stunde | Tag
+      case 'oh-basis': S.sheet.ohneBasis = el.dataset.v; return neu();   // WU-0013: Ø je Gerät | je Typ
       case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
       case 'aw-scope': S.awScope = el.dataset.v; S.aw.auswahl = this.quellen(S.aw, 'aw').map(q => q.id); return neu();
       case 'vb-zeitraum': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; if (st.zeitraum !== el.dataset.v) st.v = 0; st.zeitraum = el.dataset.v; S.zrKal = null; return neu(); }
@@ -3889,7 +3902,8 @@ class BaustellePanel extends HTMLElement {
       if (c.einheit === 'kW') { svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(q => `<circle cx="${x}" cy="${c.y(q.o[i])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join('');
         return this.tip(ev, `<b>${c.labels[i]}:00</b>` + (c.reihen.length > 1 ? [...c.reihen].reverse().map(q => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i], 2)} kW</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kW</b></div>` : `<div>${de(sum, 2)} kW</div>`)); }
       svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(q => `<circle cx="${x}" cy="${c.y(q.o[i])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join('');
-      return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (c.reihen.length > 1
+      const vglTip = c.vergleich ? `<div class="leise">${esc(c.vglName || 'Vergleich')} ${de(c.vergleich[i], 2)} ${c.einheit === '€' ? '€' : 'kWh'}</div>` : '';
+      return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + vglTip + (c.reihen.length > 1
         ? [...c.reihen].reverse().map(q => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i], 2)} ${c.einheit === '€' ? '€' : 'kWh'}</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p, 2)} €</div>`
         : c.einheit === '€' ? `<div>${de(sum, 2)} €</div>` : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p, 2)} €</div>`));
     }
