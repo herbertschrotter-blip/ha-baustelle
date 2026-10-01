@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.21",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Leistung im Container (WU-0012): Regler und Nachladen tauschen nur noch die Daten darunter (Kennzahlen, Diagramm), die Seite wird nicht mehr ganz neu gezeichnet; beim Laden einer anderen Stunde bleibt das bisherige Diagramm abgeblendet stehen, nichts springt."
+    ]
+  },
+  {
     "version": "0.8.20",
     "datum": "2026-10-01",
     "punkte": [

@@ -737,6 +737,7 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .wa-tab { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 10px; align-items: center; margin: 4px 0 8px; }
 .wa-tab > b { font-size: 12px; color: var(--ink2); font-weight: 500; } .wa-tab > div b { font-size: 15px; } .wa-tab > div .leise { display: block; font-size: 11px; }
 .wa-heute { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(255,159,10,.12); margin: 6px 0; font-size: 13px; } .wa-heute b { font-size: 15px; }
+.lh-laedt { opacity: .45; transition: opacity .2s; pointer-events: none; }
 .lh-regler { position: relative; margin: 4px 2px 18px; }
 .lh-regler input[type=range] { width: 100%; margin: 0; height: 28px; background: transparent; -webkit-appearance: none; appearance: none; }
 .lh-regler input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--s1) 0 calc(100% - var(--zukunft)), rgba(127,127,127,.25) 0); }
@@ -1228,7 +1229,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.20';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.21';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1513,6 +1514,7 @@ class BaustellePanel extends HTMLElement {
     Promise.resolve().then(() => {
       this._auffrischenGeplant = false;
       const f = this.shadowRoot && this.shadowRoot.activeElement;
+      if (this.leistungTeil()) return;   // WU-0012: Leistung offen – nur deren Daten nachladen
       if (f && ['INPUT', 'TEXTAREA', 'SELECT'].includes(f.tagName)) { this._wartet = true; return; }
       this.render();
     });
@@ -1689,7 +1691,7 @@ class BaustellePanel extends HTMLElement {
         <div class="lh-skala">${[0, 6, 12, 18, 23].map(k => `<span style="left:${(k / 23 * 100).toFixed(1)}%">${k === 23 ? '23' : hh(k)}</span>`).join('')}</div></div>`;
     let inhalt;
     if (!ids.length) inhalt = '<div class="leer">Kein Leistungssensor an den Geräten</div>';
-    else if (roh === undefined) inhalt = LAEDT;
+    else if (roh === undefined) inhalt = this._lhLetzt ? `<div class="lh-laedt">${this._lhLetzt}</div>` : LAEDT;   // WU-0012: alter Stand bleibt stehen
     else {
       const reihen = geraete.map((g, k) => ({ name: g.n, farbe: farben[k % farben.length], punkte: ((roh || {})[g.leistung] || [])
         .map(x => [zahl(x.lu) ? x.lu * 1000 : Date.parse(x.last_updated || x.last_changed), zahl(x.s ?? x.state) ? Number(x.s ?? x.state) : null]).filter(p => Number.isFinite(p[0])).map(([t, w]) => [Math.max(t, von), w]) }));
@@ -1702,10 +1704,22 @@ class BaustellePanel extends HTMLElement {
       inhalt = `<div class="kennz"><div><b>${de(mittel / 1000, 2)}</b><span>kW im Mittel</span></div><div><b>${de(spitze / 1000, 2)}</b><span>kW Spitze</span></div><div><b>${reihen.reduce((a, r) => a + r.punkte.length, 0)}</b><span>Messwerte</span></div></div>
         <div class="chart-wrap">${stufen(`lh-${b.id}-${tag}-${ganzerTag ? 'tag' : h}`, zeige, von, bis, 'W', ganzerTag ? [0, 4, 8, 12, 16, 20, 24].map(k => [von + k * 36e5, hh(k)]) : null)}</div>
         <div class="legende">${zeige.map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}<span class="leise">jeder Messwert des Shellys${laufend ? ' · bis jetzt' : ''}</span></div>`;
+      this._lhLetzt = inhalt;
     }
     return `<div class="block-kopf"><h3>Leistung · ${esc(b.name)}</h3><span class="leise lh-wert">${ganzerTag ? 'ganzer Tag' : `${hh(h)}:00–${hh((h + 1) % 24)}:00`}</span></div>
       <div class="seg">${[['stunde', 'Stunde'], ['tag', 'Tag']].map(([k, t]) => `<button data-act="lh-art" data-v="${k}" class="${(ganzerTag ? 'tag' : 'stunde') === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-      ${this.zrWahl('sheet', 'Tag', this.zrGrenze())}${regler}${inhalt}`;
+      ${this.zrWahl('sheet', 'Tag', this.zrGrenze())}${regler}<div class="lh-daten">${inhalt}</div>`;
+  }
+  /* WU-0012: in der Leistungs-Einblendung nur Kopf und Datenteil tauschen (kein Neuzeichnen der ganzen Seite) */
+  leistungTeil() {
+    const s = this.s.sheet, ziel = s && s.art === 'leistung' && this.shadowRoot && this.shadowRoot.querySelector('.lh-daten');
+    if (!ziel || !ziel.isConnected) return false;
+    const neu = document.createElement('div'); neu.innerHTML = this.leistungInhalt(s);
+    const daten = neu.querySelector('.lh-daten'), wert = neu.querySelector('.lh-wert'), alt = this.shadowRoot.querySelector('.lh-wert');
+    if (!daten) return false;
+    ziel.innerHTML = daten.innerHTML;
+    if (wert && alt) alt.textContent = wert.textContent;
+    return true;
   }
   /* FE-0009: Heizzeit eines Containers (Pumpenschacht: Pumpzeit) je Stunde, Tag oder Monat */
   heizzeitInhalt(s) {
@@ -3839,7 +3853,11 @@ class BaustellePanel extends HTMLElement {
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
   aenderung(ev) {
     const el = ev.target, k = el && el.dataset && el.dataset.k;
-    if (el && el.dataset && el.dataset.lh !== undefined && this.s.sheet) { this.s.sheet.h = +el.value; return this.render(); }   // WU-0011: Regler losgelassen
+    if (el && el.dataset && el.dataset.lh !== undefined && this.s.sheet) {   // WU-0011: Regler losgelassen
+      this.s.sheet.h = +el.value;
+      const max = this.s.sheet.v ? 23 : +this.z.JETZT.slice(0, 2); if (+el.value > max) el.value = String(max);   // heute nur bis jetzt
+      return this.leistungTeil() || this.render();   // WU-0012: nur den Datenteil tauschen
+    }
     if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
     if (k === 'mail') return this.setzen(PFAD.mail, String(el.value).trim(), 'Gespeichert');
     const jm = el && el.dataset && el.dataset.jm;

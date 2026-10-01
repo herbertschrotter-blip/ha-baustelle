@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.21] – 2026-10-01
+
+- Leistung im Container (WU-0012): Regler und Nachladen tauschen nur noch die Daten darunter (Kennzahlen, Diagramm),
+  die Seite wird nicht mehr ganz neu gezeichnet; beim Laden einer anderen Stunde bleibt das bisherige Diagramm
+  abgeblendet stehen, nichts springt.
+
 ## [0.8.20] – 2026-10-01
 
 - Leistung im Container (WU-0011): Umschalter „Stunde | Tag“; für die Stunde ein Schieberegler über die volle Breite

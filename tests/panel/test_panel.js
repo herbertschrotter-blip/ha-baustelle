@@ -772,6 +772,16 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('AN-0005: andere Stunde wählbar (holt den Verlauf dieser Stunde)', panel.s.sheet.h === Math.max(0, jetztH - 2) && aufrufe.some(m => m.type === 'history/history_during_period'));
     panel.aenderung({ target: { dataset: { lh: '' }, value: '23' } }); await ruhe(30);
     erwarte('WU-0011: künftige Stunden heute nicht wählbar', jetztH === 23 || ui.innerHTML.includes(`>${String(jetztH).padStart(2, '0')}:00–`));
+    { // WU-0012: Regler loslassen tauscht nur Kopf und Datenteil (die Seite wird nicht neu gezeichnet)
+      const teile = panel.shadowRoot.teile, alt = { d: teile['.lh-daten'], w: teile['.lh-wert'] }, erz = global.document.createElement;
+      teile['.lh-daten'] = { isConnected: true, innerHTML: 'ALT' }; teile['.lh-wert'] = { textContent: 'ALT' };
+      global.document.createElement = () => { const e = { set innerHTML(h) { this._h = h; }, querySelector: sel => {
+        const m = sel === '.lh-daten' ? this_h(e._h).match(/<div class="lh-daten">([\s\S]*)<\/div>$/) : this_h(e._h).match(/<span class="leise lh-wert">([^<]*)</);
+        return m ? (sel === '.lh-daten' ? { innerHTML: m[1] } : { textContent: m[1] }) : null; } }; return e; };
+      const this_h = h => h || '';
+      ui.innerHTML = 'SEITE'; panel.aenderung({ target: { dataset: { lh: '' }, value: '0' } }); await ruhe(30);
+      erwarte('WU-0012: nur der Datenteil wird getauscht', ui.innerHTML === 'SEITE' && teile['.lh-daten'].innerHTML !== 'ALT' && teile['.lh-wert'].textContent === '00:00–01:00');
+      global.document.createElement = erz; teile['.lh-daten'] = alt.d; teile['.lh-wert'] = alt.w; panel.render(); await ruhe(); }
     neu(); await klick({ act: 'lh-art', v: 'tag' }, 30); pruefe('Leistung ganzer Tag');
     const tagAuf = aufrufe.find(m => m.type === 'history/history_during_period');
     erwarte('WU-0011: ganzer Tag 0–24 Uhr', ui.innerHTML.includes('ganzer Tag') && !ui.innerHTML.includes('data-lh') && tagAuf && panel.lokal(Date.parse(tagAuf.start_time), panel.z.zone).slice(11, 16) === '00:00');
