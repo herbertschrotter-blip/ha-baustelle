@@ -271,8 +271,6 @@ async def test_ausnahme_arbeit_am_feiertag_plan(hass: HomeAssistant, freezer, sh
     assert st.daten.status_text == "♨ heizt bis 12:15"
 
 
-@pytest.mark.xfail(reason="BEFUND: Heizung.soll setzt frei=ist_frei(heute) ohne die Ausnahme „arbeit“ – der Plan "
-                          "heizt, die Regelung sagt „frei“; nichts wird eingeschaltet", strict=True)
 async def test_ausnahme_arbeit_am_feiertag_heizt(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     """Ausnahme „arbeit“ geht vor dem freien Feiertag (logik/arbeitszeit): es wird geheizt, Status nicht „feiertag“."""
     _kalender(hass, FEIERTAG_DI)
@@ -450,8 +448,6 @@ async def test_status_text_ohne_trocknende_container_abschnitte(hass: HomeAssist
     assert not _an(hass, "switch.hk1") and not _an(hass, "switch.hk2")
 
 
-@pytest.mark.xfail(reason="BEFUND: Heizung.status rechnet den Plan mit trocknen=True – „♨ heizt bis 17:30“, obwohl "
-                          "kein Container Kleidung trocknet und um 16:45 alles aus ist", strict=True)
 async def test_status_text_ohne_trocknende_container(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     """Regen heute, aber kein Container trocknet Kleidung: geheizt wird bis 16:45 – der Status sollte das sagen."""
     entry, st = await _neu(hass, freezer, shellys)
@@ -522,8 +518,6 @@ async def test_stufen_im_frostschutz(hass: HomeAssistant, freezer, shellys, nach
     assert _lz(hass, entry)["container"][C1]["stufen"]["grund"] == "weit_unter"
 
 
-@pytest.mark.xfail(reason="BEFUND: Zusatz-Heizkörper misst beim Absenken den Abstand zum Soll (20 °C) statt zum "
-                          "Absenk-Ziel (10 °C) – bei 9 °C laufen beide", strict=True)
 async def test_stufen_beim_absenken(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     """Feiertag mit frei_modus absenk (10 °C), Raum 9,0 °C: 1 °C unter dem Ziel → einer reicht."""
     _kalender(hass, FEIERTAG_DI)

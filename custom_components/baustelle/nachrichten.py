@@ -189,6 +189,7 @@ class Nachrichten:
                          f"Knopf „{texte_bis}“: {warn_logik.titel(w) if w else wert}")
         elif befehl == "trotzdem" and wert in st.bereiche:
             Heizung.von(st).tuer_trotzdem.add(wert)
+            st.warnung_vergessen(wert, warn_logik.Art.TUER_OFFEN)   # die Tür ist nicht zu – kein „Tür zu“ ins Protokoll
             st.protokoll("nachricht", wert, "Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist")
         elif befehl == "automatik" and wert in st.geraete:
             g = st.geraete[wert]

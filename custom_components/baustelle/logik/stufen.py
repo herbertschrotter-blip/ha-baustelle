@@ -5,7 +5,8 @@ heizt zuerst nur der Hauptheizkörper; der Zusatz kommt dazu, wenn
 
 - **Schnell aufheizen** läuft (alle zugleich, wie bisher),
 - es **außergewöhnlich kalt** ist (außen unter `kalt_unter`),
-- die gelernte Aufheizzeit sagt, dass **einer allein das Soll nicht rechtzeitig schafft** (`gelernt`, AN-0004),
+- die gelernte Aufheizzeit sagt, dass **einer allein das Soll nicht rechtzeitig schafft** (`gelernt`, AN-0004) – sagt sie,
+  dass einer reicht (`einer_reicht`), bleibt der Zusatz im Vorheizen aus,
 - der Raum **weit unter dem Soll** ist (mehr als `abstand`),
 - der Hauptheizkörper schon `laufzeit_min` durchgehend läuft und der Raum dabei **kaum wärmer** wurde (unter
   `min_anstieg`) – einer schafft es nicht.
@@ -64,6 +65,7 @@ class StufenLage:
     gelernt: bool = False           # gelernte Aufheizzeit: einer allein reicht nicht (nur im Vorheizen)
     zusatz_an: bool = False         # lief der Zusatz bis eben
     grund_vorher: str | None = None
+    einer_reicht: bool = False      # gelernte Aufheizzeit: einer schafft das Soll rechtzeitig (nur im Vorheizen)
 
 
 def zusatz(r: StufenRegeln, lage: StufenLage) -> tuple[bool, str | None]:
@@ -74,6 +76,8 @@ def zusatz(r: StufenRegeln, lage: StufenLage) -> tuple[bool, str | None]:
         return True, Grund.KALT
     if lage.gelernt:
         return True, Grund.GELERNT
+    if lage.einer_reicht:   # der Beginn ist für einen gerechnet – „weit unter dem Soll“ gilt hier nicht
+        return False, None
     if lage.innen is None:
         return False, None
     abstand = lage.soll - lage.innen

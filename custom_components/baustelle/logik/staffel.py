@@ -88,6 +88,8 @@ class Last:
     """Ein Gerät an einem Anschluss. Nur `heizer` werden geschaltet; alle anderen zählen nur mit.
 
     `an`: läuft gerade. `will`: Regelung will heizen. `defizit`: Soll minus Ist in °C (None ohne Fühler).
+    `gruppe`: Container des Geräts – im Rundlauf wird nie gegen ein Gerät desselben Containers getauscht (der Raum
+    gewönne nichts).
     """
 
     id: str
@@ -103,6 +105,7 @@ class Last:
     an_seit_min: float = 0.0
     aus_seit_min: float = 1e9
     wartet_seit_min: float = 0.0
+    gruppe: str = ""
 
 
 @dataclass(frozen=True)
@@ -254,6 +257,8 @@ def staffeln(
         for i in an:
             r = nach_id[i]
             if r.frost or (r.boost and not k.frost) or i in getauscht or not r.an:
+                continue
+            if k.gruppe and r.gruppe == k.gruppe:   # gleicher Container: Tausch brächte dem Raum nichts
                 continue
             if zu_voll and (
                 r.anschluss != k.anschluss

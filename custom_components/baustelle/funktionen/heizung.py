@@ -37,6 +37,8 @@ from ..logik.arbeitszeit import (
     Plan,
     StatusArt,
     WarmAb,
+    ausnahme_am,
+    frei_gilt,
     bedarf_fenster,
     im_fenster,
     status as plan_status,
@@ -316,15 +318,15 @@ class Heizung(Funktion):
         heute, minute = jetzt.date(), jetzt.hour * 60 + jetzt.minute
         h = st.e["heizung"]
         jetzt_bis = self.jetzt_bis(jetzt)
-        frei_heute = self.ist_frei(heute)
+        frei_heute = frei_gilt(self.ist_frei(heute), ausnahme_am(st.ausnahmen(), heute))   # Ausnahme „Arbeit“ geht vor
         zu_warm = self.zu_warm(wetter)
         ergebnis: dict[str, tuple[Soll, LageContainer]] = {}
         for info in self.bereiche():
             bid = info.id
             e = st.einstellungen.bereich(bid)
-            warm = self.warm_ab(bid, heute, jetzt)
-            plan = self.plan(heute, bool(e["trocknen"]), warm)
-            self._warm_festhalten(bid, warm, plan, heute, minute)
+            warm_ab = self.warm_ab(bid, heute, jetzt)   # nicht `warm` – das ist unten „zu warm“ (Heizgrenze)
+            plan = self.plan(heute, bool(e["trocknen"]), warm_ab)
+            self._warm_festhalten(bid, warm_ab, plan, heute, minute)
             self.plaene[bid] = plan
             frei, warm = frei_heute, zu_warm
             if jetzt_bis is not None:
@@ -365,7 +367,7 @@ class Heizung(Funktion):
             soll = soll_container(lage, int(h["tuer_pause_min"]))
             self._lern_grund[bid] = soll.grund
             self._frost[bid] = soll.grund == SollGrund.FROST
-            self._stufen_rechnen(bid, soll, temp, soll_t, wetter, jetzt, plan, minute)
+            self._stufen_rechnen(bid, soll, temp, soll_t, wetter, jetzt, plan, minute, warm_ab)
             ergebnis[bid] = (soll, lage)
         return ergebnis
 
@@ -389,7 +391,7 @@ class Heizung(Funktion):
                                    min_anstieg=float(h.get("stufen_anstieg", 0.3)), kalt_unter=float(h.get("stufen_kalt", -5.0)))
 
     def _stufen_rechnen(self, bid: str, soll: Soll, temp: float | None, soll_t: float, wetter: WetterWerte, jetzt: datetime,
-                        plan: Plan | None, minute: int) -> None:
+                        plan: Plan | None, minute: int, warm: WarmAb | None = None) -> None:
         """Je Auswertung: darf der Zusatz laufen? Merkt, seit wann der Hauptheizkörper durchgehend zieht."""
         if not self.stufen_an(bid):
             self._stufen.pop(bid, None)
@@ -403,9 +405,16 @@ class Heizung(Funktion):
             self._haupt_lauf.pop(bid, None)
         seit, temp0 = self._haupt_lauf.get(bid, (jetzt, temp))
         vorher, grund_vorher = self._stufen.get(bid, (False, None))
-        gelernt = bool(self._zusatz_gelernt.get(bid)) and plan is not None and plan.vor <= minute < plan.a
+        im_vorheizen = plan is not None and plan.vor <= minute < plan.a and warm is not None and warm.aufheiz_min is not None
+        gelernt = im_vorheizen and bool(self._zusatz_gelernt.get(bid))
+        h = self.st.e["heizung"]
+        # Ziel nach Grund: beim Absenken das Absenk-Ziel, beim Frostschutz „aus über“, sonst das Soll (Szenario-Befund)
+        ziel = (float(h.get("absenk") or 10.0) if soll.grund == SollGrund.ABSENKEN
+                else (float(h["frost_aus"]) if h.get("frost_aus") is not None and float(h["frost_aus"]) > float(h["frost_grenze"])
+                      else float(h["frost_grenze"]) + 2.0) if soll.grund == SollGrund.FROST
+                else soll_t)
         lage = stufen.StufenLage(
-            innen=temp, soll=soll_t, aussen=wetter.aussen, toleranz=float(self.st.e["heizung"]["toleranz"]),
+            innen=temp, soll=ziel, aussen=wetter.aussen, toleranz=float(h["toleranz"]), einer_reicht=im_vorheizen and not gelernt,
             haupt_min=(jetzt - seit).total_seconds() / 60, anstieg=(temp - temp0) if temp is not None and temp0 is not None else 0.0,
             boost=soll.grund == SollGrund.BOOST, gelernt=gelernt, zusatz_an=vorher, grund_vorher=grund_vorher,
         )
@@ -443,7 +452,7 @@ class Heizung(Funktion):
     def _tpi(self, info: BereichInfo, e: Mapping[str, Any], temp: float | None, soll_t: float, wetter: WetterWerte,
              jetzt: datetime) -> lernen.Tpi | None:
         """TPI mit gelerntem Nachlauf – nur mit Fühler und eingeschalteter lernender Regelung."""
-        if not e.get("lernen") or temp is None:
+        if not e.get("lernen") or temp is None or self.modus(info.id) not in ("thermo", "bedarf"):   # Zeitplan regelt nicht selbst
             self.tpi_jetzt.pop(info.id, None)
             return None
         stand = {**lernen.neuer_stand(), **self.lern_staende.get(info.id, {})}
@@ -461,7 +470,7 @@ class Heizung(Funktion):
         minute = int(jetzt.timestamp() // 60)
         for info in self.bereiche():
             e = self.st.einstellungen.bereich(info.id)
-            if not e.get("lernen") or not info.fuehler or self._lern_minute.get(info.id) == minute:
+            if not e.get("lernen") or not info.fuehler or self._lern_minute.get(info.id) == minute or self.modus(info.id) not in ("thermo", "bedarf"):
                 continue
             self._lern_minute[info.id] = minute
             heizer = [g for g in self.st.geraete_in(info.id) if g.rolle == ROLLE_HEIZKOERPER]
@@ -666,7 +675,8 @@ class Heizung(Funktion):
                 self._unter_soll_seit.pop(info.id, None)
             tuer_seit = None
             tuer = st.einstellungen.bereich(info.id).get("tuer")
-            if tuer and info.id not in self.tuer_trotzdem and (s := st.hass.states.get(tuer)) is not None and s.state == STATE_ON:
+            frost = s_c is not None and s_c[0].grund == SollGrund.FROST   # Frost geht vor: nicht „pausiert“ melden (Szenario-Befund)
+            if tuer and not frost and info.id not in self.tuer_trotzdem and (s := st.hass.states.get(tuer)) is not None and s.state == STATE_ON:
                 tuer_seit = dt_util.as_local(s.last_changed)
             liste.append(
                 warn_logik.ContainerZustand(
@@ -767,13 +777,14 @@ class Heizung(Funktion):
         jetzt_bis = self.jetzt_bis(jetzt)
         if jetzt_bis is not None:
             return "heizt", f"♨ alle heizen bis {jetzt_bis.strftime('%H:%M')}", jetzt_bis
-        s = plan_status(heute, minute, lambda t: self.plan(t, True))
+        trocknet = any(self.st.einstellungen.bereich(b.id).get("trocknen") for b in self.bereiche())   # nur, wenn einer trocknet
+        s = plan_status(heute, minute, lambda t: self.plan(t, trocknet))
         naechste = mitternacht(s.tag) + timedelta(minutes=s.minute) if s.minute is not None and s.tag is not None else None
         heizt = any(z in ("heizt", "trocknen", "frost") for z in st.daten.zustand.values())
         ausnahme = next((a for a in st.ausnahmen() if a.datum == heute), None)
         if ausnahme is not None and ausnahme.art == AusnahmeArt.FREI:
             status = "frei"
-        elif self.ist_frei(heute) and (ausnahme is None or ausnahme.art == AusnahmeArt.FREI):
+        elif frei_gilt(self.ist_frei(heute), ausnahme):
             status = st.frei_art(heute) or "frei"
         elif self.zu_warm(st.daten.wetter):
             status = "heizgrenze"

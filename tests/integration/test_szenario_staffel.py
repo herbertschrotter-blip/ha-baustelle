@@ -177,10 +177,6 @@ async def test_rundlauf_tauscht_nach_dem_takt(hass: HomeAssistant, freezer, shel
     assert _lz(hass, entry)["staffel"]["laufen"] == 1
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "BEFUND: Rundlauf-Tausch hängt von der Reihenfolge der Geräte ab. `_schalten_alle` (steuerung.py) schickt Ein und "
-    "Aus in Geräte-Reihenfolge; steht der Einzuschaltende vorn, sieht die nächste Auswertung kurz beide an → Überlast → "
-    "der eben eingeschaltete wird abgeworfen; danach sind beide aus und warten die Mindestpause."))
 async def test_rundlauf_tauscht_auch_zurueck(hass: HomeAssistant, freezer, shellys) -> None:
     entry, st = await _start(hass, freezer, shellys)
     await _minuten(hass, freezer, st, 15)
@@ -234,11 +230,6 @@ async def test_regelung_aus_wirkt_vor_der_mindestlaufzeit_und_gibt_platz_frei(ha
     assert _an(hass, "switch.hk2")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "BEFUND: ein Tausch schaltet zwei aus. Zwischen „Heizkörper 1 aus“ und „Heizkörper 3 ein“ wertet die Steuerung "
-    "erneut aus (Zustandsänderung); Heizkörper 3 gilt noch als aus, `frei_stabil` (Minimum der letzten 60 s) noch als "
-    "voll → zweiter Tausch gegen Heizkörper 2. Danach läuft nur einer von zwei Plätzen (steuerung.py `_staffeln`: "
-    "Lasten aus dem Ist-Zustand, laufende Befehle `_letzter_befehl` unberücksichtigt)."))
 async def test_rundlauf_drei_heizkoerper_zwei_plaetze_tauscht_genau_einen(hass: HomeAssistant, freezer, shellys) -> None:
     # 32 A · 1 Phase: zwei Plätze; C1 (HK1), C2 (HK2, HK3)
     entry, st = await _start(hass, freezer, shellys, a1=(32, 1, 0.0), hk3_bereich=C2)
@@ -430,7 +421,7 @@ async def test_zusatz_gebraucht_am_vollen_anschluss_wartet(hass: HomeAssistant, 
     await _minuten(hass, freezer, st, 1)
     assert _lz(hass, entry)["container"][C1]["stufen"]["zusatz_an"] is True
     assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk2")
-    assert _warte(hass, entry, HK2)["grund"] == "rundlauf"
+    assert _warte(hass, entry, HK2)["grund"] == "anschluss_voll"   # kein Rundlauf gegen den eigenen Hauptheizkörper
     assert "Zusatz-Heizkörper dazu – weit unter dem Soll" in _texte(st, "schalten")
 
 
@@ -444,9 +435,6 @@ async def test_zusatz_bekommt_platz_am_grossen_anschluss(hass: HomeAssistant, fr
     assert _an(hass, "switch.hk2")                                     # Platz da → sofort dazu
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "BEFUND: Rundlauf tauscht den Zusatz-Heizkörper gegen den eigenen Hauptheizkörper (am längsten laufend) statt "
-    "gegen den Heizkörper des anderen Containers – der Container gewinnt nichts (logik/staffel.py, Wahl `r = min(jetzt, …)`)"))
 async def test_zusatz_verdraengt_nicht_den_eigenen_hauptheizkoerper(hass: HomeAssistant, freezer, shellys) -> None:
     # 32 A · 1 Phase = 4,93 kW: zwei Heizkörper; C1 (Haupt HK1 + Zusatz HK2), C2 (HK3)
     entry, st = await _start(hass, freezer, shellys, a1=(32, 1, 0.0), hk2_bereich=C1, hk3_bereich=C2,

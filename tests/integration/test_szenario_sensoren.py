@@ -510,10 +510,6 @@ async def test_shelly_offline_fuehler_ueber_soll(hass: HomeAssistant, freezer, s
 
 
 # ---------------------------------------------------------------------- Vorrang im Modus Hand, Leistung 0 W
-@pytest.mark.xfail(strict=True, reason=(
-    "BEFUND: Frostschutz im Modus Hand schaltet ein, aber nach dem Frost nie wieder aus – regelung.soll_container "
-    "liefert nach dem Frost Soll(None, 'hand') (logik/regelung.py:194), ohne den Fall frost_vorher wie bei "
-    "Automatik aus (regelung.py:187); der Heizkörper bleibt an und die Kachel zeigt „heizt · Hand“."))
 async def test_frost_im_modus_hand_endet(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
     """Modus Hand: Frostschutz geht vor (ein unter 5 °C) und gibt nach dem Frost (über 7 °C) einmal wieder aus –
     wie „Frostschutz auch bei Automatik aus“ (regelung.py Docstring: „nach dem Frost einmal aus“)."""

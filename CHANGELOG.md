@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.15] – 2026-10-01
+
+Korrekturen aus dem Durchspielen aller Szenarien (191 neue Szenario-Tests, `tests/integration/test_szenario_*.py`):
+
+- Staffelung: beim Tausch erst aus-, dann einschalten (kein kurzes Überlasten mehr, kein „beide aus“); Befehle, die
+  noch unterwegs sind, zählen schon (ein Tausch schaltet nicht mehr zwei aus); nie Tausch gegen einen Heizkörper
+  desselben Containers (Zusatz verdrängt nicht den eigenen Hauptheizkörper).
+- Lernende Regelung: im Modus Zeitplan wird nichts gelernt und kein Anteil angezeigt; „Lernstand zurücksetzen“
+  vergisst auch den festgehaltenen Beginn von heute; „einer reicht“ (gelernt) bleibt im Vorheizen bei einem Heizkörper.
+- Zusatz-Heizkörper misst beim Absenken und beim Frostschutz gegen das richtige Ziel (Absenk- bzw. Frost-Grenze).
+- Ausnahme „Arbeit“ an einem freien Feiertag wird auch geheizt (Regel einmal in `logik/arbeitszeit.frei_gilt`).
+- Status „heizt bis …“ rechnet Kleidung trocknen nur, wenn ein Container trocknet.
+- Frostschutz im Modus Hand schaltet nach dem Frost wieder aus.
+- Tür: heizt der Frostschutz trotz offener Tür, heißt es nicht mehr „Heizung pausiert“; nach „Trotzdem heizen“ steht
+  nicht mehr „Tür zu“ im Protokoll.
+
 ## [0.8.14] – 2026-10-01
 
 - Tür offen schützt die lernende Regelung (WU-0009): wird der Raum beim Heizen kälter, obwohl es draußen kaum kälter

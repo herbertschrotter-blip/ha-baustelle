@@ -251,3 +251,10 @@ def test_lernend_regelt_nach_tpi():
     tpi = lambda m: Tpi(kint=0.6, kext=0.01, nachlauf=1.0, aussen=0.0, minute_im_zyklus=m)  # noqa: E731
     assert soll(**werte, tpi=tpi(1)) == Soll(True, SollGrund.ARBEITSZEIT)
     assert soll(**werte, tpi=tpi(5)) == Soll(False, SollGrund.ARBEITSZEIT)
+
+
+def test_frost_im_modus_hand_endet():
+    """Szenario-Befund: Frostschutz im Modus Hand schaltet nach dem Frost einmal aus, danach nichts mehr."""
+    assert soll(minute=t(22), temperatur=4.0, auto=False) == Soll(True, SollGrund.FROST)
+    assert soll(minute=t(22), temperatur=8.0, auto=False, frost_vorher=True) == Soll(False, SollGrund.HAND)
+    assert soll(minute=t(22), temperatur=8.0, auto=False, frost_vorher=False) == Soll(None, SollGrund.HAND)

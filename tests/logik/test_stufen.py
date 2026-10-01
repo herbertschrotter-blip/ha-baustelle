@@ -45,3 +45,11 @@ def test_haupt_und_zusatz():
     assert haupt_und_zusatz(["a", "b"], {"a"}) == (["b"], ["a"])
     assert haupt_und_zusatz(["a", "b"], {"a", "b"}) == (["a"], ["b"])   # alle markiert: der erste ist Haupt
     assert haupt_und_zusatz(["a"], set()) == (["a"], [])
+
+
+def test_einer_reicht_im_vorheizen():
+    """Szenario-Befund: gelernt „einer reicht“ – weit unter dem Soll schaltet den Zusatz im Vorheizen nicht dazu,
+    Kälte und Schnell aufheizen schon."""
+    assert zusatz(R, lage(innen=15.0, einer_reicht=True)) == (False, None)
+    assert zusatz(R, lage(innen=15.0, einer_reicht=True, aussen=-8.0)) == (True, Grund.KALT)
+    assert zusatz(R, lage(innen=15.0, einer_reicht=True, boost=True)) == (True, Grund.BOOST)

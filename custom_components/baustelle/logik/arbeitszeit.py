@@ -252,6 +252,12 @@ def ausnahme_am(ausnahmen: Iterable[Ausnahme], tag: date) -> Ausnahme | None:
     return next((x for x in ausnahmen if x.datum == tag), None)
 
 
+def frei_gilt(frei: bool, ausnahme: Ausnahme | None) -> bool:
+    """Ist ein freier Tag (Urlaub, freier Feiertag) wirklich frei? Eine Ausnahme `arbeit`/`zeiten` geht vor – wer an
+    einem Feiertag ausdrücklich eine Ausnahme einträgt, will arbeiten (gilt für Plan, Regelung und Status)."""
+    return frei and (ausnahme is None or ausnahme.art == AusnahmeArt.FREI)
+
+
 def arbeit_am(liste: Iterable[Arbeitszeit], ausnahmen: Iterable[Ausnahme], tag: date) -> tuple[int, int] | None:
     """Arbeitszeit `(a, b)` eines Tages; die Ausnahme geht vor, `frei` → None."""
     ausnahme = ausnahme_am(ausnahmen, tag)
@@ -280,7 +286,7 @@ def tagesplan(
     """
     ausnahmen = list(ausnahmen)
     ausnahme = ausnahme_am(ausnahmen, tag)
-    if frei and (ausnahme is None or ausnahme.art == AusnahmeArt.FREI):
+    if frei_gilt(frei, ausnahme):
         return None
     zeit = arbeit_am(liste, ausnahmen, tag)
     if zeit is None:

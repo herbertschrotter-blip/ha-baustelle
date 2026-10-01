@@ -242,8 +242,6 @@ async def test_frost_geht_vor_tuer(hass: HomeAssistant, baustelle, freezer, shel
     assert (c["zustand"], c["grund"], c["text"]) == ("frost", "frost", "Frostschutz")
 
 
-@pytest.mark.xfail(strict=True, reason="BEFUND: Tür-Warnung/Nachricht sagt „Heizung pausiert“, obwohl der Frostschutz "
-                   "heizt (heizung.warnungen setzt tuer_offen_seit ohne Blick auf den Soll-Grund)")
 async def test_frost_mit_tuer_meldet_keine_pause(hass: HomeAssistant, baustelle, freezer, shellys, nachrichten) -> None:
     st = baustelle.runtime_data
     hass.states.async_set("sensor.temp_c1", "4.0")
@@ -363,8 +361,6 @@ async def test_trotzdem_heizen_bis_die_tuer_zu_ist(hass: HomeAssistant, baustell
     assert not _an(hass, "switch.hk1") and st.daten.grund[C1] == "tuer_offen"
 
 
-@pytest.mark.xfail(strict=True, reason="BEFUND: nach „Trotzdem heizen“ verschwindet die Tür-Warnung und das Protokoll "
-                   "schreibt „Tür zu – Heizung läuft weiter“, obwohl die Tür noch offen ist (texte.wieder_ok)")
 async def test_trotzdem_heizen_protokoll_nicht_tuer_zu(hass: HomeAssistant, baustelle, freezer, shellys, nachrichten) -> None:
     st = baustelle.runtime_data
     await _start(hass, freezer, st)

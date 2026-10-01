@@ -305,3 +305,15 @@ def test_anlauf_folge_frost_boost_prio_id():
         hz("f", boost=True, frost=True, prio=Prio.NIEDRIG),
     ]
     assert [l.id for l in anlauf_folge(lasten)] == ["f", "a", "b", "d", "e", "c"]
+
+
+def test_rundlauf_nie_gegen_den_eigenen_container():
+    """Szenario-Befund C: ein wartender Heizkörper tauscht nicht gegen einen Heizkörper desselben Containers."""
+    a = klein(2.5)   # genau ein Heizkörper hat Platz
+    haupt = hz("haupt", an=True, an_seit_min=40, gruppe="c1")
+    zusatz = hz("zusatz", gruppe="c1", wartet_seit_min=20)
+    e = staffeln([a], [haupt, zusatz], REGELN)
+    assert "haupt" in e.an and "zusatz" not in e.an and e.wartet["zusatz"] == Warten.ANSCHLUSS_VOLL
+    anderer = hz("anderer", an=True, an_seit_min=40, gruppe="c2")
+    e = staffeln([a], [anderer, zusatz], REGELN)
+    assert "zusatz" in e.an and "anderer" not in e.an   # gegen einen anderen Container darf getauscht werden

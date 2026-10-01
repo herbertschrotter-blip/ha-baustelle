@@ -154,7 +154,7 @@ async def test_thermo_regelt_lernend_nach_tpi(hass: HomeAssistant, freezer, shel
 
 async def test_plan_modus_ignoriert_lernende_regelung(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     """Modus Zeitplan: in der Heizzeit einfach ein (Thermostat am Heizkörper) – Lernen an ändert das nicht.
-    FRAGE: der Lernstand zeigt trotzdem einen TPI-Anteil (`anteil` 0 bei 20,5 °C), obwohl TPI nicht wirkt."""
+    Seit dem Szenario-Befund: im Zeitplan kein TPI-Anteil und kein Lernen."""
     entry, st = await _einrichten(hass, freezer, shellys, modus="plan")
     hass.states.async_set("sensor.temp_c1", "20.5")
     freezer.move_to(ZEHN_UHR)
@@ -166,11 +166,9 @@ async def test_plan_modus_ignoriert_lernende_regelung(hass: HomeAssistant, freez
         assert _an(hass, "switch.hk1")       # über dem Soll, trotzdem ein: Plan regelt nicht
     c = _c(hass, entry)
     assert c["modus"] == "plan" and c["lernen"]["warm"] is None    # Warm ab nur im Thermostat
-    assert c["lernen"]["anteil"] == 0                                # tatsächlich: Anteil wird angezeigt (FRAGE)
+    assert c["lernen"]["anteil"] is None                             # Zeitplan regelt nicht selbst: kein Anteil
 
 
-@pytest.mark.xfail(reason="BEFUND: Modus Zeitplan regelt nicht selbst, lernt aber K außen (heizung.py:468 `regelt` "
-                          "prüft den Modus nicht)", strict=True)
 async def test_plan_modus_lernt_kein_k_aussen(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     entry, st = await _einrichten(hass, freezer, shellys, modus="plan")
     hass.states.async_set("sensor.temp_c1", "20.5")
@@ -179,8 +177,8 @@ async def test_plan_modus_lernt_kein_k_aussen(hass: HomeAssistant, freezer, shel
     await hass.async_block_till_done()
     uhr = Uhr(hass, freezer, st, ZEHN_UHR)
     await uhr.minute(20.5, n=25)
-    stand = st.lz["lernen"][C1]
-    assert stand["n_kext"] == 0 and stand["kext"] == 0.01
+    stand = st.lz["lernen"].get(C1, {})
+    assert stand.get("n_kext", 0) == 0 and stand.get("kext", 0.01) == 0.01
 
 
 async def test_bedarf_modus_lernend_nur_bei_bedarf(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
@@ -236,9 +234,6 @@ async def test_lern_reset_per_aktion(hass: HomeAssistant, freezer, shellys, nach
     assert antwort["success"] is False and antwort["error"]["code"] == "not_found"
 
 
-@pytest.mark.xfail(reason="BEFUND: lern_reset lässt den festgehaltenen „Warm ab“-Beginn von heute stehen "
-                          "(panel.py:558 löscht nur lz.lernen, nicht lz.warm_start) – der Plan bleibt „gelernt“",
-                   strict=True)
 async def test_lern_reset_vergisst_auch_warm_ab(hass: HomeAssistant, freezer, shellys, nachrichten, ws) -> None:
     entry, st = await _einrichten(hass, freezer, shellys, "2026-09-30 05:00:00+02:00")
     st.e["heizung"]["fruehstart"] = False
@@ -422,9 +417,6 @@ async def _stufen(hass, freezer, shellys, zeit: str, stand: dict):
     return entry, st
 
 
-@pytest.mark.xfail(reason="BEFUND: „einer reicht“ (gelernt) wird im Vorheizen von „weit unter dem Soll“ überstimmt – "
-                          "beide heizen, obwohl der Beginn für einen gerechnet ist (stufen.zusatz prüft weit_unter "
-                          "auch, wenn der gelernte Plan einen Heizkörper vorsieht; heizung._stufen_rechnen)", strict=True)
 async def test_warm_ab_zusatz_einer_reicht(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     """Einer schafft es in 80 min (≤ warm_max 120): Beginn nach der Rate mit einem Heizkörper, nur der Haupt heizt."""
     entry, st = await _stufen(hass, freezer, shellys, "2026-09-30 04:00:00+02:00", _gelernt(3.0, n2=6.0))

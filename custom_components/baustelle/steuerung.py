@@ -666,6 +666,9 @@ class Steuerung:
             zustand = self.hass.states.get(g.schalter)
             erreichbar = zustand is not None and zustand.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
             an = erreichbar and zustand is not None and zustand.state == STATE_ON
+            letzter = self._letzter_befehl.get(g.id)
+            if erreichbar and letzter is not None and jetzt - letzter[1] < timedelta(seconds=55):
+                an = letzter[0]   # eigener Befehl noch unterwegs: zählt schon als geschaltet
             e = self.einstellungen.bereich(g.bereich)
             leistung_w = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
             s_c = soll.get(g.bereich)
@@ -690,7 +693,7 @@ class Steuerung:
             vorrang = self.funktion_von(g).staffel_vorrang(s_c, schaltet) if s_c is not None else {}
             lasten.append(
                 staffel_logik.Last(
-                    id=g.id, anschluss=e.get("anschluss") or "", kw=kw, heizer=schaltet, an=an,
+                    id=g.id, anschluss=e.get("anschluss") or "", kw=kw, heizer=schaltet, an=an, gruppe=g.bereich,
                     will=bool(schaltet and ein), prio=PRIO.get(e.get("prio") or "normal", 1), **vorrang,
                     an_seit_min=_minuten_seit(seit, jetzt) if an else 0.0,
                     aus_seit_min=_minuten_seit(seit, jetzt) if not an else 1e9,
@@ -826,12 +829,14 @@ class Steuerung:
         self, jetzt: datetime, soll: SollJeBereich, an_set: set[str], ziel: dict[str, bool | None]
     ) -> None:
         geschaltet: dict[str, list[tuple[GeraetInfo, bool]]] = {}
-        for gid in ziel:
+        for gid in sorted(ziel, key=lambda x: x in an_set):   # erst alle aus, dann ein – nie kurz Überlast
             g = self.geraete[gid]
             zustand = self.hass.states.get(g.schalter)
             ein = gid in an_set
             if self._schalten(g, zustand, ein, jetzt):
                 geschaltet.setdefault(g.bereich, []).append((g, ein))
+        if geschaltet:
+            self._frei_verlauf.clear()   # eigene Schaltung: der freie Strom von vorhin gilt nicht mehr
         # Staffelung: neu wartende Geräte ins Protokoll (Mockup „Staffelung: Konvektor wartet …“)
         s = self.e["staffel"]
         for gid, w in self.daten.warte.items():
@@ -989,6 +994,10 @@ class Steuerung:
                 )
             )
         return liste
+
+    def warnung_vergessen(self, bereich: str, art: str) -> None:
+        """Eine Warnung still beenden (ohne „wieder ok“ im Protokoll), z. B. nach dem Knopf „Trotzdem heizen“."""
+        self._warn_alt = {k: w for k, w in self._warn_alt.items() if not (w.bereich == bereich and w.art == art)}
 
     def _warnungen(self, jetzt: datetime, soll: SollJeBereich) -> None:
         geraete = self._geraete_zustand(jetzt)

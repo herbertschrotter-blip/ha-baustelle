@@ -8,6 +8,7 @@ from logik.arbeitszeit import (
     Abschnitt,
     Arbeitszeit,
     Ausnahme,
+    AusnahmeArt,
     HeizRegeln,
     Plan,
     PlanGrund,
@@ -16,6 +17,7 @@ from logik.arbeitszeit import (
     WetterTag,
     arbeit_am,
     bedarf_fenster,
+    frei_gilt,
     gueltige_arbeitszeit,
     im_fenster,
     minuten,
@@ -322,3 +324,11 @@ def test_warm_ab_obergrenze_und_rueckfall():
     # noch nicht gelernt: alte Regeln (Vorheizen 45, Kälte-Frühstart, Nachheizen)
     alt = tagesplan(MI, LISTE, [], REGELN, WetterTag(frueh_min_temp=-1.2), trocknen=False, warm=WarmAb(vor_min=15, aufheiz_min=None))
     assert (alt.start, alt.vor) == (t(5, 45), t(6, 15)) and alt.nach == alt.b + REGELN.nachheizen_min and PlanGrund.GELERNT not in alt.gruende
+
+
+def test_frei_gilt_ausnahme_arbeit_geht_vor():
+    """Szenario-Befund: am freien Feiertag mit Ausnahme „Arbeit“ wird gearbeitet – auch die Regelung sieht nicht „frei“."""
+    arbeit = Ausnahme(datum=DI, art=AusnahmeArt.ARBEIT, von=t(8), bis=t(12))
+    frei = Ausnahme(datum=DI, art=AusnahmeArt.FREI)
+    assert frei_gilt(True, None) and frei_gilt(True, frei)
+    assert not frei_gilt(True, arbeit) and not frei_gilt(False, None)

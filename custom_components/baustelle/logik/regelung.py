@@ -192,6 +192,8 @@ def soll_container(lage: LageContainer, tuer_pause_min: int) -> Soll:
     if lage.tuer_offen_min is not None and lage.tuer_offen_min >= tuer_pause_min:
         return Soll(False, SollGrund.TUER_OFFEN)
     if not lage.auto:
+        if lage.frost_vorher:
+            return Soll(False, SollGrund.HAND)   # Frost vorbei: einmal aus, danach schaltet die Automatik nichts (Szenario-Befund)
         return Soll(None, SollGrund.HAND)
     if lage.boost and (lage.temperatur is None or lage.temperatur < lage.soll):
         return Soll(True, SollGrund.BOOST)

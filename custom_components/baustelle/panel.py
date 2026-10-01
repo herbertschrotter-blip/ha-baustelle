@@ -556,6 +556,7 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
             connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Container nicht gefunden")
             return
         lz.setdefault("lernen", {}).pop(bid, None)
+        lz.setdefault("warm_start", {}).pop(bid, None)   # auch der festgehaltene Beginn von heute (Szenario-Befund)
         st.protokoll("einstellung", bid, f"{st.bereiche[bid].name}: Lernstand zurückgesetzt")
     elif aktion == "bericht_senden":
         await st.nachrichten.async_bericht_senden(msg.get("art") or "woche")

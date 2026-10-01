@@ -1,5 +1,18 @@
 [
   {
+    "version": "0.8.15",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Staffelung: beim Tausch erst aus-, dann einschalten (kein kurzes Überlasten mehr, kein „beide aus“); Befehle, die noch unterwegs sind, zählen schon (ein Tausch schaltet nicht mehr zwei aus); nie Tausch gegen einen Heizkörper desselben Containers (Zusatz verdrängt nicht den eigenen Hauptheizkörper).",
+      "Lernende Regelung: im Modus Zeitplan wird nichts gelernt und kein Anteil angezeigt; „Lernstand zurücksetzen“ vergisst auch den festgehaltenen Beginn von heute; „einer reicht“ (gelernt) bleibt im Vorheizen bei einem Heizkörper.",
+      "Zusatz-Heizkörper misst beim Absenken und beim Frostschutz gegen das richtige Ziel (Absenk- bzw. Frost-Grenze).",
+      "Ausnahme „Arbeit“ an einem freien Feiertag wird auch geheizt (Regel einmal in `logik/arbeitszeit.frei_gilt`).",
+      "Status „heizt bis …“ rechnet Kleidung trocknen nur, wenn ein Container trocknet.",
+      "Frostschutz im Modus Hand schaltet nach dem Frost wieder aus.",
+      "Tür: heizt der Frostschutz trotz offener Tür, heißt es nicht mehr „Heizung pausiert“; nach „Trotzdem heizen“ steht nicht mehr „Tür zu“ im Protokoll."
+    ]
+  },
+  {
     "version": "0.8.14",
     "datum": "2026-10-01",
     "punkte": [
