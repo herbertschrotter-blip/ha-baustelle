@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.39",
+    "datum": "2026-10-02",
+    "punkte": [
+      "Einstellungen auf dem Handy (FE-0013): die Chip-Leiste der Kategorien springt beim Wechseln nicht mehr an den Anfang zurück – sie behält ihre Position, und die gewählte Kategorie rückt in die Mitte, wenn sie außerhalb liegt."
+    ]
+  },
+  {
     "version": "0.8.38",
     "datum": "2026-10-02",
     "punkte": [

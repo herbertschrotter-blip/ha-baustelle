@@ -729,7 +729,7 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .ev-nav .ev-trenn { height: 1px; background: rgba(127,127,127,.25); margin: 6px 8px; }
 .ev-inhalt > * + * { margin-top: 12px; }
 .ev-titel { display: flex; align-items: center; gap: 10px; margin: 2px 4px 10px; } .ev-titel b { font-size: 20px; } .ev-titel .leise { font-size: 12px; }
-.ev-chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; } .ev-chips button { flex: 0 0 auto; }
+.ev-chips { position: relative; display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: none; } .ev-chips button { flex: 0 0 auto; }
 .ev-dev-reiter { margin-bottom: 10px; }
 @media (max-width: 700px) { .ev-sl { grid-template-columns: 1fr; } .ev-nav { display: none; } }
 .schmal .ev-sl { grid-template-columns: 1fr; } .schmal .ev-nav { display: none; }
@@ -1369,7 +1369,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.38';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.39';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -2218,6 +2218,7 @@ class BaustellePanel extends HTMLElement {
 
   render(neu = false) {
     if (!this.ui) return;
+    const evc = this.root.querySelector('.ev-chips'), evPos = evc ? evc.scrollLeft : 0;   // FE-0013: Chip-Leiste der Einstellungen behält ihre Position
     const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0, sh = this.root.querySelector('.sheet'), shPos = sh && this.s.sheet && this._sheetArt === this.s.sheet.art ? sh.scrollTop : 0;
     this.ui.classList.toggle('still', !neu && this._view === this.s.view);   // Neuzeichnen ohne Einblend-Animationen
     this._view = this.s.view; this._sheetArt = this.s.sheet && this.s.sheet.art;
@@ -2246,6 +2247,9 @@ class BaustellePanel extends HTMLElement {
       <div class="tip"></div><div class="toast glas-panel"></div>
       ${melden && this.roh && !this.s.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}`;
     const sc = this.root.querySelector('.scroll'); if (sc) sc.scrollTop = pos;
+    const evc2 = this.root.querySelector('.ev-chips');
+    if (evc2) { evc2.scrollLeft = evPos; const on = evc2.querySelector('.chip.amber');   // gewählte Kategorie sichtbar, mittig, wenn sie draußen liegt
+      if (on && (on.offsetLeft < evc2.scrollLeft || on.offsetLeft + on.offsetWidth > evc2.scrollLeft + evc2.clientWidth)) evc2.scrollLeft = Math.max(0, on.offsetLeft - (evc2.clientWidth - on.offsetWidth) / 2); }
     const sh2 = this.root.querySelector('.sheet'); if (sh2 && shPos) sh2.scrollTop = shPos;
     if (this._toastBis > Date.now()) this.toast(this.letzterToast, true);
   }

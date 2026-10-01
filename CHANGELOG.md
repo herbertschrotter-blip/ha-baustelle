@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.39] – 2026-10-02
+
+- Einstellungen auf dem Handy (FE-0013): die Chip-Leiste der Kategorien springt beim Wechseln nicht mehr an den
+  Anfang zurück – sie behält ihre Position, und die gewählte Kategorie rückt in die Mitte, wenn sie außerhalb liegt.
+
 ## [0.8.38] – 2026-10-02
 
 - Mehrere Ausnahmen je Tag (FE-0012): eine zweite Ausnahme am selben Tag ersetzt die erste nicht mehr. Ein Fenster,

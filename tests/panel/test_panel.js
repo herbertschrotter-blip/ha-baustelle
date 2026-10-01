@@ -972,6 +972,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'zu' }, 5); Object.keys(c).forEach(k => delete c[k]); Object.assign(c, alt); nachPanel(); await klick({ act: 'tab', v: 'einst' }, 30); }
   /* WU-0007: alle Einstellungen in Gruppen mit Seitenleiste (Handy: Chips) */
   { const gruppe = async g => { await klick({ act: 'ev-gruppe', v: g }, 20); pruefe(`Einstellungen ${g}`); return ui.innerHTML; };
+    /* FE-0013: Chip-Leiste behält ihre Position; die gewählte Kategorie rückt nur in die Mitte, wenn sie außerhalb liegt */
+    { const leiste = panel.root.querySelector('.ev-chips'), chip = leiste.querySelector('.chip.amber');
+      Object.assign(leiste, { scrollLeft: 200, clientWidth: 300 }); Object.assign(chip, { offsetLeft: 250, offsetWidth: 80 });
+      await klick({ act: 'ev-gruppe', v: 'strom' }, 10); erwarte('FE-0013: Position bleibt (' + leiste.scrollLeft + ')', leiste.scrollLeft === 200);
+      Object.assign(chip, { offsetLeft: 700, offsetWidth: 80 }); await klick({ act: 'ev-gruppe', v: 'ueber' }, 10);
+      erwarte('FE-0013: gewählte Kategorie mittig (' + leiste.scrollLeft + ')', leiste.scrollLeft === 700 - (300 - 80) / 2); }
     erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
     const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'data-act="auto"', 'data-k="frost_aussen"'],
       container: ['Container und Geräte', 'Je Container'],
