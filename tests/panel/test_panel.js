@@ -758,6 +758,23 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       const q = { ...p, extra: p.a - 90, vor: p.a - 30, codes: ['fruehstart', 'frueher_nach_regen'], nach: p.b + 15, ende: p.b + 45 };
       erwarte('AN-0003: 30 Vorheizen + 60 Kälte und Regen', /60 min früher \(Kälte \+ Regen gestern\) \+ 30 min Vorheizen \+ Arbeit/.test(panel.planRechnung(q)) && panel.planRechnung(q).includes('30 min Kleidung trocknen'));
       await klick({ act: 'zu' }, 10); } }
+  /* FE-0009 / AN-0005: jede Kachel der Container-Ansicht öffnet ihr eigenes Diagramm */
+  { const b = panel.d.bereiche.find(x => !x.pumpe && x.geraete.some(g => g.leistung)); await klick({ act: 'container', id: b.id }, 20);
+    const kacheln = [...ui.innerHTML.matchAll(/class="glas-panel c-kachel" data-act="sheet" data-s="([^"]+)"( data-t="eur")?/g)].map(m => m[1] + (m[2] ? ':eur' : ''));
+    erwarte(`FE-0009: vier verschiedene Kacheln (${kacheln.join(', ')})`, kacheln.join(',') === 'leistung,verbrauch,verbrauch:eur,heizzeit-c');
+    await klick({ act: 'sheet', s: 'leistung', id: b.id }, 30); pruefe('Leistung einer Stunde');
+    const jetztH = +panel.z.JETZT.slice(0, 2);
+    erwarte('AN-0005: Leistung der aktuellen Stunde, je Messwert', ui.innerHTML.includes(`${String(jetztH).padStart(2, '0')}:00–`) && ui.innerHTML.includes('data-chart="lh-') && ui.innerHTML.includes('Messwerte') && ui.innerHTML.includes('data-act="lh-h"'));
+    neu(); await klick({ act: 'lh-h', v: String(Math.max(0, jetztH - 2)) }, 30);
+    erwarte('AN-0005: andere Stunde wählbar (holt den Verlauf dieser Stunde)', panel.s.sheet.h === Math.max(0, jetztH - 2) && aufrufe.some(m => m.type === 'history/history_during_period'));
+    erwarte('AN-0005: künftige Stunden gesperrt', jetztH === 23 || new RegExp(`data-act="lh-h" data-v="${jetztH + 1}" disabled`).test(ui.innerHTML));
+    await klick({ act: 'zr-schritt', ziel: 'sheet', max: '30', d: '1' }, 30); pruefe('Leistung gestern'); erwarte('AN-0005: gestern', ui.innerHTML.includes('<b>Gestern</b>'));
+    await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'verbrauch', t: 'eur', id: b.id }, 30); pruefe('Kosten');
+    erwarte('FE-0009: Kosten-Kachel zeigt € ', ui.innerHTML.includes('<h3>Kosten</h3>') && ui.innerHTML.includes('€ je Stunde'));
+    await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'heizzeit-c', id: b.id }, 30); pruefe('Heizzeit');
+    erwarte('FE-0009: Heizzeit-Kachel zeigt Heizstunden', ui.innerHTML.includes('<h3>Heizzeit · ') && ui.innerHTML.includes('data-chart="hz-c-'));
+    await klick({ act: 'vb-zeitraum', ziel: 'sheet', v: 'Woche' }, 30); pruefe('Heizzeit Woche'); erwarte('FE-0009: Heizzeit je Tag', ui.innerHTML.includes('h je Tag'));
+    await klick({ act: 'zu' }, 5); await klick({ act: 'tab', v: 'uebersicht' }, 10); }
   /* AN-0004: „Warm ab“ – Werte von der Integration (lernen.warm), Einstellungen je Baustelle und Container */
   { const b0 = panel.d.bereiche.find(x => x.fuehler && !x.pumpe), welt = struktur.find(x => x.baustelle.entry_id === panel.d.entry);
     const c = welt.laufzeit.container[b0.id], alt = JSON.parse(JSON.stringify(c));

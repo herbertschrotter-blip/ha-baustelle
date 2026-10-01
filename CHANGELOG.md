@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.12] – 2026-10-01
+
+- Container-Ansicht (FE-0009): jede Kachel öffnet ihr eigenes Diagramm – ⚡ kW jetzt die Leistung, 🔋 kWh den
+  Verbrauch, € die Kosten, ⏱ die Heizzeit (Pumpenschacht: Pumpzeit) je Stunde, Tag oder Monat mit Zeitraumwahl.
+- Leistung einer Stunde (AN-0005): jeder Messwert des Shellys aus dem HA-Verlauf, je Gerät und als Summe, mit kW im
+  Mittel und Spitze; Stunde wählbar (Standard: die aktuelle), Tag mit ‹ › und Kalender, Zeiger zeigt Uhrzeit und Watt.
+
 ## [0.8.11] – 2026-10-01
 
 - „Warm ab“ für lernende Container (AN-0004, Mockup warm-ab.html abgenommen): jeder Container mit lernender Regelung

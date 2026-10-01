@@ -737,6 +737,7 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .wa-tab { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 10px; align-items: center; margin: 4px 0 8px; }
 .wa-tab > b { font-size: 12px; color: var(--ink2); font-weight: 500; } .wa-tab > div b { font-size: 15px; } .wa-tab > div .leise { display: block; font-size: 11px; }
 .wa-heute { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(255,159,10,.12); margin: 6px 0; font-size: 13px; } .wa-heute b { font-size: 15px; }
+.lh-stunden { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: thin; } .lh-stunden .chip { flex: 0 0 auto; min-width: 38px; padding: 4px 6px; font-size: 12px; }
 .aw-leiste { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; } .aw-leiste .seg { margin: 0; }
 .aw-delta { font-style: normal; font-size: 12px; margin-left: 6px; } .aw-delta.mehr { color: #ff9f0a; } .aw-delta.weniger { color: #30d158; } .gruen-t { color: #30d158; }
 .aw-raster { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 110px; gap: 12px; grid-auto-flow: dense; }
@@ -1089,6 +1090,19 @@ function balken(id, werte, labels, einheit, d = 1) {
   CHARTS[id] = { art: 'balken', werte, labels, einheit, d };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${b}<rect class="treffer" x="0" y="0" width="0" height="0"/></svg>`;
 }
+/* AN-0005: Leistung je Messwert über eine Stunde (Stufen, wie der Shelly meldet); reihen [{name, farbe, punkte: [[ms, W]]}] */
+function stufen(id, reihen, von, bis, einheit = 'W') {
+  const W = 320, H = 160, L = 34, R = 8, T = 10, U = 22, alle = reihen.flatMap(r => r.punkte.map(p => p[1])).filter(zahl);
+  const hi = Math.max(...alle, 0) * 1.1 || 100, x = t => L + (Math.min(bis, Math.max(von, t)) - von) / (bis - von) * (W - L - R), y = v => T + (1 - v / hi) * (H - T - U);
+  const stufe = hi > 4000 ? 1000 : hi > 2000 ? 500 : hi > 800 ? 200 : hi > 300 ? 100 : 50;
+  const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_, k) => k * stufe).map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v >= 1000 ? de(v / 1000, 1) + ' k' : v}</text>`).join('');
+  const achse = [0, 10, 20, 30, 40, 50, 60].map(m => `<text x="${x(von + m * 6e4)}" y="${H - 6}" class="ax" text-anchor="middle">:${String(m % 60).padStart(2, '0')}</text>`).join('');
+  const pfade = reihen.map(r => { let d = ''; r.punkte.forEach(([t, v], i) => { const nx = i + 1 < r.punkte.length ? r.punkte[i + 1][0] : bis; if (!zahl(v)) return;
+      d += `${d ? 'L' : 'M'}${x(t).toFixed(1)} ${y(v).toFixed(1)}H${x(nx).toFixed(1)}`; });
+    return d ? `<path d="${d}" fill="none" stroke="${r.farbe}" stroke-width="${r.summe ? 2.4 : 1.6}" ${r.summe ? '' : 'opacity=".75"'}/>` : ''; }).join('');
+  CHARTS[id] = { art: 'stufen', einheit, reihen, von, bis, L, B: W - R, W, x, y, unten: H - U };
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}<g class="hover"></g></svg>`;
+}
 function streu(id, pkt, k, d0) {
   const W = 320, H = 170, L = 30, R = 8, T = 10, U = 24;
   const tx = [-10, -5, 0, 5, 10, 15], ymax = Math.max(50, Math.ceil(Math.max(...pkt.map(q => q[1])) / 50) * 50);
@@ -1204,7 +1218,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.11';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.12';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1648,6 +1662,47 @@ class BaustellePanel extends HTMLElement {
     return r === undefined ? null : r || {};
   }
 
+  /* AN-0005: Leistung einer Stunde, jeder Messwert der Leistungssensoren (HA-Verlauf), je Gerät und als Summe */
+  leistungInhalt(s) {
+    const d = this.d, b = d.bereiche.find(x => x.id === s.auswahl[0]) || this.b; if (!b) return '';
+    const v = s.v || 0, tag = plusTage(this.z.HEUTE, -v), jetztH = +this.z.JETZT.slice(0, 2), h = zahl(s.h) ? s.h : v ? 12 : jetztH;
+    const von = this.zoneMs(tag, `${String(h).padStart(2, '0')}:00`, d.z.zone), bis = von + 36e5, laufend = !v && h === jetztH;
+    const geraete = b.geraete.filter(g => g.leistung), ids = geraete.map(g => g.leistung);
+    const roh = !ids.length ? {} : this._holen(`lh:${d.entry}:${b.id}:${tag}:${h}`, () => this._hass.callWS({ type: 'history/history_during_period', start_time: new Date(von).toISOString(),
+      end_time: new Date(Math.min(bis, d.z.jetztMs)).toISOString(), entity_ids: ids, minimal_response: true, no_attributes: true, significant_changes_only: false }), laufend ? 30000 : undefined);
+    const ende = laufend ? d.z.jetztMs : bis, farben = ['var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
+    const stunden = [...Array(24)].map((_, k) => `<button class="chip glas-panel ${k === h ? 'amber' : ''}" data-act="lh-h" data-v="${k}" ${!v && k > jetztH ? 'disabled' : ''}>${String(k).padStart(2, '0')}</button>`).join('');
+    let inhalt;
+    if (!ids.length) inhalt = '<div class="leer">Kein Leistungssensor an den Geräten</div>';
+    else if (roh === undefined) inhalt = LAEDT;
+    else {
+      const reihen = geraete.map((g, k) => ({ name: g.n, farbe: farben[k % farben.length], punkte: ((roh || {})[g.leistung] || [])
+        .map(x => [zahl(x.lu) ? x.lu * 1000 : Date.parse(x.last_updated || x.last_changed), zahl(x.s ?? x.state) ? Number(x.s ?? x.state) : null]).filter(p => Number.isFinite(p[0])).map(([t, w]) => [Math.max(t, von), w]) }));
+      const zeiten = [...new Set(reihen.flatMap(r => r.punkte.map(p => p[0])))].sort((a, b2) => a - b2);
+      const wert = (r, t) => { let w = null; for (const p of r.punkte) { if (p[0] > t) break; w = p[1]; } return w; };
+      const summeR = { name: 'Summe', farbe: 'var(--s1)', summe: true, punkte: zeiten.map(t => [t, reihen.reduce((a, r) => a + (wert(r, t) || 0), 0)]) };
+      const zeige = reihen.length > 1 ? [...reihen, summeR] : reihen.map(r => ({ ...r, farbe: 'var(--s1)', summe: true }));
+      const spitze = Math.max(0, ...summeR.punkte.map(p => p[1]));
+      const mittel = summeR.punkte.length ? summeR.punkte.reduce((a, p, i) => a + p[1] * ((i + 1 < summeR.punkte.length ? summeR.punkte[i + 1][0] : ende) - p[0]), 0) / Math.max(1, ende - summeR.punkte[0][0]) : 0;
+      inhalt = `<div class="kennz"><div><b>${de(mittel / 1000, 2)}</b><span>kW im Mittel</span></div><div><b>${de(spitze / 1000, 2)}</b><span>kW Spitze</span></div><div><b>${reihen.reduce((a, r) => a + r.punkte.length, 0)}</b><span>Messwerte</span></div></div>
+        <div class="chart-wrap">${stufen(`lh-${b.id}-${tag}-${h}`, zeige, von, bis)}</div>
+        <div class="legende">${zeige.map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}<span class="leise">jeder Messwert des Shellys${laufend ? ' · bis jetzt' : ''}</span></div>`;
+    }
+    return `<div class="block-kopf"><h3>Leistung · ${esc(b.name)}</h3><span class="leise">${String(h).padStart(2, '0')}:00–${String((h + 1) % 24).padStart(2, '0')}:00</span></div>
+      ${this.zrWahl('sheet', 'Tag', this.zrGrenze())}<div class="lh-stunden">${stunden}</div>${inhalt}`;
+  }
+  /* FE-0009: Heizzeit eines Containers (Pumpenschacht: Pumpzeit) je Stunde, Tag oder Monat */
+  heizzeitInhalt(s) {
+    const d = this.d, b = d.bereiche.find(x => x.id === s.auswahl[0]) || this.b; if (!b) return '';
+    const z = s.zeitraum || 'Tag', v = s.v || 0, zr = this.zeitraum(z, v), r = this.heizStunden(d, b, z, v), su = r ? summe(r) : null;
+    const je = { Tag: 'je Stunde', Woche: 'je Tag', Monat: 'je Tag', Jahr: 'je Monat' }[z];
+    return `<div class="block-kopf"><h3>${b.pumpe ? 'Pumpzeit' : 'Heizzeit'} · ${esc(b.name)}</h3><span class="leise">${this.zrText(z, v)}</span></div>
+      <div class="seg">${['Tag', 'Woche', 'Monat', 'Jahr'].map(x => `<button data-act="vb-zeitraum" data-ziel="sheet" data-v="${x}" class="${x === z ? 'on' : ''}">${x}</button>`).join('')}</div>
+      ${this.zrWahl('sheet', z, this.zrGrenze())}
+      <div class="kennz"><div><b>${zahl(su) ? de(su, 1) : '–'}</b><span>Stunden ${b.pumpe ? 'gepumpt' : 'geheizt'}</span></div><div><b>${r ? de(Math.max(...r, 0), 1) : '–'}</b><span>h am meisten ${je}</span></div></div>
+      <div class="leise">h ${je} · ${this.zrText(z, v)}</div>
+      <div class="chart-wrap">${r ? balken(`hz-c-${b.id}-${z}-${v}`, r, zr.labels.map((l, i) => z === 'Tag' ? (i % 3 ? '' : l) : z === 'Monat' ? (i % 5 ? '' : l) : l), 'h') : LAEDT}</div>`;
+  }
   /* Gemessen: wann zieht ein Gerät Strom (Leistung über 50 W) – Verlauf der Leistungssensoren seit Montag */
   messung(d = this.d) {
     const geraete = d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g, eid: g.leistung || g.schalter }))).filter(x => x.eid);
@@ -1860,14 +1915,15 @@ class BaustellePanel extends HTMLElement {
     const zr = this.zeitraum(z, st.v || 0), labels = zr.labels, zd = `data-ziel="${ziel}"`;
     const was = st.gruppe === 'firma' ? 'Firmen' : alle ? 'Baustellen' : 'Container';
     const titel = !aus.length ? `${esc(summenName)} · Summe` : aus.length === 1 ? esc(aus[0].name) : `${aus.length} ${was} gestapelt`;
+    const eur = st.t === 'eur', f = eur ? this.d.e.preis : 1;   // FE-0009: Kosten-Kachel zeigt denselben Verlauf in € (kWh × Preis)
     const werte = Q.map(q => ({ q, v: q.v(z) })), laedt = werte.some(x => !x.v);
     const reihen = laedt ? [] : aus.length ? werte.filter(x => st.auswahl.includes(x.q.id)).map(({ q, v }) => ({ name: q.name, v, farbe: q.farbe }))
       : [{ name: 'Summe', v: addieren(werte.map(x => x.v)).length ? addieren(werte.map(x => x.v)) : Array(zr.n).fill(0), farbe: 'var(--s1)' }];
     const summeJe = labels.map((_, i) => reihen.reduce((a, r) => a + (r.v[i] || 0), 0)), sum = summe(summeJe);
     const spitze = Math.max(...summeJe, 0), wo = sum > 0 ? labels[summeJe.indexOf(spitze)] : '–';
-    const einheit = z === 'Tag' ? 'kWh/h' : 'kWh', je = `${{ Tag: 'je Stunde', Woche: 'je Tag', Monat: 'je Tag', Jahr: 'je Monat' }[z]} · ${this.zrText(z, st.v || 0)}`;
+    const einheit = eur ? '€' : z === 'Tag' ? 'kWh/h' : 'kWh', je = `${{ Tag: 'je Stunde', Woche: 'je Tag', Monat: 'je Tag', Jahr: 'je Monat' }[z]} · ${this.zrText(z, st.v || 0)}`;
     const p = this.d.e.preis;
-    return `<div class="block-kopf">${ziel === 'sheet' ? '<h3>Verbrauch</h3>' : '<b>Verbrauch</b>'}<span class="leise">${titel}</span></div>
+    return `<div class="block-kopf">${ziel === 'sheet' ? `<h3>${eur ? 'Kosten' : 'Verbrauch'}</h3>` : '<b>Verbrauch</b>'}<span class="leise">${titel}</span></div>
       <div class="seg">${['Tag', 'Woche', 'Monat', 'Jahr'].map(v => `<button data-act="vb-zeitraum" ${zd} data-v="${v}" class="${v === z ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${ziel === 'aw' ? '' : this.zrWahl(ziel, z, this.zrGrenze(alle))}
       <div class="vb-gruppe"><span class="leise">stapeln nach</span><div class="seg klein">${[['teil', alle ? 'Baustelle' : 'Container'], ['firma', 'Firma']].map(([k, t]) => `<button data-act="vb-gruppe" ${zd} data-v="${k}" class="${(st.gruppe || 'teil') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
@@ -1877,7 +1933,7 @@ class BaustellePanel extends HTMLElement {
       ${kennzahlen ? `<div class="kennz"><div><b>${laedt ? '–' : de(sum, sum < 100 ? 1 : 0)}</b><span>kWh ${{ Tag: 'heute', Woche: 'diese Woche', Monat: 'im Monat', Jahr: 'im Jahr' }[z]}${reihen.length > 1 ? ' zusammen' : ''}</span></div>
         <div><b>${laedt ? '–' : de(sum * p, 2)} €</b><span>Kosten</span></div><div><b>${laedt ? '–' : wo}</b><span>Spitze ${laedt ? '–' : de(spitze, 1)} kWh</span></div></div>` : ''}
       <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · gestapelt, oberste Kante = Summe' : ''}</div>
-      <div class="chart-wrap">${laedt ? LAEDT : flaeche(`vb-${ziel}-${this.s.awScope || ''}-${st.gruppe || ''}-${aus.map(q => q.id).join('_') || 'alle'}-${z}`, reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3)}</div>
+      <div class="chart-wrap">${laedt ? LAEDT : flaeche(`vb-${ziel}-${this.s.awScope || ''}-${st.gruppe || ''}-${aus.map(q => q.id).join('_') || 'alle'}-${z}${eur ? '-eur' : ''}`, eur ? reihen.map(r => ({ ...r, v: r.v.map(x => (x || 0) * f) })) : reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3)}</div>
       ${reihen.length > 1 ? `<div class="vb-je">${reihen.map(r => { const su = summe(r.v), sp = Math.max(...r.v, 0);
           return `<div><i style="background:${r.farbe}"></i><span class="n">${esc(r.name)}</span><b>${de(su, su < 100 ? 1 : 0)} kWh</b><span>${de(su * p, 2)} €</span><span class="leise">Spitze ${su > 0 ? labels[r.v.indexOf(sp)] : '–'}</span></div>`; }).join('')}</div>` : ''}`;
   }
@@ -2188,8 +2244,8 @@ class BaustellePanel extends HTMLElement {
     const vT = this.zrV('c-Tag'), vW = this.zrV('c-Woche'), kwhW = vW ? this.verbrauch(d, b.id, 'Woche', vW) : kwh7, hW = vW ? this.heizStunden(d, b, 'Woche', vW) : h7;   // FE-0008: Diagramm auch für frühere Tage/Wochen
     const chart = c === 'heute' ? this.cTag(b, vT) : c === 'woche' ? (kwhW ? balken('cw-' + b.id, kwhW, TAGE, 'kWh') : LAEDT) : (hW ? balken('ch-' + b.id, hW, TAGE, 'h') : LAEDT);
     const kwh = kwh7 ? kwh7[heuteNr] : null, h = h7 ? h7[heuteNr] : null;
-    const kacheln = [['⚡', de(kwVon(b)), 'kW jetzt'], ['🔋', zahl(kwh) ? de(kwh) : '–', 'kWh heute'], ['€', zahl(kwh) ? de(kwh * d.e.preis, 2) : '–', 'Kosten heute'], ['⏱', zahl(h) ? de(h) : '–', 'h Heizzeit']]
-      .map(([i, v, t]) => `<button class="glas-panel c-kachel" data-act="sheet" data-s="verbrauch" data-id="${b.id}"><span>${i}</span><b>${v}</b><small>${t}</small></button>`).join('');
+    const kacheln = [['⚡', de(kwVon(b)), 'kW jetzt', 'leistung'], ['🔋', zahl(kwh) ? de(kwh) : '–', 'kWh heute', 'verbrauch'], ['€', zahl(kwh) ? de(kwh * d.e.preis, 2) : '–', 'Kosten heute', 'verbrauch" data-t="eur'], ['⏱', zahl(h) ? de(h) : '–', 'h Heizzeit', 'heizzeit-c']]
+      .map(([i, v, t, s]) => `<button class="glas-panel c-kachel" data-act="sheet" data-s="${s}" data-id="${b.id}"><span>${i}</span><b>${v}</b><small>${t}</small></button>`).join('');   // FE-0009: je Kachel ein eigenes Diagramm
     return { c, chart, kacheln };
   }
   /* Geräte-Chips: Ein/Aus (Handbetrieb), Schalter „aktiv“, ✎ Gerät bearbeiten */
@@ -2987,6 +3043,8 @@ class BaustellePanel extends HTMLElement {
     const s = this.s.sheet, d = this.d, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
     const griff = '<div class="griff"></div>';
     if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
+    if (s.art === 'leistung') return `${griff}${this.leistungInhalt(s)}${knopf('Schließen')}`;
+    if (s.art === 'heizzeit-c') return `${griff}${this.heizzeitInhalt(s)}${knopf('Schließen')}`;
     if (s.art === 'hz') { const T = this.hzTeile(), def = HZ_TEILE.find(x => x[0] === s.k) || HZ_TEILE[0];
       const inhalt = s.k === 'heute' ? T.heute + T.wann : s.k === 'az' ? T.az + T.ausn : T[s.k];
       return `${griff}<div class="block-kopf"><h3>${def[2]} ${esc(def[3])}</h3></div>${(inhalt || '').replace(/class="glas-panel block"/g, 'class="block hz-innen"')}${knopf('Schließen')}`; }
@@ -3411,6 +3469,7 @@ class BaustellePanel extends HTMLElement {
         S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu(); }
       case 'wetterquelle-auf': return this.klick({ target: { closest: () => ({ dataset: { act: 'sheet', s: 'wetterquelle' } }) } });
       case 'wa': S.sheet.wa = el.dataset.v; return neu();
+      case 'lh-h': S.sheet.h = +el.dataset.v; return neu();   // AN-0005: Stunde der Leistung
       case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
       case 'aw-scope': S.awScope = el.dataset.v; S.aw.auswahl = this.quellen(S.aw, 'aw').map(q => q.id); return neu();
       case 'vb-zeitraum': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; if (st.zeitraum !== el.dataset.v) st.v = 0; st.zeitraum = el.dataset.v; S.zrKal = null; return neu(); }
@@ -3734,8 +3793,15 @@ class BaustellePanel extends HTMLElement {
         return this.tip(ev, `<b>${c.labels[i]}:00</b>` + (c.reihen.length > 1 ? [...c.reihen].reverse().map(q => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i], 2)} kW</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kW</b></div>` : `<div>${de(sum, 2)} kW</div>`)); }
       svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="138" class="kreuz"/>` + c.reihen.map(q => `<circle cx="${x}" cy="${c.y(q.o[i])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join('');
       return this.tip(ev, `<b>${c.labels[i]}${h ? ':00' : ''}</b>` + (c.reihen.length > 1
-        ? [...c.reihen].reverse().map(q => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i], 2)} kWh</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p, 2)} €</div>`
-        : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p, 2)} €</div>`));
+        ? [...c.reihen].reverse().map(q => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i], 2)} ${c.einheit === '€' ? '€' : 'kWh'}</b></div>`).join('') + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p, 2)} €</div>`
+        : c.einheit === '€' ? `<div>${de(sum, 2)} €</div>` : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p, 2)} €</div>`));
+    }
+    if (c.art === 'stufen') {   // AN-0005: Wert jedes Geräts zur Zeit unter dem Zeiger
+      const vx = fx * c.W, t = c.von + Math.max(0, Math.min(1, (vx - c.L) / (c.B - c.L))) * (c.bis - c.von);
+      const wert = r => { let w = null; for (const q of r.punkte) { if (q[0] > t) break; w = q[1]; } return w; }, x = c.x(t);
+      svg.querySelector('.hover').innerHTML = `<line x1="${x}" x2="${x}" y1="10" y2="${c.unten}" class="kreuz"/>`;
+      const zeit = new Date(t).toLocaleTimeString('de-AT', { timeZone: this.d.z.zone, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return this.tip(ev, `<b>${zeit}</b>${c.reihen.map(r => { const w = wert(r); return zahl(w) ? `<div><i style="background:${r.farbe}"></i>${esc(r.name)} <b>${de(w, 0)} W</b></div>` : ''; }).join('')}`);
     }
     if (c.art === 'linien') {
       const vx = fx * c.W, i = Math.max(0, Math.min(c.n - 1, Math.round((vx - c.x0) / (c.x1 - c.x0) * (c.n - 1)))), x = c.x0 + i / Math.max(1, c.n - 1) * (c.x1 - c.x0);
