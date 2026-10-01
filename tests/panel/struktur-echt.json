@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.24",
+   "version": "0.8.25",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1293,7 +1293,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.aussen": {
     "web": null,
@@ -1301,7 +1302,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.magazin_r1_leistung": {
     "web": null,
@@ -1309,7 +1311,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.magazin_t1_leistung": {
     "web": null,
@@ -1317,7 +1320,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.magazin_temperatur": {
     "web": null,
@@ -1325,7 +1329,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_k1_leistung": {
     "web": null,
@@ -1333,7 +1338,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_k2_leistung": {
     "web": null,
@@ -1341,7 +1347,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.polier_k1_leistung": {
     "web": null,
@@ -1349,7 +1356,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.polier_r1_leistung": {
     "web": null,
@@ -1357,7 +1365,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.polier_temperatur": {
     "web": null,
@@ -1365,7 +1374,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.regen": {
     "web": null,
@@ -1373,7 +1383,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.schacht_p1_leistung": {
     "web": null,
@@ -1381,7 +1392,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.magazin_r1": {
     "web": null,
@@ -1389,7 +1401,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.magazin_t1": {
     "web": null,
@@ -1397,7 +1410,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.mannschaft_k1": {
     "web": null,
@@ -1405,7 +1419,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.mannschaft_k2": {
     "web": null,
@@ -1413,7 +1428,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.polier_k1": {
     "web": null,
@@ -1421,7 +1437,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.polier_r1": {
     "web": null,
@@ -1429,7 +1446,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.schacht_p1": {
     "web": null,
@@ -1437,7 +1455,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "weather.kalsdorf": {
     "web": null,
@@ -1445,7 +1464,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    }
   }
  },
@@ -1466,7 +1486,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.24",
+   "version": "0.8.25",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1792,7 +1812,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.buero_r1": {
     "web": null,
@@ -1800,7 +1821,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    }
   }
  }

@@ -877,6 +877,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       if (REFERENZ) {
         erwarte('WU-0010: Geräte nach Funktion', ['Schaltgeräte', 'Temperaturfühler', 'Türkontakte', 'Wetter und Regen'].every(t => h.includes(t)));
         const web = Object.entries(L).find(([, l]) => l.web), ha = Object.entries(L).find(([, l]) => !l.web && l.ha);
+        erwarte('AN-0009: Statuspunkt und Signalbalken', h.includes('class="ger-punkt da"') && /class="ger-sig s[0-4]" title="Signal -\d+ dBm"/.test(h));
         erwarte('WU-0010: Klick öffnet Website bzw. HA-Geräteseite', (!web || h.includes(`href="${web[1].web}" target="_blank"`)) && (!ha || h.includes(`href="${ha[1].ha}"`)));
       } }
     await gruppe('dev'); await klick({ act: 'ev-dev', v: 'werkzeuge' }, 20);

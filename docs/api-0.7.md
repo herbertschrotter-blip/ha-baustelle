@@ -213,7 +213,7 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   (`geraet` | `typ`) → `{zeitraum, basis, preis, kw, reihe: [kWh je Periode], ohne_kwh, kwh, ergebnis: {ohne_eur,
   gespart_eur, prozent} | null, geraete: [{id, typ, kw}]}`; 24/7 ab Beginn der Baustelle bis jetzt.
 - Geräteübersicht (WU-0010): `geraete_links` = `{entity_id: {web (configuration_url, nur http/https), ha (Geräteseite),
-  geraet, hersteller, modell, batterie (Batterie-Sensor am Gerät)}}` für alle benutzten Entitäten (Schalter, Leistung,
+  geraet, hersteller, modell, batterie (Batterie-Sensor am Gerät), signal (Signalstärke-Sensor am Gerät, AN-0009)}}` für alle benutzten Entitäten (Schalter, Leistung,
   Energie, Fühler, Türkontakte, Außen, Regen, Wetter); ohne Geräteeintrag alle Felder `null`.
 - Szenarien (Runde 2): je Gerät `geraete.<id>.nenn_kw` (kW ohne Messung, `null` = Standard: Heizkörper 2,0, Pumpe 0,8);
   `geraete[].nenn_kw_eigen` in der Struktur. `lz.tuer_trotzdem` (intern). Warnungen `keine_leistung`/`zu_kalt` nur bei

@@ -247,15 +247,18 @@ def _geraete_links(hass: HomeAssistant, st: Steuerung, entry: ConfigEntry) -> di
         eintrag = ereg.async_get(eid)
         geraet = dreg.async_get(eintrag.device_id) if eintrag is not None and eintrag.device_id else None
         if geraet is None:
-            links[eid] = {"web": None, "ha": None, "geraet": None, "hersteller": None, "modell": None, "batterie": None}
+            links[eid] = {"web": None, "ha": None, "geraet": None, "hersteller": None, "modell": None, "batterie": None, "signal": None}
             continue
         url = str(geraet.configuration_url or "")
-        batterie = next((x.entity_id for x in er.async_entries_for_device(ereg, geraet.id)
-                         if (x.device_class or x.original_device_class) == "battery" and x.entity_id.startswith("sensor.")), None)
+        am_geraet = er.async_entries_for_device(ereg, geraet.id)
+        klasse = lambda x: x.device_class or x.original_device_class   # noqa: E731
+        batterie = next((x.entity_id for x in am_geraet if klasse(x) == "battery" and x.entity_id.startswith("sensor.")), None)
+        # AN-0009: Funk-/WLAN-Signal am selben Gerät (dBm), auch wenn HA ihn standardmäßig ausgeblendet hat
+        signal = next((x.entity_id for x in am_geraet if klasse(x) == "signal_strength" and x.entity_id.startswith("sensor.")), None)
         links[eid] = {
             "web": url if url.startswith(("http://", "https://")) else None,
             "ha": f"/config/devices/device/{geraet.id}",
             "geraet": geraet.name_by_user or geraet.name, "hersteller": geraet.manufacturer, "modell": geraet.model,
-            "batterie": batterie,
+            "batterie": batterie, "signal": signal,
         }
     return links

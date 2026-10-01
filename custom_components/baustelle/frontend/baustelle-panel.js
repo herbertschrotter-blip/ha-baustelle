@@ -748,7 +748,12 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .lh-skala { position: relative; height: 14px; margin: 0 12px; } .lh-skala span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--ink2); }
 .lh-stunden { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: thin; } .lh-stunden .chip { flex: 0 0 auto; min-width: 38px; padding: 4px 6px; font-size: 12px; }
 .zeile.ger { display: grid; grid-template-columns: 28px 1fr auto 14px; gap: 2px 10px; align-items: center; text-decoration: none; color: inherit; }
-.ger-ic { font-size: 17px; text-align: center; } .ger-z { font-size: 12.5px; text-align: right; white-space: nowrap; } a.zeile.ger:hover { background: rgba(127,127,127,.1); }
+.ger-ic { position: relative; font-size: 17px; text-align: center; }
+.ger-punkt { position: absolute; right: -2px; bottom: 0; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--sheet, #1c1c1e); }
+.ger-punkt.da { background: #30d158; } .ger-punkt.weg { background: var(--rot); }
+.ger-sig { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; margin-left: 4px; vertical-align: -1px; }
+.ger-sig i { width: 3px; border-radius: 1px; background: rgba(127,127,127,.35); } .ger-sig i:nth-child(1) { height: 25%; } .ger-sig i:nth-child(2) { height: 50%; }
+.ger-sig i:nth-child(3) { height: 75%; } .ger-sig i:nth-child(4) { height: 100%; } .ger-sig i.an { background: var(--ink); } .ger-sig.s1 i.an { background: var(--rot); } .ger-z { font-size: 12.5px; text-align: right; white-space: nowrap; } a.zeile.ger:hover { background: rgba(127,127,127,.1); }
 .aw-leiste { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; } .aw-leiste .seg { margin: 0; }
 .aw-delta { font-style: normal; font-size: 12px; margin-left: 6px; } .aw-delta.mehr { color: #ff9f0a; } .aw-delta.weniger { color: #30d158; } .gruen-t { color: #30d158; }
 .aw-raster { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 110px; gap: 12px; grid-auto-flow: dense; }
@@ -1232,7 +1237,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.24';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.25';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -2990,11 +2995,16 @@ class BaustellePanel extends HTMLElement {
     const d = this.d, L = (d.r && d.r.geraete_links) || {}, o = d.optionen || {}, z = eid => this._hass && this._hass.states[eid];
     const weg = s => !s || s.state === 'unavailable' || s.state === 'unknown';
     let n = 0, offline = 0;
+    // AN-0009: Signal in 4 Strichen (übliche WLAN-Stufen: ab −55 / −67 / −75 / −85 dBm), Wert im Tooltip
+    const balken = sig => { if (!sig || !zahl(sig.state)) return ''; const db = +sig.state, n4 = db >= -55 ? 4 : db >= -67 ? 3 : db >= -75 ? 2 : db >= -85 ? 1 : 0;
+      return `<span class="ger-sig s${n4}" title="Signal ${de(db, 0)} dBm" aria-label="Signal ${n4} von 4">${[1, 2, 3, 4].map(k => `<i class="${k <= n4 ? 'an' : ''}"></i>`).join('')}</span>`; };
     const zeile = (eid, ic, ort, text, schlecht) => {
       n++; if (schlecht) offline++;
-      const l = L[eid] || {}, href = l.web || l.ha, bat = l.batterie && z(l.batterie), name = this.name(eid) || eid;
-      const inhalt = `<span class="ger-ic">${ic}</span><div><b>${esc(name)}</b><div class="leise">${esc(ort)}${l.modell ? ` · ${esc(l.modell)}` : ''}${l.web ? ' · Website' : ''}</div></div>
-        <span class="ger-z ${schlecht ? 'rot-t' : ''}">${text}${bat && zahl(bat.state) ? ` · 🔋 ${de(+bat.state, 0)} %` : ''}</span>${href ? '<span class="chev">↗</span>' : ''}`;
+      const l = L[eid] || {}, href = l.web || l.ha, bat = l.batterie && z(l.batterie), name = this.name(eid) || eid, s0 = z(eid);
+      const seit = schlecht && s0 && s0.last_changed ? ` seit ${new Date(s0.last_changed).toLocaleTimeString('de-AT', { timeZone: d.z.zone, hour: '2-digit', minute: '2-digit' })}` : '';
+      const punkt = `<i class="ger-punkt ${schlecht ? 'weg' : 'da'}" title="${schlecht ? 'nicht erreichbar – angemeldet, aber nicht gefunden (Stecker gezogen?)' : 'erreichbar'}"></i>`;
+      const inhalt = `<span class="ger-ic">${ic}${punkt}</span><div><b>${esc(name)}</b><div class="leise">${esc(ort)}${l.modell ? ` · ${esc(l.modell)}` : ''}${l.web ? ' · Website' : ''}</div></div>
+        <span class="ger-z ${schlecht ? 'rot-t' : ''}">${text}${seit}${bat && zahl(bat.state) ? ` · 🔋 ${de(+bat.state, 0)} %` : ''} ${schlecht ? '' : balken(l.signal && z(l.signal))}</span>${href ? '<span class="chev">↗</span>' : ''}`;
       return href ? `<a class="zeile ger" href="${esc(href)}" target="_blank" rel="noopener" title="${l.web ? 'Website des Geräts öffnen' : 'Gerät in Home Assistant öffnen'}">${inhalt}</a>` : `<div class="zeile ger">${inhalt}</div>`;
     };
     const wert = eid => { const s = z(eid); if (weg(s)) return ['meldet nichts', true]; const e = (s.attributes || {}).unit_of_measurement || '';

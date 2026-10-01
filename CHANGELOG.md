@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.25] – 2026-10-01
+
+- Geräteübersicht (AN-0009): Statuspunkt je Gerät – grün erreichbar, rot „nicht erreichbar seit …“ (angemeldet, aber
+  nicht gefunden, z. B. Stecker gezogen) – und Signalbalken mit vier Strichen aus dem Signalstärke-Sensor am Gerät
+  (WLAN-Stufen ab −55/−67/−75/−85 dBm, Wert im Tooltip).
+
 ## [0.8.24] – 2026-10-01
 
 - Ölradiator oder Konvektor – fair verglichen (AN-0008): gezählt werden nur Zeiten, in denen ein Container mit Fühler

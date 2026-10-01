@@ -63,6 +63,8 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
     setze('calendar.besprechungen', 'off', { friendly_name: 'Besprechungen' }); setze('calendar.baustelle_urlaub', 'off', { friendly_name: 'Baustelle Urlaub' });
     setze('calendar.feiertage_oesterreich', 'off', { friendly_name: 'Feiertage' }); setze('notify.mobile_app_handy_herbert', 'unknown', { friendly_name: 'Handy Herbert' });
     setze('sensor.regen_dobl', '6', { device_class: 'precipitation' });
+  // AN-0009: Signalstärke der Shellys (dBm) für die Geräteübersicht
+  STRUKTUR[0].geraete.forEach((g, i) => { if (g.schalter) setze(g.schalter.replace('switch.', 'sensor.') + '_signal', [-48, -62, -71, -80, -90][i % 5], { device_class: 'signal_strength', unit_of_measurement: 'dBm' }); });
   }
   const vorhersage = art => art === 'daily'
     ? ['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03'].map((t, i) => ({ datetime: `${t}T12:00:00+02:00`, condition: ['rainy', 'fog', 'partlycloudy', 'rainy', 'sunny'][i], temperature: [9, 7.1, 9.4, 8.2, 11][i], templow: [2, -1.2, 1.8, 4.1, 3][i], precipitation: [6, 0, 0, 5.5, 0][i], precipitation_probability: [90, 10, 15, 80, 5][i] }))

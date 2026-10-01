@@ -1771,7 +1771,8 @@
     "geraet": "Tuer Magazin",
     "hersteller": "Shelly",
     "modell": "BLU Door/Window",
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "binary_sensor.tuer_polier": {
     "web": null,
@@ -1779,7 +1780,8 @@
     "geraet": "Tuer Polier",
     "hersteller": "Shelly",
     "modell": "BLU Door/Window",
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.besprechung_r_energie": {
     "web": null,
@@ -1787,7 +1789,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.besprechung_r_leistung": {
     "web": null,
@@ -1795,7 +1798,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.besprechung_temperatur": {
     "web": null,
@@ -1803,7 +1807,8 @@
     "geraet": "Besprechung Temperatur",
     "hersteller": "Shelly",
     "modell": "H&T Gen3",
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.lager_r_energie": {
     "web": null,
@@ -1811,7 +1816,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.lager_r_leistung": {
     "web": null,
@@ -1819,7 +1825,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.magazin_r_energie": {
     "web": null,
@@ -1827,7 +1834,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.magazin_r_leistung": {
     "web": null,
@@ -1835,7 +1843,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.magazin_s_energie": {
     "web": null,
@@ -1843,7 +1852,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.magazin_s_leistung": {
     "web": null,
@@ -1851,7 +1861,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_k_energie": {
     "web": null,
@@ -1859,7 +1870,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_k_leistung": {
     "web": null,
@@ -1867,7 +1879,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_r1_energie": {
     "web": null,
@@ -1875,7 +1888,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_r1_leistung": {
     "web": null,
@@ -1883,7 +1897,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_t_energie": {
     "web": null,
@@ -1891,7 +1906,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_t_leistung": {
     "web": null,
@@ -1899,7 +1915,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.mannschaft_temperatur": {
     "web": null,
@@ -1907,7 +1924,8 @@
     "geraet": "Mannschaft Temperatur",
     "hersteller": "Shelly",
     "modell": "H&T Gen3",
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.polier_r1_energie": {
     "web": null,
@@ -1915,7 +1933,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.polier_r1_leistung": {
     "web": null,
@@ -1923,7 +1942,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.polier_r2_energie": {
     "web": null,
@@ -1931,7 +1951,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.polier_r2_leistung": {
     "web": null,
@@ -1939,7 +1960,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.polier_temperatur": {
     "web": null,
@@ -1947,7 +1969,8 @@
     "geraet": "Polier Temperatur",
     "hersteller": "Shelly",
     "modell": "H&T Gen3",
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.sanitaer_f_energie": {
     "web": null,
@@ -1955,7 +1978,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.sanitaer_f_leistung": {
     "web": null,
@@ -1963,7 +1987,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.sanitaer_temperatur": {
     "web": null,
@@ -1971,7 +1996,8 @@
     "geraet": "Sanitaer Temperatur",
     "hersteller": "Shelly",
     "modell": "H&T Gen3",
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.schacht_p1_energie": {
     "web": null,
@@ -1979,7 +2005,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.schacht_p1_leistung": {
     "web": null,
@@ -1987,7 +2014,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.schacht_p2_energie": {
     "web": null,
@@ -1995,7 +2023,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "sensor.schacht_p2_leistung": {
     "web": null,
@@ -2003,7 +2032,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    },
    "switch.besprechung_r": {
     "web": "http://192.0.2.50",
@@ -2011,7 +2041,8 @@
     "geraet": "Besprechung R",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.besprechung_r_signal"
    },
    "switch.lager_r": {
     "web": "http://192.0.2.51",
@@ -2019,7 +2050,8 @@
     "geraet": "Lager R",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.lager_r_signal"
    },
    "switch.magazin_r": {
     "web": "http://192.0.2.52",
@@ -2027,7 +2059,8 @@
     "geraet": "Magazin R",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.magazin_r_signal"
    },
    "switch.magazin_s": {
     "web": "http://192.0.2.53",
@@ -2035,7 +2068,8 @@
     "geraet": "Magazin S",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.magazin_s_signal"
    },
    "switch.mannschaft_k": {
     "web": "http://192.0.2.54",
@@ -2043,7 +2077,8 @@
     "geraet": "Mannschaft K",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.mannschaft_k_signal"
    },
    "switch.mannschaft_r1": {
     "web": "http://192.0.2.55",
@@ -2051,7 +2086,8 @@
     "geraet": "Mannschaft R1",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.mannschaft_r1_signal"
    },
    "switch.mannschaft_t": {
     "web": "http://192.0.2.56",
@@ -2059,7 +2095,8 @@
     "geraet": "Mannschaft T",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.mannschaft_t_signal"
    },
    "switch.polier_r1": {
     "web": "http://192.0.2.57",
@@ -2067,7 +2104,8 @@
     "geraet": "Polier R1",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.polier_r1_signal"
    },
    "switch.polier_r2": {
     "web": "http://192.0.2.58",
@@ -2075,7 +2113,8 @@
     "geraet": "Polier R2",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.polier_r2_signal"
    },
    "switch.sanitaer_f": {
     "web": "http://192.0.2.59",
@@ -2083,7 +2122,8 @@
     "geraet": "Sanitaer F",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.sanitaer_f_signal"
    },
    "switch.schacht_p1": {
     "web": "http://192.0.2.60",
@@ -2091,7 +2131,8 @@
     "geraet": "Schacht P1",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.schacht_p1_signal"
    },
    "switch.schacht_p2": {
     "web": "http://192.0.2.61",
@@ -2099,7 +2140,8 @@
     "geraet": "Schacht P2",
     "hersteller": "Shelly",
     "modell": "Plus Plug S",
-    "batterie": null
+    "batterie": null,
+    "signal": "sensor.schacht_p2_signal"
    },
    "weather.dobl": {
     "web": null,
@@ -2107,7 +2149,8 @@
     "geraet": null,
     "hersteller": null,
     "modell": null,
-    "batterie": null
+    "batterie": null,
+    "signal": null
    }
   }
  },
