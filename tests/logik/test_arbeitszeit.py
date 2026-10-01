@@ -333,3 +333,41 @@ def test_frei_gilt_ausnahme_arbeit_geht_vor():
     assert frei_gilt(True, None) and frei_gilt(True, frei)
     assert not frei_gilt(True, arbeit) and not frei_gilt(False, None)
     assert frei_gilt(False, frei)   # Ausnahme „frei“ ist ein freier Tag (Modus für freie Tage, Szenarien)
+
+
+FR = date(2026, 10, 2)
+
+
+def test_mehrere_zeitfenster_je_tag():
+    """FE-0012 (Herbert 02.10.2026): mehrere Ausnahmen je Tag. Ein Fenster, das an die Arbeitszeit grenzt, verlängert
+    den Block (mit Vor-/Nachheizen); ein Fenster für sich heizt genau seine Zeit."""
+    from logik.arbeitszeit import fenster_am
+    # Freitag 07:00–12:30 laut Arbeitszeit; 12:30–16:30 grenzt an, 04:00–05:00 steht für sich
+    aus = [Ausnahme(FR, "arbeit", t(4), t(5)), Ausnahme(FR, "arbeit", t(12, 30), t(16, 30))]
+    assert fenster_am(LISTE, aus, FR) == ((t(7), t(16, 30)), [(t(4), t(5))])
+    p = tagesplan(FR, LISTE, aus, REGELN, OHNE, trocknen=False)
+    assert (p.vor, p.a, p.b, p.nach) == (t(6, 15), t(7), t(16, 30), t(16, 45))
+    assert p.eigene == ((t(4), t(5)),) and len(p.ausnahmen) == 2
+    assert p.abschnitt(t(4, 30)) is Abschnitt.ARBEITSZEIT        # eigenes Fenster heizt (Regelung: wie Arbeitszeit)
+    assert p.abschnitt(t(5, 30)) is None and p.abschnitt(t(3, 50)) is None   # ohne Vor-/Nachheizen
+    assert (t(4), t(5), Abschnitt.FENSTER) in p.abschnitte()
+    # Status: um 03:00 „Start um 04:00“, um 04:30 „heizt bis 05:00“, um 05:30 „Start um 06:15“
+    s = lambda m: status(FR, m, lambda d: p if d == FR else None)   # noqa: E731
+    assert (s(t(3)).art, s(t(3)).minute) == (StatusArt.START, t(4))
+    assert (s(t(4, 30)).art, s(t(4, 30)).minute) == (StatusArt.HEIZT, t(5))
+    assert (s(t(5, 30)).art, s(t(5, 30)).minute) == (StatusArt.START, t(6, 15))
+    # Überschneidung verlängert ebenfalls; „frei“ hebt alles auf
+    assert fenster_am(LISTE, [Ausnahme(FR, "arbeit", t(6), t(8))], FR) == ((t(6), t(12, 30)), [])
+    assert fenster_am(LISTE, [*aus, Ausnahme(FR, "frei")], FR) == (None, [])
+
+
+def test_ohne_arbeitszeit_ist_das_laengste_fenster_der_block():
+    """Samstag ohne Arbeitszeit (Herbert: das längste Fenster bekommt Vor-/Nachheizen); „andere Zeiten“ ersetzt die
+    Arbeitszeit – das längste davon ist der Block."""
+    from logik.arbeitszeit import fenster_am
+    sa = [Ausnahme(SA, "arbeit", t(7), t(9)), Ausnahme(SA, "arbeit", t(12), t(16))]
+    assert fenster_am(LISTE, sa, SA) == ((t(12), t(16)), [(t(7), t(9))])
+    di = [Ausnahme(DI, "zeiten", t(7), t(11)), Ausnahme(DI, "zeiten", t(12), t(15))]
+    assert fenster_am(LISTE, di, DI) == ((t(7), t(11)), [(t(12), t(15))])
+    # Feiertag: die Arbeitszeit gilt nicht, nur die Ausnahme
+    assert fenster_am(LISTE, [Ausnahme(DI, "arbeit", t(8), t(12))], DI, frei=True) == ((t(8), t(12)), [])

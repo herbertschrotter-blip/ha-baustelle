@@ -62,6 +62,7 @@ class Abschnitt(StrEnum):
     ARBEITSZEIT = "arbeitszeit"
     NACHHEIZEN = "nachheizen"
     TROCKNEN = "trocknen"
+    FENSTER = "fenster"   # FE-0012: eigenes Zeitfenster einer Ausnahme – heizt genau seine Zeit (Regelung: wie Arbeitszeit)
 
 
 def minuten(uhrzeit: str) -> int:
@@ -165,6 +166,9 @@ class Plan:
     ende: int
     gruende: tuple[str, ...] = ()
     ausnahme: Ausnahme | None = None
+    # FE-0012: weitere Zeitfenster des Tages, die nicht an die Arbeitszeit grenzen – heizen genau `(von, bis)`
+    eigene: tuple[tuple[int, int], ...] = ()
+    ausnahmen: tuple[Ausnahme, ...] = ()
 
     def abschnitte(self) -> list[tuple[int, int, Abschnitt]]:
         """Nicht leere Abschnitte `(von, bis, art)` in zeitlicher Folge (Mockup `heizzeiten`)."""
@@ -175,14 +179,31 @@ class Plan:
             (self.b, self.nach, Abschnitt.NACHHEIZEN),
             (self.nach, self.ende, Abschnitt.TROCKNEN),
         ]
-        return [t for t in teile if t[1] > t[0]]
+        eigene = [(von, bis, Abschnitt.FENSTER) for von, bis in self.eigene]
+        return sorted([t for t in teile if t[1] > t[0]] + [t for t in eigene if t[1] > t[0]], key=lambda t: t[0])
 
     def abschnitt(self, minute: int) -> Abschnitt | None:
-        """Abschnitt zur Minute; None außerhalb von `[start, ende)`."""
+        """Abschnitt zur Minute (für die Regelung: ein eigenes Fenster zählt wie Arbeitszeit); None, wenn nicht geheizt."""
         for von, bis, art in self.abschnitte():
             if von <= minute < bis:
-                return art
+                return Abschnitt.ARBEITSZEIT if art == Abschnitt.FENSTER else art
         return None
+
+    def heizt(self, minute: int) -> bool:
+        return self.abschnitt(minute) is not None
+
+    def heiz_ende(self, minute: int) -> int:
+        """Ende des zusammenhängenden Heizens ab `minute` (Arbeitszeit-Block bzw. eigenes Fenster)."""
+        ende = minute
+        for von, bis, _ in self.abschnitte():
+            if von <= ende < bis or von == ende:
+                ende = max(ende, bis)
+        return ende
+
+    def naechster_start(self, minute: int) -> int | None:
+        """Nächster Beginn des Heizens nach `minute` an diesem Tag."""
+        starts = [von for von, bis, _ in self.abschnitte() if von > minute]
+        return min(starts) if starts else None
 
 
 # Arbeitszeit einer neuen Baustelle (Mockup „Herbst 2026“): Mo–Do 07:00–16:30, Fr 07:00–12:30 – Store-Form je Wochentag
@@ -247,9 +268,58 @@ def gueltige_arbeitszeit(liste: Iterable[Arbeitszeit], tag: date) -> Arbeitszeit
     return gueltig
 
 
+def ausnahmen_am(ausnahmen: Iterable[Ausnahme], tag: date) -> list[Ausnahme]:
+    """Alle Ausnahmen eines Tages (FE-0012: mehrere Zeitfenster je Tag), nach Beginn."""
+    return sorted((x for x in ausnahmen if x.datum == tag), key=lambda x: (x.von, x.bis))
+
+
 def ausnahme_am(ausnahmen: Iterable[Ausnahme], tag: date) -> Ausnahme | None:
-    """Die Ausnahme für genau diesen Tag (je Datum gibt es höchstens eine)."""
-    return next((x for x in ausnahmen if x.datum == tag), None)
+    """Die maßgebliche Ausnahme eines Tages: „frei“, wenn eingetragen (hebt alle auf), sonst die erste."""
+    am = ausnahmen_am(ausnahmen, tag)
+    return next((x for x in am if x.art == AusnahmeArt.FREI), am[0] if am else None)
+
+
+def fenster_am(
+    liste: Iterable[Arbeitszeit], ausnahmen: Iterable[Ausnahme], tag: date, frei: bool = False
+) -> tuple[tuple[int, int] | None, list[tuple[int, int]]]:
+    """Arbeitszeit-Block und eigene Zeitfenster eines Tages (FE-0012, Herbert 02.10.2026).
+
+    „frei“ hebt alles auf. „andere Zeiten“ ersetzt die Arbeitszeit, „zusätzlich arbeiten“ kommt dazu. Der Block ist die
+    Arbeitszeit, sonst das längste „andere Zeiten“, sonst das längste Fenster überhaupt. Ein Fenster, das an den Block
+    grenzt oder ihn überschneidet, verlängert ihn (Vor-/Nachheizen gelten für den ganzen Block); die übrigen stehen für
+    sich und heizen genau ihre Zeit. `frei` (Feiertag, Urlaub): die Arbeitszeit gilt nicht, nur die Ausnahmen. Nur
+    ungültige „andere Zeiten“ (bis nicht nach von) machen den Tag frei.
+    """
+    am = ausnahmen_am(ausnahmen, tag)
+    if any(x.art == AusnahmeArt.FREI for x in am):
+        return None, []
+    zeiten_alle = [x for x in am if x.art == AusnahmeArt.ZEITEN]
+    zeiten = [(x.von, x.bis) for x in zeiten_alle if x.bis > x.von]
+    if zeiten_alle and not zeiten:
+        return None, []
+    extra = [(x.von, x.bis) for x in am if x.art == AusnahmeArt.ARBEIT and x.bis > x.von]
+    regel = None
+    if not zeiten and not frei and (az := gueltige_arbeitszeit(liste, tag)) is not None:
+        r = az.tage.get(tag.weekday())
+        regel = r if r is not None and r[1] > r[0] else None
+    rest = sorted(zeiten + extra)
+    laenge = lambda f: (f[1] - f[0], -f[0])  # noqa: E731 – längstes, bei Gleichstand das frühere
+    if regel is not None:
+        block = regel
+    elif zeiten or extra:
+        block = max(zeiten or extra, key=laenge)
+        rest.remove(block)
+    else:
+        return None, []
+    weiter = True
+    while weiter:
+        weiter = False
+        for f in list(rest):
+            if f[0] <= block[1] and f[1] >= block[0]:
+                block = (min(f[0], block[0]), max(f[1], block[1]))
+                rest.remove(f)
+                weiter = True
+    return block, rest
 
 
 def frei_gilt(frei: bool, ausnahme: Ausnahme | None) -> bool:
@@ -262,14 +332,8 @@ def frei_gilt(frei: bool, ausnahme: Ausnahme | None) -> bool:
 
 
 def arbeit_am(liste: Iterable[Arbeitszeit], ausnahmen: Iterable[Ausnahme], tag: date) -> tuple[int, int] | None:
-    """Arbeitszeit `(a, b)` eines Tages; die Ausnahme geht vor, `frei` → None."""
-    ausnahme = ausnahme_am(ausnahmen, tag)
-    if ausnahme is not None:
-        return None if ausnahme.art == AusnahmeArt.FREI else (ausnahme.von, ausnahme.bis)
-    arbeitszeit = gueltige_arbeitszeit(liste, tag)
-    if arbeitszeit is None:
-        return None
-    return arbeitszeit.tage.get(tag.weekday())
+    """Arbeitszeit-Block `(a, b)` eines Tages (mit Ausnahmen, `fenster_am`); `frei` → None."""
+    return fenster_am(liste, ausnahmen, tag)[0]
 
 
 def tagesplan(
@@ -291,12 +355,13 @@ def tagesplan(
     ausnahme = ausnahme_am(ausnahmen, tag)
     if frei_gilt(frei, ausnahme):
         return None
-    zeit = arbeit_am(liste, ausnahmen, tag)
+    zeit, eigene = fenster_am(liste, ausnahmen, tag, frei)
     if zeit is None:
         return None
     a, b = zeit
     if b <= a:
         return None
+    alle = tuple(ausnahmen_am(ausnahmen, tag))
     gruende: list[str] = [PlanGrund.AUSNAHME] if ausnahme is not None else []
     gelernt = warm is not None and warm.aufheiz_min is not None
     if gelernt:
@@ -325,6 +390,8 @@ def tagesplan(
         ende=min(TAG_MINUTEN, nach + laenger),
         gruende=tuple(gruende),
         ausnahme=ausnahme,
+        eigene=tuple(eigene),
+        ausnahmen=alle,
     )
 
 
@@ -363,13 +430,13 @@ class Status:
 def status(heute: date, minute: int, plan_am: Callable[[date], Plan | None]) -> Status:
     """Kurzstatus wie Mockup `statusText`: heizt bis Ende, Start heute oder nächster Start in den kommenden 7 Tagen."""
     plan = plan_am(heute)
-    if plan is not None and plan.start <= minute < plan.ende:
-        return Status(StatusArt.HEIZT, heute, plan.ende)
-    if plan is not None and minute < plan.start:
-        return Status(StatusArt.START, heute, plan.start)
+    if plan is not None and plan.heizt(minute):
+        return Status(StatusArt.HEIZT, heute, plan.heiz_ende(minute))
+    if plan is not None and (start := plan.naechster_start(minute)) is not None:
+        return Status(StatusArt.START, heute, start)
     for k in range(1, 8):
         tag = heute + timedelta(days=k)
         naechster = plan_am(tag)
         if naechster is not None:
-            return Status(StatusArt.AUS, tag, naechster.start)
+            return Status(StatusArt.AUS, tag, naechster.naechster_start(-1) if naechster.naechster_start(-1) is not None else naechster.start)
     return Status(StatusArt.AUS)

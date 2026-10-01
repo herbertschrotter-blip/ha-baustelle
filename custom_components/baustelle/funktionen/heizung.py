@@ -447,7 +447,7 @@ class Heizung(Funktion):
             if jetzt_bis is not None:
                 # „alle jetzt heizen“: wie in der Arbeitszeit, auch an freien Tagen und über der Heizgrenze (§5)
                 ende = 24 * 60 if jetzt_bis.date() > heute else jetzt_bis.hour * 60 + jetzt_bis.minute
-                if plan is None or not (plan.start <= minute < plan.ende):
+                if plan is None or not plan.heizt(minute):
                     plan = Plan(start=minute, vor=minute, a=minute, b=max(minute + 1, ende), nach=max(minute + 1, ende),
                                 ende=max(minute + 1, ende))
                 frei, warm = False, False

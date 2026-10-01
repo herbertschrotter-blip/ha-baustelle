@@ -189,3 +189,29 @@ async def test_alles_zuruecksetzen(hass: HomeAssistant, baustelle, freezer, shel
     assert not any(k in neu.zaehler for k in ("energie", "heiztage", f"abkuehl:{C1}", f"stand:{HK1}"))
     assert neu.lz["lernen"] == {} and neu.lz["gefuehl"] == [] and neu.e["heizung"]["soll"] == 21.5
     assert any("zurückgesetzt" in p[3] for p in neu.e["protokoll"])
+
+
+async def test_mehrere_ausnahmen_je_tag(hass: HomeAssistant, baustelle, freezer, shellys, hass_ws_client) -> None:
+    """FE-0012: eine zweite Ausnahme am selben Tag ersetzt die erste nicht mehr; ✕ löscht nur ein Zeitfenster,
+    „frei“ ersetzt alle des Tages. Die Liste zeigt den Plan jedes Tages mit Ausnahmen (plan_ausnahmen)."""
+    from custom_components.baustelle.daten import struktur
+    ws = await hass_ws_client(hass)
+    st, e = baustelle.runtime_data, baustelle.entry_id
+    n = iter(range(1, 50))
+
+    async def liste(aktion: str, eintrag: dict[str, Any]) -> None:
+        await ws.send_json({"id": next(n), "type": "baustelle/liste", "entry_id": e, "liste": "ausnahmen", "aktion": aktion, "eintrag": eintrag})
+        assert (await ws.receive_json())["success"]
+
+    fr = {"datum": "2026-10-02", "art": "arbeit", "notiz": ""}
+    await liste("speichern", {**fr, "von": "07:00", "bis": "16:30"})
+    await liste("speichern", {**fr, "von": "04:00", "bis": "05:00"})
+    assert [(a["von"], a["bis"]) for a in st.e["ausnahmen"] if a["datum"] == "2026-10-02"] == [("04:00", "05:00"), ("07:00", "16:30")]
+    plan = struktur(hass, baustelle)["laufzeit"]["plan_ausnahmen"]["2026-10-02"]
+    assert plan["eigene"] == [[240, 300]] and (plan["a"], plan["b"]) == (420, 990) and len(plan["ausnahmen"]) == 2
+    await liste("loeschen", {**fr, "von": "04:00", "bis": "05:00"})
+    assert [(a["von"], a["bis"]) for a in st.e["ausnahmen"] if a["datum"] == "2026-10-02"] == [("07:00", "16:30")]
+    await liste("speichern", {"datum": "2026-10-02", "art": "frei", "notiz": ""})
+    assert [a["art"] for a in st.e["ausnahmen"] if a["datum"] == "2026-10-02"] == ["frei"]
+    await liste("speichern", {**fr, "von": "07:00", "bis": "12:00"})        # Zeitfenster ersetzt „frei“
+    assert [a["art"] for a in st.e["ausnahmen"] if a["datum"] == "2026-10-02"] == ["arbeit"]

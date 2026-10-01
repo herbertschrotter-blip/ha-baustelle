@@ -38,14 +38,16 @@ def _iso(zeit: datetime | None) -> str | None:
 def plan_dict(plan: Plan | None) -> dict[str, Any] | None:
     if plan is None:
         return None
-    a = plan.ausnahme
+    def aus(a: Any) -> dict[str, Any]:
+        return {"datum": a.datum.isoformat(), "art": str(a.art), "von": uhrzeit(a.von) if a.von else None,
+                "bis": uhrzeit(a.bis) if a.bis else None, "notiz": a.notiz}
+
     return {
         "start": plan.start, "vor": plan.vor, "a": plan.a, "b": plan.b, "nach": plan.nach, "ende": plan.ende,
         "gruende": [str(g) for g in plan.gruende],
-        "ausnahme": None if a is None else {
-            "datum": a.datum.isoformat(), "art": str(a.art), "von": uhrzeit(a.von) if a.von else None,
-            "bis": uhrzeit(a.bis) if a.bis else None, "notiz": a.notiz,
-        },
+        "ausnahme": None if plan.ausnahme is None else aus(plan.ausnahme),
+        "eigene": [list(f) for f in plan.eigene],               # FE-0012: Fenster für sich (genau diese Zeit)
+        "ausnahmen": [aus(a) for a in plan.ausnahmen],
     }
 
 
@@ -57,13 +59,18 @@ def _woche(heute: date) -> list[date]:
 def _plan_woche(st: Steuerung, heute: date) -> list[dict[str, Any]]:
     tage = []
     for tag in _woche(heute):
-        ausnahme = next((a for a in st.ausnahmen() if a.datum == tag), None)
-        frei = "ausnahme" if ausnahme is not None and str(ausnahme.art) == "frei" else st.frei_art(tag)
+        frei = "ausnahme" if any(a.datum == tag and str(a.art) == "frei" for a in st.ausnahmen()) else st.frei_art(tag)
         eintrag: dict[str, Any] = {"datum": tag.isoformat(), "plan": plan_dict(Heizung.von(st).plan(tag, True)), "frei": frei}
         if frei == "feiertag" and tag in st.kalender_namen:
             eintrag["name"] = st.kalender_namen[tag]
         tage.append(eintrag)
     return tage
+
+
+def _plan_ausnahmen(st: Steuerung, heute: date) -> dict[str, Any]:
+    """FE-0012: Heizplan jedes künftigen Tages mit Ausnahmen (auch nach dieser Woche) – für die Liste der Ausnahmen."""
+    tage = sorted({a.datum for a in st.ausnahmen() if a.datum >= heute})
+    return {t.isoformat(): plan_dict(Heizung.von(st).plan(t, True)) for t in tage[:31]}
 
 
 def _minute_im_tag(zeit: datetime, tag: date) -> int:
@@ -177,6 +184,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
         "container": container,
         "geraete": geraete,
         "plan_woche": _plan_woche(st, heute) if heizung.aktiv() else [],
+        "plan_ausnahmen": _plan_ausnahmen(st, heute) if heizung.aktiv() else {},
         "abschnitte": _abschnitte(st, heute, jetzt) if heizung.aktiv() else {},
         "staffel": d.staffel,
         "soll_gleitend": heizung.gleit_anzeige() if heizung.aktiv() else None,   # Soll gleitend (Herbert 01.10.2026)

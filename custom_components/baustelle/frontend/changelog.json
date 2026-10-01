@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.38",
+    "datum": "2026-10-02",
+    "punkte": [
+      "Mehrere Ausnahmen je Tag (FE-0012): eine zweite Ausnahme am selben Tag ersetzt die erste nicht mehr. Ein Fenster, das an die Arbeitszeit grenzt oder sie überschneidet, verlängert sie (Vor-/Nachheizen für den ganzen Block); ein Fenster für sich heizt genau seine Zeit, ohne Vor- und Nachheizen (z. B. 04:00–05:00 bei Arbeitsbeginn 07:00). Ohne Arbeitszeit an dem Tag ist das längste Fenster der Block. „Frei“ hebt alle Fenster des Tages auf. Unter Ausnahmen je Tag eine Karte mit allen Fenstern, Zeitstrahl (eigene Fenster blau), ✕ je Fenster und „+ weiteres Zeitfenster“; beim Anlegen zeigt der Dialog, was am Tag schon eingetragen ist. Status „Start um“ und „heizt bis“ berücksichtigen die eigenen Fenster."
+    ]
+  },
+  {
     "version": "0.8.37",
     "datum": "2026-10-01",
     "punkte": [

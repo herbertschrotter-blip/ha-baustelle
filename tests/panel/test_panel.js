@@ -719,6 +719,20 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const S = letzte('baustelle/setzen').map(a => `${a.pfad.join('.')}=${a.wert}`);
     erwarte('AN-0012: neue Regler setzen die Integration (' + S.join(', ') + ')', ['heizung.toleranz=0.4', 'heizung.hand_nachfrist_min=35', 'heizung.fuehler_halten_min=20', 'heizung.zieht_strom_w=55'].every(x => S.includes(x)));
     await klick({ act: 'zu' }); }
+  /* FE-0012: mehrere Zeitfenster je Tag – je Tag eine Karte, eigenes Fenster im Zeitstrahl, ✕ löscht nur ein Fenster */
+  { const d = panel.d, altA = d.ausnahmen, iso = new Date(Date.parse(panel.z.HEUTE + 'T12:00:00Z') + 3 * 864e5).toISOString().slice(0, 10), altP = d.plan[iso];
+    d.ausnahmen = [...altA.filter(a => a.datum !== iso), { datum: iso, art: 'arbeit', von: '04:00', bis: '05:00', notiz: 'Betonpumpe' }, { datum: iso, art: 'arbeit', von: '12:30', bis: '16:30', notiz: '' }];
+    d.plan[iso] = { start: 375, vor: 375, a: 420, b: 990, nach: 1005, ende: 1005, gruende: ['ausnahme'], ausnahme: null, eigene: [[240, 300]], ausnahmen: [] };
+    const h = await hzOffen('az'); pruefe('Ausnahmen mehrere');
+    erwarte('FE-0012: Tag mit zwei Fenstern, eigenes Fenster, + weiteres', h.includes('04:00–05:00') && h.includes('12:30–16:30') && h.includes('nur 04:00–05:00 geheizt') && h.includes('tl-eigen') && h.includes(`data-act="ausn-dazu" data-d="${iso}"`));
+    neu(); await klick({ act: 'ausn-weg', d: iso, art: 'arbeit', von: '04:00', bis: '05:00' });
+    erwarte('FE-0012: ✕ löscht nur dieses Fenster', letzte('baustelle/liste').some(a => a.aktion === 'loeschen' && a.eintrag.von === '04:00' && a.eintrag.bis === '05:00' && a.eintrag.art === 'arbeit'));
+    d.ausnahmen = [...altA.filter(a => a.datum !== iso), { datum: iso, art: 'arbeit', von: '04:00', bis: '05:00', notiz: '' }]; d.plan[iso] = { start: 375, vor: 375, a: 420, b: 990, nach: 1005, ende: 1005, gruende: [], eigene: [[240, 300]], ausnahmen: [] };
+    await klick({ act: 'ausn-dazu', d: iso }); pruefe('Ausnahme dazu');
+    erwarte('FE-0012: Dialog zeigt, was schon eingetragen ist', ui.innerHTML.includes('An diesem Tag schon eingetragen') && ui.innerHTML.includes('nichts wird überschrieben'));
+    neu(); await klick({ act: 'au-speichern' });
+    erwarte('FE-0012: Speichern legt dazu', letzte('baustelle/liste').some(a => a.aktion === 'speichern' && a.eintrag.datum === iso && a.eintrag.von === '17:00'));
+    panel.d.ausnahmen = altA; if (altP === undefined) delete panel.d.plan[iso]; else panel.d.plan[iso] = altP; await klick({ act: 'zu' }); }
   /* Soll gleitend (Herbert 01.10.2026): Regeln mit Rechnung und Kurve, Gefühl und + / − im Container, alles über die Integration */
   { const e = panel.d.e, alt = [e.soll_art, panel.d.sollG];
     e.soll_art = 'gleitend';

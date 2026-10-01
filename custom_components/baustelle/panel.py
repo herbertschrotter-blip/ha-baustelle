@@ -327,8 +327,16 @@ def _liste_aendern(st: Any, liste: str, aktion: str, eintrag: dict[str, Any]) ->
     if liste == "ausnahmen":
         datum = DATUM(eintrag.get("datum"))
         if aktion == "loeschen":
-            e["ausnahmen"] = [a for a in e["ausnahmen"] if a["datum"] != datum]
-            st.protokoll("einstellung", None, f"Ausnahme am {_datum(datum)} gelöscht")
+            # FE-0012: mit von/bis/art nur dieses Zeitfenster, sonst alle des Tages
+            if eintrag.get("art"):
+                weg = lambda a: (a["datum"] == datum and a["art"] == eintrag["art"]   # noqa: E731
+                                 and a.get("von") == eintrag.get("von") and a.get("bis") == eintrag.get("bis"))
+                e["ausnahmen"] = [a for a in e["ausnahmen"] if not weg(a)]
+                was = "frei" if eintrag["art"] == "frei" else f"{eintrag.get('von')}–{eintrag.get('bis')}"
+                st.protokoll("einstellung", None, f"Ausnahme am {_datum(datum)} ({was}) gelöscht")
+            else:
+                e["ausnahmen"] = [a for a in e["ausnahmen"] if a["datum"] != datum]
+                st.protokoll("einstellung", None, f"Ausnahme am {_datum(datum)} gelöscht")
             return {"ok": True}
         # erst prüfen, dann ersetzen: ein abgelehnter Eintrag löscht die bisherige Ausnahme des Tages nicht
         x = AUSNAHME(eintrag)
@@ -337,8 +345,14 @@ def _liste_aendern(st: Any, liste: str, aktion: str, eintrag: dict[str, Any]) ->
                 raise vol.Invalid("Ausnahme braucht von und bis (bis nach von)")
         else:
             x["von"] = x["bis"] = None
-        andere = [a for a in e["ausnahmen"] if a["datum"] != datum]
-        e["ausnahmen"] = sorted([*andere, x], key=lambda a: a["datum"])
+        # FE-0012: mehrere Zeitfenster je Tag – „frei“ ersetzt alle des Tages, ein Zeitfenster ersetzt nur „frei“ und
+        # ein gleiches (gleiche Zeiten); die übrigen bleiben
+        if x["art"] == "frei":
+            andere = [a for a in e["ausnahmen"] if a["datum"] != datum]
+        else:
+            andere = [a for a in e["ausnahmen"] if a["datum"] != datum or (
+                a["art"] != "frei" and not (a.get("von") == x["von"] and a.get("bis") == x["bis"]))]
+        e["ausnahmen"] = sorted([*andere, x], key=lambda a: (a["datum"], a.get("von") or ""))
         was = {"arbeit": "zusätzlich arbeiten", "zeiten": "andere Zeiten", "frei": "frei"}[x["art"]]
         zeiten = f" {x['von']}–{x['bis']}" if x["art"] != "frei" else ""
         st.protokoll("einstellung", None, f"Ausnahme {_datum(datum)}: {was}{zeiten}" + (f" ({x['notiz']})" if x["notiz"] else ""))

@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.37",
+   "version": "0.8.38",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -805,7 +805,9 @@
       "nach": 1005,
       "ende": 1005,
       "gruende": [],
-      "ausnahme": null
+      "ausnahme": null,
+      "eigene": [],
+      "ausnahmen": []
      },
      "frei": null
     },
@@ -821,7 +823,9 @@
       "gruende": [
        "trocknen"
       ],
-      "ausnahme": null
+      "ausnahme": null,
+      "eigene": [],
+      "ausnahmen": []
      },
      "frei": null
     },
@@ -845,7 +849,17 @@
        "von": "07:00",
        "bis": "18:00",
        "notiz": "Betonage"
-      }
+      },
+      "eigene": [],
+      "ausnahmen": [
+       {
+        "datum": "2026-09-30",
+        "art": "zeiten",
+        "von": "07:00",
+        "bis": "18:00",
+        "notiz": "Betonage"
+       }
+      ]
      },
      "frei": null
     },
@@ -859,7 +873,9 @@
       "nach": 1005,
       "ende": 1005,
       "gruende": [],
-      "ausnahme": null
+      "ausnahme": null,
+      "eigene": [],
+      "ausnahmen": []
      },
      "frei": null
     },
@@ -887,7 +903,17 @@
        "von": "07:00",
        "bis": "12:00",
        "notiz": ""
-      }
+      },
+      "eigene": [],
+      "ausnahmen": [
+       {
+        "datum": "2026-10-03",
+        "art": "arbeit",
+        "von": "07:00",
+        "bis": "12:00",
+        "notiz": ""
+       }
+      ]
      },
      "frei": null
     },
@@ -897,6 +923,67 @@
      "frei": null
     }
    ],
+   "plan_ausnahmen": {
+    "2026-09-30": {
+     "start": 330,
+     "vor": 375,
+     "a": 420,
+     "b": 1080,
+     "nach": 1095,
+     "ende": 1095,
+     "gruende": [
+      "ausnahme",
+      "fruehstart",
+      "frueher_nach_regen"
+     ],
+     "ausnahme": {
+      "datum": "2026-09-30",
+      "art": "zeiten",
+      "von": "07:00",
+      "bis": "18:00",
+      "notiz": "Betonage"
+     },
+     "eigene": [],
+     "ausnahmen": [
+      {
+       "datum": "2026-09-30",
+       "art": "zeiten",
+       "von": "07:00",
+       "bis": "18:00",
+       "notiz": "Betonage"
+      }
+     ]
+    },
+    "2026-10-03": {
+     "start": 360,
+     "vor": 375,
+     "a": 420,
+     "b": 720,
+     "nach": 735,
+     "ende": 735,
+     "gruende": [
+      "ausnahme",
+      "frueher_nach_regen"
+     ],
+     "ausnahme": {
+      "datum": "2026-10-03",
+      "art": "arbeit",
+      "von": "07:00",
+      "bis": "12:00",
+      "notiz": ""
+     },
+     "eigene": [],
+     "ausnahmen": [
+      {
+       "datum": "2026-10-03",
+       "art": "arbeit",
+       "von": "07:00",
+       "bis": "12:00",
+       "notiz": ""
+      }
+     ]
+    }
+   },
    "abschnitte": {
     "polier": {
      "2026-09-28": [
@@ -1734,7 +1821,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.37",
+   "version": "0.8.38",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -2026,6 +2113,7 @@
      "frei": null
     }
    ],
+   "plan_ausnahmen": {},
    "abschnitte": {
     "buero": {
      "2026-09-28": [],

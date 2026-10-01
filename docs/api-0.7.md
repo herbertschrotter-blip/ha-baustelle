@@ -31,6 +31,10 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
     "plan_woche": [{"datum": "2026-09-28", "plan": {"start": 375, "vor": 375, "a": 420, "b": 990, "nach": 1005,
                     "ende": 1050, "gruende": ["trocknen"], "ausnahme": null}, "frei": "feiertag|urlaub|ausnahme|null"}],
     "abschnitte": {"<bid>": {"2026-09-28": [[375, 420, "vorheizen"], [420, 990, "arbeitszeit"]]}},
+    // FE-0012: plan enthält "eigene": [[von, bis], …] (Zeitfenster für sich, ohne Vor-/Nachheizen; Abschnitt "fenster")
+    //   und "ausnahmen": [ … alle des Tages ]; laufzeit.plan_ausnahmen = {"JJJJ-MM-TT": plan} für künftige Tage mit
+    //   Ausnahmen. baustelle/liste ausnahmen: mehrere je Tag; „frei“ ersetzt alle des Tages; loeschen mit art/von/bis
+    //   löscht nur dieses Fenster, nur mit datum alle des Tages.
     "staffel": {"an": true, "laufen": 4, "warten": 1, "max": 5,
                 "anschluesse": [{"id": "", "name": "", "voll_kw": 22.1, "grenze_kw": 14.8, "reserve_kw": 4,
                                  "heiz_kw": 7.99, "pumpe_kw": 0, "sonst_kw": 1.79, "frei_kw": 1.01}],
