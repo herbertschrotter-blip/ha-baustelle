@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import os
+
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -166,6 +170,54 @@ MELDUNG = vol.Schema({
         vol.Schema({vol.All(cv.string, vol.Length(max=50)): vol.Any(None, bool, int, float, vol.All(cv.string, vol.Length(max=200)))}),
         vol.Length(max=20))),
 }, extra=vol.REMOVE_EXTRA)
+
+
+# WU-0016: bis zu 3 Bilder je Meldung (von der Seite verkleinert), als Datei neben meldungen.json
+BILD_ARTEN = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+BILD_MAX_BYTES = 1_500_000
+BILDER = vol.All(list, vol.Length(max=3), [vol.All(cv.string, vol.Length(max=2_100_000))])
+
+
+def _bild_lesen(url: str) -> tuple[str, bytes]:
+    """Data-URL → (Endung, Bytes); nur JPEG/PNG/WebP, höchstens BILD_MAX_BYTES."""
+    kopf, _, daten = url.partition(",")
+    art = kopf.removeprefix("data:").removesuffix(";base64")
+    if art not in BILD_ARTEN or not kopf.endswith(";base64"):
+        raise vol.Invalid("bilder: nur JPEG, PNG oder WebP")
+    try:
+        roh = base64.b64decode(daten, validate=True)
+    except (binascii.Error, ValueError) as err:
+        raise vol.Invalid("bilder: kein gültiges Bild") from err
+    if len(roh) > BILD_MAX_BYTES:
+        raise vol.Invalid("bilder: Bild zu groß (höchstens 1,5 MB)")
+    return BILD_ARTEN[art], roh
+
+
+def _bilder_schreiben(ordner: str, ticket: str, bilder: list[tuple[str, bytes]]) -> list[str]:
+    ziel = os.path.join(ordner, "meldungen")
+    os.makedirs(ziel, exist_ok=True)
+    namen = []
+    for i, (endung, roh) in enumerate(bilder, 1):
+        name = f"{ticket}-{i}.{endung}"
+        with open(os.path.join(ziel, name), "wb") as f:
+            f.write(roh)
+        namen.append(name)
+    return namen
+
+
+def _bild_url(ordner: str, name: str) -> str:
+    endung = name.rsplit(".", 1)[-1]
+    art = next((k for k, v in BILD_ARTEN.items() if v == endung), "image/jpeg")
+    with open(os.path.join(ordner, "meldungen", os.path.basename(name)), "rb") as f:
+        return f"data:{art};base64," + base64.b64encode(f.read()).decode()
+
+
+def _bilder_loeschen(ordner: str, namen: list[str]) -> None:
+    for name in namen:
+        try:
+            os.remove(os.path.join(ordner, "meldungen", os.path.basename(name)))
+        except FileNotFoundError:
+            pass
 
 
 async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
@@ -748,8 +800,9 @@ async def ws_meldungen(hass: HomeAssistant, connection: websocket_api.ActiveConn
 
 @websocket_api.websocket_command({
     vol.Required("type"): "baustelle/meldung",
-    vol.Required("aktion"): vol.In(["neu", "status", "loeschen"]),
+    vol.Required("aktion"): vol.In(["neu", "status", "loeschen", "bild"]),
     vol.Optional("meldung"): dict,
+    vol.Optional("nr"): vol.All(vol.Coerce(int), vol.Range(0, 2)),   # WU-0016: welches Bild
     vol.Optional("meldung_id"): str,  # „id“ ist die Nummer der WebSocket-Nachricht
     vol.Optional("status"): vol.In([*TICKET_STATUS, "offen", "erledigt"]),
     vol.Optional("entry_id"): vol.Any(None, str),
@@ -763,10 +816,13 @@ async def ws_meldung(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     if msg["aktion"] == "neu":
         try:
             m = MELDUNG(msg.get("meldung") or {})
+            bilder = [_bild_lesen(b) for b in BILDER((msg.get("meldung") or {}).get("bilder") or [])]   # WU-0016
         except vol.Invalid as err:
             _fehler(connection, msg, str(err))
             return
         m.update(id=_neue_id("m"), zeit=jetzt, status="neu", stand=None, ticket=meldungen.neue_nummer(m["art"]), verlauf=[])
+        if bilder:
+            m["bilder"] = await hass.async_add_executor_job(_bilder_schreiben, meldungen.ordner, m["ticket"], bilder)
         m.setdefault("version", hass.data.get(DATA_VERSION, ""))
         if msg.get("entry_id"):
             m["baustelle"] = msg["entry_id"]
@@ -785,8 +841,17 @@ async def ws_meldung(hass: HomeAssistant, connection: websocket_api.ActiveConnec
     if m is None:
         connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Meldung nicht gefunden")
         return
+    if msg["aktion"] == "bild":   # WU-0016: Bild zur Anzeige auf der Seite (nicht öffentlich, nur über die Verbindung)
+        namen = m.get("bilder") or []
+        if msg.get("nr", 0) >= len(namen):
+            connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Bild nicht gefunden")
+            return
+        connection.send_result(msg["id"], {"url": await hass.async_add_executor_job(_bild_url, meldungen.ordner, namen[msg.get("nr", 0)])})
+        return
     if msg["aktion"] == "loeschen":
         liste.remove(m)
+        if m.get("bilder"):
+            await hass.async_add_executor_job(_bilder_loeschen, meldungen.ordner, m["bilder"])
     else:
         status = msg.get("status") or angaben.get("status")
         if status not in (None, *TICKET_STATUS, "offen", "erledigt"):

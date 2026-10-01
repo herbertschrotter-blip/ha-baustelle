@@ -107,6 +107,6 @@ Claude das Ticket auf `geschlossen` – mit Version, Commit und kurzer Notiz; He
 - Status: `neu → angenommen → in_arbeit → geloest → geschlossen`, daneben `verworfen`
 - Pflichtangaben: geschlossen → Version + Commit + Notiz (was behoben wurde) · verworfen → Grund
 - Aufgaben: kein Tracker – Befund und Plan als Notiz am Ticket
-- Beweise nachlesen: `zeige <nr>` (Fenster, Stand der Seite), HA-Logbuch und Protokoll der Baustelle, Diagnose
+- Beweise nachlesen: `zeige <nr>` (Fenster, Stand der Seite, Screenshots als `bild:`-Zeilen – mit Read ansehen), HA-Logbuch und Protokoll der Baustelle, Diagnose
 - Regeln: `docs/bauplan-0.7.md`, Mockup `mockups/glas.html`
 - Doku: CHANGELOG.md-Eintrag nennt die Ticketnummer

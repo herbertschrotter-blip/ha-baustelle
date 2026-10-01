@@ -719,6 +719,20 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const S = letzte('baustelle/setzen').map(a => `${a.pfad.join('.')}=${a.wert}`);
     erwarte('AN-0012: neue Regler setzen die Integration (' + S.join(', ') + ')', ['heizung.toleranz=0.4', 'heizung.hand_nachfrist_min=35', 'heizung.fuehler_halten_min=20', 'heizung.zieht_strom_w=55'].every(x => S.includes(x)));
     await klick({ act: 'zu' }); }
+  /* WU-0016: Screenshots zur Meldung – Bereich im Melde-Fenster, Senden mit Bildern, Vorschau in der Meldungsliste */
+  { await klick({ act: 'melden' }, 10); pruefe('Melden mit Screenshot');
+    erwarte('WU-0016: Screenshot-Bereich mit Bild wählen', ui.innerHTML.includes('📷 Screenshot') && ui.innerHTML.includes('data-mb="datei"') && ui.innerHTML.includes('0 von 3'));
+    const bild = { url: 'data:image/jpeg;base64,AAAA', b: 900, h: 1600, kb: 120 };
+    panel.s.sheet.form.bilder = [bild, { ...bild }, { ...bild, b: 1600, h: 1000 }]; panel.s.sheet.form.text = 'Test mit Bildern'; panel.render(); pruefe('Melden 3 Bilder');
+    erwarte('WU-0016: 3 Bilder, keine weiteren', (ui.innerHTML.match(/class="mb-bild[ "]/g) || []).length === 3 && !ui.innerHTML.includes('data-mb="datei"') && ui.innerHTML.includes('3 von 3'));
+    await klick({ act: 'mb-weg', i: '0' }); erwarte('WU-0016: ✕ entfernt ein Bild', panel.s.sheet.form.bilder.length === 2);
+    neu(); await klick({ act: 'ml-senden' }, 10);
+    erwarte('WU-0016: Senden mit Bildern', letzte('baustelle/meldung').some(a => a.aktion === 'neu' && a.meldung.bilder && a.meldung.bilder.length === 2));
+    meldungen[0].bilder = ['FE-0001-1.jpg']; delete panel.cache.meldungen;
+    await klick({ act: 'tab', v: 'einst' }, 10); await klick({ act: 'ev-gruppe', v: 'dev' }, 10); await klick({ act: 'ev-dev', v: 'meldungen' }, 30); await ruhe(20); panel.render(); pruefe('Meldungen mit Bild');
+    erwarte('WU-0016: Vorschau in der Meldungsliste', ui.innerHTML.includes('data-act="m-bild"'));
+    await klick({ act: 'm-bild', id: meldungen[0].id, i: '0' }, 10); pruefe('Bild groß'); erwarte('WU-0016: Bild groß', ui.innerHTML.includes('class="mb-gross"'));
+    delete meldungen[0].bilder; delete panel.cache.meldungen; await klick({ act: 'zu' }); }
   /* FE-0012: mehrere Zeitfenster je Tag – je Tag eine Karte, eigenes Fenster im Zeitstrahl, ✕ löscht nur ein Fenster */
   { const d = panel.d, altA = d.ausnahmen, iso = new Date(Date.parse(panel.z.HEUTE + 'T12:00:00Z') + 3 * 864e5).toISOString().slice(0, 10), altP = d.plan[iso];
     d.ausnahmen = [...altA.filter(a => a.datum !== iso), { datum: iso, art: 'arbeit', von: '04:00', bis: '05:00', notiz: 'Betonpumpe' }, { datum: iso, art: 'arbeit', von: '12:30', bis: '16:30', notiz: '' }];

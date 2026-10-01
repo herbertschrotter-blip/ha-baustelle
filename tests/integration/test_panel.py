@@ -295,6 +295,31 @@ async def test_meldungen(hass: HomeAssistant, baustelle, ws, hass_storage) -> No
     assert msg["error"]["code"] == "not_found"
 
 
+async def test_meldung_mit_bildern(hass: HomeAssistant, baustelle, ws, hass_storage) -> None:
+    """WU-0016: bis zu 3 Bilder je Meldung – als Datei neben meldungen.json, in der .md genannt, über „bild“ abrufbar,
+    beim Löschen mit weg; falsche Art und zu viele werden abgelehnt."""
+    import base64
+    jpg = "data:image/jpeg;base64," + base64.b64encode(b"\xff\xd8\xff\xe0" + b"x" * 500).decode()
+    png = "data:image/png;base64," + base64.b64encode(b"\x89PNG" + b"y" * 300).decode()
+    msg = await ws.rufe("baustelle/meldung", mit_entry=False, aktion="neu", meldung={"art": "fehler", "text": "Bild dabei", "bilder": [jpg, png]})
+    assert msg["success"], msg
+    mid, ticket = msg["result"]["id"], msg["result"]["ticket"]
+    await hass.async_block_till_done()
+    ordner = Path(hass.config.path("baustelle"))
+    assert (ordner / "meldungen" / f"{ticket}-1.jpg").read_bytes().startswith(b"\xff\xd8")
+    assert (ordner / "meldungen" / f"{ticket}-2.png").exists()
+    assert f"Bilder: baustelle/meldungen/{ticket}-1.jpg, baustelle/meldungen/{ticket}-2.png" in (ordner / "meldungen.md").read_text(encoding="utf-8")
+    assert (await ws.rufe("baustelle/meldungen", mit_entry=False))["result"][0]["bilder"] == [f"{ticket}-1.jpg", f"{ticket}-2.png"]
+    r = await ws.rufe("baustelle/meldung", mit_entry=False, aktion="bild", meldung_id=mid, nr=1)
+    assert r["result"]["url"].startswith("data:image/png;base64,")
+    assert (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="bild", meldung_id=mid, nr=2))["error"]["code"] == "not_found"
+    assert (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="loeschen", meldung_id=mid))["success"]
+    assert not (ordner / "meldungen" / f"{ticket}-1.jpg").exists()
+    gif = "data:image/gif;base64," + base64.b64encode(b"GIF89a").decode()
+    assert not (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="neu", meldung={"art": "fehler", "text": "x", "bilder": [gif]}))["success"]
+    assert not (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="neu", meldung={"art": "fehler", "text": "x", "bilder": [jpg] * 4}))["success"]
+
+
 async def test_dialoge_wie_die_seite(hass: HomeAssistant, baustelle, hass_client) -> None:
     """Die Seite legt über dieselben REST-Dialoge an wie HA selbst – mit genau diesen Daten."""
     assert await async_setup_component(hass, "config", {})

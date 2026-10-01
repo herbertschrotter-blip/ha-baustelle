@@ -85,6 +85,8 @@ def main() -> None:
         for k in ("kontext", "seite", "baustelle", "geraet", "version", "id"):
             if m.get(k):
                 print(f"{k}: {json.dumps(m[k], ensure_ascii=False) if isinstance(m[k], dict) else m[k]}")
+        for b in m.get("bilder") or []:   # WU-0016: Screenshots zur Meldung (mit Read ansehen)
+            print(f"bild: {DATEI.parent / 'meldungen' / b}")
         for v in m.get("verlauf") or []:
             print(f"- {str(v.get('zeit'))[:16]} {v.get('von', '')}: " + " · ".join(
                 str(x) for x in (TEXT.get(v.get("status"), ""), v.get("version") and "v" + v["version"], v.get("commit"), v.get("notiz")) if x))

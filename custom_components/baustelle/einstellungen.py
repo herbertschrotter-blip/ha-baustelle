@@ -268,6 +268,8 @@ def meldungen_markdown(liste: list[dict[str, Any]], stand: str) -> str:
                 zeilen.append(f"- Seite: `{json.dumps(m['seite'], ensure_ascii=False)}`")
             if m.get("baustelle"):
                 zeilen.append(f"- Baustelle: {m['baustelle']}")
+            if m.get("bilder"):   # WU-0016
+                zeilen.append("- Bilder: " + ", ".join(f"baustelle/meldungen/{b}" for b in m["bilder"]))
             zeilen.append(f"- id: {m.get('id')}")
             for v in m.get("verlauf") or []:
                 teile = [STATUS_TEXT.get(v.get("status"), v.get("status")) if v.get("status") else "",

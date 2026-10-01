@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.40] – 2026-10-02
+
+- Screenshots zur Meldung (WU-0016): im Melde-Fenster „📷 Screenshot“ mit bis zu 3 Bildern – „📎 Bild wählen“ (am
+  Handy Galerie oder Kamera, am PC eine Datei), am PC auch Strg+V aus der Zwischenablage und „🖥 Fenster aufnehmen“
+  (Bildschirmfreigabe des Browsers). Die Bilder werden vor dem Senden auf höchstens 1600 px verkleinert, die
+  Integration legt sie neben die Meldung (`baustelle/meldungen/<Ticket>-<n>.jpg`); in der Meldungsliste als Vorschau,
+  antippen zeigt sie groß; Löschen der Meldung löscht sie mit. `ticket.py zeige` nennt die Dateien.
+
 ## [0.8.39] – 2026-10-02
 
 - Einstellungen auf dem Handy (FE-0013): die Chip-Leiste der Kategorien springt beim Wechseln nicht mehr an den

@@ -46,6 +46,9 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
     //   {"wert", "versch", "versch_bis", "eigen"}. Einstellungen heizung.soll_art (fest|gleitend), gleit_min, gleit_max,
     //   gleit_je, gleit_bezug, gleit_tage; Aktionen baustelle/aktion gefuehl {bereich, wert}, soll_versch {bereich, d},
     //   soll_versch_weg {bereich}, gefuehl_vergessen.
+    // WU-0016: baustelle/meldung neu nimmt meldung.bilder (bis 3 Data-URLs JPEG/PNG/WebP, je ≤ 1,5 MB) an, speichert sie als
+    //   <config>/baustelle/meldungen/<Ticket>-<n>.<endung>, die Meldung hat "bilder": [Dateinamen]; aktion "bild"
+    //   {meldung_id, nr} liefert {"url": Data-URL}; „loeschen“ löscht die Bilder mit.
     // baustelle/aktion zuruecksetzen: alle Zähler und alles Gelernte auf null (Einstellungen, Protokoll, HA-Statistik bleiben), lädt neu.
     "warnungen": [{"key": "", "art": "", "stufe": "stoerung|hinweis", "bereich": "<bid>|null", "geraet": "<gid>|null",
                    "titel": "nicht erreichbar", "hilfe": "", "seit": "ISO", "stumm_bis": "ISO|null"}],
