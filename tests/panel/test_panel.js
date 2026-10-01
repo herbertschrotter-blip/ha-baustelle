@@ -742,6 +742,47 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'aw-layout' });
     for (const k of ['abrechnung', 'geraete', 'temperaturen', 'wetter', 'ohne', 'hochrechnung', 'vergleich']) { await klick({ act: 'aw-detail', k }); pruefe(`Auswertung Detail ${k}`); erwarte(`WU-0005: Detail ${k}`, panel.s.sheet && panel.s.sheet.art === 'aw-detail' && !/Nur für diese Baustelle/.test(ui.innerHTML)); await klick({ act: 'zu' }); }
     await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' }); await klick({ act: 'aw-bearb' }); }
+  /* WU-0014: Kachel-Katalog – Übersicht und Auswertung, Suche mit Chips, jede Kachel in S/M/L (L mit und ohne Diagramm), Antippen öffnet die Ansicht */
+  { panel.s.kkUe = null; await klick({ act: 'tab', v: 'uebersicht' }, 30); pruefe('Übersicht mit Kacheln');
+    erwarte('WU-0014: Meine Kacheln auf der Übersicht (Vorschlag)', ui.innerHTML.includes('Meine Kacheln') && (ui.innerHTML.match(/data-act="kk-auf" data-ort="ue"/g) || []).length === 3 && ui.innerHTML.includes('kk-neu-k'));
+    await klick({ act: 'kk-plus', ort: 'ue' }); pruefe('Katalog Übersicht');
+    erwarte('WU-0014: Katalog mit Suche und Chips, ohne Bausteine der Auswertung', ui.innerHTML.includes('data-kk="q"') && ui.innerHTML.includes('data-act="kk-nurje"') && !ui.innerHTML.includes('data-act="kk-f" data-v="auswertung"'));
+    eingabe({ kk: 'q' }, 'pumpe'); const tr = panel.kkTreffer(panel.s.sheet);
+    erwarte('WU-0014: Suche „pumpe“', tr.includes('data-k="p-pumpzeit"') === panel.d.bereiche.some(b => b.pumpe) && !tr.includes('data-k="b-kosten"'));
+    eingabe({ kk: 'q' }, 'xyz'); erwarte('WU-0014: Suche ohne Treffer', panel.kkTreffer(panel.s.sheet).includes('Keine Kachel gefunden'));
+    eingabe({ kk: 'q' }, ''); await klick({ act: 'kk-nureur' });
+    erwarte('WU-0014: Chip €', panel.kkTreffer(panel.s.sheet).includes('data-k="b-kosten"') && !panel.kkTreffer(panel.s.sheet).includes('data-k="h-plan"')); await klick({ act: 'kk-nureur' });
+    const keys = panel.kkEintraege('ue').map(e => e.k);
+    erwarte('WU-0014: Katalog mit Baustelle, Heizung und je Container', ['b-kosten', 'b-wer', 'h-plan', 'h-wann', 'c-verbrauch'].every(k => keys.includes(k)));
+    for (const k of keys) for (const [st, dia] of [['S', true], ['M', true], ['L', true], ['L', false]]) {
+      await klick({ act: 'kk-gk', k, v: st }); if (panel.s.sheet.dia !== dia) await klick({ act: 'kk-dia-w' }); pruefe(`Katalog ${k} ${st}${dia ? '' : ' ohne Diagramm'}`, { laedtErlaubt: true });
+    }
+    const n0 = panel.kkListe('ue').length;
+    await klick({ act: 'kk-gk', k: 'c-verbrauch', v: 'L' }); if (!panel.s.sheet.dia) await klick({ act: 'kk-dia-w' }); await klick({ act: 'kk-hinzu' }, 20); pruefe('Kachel hinzugefügt');
+    const neuK = panel.kkListe('ue').at(-1);
+    erwarte('WU-0014: Kachel hinzugefügt (L mit Diagramm, je Container)', panel.kkListe('ue').length === n0 + 1 && neuK.k === 'c-verbrauch' && neuK.st === 'L' && neuK.dia === true && neuK.id && !panel.s.sheet);
+    panel.s.kkUe = keys.flatMap(k => ['S', 'M', 'L'].map(st => panel.kkGross({ k, an: true, dia: true }, st)));
+    panel.render(); await ruhe(30); pruefe('Übersicht mit allen Kacheln');
+    erwarte('WU-0014: alle Kacheln gezeigt', (ui.innerHTML.match(/data-act="kk-auf" data-ort="ue"/g) || []).length === keys.length * 3);
+    for (let i = 0; i < keys.length; i++) { await klick({ act: 'tab', v: 'uebersicht' }, 10); await klick({ act: 'kk-auf', ort: 'ue', i: String(i * 3) }, 20); pruefe(`Kachel ${keys[i]} geöffnet`, { laedtErlaubt: true });
+      erwarte(`WU-0014: ${keys[i]} öffnet eine Ansicht`, panel.s.sheet || panel.s.view !== 'uebersicht'); await klick({ act: 'zu' }, 5); }
+    await klick({ act: 'tab', v: 'uebersicht' }, 10); await klick({ act: 'kk-layout' }); pruefe('Übersicht Kacheln anpassen');
+    erwarte('WU-0014: Anpassen mit Griffen und 📈', ui.innerHTML.includes('data-act="kk-dia" data-ort="ue"') && ui.innerHTML.includes('data-zug="move"'));
+    await klick({ act: 'kk-dia', ort: 'ue', i: '2' }); erwarte('WU-0014: Diagramm aus', panel.kkListe('ue')[2].dia === false);
+    const n1 = panel.kkListe('ue').length; await klick({ act: 'aw-weg', ort: 'ue', i: '0' }); erwarte('WU-0014: ✕ entfernt die Kachel', panel.kkListe('ue').length === n1 - 1);
+    await klick({ act: 'kk-layout' });
+    await klick({ act: 'tab', v: 'auswertung' }, 30); await klick({ act: 'kk-plus', ort: 'aw' }); pruefe('Katalog Auswertung');
+    erwarte('WU-0014: Katalog der Auswertung mit Bausteinen und Vorlagen', ui.innerHTML.includes('data-act="kk-f" data-v="auswertung"') && panel.kkTreffer(panel.s.sheet).includes('data-k="rangliste"') && ui.innerHTML.includes('Vorlage laden'));
+    await klick({ act: 'kk-gk', k: 'b-kosten', v: 'L' }); await klick({ act: 'kk-hinzu' }, 30); pruefe('Auswertung mit Kachel');
+    erwarte('WU-0014: Kachel im Raster der Auswertung', panel.awAuswahl().some(x => x.an && x.k === 'b-kosten') && ui.innerHTML.includes('data-act="kk-auf" data-ort="aw"'));
+    await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Woche' }, 30); pruefe('Auswertung Woche mit Kachel');
+    erwarte('WU-0014: Kachel folgt dem Zeitraum', panel.kkCtx('aw').z === 'Woche' && ui.innerHTML.includes('<span class="kk-wo">diese Woche</span>'));
+    await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 30);
+    await klick({ act: 'kk-plus', ort: 'aw' }); await klick({ act: 'kk-gk', k: 'rangliste', v: 'M' }); await klick({ act: 'kk-hinzu' }, 20);
+    const rl = panel.awAuswahl().find(x => x.k === 'rangliste'); erwarte('WU-0014: Baustein aus dem Katalog eingeschaltet', rl.an && rl.st === 'M');
+    await klick({ act: 'aw-layout' }); const an2 = panel.awAuswahl().filter(x => x.an), n2 = panel.awAuswahl().length;
+    await klick({ act: 'aw-weg', ort: 'aw', i: String(an2.findIndex(x => x.k === 'b-kosten')) }); erwarte('WU-0014: ✕ entfernt die Kachel aus der Auswertung', panel.awAuswahl().length === n2 - 1);
+    await klick({ act: 'aw-layout' }); await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' }); await klick({ act: 'aw-bearb' }); panel.s.kkUe = null; }
   panel.awAuswahl().forEach(x => { x.an = true; });   // WU-0005: alle Bausteine zeigen – die Inhalte prüfen die folgenden Tests
   await klick({ act: 'tab', v: 'auswertung' }, 30);
   erwarte('Auswertung: Leistung heute, Temperaturen, Je Gerät, Hochrechnung', ['Leistung heute', 'Temperaturen', 'Je Gerät', 'Hochrechnung Heizperiode'].every(t => ui.innerHTML.includes(t)));

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.30] – 2026-10-01
+
+- Kachel-Katalog (WU-0014): „＋ Kachel“ öffnet einen Katalog mit jeder Auswertung der Seite – Suche mit Filter-Chips
+  (Baustelle, Container, Pumpen, Heizung, Auswertung, „je Container“, „€“), Schnellknöpfe S/M/L und Vorschau. Kacheln
+  gibt es in S (Zahl), M (Zahl, Vergleich, Mini-Verlauf) und L (Diagramm oder vier Kennzahlen). Neu „Meine Kacheln“ auf
+  der Übersicht; in der Auswertung kommen die Kacheln ins Raster der Bausteine (ein Raster, Bausteine auch im Katalog,
+  Vorlagen unter „Vorlage laden“). Antippen öffnet die passende Ansicht; Anpassen mit Ziehen, Größe, 📈 Diagramm ein/aus
+  und ✕. Gemerkt je Browser. In der Auswertung folgen die Kacheln dem gewählten Zeitraum.
+
 ## [0.8.29] – 2026-10-01
 
 - Heizzeit zweifach (AN-0011): neben der eingeschalteten Zeit zählt die Integration, wie lange ein Container

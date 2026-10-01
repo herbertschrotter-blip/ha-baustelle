@@ -52,6 +52,7 @@ Auswertung waren noch alt“).
 | `glas.html` (AN-0008) | Ölradiator oder Konvektor fair (kWh je Gradstunde, nur Thermostat mit Fühler, zählende/ausgeschlossene Container) mit Ersparnis-Diagramm Ölradiatoren gegen „mit Konvektoren“ – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.24 |
 | `glas.html` (AN-0009) | Geräteübersicht mit Statuspunkt (erreichbar / nicht erreichbar seit …) und Signalbalken (4 Striche) – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.25 |
 | `glas.html` (AN-0011) | Heizzeit zweifach: „h eingeschaltet“ und „h tatsächlich geheizt“ (Strom über 50 W) mit „% davon mit Strom“ – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.29 |
+| `kachel-katalog.html` (WU-0014) | Kachel-Katalog auf dem Master-Mockup (Quelle `quelle/archiv/kachel-katalog.js`) in drei Varianten – gewählt **3 · Suche mit Filter-Chips** (Schnellknöpfe S/M/L, Auswahl mit Vorschau); „Meine Kacheln“ auf der Übersicht, in der Auswertung **ein Raster** mit den Bausteinen (Bausteine im Katalog, Vorlagen unter „Vorlage laden“); S 1×1, M 2×1, L 2×2 mit oder ohne Diagramm; gemerkt je Browser; Kacheln der Auswertung folgen dem Zeitraum, auf der Übersicht Baustelle = dieser Monat, Container = heute – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.30 |
 
 Bewusst offen bzw. für den Bau festgelegt:
 - Animationen und Zeitleiste im Zeitplan brauchen eine eigene Karte; erste Stufe mit eingebauten Karten
