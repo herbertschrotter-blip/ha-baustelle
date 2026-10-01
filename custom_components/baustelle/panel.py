@@ -76,6 +76,9 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("heizung", "tuer_pause_min"): vol.All(GANZ, vol.Range(0, 120)),
     ("heizung", "tuer_melden_min"): vol.All(GANZ, vol.Range(0, 240)),
     ("heizung", "boost_min"): vol.All(GANZ, vol.Range(5, 480)),
+    ("heizung", "hand_nachfrist_min"): vol.All(GANZ, vol.Range(0, 240)),   # AN-0012
+    ("heizung", "fuehler_halten_min"): vol.All(GANZ, vol.Range(0, 120)),
+    ("heizung", "zieht_strom_w"): vol.All(GANZ, vol.Range(5, 500)),
     ("heizung", "feiertag_frei"): cv.boolean,
     ("staffel", "an"): cv.boolean,
     ("staffel", "nutzbar_prozent"): vol.All(GANZ, vol.Range(10, 100)),

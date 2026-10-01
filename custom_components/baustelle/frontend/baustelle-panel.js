@@ -784,6 +784,12 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .aw-wahl .zeile { gap: 12px; } .aw-wahl-k { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; } .aw-wahl-k .chip { min-width: 34px; justify-content: center; }
 .aw-gr { display: inline-flex; align-items: center; gap: 4px; } .aw-gr small { font-size: 11px; color: var(--ink2); } .aw-gr b { min-width: 14px; text-align: center; }
 @media (max-width: 700px) { .aw-raster { grid-template-columns: repeat(2, 1fr); } .aw-frei-s { grid-column: span min(var(--w), 2); }
+/* AN-0012: Regeln nach Tagesablauf */
+.rv-kopf { display: flex; align-items: baseline; gap: 8px; margin: 14px 2px 4px; } .rv-kopf b { font-size: 16px; } .rv-kopf .leise { font-size: 12px; }
+.rv-karte { border-radius: 16px; background: rgba(120,120,128,.10); padding: 2px 12px; margin-bottom: 6px; } .rv-karte > .zeile:first-child { border-top: 0; }
+.rv-fest { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; padding: 8px 0; font-size: 13px; border-top: 1px solid var(--gridc); }
+.rv-fest:first-child { border-top: 0; } .rv-fest b { font-weight: 600; text-align: right; } .rv-fest .leise { grid-column: 1 / -1; margin-top: -4px; font-size: 12px; }
+.rv-link { color: var(--blau); background: none; border: 0; font: inherit; cursor: pointer; padding: 0; white-space: nowrap; }
 /* WU-0014: Kachel-Katalog – Kacheln S/M/L (Mockup kachel-katalog.html, Variante 3) */
 .kk-bereich { display: flex; flex-direction: column; gap: 10px; margin: 14px 0 6px; }
 .kk-titel { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 0 4px; } .kk-titel > b { font-size: 17px; }
@@ -1043,7 +1049,8 @@ const TYP_TEXT = g => g.rolle === 'pumpe' ? 'Pumpe' : HEIZER(g) ? (g.typ === 'ko
 const TYP_ROLLE = { Ölradiator: ['heizkoerper', 'oelradiator'], Konvektor: ['heizkoerper', 'konvektor'], Bautrockner: ['bautrockner', 'oelradiator'],
   Steckdose: ['steckdose', 'oelradiator'], Pumpe: ['pumpe', 'oelradiator'] };
 /* Einstellungen: Schlüssel der Seite (wie im Mockup) → Pfad im Store (bauplan §1) */
-const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heizung', 'feiertag_frei'], boost_min: ['heizung', 'boost_min'],
+const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heizung', 'feiertag_frei'], boost_min: ['heizung', 'boost_min'], toleranz: ['heizung', 'toleranz'], hand_nachfrist: ['heizung', 'hand_nachfrist_min'],
+  fuehler_halten: ['heizung', 'fuehler_halten_min'], zieht_w: ['heizung', 'zieht_strom_w'],
   staffel: ['staffel', 'an'], nutzbar: ['staffel', 'nutzbar_prozent'], max_gleich: ['staffel', 'max_gleichzeitig'], min_lauf: ['staffel', 'min_lauf_min'],
   min_pause: ['staffel', 'min_pause_min'], takt: ['staffel', 'takt_min'], tuer_pause: ['heizung', 'tuer_pause_min'], tuer_melden: ['heizung', 'tuer_melden_min'],
   knoepfe: ['meldungen_einst', 'knoepfe'], bericht: ['bericht', 'haeufigkeit'], bericht_handy: ['bericht', 'handy'], bericht_mail: ['bericht', 'mail'],
@@ -1059,7 +1066,7 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
    so schickt die Seite nie einen Wert, den die Integration ablehnt */
 const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], min_pause: [0, 120], takt: [5, 240], tuer_pause: [1, 120], tuer_melden: [1, 240],
   vorheizen: [0, 240], nachheizen: [0, 240], soll: [5, 30], grenze: [0, 30], frueh_temp: [-15, 20], frueh_min: [0, 240], frost_temp: [0, 15],
-  tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480],
+  tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480], toleranz: [0.1, 3], hand_nachfrist: [0, 240], fuehler_halten: [0, 120], zieht_w: [5, 500],
   frost_aus: [1, 20], absenk: [5, 20], offline_min: [1, 1440], trocken_w: [5, 5000], dauer_min: [5, 1440], zyklen_h: [2, 200], kalt_min: [15, 1440], hand_h: [1, 240], warm_vor: [0, 240], warm_nach: [0, 240], frost_aussen: [-20, 10], warm_max: [15, 480], stufen_abstand: [0.5, 10], stufen_min: [5, 240], stufen_anstieg: [0, 5], stufen_kalt: [-30, 15] };
 /* Modus je Container (0.7.8): wie im Mockup, Thermostat nur mit Fühler */
 const MODI = [['plan', 'Zeitplan'], ['thermo', 'Thermostat'], ['bedarf', 'Bei Bedarf'], ['hand', 'Hand'], ['aus', 'Aus']];
@@ -1331,7 +1338,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.30';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.31';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1528,7 +1535,8 @@ class BaustellePanel extends HTMLElement {
     const h = e0.heizung || {}, st = e0.staffel || {}, me = e0.meldungen_einst || {}, ar = me.arten || {}, be = e0.bericht || {};
     const v = (x, std) => zahl(x) ? Number(x) : std;
     const namen = s => { const x = this._hass && this._hass.states[`notify.${s}`]; return (x && x.attributes.friendly_name) || String(s).replace(/^mobile_app_/, '').replace(/_/g, ' '); };
-    const e = { preis: v(e0.preis, 0), feiertag_frei: h.feiertag_frei !== false, boost_min: v(h.boost_min, 30), melden: e0.melden_knopf !== false,
+    const e = { preis: v(e0.preis, 0), feiertag_frei: h.feiertag_frei !== false, boost_min: v(h.boost_min, 30), toleranz: v(h.toleranz, 0.3), hand_nachfrist: v(h.hand_nachfrist_min, 30),
+      fuehler_halten: v(h.fuehler_halten_min, 15), zieht_w: v(h.zieht_strom_w, 50), melden: e0.melden_knopf !== false,
       staffel: st.an !== false, nutzbar: v(st.nutzbar_prozent, 67), max_gleich: v(st.max_gleichzeitig, 5), min_lauf: v(st.min_lauf_min, 10), min_pause: v(st.min_pause_min, 5), takt: v(st.takt_min, 15),
       tuer_pause: v(h.tuer_pause_min, 3), tuer_melden: v(h.tuer_melden_min, 10), knoepfe: me.knoepfe !== false,
       bericht: be.haeufigkeit || 'aus', bericht_handy: be.handy !== false, bericht_mail: !!be.mail, mail: be.mail_an || '', mail_dienst: be.mail_dienst || '', bericht_csv: be.csv !== false,
@@ -1839,7 +1847,7 @@ class BaustellePanel extends HTMLElement {
     const d = this.d, b = d.bereiche.find(x => x.id === s.auswahl[0]) || this.b; if (!b) return '';
     const z = s.zeitraum || 'Tag', v = s.v || 0, zr = this.zeitraum(z, v), r = this.heizStunden(d, b, z, v), su = r ? summe(r) : null;
     const je = { Tag: 'je Stunde', Woche: 'je Tag', Monat: 'je Tag', Jahr: 'je Monat' }[z];
-    // AN-0011: eingeschaltet (Shelly an) und davon tatsächlich geheizt (Strom über 50 W) – zwei Zähler der Integration
+    // AN-0011: eingeschaltet (Shelly an) und davon tatsächlich geheizt (Strom über „heizt tatsächlich ab“) – zwei Zähler der Integration
     const sId = !b.pumpe && this.eid(d, b.id, 'heizzeit_strom'), rs = sId ? this.reihe(d, sId, z, v) : null, ss = rs ? summe(rs.map(x => x || 0)) : null;
     const lab = zr.labels.map((l, i) => z === 'Tag' ? (i % 3 ? '' : l) : z === 'Monat' ? (i % 5 ? '' : l) : l);
     if (sId) return `<div class="block-kopf"><h3>Heizzeit · ${esc(b.name)}</h3><span class="leise">${this.zrText(z, v)}</span></div>
@@ -1850,7 +1858,7 @@ class BaustellePanel extends HTMLElement {
       <div class="leise">h ${je} · ${this.zrText(z, v)}</div>
       <div class="chart-wrap">${r && rs ? flaeche(`hz-c-${b.id}-${z}-${v}`, [{ name: 'tatsächlich geheizt', v: rs.map(x => x || 0), farbe: 'var(--s1)' }], zr.labels, 'h',
         z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3, { name: 'eingeschaltet', v: r }) : LAEDT}</div>
-      <div class="leise">Eingeschaltet = der Shelly ist an. Tatsächlich geheizt = es fließt Strom (über 50 W) – schaltet der Thermostat am Heizkörper ab, ist der Shelly an, geheizt wird aber nicht. Ohne Leistungssensor gilt die Schaltzeit. „Tatsächlich geheizt“ wird ab 0.8.29 gezählt.</div>`;
+      <div class="leise">Eingeschaltet = der Shelly ist an. Tatsächlich geheizt = es fließt Strom (über ${this.d.e.zieht_w} W) – schaltet der Thermostat am Heizkörper ab, ist der Shelly an, geheizt wird aber nicht. Ohne Leistungssensor gilt die Schaltzeit. „Tatsächlich geheizt“ wird ab 0.8.29 gezählt.</div>`;
     return `<div class="block-kopf"><h3>${b.pumpe ? 'Pumpzeit' : 'Heizzeit'} · ${esc(b.name)}</h3><span class="leise">${this.zrText(z, v)}</span></div>
       <div class="seg">${['Tag', 'Woche', 'Monat', 'Jahr'].map(x => `<button data-act="vb-zeitraum" data-ziel="sheet" data-v="${x}" class="${x === z ? 'on' : ''}">${x}</button>`).join('')}</div>
       ${this.zrWahl('sheet', z, this.zrGrenze())}
@@ -1858,7 +1866,7 @@ class BaustellePanel extends HTMLElement {
       <div class="leise">h ${je} · ${this.zrText(z, v)}</div>
       <div class="chart-wrap">${r ? balken(`hz-c-${b.id}-${z}-${v}`, r, zr.labels.map((l, i) => z === 'Tag' ? (i % 3 ? '' : l) : z === 'Monat' ? (i % 5 ? '' : l) : l), 'h') : LAEDT}</div>`;
   }
-  /* Gemessen: wann zieht ein Gerät Strom (Leistung über 50 W) – Verlauf der Leistungssensoren seit Montag */
+  /* Gemessen: wann zieht ein Gerät Strom (Leistung über „heizt tatsächlich ab“, Standard 50 W) – Verlauf der Leistungssensoren seit Montag */
   messung(d = this.d) {
     const geraete = d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g, eid: g.leistung || g.schalter }))).filter(x => x.eid);
     if (!geraete.length) return {};
@@ -1873,7 +1881,7 @@ class BaustellePanel extends HTMLElement {
       const tage = TAGE.map(() => ({ an: [], off: [] }));
       liste.forEach((x, i) => {
         const von = Math.max(x.t, start), bis = i + 1 < liste.length ? liste[i + 1].t : ende; if (bis <= von) return;
-        const art = x.s === 'unavailable' ? 'off' : (x.s === 'on' || (zahl(x.s) && Number(x.s) > 50)) ? 'an' : null; if (!art) return;
+        const art = x.s === 'unavailable' ? 'off' : (x.s === 'on' || (zahl(x.s) && Number(x.s) > d.e.zieht_w)) ? 'an' : null; if (!art) return;
         tagStart.forEach((ds, k) => { const a = Math.max(von, ds), b = Math.min(bis, ds + 864e5); if (b > a) tage[k][art].push([(a - ds) / 60000, (b - ds) / 60000]); });
       });
       for (const t of tage) for (const art of ['an', 'off']) { const m = []; for (const q of t[art]) { const l = m[m.length - 1]; if (l && q[0] - l[1] < 1) l[1] = Math.max(l[1], q[1]); else m.push([...q]); } t[art] = m; }
@@ -2011,7 +2019,7 @@ class BaustellePanel extends HTMLElement {
     const iso = this.z.WOCHE_ISO[TAGE.indexOf(t)], seg = (this.d.abschnitte[b.id] || {})[iso] || [];
     return seg.filter(q => zahl(q[0]) && zahl(q[1])).map(q => [Number(q[0]), Number(q[1]), ABSCHNITT[q[2]] || 'heiz']).filter(x => x[1] > x[0]).sort((p, q) => p[0] - q[0]);
   }
-  /* Wann ein Heizkörper wirklich Strom zieht (Leistung über 50 W) – aus dem Verlauf der Leistungssensoren */
+  /* Wann ein Heizkörper wirklich Strom zieht (Leistung über „heizt tatsächlich ab“, Standard 50 W) – aus dem Verlauf der Leistungssensoren */
   aktiv(b, g, t) {
     const leer = { an: [], off: [] };
     if (!g.heizer) return leer;
@@ -2532,6 +2540,60 @@ class BaustellePanel extends HTMLElement {
         ${kachel('urlaub', '🏖', 'Urlaub & Feiertage', k.urlaub, k.urlaub2)}
       </div>`;
   }
+  /* AN-0012: Regeln nach Tagesablauf gruppiert (Mockup regeln-varianten.html, Variante B, abgenommen 01.10.2026) – auch die bisher
+     festen Werte: einstellbar (Schaltabstand, „heizt tatsächlich ab“, Handbetrieb übernehmen, Fühler ohne Wert) oder als „Feste Regeln“ */
+  regelnInhalt(lernend, C) {
+    const e = this.d.e, st = (k, s, fmt) => this.stepper(k, s, fmt), grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, minus = v => `${de(v, 0).replace('-', '−')} °C`;
+    const z = (titel, text, ctrl, unter) => `<div class="zeile${unter ? ' unter' : ''}"><div>${unter ? `<span>${titel}</span>` : `<b>${titel}</b>`}${text ? `<div class="leise">${text}</div>` : ''}</div>${ctrl || ''}</div>`;
+    const link = (act, extra) => `<button class="rv-link" data-act="${act}" ${extra}>ändern ›</button>`;
+    const nichtLern = lernend.length ? ' · <i>nicht für lernende Container</i>' : '';
+    const R = {
+      vorheizen: z('Vorheizen', `vor Arbeitsbeginn, damit es warm ist${nichtLern}`, st('vorheizen', 5, min)),
+      frueh: z('Kälte-Frühstart', `unter ${minus(e.frueh_temp)} zusätzlich früher${nichtLern}`, schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"'))
+        + (e.fruehstart ? z('wenn morgens kälter als', '', st('frueh_temp', 1, minus), true) + z('so viel früher', '', st('frueh_min', 5, min), true) : ''),
+      lernend: z('🧠 Lernende Container', `heizen selbst so früh, dass das Soll rechtzeitig erreicht ist – statt Vorheizen, Kälte-Frühstart und Nachheizen. Bis genug gelernt ist, gelten die Werte oben.${lernend.length ? ` Jetzt: ${lernend.map(b => esc(b.name)).join(', ')}.` : ' Gilt für Container mit Fühler, Modus Thermostat und lernender Regelung.'}`, ''),
+      warm_vor: z('Soll erreicht', 'vor Arbeitsbeginn, z. B. zum Umziehen', st('warm_vor', 5, v => v ? `${v} min vorher` : 'bei Beginn'), true),
+      warm_max: z('Frühestens', 'vor Arbeitsbeginn – Grenze, falls der Raum sehr kalt ist', st('warm_max', 15, v => `${v} min vorher`), true),
+      soll: z('🌡 Solltemperatur', 'für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat', st('soll', .5, grad)),
+      toleranz: z('Schaltabstand ± um das Soll', 'Thermostat: ein unter Soll − Abstand, aus über Soll + Abstand', st('toleranz', .1, v => `± ${de(v, 1)} °C`), true),
+      grenze: z('Heizgrenze', 'nicht heizen, wenn es wärmer ist', st('grenze', .5, grad)),
+      basis: z('Grundlage', '', `<div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div>`, true),
+      boost: z('⚡ Schnell aufheizen', 'alle Heizkörper eines Containers zugleich, Vorrang in der Staffelung – bis zum Soll, ohne Fühler für', st('boost_min', 5, min)),
+      zusatz: !C.some(b => b.geraete.filter(g => g.heizer).length >= 2) ? '' : z('🔥 Zusatz-Heizkörper', `in Containern mit „Zusatz nur bei Bedarf“: zuerst heizt einer, der Zusatz kommt dazu, wenn …${(() => { const n = C.filter(b => b.stufenAn); return n.length ? ` Jetzt: ${n.map(b => esc(b.name)).join(', ')}.` : ' Einschalten im Container unter Bearbeiten.'; })()}`, '')
+        + z('… der Raum weiter unter dem Soll ist als', '', st('stufen_abstand', .5, grad), true) + z('… einer schon so lange läuft', '', st('stufen_min', 5, min), true)
+        + z('… und es dabei weniger wärmer wurde als', '', st('stufen_anstieg', .1, v => `${de(v)} °C`), true) + z('… es draußen kälter ist als (beide von Anfang an)', '', st('stufen_kalt', 1, minus), true),
+      tuer: z('🚪 Tür offen', 'Heizung pausieren nach', st('tuer_pause', 1, min)) + z('Nachricht nach', '', st('tuer_melden', 5, min), true),
+      nachheizen: z('Nachheizen', `nach Arbeitsende, jeden Tag${nichtLern}`, st('nachheizen', 5, min)),
+      warm_nach: z('Warm halten (lernende)', 'nach Arbeitsende; Kleidung trocknen kommt dazu', st('warm_nach', 5, v => v ? `${v} min länger` : 'bis Ende'), true),
+      trocknen: z('👕 Kleidung trocknen', `ab ${de(e.tr_mm, 1)} mm Regen: +${e.tr_laenger} min nach dem Nachheizen, am Morgen ${e.tr_frueher} min früher`, link('hz-auf', 'data-k="trocknen"')),
+      hand: z('✋ Handbetrieb übernehmen nach', 'Läuft ein Heizkörper zu lange von Hand, kommt eine Nachricht – ohne „So lassen“ übernimmt die Automatik so viel später', st('hand_nachfrist', 5, min)),
+      frost: z('❄ Frostschutz', 'hält jeden Container über der Grenze, auch außerhalb der Arbeitszeit', schalter(e.frost, 'e-bool', 'data-k="frost"'))
+        + (e.frost ? z('ein unter', '', st('frost_temp', .5, grad), true) + z('aus über', '', st('frost_aus', .5, grad), true)
+          + z('ohne Fühler: ein, wenn draußen unter', 'aus erst 2 °C darüber; der Heizkörperthermostat regelt dann selbst', e.frost_aussen === null ? '<span class="leise">aus</span>' : st('frost_aussen', 1, minus), true)
+          + z('auch bei Automatik aus', 'schaltet dann nur den Frostschutz, sonst nichts', schalter(e.frost_immer, 'e-bool', 'data-k="frost_immer"'), true) : ''),
+      urlaub: z('🏖 Urlaub &amp; freie Feiertage', { frost: 'nur Frostschutz', absenk: `absenken auf ${de(e.absenk)} °C`, aus: 'alles aus' }[e.urlaub], link('hz-auf', 'data-k="urlaub"')),
+      zieht: z('Heizt tatsächlich ab', 'Leistung, ab der ein Heizkörper als „heizt“ zählt – Heizzeit geheizt, Heiztage, Warm ab, Lernen, Wann heizt was', st('zieht_w', 5, v => `${v} W`)),
+      fuehler: z('🌡 Fühler ohne Wert', 'meldet ein Fühler nichts, gilt sein letzter Wert noch so lange – danach regelt der Container wie ohne Fühler', st('fuehler_halten', 5, min)),
+      staffel: z('⚡ Staffelung', e.staffel ? `${e.nutzbar} % je Anschluss nutzbar · höchstens ${e.max_gleich} gleichzeitig · mindestens ${e.min_lauf} min an, ${e.min_pause} min Pause` : 'aus – alle Heizkörper dürfen zugleich', link('tab-einst', 'data-g="strom"')),
+    };
+    const karte = (ic, titel, unter, teile) => { const inhalt = teile.map(k => R[k]).join(''); return inhalt ? `<div class="rv-kopf"><b>${ic} ${titel}</b><span class="leise">${unter}</span></div><div class="rv-karte">${inhalt}</div>` : ''; };
+    const FEST = [
+      ['Außentemperatur ohne Wert', '6 h', 'der letzte Außenwert gilt noch so lange (Heizgrenze, Frostschutz ohne Fühler)'],
+      ['Frostschutz ohne Fühler aus', '+2 °C', 'über der Außen-Grenze, damit er nicht dauernd ein- und ausschaltet'],
+      ['„Schaltet sich selbst ein“', '3× in 10 min', 'so oft musste die Automatik ein Gerät ausschalten – dann Störung statt Protokoll jede Minute'],
+      ['Lernen: Takt', '10 min, mind. 2 min ein', 'Thermostat lernend: Anteil je Takt; kürzere Pulse lohnen nicht'],
+      ['Lernen: Aufheizen zählt', 'ab 1 °C unter Soll, ≥ 20 min, ≥ 0,5 °C', 'so wird die Aufheizrate gemessen; ab 3 Messungen je Außenband rechnet der Container selbst'],
+      ['Lernen: kalt / mild', 'unter 5 °C außen', 'Aufheizraten getrennt nach kaltem und mildem Wetter'],
+      ['Tür vermutlich offen', '−0,3 °C in 10 min', 'beim Heizen, während es draußen kaum kälter wurde – danach 10 min nichts lernen'],
+    ];
+    return karte('🌅', 'Vor der Arbeit', 'warm, wenn es losgeht', ['vorheizen', 'frueh', 'lernend', 'warm_vor', 'warm_max'])
+      + karte('👷', 'In der Arbeitszeit', 'auf das Soll halten', ['soll', 'toleranz', 'grenze', 'basis', 'boost', 'zusatz', 'tuer'])
+      + karte('🌇', 'Nach der Arbeit', 'warm halten, trocknen, übernehmen', ['nachheizen', 'warm_nach', 'trocknen', 'hand'])
+      + karte('🌙', 'Nachts, frei, Urlaub', 'nur Frostschutz', ['frost', 'urlaub'])
+      + karte('⏱', 'Immer', 'Messung und Strom', ['zieht', 'fuehler', 'staffel'])
+      + `<div class="rv-kopf"><b>📐 Feste Regeln</b><span class="leise">bewährte Schwellen, nicht änderbar</span></div><div class="rv-karte">${FEST.map(([t, w, x]) => `<div class="rv-fest"><span>${t}</span><b>${w}</b><div class="leise">${x}</div></div>`).join('')}</div>`
+      + erkl(e.erklaer, 'Vorheizen und Nachheizen gelten jeden Arbeitstag. Die Verlängerungen zählen zusammen: vor der Arbeit Vorheizen + Kälte-Frühstart + früher nach Regen, danach Nachheizen + Kleidung trocknen (AN-0003). Die Heizgrenze verhindert Heizen an warmen Tagen. Der Frostschutz springt unter „ein“ an und hört erst über „aus“ wieder auf, damit der Heizkörper nicht dauernd ein- und ausschaltet.');
+  }
   heizungBloecke() {
     const d = this.d, e = d.e, st = (k, s, fmt) => this.stepper(k, s, fmt);
     const grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, mm = v => `${de(v, 1)} mm`;
@@ -2558,33 +2620,8 @@ class BaustellePanel extends HTMLElement {
       <div class="glas-panel block"><div class="block-kopf"><b>Heizplan · diese Woche</b><span class="leise">aus Arbeitszeit und Wetter</span></div>${this.heizplanInhalt()}</div>
       ${this.azBlock()}
       ${this.ausnahmenBlock()}
-      <div class="glas-panel block"><div class="block-kopf"><b>So wird geheizt</b><span class="leise">in der Arbeitszeit immer</span></div>
-        <div class="zeile"><div><b>Vorheizen</b><div class="leise">vor Arbeitsbeginn, damit es warm ist${lernend.length ? ' · <i>nicht für lernende Container</i>' : ''}</div></div>${st('vorheizen', 5, min)}</div>
-        <div class="zeile"><div><b>Nachheizen</b><div class="leise">nach Arbeitsende, jeden Tag${lernend.length ? ' · <i>nicht für lernende Container</i>' : ''}</div></div>${st('nachheizen', 5, min)}</div>
-        <div class="zeile"><div><b>🧠 Lernende Container</b><div class="leise">heizen selbst so früh, dass das Soll rechtzeitig erreicht ist – statt Vorheizen, Kälte-Frühstart und Nachheizen. Bis genug gelernt ist, gelten die Werte oben.${lernend.length ? ` Jetzt: ${lernend.map(b => esc(b.name)).join(', ')}.` : ' Gilt für Container mit Fühler, Modus Thermostat und lernender Regelung.'}</div></div></div>
-        <div class="zeile unter"><div><span>Soll erreicht</span><div class="leise">vor Arbeitsbeginn, z. B. zum Umziehen</div></div>${st('warm_vor', 5, v => v ? `${v} min vorher` : 'bei Beginn')}</div>
-        <div class="zeile unter"><div><span>Warm halten</span><div class="leise">nach Arbeitsende; Kleidung trocknen kommt dazu</div></div>${st('warm_nach', 5, v => v ? `${v} min länger` : 'bis Ende')}</div>
-        <div class="zeile unter"><div><span>Frühestens</span><div class="leise">vor Arbeitsbeginn – Grenze, falls der Raum sehr kalt ist</div></div>${st('warm_max', 15, v => `${v} min vorher`)}</div>
-        ${C.some(b => b.geraete.filter(g => g.heizer).length >= 2) ? `<div class="zeile"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">in Containern mit „Zusatz nur bei Bedarf“: zuerst heizt einer, der Zusatz kommt dazu, wenn …${(() => { const n = C.filter(b => b.stufenAn); return n.length ? ` Jetzt: ${n.map(b => esc(b.name)).join(', ')}.` : ' Einschalten im Container unter Bearbeiten.'; })()}</div></div></div>
-        <div class="zeile unter"><span>… der Raum weiter unter dem Soll ist als</span>${st('stufen_abstand', .5, grad)}</div>
-        <div class="zeile unter"><span>… einer schon so lange läuft</span>${st('stufen_min', 5, min)}</div>
-        <div class="zeile unter"><span>… und es dabei weniger wärmer wurde als</span>${st('stufen_anstieg', .1, v => `${de(v)} °C`)}</div>
-        <div class="zeile unter"><span>… es draußen kälter ist als (beide von Anfang an)</span>${st('stufen_kalt', 1, v => `${de(v, 0).replace('-', '−')} °C`)}</div>` : ''}
-        <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">alle Heizkörper eines Containers zugleich, Vorrang in der Staffelung – bis zum Soll, ohne Fühler für</div></div>${st('boost_min', 5, min)}</div>
-        <div class="zeile"><div><b>🚪 Tür offen</b><div class="leise">Heizung pausieren nach</div></div>${st('tuer_pause', 1, min)}</div>
-        <div class="zeile unter"><span>Nachricht nach</span>${st('tuer_melden', 5, min)}</div>
-        <div class="zeile"><div><b>🌡 Solltemperatur</b><div class="leise">für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat</div></div>${st('soll', .5, grad)}</div>
-        <div class="zeile"><div><b>Heizgrenze</b><div class="leise">nicht heizen, wenn es wärmer ist</div></div>${st('grenze', .5, grad)}</div>
-        <div class="zeile"><span>Grundlage</span><div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
-        <div class="zeile"><div><b>Kälte-Frühstart</b><div class="leise">${lernend.length ? '<i>nicht für lernende Container</i> · ' : ''}unter ${de(e.frueh_temp, 0).replace('-', '−')} °C zusätzlich früher</div></div>${schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"')}</div>
-        ${e.fruehstart ? `<div class="zeile unter"><span>wenn morgens kälter als</span>${st('frueh_temp', 1, v => `${de(v, 0).replace('-', '−')} °C`)}</div>
-        <div class="zeile unter"><span>so viel früher</span>${st('frueh_min', 5, min)}</div>` : ''}
-        <div class="zeile"><div><b>Frostschutz</b><div class="leise">hält jeden Container über der Grenze, auch außerhalb der Arbeitszeit</div></div>${schalter(e.frost, 'e-bool', 'data-k="frost"')}</div>
-        ${e.frost ? `<div class="zeile unter"><span>ein unter</span>${st('frost_temp', .5, grad)}</div>
-        <div class="zeile unter"><span>aus über</span>${st('frost_aus', .5, grad)}</div>
-        <div class="zeile unter"><div><span>ohne Fühler: ein, wenn draußen unter</span><div class="leise">aus erst 2 °C darüber; der Heizkörperthermostat regelt dann selbst</div></div>${e.frost_aussen === null ? '<span class="leise">aus</span>' : st('frost_aussen', 1, v => `${de(v, 0).replace('-', '−')} °C`)}</div>
-        <div class="zeile unter"><div><span>auch bei Automatik aus</span><div class="leise">schaltet dann nur den Frostschutz, sonst nichts</div></div>${schalter(e.frost_immer, 'e-bool', 'data-k="frost_immer"')}</div>` : ''}
-        ${erkl(e.erklaer, 'Vorheizen und Nachheizen gelten jeden Arbeitstag. Die Verlängerungen zählen zusammen: vor der Arbeit Vorheizen + Kälte-Frühstart + früher nach Regen, danach Nachheizen + Kleidung trocknen (AN-0003). Die Heizgrenze verhindert Heizen an warmen Tagen. Der Frostschutz springt unter „ein“ an und hört erst über „aus“ wieder auf, damit der Heizkörper nicht dauernd ein- und ausschaltet. Ohne Fühler kennt die Integration keine Innentemperatur – der Frostschutz braucht einen Fühler.')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>So wird geheizt</b><span class="leise">nach Tagesablauf</span></div>
+        ${this.regelnInhalt(lernend, C)}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen zusätzlich zum Nachheizen</span></div>
         <div class="zeile"><span>ab Regen (seit gestern)</span>${st('tr_mm', .5, mm)}</div>
         <div class="zeile"><span>zusätzlich nach dem Nachheizen</span>${st('tr_laenger', 5, min)}</div>

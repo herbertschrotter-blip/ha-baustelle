@@ -711,6 +711,14 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'tab', v: 'heizung' }, 30);
   erwarte('Heizung als Kacheln: Heute-Karte und 8 Kacheln', ui.innerHTML.includes('hz-held') && (ui.innerHTML.match(/class="glas-panel hz-kachel"/g) || []).length === 8);
   const hzOffen = async k => { await klick({ act: 'hz-auf', k }, 20); return ui.innerHTML; };
+  /* AN-0012: Regeln nach Tagesablauf, bisher feste Werte einstellbar, feste Regeln sichtbar */
+  { const h = await hzOffen('regeln'); pruefe('Regeln nach Tagesablauf');
+    erwarte('AN-0012: Gruppen nach Tagesablauf und feste Regeln', ['Vor der Arbeit', 'In der Arbeitszeit', 'Nach der Arbeit', 'Nachts, frei, Urlaub', 'Immer', 'Feste Regeln'].every(t => h.includes(t)));
+    erwarte('AN-0012: neue Regler', ['toleranz', 'hand_nachfrist', 'fuehler_halten', 'zieht_w'].every(k => h.includes(`data-act="st" data-k="${k}"`)) && h.includes('data-act="tab-einst" data-g="strom"'));
+    neu(); for (const k of ['toleranz', 'hand_nachfrist', 'fuehler_halten', 'zieht_w']) await klick({ act: 'st', k, d: k === 'toleranz' ? '0.1' : '5' });
+    const S = letzte('baustelle/setzen').map(a => `${a.pfad.join('.')}=${a.wert}`);
+    erwarte('AN-0012: neue Regler setzen die Integration (' + S.join(', ') + ')', ['heizung.toleranz=0.4', 'heizung.hand_nachfrist_min=35', 'heizung.fuehler_halten_min=20', 'heizung.zieht_strom_w=55'].every(x => S.includes(x)));
+    await klick({ act: 'zu' }); }
   erwarte('Heizung: Frostschutz ein/aus (Regeln), Urlaub-Auswahl, Modus je Container', (await hzOffen('regeln')).includes('aus über') && (await hzOffen('urlaub')).includes('data-k="urlaub"') && (await hzOffen('container')).includes('data-jm="polier"'));
   await hzOffen('regeln'); neu(); await klick({ act: 'st', k: 'frost_aus', d: '0.5' }); await hzOffen('urlaub'); await klick({ act: 'e-wert', k: 'urlaub', v: 'absenk' });
   erwarte('Frostschutz aus und Urlaub über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frost_aus"]' && a.wert === 7.5)

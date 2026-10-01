@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.31] – 2026-10-01
+
+- Heizung › Regeln (AN-0012) nach Tagesablauf gruppiert: Vor der Arbeit · In der Arbeitszeit · Nach der Arbeit ·
+  Nachts, frei, Urlaub · Immer. Nichts mehr versteckt: neu einstellbar sind der Schaltabstand um das Soll (bisher
+  0,3 °C ohne Regler), „heizt tatsächlich ab“ (bisher fest 50 W – gilt für Heizzeit geheizt, Heiztage, Warm ab,
+  Lernen und „Wann heizt was“), „Handbetrieb übernehmen nach“ (bisher fest 30 min) und „Fühler ohne Wert“ (bisher
+  fest 15 min). Die Staffelung steht kurz mit Link zu Einstellungen › Strom, die übrigen festen Schwellen unter
+  „Feste Regeln“ mit Erklärung.
+
 ## [0.8.30] – 2026-10-01
 
 - Kachel-Katalog (WU-0014): „＋ Kachel“ öffnet einen Katalog mit jeder Auswertung der Seite – Suche mit Filter-Chips

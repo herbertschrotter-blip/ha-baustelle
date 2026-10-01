@@ -235,6 +235,13 @@ def test_hand_endet_nach_hoechstdauer_und_am_schaltpunkt():
     assert _hand(temperatur=19.0, phase=True) == HandEnde.SCHALTPUNKT
 
 
+def test_hand_nachfrist_einstellbar():
+    """AN-0012: die Frist nach der Nachricht ist einstellbar (Standard 30 min)."""
+    assert _hand(temperatur=19.0, minuten=500.0, nachfrist_min=15) == HandEnde.DAUER
+    assert _hand(temperatur=19.0, minuten=500.0) is None
+    assert _hand(temperatur=19.0, minuten=480.0, nachfrist_min=0) == HandEnde.DAUER
+
+
 def test_frost_und_tuer_gehen_vor():
     assert _hand(grund=SollGrund.FROST, temperatur=2.0) == HandEnde.VORRANG
     assert _hand(grund=SollGrund.TUER_OFFEN, temperatur=18.0) == HandEnde.VORRANG

@@ -30,7 +30,8 @@ Fachlogik liegt in `custom_components/baustelle/logik/` **ohne HA-Code**, jede D
               "fruehstart": true, "fruehstart_unter": 0.0, "fruehstart_min": 30,
               "frost": true, "frost_grenze": 5.0,
               "trocknen_ab_mm": 2.0, "trocknen_laenger_min": 45, "trocknen_frueher_min": 15,
-              "tuer_pause_min": 3, "tuer_melden_min": 10, "boost_min": 30, "feiertag_frei": true},
+              "tuer_pause_min": 3, "tuer_melden_min": 10, "boost_min": 30, "feiertag_frei": true,
+              "hand_nachfrist_min": 30, "fuehler_halten_min": 15, "zieht_strom_w": 50},   # AN-0012: bisher fest
   "staffel": {"an": true, "nutzbar_prozent": 67, "max_gleichzeitig": 5, "min_lauf_min": 10, "min_pause_min": 5, "takt_min": 15},
   "anschluesse": [{"id": "a1", "name": "Anschluss 1", "ampere": 32, "phasen": 3, "reserve_kw": 3.0}],
   "firmen": [{"id": "eigen", "name": "Eigene Firma", "eigen": true}],

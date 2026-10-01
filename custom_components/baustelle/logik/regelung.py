@@ -186,20 +186,20 @@ class HandEnde(StrEnum):
 
 def hand_ende(
     *, grund: SollGrund, phase_vorher: bool, phase: bool, an: bool, temperatur: float | None, soll: float,
-    minuten: float | None, max_minuten: float, lassen: bool = False,
+    minuten: float | None, max_minuten: float, lassen: bool = False, nachfrist_min: float = HAND_NACHFRIST_MIN,
 ) -> HandEnde | None:
     """Endet der Handbetrieb eines Heizkörpers jetzt? (FE-0004, Herbert 30.09.2026)
 
     Vorher endete er nur am nächsten Schaltpunkt – nach einem Start außerhalb der Heizzeit erst am nächsten Morgen,
     auch weit über dem Soll. Jetzt gehen Frostschutz und Tür offen vor, ein Hand-Ein endet mit Fühler am Soll, und
-    nach `max_minuten` kommt die Nachricht – ohne Antwort übernimmt die Automatik `HAND_NACHFRIST_MIN` später;
+    nach `max_minuten` kommt die Nachricht – ohne Antwort übernimmt die Automatik `nachfrist_min` später (einstellbar, AN-0012);
     „So lassen“ (`lassen`, Warnung stumm) hält die Hand. Eine geänderte Einstellung beendet ihn sofort (Aufrufer).
     """
     if grund in (SollGrund.FROST, SollGrund.TUER_OFFEN):
         return HandEnde.VORRANG
     if an and temperatur is not None and temperatur >= soll:
         return HandEnde.SOLL
-    if minuten is not None and minuten >= max_minuten + HAND_NACHFRIST_MIN and not lassen:
+    if minuten is not None and minuten >= max_minuten + nachfrist_min and not lassen:
         return HandEnde.DAUER
     if phase != phase_vorher:
         return HandEnde.SCHALTPUNKT

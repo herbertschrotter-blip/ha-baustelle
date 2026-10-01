@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.30",
+   "version": "0.8.31",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -330,6 +330,9 @@
     "tuer_pause_min": 3,
     "tuer_melden_min": 10,
     "boost_min": 30,
+    "hand_nachfrist_min": 30,
+    "fuehler_halten_min": 15,
+    "zieht_strom_w": 50,
     "feiertag_frei": true
    },
    "staffel": {
@@ -1493,7 +1496,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.30",
+   "version": "0.8.31",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1593,6 +1596,9 @@
     "tuer_pause_min": 3,
     "tuer_melden_min": 10,
     "boost_min": 30,
+    "hand_nachfrist_min": 30,
+    "fuehler_halten_min": 15,
+    "zieht_strom_w": 50,
     "feiertag_frei": true
    },
    "staffel": {

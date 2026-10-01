@@ -1053,6 +1053,25 @@ async def test_heizzeit_eingeschaltet_und_geheizt(hass: HomeAssistant, baustelle
     assert st.zaehler[f"heizzeit_strom:{C1}"] - s0 == pytest.approx(0.5, abs=0.02)
     ents = struktur(hass, baustelle)["entitaeten"]
     assert any(k.endswith(f"{C1}_heizzeit_strom") for k in ents)
+    # AN-0012: „heizt tatsächlich ab“ ist einstellbar – 1500 W unter 2000 W zählt nicht
+    st.einstellung_setzen(("heizung", "zieht_strom_w"), 2000)
+    s1 = st.zaehler[f"heizzeit_strom:{C1}"]
+    for m in range(1, 11):
+        await _zu(hass, freezer, f"2026-09-29 11:{m:02d}:00+02:00", st)
+    assert st.zaehler[f"heizzeit_strom:{C1}"] == pytest.approx(s1)
+
+
+async def test_fuehler_halten_einstellbar(hass: HomeAssistant, baustelle, freezer) -> None:
+    """AN-0012: so lange gilt der letzte Wert eines Fühlers, der nichts meldet (Standard 15 min)."""
+    st = baustelle.runtime_data
+    hz = Heizung.von(st)
+    hass.states.async_set("sensor.temp_c1", "18.5")
+    t0 = dt_util.now()
+    assert hz.temperatur_gehalten(C1, "sensor.temp_c1", t0) == 18.5
+    hass.states.async_set("sensor.temp_c1", "unavailable")
+    assert hz.temperatur_gehalten(C1, "sensor.temp_c1", t0 + timedelta(minutes=20)) is None
+    st.einstellung_setzen(("heizung", "fuehler_halten_min"), 30)
+    assert hz.temperatur_gehalten(C1, "sensor.temp_c1", t0 + timedelta(minutes=20)) == 18.5
 
 
 async def test_geraet_inaktiv(hass: HomeAssistant, baustelle, freezer, shellys) -> None:

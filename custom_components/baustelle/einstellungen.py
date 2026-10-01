@@ -72,6 +72,10 @@ STANDARD: dict[str, Any] = {
         "tuer_pause_min": 3,
         "tuer_melden_min": 10,
         "boost_min": 30,
+        # AN-0012: bisher fest – Handbetrieb übernehmen nach der Nachricht, Fühler ohne Wert halten, „heizt tatsächlich“ ab W
+        "hand_nachfrist_min": 30,
+        "fuehler_halten_min": 15,
+        "zieht_strom_w": 50,
         "feiertag_frei": True,
     },
     "staffel": {"an": True, "nutzbar_prozent": 67, "max_gleichzeitig": 5, "min_lauf_min": 10, "min_pause_min": 5,

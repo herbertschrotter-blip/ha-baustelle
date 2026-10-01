@@ -45,7 +45,7 @@ from ..logik.arbeitszeit import (
     tagesplan,
     uhrzeit,
 )
-from ..logik.regelung import FUEHLER_HALTEN_MIN, HandEnde, LageContainer, Soll, SollGrund, hand_ende, letzter_wert, soll_container
+from ..logik.regelung import FUEHLER_HALTEN_MIN, HAND_NACHFRIST_MIN, HandEnde, LageContainer, Soll, SollGrund, hand_ende, letzter_wert, soll_container
 from ..logik.zaehlen import (
     ABKUEHL_MIN_H,
     AUFHEIZ_MIN_H,
@@ -393,7 +393,8 @@ class Heizung(Funktion):
         self.st.einstellungen.speichern()
 
     def temperatur_gehalten(self, bid: str, fuehler: str | None, jetzt: datetime) -> float | None:
-        """Raumtemperatur; meldet der Fühler kurz nichts (Funk, HA-Start), gilt bis 15 min der letzte Wert (logik/regelung)."""
+        """Raumtemperatur; meldet der Fühler kurz nichts (Funk, HA-Start), gilt so lange der letzte Wert (Einstellung
+        `fuehler_halten_min`, AN-0012; logik/regelung)."""
         if not fuehler:
             return None
         wert = self.st.temperatur(fuehler)
@@ -405,7 +406,8 @@ class Heizung(Funktion):
                 zuletzt[bid][0] = jetzt.isoformat(timespec="seconds")
             return wert
         z = zuletzt.get(bid)
-        return letzter_wert(None, (zeit(z[0]), float(z[1])) if z and zeit(z[0]) else None, jetzt, FUEHLER_HALTEN_MIN)
+        halten = float(self.st.e["heizung"].get("fuehler_halten_min", FUEHLER_HALTEN_MIN))
+        return letzter_wert(None, (zeit(z[0]), float(z[1])) if z and zeit(z[0]) else None, jetzt, halten)
 
     # ------------------------------------------------------------------ Zusatz-Heizkörper (AN-0006, logik/stufen)
     def heizer_von(self, bid: str) -> list[GeraetInfo]:
@@ -647,6 +649,7 @@ class Heizung(Funktion):
                 temperatur=lage.temperatur, soll=lage.soll,
                 minuten=(jetzt - seit).total_seconds() / 60 if seit is not None else None, max_minuten=max_minuten,
                 lassen=warn_logik.warn_key(warn_logik.Art.HAND_ZU_LANGE, g.bereich, g.id) in self.st.e["stumm"],   # „So lassen“
+                nachfrist_min=float(self.st.e["heizung"].get("hand_nachfrist_min", HAND_NACHFRIST_MIN)),   # AN-0012
             )
             if ende is not None:
                 self.hand_beenden(gid, HAND_ENDE_TEXT[ende].format(
@@ -788,15 +791,19 @@ class Heizung(Funktion):
             text = f"{text} · 🚪 Tür offen"
         return zustand, text, str(grund)
 
+    def zieht_w(self) -> float:
+        """Ab so viel W „heizt“ ein Heizkörper tatsächlich (Einstellung, AN-0012; Standard ZIEHT_STROM_W)."""
+        return float(self.st.e["heizung"].get("zieht_strom_w", ZIEHT_STROM_W))
+
     def _zieht_strom(self, g: GeraetInfo) -> bool:
-        """Eingeschaltet und – falls gemessen – über ZIEHT_STROM_W."""
+        """Eingeschaltet und – falls gemessen – über `zieht_w`."""
         z = self.st.hass.states.get(g.schalter)
         if z is None or z.state != STATE_ON:
             return False
         if not g.leistung:
             return True
         w = zahl(self.st.hass.states.get(g.leistung))
-        return w is None or w > ZIEHT_STROM_W  # Sensor ohne Wert: wie ohne Messung
+        return w is None or w > self.zieht_w()  # Sensor ohne Wert: wie ohne Messung
 
     def _termin_ende(self, bid: str, jetzt: datetime) -> datetime | None:
         for von, bis, _ in self._termin_fenster(bid):
@@ -867,7 +874,7 @@ class Heizung(Funktion):
             return False
         if g.rolle == ROLLE_HEIZKOERPER:
             self.st.zaehler_plus(f"heizzeit_typ:{g.typ}", stunden)
-            if leistung is None or leistung > ZIEHT_STROM_W:   # AN-0011: tatsächlich geheizt (ohne Messung: wie geschaltet)
+            if leistung is None or leistung > self.zieht_w():   # AN-0011: tatsächlich geheizt (ohne Messung: wie geschaltet)
                 self._strom_jetzt.add(g.bereich)
         return True
 
