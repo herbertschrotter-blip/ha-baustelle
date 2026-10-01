@@ -697,8 +697,20 @@ class Steuerung:
                 f is not None and f.schaltbar(g) and ein is not None
                 and self.funktion_von(g).hand_seit(g) is None and erreichbar and self.geraet_aktiv(g)
             )
+            seit = dt_util.as_local(zustand.last_changed) if zustand is not None else None
+            if seit is not None and seit > jetzt:
+                seit = None  # Uhr zurückgestellt: Zeitpunkt unbekannt
+            # WU-0015: nach einem Neustart zeigt last_changed den Start, nicht das echte Schalten – ein Gerät, das die
+            # Integration seither nicht selbst geschaltet hat, war wohl länger aus: keine Mindestpause ab dem Start
+            seit_unbekannt = (
+                seit is not None and seit <= self._gestartet + HOCHFAHREN_UNSICHER and g.id not in self._letzter_befehl
+            )
+            an_seit = _minuten_seit(seit, jetzt) if an else 0.0
+            unterwegs = letzter is not None and letzter[0] and jetzt - letzter[1] < timedelta(seconds=55)
             if schaltet:
-                kw = self.nenn_kw(g)  # vorsichtig: auch wenn das Gerät gerade nicht zieht (Thermostat)
+                # FE-0011: gemessener Verbrauch; wer dazukommen will (und die ersten Minuten danach), zählt voll –
+                # auch solange der eigene Einschaltbefehl noch unterwegs ist
+                kw = staffel_logik.last_kw(leistung_w, self.nenn_kw(g), an, 0.0 if unterwegs else an_seit)
                 ziel[g.id] = bool(ein)
             elif not erreichbar and self._lief.get(g.id):
                 kw, an = self.nenn_kw(g), True   # offline, lief aber zuletzt: vorsichtig weiter mitzählen (Szenarien)
@@ -708,20 +720,12 @@ class Steuerung:
                 self._wartet_seit.setdefault(g.id, jetzt)
             else:
                 self._wartet_seit.pop(g.id, None)
-            seit = dt_util.as_local(zustand.last_changed) if zustand is not None else None
-            if seit is not None and seit > jetzt:
-                seit = None  # Uhr zurückgestellt: Zeitpunkt unbekannt
-            # WU-0015: nach einem Neustart zeigt last_changed den Start, nicht das echte Schalten – ein Gerät, das die
-            # Integration seither nicht selbst geschaltet hat, war wohl länger aus: keine Mindestpause ab dem Start
-            seit_unbekannt = (
-                seit is not None and seit <= self._gestartet + HOCHFAHREN_UNSICHER and g.id not in self._letzter_befehl
-            )
             vorrang = self.funktion_von(g).staffel_vorrang(s_c, schaltet) if s_c is not None else {}
             lasten.append(
                 staffel_logik.Last(
                     id=g.id, anschluss=e.get("anschluss") or "", kw=kw, heizer=schaltet, an=an, gruppe=g.bereich,
                     will=bool(schaltet and ein), prio=PRIO.get(e.get("prio") or "normal", 1), **vorrang,
-                    an_seit_min=_minuten_seit(seit, jetzt) if an else 0.0,
+                    an_seit_min=an_seit,
                     aus_seit_min=_minuten_seit(seit, jetzt) if not an and not seit_unbekannt else 1e9,
                     wartet_seit_min=_minuten_seit(self._wartet_seit.get(g.id), jetzt) if g.id in self._wartet_seit else 0.0,
                 )

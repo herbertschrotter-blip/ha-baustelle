@@ -750,6 +750,11 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'aw-layout' });
     for (const k of ['abrechnung', 'geraete', 'temperaturen', 'wetter', 'ohne', 'hochrechnung', 'vergleich']) { await klick({ act: 'aw-detail', k }); pruefe(`Auswertung Detail ${k}`); erwarte(`WU-0005: Detail ${k}`, panel.s.sheet && panel.s.sheet.art === 'aw-detail' && !/Nur für diese Baustelle/.test(ui.innerHTML)); await klick({ act: 'zu' }); }
     await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' }); await klick({ act: 'aw-bearb' }); }
+  /* FE-0011: Stromverteilung nach gemessenem Verbrauch – ein eingeschalteter Heizkörper ohne Strom zeigt „zieht gerade nichts“ */
+  { await klick({ act: 'tab', v: 'uebersicht' }, 10); const g = panel.d.bereiche.flatMap(b => b.geraete).find(x => x.heizer);
+    if (g) { const alt = [g.an, g.kwJetzt]; g.an = true; g.kwJetzt = 0; await klick({ act: 'sheet', s: 'strom' }, 10); pruefe('Stromverteilung gemessen');
+      erwarte('FE-0011: Stromverteilung nach Messung', ui.innerHTML.includes('gemessenen Verbrauch') && (!panel.last().A.length || ui.innerHTML.includes('zieht gerade nichts')));
+      [g.an, g.kwJetzt] = alt; await klick({ act: 'zu' }); } }
   /* WU-0014: Kachel-Katalog – Übersicht und Auswertung, Suche mit Chips, jede Kachel in S/M/L (L mit und ohne Diagramm), Antippen öffnet die Ansicht */
   { panel.s.kkUe = null; await klick({ act: 'tab', v: 'uebersicht' }, 30); pruefe('Übersicht mit Kacheln');
     erwarte('WU-0014: Meine Kacheln auf der Übersicht (Vorschlag)', ui.innerHTML.includes('Meine Kacheln') && (ui.innerHTML.match(/data-act="kk-auf" data-ort="ue"/g) || []).length === 3 && ui.innerHTML.includes('kk-neu-k'));

@@ -44,6 +44,11 @@ Entscheidungen, wo der Bauplan (Abschnitt 2.3) offen ist – jeweils im Sinne de
   einen genau passenden Heizer weder abwerfen noch sperren (sonst pendelt er an der Grenze an/aus).
 - `frei_kw` ist der freie Platz nach den Schaltungen dieses Schritts (ohne `frei_stabil_kw`).
 - Der Schalter „Staffelung aus“ (`staffel.an`) ist Sache des Aufrufers: ohne Staffelung folgen die Heizer `will`.
+- Gerechnet wird mit dem **gemessenen** Verbrauch (FE-0011, Herbert 01.10.2026): ein eingeschalteter Heizkörper, dessen
+  Thermostat gerade abgeschaltet hat, zählt mit dem, was er zieht (`last_kw`). Springt er wieder an und der Anschluss
+  wird zu voll, geht sofort der zuletzt eingeschaltete aus (Schritt 2) und die Heizkörper wechseln im Rundlauf.
+  Wer dazukommen will, zählt mit seiner vollen Leistung; ein eben eingeschalteter die ersten `ANLAUF_MIN` Minuten
+  ebenso, bis die Messung nachkommt.
 """
 
 from __future__ import annotations
@@ -53,6 +58,7 @@ from enum import StrEnum
 from typing import Any
 
 SPANNUNG_V = 230
+ANLAUF_MIN = 2      # so lange zählt ein eben eingeschalteter Heizer mindestens mit seiner vollen Leistung (FE-0011)
 TOLERANZ_KW = 1e-6  # 1 mW: Rundungsreste der Kommazahlen, keine Messgenauigkeit
 
 
@@ -137,6 +143,15 @@ def grenze_kw(ampere: float, phasen: int, nutzbar_prozent: float) -> float:
 def anschluss(id: str, ampere: float, phasen: int, reserve_kw: float, nutzbar_prozent: float = 67) -> Anschluss:
     """Anschluss aus den Einstellungen (Absicherung, Phasen, Reserve) und „nutzbar je Anschluss“."""
     return Anschluss(id=id, grenze_kw=grenze_kw(ampere, phasen, nutzbar_prozent), reserve_kw=reserve_kw)
+
+
+def last_kw(gemessen_w: float | None, nenn_kw: float, an: bool, an_seit_min: float) -> float:
+    """Womit ein schaltbarer Heizer in der Staffelung zählt (FE-0011): läuft er, mit der gemessenen Leistung – in den
+    ersten `ANLAUF_MIN` Minuten mindestens mit der vollen; ohne Messung und wenn er erst dazukommen will, voll."""
+    if not an or gemessen_w is None:
+        return nenn_kw
+    gemessen = max(0.0, gemessen_w) / 1000
+    return max(gemessen, nenn_kw) if an_seit_min < ANLAUF_MIN else gemessen
 
 
 def frei_je_anschluss(anschluesse: list[Anschluss], lasten: list[Last]) -> dict[str, float]:

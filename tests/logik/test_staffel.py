@@ -317,3 +317,14 @@ def test_rundlauf_nie_gegen_den_eigenen_container():
     anderer = hz("anderer", an=True, an_seit_min=40, gruppe="c2")
     e = staffeln([a], [anderer, zusatz], REGELN)
     assert "zusatz" in e.an and "anderer" not in e.an   # gegen einen anderen Container darf getauscht werden
+
+
+def test_last_kw_nach_messung():
+    """FE-0011: ein laufender Heizer zählt mit dem, was er zieht – in den ersten Minuten und ohne Messung voll."""
+    from logik.staffel import ANLAUF_MIN, last_kw
+    assert last_kw(0.0, 2.0, True, 30) == 0.0              # Thermostat am Heizkörper hat abgeschaltet
+    assert last_kw(1700.0, 2.0, True, 30) == 1.7
+    assert last_kw(0.0, 2.0, True, ANLAUF_MIN - 1) == 2.0   # eben eingeschaltet: Messung kommt noch
+    assert last_kw(2400.0, 2.0, True, 0) == 2.4
+    assert last_kw(None, 2.0, True, 30) == 2.0              # ohne Leistungssensor
+    assert last_kw(0.0, 2.0, False, 0) == 2.0               # will dazukommen: volle Leistung

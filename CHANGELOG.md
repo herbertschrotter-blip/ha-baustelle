@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.33] – 2026-10-01
+
+- Staffelung nach gemessenem Verbrauch (FE-0011): ein eingeschalteter Heizkörper, dessen Thermostat gerade
+  abgeschaltet hat, zählt mit dem, was er zieht – nicht mehr vorsichtig mit seiner vollen Leistung. So dürfen mehr
+  Heizkörper gleichzeitig laufen; springt einer wieder an und der Anschluss wird zu voll, geht sofort der zuletzt
+  eingeschaltete aus, danach wechseln sie im Rundlauf. Wer dazukommen will, zählt mit voller Leistung, ein eben
+  eingeschalteter die ersten 2 min ebenso. Die Stromverteilung zeigt je Heizkörper die gemessenen kW bzw. „zieht gerade
+  nichts (Thermostat)“.
+
 ## [0.8.32] – 2026-10-01
 
 - Heizung springt nach einem Neustart gleich an (WU-0015): nach dem Start von Home Assistant zeigt „zuletzt

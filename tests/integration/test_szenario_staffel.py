@@ -639,3 +639,20 @@ async def test_nach_neustart_keine_mindestpause_ab_dem_start(hass: HomeAssistant
     st.einstellung_setzen(("automatik",), True)
     await hass.async_block_till_done()
     assert _an(hass, "switch.hk1") and _warte(hass, entry, HK1) is None
+
+
+async def test_staffel_nach_gemessenem_verbrauch(hass: HomeAssistant, freezer, shellys) -> None:
+    """FE-0011 (Herbert 01.10.2026): gerechnet wird mit dem gemessenen Verbrauch. Zieht der laufende Heizkörper nichts
+    (Thermostat am Gerät), darf der wartende dazu; springt der erste wieder an und der Anschluss wird zu voll, geht der
+    zuletzt eingeschaltete sofort aus."""
+    entry, st = await _start(hass, freezer, shellys)
+    assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk2")
+    hass.states.async_set("sensor.hk1_power", "0")          # Thermostat am Heizkörper 1 schaltet ab
+    await _minuten(hass, freezer, st, 6)                     # Mindestlauf/Takt egal: Platz ist da
+    assert _an(hass, "switch.hk1") and _an(hass, "switch.hk2")
+    assert _anschluss(hass, entry)["heiz_kw"] == pytest.approx(2.0)   # gemessen: nur Heizkörper 2
+    voll = _texte(st, "schalten").count("Staffelung: Heizkörper 2 wartet (Anschluss voll)")
+    hass.states.async_set("sensor.hk1_power", "2000")       # Heizkörper 1 springt wieder an: 4 kW > 2,47 kW
+    await _minuten(hass, freezer, st, 3)
+    assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk2")
+    assert _texte(st, "schalten").count("Staffelung: Heizkörper 2 wartet (Anschluss voll)") == voll + 1
