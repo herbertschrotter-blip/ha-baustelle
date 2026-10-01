@@ -753,7 +753,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   /* FE-0011: Stromverteilung nach gemessenem Verbrauch – ein eingeschalteter Heizkörper ohne Strom zeigt „zieht gerade nichts“ */
   { await klick({ act: 'tab', v: 'uebersicht' }, 10); const g = panel.d.bereiche.flatMap(b => b.geraete).find(x => x.heizer);
     if (g) { const alt = [g.an, g.kwJetzt]; g.an = true; g.kwJetzt = 0; await klick({ act: 'sheet', s: 'strom' }, 10); pruefe('Stromverteilung gemessen');
-      erwarte('FE-0011: Stromverteilung nach Messung', ui.innerHTML.includes('gemessenen Verbrauch') && (!panel.last().A.length || ui.innerHTML.includes('zieht gerade nichts')));
+      erwarte('FE-0011: Stromverteilung nach Messung', ui.innerHTML.includes('gemessenen Verbrauch') && ui.innerHTML.includes('Jeder Container bekommt zuerst einen Heizkörper') && (!panel.last().A.length || ui.innerHTML.includes('zieht gerade nichts')));
       [g.an, g.kwJetzt] = alt; await klick({ act: 'zu' }); } }
   /* WU-0014: Kachel-Katalog – Übersicht und Auswertung, Suche mit Chips, jede Kachel in S/M/L (L mit und ohne Diagramm), Antippen öffnet die Ansicht */
   { panel.s.kkUe = null; await klick({ act: 'tab', v: 'uebersicht' }, 30); pruefe('Übersicht mit Kacheln');

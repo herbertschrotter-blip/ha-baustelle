@@ -396,7 +396,7 @@
    }
   },
   "sensor.magazin_cost": {
-   "state": "2.961",
+   "state": "2.968",
    "attributes": {
     "state_class": "total",
     "unit_of_measurement": "EUR",
@@ -405,7 +405,7 @@
    }
   },
   "sensor.magazin_energy": {
-   "state": "10.575",
+   "state": "10.6",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "kWh",
@@ -440,7 +440,7 @@
    }
   },
   "sensor.magazin_heating_time": {
-   "state": "7.05",
+   "state": "7.0667",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "h",
@@ -449,7 +449,7 @@
    }
   },
   "sensor.magazin_heating_time_drawing_power": {
-   "state": "7.05",
+   "state": "7.0667",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "h",
@@ -475,7 +475,7 @@
    "attributes": {}
   },
   "sensor.magazin_temperatur": {
-   "state": "19.46",
+   "state": "19.50",
    "attributes": {
     "device_class": "temperature",
     "unit_of_measurement": "°C",
@@ -589,7 +589,7 @@
    }
   },
   "sensor.polier_cost": {
-   "state": "4.1041",
+   "state": "4.095",
    "attributes": {
     "state_class": "total",
     "unit_of_measurement": "EUR",
@@ -598,7 +598,7 @@
    }
   },
   "sensor.polier_energy": {
-   "state": "14.6575",
+   "state": "14.625",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "kWh",
@@ -633,7 +633,7 @@
    }
   },
   "sensor.polier_heating_time": {
-   "state": "5.1",
+   "state": "5.0833",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "h",
@@ -642,7 +642,7 @@
    }
   },
   "sensor.polier_heating_time_drawing_power": {
-   "state": "5.1",
+   "state": "5.0833",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "h",
@@ -668,7 +668,7 @@
    "attributes": {}
   },
   "sensor.polier_temperatur": {
-   "state": "20.16",
+   "state": "20.10",
    "attributes": {
     "device_class": "temperature",
     "unit_of_measurement": "°C",
@@ -752,7 +752,7 @@
    }
   },
   "sensor.wohnbau_kalsdorf_cost": {
-   "state": "9.401",
+   "state": "9.3989",
    "attributes": {
     "state_class": "total",
     "unit_of_measurement": "EUR",
@@ -761,7 +761,7 @@
    }
   },
   "sensor.wohnbau_kalsdorf_energy": {
-   "state": "33.575",
+   "state": "33.5675",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "kWh",
@@ -770,7 +770,7 @@
    }
   },
   "sensor.wohnbau_kalsdorf_energy_convectors": {
-   "state": "11.7397",
+   "state": "11.7732",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "kWh",
@@ -779,7 +779,7 @@
    }
   },
   "sensor.wohnbau_kalsdorf_energy_oil_radiators": {
-   "state": "20.442",
+   "state": "20.401",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "kWh",
@@ -788,7 +788,7 @@
    }
   },
   "sensor.wohnbau_kalsdorf_energy_without_automation_24_7": {
-   "state": "71.5337",
+   "state": "71.5257",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "kWh",
@@ -821,7 +821,7 @@
    }
   },
   "sensor.wohnbau_kalsdorf_heating_time_convectors": {
-   "state": "5.8667",
+   "state": "5.8833",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "h",
@@ -830,7 +830,7 @@
    }
   },
   "sensor.wohnbau_kalsdorf_heating_time_oil_radiators": {
-   "state": "12.0333",
+   "state": "12.0167",
    "attributes": {
     "state_class": "total_increasing",
     "unit_of_measurement": "h",
@@ -864,7 +864,7 @@
    }
   },
   "sensor.wohnbau_kalsdorf_savings_from_automation": {
-   "state": "11.0186",
+   "state": "11.0184",
    "attributes": {
     "state_class": "total",
     "unit_of_measurement": "EUR",

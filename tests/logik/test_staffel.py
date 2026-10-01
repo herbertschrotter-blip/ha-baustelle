@@ -328,3 +328,25 @@ def test_last_kw_nach_messung():
     assert last_kw(2400.0, 2.0, True, 0) == 2.4
     assert last_kw(None, 2.0, True, 30) == 2.0              # ohne Leistungssensor
     assert last_kw(0.0, 2.0, False, 0) == 2.0               # will dazukommen: volle Leistung
+
+
+def test_einer_je_container_zuerst():
+    """AN-0013: Platz für zwei; der erste Heizer eines Containers kommt vor dem Zweitgerät eines anderen (auch bei
+    kleinerem Defizit), ein Zweitgerät verdrängt nie den einzigen eines Containers, abgegeben wird ein Zweitgerät."""
+    a = klein(4.0)
+    # c1 hat zwei, c2 einen – c1 weit unter dem Soll
+    erg = staffeln([a], [hz("c1_a", gruppe="c1", defizit=3.0), hz("c1_b", gruppe="c1", defizit=3.0), hz("c2_a", gruppe="c2", defizit=1.0)],
+                   StaffelRegeln(neue_je_schritt=3))
+    assert erg.an == {"c1_a", "c2_a"}
+    # Zweitgerät wartet: kein Tausch gegen den einzigen von c2, auch nach dem Takt
+    erg = staffeln([a], [hz("c1_a", an=True, gruppe="c1", an_seit_min=60), hz("c2_a", an=True, gruppe="c2", an_seit_min=60),
+                         hz("c1_b", gruppe="c1", defizit=3.0, wartet_seit_min=60)], REGELN)
+    assert erg.an == {"c1_a", "c2_a"} and erg.wartet["c1_b"] == "anschluss_voll"
+    # laufen beide von c1, darf c2 als erster seines Containers tauschen – gegen ein Zweitgerät von c1
+    erg = staffeln([a], [hz("c1_a", an=True, gruppe="c1", an_seit_min=60), hz("c1_b", an=True, gruppe="c1", an_seit_min=20),
+                         hz("c2_a", gruppe="c2", defizit=0.5)], REGELN)
+    assert "c2_a" in erg.an and len(erg.an & {"c1_a", "c1_b"}) == 1
+    # Überlast: zuerst ein Zweitgerät abwerfen, nicht den einzigen von c2 (auch wenn der zuletzt kam)
+    erg = staffeln([klein(4.0)], [hz("c1_a", an=True, gruppe="c1", an_seit_min=60), hz("c1_b", an=True, gruppe="c1", an_seit_min=30),
+                                  hz("c2_a", an=True, gruppe="c2", an_seit_min=1)], REGELN)
+    assert "c2_a" in erg.an and erg.wartet.get("c1_b") == "anschluss_voll"

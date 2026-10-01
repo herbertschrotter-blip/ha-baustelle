@@ -44,6 +44,10 @@ Entscheidungen, wo der Bauplan (Abschnitt 2.3) offen ist – jeweils im Sinne de
   einen genau passenden Heizer weder abwerfen noch sperren (sonst pendelt er an der Grenze an/aus).
 - `frei_kw` ist der freie Platz nach den Schaltungen dieses Schritts (ohne `frei_stabil_kw`).
 - Der Schalter „Staffelung aus“ (`staffel.an`) ist Sache des Aufrufers: ohne Staffelung folgen die Heizer `will`.
+- **Einer je Container zuerst** (AN-0013, Herbert 01.10.2026): einschalten darf zuerst ein Container, in dem noch kein
+  Heizer läuft (nach Frost und Boost, vor Priorität und Defizit); ein Zweitgerät verdrängt im Rundlauf nie den einzigen
+  laufenden Heizer eines anderen Containers; abgegeben und abgeworfen werden zuerst Zweitgeräte. Ohne `gruppe` gilt
+  das nicht.
 - Gerechnet wird mit dem **gemessenen** Verbrauch (FE-0011, Herbert 01.10.2026): ein eingeschalteter Heizkörper, dessen
   Thermostat gerade abgeschaltet hat, zählt mit dem, was er zieht (`last_kw`). Springt er wieder an und der Anschluss
   wird zu voll, geht sofort der zuletzt eingeschaltete aus (Schritt 2) und die Heizkörper wechseln im Rundlauf.
@@ -167,14 +171,16 @@ def _stufe(last: Last) -> tuple[bool, bool, int]:
     return (last.frost, last.boost, last.prio)
 
 
-def _rang(last: Last) -> tuple[Any, ...]:
-    """Einschalt-Reihenfolge (größer = zuerst): Frost > Boost > Priorität > Defizit > Wartezeit."""
+def _rang(last: Last, erster: bool = False) -> tuple[Any, ...]:
+    """Einschalt-Reihenfolge (größer = zuerst): Frost > Boost > erster seines Containers > Priorität > Defizit > Wartezeit."""
     defizit = last.defizit if last.defizit is not None else 0.0
-    return (*_stufe(last), defizit, last.wartet_seit_min)
+    return (last.frost, last.boost, erster, last.prio, defizit, last.wartet_seit_min)
 
 
-def _reihenfolge(lasten: list[Last]) -> list[Last]:
-    return sorted(sorted(lasten, key=lambda l: l.id), key=_rang, reverse=True)
+def _reihenfolge(lasten: list[Last], laufend: dict[str, int] | None = None) -> list[Last]:
+    """`laufend`: laufende Heizer je Container – wer der erste seines Containers wäre, kommt vor (AN-0013)."""
+    n = laufend or {}
+    return sorted(sorted(lasten, key=lambda l: l.id), key=lambda l: _rang(l, bool(l.gruppe) and not n.get(l.gruppe)), reverse=True)
 
 
 def anlauf_folge(lasten: list[Last]) -> list[Last]:
@@ -182,9 +188,11 @@ def anlauf_folge(lasten: list[Last]) -> list[Last]:
     return sorted(lasten, key=lambda l: (not l.frost, not l.boost, -l.prio, l.id))
 
 
-def _abschalt_reihenfolge(lasten: list[Last]) -> list[Last]:
-    """Zuerst normale, dann Boost, zuletzt Frost; jeweils der zuletzt eingeschaltete zuerst."""
-    return sorted(lasten, key=lambda l: (l.frost, l.boost, l.an_seit_min, l.id))
+def _abschalt_reihenfolge(lasten: list[Last], laufend: dict[str, int] | None = None) -> list[Last]:
+    """Zuerst normale, dann Boost, zuletzt Frost; darin zuerst Zweitgeräte (AN-0013), jeweils der zuletzt eingeschaltete
+    zuerst."""
+    n = laufend or {}
+    return sorted(lasten, key=lambda l: (l.frost, l.boost, bool(l.gruppe) and n.get(l.gruppe, 0) <= 1, l.an_seit_min, l.id))
 
 
 def staffeln(
@@ -210,6 +218,14 @@ def staffeln(
     frei_folgen = {l.id for l in heizer if l.anschluss not in bekannt and l.will}
     an -= {l.id for l in heizer if l.anschluss not in bekannt}
 
+    def laufend() -> dict[str, int]:   # laufende Heizer je Container (AN-0013)
+        n: dict[str, int] = {}
+        for i in an:
+            g = nach_id[i].gruppe
+            if g:
+                n[g] = n.get(g, 0) + 1
+        return n
+
     def schalte_aus(last: Last) -> None:
         an.discard(last.id)
         frei_ist[last.anschluss] += last.kw
@@ -229,16 +245,17 @@ def staffeln(
     # 2. Überlast → sofort der zuletzt eingeschaltete aus
     abgeworfen: set[str] = set()
     for a in anschluesse:
-        laufend = _abschalt_reihenfolge([nach_id[i] for i in an if nach_id[i].anschluss == a.id])
-        for l in laufend:
-            if frei_ist[a.id] >= -TOLERANZ_KW:
+        while frei_ist[a.id] < -TOLERANZ_KW:
+            dran = _abschalt_reihenfolge([nach_id[i] for i in an if nach_id[i].anschluss == a.id], laufend())
+            if not dran:
                 break
+            l = dran[0]
             schalte_aus(l)
             abgeworfen.add(l.id)
             wartet[l.id] = Warten.ANSCHLUSS_VOLL
 
     # 3. Mehr als max_gleichzeitig → überzählige nach der Mindestlaufzeit aus
-    for l in _abschalt_reihenfolge([nach_id[i] for i in an]):
+    for l in _abschalt_reihenfolge([nach_id[i] for i in an], laufend()):
         if len(an) <= regeln.max_gleichzeitig:
             break
         if l.an_seit_min >= regeln.min_lauf_min:
@@ -251,7 +268,10 @@ def staffeln(
     ueberlast = {nach_id[i].anschluss for i in abgeworfen if wartet[i] == Warten.ANSCHLUSS_VOLL}
     kandidaten = [l for l in heizer if l.will and l.id not in an and l.id not in abgeworfen and l.anschluss in bekannt]
     getauscht: set[str] = set()
-    for k in _reihenfolge(kandidaten):
+    offen = list(kandidaten)
+    while offen:
+        k = _reihenfolge(offen, laufend())[0]   # neu je Schritt: wer jetzt der erste seines Containers wäre
+        offen.remove(k)
         if k.aus_seit_min < regeln.min_pause_min:
             wartet[k.id] = Warten.MINDESTPAUSE
             dran_in[k.id] = regeln.min_pause_min - k.aus_seit_min
@@ -268,6 +288,8 @@ def staffeln(
 
         # Rundlauf: wer darf gegen k getauscht werden, und ab wann?
         vorrang = k.frost or k.boost
+        n_lauf = laufend()
+        k_erster = bool(k.gruppe) and not n_lauf.get(k.gruppe)
         moeglich: list[tuple[float, Last]] = []
         for i in an:
             r = nach_id[i]
@@ -275,6 +297,9 @@ def staffeln(
                 continue
             if k.gruppe and r.gruppe == k.gruppe:   # gleicher Container: Tausch brächte dem Raum nichts
                 continue
+            r_einzig = bool(r.gruppe) and n_lauf.get(r.gruppe, 0) <= 1
+            if r_einzig and k.gruppe and not k_erster and not vorrang:
+                continue   # AN-0013: ein Zweitgerät verdrängt nicht den einzigen Heizer eines anderen Containers
             if zu_voll and (
                 r.anschluss != k.anschluss
                 or k.anschluss in ueberlast
@@ -283,7 +308,7 @@ def staffeln(
                 continue
             if vorrang:
                 ab = regeln.min_lauf_min
-            elif _stufe(k) >= _stufe(r):
+            elif _stufe(k) >= _stufe(r) or (k_erster and not r_einzig and not r.boost):   # AN-0013: erster vor Zweitgerät
                 ab = max(regeln.takt_min, regeln.min_lauf_min)
             else:
                 continue
@@ -291,8 +316,8 @@ def staffeln(
 
         jetzt = [r for rest, r in moeglich if rest <= 0]
         if jetzt and neu < regeln.neue_je_schritt:
-            # normale vor Boost; dann der am längsten laufende; bei Gleichstand die niedrigere Priorität, dann nach id
-            r = min(jetzt, key=lambda x: (x.boost, -x.an_seit_min, x.prio, x.id))
+            # normale vor Boost; Zweitgeräte vor dem einzigen eines Containers (AN-0013); dann der am längsten laufende
+            r = min(jetzt, key=lambda x: (x.boost, bool(x.gruppe) and n_lauf.get(x.gruppe, 0) <= 1, -x.an_seit_min, x.prio, x.id))
             schalte_aus(r)
             getauscht.add(r.id)
             wartet[r.id] = Warten.RUNDLAUF

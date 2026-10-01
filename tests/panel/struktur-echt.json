@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.33",
+   "version": "0.8.34",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -485,37 +485,37 @@
    "geraete": {}
   },
   "zaehler": {
-   "gradh:polier": 152.2883333333336,
+   "gradh:polier": 152.2113333333336,
    "seit": "2026-09-29T05:31:00+02:00",
-   "gradh:magazin": 139.06799999999996,
-   "vgl_gradh:magazin": 139.06799999999996,
+   "gradh:magazin": 139.42249999999984,
+   "vgl_gradh:magazin": 139.42249999999984,
    "pumpzeit:schacht_p1": 1.8333333333333317,
-   "energie": 33.57500000000026,
+   "energie": 33.56750000000025,
    "energie:schacht": 1.393333333333333,
-   "kosten": 9.401000000000028,
+   "kosten": 9.398900000000028,
    "kosten:schacht": 0.3901333333333326,
    "zyklen:schacht_p1": 21.0,
    "mittel:polier_k1": 2010.0,
-   "heizzeit_typ:konvektor": 5.866666666666651,
-   "energie:polier": 14.657499999999933,
-   "kosten:polier": 4.1041000000000265,
-   "energie_heizen": 32.181666666666864,
-   "energie_typ:konvektor": 11.73966666666663,
-   "heizzeit:polier": 5.099999999999987,
-   "heizzeit_strom:polier": 5.099999999999987,
-   "ohne": 71.53366666666697,
+   "heizzeit_typ:konvektor": 5.883333333333318,
+   "energie:polier": 14.624999999999934,
+   "kosten:polier": 4.095000000000026,
+   "energie_heizen": 32.17416666666687,
+   "energie_typ:konvektor": 11.77316666666663,
+   "heizzeit:polier": 5.083333333333321,
+   "heizzeit_strom:polier": 5.083333333333321,
+   "ohne": 71.52566666666698,
    "heiztag_letzter": "2026-09-29",
    "heiztage": 1.0,
-   "mittel:polier_r1": 1980.0,
-   "heizzeit_typ:oelradiator": 12.03333333333351,
-   "energie_typ:oelradiator": 20.442000000000053,
    "mittel:magazin_r1": 1500.0,
-   "energie:magazin": 10.575000000000083,
-   "kosten:magazin": 2.961000000000002,
-   "vgl_kwh:magazin": 10.575000000000083,
-   "heizzeit:magazin": 7.04999999999998,
-   "heizzeit_strom:magazin": 7.04999999999998,
-   "aufheiz:polier": 5.6982,
+   "heizzeit_typ:oelradiator": 12.016666666666843,
+   "energie:magazin": 10.600000000000083,
+   "kosten:magazin": 2.968000000000002,
+   "energie_typ:oelradiator": 20.401000000000053,
+   "vgl_kwh:magazin": 10.600000000000083,
+   "heizzeit:magazin": 7.066666666666647,
+   "heizzeit_strom:magazin": 7.066666666666647,
+   "mittel:polier_r1": 1980.0,
+   "aufheiz:polier": 5.6436,
    "aufheiz:magazin": 1.9080450000000004,
    "vgl_aufheiz:magazin": 1.9080450000000004,
    "mittel:mannschaft_k1": 1990.0,
@@ -535,7 +535,7 @@
      "zustand": "heizt",
      "grund": "arbeitszeit",
      "text": "heizt · Hand",
-     "temperatur": 20.16,
+     "temperatur": 20.1,
      "kw": 1.98,
      "bedarf_bis": null,
      "boost_bis": null,
@@ -609,7 +609,7 @@
      "zustand": "pause",
      "grund": "tuer_offen",
      "text": "pausiert · Tür offen",
-     "temperatur": 19.46,
+     "temperatur": 19.5,
      "kw": 0,
      "bedarf_bis": null,
      "boost_bis": null,
@@ -1184,76 +1184,82 @@
      "Tür offen – Heizung pausiert – Ölradiator 1 aus"
     ],
     [
-     "2026-09-29T16:05:00+02:00",
+     "2026-09-29T16:06:00+02:00",
      "schalten",
-     "magazin",
+     "polier",
      "Arbeitszeit – Ölradiator 1 ein"
     ],
     [
      "2026-09-29T16:04:00+02:00",
      "schalten",
-     "polier",
+     "magazin",
      "Arbeitszeit – Ölradiator 1 ein"
     ],
     [
-     "2026-09-29T15:44:00+02:00",
+     "2026-09-29T15:45:00+02:00",
      "schalten",
-     "magazin",
+     "polier",
      "Arbeitszeit – Ölradiator 1 aus"
     ],
     [
      "2026-09-29T15:43:00+02:00",
      "schalten",
-     "polier",
+     "magazin",
      "Arbeitszeit – Ölradiator 1 aus"
     ],
     [
-     "2026-09-29T15:23:00+02:00",
+     "2026-09-29T15:24:00+02:00",
      "schalten",
-     "magazin",
+     "polier",
      "Arbeitszeit – Ölradiator 1 ein"
     ],
     [
      "2026-09-29T15:22:00+02:00",
      "schalten",
-     "polier",
+     "magazin",
      "Arbeitszeit – Ölradiator 1 ein"
     ],
     [
-     "2026-09-29T15:02:00+02:00",
+     "2026-09-29T15:03:00+02:00",
      "schalten",
-     "magazin",
+     "polier",
      "Arbeitszeit – Ölradiator 1 aus"
     ],
     [
      "2026-09-29T15:01:00+02:00",
      "schalten",
-     "polier",
+     "magazin",
      "Arbeitszeit – Ölradiator 1 aus"
     ],
     [
-     "2026-09-29T14:41:00+02:00",
+     "2026-09-29T14:42:00+02:00",
      "schalten",
-     "magazin",
+     "polier",
      "Arbeitszeit – Ölradiator 1 ein"
     ],
     [
      "2026-09-29T14:40:00+02:00",
      "schalten",
-     "polier",
+     "magazin",
      "Arbeitszeit – Ölradiator 1 ein"
     ],
     [
-     "2026-09-29T14:20:00+02:00",
+     "2026-09-29T14:21:00+02:00",
      "schalten",
-     "magazin",
+     "polier",
      "Arbeitszeit – Ölradiator 1 aus"
     ],
     [
      "2026-09-29T14:19:00+02:00",
      "schalten",
-     "polier",
+     "magazin",
      "Arbeitszeit – Ölradiator 1 aus"
+    ],
+    [
+     "2026-09-29T14:00:00+02:00",
+     "schalten",
+     "polier",
+     "Arbeitszeit – Ölradiator 1 ein"
     ],
     [
      "2026-09-29T14:00:00+02:00",
@@ -1262,21 +1268,15 @@
      "Bedarf vorbei – Konvektor 1, Konvektor 2 aus"
     ],
     [
-     "2026-09-29T13:59:00+02:00",
-     "schalten",
-     "magazin",
-     "Arbeitszeit – Ölradiator 1 ein"
-    ],
-    [
      "2026-09-29T13:58:00+02:00",
      "schalten",
-     "polier",
+     "magazin",
      "Arbeitszeit – Ölradiator 1 ein"
     ],
     [
-     "2026-09-29T13:38:00+02:00",
+     "2026-09-29T13:39:00+02:00",
      "schalten",
-     "magazin",
+     "polier",
      "Arbeitszeit – Ölradiator 1 aus"
     ]
    ],
@@ -1496,7 +1496,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.33",
+   "version": "0.8.34",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"

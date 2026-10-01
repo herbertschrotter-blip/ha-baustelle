@@ -240,7 +240,8 @@ async def test_rundlauf_drei_heizkoerper_zwei_plaetze_tauscht_genau_einen(hass: 
     assert _an(hass, "switch.hk1") and _an(hass, "switch.hk2") and not _an(hass, "switch.hk3")
     await _minuten(hass, freezer, st, 15)            # 10:16 – beide laufen ≥ 15 min
     assert sum(_an(hass, f"switch.hk{n}") for n in (1, 2, 3)) == 2
-    assert _an(hass, "switch.hk3")
+    # AN-0013: HK3 ist das Zweitgerät von C2 – es verdrängt nicht den einzigen Heizkörper von C1, jeder Container behält einen
+    assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk3")
 
 
 # ---------------------------------------------------------------------- max_gleichzeitig
@@ -459,11 +460,10 @@ async def test_zusatz_verdraengt_nicht_den_eigenen_hauptheizkoerper(hass: HomeAs
     assert _an(hass, "switch.hk1") and _an(hass, "switch.hk3")
     hass.states.async_set("sensor.temp_c1", "18.0")
     await _minuten(hass, freezer, st, 1)
-    assert _warte(hass, entry, HK2)["grund"] == "rundlauf"
+    assert _warte(hass, entry, HK2)["grund"] == "anschluss_voll"   # AN-0013: kein Tausch gegen den einzigen von C2
     await _minuten(hass, freezer, st, 15)
-    assert _an(hass, "switch.hk2")
-    # erwartet: C1 heizt jetzt mit beiden, C2 macht Platz
-    assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk3")
+    # AN-0013 (Herbert 01.10.2026): einer je Container zuerst – der Zusatz von C1 verdrängt nicht den einzigen von C2
+    assert _an(hass, "switch.hk1") and _an(hass, "switch.hk3") and not _an(hass, "switch.hk2")
 
 
 # ---------------------------------------------------------------------- Geräte: inaktiv, Hand, offline, ohne Messung
@@ -656,3 +656,20 @@ async def test_staffel_nach_gemessenem_verbrauch(hass: HomeAssistant, freezer, s
     await _minuten(hass, freezer, st, 3)
     assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk2")
     assert _texte(st, "schalten").count("Staffelung: Heizkörper 2 wartet (Anschluss voll)") == voll + 1
+
+
+async def test_einer_je_container_zuerst(hass: HomeAssistant, freezer, shellys) -> None:
+    """AN-0013: zwei Plätze, C1 mit zwei Heizkörpern (HK1, HK2), C2 mit einem (HK3). Laufen HK1 und HK2, kommt HK3 als
+    erster seines Containers beim nächsten Tausch dran – abgeben muss ein Zweitgerät von C1, nie beide von C1 an."""
+    entry, st = await _start(hass, freezer, shellys, a1=(32, 1, 0.0), hk2_bereich=C1, hk3_bereich=C2, automatik=False)
+    hass.states.async_set("sensor.temp_c2", "19.0")         # C2 1 °C unter dem Soll, C1 3 °C
+    hass.states.async_set("sensor.temp_c1", "17.0")
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    for _ in range(3):
+        await _minuten(hass, freezer, st, 1)
+    an = {n for n in (1, 2, 3) if _an(hass, f"switch.hk{n}")}
+    assert 3 in an and len(an) == 2                          # C2 bekommt trotz kleinstem Defizit seinen Platz
+    await _minuten(hass, freezer, st, 20)
+    an = {n for n in (1, 2, 3) if _an(hass, f"switch.hk{n}")}
+    assert 3 in an and len(an & {1, 2}) == 1                 # C1 und C2 je einer, auch nach dem Rundlauf

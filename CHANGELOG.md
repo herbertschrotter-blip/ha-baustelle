@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.34] – 2026-10-01
+
+- Staffelung: einer je Container zuerst (AN-0013). Einschalten darf zuerst ein Container, in dem noch kein Heizkörper
+  läuft (nach Frostschutz und Schnell aufheizen); ein zweiter Heizkörper im selben Container verdrängt im Rundlauf nie
+  den einzigen eines anderen Containers, und bei Überlast oder Tausch geht zuerst ein Zweitgerät aus. So bleibt in
+  jedem Container nach Möglichkeit immer einer an.
+
 ## [0.8.33] – 2026-10-01
 
 - Staffelung nach gemessenem Verbrauch (FE-0011): ein eingeschalteter Heizkörper, dessen Thermostat gerade
