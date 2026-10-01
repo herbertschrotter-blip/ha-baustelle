@@ -277,6 +277,18 @@ const AW_VORLAGEN = {
   verlauf: ['4 · Verlauf mit Erkenntnissen', [['verlauf', 4, 4], ['erkenntnisse', 4, 2], ['kennzahlen', 4, 1], ['links', 4, 3]]],
   misch: ['5 · Mischform (Vorschlag)', [['betrag', 4, 2], ['rangliste', 4, 4], ['verlauf', 4, 4], ['erkenntnisse', 4, 2], ['k-wetter', 2, 2], ['k-oel', 2, 2], ['links', 4, 3]]],
 };
+/* FE-0006: Größenstufen je Baustein [Name, Breite, Höhe] – nur Größen, die zum Inhalt passen */
+const ST_KACHEL = [['S', 1, 1], ['M', 2, 1], ['L', 2, 2]];
+const AW_STUFEN = {
+  betrag: [['M', 2, 2], ['L', 4, 2]], kennzahlen: [['M', 2, 2], ['L', 4, 1]], rangliste: [['M', 2, 3], ['L', 4, 3], ['XL', 4, 4]],
+  verlauf: [['S', 2, 2], ['M', 2, 3], ['L', 4, 3], ['XL', 4, 4]], erkenntnisse: [['M', 2, 2], ['L', 4, 2]], rechnung: [['M', 2, 4], ['L', 4, 4]],
+  abrechnung: [['M', 2, 4], ['L', 4, 4]], links: [['M', 2, 3], ['L', 4, 3]], geraete: [['L', 4, 4]], temperaturen: [['M', 2, 3], ['L', 4, 3]],
+  wetter: [['S', 1, 1], ['M', 2, 3], ['L', 4, 3]], ohne: [['M', 2, 2], ['L', 4, 2]], hochrechnung: [['M', 2, 3], ['L', 4, 2]], vergleich: [['M', 2, 3], ['L', 4, 3]],
+  leistung: [['M', 2, 3], ['L', 4, 3]],
+};
+const awStufen = k => AW_STUFEN[k] || ST_KACHEL;
+/* nächstliegende erlaubte Stufe zu einer gewünschten Größe */
+const awStufe = (k, w, h) => awStufen(k).reduce((best, st) => { const dd = Math.abs(st[1] - w) * 2 + Math.abs(st[2] - h); return dd < best[0] ? [dd, st] : best; }, [1e9, null])[1];
 const AW_HOEHE = { betrag: 2, kennzahlen: 1, rangliste: 4, verlauf: 4, erkenntnisse: 2, rechnung: 4, links: 3, abrechnung: 4, geraete: 4, temperaturen: 4, wetter: 4, ohne: 2, hochrechnung: 3, vergleich: 3, leistung: 3 };
 const AW_STANDARD = [['betrag', true, true], ['rangliste', true, true], ['verlauf', true, true], ['erkenntnisse', true, true], ['k-wetter', true, false], ['k-oel', true, false],
   ['rechnung', false, true], ['kennzahlen', false, true], ['k-kosten', false, false], ['k-gespart', false, false], ['k-hoch', false, false], ['k-wer', false, false], ['k-firmen', false, false], ['k-temp', false, false],
@@ -978,7 +990,7 @@ class App {
   }
 
   /* ---- WU-0005: Bausteine aus allen Varianten (für 5 · Mischform und 6 · Selbst zusammenstellen) ---- */
-  awStueck(k, D) {
+  awStueck(k, D, gr = { w: 4, h: 4 }) {
     const max = Math.max(1, ...D.container.map(c => c.kwh)), gespart = (D.ohne - D.kwh) * D.p;
     const kachel = (kk, inhalt) => `<button class="glas-panel aw-k" data-act="aw-detail" data-k="${kk}">${inhalt}</button>`;
     switch (k) {
@@ -995,12 +1007,14 @@ class App {
       case 'k-wetter': return kachel('wetter', `<small>WETTER</small><b>+${de(-D.k, 1)}</b><span>kWh je Grad kälter</span>`);
       case 'k-oel': return kachel('vergleich', `<small>ÖLRADIATOR</small><b>−16 %</b><span>gegenüber Konvektor</span>`);
       case 'k-temp': return kachel('temperaturen', `<small>TEMPERATUREN JETZT</small>${this.d.bereiche.filter(b => !b.pumpe && b.t !== null).slice(0, 3).map(b => `<div class="aw-zeile"><span>${esc(b.name)}</span><b>${de(b.t)} °C</b></div>`).join('')}`);
-      case 'rangliste': return `<div class="glas-panel block"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">${D.zText} · antippen öffnet den Container</span></div>
+      case 'rangliste': if (gr.w <= 2) return `<div class="glas-panel block aw-klein"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">Top 3</span></div>
+          ${D.container.slice(0, 3).map((c, i) => `<button class="aw-rang aw-rang-z" data-act="container" data-id="${c.b.id}"><span><em>${i + 1}</em> ${esc(c.b.name)}</span><i style="width:${c.kwh / max * 100}%;background:${BEREICH_FARBEN[c.b.f % 6]}"></i><em>${de(c.kwh, 0)} kWh · ${de(c.eur, 2)} €</em></button>`).join('')}</div>`;
+        return `<div class="glas-panel block"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">${D.zText} · antippen öffnet den Container</span></div>
         <div class="aw-tab-kopf"><span></span><span>kWh</span><span>€</span><span>Heizzeit</span><span>kWh/h</span><span>jetzt</span></div>
         ${D.container.map((c, i) => `<button class="aw-tab-zeile" data-act="container" data-id="${c.b.id}"><span class="aw-tab-name"><em>${i + 1}</em>${esc(c.b.name)}${D.alle ? `<small>${esc(c.l.name)}</small>` : ''}
             <i style="width:${c.kwh / max * 100}%;background:${BEREICH_FARBEN[c.b.f % 6]}"></i></span><b>${de(c.kwh, 0)}</b><span>${de(c.eur, 2)}</span><span>${de(c.h, 1)} h</span><span>${de(c.proH, 2)}</span><span>${c.temp !== null ? de(c.temp) + '°' : '–'}</span></button>`).join('')}</div>`;
       case 'erkenntnisse': return `<div class="aw-karten">${this.awErkenntnisse(D).map(([i, t, x, kk]) => `<button class="glas-panel aw-karte" data-act="aw-detail" data-k="${kk}"><span>${i}</span><b>${t}</b><small>${x}</small></button>`).join('')}</div>`;
-      case 'verlauf': return `<div class="glas-panel block aw-held">${this.verbrauchInhalt(D.aw, 'aw', false)}</div>`;
+      case 'verlauf': return this.awDiagramm(D, gr);   // FE-0006: füllt die Kachel, ohne eigene Zeitraum-Leiste
       case 'rechnung': return `<div class="glas-panel block aw-rechnung"><div class="block-kopf"><b>Aufteilung</b><span class="leise">je Firma und Container</span></div>
         ${D.firmen.map(x => `<div class="aw-r-firma"><div class="aw-r-kopf"><b>${esc(x.f.name)}</b><b>${de(x.kwh * D.p, 2)} €</b></div>
           ${x.c.map(c => `<div class="aw-r-zeile"><span>${esc(c.b.name)}</span><span class="leise">${de(c.kwh, 1)} kWh × ${de(D.p, 2)} €</span><span>${de(c.eur, 2)} €</span></div>`).join('')}</div>`).join('')}
@@ -1008,6 +1022,7 @@ class App {
         <div class="aw-r-knoepfe"><button class="glas-panel chip" data-act="csv">⇩ Abrechnung als CSV</button><button class="glas-panel chip" data-act="sheet" data-s="bericht">✉ Bericht ansehen</button></div></div>`;
       case 'links': return `<div class="glas-panel liste">${[['abrechnung', '💶 Abrechnung nach Firma'], ['geraete', '♨ Je Gerät'], ['temperaturen', '🌡 Temperaturen'], ['wetter', '🌦 Wetter-Einfluss'], ['vergleich', '⚖ Ölradiator oder Konvektor'], ['hochrechnung', '📅 Hochrechnung Heizperiode']]
         .map(([kk, t]) => `<button class="zeile" data-act="aw-detail" data-k="${kk}"><span>${t}</span><span class="chev">›</span></button>`).join('')}</div>`;
+      case 'wetter': if (gr.w <= 1) return this.awStueck('k-wetter', D); return this.awBlock(k, D);
       default: return this.awBlock(k, D);   // ganze Blöcke: abrechnung, geraete, temperaturen, wetter, ohne, hochrechnung, vergleich, leistung
     }
   }
@@ -1021,17 +1036,17 @@ class App {
     if (bearb) return `${this.awKopf(D, kopf)}
       <div class="glas-panel block aw-vorlagen"><div class="block-kopf"><b>Vorlage</b><span class="leise">stellt Bausteine, Reihenfolge und Größe ein – danach frei anpassbar</span></div>
         <div class="aw-vorlagen-k">${Object.entries(AW_VORLAGEN).map(([k, [t]]) => `<button class="glas-panel chip" data-act="aw-vorlage" data-v="${k}">${t}</button>`).join('')}</div></div>
-      <div class="glas-panel liste aw-wahl"><div class="gruppe">Bausteine · ein/aus, Reihenfolge, Größe im Raster (Breite 1–4 Spalten, Höhe 1–6 Zeilen)</div>
+      <div class="glas-panel liste aw-wahl"><div class="gruppe">Bausteine · ein/aus, Reihenfolge, Größe (nur Stufen, die zum Inhalt passen)</div>
         ${L.map((x, i) => `<div class="zeile"><div><b>${AW_BAUSTEINE[x.k][0]}</b><div class="leise">${AW_BAUSTEINE[x.k][1]}</div></div>
           <div class="aw-wahl-k"><button class="glas-panel chip" data-act="aw-hoch" data-i="${i}" ${i ? '' : 'disabled'} aria-label="nach oben">↑</button><button class="glas-panel chip" data-act="aw-runter" data-i="${i}" ${i < L.length - 1 ? '' : 'disabled'} aria-label="nach unten">↓</button>
-            ${gr(i, x, 'w', 4)}${gr(i, x, 'h', 6)}${schalter(x.an, 'aw-an', `data-i="${i}"`)}</div></div>`).join('')}
+            <div class="seg klein">${awStufen(x.k).map(([n, w, h]) => `<button data-act="aw-stufe" data-i="${i}" data-v="${n}" class="${x.st === n ? 'on' : ''}" title="${w}×${h}">${n}</button>`).join('')}</div>${schalter(x.an, 'aw-an', `data-i="${i}"`)}</div></div>`).join('')}
         <button class="zeile" data-act="aw-standard"><span class="blau">Auf Vorschlag zurücksetzen</span></button></div>`;
     const an = L.filter(x => x.an);
     return `${this.awKopf(D, kopf)}
       ${layout ? '<div class="leise aw-hinweis">Kachel am Griff ⠿ ziehen zum Verschieben · am Griff ◢ ziehen für die Größe (rastet im Raster ein) · ✕ blendet aus</div>' : ''}
       ${an.length ? `<div class="aw-raster ${layout ? 'layout' : ''}">${an.map((x, i) => `<div class="aw-frei-s" data-i="${i}" style="--w:${x.w};--h:${x.h}">
-          <div class="aw-inhalt">${this.awStueck(x.k, D)}</div>
-          ${layout ? `<div class="aw-ueber"><span class="aw-griff" data-zug="move" title="verschieben">⠿</span><span class="aw-name">${AW_BAUSTEINE[x.k][0]} · <b class="aw-mass">${x.w}×${x.h}</b></span>
+          <div class="aw-inhalt">${this.awStueck(x.k, D, x)}</div>
+          ${layout ? `<div class="aw-ueber"><span class="aw-griff" data-zug="move" title="verschieben">⠿</span><span class="aw-name">${AW_BAUSTEINE[x.k][0]} · <b class="aw-mass">${x.st}</b></span>
             <button class="aw-x" data-act="aw-weg" data-i="${i}" aria-label="ausblenden">✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : ''}</div>`).join('')}</div>`
         : '<div class="leer">Nichts ausgewählt – „✎ Anpassen“</div>'}`;
   }
@@ -1048,9 +1063,9 @@ class App {
     let ziel = null;
     const bewegt = e => {
       if (art === 'size') {
-        item.w = Math.max(1, Math.min(4, Math.round(w0 + (e.clientX - x0) / (breite + luecke))));
-        item.h = Math.max(1, Math.min(6, Math.round(h0 + (e.clientY - y0) / (hoehe + luecke))));
-        kachel.style.setProperty('--w', item.w); kachel.style.setProperty('--h', item.h); if (mass) mass.textContent = `${item.w}×${item.h}`;
+        const st = awStufe(item.k, w0 + (e.clientX - x0) / (breite + luecke), h0 + (e.clientY - y0) / (hoehe + luecke));   // rastet auf Stufen ein (FE-0006)
+        Object.assign(item, { w: st[1], h: st[2], st: st[0] });
+        kachel.style.setProperty('--w', item.w); kachel.style.setProperty('--h', item.h); if (mass) mass.textContent = item.st;
       } else {
         kachel.style.transform = `translate(${e.clientX - x0}px, ${e.clientY - y0}px)`;
         kachel.style.pointerEvents = 'none';
@@ -1074,13 +1089,34 @@ class App {
       if (!Array.isArray(l)) { this.awVorlage('misch'); return this.s.awListe; }
       const standard = AW_STANDARD.map(([k, an, b]) => ({ k, an, w: b ? 4 : 2, h: AW_HOEHE[k] || 2 }));
       const bekannt = Array.isArray(l) ? l.filter(x => x && AW_BAUSTEINE[x.k]).map(x => ({ k: x.k, an: !!x.an, w: x.w || (x.b ? 4 : 2), h: x.h || AW_HOEHE[x.k] || 2 })) : [];
-      this.s.awListe = [...bekannt, ...standard.filter(x => !bekannt.some(y => y.k === x.k))]; }
+      this.s.awListe = [...bekannt, ...standard.filter(x => !bekannt.some(y => y.k === x.k))].map(x => this.awGross(x)); }
     return this.s.awListe;
   }
   awVorlage(name) {
     const v = AW_VORLAGEN[name][1], rest = Object.keys(AW_BAUSTEINE).filter(k => !v.some(x => x[0] === k));
-    this.s.awListe = [...v.map(([k, w, h]) => ({ k, an: true, w, h })), ...rest.map(k => ({ k, an: false, w: 4, h: AW_HOEHE[k] || 2 }))];
+    this.s.awListe = [...v.map(([k, w, h]) => ({ k, an: true, w, h })), ...rest.map(k => ({ k, an: false, w: 4, h: AW_HOEHE[k] || 2 }))].map(x => this.awGross(x));
     this.awMerken();
+  }
+  awGross(x) { const st = awStufe(x.k, x.w, x.h); return { ...x, w: st[1], h: st[2], st: st[0] }; }   // FE-0006: auf eine Stufe
+  /* FE-0006: Verbrauch als Kachel – gestapelt je Container oder Firma, füllt die Kachel, Achsen kompakt, Legende in einer Zeile */
+  awDiagramm(D, gr) {
+    const gruppe = this.s.awGruppe === 'firma' ? 'firma' : 'container', z = D.z, n0 = verbrauch(this.d.bereiche, null, z).length;
+    const reihen = gruppe === 'firma'
+      ? D.firmen.map((x, i) => ({ name: x.f.name, farbe: ['var(--s1)', 'var(--s2)', 'var(--s3)', '#bf5af2'][i % 4], v: x.c.map(c => verbrauch(c.l.bereiche, c.b.id, z)).reduce((a, v) => a.map((q, j) => q + (v[j] || 0)), Array(n0).fill(0)) }))
+      : D.container.map(c => ({ name: c.b.name, farbe: BEREICH_FARBEN[c.b.f % 6], v: verbrauch(c.l.bereiche, c.b.id, z) }));
+    const n = Math.max(1, ...reihen.map(r => r.v.length)), summen = [...Array(n)].map((_, i) => reihen.reduce((a, r) => a + (r.v[i] || 0), 0));
+    const W = gr.w * 160, H = Math.max(90, gr.h * 110 + (gr.h - 1) * 12 - 78), L = 30, R = 6, T = 6, U = 16, hi = Math.max(...summen) * 1.1 || 1;
+    const stufe = hi > 200 ? 100 : hi > 40 ? 20 : hi > 12 ? 5 : hi > 4 ? 2 : 1, y = v => T + (1 - v / hi) * (H - T - U), bw = (W - L - R) / n;
+    const label = i => z === 'Tag' ? String(i).padStart(2, '0') : z === 'Woche' ? TAGE[i] : z === 'Jahr' ? MONATE[i] : String(i + 1), jedes = Math.max(1, Math.ceil(n / (gr.w * 4)));
+    const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_, q) => q * stufe).map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="gr"/><text x="${L - 4}" y="${(y(v) + 3).toFixed(1)}" class="ax" text-anchor="end">${v}</text>`).join('');
+    const bars = [...Array(n)].map((_, i) => { let unten = 0;
+      return reihen.map(r => { const v = r.v[i] || 0; if (!v) return ''; const y1 = y(unten + v), y0 = y(unten); unten += v;
+        return `<rect x="${(L + i * bw + bw * .12).toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw * .76).toFixed(1)}" height="${Math.max(0, y0 - y1).toFixed(1)}" fill="${r.farbe}" rx="1.5"><title>${label(i)} · ${esc(r.name)} · ${de(v, 1)} kWh</title></rect>`; }).join('')
+        + (i % jedes === 0 ? `<text x="${(L + i * bw + bw / 2).toFixed(1)}" y="${H - 3}" class="ax" text-anchor="middle">${label(i)}</text>` : ''); }).join('');
+    return `<div class="glas-panel aw-dia"><div class="aw-dia-kopf"><b>Verbrauch</b><span class="leise">${D.zText} · ${de(D.kwh, 0)} kWh</span>
+        <div class="seg klein">${[['container', 'Container'], ['firma', 'Firma']].map(([k, t]) => `<button data-act="aw-gruppe" data-v="${k}" class="${gruppe === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+      <svg class="aw-dia-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${raster}${bars}</svg>
+      <div class="aw-dia-leg">${reihen.map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}<span class="leise">kWh je ${{ Tag: 'Stunde', Woche: 'Tag', Monat: 'Tag', Jahr: 'Monat' }[z]}</span></div></div>`;
   }
   awMerken() { try { localStorage.setItem('baustelle-aw-bausteine', JSON.stringify(this.s.awListe)); } catch (e) { /* egal */ } }
 
@@ -1767,6 +1803,8 @@ class App {
       case 'aw-vorlage': this.awVorlage(el.dataset.v); neu(); return this.toast(`Vorlage „${AW_VORLAGEN[el.dataset.v][0]}“ übernommen – frei weiter anpassbar`);
       case 'aw-layout': this.s.awLayout = !this.s.awLayout; this.s.awBearb = false; return neu();
       case 'aw-weg': { const x = this.awAuswahl().filter(y => y.an)[+el.dataset.i]; x.an = false; this.awMerken(); return neu(); }
+      case 'aw-stufe': { const x = this.awAuswahl()[+el.dataset.i], st = awStufen(x.k).find(q => q[0] === el.dataset.v); if (!st) return; Object.assign(x, { w: st[1], h: st[2], st: st[0] }); this.awMerken(); return neu(); }
+      case 'aw-gruppe': this.s.awGruppe = el.dataset.v; return neu();
       case 'aw-gr': { const x = this.awAuswahl()[+el.dataset.i], k = el.dataset.k; x[k] = Math.max(1, Math.min(k === 'w' ? 4 : 6, x[k] + +el.dataset.d)); this.awMerken(); return neu(); }
       case 'aw-detail': this.s.sheet = { art: 'aw-detail', k: el.dataset.k }; return neu();
       case 'cvd': this.s.cvd = el.dataset.v; return neu();

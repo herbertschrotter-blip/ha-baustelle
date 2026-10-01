@@ -675,6 +675,12 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .c-power:disabled { opacity: .35; cursor: not-allowed; } .c-aktiv { display: flex; flex-direction: column; align-items: center; gap: 2px; } .c-aktiv small { font-size: 10px; color: var(--ink2); }
 @media (max-width: 700px) { .c-d-held { grid-template-columns: 1fr; } .c-kern { justify-self: center; } .c-kacheln { grid-template-columns: repeat(2, 1fr); } }
 /* Auswertung aus Bausteinen (WU-0005) */
+.aw-dia { display: flex; flex-direction: column; height: 100%; box-sizing: border-box; padding: 12px 14px; gap: 6px; }
+.aw-dia-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; } .aw-dia-kopf .seg { margin: 0 0 0 auto; }
+.aw-dia-svg { flex: 1; width: 100%; min-height: 0; } .aw-dia-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--ink2); }
+.aw-dia-leg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.aw-klein .aw-rang-z { width: 100%; grid-template-columns: 1fr 1fr auto; background: none; border: 0; color: var(--ink); font: inherit; padding: 6px 0; cursor: pointer; text-align: left; }
+.aw-klein .aw-rang-z em { font-style: normal; color: var(--ink2); }
 .aw-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; } .aw-hinweis { margin: -4px 2px 10px; }
 .aw-leiste { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; } .aw-leiste .seg { margin: 0; }
 .aw-delta { font-style: normal; font-size: 12px; margin-left: 6px; } .aw-delta.mehr { color: #ff9f0a; } .aw-delta.weniger { color: #30d158; } .gruen-t { color: #30d158; }
@@ -1104,6 +1110,16 @@ const AW_BAUSTEINE = {
   ohne: ['Ohne Automatik', 'Vergleich mit Dauerbetrieb'], hochrechnung: ['Hochrechnung Heizperiode', 'bis Ende der Heizperiode'], vergleich: ['Ölradiator oder Konvektor', 'Tabelle'],
   leistung: ['Leistung heute', 'Diagramm heute'], links: ['Weitere Auswertungen', 'Liste zum Antippen'],
 };
+/* FE-0006: Größenstufen je Baustein [Name, Breite, Höhe] – nur Größen, die zum Inhalt passen (Mockup glas.html) */
+const ST_KACHEL = [['S', 1, 1], ['M', 2, 1], ['L', 2, 2]];
+const AW_STUFEN = {
+  betrag: [['M', 2, 2], ['L', 4, 2]], kennzahlen: [['M', 2, 2], ['L', 4, 2]], rangliste: [['M', 2, 3], ['L', 4, 3], ['XL', 4, 4]],
+  verlauf: [['S', 2, 2], ['M', 2, 3], ['L', 4, 3], ['XL', 4, 4]], erkenntnisse: [['M', 2, 2], ['L', 4, 2]], abrechnung: [['M', 2, 4], ['L', 4, 4]],
+  links: [['M', 2, 3], ['L', 4, 3]], geraete: [['L', 4, 4]], temperaturen: [['M', 2, 3], ['L', 4, 3]], wetter: [['S', 1, 1], ['M', 2, 3], ['L', 4, 3]],
+  ohne: [['M', 2, 2], ['L', 4, 2]], hochrechnung: [['M', 2, 3], ['L', 4, 2]], vergleich: [['M', 2, 3], ['L', 4, 3]], leistung: [['M', 2, 3], ['L', 4, 3]],
+};
+const awStufen = k => AW_STUFEN[k] || ST_KACHEL;
+const awStufe = (k, w, h) => awStufen(k).reduce((best, st) => { const dd = Math.abs(st[1] - w) * 2 + Math.abs(st[2] - h); return dd < best[0] ? [dd, st] : best; }, [1e9, null])[1];
 const AW_HOEHE = { betrag: 2, kennzahlen: 2, rangliste: 4, verlauf: 4, erkenntnisse: 2, abrechnung: 4, links: 3, geraete: 4, temperaturen: 4, wetter: 4, ohne: 2, hochrechnung: 3, vergleich: 3, leistung: 3 };
 /* Vorlagen = die Varianten 1–5 des Mockups [Schlüssel, Breite 1–4, Höhe 1–6] */
 const AW_VORLAGEN = {
@@ -1117,7 +1133,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.3';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.4';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1840,7 +1856,8 @@ class BaustellePanel extends HTMLElement {
     if (Math.abs(ms - Date.now()) < 30 * 6e4) return s.state === 'below_horizon';
     const a = s.attributes || {}, hm = t => { const l = this.lokal(t); return l ? +l.slice(11, 13) * 60 + +l.slice(14, 16) : null; };
     const auf = hm(a.next_rising), ab = hm(a.next_setting), m = hm(ms);
-    return auf !== null && ab !== null && m !== null && (m < auf || m >= ab);
+    if (auf === null || ab === null || m === null) return false;
+    return auf < ab ? m < auf || m >= ab : m >= ab && m < auf;   // Tag zwischen Aufgang und Untergang (auch über Mitternacht gerechnet)
   }
 
   /* ---- Übersicht ---- */
@@ -2291,13 +2308,15 @@ class BaustellePanel extends HTMLElement {
       if (!Array.isArray(l)) this.awVorlage('misch', false);
       else { const bekannt = l.filter(x => x && AW_BAUSTEINE[x.k]).map(x => ({ k: x.k, an: !!x.an, w: Math.min(4, Math.max(1, +x.w || 2)), h: Math.min(6, Math.max(1, +x.h || 2)) }));
         this.s.awListe = [...bekannt, ...Object.keys(AW_BAUSTEINE).filter(k => !bekannt.some(x => x.k === k)).map(k => ({ k, an: false, w: 4, h: AW_HOEHE[k] || 2 }))]; } }
+    this.s.awListe = this.s.awListe.map(x => x.st ? x : this.awGross(x));
     return this.s.awListe;
   }
   awVorlage(name, merken = true) {
     const v = AW_VORLAGEN[name][1], rest = Object.keys(AW_BAUSTEINE).filter(k => !v.some(x => x[0] === k));
-    this.s.awListe = [...v.map(([k, w, h]) => ({ k, an: true, w, h })), ...rest.map(k => ({ k, an: false, w: 4, h: AW_HOEHE[k] || 2 }))];
+    this.s.awListe = [...v.map(([k, w, h]) => ({ k, an: true, w, h })), ...rest.map(k => ({ k, an: false, w: 4, h: AW_HOEHE[k] || 2 }))].map(x => this.awGross(x));
     if (merken) this.awMerken();
   }
+  awGross(x) { const st = awStufe(x.k, x.w, x.h); return { ...x, w: st[1], h: st[2], st: st[0] }; }   // FE-0006: immer auf eine Stufe
   awMerken() { try { localStorage.setItem(AW_SPEICHER, JSON.stringify(this.s.awListe)); } catch (e) { /* egal */ } }
   /* „Was fällt auf“: die Integration wählt aus (logik/auswertung.erkenntnisse), die Seite macht nur den Text */
   awErkenntnisse(A, z) {
@@ -2311,7 +2330,7 @@ class BaustellePanel extends HTMLElement {
       typ: ['⚖', x.weniger > 0 ? `Ölradiator ${de(x.weniger, 0)} % sparsamer` : `Konvektor ${de(-x.weniger, 0)} % sparsamer`, 'aus eigenen Messungen je Heizstunde.', 'vergleich'],
     })[x.art]).filter(Boolean);
   }
-  awStueck(k, B, A, z) {
+  awStueck(k, B, A, z, gr = { w: 4, h: 4 }) {
     const d = this.d, S = (A && A.summen) || {}, oa = S.ohne_automatik, h = A && A.hochrechnung, rang = (A && A.rangliste) || [], p = d.e.preis;
     const kachel = (kk, inhalt) => `<button class="glas-panel aw-k" data-act="aw-detail" data-k="${kk}">${inhalt}</button>`, laed = !A;
     const eur = zahl(S.eur) ? `${de(S.eur, 2)} €` : '–', max = Math.max(1, ...rang.map(c => c.kwh || 0)), wann = { Tag: 'HEUTE', Woche: 'DIESE WOCHE', Monat: 'DIESER MONAT', Jahr: 'DIESES JAHR' }[z];
@@ -2321,7 +2340,10 @@ class BaustellePanel extends HTMLElement {
           <span>${zahl(S.kwh) ? de(S.kwh, 0) : '–'} kWh ${this.awDelta((S.veraenderung || {}).kwh)} <span class="leise">zu ${this.awVgl(z)}</span></span></div>
         <div class="aw-betrag-r"><div><small>GESPART DURCH AUTOMATIK</small><b class="gruen-t">${oa ? `${de(oa.gespart_eur, 0)} €` : '–'}</b></div>
           <div><small>HOCHRECHNUNG HEIZPERIODE</small><b>${h && zahl(h.mit_eur) ? `≈ ${de(h.mit_eur, 0)} €` : '–'}</b></div></div></div>`;
-      case 'rangliste': return `<div class="glas-panel block"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">antippen öffnet den Container</span></div>
+      case 'rangliste': if (gr.w <= 2) return `<div class="glas-panel block aw-klein"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">Top 3</span></div>
+          ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch</div>' : rang.slice(0, 3).map((c, i) => { const hier = d.bereiche.find(b => b.id === c.bereich);
+            return `<button class="aw-rang aw-rang-z" ${hier ? `data-act="container" data-id="${esc(c.bereich)}"` : 'disabled'}><span><em>${i + 1}</em> ${esc(c.name)}</span><i style="width:${(c.kwh || 0) / max * 100}%;background:${hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : 'var(--ink2)'}"></i><em>${de(c.kwh, 0)} kWh · ${de(c.eur, 2)} €</em></button>`; }).join('')}</div>`;
+        return `<div class="glas-panel block"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">antippen öffnet den Container</span></div>
         ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : `<div class="aw-tab-kopf"><span></span><span>kWh</span><span>€</span><span>Heizzeit</span><span>kWh/h</span><span>jetzt</span></div>
         ${rang.map((c, i) => { const hier = d.bereiche.find(b => b.id === c.bereich), farbe = hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : 'var(--ink2)';
           return `<button class="aw-tab-zeile" ${hier ? `data-act="container" data-id="${esc(c.bereich)}"` : 'disabled'}><span class="aw-tab-name"><span><em>${i + 1}</em>${esc(c.name)}</span>${this.s.awScope === 'alle' ? `<small>${esc(c.baustelle || '')}</small>` : ''}
@@ -2341,8 +2363,29 @@ class BaustellePanel extends HTMLElement {
       case 'k-temp': return kachel('temperaturen', `<small>TEMPERATUREN JETZT</small>${d.bereiche.filter(b => !b.pumpe && b.t !== null).slice(0, 4).map(b => `<div class="aw-zeile"><span>${esc(b.name)}</span><b>${de(b.t)} °C</b></div>`).join('') || '<span>kein Fühler</span>'}`);
       case 'links': return `<div class="glas-panel liste">${[['abrechnung', '💶 Abrechnung nach Firma'], ['geraete', '♨ Je Gerät'], ['temperaturen', '🌡 Temperaturen'], ['wetter', '🌦 Wetter-Einfluss'], ['vergleich', '⚖ Ölradiator oder Konvektor'], ['hochrechnung', '📅 Hochrechnung Heizperiode']]
         .filter(([kk]) => B[kk]).map(([kk, t]) => `<button class="zeile" data-act="aw-detail" data-k="${kk}"><span>${t}</span><span class="chev">›</span></button>`).join('')}</div>`;
+      case 'verlauf': return this.awDiagramm(z, gr);   // FE-0006: füllt die Kachel, ohne eigene Zeitraum-Leiste
+      case 'wetter': return gr.w <= 1 ? this.awStueck('k-wetter', B, A, z) : B.wetter;
       default: return B[k] || '';
     }
+  }
+  /* FE-0006: Verbrauch als Kachel – gestapelt je Container/Baustelle oder Firma (quellen wie das große Diagramm), füllt die Kachel */
+  awDiagramm(z, gr) {
+    const st = this.s.aw, Q = this.quellen(st, 'aw'), werte = Q.map(q => ({ q, v: q.v(z) }));
+    const alle = this.s.awScope === 'alle', firma = st.gruppe === 'firma', kopf = `<div class="aw-dia-kopf"><b>Verbrauch</b>
+      <div class="seg klein">${[['teil', alle ? 'Baustelle' : 'Container'], ['firma', 'Firma']].map(([k, t]) => `<button data-act="vb-gruppe" data-ziel="aw" data-v="${k}" class="${(firma ? 'firma' : 'teil') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
+    if (werte.some(x => !x.v)) return `<div class="glas-panel aw-dia">${kopf}${LAEDT}</div>`;
+    const zr = this.zeitraum(z), labels = zr.labels, n = labels.length, reihen = werte.map(({ q, v }) => ({ name: q.name, farbe: q.farbe, v }));
+    const summen = labels.map((_, i) => reihen.reduce((a, r) => a + (r.v[i] || 0), 0)), ges = summe(summen);
+    const W = gr.w * 160, H = Math.max(90, gr.h * 110 + (gr.h - 1) * 12 - 78), L = 30, R = 6, T = 6, U = 16, hi = Math.max(...summen, 0) * 1.1 || 1;
+    const stufe = hi > 200 ? 100 : hi > 40 ? 20 : hi > 12 ? 5 : hi > 4 ? 2 : hi > 1.5 ? .5 : .2, y = v => T + (1 - v / hi) * (H - T - U), bw = (W - L - R) / n, jedes = Math.max(1, Math.ceil(n / (gr.w * 4)));
+    const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_, q) => q * stufe).map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="gr"/><text x="${L - 4}" y="${(y(v) + 3).toFixed(1)}" class="ax" text-anchor="end">${de(v, stufe < 1 ? 1 : 0)}</text>`).join('');
+    const bars = labels.map((lab, i) => { let unten = 0;
+      return reihen.map(r => { const v = r.v[i] || 0; if (!(v > 0)) return ''; const y1 = y(unten + v), y0 = y(unten); unten += v;
+        return `<rect x="${(L + i * bw + bw * .12).toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw * .76).toFixed(1)}" height="${Math.max(0, y0 - y1).toFixed(1)}" fill="${r.farbe}" rx="1.5"><title>${esc(String(lab))} · ${esc(r.name)} · ${de(v, 1)} kWh</title></rect>`; }).join('')
+        + (i % jedes === 0 ? `<text x="${(L + i * bw + bw / 2).toFixed(1)}" y="${H - 3}" class="ax" text-anchor="middle">${esc(String(lab))}</text>` : ''); }).join('');
+    return `<div class="glas-panel aw-dia">${kopf}
+      <svg class="aw-dia-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${raster}${bars}</svg>
+      <div class="aw-dia-leg">${reihen.map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}<span class="leise">${de(ges, ges < 100 ? 1 : 0)} kWh · kWh je ${{ Tag: 'Stunde', Woche: 'Tag', Monat: 'Tag', Jahr: 'Monat' }[z]}</span></div></div>`;
   }
   awSeite(B, A, z, alle) {
     const d = this.d, L = this.awAuswahl(), bearb = this.s.awBearb, layout = this.s.awLayout;
@@ -2352,21 +2395,21 @@ class BaustellePanel extends HTMLElement {
     const leiste = `<div class="aw-leiste"><div class="seg glas-panel">${['Tag', 'Woche', 'Monat', 'Jahr'].map(t => `<button data-act="vb-zeitraum" data-ziel="aw" data-v="${t}" class="${z === t ? 'on' : ''}">${t}</button>`).join('')}</div>
       <div class="seg glas-panel">${[['diese', 'Diese Baustelle'], ['alle', `Alle laufenden (${this.laufende().length})`]].map(([k, t]) => `<button data-act="aw-scope" data-v="${k}" class="${(this.s.awScope || 'diese') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
     if (bearb) {
-      const gr = (i, x, k, max) => `<span class="aw-gr"><small>${k === 'w' ? 'Breite' : 'Höhe'}</small><button class="glas-panel chip" data-act="aw-gr" data-i="${i}" data-k="${k}" data-d="-1" ${x[k] <= 1 ? 'disabled' : ''}>−</button><b>${x[k]}</b><button class="glas-panel chip" data-act="aw-gr" data-i="${i}" data-k="${k}" data-d="1" ${x[k] >= max ? 'disabled' : ''}>+</button></span>`;
+      const _gr = (i, x, k, max) => `<span class="aw-gr"><small>${k === 'w' ? 'Breite' : 'Höhe'}</small><button class="glas-panel chip" data-act="aw-gr" data-i="${i}" data-k="${k}" data-d="-1" ${x[k] <= 1 ? 'disabled' : ''}>−</button><b>${x[k]}</b><button class="glas-panel chip" data-act="aw-gr" data-i="${i}" data-k="${k}" data-d="1" ${x[k] >= max ? 'disabled' : ''}>+</button></span>`;
       return `${kopf}${leiste}
         <div class="glas-panel block aw-vorlagen"><div class="block-kopf"><b>Vorlage</b><span class="leise">stellt Bausteine, Reihenfolge und Größe ein – danach frei anpassbar</span></div>
           <div class="aw-vorlagen-k">${Object.entries(AW_VORLAGEN).map(([k, [t]]) => `<button class="glas-panel chip" data-act="aw-vorlage" data-v="${k}">${t}</button>`).join('')}</div></div>
-        <div class="glas-panel liste aw-wahl"><div class="gruppe">Bausteine · ein/aus, Reihenfolge, Größe im Raster (Breite 1–4, Höhe 1–6)</div>
+        <div class="glas-panel liste aw-wahl"><div class="gruppe">Bausteine · ein/aus, Reihenfolge, Größe (nur Stufen, die zum Inhalt passen)</div>
           ${L.map((x, i) => `<div class="zeile"><div><b>${AW_BAUSTEINE[x.k][0]}</b><div class="leise">${AW_BAUSTEINE[x.k][1]}${alle && !B[x.k] && B[x.k] !== undefined ? ' · nur für diese Baustelle' : ''}</div></div>
             <div class="aw-wahl-k"><button class="glas-panel chip" data-act="aw-hoch" data-i="${i}" ${i ? '' : 'disabled'} aria-label="nach oben">↑</button><button class="glas-panel chip" data-act="aw-runter" data-i="${i}" ${i < L.length - 1 ? '' : 'disabled'} aria-label="nach unten">↓</button>
-              ${gr(i, x, 'w', 4)}${gr(i, x, 'h', 6)}${schalter(x.an, 'aw-an', `data-i="${i}"`)}</div></div>`).join('')}
+              <div class="seg klein">${awStufen(x.k).map(([n, w, h]) => `<button data-act="aw-stufe" data-i="${i}" data-v="${n}" class="${x.st === n ? 'on' : ''}" title="${w}×${h}">${n}</button>`).join('')}</div>${schalter(x.an, 'aw-an', `data-i="${i}"`)}</div></div>`).join('')}
           <button class="zeile" data-act="aw-vorlage" data-v="misch"><span class="blau">Auf Vorschlag zurücksetzen</span></button></div>`;
     }
-    const an = L.filter(x => x.an), teile = an.map((x, i) => ({ x, i, html: this.awStueck(x.k, B, A, z) })).filter(t => t.html);
+    const an = L.filter(x => x.an), teile = an.map((x, i) => ({ x, i, html: this.awStueck(x.k, B, A, z, x) })).filter(t => t.html);
     return `${kopf}${leiste}
       ${layout ? '<div class="leise aw-hinweis">Kachel am Griff ⠿ ziehen zum Verschieben · am Griff ◢ ziehen für die Größe (rastet im Raster ein) · ✕ blendet aus</div>' : ''}
       ${teile.length ? `<div class="aw-raster ${layout ? 'layout' : ''}">${teile.map(({ x, i, html }) => `<div class="aw-frei-s" data-i="${i}" style="--w:${x.w};--h:${x.h}"><div class="aw-inhalt">${html}</div>
-          ${layout ? `<div class="aw-ueber"><span class="aw-griff" data-zug="move" title="verschieben">⠿</span><span class="aw-name">${AW_BAUSTEINE[x.k][0]} · <b class="aw-mass">${x.w}×${x.h}</b></span>
+          ${layout ? `<div class="aw-ueber"><span class="aw-griff" data-zug="move" title="verschieben">⠿</span><span class="aw-name">${AW_BAUSTEINE[x.k][0]} · <b class="aw-mass">${x.st}</b></span>
             <button class="aw-x" data-act="aw-weg" data-i="${i}" aria-label="ausblenden">✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : ''}</div>`).join('')}</div>`
         : '<div class="leer">Nichts ausgewählt – „✎ Anpassen“</div>'}`;
   }
@@ -2383,9 +2426,9 @@ class BaustellePanel extends HTMLElement {
     let ziel = null;
     const bewegt = e => {
       if (art === 'size') {
-        item.w = Math.max(1, Math.min(4, Math.round(w0 + (e.clientX - x0) / (breite + luecke))));
-        item.h = Math.max(1, Math.min(6, Math.round(h0 + (e.clientY - y0) / (hoehe + luecke))));
-        kachel.style.setProperty('--w', item.w); kachel.style.setProperty('--h', item.h); if (mass) mass.textContent = `${item.w}×${item.h}`;
+        const st = awStufe(item.k, w0 + (e.clientX - x0) / (breite + luecke), h0 + (e.clientY - y0) / (hoehe + luecke));   // rastet auf Stufen ein (FE-0006)
+        Object.assign(item, { w: st[1], h: st[2], st: st[0] });
+        kachel.style.setProperty('--w', item.w); kachel.style.setProperty('--h', item.h); if (mass) mass.textContent = item.st;
       } else {
         kachel.style.transform = `translate(${e.clientX - x0}px, ${e.clientY - y0}px)`; kachel.style.pointerEvents = 'none';
         const unter = (wurzel.elementFromPoint ? wurzel : document).elementFromPoint(e.clientX, e.clientY), k = unter && unter.closest && unter.closest('.aw-frei-s');
@@ -3189,6 +3232,7 @@ class BaustellePanel extends HTMLElement {
       case 'aw-layout': S.awLayout = !S.awLayout; S.awBearb = false; return neu();
       case 'aw-an': { const x = this.awAuswahl()[+el.dataset.i]; x.an = !x.an; this.awMerken(); return neu(); }
       case 'aw-weg': { const x = this.awAuswahl().filter(y => y.an)[+el.dataset.i]; if (x) x.an = false; this.awMerken(); return neu(); }
+      case 'aw-stufe': { const x = this.awAuswahl()[+el.dataset.i], st = awStufen(x.k).find(q => q[0] === el.dataset.v); if (!st) return; Object.assign(x, { w: st[1], h: st[2], st: st[0] }); this.awMerken(); return neu(); }
       case 'aw-gr': { const x = this.awAuswahl()[+el.dataset.i], k = el.dataset.k; x[k] = Math.max(1, Math.min(k === 'w' ? 4 : 6, x[k] + +el.dataset.d)); this.awMerken(); return neu(); }
       case 'aw-hoch': case 'aw-runter': { const Lg = this.awAuswahl(), i = +el.dataset.i, j = a === 'aw-hoch' ? i - 1 : i + 1; if (j < 0 || j >= Lg.length) return; [Lg[i], Lg[j]] = [Lg[j], Lg[i]]; this.awMerken(); return neu(); }
       case 'aw-vorlage': this.awVorlage(el.dataset.v); neu(); return this.toast(`Vorlage „${AW_VORLAGEN[el.dataset.v][0]}“ übernommen`);

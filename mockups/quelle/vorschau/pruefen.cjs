@@ -6,7 +6,7 @@ const el = () => ({ classList: { add() {}, remove() {}, toggle() {} }, style: { 
 class Root { constructor() { this.teile = {}; } set innerHTML(v) {} addEventListener() {} querySelector(s) { return this.teile[s] ||= el(); } querySelectorAll() { return []; } contains() { return true; } getBoundingClientRect() { return { left: 0, top: 0, width: 390 }; } }
 let root; global.document = { querySelectorAll: s => s === '.app' ? [root = new Root()] : [], getElementById: () => ({}), body: { classList: { contains: () => false } } };
 console.warn = () => {};
-const { A, CH } = new Function('document', script.replace("document.querySelectorAll('.app').forEach(el => new App(el));", 'document.querySelectorAll(".app").forEach(el => new App(el));') + '; return { A: APPS[0], CH: CHARTS };')(global.document);
+const { A, CH, awStufenErste } = new Function('document', script.replace("document.querySelectorAll('.app').forEach(el => new App(el));", 'document.querySelectorAll(".app").forEach(el => new App(el));') + '; return { A: APPS[0], CH: CHARTS, awStufenErste: k => awStufen(k)[0][0] };')(global.document);
 const f = [], ui = () => root.teile['.ui'].innerHTML, klick = ds => A.klick({ target: { closest: () => ({ dataset: ds }) } });
 const pr = w => { if (/undefined|NaN|Infinity|\[object|>null</.test(ui().replace(/data-[a-z]+="[^"]*"/g, ''))) f.push(w + ': ' + (ui().match(/.{40}(undefined|NaN|Infinity|\[object|>null<).{15}/) || [''])[0]); };
 const eing = (ds, value) => A.eingabe({ target: { dataset: ds, value } });
@@ -61,6 +61,14 @@ if (require.main === module) {
   klick({ act: 'aw-bearb' }); if (!ui().includes('data-act="aw-vorlage"')) f.push('Variante 6: Vorlagen fehlen');
   for (const v of ['kacheln', 'kosten', 'wer', 'verlauf', 'misch']) { klick({ act: 'aw-vorlage', v }); if (!A.awAuswahl()[0].an) f.push('Vorlage ' + v); }
   klick({ act: 'aw-vorlage', v: 'wer' }); klick({ act: 'aw-bearb' }); pr('aw vorlage wer'); if (!ui().includes('aw-tab-zeile')) f.push('Vorlage wer: Rangliste fehlt');
+  /* FE-0006: jede Stufe jedes Bausteins rendert, Kachel-Diagramm je Container/Firma */
+  klick({ act: 'tab', v: 'auswertung' }); klick({ act: 'aw-bearb' }); A.awAuswahl().forEach((x, i) => { if (!x.an) klick({ act: 'aw-an', i: String(i) }); });
+  A.awAuswahl().forEach((x, i) => ['S', 'M', 'L', 'XL'].forEach(n => { klick({ act: 'aw-stufe', i: String(i), v: n }); }));
+  if (!A.awAuswahl().every(x => x.st)) f.push('FE-0006: Stufe fehlt'); klick({ act: 'aw-bearb' }); pr('alle bausteine groesste stufe');
+  if (!ui().includes('aw-dia-svg')) f.push('FE-0006: Kachel-Diagramm fehlt');
+  for (const g of ['firma', 'container']) for (const z of ['Tag', 'Woche', 'Monat', 'Jahr']) { klick({ act: 'aw-gruppe', v: g }); klick({ act: 'vb-zeitraum', ziel: 'aw', v: z }); pr(`dia ${g} ${z}`); }
+  klick({ act: 'aw-bearb' }); A.awAuswahl().forEach((x, i) => klick({ act: 'aw-stufe', i: String(i), v: awStufenErste(x.k) })); klick({ act: 'aw-bearb' }); pr('alle bausteine kleinste stufe');
+  klick({ act: 'aw-bearb' }); klick({ act: 'aw-vorlage', v: 'misch' }); klick({ act: 'aw-bearb' });
   klick({ act: 'aw-scope', v: 'diese' });
   console.log(f.length ? f.join('\n') : 'Grundprüfung sauber');
 }

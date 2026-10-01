@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.4] – 2026-10-01
+
+- Auswertung (FE-0006): **Größenstufen je Baustein** (S/M/L/XL) – nur Größen, die zum Inhalt passen; Ziehen rastet auf
+  die nächste Stufe ein, „Anpassen“ wählt die Stufe. Der Inhalt passt sich an (z. B. Rangliste klein = Top 3, Wetter
+  klein = nur die Zahl).
+- **Neues Verbrauchsdiagramm für Kacheln**: füllt die Kachel, gestapelt je Container/Baustelle oder Firma, kompakte
+  Achsen, Legende in einer Zeile, ohne eigene Zeitraum-Leiste.
+- Wetter nachts: die Erkennung „Nacht“ kommt jetzt auch mit Auf-/Untergang über Mitternacht zurecht.
+
 ## [0.8.3] – 2026-09-30
 
 - Auswertung neu (WU-0005, Mockup glas.html abgenommen): **aus Bausteinen selbst zusammenstellen** – Vorlagen

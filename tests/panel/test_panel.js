@@ -521,13 +521,14 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     panel._hass.states[en] = zustand; delete panel.cache[`s:${dd.entry}:Tag:${dd.z.HEUTE}`];
     erwarte(`WU-0002: Stunde 19 = 5-Minuten-Werte + Rest bis jetzt (${kw && kw[19]})`, kw && Math.abs(kw[18] - 1.0) < 1e-9 && Math.abs(kw[19] - (.75 + .15)) < 1e-9); }
   /* FE-0005: nachts meldet Open-Meteo „sunny“ – die Seite zeigt „Klar“ mit Mond, tagsüber weiter „Sonnig“ */
-  { const nacht = { state: 'below_horizon', attributes: { elevation: -20, next_rising: new Date(Date.now() + 8 * 36e5).toISOString(), next_setting: new Date(Date.now() + 20 * 36e5).toISOString() } };
+  { const morgen = new Date(Date.now() + 864e5).toISOString().slice(0, 10), um = hm => Date.parse(`${morgen}T${hm}:00+02:00`);   // feste Uhrzeiten (FE-0005, nicht relativ zu jetzt)
+    const nacht = { state: 'below_horizon', attributes: { elevation: -20, next_rising: new Date(um('07:10')).toISOString(), next_setting: new Date(um('18:40')).toISOString() } };
     const we = panel.d.wetterEid, sonnig = { entity_id: we, ...(states[we] || { attributes: { temperature: 12 } }), state: 'sunny' };
     panel.hass = { ...hass, states: { ...states, [we]: sonnig, 'sun.sun': nacht } }; await ruhe();
     await klick({ act: 'tab', v: 'uebersicht' }, 20);
     erwarte('FE-0005: nachts „Klar“ mit Mond statt „Sonnig“', ui.innerHTML.includes('aria-label="clear-night"') && /Klar/.test(ui.innerHTML) && !/Sonnig/.test(ui.innerHTML));
-    erwarte('FE-0005: Vorhersage-Stunde nach Sonnenuntergang', panel.nachtWetter('sunny', Date.now() + 21 * 36e5) === 'clear-night' && panel.nachtWetter('partlycloudy', Date.now() + 21 * 36e5) === 'partlycloudy-night'
-      && panel.nachtWetter('sunny', Date.now() + 12 * 36e5) === 'sunny' && panel.nachtWetter('rainy', Date.now() + 21 * 36e5) === 'rainy');
+    erwarte('FE-0005: Vorhersage-Stunde nach Sonnenuntergang', panel.nachtWetter('sunny', um('21:00')) === 'clear-night' && panel.nachtWetter('partlycloudy', um('05:00')) === 'partlycloudy-night'
+      && panel.nachtWetter('sunny', um('12:00')) === 'sunny' && panel.nachtWetter('rainy', um('21:00')) === 'rainy');
     panel.hass = { ...hass, states: { ...states, [we]: sonnig } }; await ruhe(); await klick({ act: 'tab', v: 'uebersicht' }, 20);
     erwarte('FE-0005: tagsüber weiter „Sonnig“', ui.innerHTML.includes('aria-label="sunny"') && /Sonnig/.test(ui.innerHTML));
     panel.hass = hass; await ruhe(); }
@@ -838,13 +839,21 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   { panel.s.awListe = null; await klick({ act: 'tab', v: 'auswertung' }, 30); pruefe('Auswertung Mischform');
     erwarte('WU-0005: Vorschlag Mischform mit Kosten groß, Rangliste, Was fällt auf', ['aw-betrag', 'Wer verbraucht was', 'aw-tab-zeile', 'aw-karte', 'Weitere Auswertungen'.slice(0, 0)].every(t => ui.innerHTML.includes(t)) && /€ gespart/.test(ui.innerHTML));
     await klick({ act: 'aw-bearb' }); pruefe('Auswertung anpassen');
-    erwarte('WU-0005: Anpassen mit Vorlagen 1–5 und Größe', (ui.innerHTML.match(/data-act="aw-vorlage"/g) || []).length >= 5 && ui.innerHTML.includes('data-act="aw-gr"'));
+    erwarte('WU-0005: Anpassen mit Vorlagen 1–5 und Größenstufen', (ui.innerHTML.match(/data-act="aw-vorlage"/g) || []).length >= 5 && ui.innerHTML.includes('data-act="aw-stufe"'));
     await klick({ act: 'aw-vorlage', v: 'kacheln' }); erwarte('WU-0005: Vorlage Kacheln', panel.awAuswahl()[0].k === 'k-kosten' && panel.awAuswahl().filter(x => x.an).length === 9);
-    await klick({ act: 'aw-gr', i: '0', k: 'h', d: '1' }); erwarte('WU-0005: Größe per −/+', panel.awAuswahl()[0].h === 3);
+    await klick({ act: 'aw-stufe', i: '0', v: 'L' }); erwarte('FE-0006: Stufe L = 2×2', panel.awAuswahl()[0].w === 2 && panel.awAuswahl()[0].h === 2 && panel.awAuswahl()[0].st === 'L');
+    await klick({ act: 'aw-stufe', i: '0', v: 'XL' }); erwarte('FE-0006: nur erlaubte Stufen', panel.awAuswahl()[0].st === 'L');
     await klick({ act: 'aw-runter', i: '0' }); erwarte('WU-0005: Reihenfolge', panel.awAuswahl()[1].k === 'k-kosten');
     await klick({ act: 'aw-layout' }); pruefe('Auswertung Layout');
     erwarte('WU-0005: Layout mit Griffen', ui.innerHTML.includes('data-zug="move"') && ui.innerHTML.includes('data-zug="size"') && ui.innerHTML.includes('aw-raster layout'));
     await klick({ act: 'aw-weg', i: '0' }); erwarte('WU-0005: ✕ blendet aus', panel.awAuswahl().filter(x => x.an).length === 8);
+    /* FE-0006: Kachel-Diagramm füllt die Kachel, je Firma umschaltbar; Rangliste klein = Top 3 */
+    await klick({ act: 'aw-layout' }); await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' });
+    const iv = panel.awAuswahl().findIndex(x => x.k === 'verlauf'), ir = panel.awAuswahl().findIndex(x => x.k === 'rangliste');
+    await klick({ act: 'aw-stufe', i: String(iv), v: 'S' }); await klick({ act: 'aw-stufe', i: String(ir), v: 'M' }); await klick({ act: 'aw-bearb' }); pruefe('Auswertung kleine Stufen');
+    erwarte('FE-0006: Kachel-Diagramm und Rangliste Top 3', ui.innerHTML.includes('aw-dia-svg') && ui.innerHTML.includes('aw-klein') && !ui.innerHTML.includes('aw-tab-kopf'));
+    await klick({ act: 'vb-gruppe', ziel: 'aw', v: 'firma' }, 30); pruefe('Kachel-Diagramm je Firma'); await klick({ act: 'vb-gruppe', ziel: 'aw', v: 'teil' }, 30);
+    await klick({ act: 'aw-layout' });
     await klick({ act: 'aw-layout' });
     for (const k of ['abrechnung', 'geraete', 'temperaturen', 'wetter', 'ohne', 'hochrechnung', 'vergleich']) { await klick({ act: 'aw-detail', k }); pruefe(`Auswertung Detail ${k}`); erwarte(`WU-0005: Detail ${k}`, panel.s.sheet && panel.s.sheet.art === 'aw-detail' && !/Nur für diese Baustelle/.test(ui.innerHTML)); await klick({ act: 'zu' }); }
     await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' }); await klick({ act: 'aw-bearb' }); }
