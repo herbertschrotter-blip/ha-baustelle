@@ -765,6 +765,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'sheet', s: 'leistung', id: b.id }, 30); pruefe('Leistung einer Stunde');
     const jetztH = +panel.z.JETZT.slice(0, 2);
     erwarte('AN-0005: Leistung der aktuellen Stunde, je Messwert', ui.innerHTML.includes(`${String(jetztH).padStart(2, '0')}:00–`) && ui.innerHTML.includes('data-chart="lh-') && ui.innerHTML.includes('Messwerte'));
+    { const sp = (ui.innerHTML.match(/--spur:linear-gradient\(90deg, ([^"]*)\)"/) || [])[1] || '', teile = sp.split(/, (?=[rv])/);
+      erwarte(`Streifen je Stunde gefärbt (${teile.length} Abschnitte)`, teile.length === 24 && teile.every(t => /^(var\(--s1\)|rgba\(127,127,127,\.25\)) [\d.]+% [\d.]+%$/.test(t))
+        && (jetztH === 23 || teile.slice(jetztH + 1).every(t => t.startsWith('rgba'))));   // künftige Stunden grau
+    }
     erwarte('WU-0011: Schieberegler 0–23 statt Stunden-Knöpfen', /<input type="range" min="0" max="23" step="1" value="\d+" data-lh/.test(ui.innerHTML) && !ui.innerHTML.includes('data-act="lh-h"'));
     panel.eingabe({ target: { dataset: { lh: '' }, value: String(Math.max(0, jetztH - 2)) } });
     erwarte('WU-0011: Ziehen lädt noch nichts', panel.s.sheet.h === undefined);

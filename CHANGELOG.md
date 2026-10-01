@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.22] – 2026-10-01
+
+- Leistung im Container (WU-0012, Nachtrag): der Streifen des Stundenreglers ist nur in Stunden mit Verbrauch farbig
+  (HA-Statistik je Stunde), Stunden ohne Verbrauch und künftige Stunden sind grau.
+
 ## [0.8.21] – 2026-10-01
 
 - Leistung im Container (WU-0012): Regler und Nachladen tauschen nur noch die Daten darunter (Kennzahlen, Diagramm),

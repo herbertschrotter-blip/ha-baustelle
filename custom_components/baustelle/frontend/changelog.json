@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.22",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Leistung im Container (WU-0012, Nachtrag): der Streifen des Stundenreglers ist nur in Stunden mit Verbrauch farbig (HA-Statistik je Stunde), Stunden ohne Verbrauch und künftige Stunden sind grau."
+    ]
+  },
+  {
     "version": "0.8.21",
     "datum": "2026-10-01",
     "punkte": [

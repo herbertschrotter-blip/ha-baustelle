@@ -740,8 +740,8 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .lh-laedt { opacity: .45; transition: opacity .2s; pointer-events: none; }
 .lh-regler { position: relative; margin: 4px 2px 18px; }
 .lh-regler input[type=range] { width: 100%; margin: 0; height: 28px; background: transparent; -webkit-appearance: none; appearance: none; }
-.lh-regler input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--s1) 0 calc(100% - var(--zukunft)), rgba(127,127,127,.25) 0); }
-.lh-regler input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--s1) 0 calc(100% - var(--zukunft)), rgba(127,127,127,.25) 0); }
+.lh-regler input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: var(--spur); }
+.lh-regler input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: var(--spur); }
 .lh-regler input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -8px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
 .lh-regler input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
 .lh-skala { position: relative; height: 14px; margin: 0 12px; } .lh-skala span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--ink2); }
@@ -1229,7 +1229,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.21';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.22';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1685,8 +1685,12 @@ class BaustellePanel extends HTMLElement {
     const roh = !ids.length ? {} : this._holen(`lh:${d.entry}:${b.id}:${tag}:${ganzerTag ? 'tag' : h}`, () => this._hass.callWS({ type: 'history/history_during_period', start_time: new Date(von).toISOString(),
       end_time: new Date(Math.min(bis, d.z.jetztMs)).toISOString(), entity_ids: ids, minimal_response: true, no_attributes: true, significant_changes_only: false }), laufend ? 30000 : undefined);
     const ende = laufend ? d.z.jetztMs : bis, farben = ['var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
-    const hh = k => String(k).padStart(2, '0'), zukunft = v ? 0 : (23 - jetztH) / 23 * 100;
-    const regler = ganzerTag ? '' : `<div class="lh-regler" style="--zukunft:${zukunft.toFixed(1)}%">
+    const hh = k => String(k).padStart(2, '0');
+    // Streifen je Stunde: blau, wo der Container verbraucht hat (HA-Statistik), sonst grau – auch künftige Stunden
+    const vb = this.verbrauch(d, b.id, 'Tag', v), farbe = k => (!v && k > jetztH) || !vb || !(vb[k] > 0.001) ? 'rgba(127,127,127,.25)' : 'var(--s1)';
+    const grenze = k => Math.max(0, Math.min(100, (k - 0.5) / 23 * 100)).toFixed(2);
+    const spur = `linear-gradient(90deg, ${[...Array(24)].map((_, k) => `${farbe(k)} ${grenze(k)}% ${grenze(k + 1)}%`).join(', ')})`;
+    const regler = ganzerTag ? '' : `<div class="lh-regler" style="--spur:${spur}">
         <input type="range" min="0" max="23" step="1" value="${h}" data-lh aria-label="Stunde wählen">
         <div class="lh-skala">${[0, 6, 12, 18, 23].map(k => `<span style="left:${(k / 23 * 100).toFixed(1)}%">${k === 23 ? '23' : hh(k)}</span>`).join('')}</div></div>`;
     let inhalt;
@@ -1719,6 +1723,8 @@ class BaustellePanel extends HTMLElement {
     if (!daten) return false;
     ziel.innerHTML = daten.innerHTML;
     if (wert && alt) alt.textContent = wert.textContent;
+    const rNeu = neu.querySelector('.lh-regler'), rAlt = this.shadowRoot.querySelector('.lh-regler');   // Streifen nachfärben
+    if (rNeu && rAlt && rNeu.getAttribute && rAlt.setAttribute) rAlt.setAttribute('style', rNeu.getAttribute('style') || '');
     return true;
   }
   /* FE-0009: Heizzeit eines Containers (Pumpenschacht: Pumpzeit) je Stunde, Tag oder Monat */
