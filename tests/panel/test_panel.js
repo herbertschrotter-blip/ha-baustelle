@@ -775,12 +775,37 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('FE-0009: Heizzeit-Kachel zeigt Heizstunden', ui.innerHTML.includes('<h3>Heizzeit · ') && ui.innerHTML.includes('data-chart="hz-c-'));
     await klick({ act: 'vb-zeitraum', ziel: 'sheet', v: 'Woche' }, 30); pruefe('Heizzeit Woche'); erwarte('FE-0009: Heizzeit je Tag', ui.innerHTML.includes('h je Tag'));
     await klick({ act: 'zu' }, 5); await klick({ act: 'tab', v: 'uebersicht' }, 10); }
+  /* AN-0006: Zusatz-Heizkörper nur bei Bedarf – Schwellen, Schalter je Container, Zusatz im Gerät, Anzeige */
+  { const b0 = panel.d.bereiche.find(x => x.geraete.filter(g => g.heizer).length >= 2);
+    if (b0) {
+      const welt = struktur.find(x => x.baustelle.entry_id === panel.d.entry), c = welt.laufzeit.container[b0.id], alt = JSON.parse(JSON.stringify(c));
+      await klick({ act: 'tab', v: 'heizung' }, 10); await klick({ act: 'hz-auf', k: 'regeln' }, 10);
+      erwarte('AN-0006: Schwellen unter Regeln', ['🔥 Zusatz-Heizkörper', 'data-k="stufen_abstand"', 'data-k="stufen_min"', 'data-k="stufen_anstieg"', 'data-k="stufen_kalt"'].every(t => ui.innerHTML.includes(t)));
+      neu(); await klick({ act: 'st', k: 'stufen_abstand', d: '0.5' }, 10);
+      erwarte('AN-0006: Schwelle speichert heizung.stufen_abstand', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'heizung.stufen_abstand' && m.wert === 2));
+      await klick({ act: 'zu' }, 5); await klick({ act: 'container', id: b0.id }, 10); await klick({ act: 'sheet', s: 'bereich' }, 10);
+      erwarte('AN-0006: Schalter im Container', ui.innerHTML.includes('Zusatz-Heizkörper nur bei Bedarf') && ui.innerHTML.includes('data-act="b-stufen"'));
+      neu(); await klick({ act: 'b-stufen' }, 10);
+      erwarte('AN-0006: Schalter speichert bereiche.<id>.stufen', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `bereiche.${b0.id}.stufen` && m.wert === true));
+      await klick({ act: 'zu' }, 5);
+      const g2 = b0.geraete.filter(g => g.heizer)[1], i2 = b0.geraete.indexOf(g2);
+      await klick({ act: 'g-bearbeiten', i: String(i2) }, 10);
+      erwarte('AN-0006: Gerät als Zusatz einstellbar', ui.innerHTML.includes('data-act="g-zusatz"'));
+      neu(); await klick({ act: 'g-zusatz', id: g2.id }, 10);
+      erwarte('AN-0006: speichert geraete.<id>.zusatz', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `geraete.${g2.id}.zusatz` && m.wert === true));
+      await klick({ act: 'zu' }, 5);
+      c.stufen = { an: true, haupt: [b0.geraete.filter(g => g.heizer)[0].id], zusatz: [g2.id], zusatz_an: false, grund: null, text: '' };
+      panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen(); panel.render(); await ruhe();
+      erwarte('AN-0006: Chip zeigt „Zusatz – wartet“', ui.innerHTML.includes('Zusatz – wartet, einer reicht') && ui.innerHTML.includes(' · Haupt'));
+      Object.keys(c).forEach(k => delete c[k]); Object.assign(c, alt); panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen();
+      await klick({ act: 'tab', v: 'uebersicht' }, 10);
+    } }
   /* AN-0004: „Warm ab“ – Werte von der Integration (lernen.warm), Einstellungen je Baustelle und Container */
   { const b0 = panel.d.bereiche.find(x => x.fuehler && !x.pumpe), welt = struktur.find(x => x.baustelle.entry_id === panel.d.entry);
     const c = welt.laufzeit.container[b0.id], alt = JSON.parse(JSON.stringify(c));
     c.modus = 'thermo';
     c.lernen = { an: true, zyklen: 4, zyklus_min: 10, anteil: 100, erwartet: 0, aus_bei: 20, kint: { wert: .6, start: .6, fort: 0 }, kext: { wert: .01, start: .01, fort: 0 }, nachlauf: {}, treffer: [],
-      aufheizen: { kalt: { rate: 3.2, n: 4 } }, auf_n: 3,
+      aufheizen: { 'kalt|1': { rate: 3.2, n: 4 } }, auf_n: 3,
       warm: { gelernt: true, band: 'kalt', rate: 3.2, n: 4, n_noetig: 3, vor: 15, nach: 0, max: 120, vor_eigen: false, nach_eigen: false, aufheiz_min: 70, innen: 16.4, soll: 20, fest: false,
         plan: { start: 330, ziel: 405, a: 420, b: 990, ende: 990, begrenzt: false } } };
     const nachPanel = () => { panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen(); };

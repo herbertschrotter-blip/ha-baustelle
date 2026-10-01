@@ -54,6 +54,11 @@ STANDARD: dict[str, Any] = {
         "warm_vor_min": 0,
         "warm_nach_min": 0,
         "warm_max_min": 120,
+        # Zusatz-Heizkörper nur bei Bedarf (AN-0006): weit unter dem Soll, einer schafft es nicht, außergewöhnlich kalt
+        "stufen_abstand": 1.5,
+        "stufen_min": 30,
+        "stufen_anstieg": 0.3,
+        "stufen_kalt": -5.0,
         "frost": True,
         "frost_grenze": 5.0,
         "frost_aus": None,        # Frostschutz aus über … °C; None = Grenze + 2 °C (neu 0.7.8)
@@ -94,7 +99,8 @@ STANDARD: dict[str, Any] = {
     "stumm": {},
     "melden_knopf": True,
     "erklaer": True,          # Erklärtexte „ⓘ“ auf der Seite (0.7.8)
-    "geraete": {},            # je Gerät {"aktiv": False} = inaktiv: Automatik lässt es aus, keine Warnungen (WU-0004)
+    "geraete": {},            # je Gerät {"aktiv": False} = inaktiv: Automatik lässt es aus, keine Warnungen (WU-0004);
+                              # {"zusatz": True} = Zusatz-Heizkörper (AN-0006)
     "protokoll": [],
     # Zähler wie 0.6: Energie, Kosten, Zeiten, Zyklen, Mittel; „stand:<gerät>“ = letzter Zählerstand des Shelly
     "zaehler": {},
@@ -113,6 +119,7 @@ STANDARD_BEREICH: dict[str, Any] = {
     "lernen": False,   # lernende Regelung (0.8): TPI mit gelerntem Nachlauf, startet aus
     "warm_vor": None,  # AN-0004: eigener Wert für „Soll erreicht vor Beginn“; None = wie die Baustelle
     "warm_nach": None,
+    "stufen": False,   # AN-0006: Zusatz-Heizkörper nur bei Bedarf (ab 2 Heizkörpern)
 }
 
 

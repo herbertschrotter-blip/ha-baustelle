@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.13] – 2026-10-01
+
+- Zusatz-Heizkörper nur bei Bedarf (AN-0006): in Containern mit zwei oder mehr Heizkörpern heizt zuerst einer; der
+  Zusatz kommt dazu bei Schnell aufheizen, außergewöhnlicher Kälte, weit unter dem Soll, wenn einer es nicht schafft
+  (läuft lange und es wird kaum wärmer) oder wenn die gelernte Aufheizzeit mit einem nicht bis „Soll erreicht“ reicht.
+  Einschalten je Container unter Bearbeiten, welcher Zusatz ist im Gerät, Schwellen unter Heizung › Regeln; die
+  Geräte zeigen „Haupt“ bzw. „Zusatz – wartet/an“, das Protokoll nennt den Grund.
+- Lernende Regelung: Aufheizen wird je Anzahl laufender Heizkörper gelernt.
+
 ## [0.8.12] – 2026-10-01
 
 - Container-Ansicht (FE-0009): jede Kachel öffnet ihr eigenes Diagramm – ⚡ kW jetzt die Leistung, 🔋 kWh den

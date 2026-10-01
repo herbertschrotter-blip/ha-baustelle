@@ -201,6 +201,11 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `warm` (nur lernend im Modus Thermostat, sonst `null`): `{gelernt, band, rate, n, n_noetig, vor, nach, max, vor_eigen,
   nach_eigen, aufheiz_min, innen, soll, fest, plan: {start, ziel, a, b, ende, begrenzt} | null}` (Minuten seit Mitternacht).
   Plangrund `gelernt` in `plan_woche` und `abschnitte` der lernenden Container.
+- Zusatz-Heizkörper nur bei Bedarf (AN-0006, `logik/stufen.py`): je Container `bereiche.<id>.stufen` (bool), je Gerät
+  `geraete.<id>.zusatz` (bool, Pfad `["geraete", id, "zusatz"]`), Schwellen `heizung.stufen_abstand` (°C unter Soll),
+  `stufen_min` (min Laufzeit des ersten), `stufen_anstieg` (°C), `stufen_kalt` (°C außen). `laufzeit.container.<id>.stufen`
+  (ab zwei Heizkörpern, sonst `null`): `{an, haupt: [ids], zusatz: [ids], zusatz_an, grund, text}`; `laufzeit.geraete.<id>.zusatz`.
+  Aufheizen lernt je Anzahl laufender Heizkörper: `lernen.aufheizen` mit Schlüsseln `kalt|1`, `mild|2` …; `lernen.warm.anzahl`.
 - Gerät aktiv/inaktiv (WU-0004): `baustelle/aktion` `aktiv` mit `geraet` und `an` (bool). Inaktiv: einmal ausschalten,
   danach schaltet die Automatik es nicht, es zählt nicht in der Staffelung, keine Warnungen; gespeichert unter
   `einstellungen.geraete.<id>.aktiv`, sichtbar in `laufzeit.geraete.<id>.aktiv`. `geraete[]` hat zusätzlich

@@ -6,7 +6,8 @@ in jeder Auswertung nur diese Methoden auf:
 
 1. `aufraeumen` – abgelaufene Laufzeitdaten der Funktion entfernen,
 2. `soll` – nur aktive Funktionen: was die Bereiche jetzt tun sollen (die Staffelung schaltet danach gemeinsam),
-3. Staffelung: `schaltbar` (Gerät wird geschaltet), `standard_kw` (Leistung ohne Messung), `staffel_vorrang`
+3. Staffelung: `schaltbar` (Gerät wird geschaltet), `geraet_ein` (Ziel je Gerät, Standard: wie der Bereich),
+   `standard_kw` (Leistung ohne Messung), `staffel_vorrang`
    (Vorrang in der Staffelung), `staffel_feld` (Feld der Leistung in der Anzeige der Anschlüsse),
 4. `nach_soll` / `nach_schalten` – nur bei eingeschalteter Automatik (z. B. Handbetrieb endet am nächsten Schaltpunkt,
    Wetter-Entscheidung ins Protokoll); ohne Automatik schaltet der Kern nur, wenn `schaltet_ohne_automatik`,
@@ -135,6 +136,10 @@ class Funktion:
     def schaltbar(self, g: GeraetInfo) -> bool:
         """Gerät der Funktion, das die Staffelung schaltet (die anderen zählen nur mit)."""
         return False
+
+    def geraet_ein(self, g: GeraetInfo, soll: Soll) -> bool | None:
+        """Ziel eines geschalteten Geräts; Standard wie sein Bereich (z. B. hält die Heizung einen Zusatz zurück)."""
+        return soll.ein
 
     def staffel_vorrang(self, soll: tuple[Soll, LageContainer], schaltet: bool) -> dict[str, Any]:
         """Vorrang eines Geräts in der Staffelung (Felder von `staffel.Last`) aus dem Soll seines Bereichs."""

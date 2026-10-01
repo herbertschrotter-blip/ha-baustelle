@@ -669,8 +669,8 @@ class Steuerung:
             e = self.einstellungen.bereich(g.bereich)
             leistung_w = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
             s_c = soll.get(g.bereich)
-            ein = s_c[0].ein if s_c is not None else None
             f = self._je_rolle.get(g.rolle)
+            ein = (f.geraet_ein(g, s_c[0]) if f is not None else s_c[0].ein) if s_c is not None else None
             schaltet = (
                 f is not None and f.schaltbar(g) and ein is not None
                 and self.funktion_von(g).hand_seit(g) is None and erreichbar and self.geraet_aktiv(g)

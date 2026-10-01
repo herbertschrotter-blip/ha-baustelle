@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.12",
+   "version": "0.8.13",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -303,6 +303,10 @@
     "warm_vor_min": 0,
     "warm_nach_min": 0,
     "warm_max_min": 120,
+    "stufen_abstand": 1.5,
+    "stufen_min": 30,
+    "stufen_anstieg": 0.3,
+    "stufen_kalt": -5.0,
     "frost": true,
     "frost_grenze": 5.0,
     "frost_aus": null,
@@ -377,7 +381,8 @@
      "modus": null,
      "lernen": false,
      "warm_vor": null,
-     "warm_nach": null
+     "warm_nach": null,
+     "stufen": false
     },
     "mannschaft": {
      "auto": true,
@@ -390,7 +395,8 @@
      "modus": null,
      "lernen": false,
      "warm_vor": null,
-     "warm_nach": null
+     "warm_nach": null,
+     "stufen": false
     },
     "magazin": {
      "auto": true,
@@ -403,7 +409,8 @@
      "modus": null,
      "lernen": false,
      "warm_vor": null,
-     "warm_nach": null
+     "warm_nach": null,
+     "stufen": false
     },
     "schacht": {
      "auto": true,
@@ -416,7 +423,8 @@
      "modus": null,
      "lernen": false,
      "warm_vor": null,
-     "warm_nach": null
+     "warm_nach": null,
+     "stufen": false
     }
    },
    "meldungen_einst": {
@@ -535,6 +543,18 @@
       "zyklus_min": 10,
       "warm": null
      },
+     "stufen": {
+      "an": false,
+      "haupt": [
+       "polier_r1"
+      ],
+      "zusatz": [
+       "polier_k1"
+      ],
+      "zusatz_an": false,
+      "grund": null,
+      "text": ""
+     },
      "firma": "eigen"
     },
     "mannschaft": {
@@ -548,6 +568,18 @@
      "tuer": null,
      "modus": "bedarf",
      "lernen": null,
+     "stufen": {
+      "an": false,
+      "haupt": [
+       "mannschaft_k1"
+      ],
+      "zusatz": [
+       "mannschaft_k2"
+      ],
+      "zusatz_an": false,
+      "grund": null,
+      "text": ""
+     },
      "firma": "eigen"
     },
     "magazin": {
@@ -586,6 +618,7 @@
       "zyklus_min": 10,
       "warm": null
      },
+     "stufen": null,
      "firma": "huber"
     },
     "schacht": {
@@ -599,6 +632,7 @@
      "tuer": null,
      "modus": null,
      "lernen": null,
+     "stufen": null,
      "firma": "eigen"
     }
    },
@@ -609,7 +643,8 @@
      "erreichbar": true,
      "hand_seit": null,
      "warte": null,
-     "aktiv": true
+     "aktiv": true,
+     "zusatz": false
     },
     "polier_k1": {
      "an": false,
@@ -617,7 +652,8 @@
      "erreichbar": true,
      "hand_seit": "2026-09-29T11:00:00+02:00",
      "warte": null,
-     "aktiv": true
+     "aktiv": true,
+     "zusatz": false
     },
     "mannschaft_k1": {
      "an": false,
@@ -625,7 +661,8 @@
      "erreichbar": true,
      "hand_seit": null,
      "warte": null,
-     "aktiv": true
+     "aktiv": true,
+     "zusatz": false
     },
     "mannschaft_k2": {
      "an": false,
@@ -633,7 +670,8 @@
      "erreichbar": true,
      "hand_seit": null,
      "warte": null,
-     "aktiv": true
+     "aktiv": true,
+     "zusatz": false
     },
     "magazin_r1": {
      "an": false,
@@ -641,7 +679,8 @@
      "erreichbar": true,
      "hand_seit": null,
      "warte": null,
-     "aktiv": true
+     "aktiv": true,
+     "zusatz": false
     },
     "magazin_t1": {
      "an": false,
@@ -649,7 +688,8 @@
      "erreichbar": false,
      "hand_seit": null,
      "warte": null,
-     "aktiv": true
+     "aktiv": true,
+     "zusatz": false
     },
     "schacht_p1": {
      "an": false,
@@ -657,7 +697,8 @@
      "erreichbar": true,
      "hand_seit": null,
      "warte": null,
-     "aktiv": true
+     "aktiv": true,
+     "zusatz": false
     }
    },
    "plan_woche": [
@@ -1248,7 +1289,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.12",
+   "version": "0.8.13",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1329,6 +1370,10 @@
     "warm_vor_min": 0,
     "warm_nach_min": 0,
     "warm_max_min": 120,
+    "stufen_abstand": 1.5,
+    "stufen_min": 30,
+    "stufen_anstieg": 0.3,
+    "stufen_kalt": -5.0,
     "frost": true,
     "frost_grenze": 5.0,
     "frost_aus": null,
@@ -1380,7 +1425,8 @@
      "modus": null,
      "lernen": false,
      "warm_vor": null,
-     "warm_nach": null
+     "warm_nach": null,
+     "stufen": false
     }
    },
    "meldungen_einst": {
@@ -1450,6 +1496,7 @@
      "tuer": null,
      "modus": "plan",
      "lernen": null,
+     "stufen": null,
      "firma": "eigen"
     }
    },
@@ -1460,7 +1507,8 @@
      "erreichbar": true,
      "hand_seit": null,
      "warte": null,
-     "aktiv": true
+     "aktiv": true,
+     "zusatz": false
     }
    },
    "plan_woche": [

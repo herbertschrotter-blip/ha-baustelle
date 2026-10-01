@@ -78,7 +78,7 @@ STANDARD_ZUSTAND: dict[str, Any] = {
 }
 
 
-async def baustelle_anlegen(hass: HomeAssistant, freezer, zeit: str = "2026-09-29 16:50:00+02:00", **optionen):
+async def baustelle_anlegen(hass: HomeAssistant, freezer, zeit: str = "2026-09-29 16:50:00+02:00", hk2_bereich: str = C2, **optionen):
     await hass.config.async_set_time_zone("Europe/Vienna")
     freezer.move_to(zeit)
     for entity_id, wert in STANDARD_ZUSTAND.items():
@@ -94,7 +94,7 @@ async def baustelle_anlegen(hass: HomeAssistant, freezer, zeit: str = "2026-09-2
             sub(SCHACHT, "bereich", "Schacht", {"name": "Schacht", "art": "pumpenschacht"}),
             sub(HK1, "geraet", "Heizkörper 1", {"bereich": C1, "schalter": "switch.hk1", "name": "Heizkörper 1",
                                                 "rolle": "heizkoerper", "typ": "oelradiator", "leistung": "sensor.hk1_power"}),
-            sub(HK2, "geraet", "Heizkörper 2", {"bereich": C2, "schalter": "switch.hk2", "name": "Heizkörper 2",
+            sub(HK2, "geraet", "Heizkörper 2", {"bereich": hk2_bereich, "schalter": "switch.hk2", "name": "Heizkörper 2",
                                                 "rolle": "heizkoerper", "typ": "konvektor", "leistung": "sensor.hk2_power"}),
             sub(P1, "geraet", "Pumpe 1", {"bereich": SCHACHT, "schalter": "switch.p1", "name": "Pumpe 1",
                                           "rolle": "pumpe", "typ": "konvektor", "leistung": "sensor.p1_power"}),

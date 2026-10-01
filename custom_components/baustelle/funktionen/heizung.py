@@ -29,7 +29,7 @@ from ..const import (
     ZIEHT_STROM_W,
 )
 from .. import texte
-from ..logik import lernen
+from ..logik import lernen, stufen
 from ..logik import warnungen as warn_logik
 from ..logik.arbeitszeit import (
     AusnahmeArt,
@@ -117,6 +117,10 @@ class Heizung(Funktion):
         self._phase: dict[str, tuple[bool, datetime, float]] = {}  # Bereich → (heizt, seit, Temperatur beim Beginn)
         self._ohne_w = 0.0  # je Zählschritt: Summe der mittleren Leistung („ohne Automatik“)
         self._heiztag = False
+        # Zusatz-Heizkörper (AN-0006): darf er laufen (mit Grund), seit wann läuft der Hauptheizkörper (mit Temperatur)
+        self._stufen: dict[str, tuple[bool, str | None]] = {}
+        self._haupt_lauf: dict[str, tuple[datetime, float | None]] = {}
+        self._zusatz_gelernt: dict[str, bool] = {}
 
     # ------------------------------------------------------------------ Einstellungen je Container
     def modus(self, bid: str) -> str:
@@ -261,12 +265,23 @@ class Heizung(Funktion):
             return None
         h = st.e["heizung"]
         fest = st.lz.setdefault("warm_start", {}).get(bid)
+        vor = int(e["warm_vor"] if e.get("warm_vor") is not None else h.get("warm_vor_min", 0))
+        grenze = max(int(h.get("warm_max_min", 120)), vor)
         if fest and fest[0] == tag.isoformat():
             auf: int | None = int(fest[1])
+            self._zusatz_gelernt[bid] = bool(fest[2]) if len(fest) > 2 else False
         else:
             stand = self.lern_staende.get(bid) or {}
-            auf = lernen.aufheiz_min(stand, innen=st.temperatur(info.fuehler), soll=self.soll_temperatur(bid),
-                                     aussen=st.daten.wetter.aussen)
+            ein = dict(innen=st.temperatur(info.fuehler), soll=self.soll_temperatur(bid), aussen=st.daten.wetter.aussen)
+            alle = len(self.heizer_von(bid)) or 1
+            if self.stufen_an(bid):   # AN-0006: reicht der Hauptheizkörper allein bis „Soll erreicht“? Sonst beide
+                auf1, aufa = lernen.aufheiz_min(stand, **ein, anzahl=1), lernen.aufheiz_min(stand, **ein, anzahl=alle)
+                if auf1 is not None and vor + auf1 <= grenze:
+                    auf, self._zusatz_gelernt[bid] = auf1, False
+                else:
+                    auf, self._zusatz_gelernt[bid] = (aufa if aufa is not None else auf1), auf1 is not None or aufa is not None
+            else:
+                auf, self._zusatz_gelernt[bid] = lernen.aufheiz_min(stand, **ein, anzahl=alle), False
         return WarmAb(
             vor_min=int(e["warm_vor"] if e.get("warm_vor") is not None else h.get("warm_vor_min", 0)),
             nach_min=int(e["warm_nach"] if e.get("warm_nach") is not None else h.get("warm_nach_min", 0)),
@@ -281,7 +296,7 @@ class Heizung(Funktion):
         if warm is None or warm.aufheiz_min is None or plan is None or bid in fest:
             return
         if plan.vor <= minute < plan.a:
-            fest[bid] = [heute.isoformat(), warm.aufheiz_min]
+            fest[bid] = [heute.isoformat(), warm.aufheiz_min, bool(self._zusatz_gelernt.get(bid))]
             self.st.einstellungen.speichern()
 
     def plan_neu(self) -> None:
@@ -350,8 +365,69 @@ class Heizung(Funktion):
             soll = soll_container(lage, int(h["tuer_pause_min"]))
             self._lern_grund[bid] = soll.grund
             self._frost[bid] = soll.grund == SollGrund.FROST
+            self._stufen_rechnen(bid, soll, temp, soll_t, wetter, jetzt, plan, minute)
             ergebnis[bid] = (soll, lage)
         return ergebnis
+
+    # ------------------------------------------------------------------ Zusatz-Heizkörper (AN-0006, logik/stufen)
+    def heizer_von(self, bid: str) -> list[GeraetInfo]:
+        """Aktive Heizkörper eines Containers in fester Reihenfolge."""
+        return [g for g in self.st.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER and self.st.geraet_aktiv(g)]
+
+    def haupt_und_zusatz(self, bid: str) -> tuple[list[str], list[str]]:
+        heizer = self.heizer_von(bid)
+        markiert = {g.id for g in heizer if (self.st.e.get("geraete") or {}).get(g.id, {}).get("zusatz")}
+        return stufen.haupt_und_zusatz([g.id for g in heizer], markiert)
+
+    def stufen_an(self, bid: str) -> bool:
+        """„Zusatz nur bei Bedarf“ eingeschaltet und mindestens zwei aktive Heizkörper."""
+        return bool(self.st.einstellungen.bereich(bid).get("stufen")) and len(self.heizer_von(bid)) >= 2
+
+    def stufen_regeln(self) -> stufen.StufenRegeln:
+        h = self.st.e["heizung"]
+        return stufen.StufenRegeln(abstand=float(h.get("stufen_abstand", 1.5)), laufzeit_min=int(h.get("stufen_min", 30)),
+                                   min_anstieg=float(h.get("stufen_anstieg", 0.3)), kalt_unter=float(h.get("stufen_kalt", -5.0)))
+
+    def _stufen_rechnen(self, bid: str, soll: Soll, temp: float | None, soll_t: float, wetter: WetterWerte, jetzt: datetime,
+                        plan: Plan | None, minute: int) -> None:
+        """Je Auswertung: darf der Zusatz laufen? Merkt, seit wann der Hauptheizkörper durchgehend zieht."""
+        if not self.stufen_an(bid):
+            self._stufen.pop(bid, None)
+            self._haupt_lauf.pop(bid, None)
+            return
+        haupt, _ = self.haupt_und_zusatz(bid)
+        zieht = any(self._zieht_strom(g) for g in self.heizer_von(bid) if g.id in haupt)
+        if zieht and bid not in self._haupt_lauf:
+            self._haupt_lauf[bid] = (jetzt, temp)
+        elif not zieht:
+            self._haupt_lauf.pop(bid, None)
+        seit, temp0 = self._haupt_lauf.get(bid, (jetzt, temp))
+        vorher, grund_vorher = self._stufen.get(bid, (False, None))
+        gelernt = bool(self._zusatz_gelernt.get(bid)) and plan is not None and plan.vor <= minute < plan.a
+        lage = stufen.StufenLage(
+            innen=temp, soll=soll_t, aussen=wetter.aussen, toleranz=float(self.st.e["heizung"]["toleranz"]),
+            haupt_min=(jetzt - seit).total_seconds() / 60, anstieg=(temp - temp0) if temp is not None and temp0 is not None else 0.0,
+            boost=soll.grund == SollGrund.BOOST, gelernt=gelernt, zusatz_an=vorher, grund_vorher=grund_vorher,
+        )
+        an, grund = stufen.zusatz(self.stufen_regeln(), lage) if soll.ein else (False, None)
+        if an != vorher and soll.ein:
+            self.st.protokoll("schalten", bid, f"Zusatz-Heizkörper dazu – {stufen.TEXT.get(grund or '', '')}" if an else "Zusatz-Heizkörper wieder aus – einer reicht")
+        self._stufen[bid] = (an, grund)
+
+    def geraet_ein(self, g: GeraetInfo, soll: Soll) -> bool | None:
+        """Zusatz-Heizkörper bleibt aus, solange einer reicht (AN-0006); sonst wie der Container."""
+        if soll.ein and g.rolle == ROLLE_HEIZKOERPER and self.stufen_an(g.bereich) and g.id in self.haupt_und_zusatz(g.bereich)[1]:
+            return self._stufen.get(g.bereich, (False, None))[0]
+        return soll.ein
+
+    def stufen_anzeige(self, bid: str) -> dict[str, Any] | None:
+        """Zusatz-Heizkörper für die Seite (laufzeit.container.<id>.stufen); None ohne zwei Heizkörper."""
+        if len(self.heizer_von(bid)) < 2:
+            return None
+        haupt, zusatz = self.haupt_und_zusatz(bid)
+        an, grund = self._stufen.get(bid, (False, None))
+        return {"an": self.stufen_an(bid), "haupt": haupt, "zusatz": zusatz, "zusatz_an": an, "grund": grund,
+                "text": stufen.TEXT.get(grund or "", "") if an else ""}
 
     # ------------------------------------------------------------------ Lernende Regelung (0.8, logik/lernen)
     @property
@@ -393,7 +469,8 @@ class Heizung(Funktion):
                       and not any(g.id in self.st.lz["hand"] for g in heizer))
             alt = self.lern_staende.get(info.id) or lernen.neuer_stand()
             neu = lernen.takt(
-                alt, jetzt=jetzt, heizt=any(self._zieht_strom(g) for g in heizer), innen=self.st.temperatur(info.fuehler),
+                alt, jetzt=jetzt, heizt=any(self._zieht_strom(g) for g in heizer), anzahl=sum(1 for g in heizer if self._zieht_strom(g)),
+                innen=self.st.temperatur(info.fuehler),
                 soll=self.soll_temperatur(info.id), aussen=wetter.aussen, art=self._lern_art(info.id), regelt=regelt,
             )
             if neu != alt:
@@ -426,13 +503,14 @@ class Heizung(Funktion):
         info = self.st.bereiche[bid]
         stand = self.lern_staende.get(bid) or {}
         bd = lernen.band(self.st.daten.wetter.aussen)
-        rate = (stand.get("aufheizen") or {}).get(bd)
+        anzahl = 1 if self.stufen_an(bid) and not self._zusatz_gelernt.get(bid) else (len(self.heizer_von(bid)) or 1)
+        rate = (stand.get("aufheizen") or {}).get(lernen.auf_schluessel(bd, anzahl))
         return {
             "gelernt": warm.aufheiz_min is not None, "band": bd, "rate": rate[0] if rate else None, "n": int(rate[1]) if rate else 0,
             "n_noetig": lernen.AUF_N, "vor": warm.vor_min, "nach": warm.nach_min, "max": warm.max_min,
             "vor_eigen": e.get("warm_vor") is not None, "nach_eigen": e.get("warm_nach") is not None,
             "aufheiz_min": warm.aufheiz_min, "innen": self.st.temperatur(info.fuehler), "soll": self.soll_temperatur(bid),
-            "fest": bool(self.st.lz.get("warm_start", {}).get(bid)),
+            "fest": bool(self.st.lz.get("warm_start", {}).get(bid)), "anzahl": anzahl,
             "plan": None if plan is None else {"start": plan.vor, "ziel": plan.a - warm.vor_min, "a": plan.a, "b": plan.b,
                                                "ende": plan.nach, "begrenzt": warm.aufheiz_min is not None and warm.vor_min + warm.aufheiz_min > max(warm.max_min, warm.vor_min)},
         }

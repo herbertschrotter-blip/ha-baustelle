@@ -138,6 +138,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "tuer": tuer,
             "modus": heizung.modus(bid) if info.art == ART_CONTAINER else None,
             "lernen": heizung.lern_anzeige(bid) if info.art == ART_CONTAINER else None,   # lernende Regelung (0.8)
+            "stufen": heizung.stufen_anzeige(bid) if info.art == ART_CONTAINER else None,   # Zusatz-Heizkörper (AN-0006)
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}
@@ -152,6 +153,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "hand_seit": lz["hand"].get(gid),
             "warte": d.warte.get(gid),
             "aktiv": st.geraet_aktiv(g),   # WU-0004
+            "zusatz": bool((st.e.get("geraete") or {}).get(gid, {}).get("zusatz")),   # AN-0006
         }
     stumm = st.e["stumm"]
     tuer_melden = st.e["heizung"]["tuer_melden_min"]

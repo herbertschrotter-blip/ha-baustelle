@@ -14,7 +14,8 @@ Dazu lernt jeder Container selbst:
 - **K außen** (Wärmeverlust): bleibt der Raum in einem ruhigen Zyklus nahe am Soll im Mittel darunter, wird er größer,
   darüber kleiner.
 - **Aufheizen** (AN-0004, „Optimum Start“ wie Honeywell/Netatmo): wie viele °C je Stunde der Raum beim durchgehenden
-  Heizen gewinnt, je Außentemperatur (kalt/mild). Daraus rechnet `aufheiz_min`, wie lange der Container bis zum Soll
+  Heizen gewinnt, je Außentemperatur (kalt/mild) und Anzahl laufender Heizkörper (AN-0006: „kalt|1“, „kalt|2“ …).
+  Daraus rechnet `aufheiz_min`, wie lange der Container bis zum Soll
   braucht – der Heizplan beginnt dann selbst so früh, dass das Soll rechtzeitig erreicht ist (`arbeitszeit.WarmAb`).
   Die Kälte steckt in der Rate, darum braucht ein lernender Container keinen Kälte-Frühstart.
 
@@ -165,13 +166,14 @@ def _iso(zeit: datetime) -> str:
 
 def takt(
     stand: dict[str, Any], *, jetzt: datetime, heizt: bool, innen: float | None, soll: float, aussen: float | None,
-    art: str, regelt: bool,
+    art: str, regelt: bool, anzahl: int = 1,
 ) -> dict[str, Any]:
     """Eine Minute Lernen: Ein-Zeiten mitschreiben, Nachlauf nach dem Ausschalten beobachten, K-Werte anpassen.
 
     `heizt`: ein Heizkörper des Containers zieht gerade Strom. `art`: „oel“ oder „konvektor“ (was eingeschaltet ist
     bzw. zuletzt war). `regelt`: der Container regelt gerade selbst (lernender Thermostat) – nur dann wird K außen
-    gelernt. Gibt den neuen Stand zurück (der alte bleibt unverändert).
+    gelernt. `anzahl`: so viele Heizkörper ziehen gerade Strom (Aufheizen je Anzahl). Gibt den neuen Stand zurück (der
+    alte bleibt unverändert).
     """
     s = {**neuer_stand(), **stand}
     log = [(_zeit(a), _zeit(e)) for a, e in s["ein"]]
@@ -195,10 +197,13 @@ def takt(
     if auf is not None:
         dauer_auf = (jetzt - _zeit(auf["start"])).total_seconds() / 60
         ende_temp = innen if heizt else s["letzte"]
-        if not heizt or (innen is not None and innen >= soll - SPITZE_VORBEI) or dauer_auf >= AUF_MAX_MIN:
+        anders = heizt and int(auf.get("n", 1)) != anzahl     # ein Heizkörper mehr oder weniger: neue Messung
+        if not heizt or anders or (innen is not None and innen >= soll - SPITZE_VORBEI) or dauer_auf >= AUF_MAX_MIN:
             s = _auf_ende(s, dauer_auf, ende_temp)
+            if anders and innen is not None and innen <= soll - AUF_AB_GRAD:
+                s["auf"] = {"start": _iso(jetzt), "temp": innen, "band": band(aussen), "n": anzahl}
     elif heizt and not lief and innen is not None and innen <= soll - AUF_AB_GRAD:
-        s["auf"] = {"start": _iso(jetzt), "temp": innen, "band": band(aussen)}
+        s["auf"] = {"start": _iso(jetzt), "temp": innen, "band": band(aussen), "n": anzahl}
     if innen is not None:
         s["letzte"] = innen
     grenze = jetzt.timestamp() - 2 * 3600
@@ -232,19 +237,26 @@ def _auf_ende(s: dict[str, Any], minuten: float, temp: float | None) -> dict[str
     if temp is None or minuten < AUF_MIN_MIN or temp - auf["temp"] < AUF_MIN_ANSTIEG:
         return s
     rate = min(AUF_GRENZEN[1], max(AUF_GRENZEN[0], (temp - auf["temp"]) / minuten * 60))
-    alt = s["aufheizen"].get(auf["band"])
+    k = auf_schluessel(auf["band"], int(auf.get("n", 1)))
+    alt = s["aufheizen"].get(k)
     if alt is None:
         neu = [round(rate, 3), 1]
     else:   # erste Messungen gleich gewichtet, danach gleitend wie beim Nachlauf
         n = int(alt[1]) + 1
         neu = [round(alt[0] + (rate - alt[0]) * max(GEWICHT, 1 / n), 3), n]
-    s["aufheizen"] = {**s["aufheizen"], auf["band"]: neu}
+    s["aufheizen"] = {**s["aufheizen"], k: neu}
     return s
 
 
-def aufheiz_min(stand: Mapping[str, Any], *, innen: float | None, soll: float, aussen: float | None) -> int | None:
-    """Minuten bis zum Soll mit der gelernten Rate des Außenbands (auf 5 min aufgerundet); None = noch nicht gelernt."""
-    e = (stand.get("aufheizen") or {}).get(band(aussen))
+def auf_schluessel(bd: str, anzahl: int) -> str:
+    """Schlüssel der Aufheizrate: Außenband und Anzahl laufender Heizkörper („kalt|1“)."""
+    return f"{bd}|{max(1, int(anzahl))}"
+
+
+def aufheiz_min(stand: Mapping[str, Any], *, innen: float | None, soll: float, aussen: float | None, anzahl: int = 1) -> int | None:
+    """Minuten bis zum Soll mit der gelernten Rate (Außenband, Anzahl Heizkörper; auf 5 min aufgerundet); None = noch
+    nicht gelernt."""
+    e = (stand.get("aufheizen") or {}).get(auf_schluessel(band(aussen), anzahl))
     if innen is None or not e or int(e[1]) < AUF_N or float(e[0]) <= 0:
         return None
     roh = max(0.0, soll - innen) / float(e[0]) * 60

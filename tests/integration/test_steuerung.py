@@ -421,7 +421,7 @@ async def test_store_v1_nur_zaehler_uebernehmen(hass: HomeAssistant, freezer, ha
     assert e["heizung"]["soll"] == 20.0 and e["heizung"]["heizgrenze_basis"] == "tageshoechst"
     assert e["bereiche"][C1] == {"auto": True, "trocknen": False, "soll": None, "bedarf": False, "prio": "normal",
                                  "anschluss": "a1", "tuer": None, "modus": None, "lernen": False,
-                                 "warm_vor": None, "warm_nach": None}
+                                 "warm_vor": None, "warm_nach": None, "stufen": False}
     assert e["arbeitszeiten"][0]["ab"] == "2026-09-29" and e["arbeitszeiten"][0]["tage"]["4"] == ["07:00", "12:30"]
     assert e["meldungen_einst"]["empfaenger"] == ["mobile_app_test"]
     assert e["protokoll"][0][1:] == ["einstellung", None, "Umstellung auf 0.7.0: Einstellungen neu, Zähler übernommen"]
@@ -862,7 +862,7 @@ async def test_warm_ab_gelernter_beginn(hass: HomeAssistant, baustelle, freezer,
     st.einstellungen.bereich(C1)["soll"] = 20.0
     st.einstellungen.bereich(C1)["modus"] = "thermo"
     st.einstellung_setzen(("bereiche", C1, "lernen"), True)
-    st.lz["lernen"][C1] = {"aufheizen": {"mild": [3.0, 3], "kalt": [3.0, 3]}}   # 3 °C je Stunde gelernt
+    st.lz["lernen"][C1] = {"aufheizen": {"mild|1": [3.0, 3], "kalt|1": [3.0, 3]}}   # 3 °C je Stunde gelernt (ein Heizkörper)
     hass.states.async_set("sensor.temp_c1", "16.0")
     await _zu(hass, freezer, "2026-09-30 05:00:00+02:00", st)                  # Mittwoch, Arbeit ab 07:00
     st.einstellung_setzen(("automatik",), True)
@@ -872,7 +872,7 @@ async def test_warm_ab_gelernter_beginn(hass: HomeAssistant, baustelle, freezer,
     assert warm["gelernt"] is True and warm["aufheiz_min"] == 80 and warm["plan"]["start"] == 5 * 60 + 25 and warm["plan"]["ziel"] == 6 * 60 + 45
     assert hass.states.get("switch.hk1").state == "off"
     await _zu(hass, freezer, "2026-09-30 05:30:00+02:00", st)
-    assert hass.states.get("switch.hk1").state == "on" and st.lz["warm_start"][C1] == ["2026-09-30", 80]
+    assert hass.states.get("switch.hk1").state == "on" and st.lz["warm_start"][C1] == ["2026-09-30", 80, False]
     hass.states.async_set("sensor.temp_c1", "18.5")                             # wärmer: Beginn bleibt fest
     await _zu(hass, freezer, "2026-09-30 06:00:00+02:00", st)
     assert hass.states.get("switch.hk1").state == "on"
@@ -881,6 +881,60 @@ async def test_warm_ab_gelernter_beginn(hass: HomeAssistant, baustelle, freezer,
     st.einstellung_setzen(("bereiche", C1, "warm_vor"), 30)
     warm = struktur(hass, baustelle)["laufzeit"]["container"][C1]["lernen"]["warm"]
     assert warm["vor"] == 30 and warm["vor_eigen"] is True and warm["plan"]["ziel"] == 6 * 60 + 30
+
+
+async def test_zusatz_heizkoerper_nur_bei_bedarf(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    """AN-0006: Container 1 mit zwei Heizkörpern, „Zusatz nur bei Bedarf“: zuerst heizt nur der erste; der zweite kommt
+    weit unter dem Soll, wenn einer es nicht schafft und bei Kälte dazu; welcher Zusatz ist, steht im Gerät."""
+    entry = await baustelle_anlegen(hass, freezer, hk2_bereich=C1)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    shellys.anmelden()
+    st = entry.runtime_data
+    st.e["staffel"]["an"] = False
+    st.einstellungen.bereich(C1)["soll"] = 20.0
+    st.einstellungen.bereich(C1)["modus"] = "thermo"
+    st.einstellung_setzen(("bereiche", C1, "stufen"), True)
+    hass.states.async_set("sensor.aussen", "3.0")
+    hass.states.async_set("sensor.temp_c1", "19.0")
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    an = lambda e: hass.states.get(e).state == "on"
+    assert an("switch.hk1") and not an("switch.hk2")
+    s = struktur(hass, entry)["laufzeit"]["container"][C1]["stufen"]
+    assert s["an"] is True and s["haupt"] == [HK1] and s["zusatz"] == [HK2] and s["zusatz_an"] is False
+    # weit unter dem Soll: beide; fast warm: Zusatz wieder aus
+    hass.states.async_set("sensor.temp_c1", "18.0")
+    await _zu(hass, freezer, "2026-09-29 10:01:00+02:00", st)
+    assert an("switch.hk1") and an("switch.hk2")
+    assert struktur(hass, entry)["laufzeit"]["container"][C1]["stufen"]["grund"] == "weit_unter"
+    hass.states.async_set("sensor.temp_c1", "19.6")
+    await _zu(hass, freezer, "2026-09-29 10:02:00+02:00", st)
+    assert an("switch.hk1") and not an("switch.hk2")
+    # einer schafft es nicht: 30 min durchgehend und kaum wärmer
+    hass.states.async_set("sensor.temp_c1", "19.0")
+    await _zu(hass, freezer, "2026-09-29 10:03:00+02:00", st)
+    assert not an("switch.hk2")
+    await _zu(hass, freezer, "2026-09-29 10:40:00+02:00", st)
+    assert an("switch.hk2") and struktur(hass, entry)["laufzeit"]["container"][C1]["stufen"]["grund"] == "schafft_nicht"
+    # Zusatz im Gerät umstellen: jetzt ist Heizkörper 2 der erste
+    st.e.setdefault("geraete", {}).setdefault(HK1, {})   # wie panel.pruefe_setzen
+    st.einstellung_setzen(("geraete", HK1, "zusatz"), True)
+    hass.states.async_set("sensor.temp_c1", "19.6")
+    await _zu(hass, freezer, "2026-09-29 10:41:00+02:00", st)
+    s = struktur(hass, entry)["laufzeit"]["container"][C1]["stufen"]
+    assert s["haupt"] == [HK2] and s["zusatz"] == [HK1] and an("switch.hk2") and not an("switch.hk1")
+    assert struktur(hass, entry)["laufzeit"]["geraete"][HK1]["zusatz"] is True
+    # außergewöhnlich kalt: beide
+    hass.states.async_set("sensor.aussen", "-8.0")
+    await _zu(hass, freezer, "2026-09-29 10:42:00+02:00", st)
+    assert an("switch.hk1") and an("switch.hk2")
+    # aus: wie bisher alle zusammen
+    st.einstellung_setzen(("bereiche", C1, "stufen"), False)
+    hass.states.async_set("sensor.aussen", "3.0")
+    await _zu(hass, freezer, "2026-09-29 10:43:00+02:00", st)
+    assert an("switch.hk1") and an("switch.hk2")
 
 
 async def test_geraet_inaktiv(hass: HomeAssistant, baustelle, freezer, shellys) -> None:

@@ -52,6 +52,10 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("heizung", "warm_vor_min"): vol.All(GANZ, vol.Range(0, 240)),
     ("heizung", "warm_nach_min"): vol.All(GANZ, vol.Range(0, 240)),
     ("heizung", "warm_max_min"): vol.All(GANZ, vol.Range(15, 480)),
+    ("heizung", "stufen_abstand"): vol.All(ZAHL, vol.Range(0.5, 10)),
+    ("heizung", "stufen_min"): vol.All(GANZ, vol.Range(5, 240)),
+    ("heizung", "stufen_anstieg"): vol.All(ZAHL, vol.Range(0, 5)),
+    ("heizung", "stufen_kalt"): vol.All(ZAHL, vol.Range(-30, 15)),
     ("heizung", "soll"): vol.All(ZAHL, vol.Range(5, 30)),
     ("heizung", "toleranz"): vol.All(ZAHL, vol.Range(0.1, 3)),
     ("heizung", "heizgrenze"): vol.All(ZAHL, vol.Range(0, 30)),
@@ -107,7 +111,9 @@ SETZEN_BEREICH: dict[str, Any] = {
     "lernen": cv.boolean,
     "warm_vor": vol.Any(None, vol.All(GANZ, vol.Range(0, 240))),
     "warm_nach": vol.Any(None, vol.All(GANZ, vol.Range(0, 240))),
+    "stufen": cv.boolean,
 }
+SETZEN_GERAET: dict[str, Any] = {"zusatz": cv.boolean}   # AN-0006
 
 ARBEITSZEIT = vol.Schema({
     vol.Required("ab"): DATUM,
@@ -210,6 +216,13 @@ def pruefe_setzen(st: Any, pfad: list[str], wert: Any) -> Any:
         if pfad[2] == "modus" and wert == "thermo" and not st.bereiche[pfad[1]].fuehler:
             raise vol.Invalid("Thermostat braucht einen Temperaturfühler")
         return wert
+    if len(pfad) == 3 and pfad[0] == "geraete":
+        if pfad[1] not in st.geraete:
+            raise vol.Invalid(f"Unbekanntes Gerät {pfad[1]}")
+        if pfad[2] not in SETZEN_GERAET:
+            raise vol.Invalid(f"Pfad {'.'.join(pfad)} ist nicht erlaubt")
+        st.e.setdefault("geraete", {}).setdefault(pfad[1], {})   # Eintrag des Geräts anlegen, damit der Pfad besteht
+        return SETZEN_GERAET[pfad[2]](wert)
     if schluessel == ("heizung", "frost_aus"):
         wert = SETZEN[schluessel](wert)
         if wert is not None and wert <= float(st.e["heizung"]["frost_grenze"]):
