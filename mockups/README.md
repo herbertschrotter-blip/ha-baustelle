@@ -3,6 +3,23 @@
 HTML-Entwürfe für das Dashboard „Baustelle“. Design: HA-Standard-Theme und eingebaute Karten, im Mockup nachgebildet
 (Profil in `CLAUDE.md`, Abschnitt Mockup). Pflichtansichten: Desktop und 390 px.
 
+## Master-Mockup `glas.html` (ab 01.10.2026)
+
+`glas.html` ist **kein Nachbau mehr**, sondern die **echte Seite** (`custom_components/baustelle/frontend/baustelle-panel.js`)
+mit dem Beispiel-hass des Panel-Tests (`tests/panel/beispiel-hass.js`, `tests/panel/struktur-0.7.json`, `tests/vektoren`).
+Damit ist es immer auf dem Stand der Seite (Herbert 01.10.2026: „Master-Mockup auf den aktuellen Stand, Heizung und
+Auswertung waren noch alt“).
+
+- Bauen: `node mockups/quelle/glas.js` · prüfen: `node mockups/quelle/vorschau/pruefen.cjs` (beide Seiten, alle Ansichten).
+- Der Panel-Test schlägt fehl, wenn `glas.html` nicht die aktuelle Seite enthält – nach jeder Änderung der Seite neu bauen.
+- Vorführ-Leiste: Hell/Dunkel, Uhrzeit (Sonne wie `sun.sun` am Beispieltag 29.09.2026), Wetter, Beispiel neu laden.
+- **Neue Vorschläge** (Varianten zu einem Ticket) kommen als eigene Datei neben `glas.html` und überschreiben dort nur die
+  betroffenen Teile der Seite; nach der Abnahme wandern sie in die Seite und damit von selbst ins Master-Mockup.
+- Der frühere Nachbau (`quelle/archiv/glas-app.js`, `glas.css`) und die Quellen von `heizung-varianten.html` liegen im
+  Archiv; die Abnahmen unten beziehen sich auf diese Stände.
+
+## Abnahmen
+
 | Datei | Umfang | Stand |
 |---|---|---|
 | `baustelle.html` | Entwurf v4, interaktiv mit Simulation. Tabs Übersicht, Heizung, Pumpen, Auswertung, Einstellungen, Verlauf; Baustellen aktiv/abgeschlossen; Container/Bereiche mit Shellys, Fühler/Thermostat, Heizkörper-Typ je Shelly (nur Vergleich); Modi je Container (Zeitplan/Thermostat/Hand/Aus); Kleidung trocknen nach Regen (Schwelle, länger, früher); Kälte-Frühstart; Heizgrenze; Frostschutz; Urlaub und Feiertage (jährlich berechnet); Wetterquelle (Integration oder Wetterstation); Pumpenüberwachung mit Meldungen; Prognose ohne Automatik; Vergleich Ölradiator/Konvektor; Diagramme (Zeitleiste, Leistung, Verbrauch, Heiz-/Pumpzeit, Zyklen, Temperaturen) | **Abgenommen von Herbert am 29.09.2026** |

@@ -17,6 +17,8 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
   Heiztage, Auswertung und CSV kommen von der Integration (`baustelle/struktur`, `baustelle/auswertung`,
   `baustelle/abrechnung`), auch € und %, wo die Integration sie liefert; die Seite zeigt nur an (Bauplan
   `docs/bauplan-module.md`, Ausnahmen nur wie dort in §5 begründet).
+- **Master-Mockup `mockups/glas.html` = die echte Seite mit Beispieldaten** (`node mockups/quelle/glas.js`, der Panel-Test
+  prüft, dass es aktuell ist). Vorschläge zu Tickets als eigene Variantendatei daneben (`mockups/README.md`).
 - **Neue Funktion = neues Modul in `funktionen/`** nach der Schnittstelle in `funktionen/basis.py`, eingetragen in
   `funktionen.FUNKTIONEN`; `steuerung.py` (Kern) kennt keine Heizungs- oder Pumpen-Einzelheiten und bleibt dabei
   unverändert. Anleitung: `docs/funktion-anlegen.md`.
