@@ -484,3 +484,15 @@ def test_erinnern_nach_stumm():
     assert erinnern({"tuer_offen:polier", "x"}, ["tuer_offen:polier"], [tuer]) == {"x"}
     assert erinnern({"tuer_offen:polier"}, [], [tuer]) == {"tuer_offen:polier"}
     assert erinnern({"tuer_offen:polier"}, ["tuer_offen:polier"], []) == {"tuer_offen:polier"}   # Problem weg: nichts
+
+
+def test_selbst_ein():
+    """FE-0010: musste die Automatik ein Gerät in 10 min mindestens 3-mal ausschalten, schaltet es sich selbst ein."""
+    from logik.warnungen import selbst_ein_seit
+    assert selbst_ein_seit([vor(9), vor(5), vor(1)], JETZT) == vor(9)
+    assert selbst_ein_seit([vor(12), vor(5), vor(1)], JETZT) is None      # einer zu alt
+    assert selbst_ein_seit([vor(2), vor(1)], JETZT) is None
+    g = GeraetZustand(id="h2", bereich="polier", name="Heizung 02", selbst_ein_seit=vor(9))
+    (w,) = nur(Art.SELBST_EIN, zustand(g))
+    assert w.stufe == Stufe.STOERUNG and titel(w) == "Heizung 02 schaltet sich selbst wieder ein"
+    assert nur(Art.SELBST_EIN, zustand(GeraetZustand(id="h2", bereich="polier", erreichbar=False, selbst_ein_seit=vor(9)))) == []

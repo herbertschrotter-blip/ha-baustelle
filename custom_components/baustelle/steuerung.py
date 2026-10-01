@@ -189,7 +189,8 @@ class Steuerung:
         self._eigene_kontexte: deque[str] = deque(maxlen=100)
         self._letzter_befehl: dict[str, tuple[bool, datetime]] = {}
         self._offline_seit: dict[str, datetime] = {}
-        self._lief: dict[str, bool] = {}   # zuletzt bekannter Zustand je Gerät (offline: zählt weiter, wenn es lief)
+        self._lief: dict[str, bool] = {}
+        self._aus_befehle: dict[str, list[datetime]] = {}   # FE-0010: Ausschaltbefehle je Gerät (letzte 10 min)   # zuletzt bekannter Zustand je Gerät (offline: zählt weiter, wenn es lief)
         self._wartet_seit: dict[str, datetime] = {}
         self._frei_verlauf: deque[tuple[datetime, dict[str, float]]] = deque()
         self._letzter_anlauf: datetime | None = None
@@ -852,7 +853,9 @@ class Steuerung:
             g = self.geraete[gid]
             zustand = self.hass.states.get(g.schalter)
             ein = gid in an_set
-            if self._schalten(g, zustand, ein, jetzt):
+            if self._schalten(g, zustand, ein, jetzt) and not (
+                not ein and warn_logik.selbst_ein_seit(self._aus_befehle.get(g.id, []), jetzt) is not None
+            ):   # FE-0010: schaltet es sich selbst wieder ein, steht das einmal als Störung im Protokoll, nicht jede Minute
                 geschaltet.setdefault(g.bereich, []).append((g, ein))
         if geschaltet:
             self._frei_verlauf.clear()   # eigene Schaltung: der freie Strom von vorhin gilt nicht mehr
@@ -893,6 +896,9 @@ class Steuerung:
         kontext = Context()
         self._eigene_kontexte.append(kontext.id)
         self._letzter_befehl[g.id] = (ein, jetzt)
+        if not ein:   # FE-0010: wie oft musste ausgeschaltet werden (schaltet es sich selbst wieder ein?)
+            grenze = jetzt - timedelta(minutes=warn_logik.SELBST_EIN_FENSTER_MIN)
+            self._aus_befehle[g.id] = [t for t in self._aus_befehle.get(g.id, []) if t >= grenze] + [jetzt]
         _LOGGER.debug("%s → %s", g.schalter, "ein" if ein else "aus")
         self.hass.async_create_task(
             self.hass.services.async_call(
@@ -1010,6 +1016,7 @@ class Steuerung:
                     offline_seit=self._offline_seit.get(g.id), leistung=leistung, an=an,
                     an_seit=dt_util.as_local(zustand.last_changed) if an and zustand is not None else None,
                     hand_seit=self.funktion_von(g).hand_seit(g), laeuft_seit=laeuft_seit, zyklen_h=zyklen,
+                    selbst_ein_seit=warn_logik.selbst_ein_seit(self._aus_befehle.get(g.id, []), jetzt),
                 )
             )
         return liste

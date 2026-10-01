@@ -319,7 +319,7 @@ async function allgemein() {
     erwarte('abgeschlossene Baustelle aus der Adresse', panel.s.view === 'bsdetail' && panel.s.bs === bs.baustelle.entry_id); }
   global.location = { search: '' };
 }
-const ARTEN_TEST = { m_offline: 1, m_trocken: 1, m_dauer: 1, m_zyklen: 1, m_leistung: 1, m_frost: 1, m_kalt: 1, m_fuehler: 1, m_wetter: 1, m_hand: 1 };
+const ARTEN_TEST = { m_selbst: 1, m_offline: 1, m_trocken: 1, m_dauer: 1, m_zyklen: 1, m_leistung: 1, m_frost: 1, m_kalt: 1, m_fuehler: 1, m_wetter: 1, m_hand: 1 };
 const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
 
 (async () => {

@@ -1025,7 +1025,7 @@ const STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, '0'));
 const HZ_TEILE = [['heute', 'Heute', '🕖', 'Heute'], ['wann', 'Wann welche Heizung heizt', '🔥', 'Wann heizt was'], ['plan', 'Heizplan · diese Woche', '📅', 'Diese Woche'],
   ['az', 'Arbeitszeit', '👷', 'Arbeitszeit'], ['ausn', 'Ausnahmen', '✳️', 'Ausnahmen'], ['regeln', 'So wird geheizt', '⚙️', 'Regeln'],
   ['trocknen', '👕 Kleidung trocknen', '👕', 'Kleidung trocknen'], ['container', 'Je Container', '🏠', 'Container'], ['urlaub', 'Urlaub &amp; Feiertage', '🏖', 'Urlaub & Feiertage']];
-const ARTEN = { m_offline: 'offline', m_trocken: 'trockenlauf', m_dauer: 'dauerlauf', m_zyklen: 'zyklen_oft', m_leistung: 'keine_leistung', m_frost: 'frostgefahr',
+const ARTEN = { m_selbst: 'selbst_ein', m_offline: 'offline', m_trocken: 'trockenlauf', m_dauer: 'dauerlauf', m_zyklen: 'zyklen_oft', m_leistung: 'keine_leistung', m_frost: 'frostgefahr',
   m_kalt: 'zu_kalt', m_fuehler: 'fuehler_fehlt', m_wetter: 'kein_wetter', m_hand: 'hand_zu_lange' };
 /* Abschnitte der Integration → Klassen der Zeitleiste im Mockup */
 const ABSCHNITT = { fruehstart: 'extra', vorheizen: 'vor', nachheizen: 'vor', arbeitszeit: 'heiz', trocknen: 'trock', termin: 'termin' };
@@ -1237,7 +1237,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.25';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.26';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -3030,7 +3030,7 @@ class BaustellePanel extends HTMLElement {
     const liste = (titel, inhalt) => `<div class="glas-panel liste"><div class="gruppe">${titel}</div>${inhalt}</div>`;
     const nm = x => x ? esc(this.name(x)) : '–', wq = 'data-s="wetterquelle"', tk = o.termine_kalender || e.termine_kalender;
     const pumpen = d.bereiche.filter(b => b.pumpe), cont = d.bereiche.filter(b => !b.pumpe), geraete = d.bereiche.reduce((a, b) => a + b.geraete.length, 0);
-    const mAn = ['m_offline', 'm_trocken', 'm_dauer', 'm_zyklen', 'm_leistung', 'm_frost', 'm_kalt', 'm_fuehler', 'm_wetter', 'm_hand'].filter(k => e[k]).length;
+    const mAn = ['m_offline', 'm_trocken', 'm_dauer', 'm_zyklen', 'm_leistung', 'm_frost', 'm_selbst', 'm_kalt', 'm_fuehler', 'm_wetter', 'm_hand'].filter(k => e[k]).length;
     const offen = M === null ? '–' : M.filter(m => this.meldungOffen(m)).length, ohneKopf = h => h.slice(Math.max(0, h.indexOf('<div class="glas-panel')));
     const dev = (this.s.evDev || 'meldungen') === 'meldungen', devH = ohneKopf(this.v_dev()), devW = devH.indexOf('<div class="glas-panel liste"><div class="gruppe">Werkzeuge');
     return [
@@ -3050,7 +3050,7 @@ class BaustellePanel extends HTMLElement {
           + pumpen.map(b => zeile(`♨ Automatik · ${esc(b.name)}`, schalter(b.auto, 'b-auto', `data-id="${b.id}"`))).join('')) },
       { k: 'strom', ic: '⚡', t: 'Strom & Staffelung', kurz: `${de(e.preis, 2)} €/kWh · Staffelung ${e.staffel ? 'an' : 'aus'}`, html: this.einstBlock('Strom') },
       { k: 'firmen', ic: '🏢', t: 'Firmen', kurz: `${d.firmen.length} ${d.firmen.length === 1 ? 'Firma' : 'Firmen'} für die Abrechnung`, html: this.einstBlock('Firmen · für die Abrechnung') },
-      { k: 'meldungen', ic: '🔔', t: 'Meldungen', kurz: `${mAn} von 10 an${e.empfaenger ? ` · ${esc(e.empfaenger)}` : ''}`,
+      { k: 'meldungen', ic: '🔔', t: 'Meldungen', kurz: `${mAn} von 11 an${e.empfaenger ? ` · ${esc(e.empfaenger)}` : ''}`,
         html: this.einstBlock('Meldungen · Störungen') + liste('Schwellen der Hinweise', zeile('Zu kalt trotz Heizung nach', st('kalt_min', 15, v => `${v} min`))
           + zeile('Handbetrieb länger als', st('hand_h', 1, v => `${de(v)} h`)) + zeile('Tür offen – Nachricht nach', st('tuer_melden', 5, v => `${v} min`))) },
       { k: 'bericht', ic: '📊', t: 'Bericht', kurz: { aus: 'aus', woche: 'jede Woche', monat: 'jeden Monat', beides: 'Woche und Monat' }[e.bericht] || esc(e.bericht), html: this.einstBlock('Bericht') },
@@ -3133,6 +3133,7 @@ class BaustellePanel extends HTMLElement {
         <div class="zeile"><span>Pumpe schaltet oft (ab ${e.zyklen_h} je Stunde)</span>${schalter(e.m_zyklen, 'e-bool', 'data-k="m_zyklen"')}</div>
         <div class="zeile"><span>Heizkörper zieht keinen Strom</span>${schalter(e.m_leistung, 'e-bool', 'data-k="m_leistung"')}</div>
         <div class="zeile"><span>Frostgefahr trotz Frostschutz</span>${schalter(e.m_frost, 'e-bool', 'data-k="m_frost"')}</div>
+        <div class="zeile"><span>Gerät schaltet sich selbst wieder ein (Auto-ON am Shelly?)</span>${schalter(e.m_selbst, 'e-bool', 'data-k="m_selbst"')}</div>
         <div class="gruppe">Hinweise</div>
         <div class="zeile"><span>Zu kalt trotz Heizung (nach ${e.kalt_min} min)</span>${schalter(e.m_kalt, 'e-bool', 'data-k="m_kalt"')}</div>
         <div class="zeile"><span>Fühler meldet nichts / Batterie schwach</span>${schalter(e.m_fuehler, 'e-bool', 'data-k="m_fuehler"')}</div>

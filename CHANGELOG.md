@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.26] – 2026-10-01
+
+- Gerät schaltet sich selbst wieder ein (FE-0010): muss die Automatik ein Gerät in 10 min mindestens 3-mal
+  ausschalten (z. B. „Auto ON“-Timer am Shelly), gibt es eine Störung „… schaltet sich selbst wieder ein“ – einmal
+  aufs Handy mit Hinweis auf den Timer – statt jede Minute „… aus“ im Protokoll. Abschaltbar unter Meldungen.
+
 ## [0.8.25] – 2026-10-01
 
 - Geräteübersicht (AN-0009): Statuspunkt je Gerät – grün erreichbar, rot „nicht erreichbar seit …“ (angemeldet, aber

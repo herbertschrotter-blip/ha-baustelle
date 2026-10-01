@@ -1014,6 +1014,26 @@ async def test_fairer_vergleich_zaehlt_nur_im_thermostat(hass: HomeAssistant, ba
     assert st.zaehler[f"vgl_kwh:{C1}"] == 1.5 and st.zaehler["energie_heizen"] >= 2.5   # gezählt, aber nicht im Vergleich
 
 
+async def test_geraet_schaltet_sich_selbst_ein(hass: HomeAssistant, baustelle, freezer, shellys, nachrichten) -> None:
+    """FE-0010: ein Shelly mit Auto-ON-Timer schaltet sich jede Minute selbst ein – nach dem dritten Ausschalten eine
+    Störung (einmal aufs Handy), im Protokoll nicht mehr jede Minute „aus“."""
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    freezer.move_to("2026-09-29 20:00:00+02:00")          # außerhalb der Arbeitszeit: soll aus sein
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    for minute in range(1, 7):
+        hass.states.async_set("switch.hk1", "on")            # das Gerät selbst (ohne Benutzer)
+        await hass.async_block_till_done()
+        await _zu(hass, freezer, f"2026-09-29 20:{minute:02d}:00+02:00", st)
+        assert hass.states.get("switch.hk1").state == "off"
+    aus = [p for p in st.e["protokoll"] if "Heizkörper 1 aus" in p[3]]
+    assert len(aus) == 2                                       # danach nicht mehr jede Minute
+    warn = [w for w in st.daten.warnungen if w.art == "selbst_ein"]
+    assert len(warn) == 1 and warn[0].geraet == HK1
+    assert sum("schaltet sich selbst wieder ein" in str(c.data) for c in nachrichten) == 1
+
+
 async def test_geraet_inaktiv(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
     """WU-0004: inaktives Gerät wird einmal ausgeschaltet, dann schaltet die Automatik es nicht mehr und es meldet nichts."""
     st = baustelle.runtime_data

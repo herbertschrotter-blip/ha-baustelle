@@ -41,7 +41,7 @@ Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Sequence, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
@@ -73,6 +73,7 @@ class Art(StrEnum):
     KEIN_WETTER = "kein_wetter"
     HAND_ZU_LANGE = "hand_zu_lange"
     TUER_OFFEN = "tuer_offen"
+    SELBST_EIN = "selbst_ein"   # FE-0010: Gerät schaltet sich selbst wieder ein (z. B. Auto-ON-Timer am Shelly)
 
 
 STOERUNGEN: frozenset[Art] = frozenset(
@@ -84,8 +85,18 @@ STOERUNGEN: frozenset[Art] = frozenset(
         Art.ZYKLEN_OFT,
         Art.KEINE_LEISTUNG,
         Art.FROSTGEFAHR,
+        Art.SELBST_EIN,
     }
 )
+SELBST_EIN_AB = 3            # so oft musste die Automatik ein Gerät …
+SELBST_EIN_FENSTER_MIN = 10  # … in so vielen Minuten wieder ausschalten
+
+
+def selbst_ein_seit(aus_befehle: Sequence[datetime], jetzt: datetime) -> datetime | None:
+    """FE-0010: Musste die Automatik ein Gerät in `SELBST_EIN_FENSTER_MIN` Minuten mindestens `SELBST_EIN_AB`-mal
+    ausschalten, schaltet es sich selbst wieder ein – seit dem ersten dieser Befehle, sonst None."""
+    neu = [t for t in aus_befehle if 0 <= (jetzt - t).total_seconds() / 60 <= SELBST_EIN_FENSTER_MIN]
+    return min(neu) if len(neu) >= SELBST_EIN_AB else None
 
 
 def stufe_von(art: str) -> Stufe:
@@ -119,6 +130,7 @@ class GeraetZustand:
     an: bool = False
     an_seit: datetime | None = None
     hand_seit: datetime | None = None
+    selbst_ein_seit: datetime | None = None   # FE-0010
     laeuft_seit: datetime | None = None
     zyklen_h: int = 0
 
@@ -314,6 +326,8 @@ def _pruefe_geraet(
         and _minuten(g.an_seit, jetzt) >= einst.keine_leistung_nach_min
     ):
         w.append(_warnung(Art.KEINE_LEISTUNG, g.an_seit or jetzt, g.bereich, g.id, name=g.name))
+    if g.erreichbar and g.selbst_ein_seit is not None and einst.aktiv(Art.SELBST_EIN):
+        w.append(_warnung(Art.SELBST_EIN, g.selbst_ein_seit, g.bereich, g.id, name=g.name))
     if (
         g.erreichbar
         and g.hand_seit is not None
@@ -491,6 +505,8 @@ def titel(w: Warnung) -> str:
             return f"Pumpe schaltet oft: {v.get('zyklen', 0)} Zyklen je Stunde"
         case Art.KEINE_LEISTUNG:
             return f"{name or 'Heizkörper'} zieht keinen Strom"
+        case Art.SELBST_EIN:
+            return f"{name or 'Gerät'} schaltet sich selbst wieder ein"
         case Art.FROSTGEFAHR:
             return f"Frostgefahr: {_zahl(v['temperatur'])} °C"
         case Art.ZU_KALT:

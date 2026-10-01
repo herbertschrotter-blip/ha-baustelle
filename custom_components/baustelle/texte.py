@@ -23,6 +23,7 @@ HILFE: dict[str, str] = {
     Art.FUEHLER_FEHLT: "Der Temperaturfühler meldet nichts oder die Batterie ist fast leer. Ohne Fühler bleibt die Heizung in der Heizzeit an.",
     Art.KEIN_WETTER: "Keine Vorhersage – Frühstart, Kleidung trocknen und Heizgrenze rechnen ohne Wetter.",
     Art.HAND_ZU_LANGE: "Von Hand eingeschaltet und nicht zurückgestellt. Soll wieder die Automatik übernehmen?",
+    Art.SELBST_EIN: "Das Gerät schaltet sich immer wieder selbst ein, die Automatik muss es ständig ausschalten. Am Shelly einen Timer „Auto ON“ (automatisch einschalten) oder einen Zeitplan prüfen und abschalten.",
     Art.TUER_OFFEN: "Heizt wieder, sobald die Tür zu ist. Nach {melden} min kommt eine Nachricht aufs Handy.",
 }
 
