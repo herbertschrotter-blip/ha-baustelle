@@ -253,9 +253,12 @@ def ausnahme_am(ausnahmen: Iterable[Ausnahme], tag: date) -> Ausnahme | None:
 
 
 def frei_gilt(frei: bool, ausnahme: Ausnahme | None) -> bool:
-    """Ist ein freier Tag (Urlaub, freier Feiertag) wirklich frei? Eine Ausnahme `arbeit`/`zeiten` geht vor – wer an
-    einem Feiertag ausdrücklich eine Ausnahme einträgt, will arbeiten (gilt für Plan, Regelung und Status)."""
-    return frei and (ausnahme is None or ausnahme.art == AusnahmeArt.FREI)
+    """Ist der Tag frei? Urlaub und freier Feiertag (`frei`), außer eine Ausnahme `arbeit`/`zeiten` geht vor – wer an
+    einem Feiertag ausdrücklich eine Ausnahme einträgt, will arbeiten. Eine Ausnahme `frei` macht den Tag immer frei
+    (dann gilt auch der Modus für freie Tage, Szenarien). Gilt für Plan, Regelung und Status."""
+    if ausnahme is not None:
+        return ausnahme.art == AusnahmeArt.FREI
+    return frei
 
 
 def arbeit_am(liste: Iterable[Arbeitszeit], ausnahmen: Iterable[Ausnahme], tag: date) -> tuple[int, int] | None:

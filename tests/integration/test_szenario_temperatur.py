@@ -255,14 +255,17 @@ async def test_ausnahme_frei_an_einem_arbeitstag(hass: HomeAssistant, freezer, s
 
 
 async def test_ausnahme_frei_mit_frei_modus_absenk(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """FRAGE: `frei_modus` gilt nur für Urlaub/Feiertag, nicht für eine Ausnahme „frei“ (LageContainer-Doku nennt
-    „Ausnahme frei“ aber mit). Tatsächlich: bei 8 °C keine Absenkung, Grund „ausserhalb“."""
+    """Szenarien, Herbert 01.10.2026: eine Ausnahme „frei“ ist ein freier Tag wie Urlaub/Feiertag – `frei_modus` gilt
+    (absenk: mit Fühler auf 10 °C)."""
     entry, st = await _neu(hass, freezer, shellys)
     st.e["heizung"]["frei_modus"] = "absenk"
     st.e["ausnahmen"] = [{"datum": "2026-09-29", "art": "frei"}]
     hass.states.async_set("sensor.temp_c1", "8.0")
     await _automatik(hass, st)
-    assert not _an(hass, "switch.hk1") and st.daten.grund[C1] == "ausserhalb"
+    assert _an(hass, "switch.hk1") and st.daten.grund[C1] == "absenken"
+    hass.states.async_set("sensor.temp_c1", "10.5")
+    await _zu(hass, freezer, "2026-09-29 10:01:00+02:00", st)
+    assert not _an(hass, "switch.hk1")
 
 
 async def test_ausnahme_arbeit_an_einem_samstag(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
@@ -344,16 +347,19 @@ async def test_heizgrenze_basis_tageshoechst_und_jetzt(hass: HomeAssistant, free
     assert "Heizgrenze überschritten – Heizung aus" in _texte(st, "wetter")
 
 
-async def test_heizgrenze_gemessener_hoechstwert_wird_nicht_gemerkt(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """FRAGE: Basis Tageshöchstwert ohne Vorhersage – ein mittags gemessener Höchstwert (17 °C) wird nicht gemerkt; fällt
-    die Temperatur am Nachmittag auf 12 °C, wird wieder geheizt. Tatsächliches Verhalten festgehalten."""
+async def test_heizgrenze_gemessener_hoechstwert_wird_gemerkt(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    """Szenarien, Herbert 01.10.2026: Basis Tageshöchstwert ohne Vorhersage – der mittags gemessene Höchstwert (17 °C)
+    gilt bis Mitternacht; fällt die Temperatur am Nachmittag auf 12 °C, bleibt es „zu warm“. Am nächsten Tag neu."""
     entry, st = await _neu(hass, freezer, shellys)
     hass.states.async_set("sensor.aussen", "17.0")
     await _automatik(hass, st)
     assert not _an(hass, "switch.hk2")
     hass.states.async_set("sensor.aussen", "12.0")
     await _zu(hass, freezer, "2026-09-29 14:00:00+02:00", st)
-    assert _an(hass, "switch.hk2") and _lz(hass, entry)["heizgrenze"]["bezug"] == 12.0
+    assert not _an(hass, "switch.hk2") and _lz(hass, entry)["heizgrenze"]["bezug"] == 17.0
+    st.e["heizung"]["heizgrenze_basis"] = "jetzt"                     # Basis „jetzt“: zählt der aktuelle Wert
+    await _zu(hass, freezer, "2026-09-29 14:01:00+02:00", st)
+    assert _an(hass, "switch.hk2")
 
 
 async def test_heizgrenze_mit_frost(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
@@ -565,8 +571,8 @@ async def test_stufen_beim_absenken(hass: HomeAssistant, freezer, shellys, nachr
 # ====================================================================== Sprünge: Wetterwerte fehlen
 async def test_aussentemperatur_faellt_aus_ueber_heizgrenze(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     """Szenarien, Herbert 01.10.2026: über der Heizgrenze fällt der Außenfühler aus (ohne Wetter-Entität) → der letzte
-    gemessene Wert gilt bis 6 h, es bleibt „zu warm“; erst danach ist außen unbekannt, ohne Bezug gilt „nicht zu
-    warm“ und es wird wieder geheizt."""
+    gemessene Wert gilt bis 6 h, es bleibt „zu warm“; danach ist außen unbekannt – mit Basis Tageshöchstwert bleibt der
+    gemessene Höchstwert bis Mitternacht, mit Basis „jetzt“ gilt ohne Bezug „nicht zu warm“."""
     entry, st = await _neu(hass, freezer, shellys)
     hass.states.async_set("sensor.aussen", "17")
     await _automatik(hass, st)
@@ -578,9 +584,15 @@ async def test_aussentemperatur_faellt_aus_ueber_heizgrenze(hass: HomeAssistant,
     assert not _an(hass, "switch.hk2")
     await _zu(hass, freezer, "2026-09-29 16:00:00+02:00", st)          # genau 6 h: gilt noch
     assert _lz(hass, entry)["heizgrenze"]["zu_warm"] is True and not _an(hass, "switch.hk2")
-    await _zu(hass, freezer, "2026-09-29 16:01:00+02:00", st)          # danach unbekannt
+    await _zu(hass, freezer, "2026-09-29 16:01:00+02:00", st)          # danach unbekannt …
     lz = _lz(hass, entry)
-    assert lz["wetter"]["aussen"] is None and lz["heizgrenze"] == {"bezug": None, "zu_warm": False}
+    assert lz["wetter"]["aussen"] is None
+    # … aber der gemessene Tageshöchstwert (17 °C) gilt bis Mitternacht (Basis Tageshöchstwert, Szenarien)
+    assert lz["heizgrenze"]["zu_warm"] is True and not _an(hass, "switch.hk2")
+    st.e["heizung"]["heizgrenze_basis"] = "jetzt"                     # Basis „jetzt“: ohne Wert gilt „nicht zu warm“
+    await _zu(hass, freezer, "2026-09-29 16:02:00+02:00", st)
+    lz = _lz(hass, entry)
+    assert lz["heizgrenze"] == {"bezug": None, "zu_warm": False}
     assert _an(hass, "switch.hk2") and st.daten.status == "heizt"
     assert "Heizgrenze unterschritten – es wird wieder geheizt" in _texte(st, "wetter")
 

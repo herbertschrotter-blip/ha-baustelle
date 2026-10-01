@@ -522,8 +522,13 @@ class Steuerung:
         else:
             regen = tag.get("regen")
         aussen_max = tag.get("max")
-        if aussen is not None and (aussen_max is None or aussen > aussen_max):
-            aussen_max = aussen
+        if aussen is not None and o.get(CONF_TEMP_SENSOR) and _zahl(self.hass.states.get(o[CONF_TEMP_SENSOR])) is not None:
+            # gemessener Tageshöchstwert (Szenarien): ein warmer Mittag bleibt bis Mitternacht „zu warm“
+            gemerkt = self.lz.setdefault("wetter_tage", {}).setdefault(heute.isoformat(), {})
+            if gemerkt.get("max_mess") is None or aussen > gemerkt["max_mess"]:
+                gemerkt["max_mess"] = aussen
+        werte = [x for x in (aussen_max, self._wetter_tag(heute).get("max_mess"), aussen) if x is not None]
+        aussen_max = max(werte) if werte else None
         # Früh-Prognose: der nächste Morgen (vor 8 Uhr heute, danach morgen) – wie 0.6
         frueh = self._wetter_tag(heute if jetzt.hour < 8 else heute + timedelta(days=1)).get("frueh")
         return WetterWerte(
@@ -647,6 +652,7 @@ class Steuerung:
         for key, bis in list(self.e["stumm"].items()):
             if (ende := _zeit(bis)) is None or ende <= jetzt:
                 del self.e["stumm"][key]
+                self.lz.setdefault("stumm_vorbei", []).append(key)   # danach erinnern, falls das Problem noch besteht
                 geaendert = True
         if geaendert:
             self.einstellungen.speichern()
@@ -1045,7 +1051,7 @@ class Steuerung:
         for key, w in alt.items():
             if key not in neu_keys:
                 self.protokoll("ok", w.bereich, texte.wieder_ok(w))
-        bisher = set(self.lz.get("gemeldet") or [])
+        bisher = warn_logik.erinnern(set(self.lz.get("gemeldet") or []), self.lz.pop("stumm_vorbei", []), neu)
         gemeldet = warn_logik.zu_melden(neu, bisher, stumm, jetzt)
         for w in gemeldet:
             self.nachrichten.warnung_melden(w)

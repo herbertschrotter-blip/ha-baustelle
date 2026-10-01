@@ -146,9 +146,8 @@ async def test_pause_null_minuten_sofort(hass: HomeAssistant, baustelle, freezer
 
 
 async def test_stumm_1h(hass: HomeAssistant, baustelle, freezer, shellys, nachrichten) -> None:
-    """FRAGE: Knopf „1 h stumm“ blendet die Warnung 1 h aus. Eine Erinnerung nach der Stunde gibt es nicht – die
-    Tür-Nachricht kommt ohnehin nur einmal je Öffnen (gemeldet_merken), „1 h stumm“ wirkt also nur auf den Chip.
-    Getestet: tatsächliches Verhalten."""
+    """Szenarien, Herbert 01.10.2026: Knopf „1 h stumm“ blendet die Warnung 1 h aus; ist die Tür danach noch offen,
+    kommt die Nachricht noch einmal (Erinnerung)."""
     st = baustelle.runtime_data
     await _start(hass, freezer, st)
     await _tuer(hass, TUER1, "on")
@@ -161,7 +160,9 @@ async def test_stumm_1h(hass: HomeAssistant, baustelle, freezer, shellys, nachri
     w_lz = next(x for x in struktur(hass, baustelle)["laufzeit"]["warnungen"] if x["key"] == w.key)
     assert w_lz["stumm_bis"] == "2026-09-29T11:10:00+02:00"
     await _zu(hass, freezer, "11:10:01", st)
-    assert len(nachrichten) == 1                                   # nach der Stunde keine Erinnerung
+    assert len(nachrichten) == 2                                   # nach der Stunde: Erinnerung
+    await _zu(hass, freezer, "11:20:00", st)
+    assert len(nachrichten) == 2                                   # nur einmal
     w_lz = next(x for x in struktur(hass, baustelle)["laufzeit"]["warnungen"] if x["key"] == w.key)
     assert w_lz["stumm_bis"] is None and not _an(hass, "switch.hk1")
 

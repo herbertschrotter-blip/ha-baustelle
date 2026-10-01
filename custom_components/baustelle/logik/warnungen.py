@@ -439,6 +439,13 @@ def zu_melden(
     ]
 
 
+def erinnern(bisher: set[str], abgelaufen: Iterable[str], neu: Iterable[Warnung]) -> set[str]:
+    """Nach „stumm“ erinnern (Szenarien, Herbert 01.10.2026): ist ein Stumm abgelaufen und das Problem noch da, gilt es
+    als noch nicht gemeldet – die Nachricht kommt noch einmal."""
+    offen = {w.key for w in neu}
+    return bisher - (set(abgelaufen) & offen)
+
+
 def gemeldet_merken(neu: Iterable[Warnung], bisher: set[str], gemeldet: Iterable[Warnung]) -> set[str]:
     """Neues `bisher`: gemeldete Keys, solange ihr Problem noch besteht."""
     offen = {w.key for w in neu}

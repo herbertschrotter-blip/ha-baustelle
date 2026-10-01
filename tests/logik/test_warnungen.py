@@ -475,3 +475,12 @@ def test_warnungen_nach_modus():
     g = GeraetZustand(id="s1", bereich="magazin", name="Steckdose", hand_seit=vor(9 * 60))
     assert len(nur(Art.HAND_ZU_LANGE, zustand(g, container=[ContainerZustand(id="magazin", modus="plan")]))) == 1
     assert nur(Art.HAND_ZU_LANGE, zustand(g, container=[ContainerZustand(id="magazin", modus="hand")])) == []
+
+
+def test_erinnern_nach_stumm():
+    """Szenarien: läuft „stumm“ ab und besteht das Problem noch, kommt die Nachricht noch einmal."""
+    from logik.warnungen import erinnern
+    tuer = Warnung(key="tuer_offen:polier", art=Art.TUER_OFFEN, stufe=Stufe.HINWEIS, bereich="polier", geraet=None, seit=vor(70))
+    assert erinnern({"tuer_offen:polier", "x"}, ["tuer_offen:polier"], [tuer]) == {"x"}
+    assert erinnern({"tuer_offen:polier"}, [], [tuer]) == {"tuer_offen:polier"}
+    assert erinnern({"tuer_offen:polier"}, ["tuer_offen:polier"], []) == {"tuer_offen:polier"}   # Problem weg: nichts

@@ -332,3 +332,4 @@ def test_frei_gilt_ausnahme_arbeit_geht_vor():
     frei = Ausnahme(datum=DI, art=AusnahmeArt.FREI)
     assert frei_gilt(True, None) and frei_gilt(True, frei)
     assert not frei_gilt(True, arbeit) and not frei_gilt(False, None)
+    assert frei_gilt(False, frei)   # Ausnahme „frei“ ist ein freier Tag (Modus für freie Tage, Szenarien)

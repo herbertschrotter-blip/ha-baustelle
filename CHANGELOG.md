@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.18] – 2026-10-01
+
+Letzte Entscheidungen aus den Szenarien:
+
+- „1 h stumm“ (und andere stumme Warnungen): ist das Problem nach Ablauf noch da, kommt die Nachricht noch einmal.
+- Ausnahme „frei“ (z. B. Brückentag) wird wie Urlaub/Feiertag behandelt: es gilt „Im Urlaub und an freien Feiertagen“
+  (nur Frostschutz, absenken oder alles aus).
+- Heizgrenze mit Basis Tageshöchstwert: der gemessene Höchstwert des Tages gilt bis Mitternacht, auch ohne Vorhersage.
+
 ## [0.8.17] – 2026-10-01
 
 Weitere Entscheidungen aus den Szenarien:
