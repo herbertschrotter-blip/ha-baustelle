@@ -566,7 +566,7 @@ async def ws_bericht(hass: HomeAssistant, connection: websocket_api.ActiveConnec
 ZEITRAUM: dict[Any, Any] = {
     vol.Required("entry_id"): str,
     vol.Optional("zeitraum", default="Monat"): vol.In(ARTEN),
-    vol.Optional("versatz", default=0): vol.All(vol.Coerce(int), vol.Range(0, 100)),
+    vol.Optional("versatz", default=0): vol.All(vol.Coerce(int), vol.Range(0, 4000)),   # FE-0008: Tage bis zum Beginn der Baustelle
     vol.Optional("scope", default="diese"): vol.In(["diese", "alle"]),
 }
 

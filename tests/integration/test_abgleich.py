@@ -477,6 +477,11 @@ async def test_seite_gegen_echte_struktur(hass: HomeAssistant, echte_baustelle) 
             abr = await rufe("baustelle/abrechnung", entry_id=WOHNBAU, zeitraum=z, versatz=0, scope=scope)
             assert aw["zeitraum"] == abr["zeitraum"] and aw["summen"]["kwh"] == abr["kwh"] == 0
             assert abr["csv"]["firma"] == "\ufeffZeitraum;Firma;Baustelle;Container;kWh;Preis €/kWh;Betrag €"
+    # FE-0008: frühere Zeiträume – auch Tage weit zurück (bis zum Beginn der Baustelle)
+    for z, versatz in (("Tag", 400), ("Woche", 60), ("Monat", 14), ("Jahr", 3)):
+        aw = await rufe("baustelle/auswertung", entry_id=WOHNBAU, zeitraum=z, versatz=versatz, scope="diese")
+        abr = await rufe("baustelle/abrechnung", entry_id=WOHNBAU, zeitraum=z, versatz=versatz, scope="diese")
+        assert aw["zeitraum"] == abr["zeitraum"]
 
     # dieselben Schlüssel und Typen wie das Beispiel, gegen das die Seite im Einzelnen getestet wird (api §1)
     beispiel = json.loads(BEISPIEL.read_text(encoding="utf-8"))

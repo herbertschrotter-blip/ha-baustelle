@@ -220,7 +220,7 @@ Diagramm-Reihen (Verbrauch je Container, Temperaturen, Leistung) holt die Seite 
 `recorder/statistics_during_period`.
 
 Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle; unbekannt → `not_found`),
-`zeitraum: Tag|Woche|Monat|Jahr` (Standard `Monat`), `versatz` (0 = laufender, 1 = der davor …), `scope: diese|alle`
+`zeitraum: Tag|Woche|Monat|Jahr` (Standard `Monat`), `versatz` (0 = laufender, 1 = der davor …, höchstens 4000 – Tage bis zum Beginn der Baustelle, FE-0008), `scope: diese|alle`
 (`alle` = alle laufenden Baustellen; Preis der Baustelle `entry_id`). Zeitraum in der Antwort:
 `{"art", "von", "bis" (erster Tag danach), "periode": "hour|day|month", "n", "labels", "monat" (1–12|null), "jahr"}`.
 

@@ -237,6 +237,33 @@ function linien(id, reihen, labels, jedes, titel) {
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}<text x="${L - 5}" y="${T - 7}" class="ax ax-e" text-anchor="end">°C</text><g class="hover"></g></svg>
     <div class="legende">${reihen.map(s => `<span><i style="background:${s.farbe}"></i>${esc(s.name)}</span>`).join('')}</div>`;
 }
+/* FE-0008: früheren Zeitraum wählen – Versatz 0 = aktuell, 1 = davor …; Grenze = Baustellenbeginn (im Mockup Okt 2025, damit man blättern kann) */
+let ZR_VAR = '4';   // abgenommen: 4 · Pfeile + Kalender (Herbert 01.10.2026); 1–3 waren die Vorschläge
+const ZR_GRENZE = '2025-10-01', MONATE_LANG = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const isoPlus = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+const tageAb = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 864e5);
+const kw = iso => { const t = new Date(iso + 'T12:00:00Z'), d = (t.getUTCDay() + 6) % 7; t.setUTCDate(t.getUTCDate() - d + 3); const j = new Date(Date.UTC(t.getUTCFullYear(), 0, 4)); return 1 + Math.round(((t - j) / 864e5 - 3 + ((j.getUTCDay() + 6) % 7)) / 7); };
+function zrMax(z) {
+  const [J, M] = [+HEUTE.slice(0, 4), +HEUTE.slice(5, 7)], [gJ, gM] = [+ZR_GRENZE.slice(0, 4), +ZR_GRENZE.slice(5, 7)];
+  return { Tag: tageAb(ZR_GRENZE, HEUTE), Woche: Math.floor(tageAb(ZR_GRENZE, WOCHE_ISO[0]) / 7) + 1, Monat: (J - gJ) * 12 + M - gM, Jahr: J - gJ }[z];
+}
+function zrInfo(z, v) {
+  if (z === 'Tag') { const t = isoPlus(HEUTE, -v); return { text: v === 0 ? 'Heute' : v === 1 ? 'Gestern' : `${wtag(t)} ${datum(t)}`, unter: v < 2 ? `${wtag(t)} ${datum(t)}` : '', kurz: `${wtag(t)} ${t.slice(8, 10)}.`, iso: t }; }
+  if (z === 'Woche') { const mo = isoPlus(WOCHE_ISO[0], -7 * v), so = isoPlus(mo, 6);
+    return { text: v === 0 ? 'Diese Woche' : v === 1 ? 'Vorwoche' : `KW ${kw(mo)}`, unter: `KW ${kw(mo)} · ${datum(mo).slice(0, 6)}–${datum(so)}`, kurz: `KW ${kw(mo)}`, iso: mo }; }
+  if (z === 'Monat') { let m = +HEUTE.slice(5, 7) - 1 - v, j = +HEUTE.slice(0, 4); while (m < 0) { m += 12; j--; }
+    return { text: `${MONATE_LANG[m]} ${j}`, unter: v === 0 ? 'aktueller Monat' : '', kurz: `${MONATE[m]}${m === 0 || v === 0 ? ` ${String(j).slice(2)}` : ''}`, iso: `${j}-${String(m + 1).padStart(2, '0')}-01` }; }
+  const j = +HEUTE.slice(0, 4) - v; return { text: String(j), unter: v === 0 ? 'aktuelles Jahr' : '', kurz: String(j), iso: `${j}-01-01` };
+}
+/* Versatz zu einem Datum im Kalender (FE-0008, Variante 4) */
+function zrVersatz(z, iso) {
+  const J = +HEUTE.slice(0, 4), M = +HEUTE.slice(5, 7), j = +iso.slice(0, 4), m = +iso.slice(5, 7);
+  if (z === 'Tag') return tageAb(iso, HEUTE);
+  if (z === 'Woche') { const t = new Date(iso + 'T12:00:00Z'), mo = isoPlus(iso, -((t.getUTCDay() + 6) % 7)); return tageAb(mo, WOCHE_ISO[0]) / 7; }
+  if (z === 'Monat') return (J - j) * 12 + M - m;
+  return J - j;
+}
+const zrFaktor = (z, v) => v ? .55 + .45 * Math.abs(Math.sin(v * 1.7 + z.length)) : 1;   // Mockup: andere Werte für frühere Zeiträume
 const MONATE = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 /* Verbrauch in kWh je Stunde (Tag), je Tag (Monat) oder je Monat (Jahr); Baustelle = Summe der Container */
 function verbrauch(bereiche, cid, zeitraum) {
@@ -502,7 +529,7 @@ class App {
     if (st.gruppe === 'firma') return this.d.firmen.map((f, k) => ({ f, k, teile: lauf.flatMap(l => l.bereiche.filter(b => (b.firma || 'eigen') === f.id).map(b => [l, b])) }))
       .filter(x => x.teile.length).map(({ f, k, teile }) => ({ id: f.id, name: f.name, farbe: `var(--s${k + 1})`, v: z => summe(teile.map(([l, b]) => verbrauch(l.bereiche, b.id, z))) }));
     if (alle) return lauf.map((l, k) => ({ id: l.id, name: l.name, farbe: `var(--s${k + 1})`, v: z => verbrauch(l.bereiche, null, z) }));
-    return this.d.bereiche.map(b => ({ id: b.id, name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: z => verbrauch(this.d.bereiche, b.id, z) }));
+    return this.d.bereiche.map(b => ({ id: b.id, name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: z => { const f = ziel === 'aw' ? zrFaktor(z, st.v || 0) : 1; return verbrauch(this.d.bereiche, b.id, z).map(x => x * f); } }));
   }
   verbrauchInhalt(st, ziel, kennzahlen) {
     const Q = this.quellen(st, ziel), z = st.zeitraum, aus = Q.filter(q => st.auswahl.includes(q.id)), alleGewaehlt = aus.length === Q.length;
@@ -942,7 +969,7 @@ class App {
     const alle = this.s.awScope === 'alle', lauf = alle ? this.laufende() : [this.laufende()[0]];
     const container = lauf.flatMap(l => l.bereiche.filter(b => !b.pumpe).map(b => { const kwh = verbrauch(l.bereiche, b.id, z).reduce((a, v) => a + v, 0);
       return { l, b, kwh, eur: kwh * p, h: kwh / (1.7 + (b.f % 3) * .15), temp: b.t }; })).sort((x, y) => y.kwh - x.kwh);
-    container.forEach(c => { c.proH = c.h ? c.kwh / c.h : 0; });
+    const fz = zrFaktor(z, aw.v || 0); container.forEach(c => { c.kwh *= fz; c.eur *= fz; c.h *= fz; c.proH = c.h ? c.kwh / c.h : 0; });
     const kwh = container.reduce((a, c) => a + c.kwh, 0), ohne = kwh * 4.6;
     const vergleich = { Tag: ['gestern', 8, -3], Woche: ['Vorwoche', -4, -6], Monat: ['Vormonat', 31, 26], Jahr: ['2025', 12, 9] }[z];
     const rz = zufall(11), pkt = [...Array(30)].map(() => { const t = -6 + rz() * 20; return [t, Math.max(4, 7.4 * (15.5 - t) + (rz() - .5) * 22)]; });
@@ -950,13 +977,67 @@ class App {
     const k = pkt.reduce((a, q) => a + (q[0] - mx) * (q[1] - my), 0) / pkt.reduce((a, q) => a + (q[0] - mx) ** 2, 0), d0 = my - k * mx;
     const firmen = this.d.firmen.map(f => ({ f, c: container.filter(x => (x.b.firma || 'eigen') === f.id) })).filter(x => x.c.length).map(x => ({ ...x, kwh: x.c.reduce((a, c) => a + c.kwh, 0) }));
     const [von, bis] = this.d.bs.hp, mon = (bis - von + 12) % 12 + 1, hoch = 412 / .75 * mon * 1.35 * p;
-    const zText = { Tag: 'heute', Woche: 'diese Woche', Monat: 'September 2026', Jahr: '2026' }[z];
+    const zi = zrInfo(z, aw.v || 0), zText = (aw.v || 0) < 2 && z !== 'Monat' && z !== 'Jahr' ? zi.text.toLowerCase() : zi.text;
     return { aw, z, p, alle, lauf, container, kwh, ohne, vergleich, pkt, k, d0, null0: -d0 / k, firmen, hoch, zText };
   }
   awKopf(D, rechts = '') {
     return `${this.kopf('Auswertung', D.alle ? 'ALLE LAUFENDEN BAUSTELLEN' : 'ÖWG DOBL ZWARING', rechts || `<button class="glas-panel chip" data-act="csv">⇩ CSV</button>`)}
       <div class="aw-leiste"><div class="seg glas-panel">${['Tag', 'Woche', 'Monat', 'Jahr'].map(t => `<button data-act="vb-zeitraum" data-ziel="aw" data-v="${t}" class="${D.z === t ? 'on' : ''}">${t}</button>`).join('')}</div>
-        <div class="seg glas-panel">${[['diese', 'Diese Baustelle'], ['alle', `Alle (${this.laufende().length})`]].map(([k, t]) => `<button data-act="aw-scope" data-v="${k}" class="${(this.s.awScope || 'diese') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
+        <div class="seg glas-panel">${[['diese', 'Diese Baustelle'], ['alle', `Alle (${this.laufende().length})`]].map(([k, t]) => `<button data-act="aw-scope" data-v="${k}" class="${(this.s.awScope || 'diese') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>${this.zrWahl(D.z)}`;
+  }
+  /* FE-0008: drei Varianten, einen früheren Zeitraum zu wählen (Vorführ-Leiste „FE-0008 Zeitraum“) */
+  zrWahl(z) {
+    const v = this.s.aw.v || 0, max = zrMax(z), i = zrInfo(z, v);
+    const pfeile = mitte => `<div class="zr-nav glas-panel"><button class="zr-pf" data-act="zr-schritt" data-d="1" ${v >= max ? 'disabled' : ''} aria-label="früher">‹</button>${mitte}
+      <button class="zr-pf" data-act="zr-schritt" data-d="-1" ${v <= 0 ? 'disabled' : ''} aria-label="später">›</button></div>${v ? '<button class="glas-panel chip zr-akt" data-act="zr-setz" data-v="0">Aktuell</button>' : ''}`;
+    const titel = `<b>${i.text}</b>${i.unter ? `<small>${i.unter}</small>` : ''}`;
+    if (ZR_VAR === '1') return `<div class="zr-zeile">${pfeile(`<div class="zr-mitte">${titel}</div>`)}</div>`;
+    if (ZR_VAR === '4') {
+      const k = this.s.zrKal, mitte = `<button class="zr-mitte zr-auf" data-act="zr-kal">${titel}<span class="zr-pfeil">${k ? '▴' : '▾'}</span></button>`;
+      return `<div class="zr-zeile">${pfeile(mitte)}${k ? this.zrKalender(z, v, k) : ''}</div>`;
+    }
+    if (ZR_VAR === '2') {
+      const offen = this.s.zrOffen, liste = z === 'Tag' ? '' : [...Array(max + 1)].map((_, k) => { const x = zrInfo(z, k);
+        return `<button class="zr-eintrag ${k === v ? 'on' : ''}" data-act="zr-setz" data-v="${k}"><span>${x.text}</span><small>${k === 0 ? 'aktuell' : x.unter && x.unter !== x.text ? x.unter : ''}</small>${k === v ? '<b>✓</b>' : ''}</button>`; }).join('');
+      const mitte = z === 'Tag' ? `<label class="zr-mitte zr-datum">${titel}<input type="date" data-zrd value="${i.iso}" min="${ZR_GRENZE}" max="${HEUTE}" aria-label="Tag wählen"></label>`
+        : `<button class="zr-mitte zr-auf" data-act="zr-liste">${titel}<span class="zr-pfeil">${offen ? '▴' : '▾'}</span></button>`;
+      return `<div class="zr-zeile">${pfeile(mitte)}${offen && z !== 'Tag' ? `<div class="zr-liste glas-panel">${liste}</div>` : ''}</div>`;
+    }
+    // 3 · Zeitstrahl: alle Zeiträume als Balken, der neueste rechts; antippen wählt
+    const n = Math.min(max, z === 'Tag' ? 59 : max) + 1, werte = [...Array(n)].map((_, k) => zrFaktor(z, k)), hoch = Math.max(...werte);
+    return `<div class="zr-zeile"><div class="zr-strahl glas-panel">${[...Array(n)].map((_, k) => { const x = zrInfo(z, k);
+        return `<button class="zr-balken ${k === v ? 'on' : ''}" data-act="zr-setz" data-v="${k}" title="${x.text}"><i style="height:${Math.round(werte[k] / hoch * 100)}%"></i><span>${k === 0 && z !== 'Jahr' ? (z === 'Tag' ? 'heute' : z === 'Woche' ? 'jetzt' : x.kurz) : x.kurz}</span></button>`; }).join('')}</div>
+      <div class="zr-gewaehlt"><span>${titel}</span>${v ? '<button class="glas-panel chip" data-act="zr-setz" data-v="0">Aktuell</button>' : ''}</div></div>`;
+  }
+  /* Kalender skaliert mit dem Zeitraum: Tag → Monat mit Tagen, Woche → Monat mit KW-Zeilen, Monat → Jahr mit Monaten, Jahr → 12 Jahre */
+  zrKalender(z, v, k) {
+    const max = zrMax(z), wahl = zrInfo(z, v).iso, ok = iso => { const x = zrVersatz(z, iso); return x >= 0 && x <= max; };
+    const knopf = (iso, text, cls = '') => { const x = zrVersatz(z, iso), an = x >= 0 && x <= max;
+      return `<button class="zr-k ${cls} ${x === v ? 'on' : ''} ${x === 0 ? 'jetzt' : ''}" ${an ? `data-act="zr-setz" data-v="${x}"` : 'disabled'}>${text}</button>`; };
+    let kopf, inhalt, cls;
+    if (z === 'Tag' || z === 'Woche') {
+      const erster = `${k.j}-${String(k.m + 1).padStart(2, '0')}-01`, t = new Date(erster + 'T12:00:00Z'), start = isoPlus(erster, -((t.getUTCDay() + 6) % 7));
+      const wochen = []; for (let w = start; w.slice(0, 7) <= erster.slice(0, 7) && wochen.length < 6; w = isoPlus(w, 7)) wochen.push(w);
+      kopf = `${MONATE_LANG[k.m]} ${k.j}`; cls = 'zr-kal-tage';
+      inhalt = `<div class="zr-kw-kopf"><span>KW</span>${TAGE.map(x => `<span>${x}</span>`).join('')}</div>` + wochen.map(mo => {
+        const tage = [...Array(7)].map((_, i) => isoPlus(mo, i)), fremd = iso => iso.slice(0, 7) !== erster.slice(0, 7) ? 'fremd' : '';
+        if (z === 'Woche') { const x = zrVersatz('Woche', mo), an = x >= 0 && x <= max;
+          return `<button class="zr-woche ${x === v ? 'on' : ''} ${x === 0 ? 'jetzt' : ''}" ${an ? `data-act="zr-setz" data-v="${x}"` : 'disabled'}><b>${kw(mo)}</b>${tage.map(d => `<span class="${fremd(d)}">${+d.slice(8)}</span>`).join('')}</button>`; }
+        return `<div class="zr-woche-z"><b>${kw(mo)}</b>${tage.map(d => knopf(d, +d.slice(8), fremd(d))).join('')}</div>`; }).join('');
+    } else if (z === 'Monat') {
+      kopf = String(k.j); cls = 'zr-kal-monate';
+      inhalt = MONATE.map((n, m) => knopf(`${k.j}-${String(m + 1).padStart(2, '0')}-01`, n)).join('');
+    } else {
+      const J0 = +HEUTE.slice(0, 4), ab = J0 - Math.min(max, 11); kopf = ab === J0 ? String(J0) : `${ab}–${J0}`; cls = 'zr-kal-jahre';   // nur Jahre seit Baustellenbeginn
+      inhalt = [...Array(J0 - ab + 1)].map((_, i) => knopf(`${ab + i}-01-01`, ab + i)).join('');
+    }
+    const schritt = z === 'Jahr' ? 12 : 1, zurueck = z === 'Tag' || z === 'Woche' ? isoPlus(`${k.j}-${String(k.m + 1).padStart(2, '0')}-01`, -1) : `${k.j - schritt}-12-31`;
+    const vor = z === 'Tag' || z === 'Woche' ? (k.m === 11 ? `${k.j + 1}-01-01` : `${k.j}-${String(k.m + 2).padStart(2, '0')}-01`) : `${k.j + 1}-01-01`;
+    const nochFrueher = z !== 'Jahr' && zrVersatz(z, zurueck) <= max, nochSpaeter = z !== 'Jahr' && zrVersatz(z, vor) >= 0;
+    return `<div class="zr-kal glas-panel"><div class="zr-kal-kopf"><button class="zr-pf" data-act="zr-kal-nav" data-d="-1" ${nochFrueher ? '' : 'disabled'} aria-label="zurück">‹</button><b>${kopf}</b>
+        <button class="zr-pf" data-act="zr-kal-nav" data-d="1" ${nochSpaeter ? '' : 'disabled'} aria-label="vor">›</button></div>
+      <div class="${cls}">${inhalt}</div>
+      <div class="zr-kal-fuss"><button class="glas-panel chip" data-act="zr-setz" data-v="0">${{ Tag: 'Heute', Woche: 'Diese Woche', Monat: 'Dieser Monat', Jahr: 'Dieses Jahr' }[z]}</button></div></div>`;
   }
   awDelta(d) { return `<em class="aw-delta ${d > 0 ? 'mehr' : 'weniger'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} %</em>`; }
   awWetter(D) {
@@ -1724,7 +1805,13 @@ class App {
       case 'wa': this.s.sheet.wa = el.dataset.v; return neu();
       case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? this.s.aw : this.s.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
       case 'aw-scope': this.s.awScope = el.dataset.v; this.s.aw.auswahl = this.quellen(this.s.aw, 'aw').map(q => q.id); return neu();
-      case 'vb-zeitraum': (el.dataset.ziel === 'aw' ? this.s.aw : this.s.sheet).zeitraum = el.dataset.v; return neu();
+      case 'vb-zeitraum': { const st = el.dataset.ziel === 'aw' ? this.s.aw : this.s.sheet; if (st.zeitraum !== el.dataset.v) st.v = 0; st.zeitraum = el.dataset.v; this.s.zrOffen = false; this.s.zrKal = null; return neu(); }
+      case 'zr-schritt': { const aw = this.s.aw; aw.v = Math.max(0, Math.min(zrMax(aw.zeitraum), (aw.v || 0) + +el.dataset.d)); this.s.zrOffen = false; this.s.zrKal = null; return neu(); }
+      case 'zr-setz': this.s.aw.v = +el.dataset.v; this.s.zrOffen = false; this.s.zrKal = null; return neu();
+      case 'zr-liste': this.s.zrOffen = !this.s.zrOffen; return neu();
+      case 'zr-kal': { if (this.s.zrKal) { this.s.zrKal = null; return neu(); } const iso = zrInfo(this.s.aw.zeitraum, this.s.aw.v || 0).iso; this.s.zrKal = { j: +iso.slice(0, 4), m: +iso.slice(5, 7) - 1 }; return neu(); }
+      case 'zr-kal-nav': { const k = this.s.zrKal, d = +el.dataset.d, z = this.s.aw.zeitraum;
+        if (z === 'Tag' || z === 'Woche') { k.m += d; if (k.m < 0) { k.m = 11; k.j--; } if (k.m > 11) { k.m = 0; k.j++; } } else k.j += d * (z === 'Jahr' ? 12 : 1); return neu(); }
       case 'vb-wer': { const sh = el.dataset.ziel === 'aw' ? this.s.aw : this.s.sheet, id = el.dataset.id;
         if (!id) sh.auswahl = []; else if (id === '*') sh.auswahl = this.quellen(sh, el.dataset.ziel || 'sheet').map(q => q.id);
         else sh.auswahl = sh.auswahl.includes(id) ? sh.auswahl.filter(x => x !== id) : [...sh.auswahl, id];
@@ -1907,6 +1994,7 @@ class App {
   eingabe(ev) {
     const el = ev.target;
     if (el.dataset.k === 'preis') this.d.e.preis = +el.value || 0;
+    if ('zrd' in el.dataset && el.value) { this.s.aw.v = Math.max(0, Math.min(zrMax('Tag'), tageAb(el.value, HEUTE))); return this.render(); }
     if (el.dataset.azn) this.s.sheet.form[el.dataset.azn] = el.value;
     if (el.dataset.gf) this.s.sheet.form[el.dataset.gf] = el.value;
     if (el.dataset.vls !== undefined) { this.s.vlSuche = el.value; this.render(); const x = this.root.querySelector('[data-vls]'); if (x && x.focus) { x.focus(); x.setSelectionRange?.(el.value.length, el.value.length); } }
@@ -1984,6 +2072,7 @@ class App {
 document.querySelectorAll('.app').forEach(el => new App(el));
 document.getElementById('modus').onclick = () => { document.body.classList.toggle('hell'); APPS.forEach(a => a.stimmung(false)); };
 { const el = document.getElementById('az-auto'); if (el) el.onclick = () => APPS.forEach(a => { a.d.arbeitszeiten = [{ ...az('2026-09-28', 'Arbeitszeit', ['07:00', '16:30'], ['07:00', '12:30']), auto: true }]; a.gehe('heizung'); }); }
+{ const el = document.getElementById('zrvar'); if (el) el.onchange = () => { ZR_VAR = el.value; APPS.forEach(a => { a.s.view = 'auswertung'; a.s.zrOffen = false; a.s.zrKal = null; a.render(true); }); }; }
 { const el = document.getElementById('wetter'); if (el) el.onchange = () => { STIMMUNG.wetter = el.value; APPS.forEach(a => a.stimmung()); }; }
 /* Vorführ-Leiste: Datum und Uhrzeit bestimmen den Sonnenstand; Zeitraffer = ein Tag in 48 s */
 const datumEl = document.getElementById('datum'), uhrEl = document.getElementById('uhr'), uhrText = document.getElementById('uhr-text'), rafferEl = document.getElementById('raffer');

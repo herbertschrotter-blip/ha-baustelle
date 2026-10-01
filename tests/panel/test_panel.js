@@ -270,6 +270,7 @@ function pruefe(wo, { laedtErlaubt = false } = {}) {
   }
   return h;
 }
+const MONATE_LANG_T = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const klick = async (ds, n) => { panel.klick({ target: { closest: () => ({ dataset: ds }) } }); await ruhe(n); };
 const eingabe = (ds, value) => panel.eingabe({ target: { dataset: ds, value } });
 const erwarte = (text, bedingung) => { if (!bedingung) fehler.push('erwartet: ' + text); };
@@ -541,6 +542,35 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     panel.s.hzArt = 'woche'; panel.render();
     erwarte('FE-0007: Woche – Zeile für Container ohne Heizkörper', ui.innerHTML.includes('hz-wz-ohne') && ui.innerHTML.includes('noch kein Heizkörper · zuordnen'));
     panel.s.hzArt = 'tag'; panel.d.bereiche.pop(); panel.s.sheet = null; panel.render(); }
+  /* FE-0008: früheren Zeitraum wählen – ‹ › und Kalender (Tag → Monat, Woche → Monat mit KW, Monat → Jahr, Jahr → Jahre) */
+  { await klick({ act: 'tab', v: 'auswertung' }, 20); await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 20);
+    const h = panel.z.HEUTE, mo = panel.z.WOCHE_ISO[0], seit = n => alleAufrufe.slice(n);
+    erwarte('FE-0008: Auswertung zeigt ‹ Monat ›', ui.innerHTML.includes('data-act="zr-schritt" data-ziel="aw"') && ui.innerHTML.includes(`<b>${MONATE_LANG_T[+h.slice(5, 7) - 1]} ${h.slice(0, 4)}</b>`));
+    let n0 = alleAufrufe.length; await klick({ act: 'zr-schritt', ziel: 'aw', max: '99', d: '1' }, 30);
+    erwarte('FE-0008: ‹ fragt Auswertung und Abrechnung mit Versatz 1', panel.s.aw.v === 1 && seit(n0).some(m => m.type === 'baustelle/auswertung' && m.versatz === 1)
+      && seit(n0).some(m => m.type === 'baustelle/abrechnung' && m.versatz === 1) && /data-act="zr-setz" data-ziel="aw" data-max="\d+" data-v="0">Aktuell/.test(ui.innerHTML));
+    const vormonat = (() => { let m = +h.slice(5, 7) - 2, j = +h.slice(0, 4); if (m < 0) { m = 11; j--; } return `${j}-${String(m + 1).padStart(2, '0')}-01`; })();
+    erwarte('FE-0008: Diagramm holt die Statistik des Vormonats', seit(n0).some(m => m.type === 'recorder/statistics_during_period' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === vormonat));
+    for (const [z, art, gesucht] of [['Tag', 'Monat mit Tagen', 'zr-woche-z'], ['Woche', 'Monat mit KW', 'class="zr-woche'], ['Monat', 'Jahr mit Monaten', 'zr-kal-monate'], ['Jahr', 'Jahre', 'zr-kal-monate']]) {
+      await klick({ act: 'vb-zeitraum', ziel: 'aw', v: z }, 20); await klick({ act: 'zr-kal', ziel: 'aw', max: '9' }, 10);
+      erwarte(`FE-0008: Kalender ${z} = ${art}`, panel.s.aw.v === 0 && ui.innerHTML.includes('zr-kal ') && ui.innerHTML.includes(gesucht) && !/undefined|NaN/.test(ui.innerHTML.slice(ui.innerHTML.indexOf('zr-kal '), ui.innerHTML.indexOf('zr-kal-fuss'))));
+      if (z !== 'Jahr') { await klick({ act: 'zr-kal-nav', d: '-1' }, 10); erwarte(`FE-0008: Kalender ${z} blättert zurück`, ui.innerHTML.includes('zr-kal ')); }
+    }
+    await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Tag' }, 10); await klick({ act: 'zr-kal', ziel: 'aw', max: '400' }, 10);
+    erwarte('FE-0008: künftige Tage gesperrt, heute markiert', ui.innerHTML.includes('zr-k  on jetzt') || /zr-k [^"]*on jetzt/.test(ui.innerHTML));
+    n0 = alleAufrufe.length; await klick({ act: 'zr-setz', ziel: 'aw', max: '400', v: '3' }, 30);
+    erwarte('FE-0008: Tag im Kalender wählen schließt ihn und fragt Versatz 3', panel.s.aw.v === 3 && !panel.s.zrKal && seit(n0).some(m => m.type === 'baustelle/auswertung' && m.zeitraum === 'Tag' && m.versatz === 3));
+    await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Woche' }, 10); erwarte('FE-0008: anderer Zeitraum beginnt wieder beim aktuellen', panel.s.aw.v === 0);
+    await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 20);
+    /* Container: Diagramm für frühere Tage */
+    const cid = panel.d.bereiche.find(b => !b.pumpe).id; await klick({ act: 'container', id: cid }, 20);
+    erwarte('FE-0008: Container zeigt ‹ Heute ›', ui.innerHTML.includes('data-act="zr-schritt" data-ziel="c-Tag"'));
+    n0 = alleAufrufe.length; await klick({ act: 'zr-schritt', ziel: 'c-Tag', max: '30', d: '1' }, 30);
+    erwarte('FE-0008: Container gestern holt die Statistik von gestern', seit(n0).some(m => m.type === 'recorder/statistics_during_period' && m.period === 'hour' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === plusTageT(h, -1))
+      && ui.innerHTML.includes('<b>Gestern</b>'));
+    await klick({ act: 'cvd', v: 'woche' }, 20); n0 = alleAufrufe.length; await klick({ act: 'zr-schritt', ziel: 'c-Woche', max: '30', d: '1' }, 30);
+    erwarte('FE-0008: Container Vorwoche', seit(n0).some(m => m.type === 'recorder/statistics_during_period' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === plusTageT(mo, -7)) && ui.innerHTML.includes('<b>Vorwoche</b>'));
+    await klick({ act: 'cvd', v: 'heute' }, 10); await klick({ act: 'tab', v: 'uebersicht' }, 10); }
   /* 0.8: lernende Regelung – Schalter, Regelungszeile, Lernstand, Setzen und Zurücksetzen */
   { await klick({ act: 'container', id: 'polier' }, 20);
     const pol0 = () => panel.d.bereiche.find(x => x.id === 'polier'); let pol = pol0(); pol.modus = 'thermo';

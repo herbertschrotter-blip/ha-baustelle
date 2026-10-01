@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.7] – 2026-10-01
+
+- Früheren Zeitraum wählen (FE-0008, Mockup glas.html Variante 4 abgenommen): in der Auswertung, in der
+  Verbrauch-Einblendung und in den Diagrammen der Container- und Pumpenansicht blättern ‹ › einen Tag, eine Woche, einen
+  Monat oder ein Jahr zurück; Tippen auf die Bezeichnung öffnet einen Kalender, der mit dem Zeitraum skaliert (Tag →
+  Monatsblatt, Woche → Monatsblatt mit KW, Monat → Jahresblatt, Jahr → Jahre seit Beginn). Zurück bis zum Beginn der
+  Baustelle, „Aktuell“ springt zurück. Kennzahlen, Vergleich, Rangliste und Abrechnung kommen für den gewählten
+  Zeitraum von der Integration.
+- Integration: `versatz` bis 4000 (Tage weit zurück).
+
 ## [0.8.6] – 2026-10-01
 
 - Heizung › „Wann welche Heizung heizt“ (FE-0007): Container ohne Heizkörper erscheinen jetzt auch, mit dem Hinweis
