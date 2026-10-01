@@ -36,6 +36,7 @@ from ..logik.arbeitszeit import (
     HeizRegeln,
     Plan,
     StatusArt,
+    WarmAb,
     bedarf_fenster,
     im_fenster,
     status as plan_status,
@@ -107,7 +108,7 @@ class Heizung(Funktion):
         self.tpi_jetzt: dict[str, tuple[float, float]] = {}
         self._lern_grund: dict[str, str] = {}
         self._lern_minute: dict[str, int] = {}
-        self._plan_cache: dict[tuple[date, bool], Plan | None] = {}
+        self._plan_cache: dict[tuple[date, bool, WarmAb | None], Plan | None] = {}
         self._zu_warm_vorher: bool | None = None
         self.tuer_trotzdem: set[str] = set()  # Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist
         self._frost: dict[str, bool] = {}
@@ -221,23 +222,67 @@ class Heizung(Funktion):
         art = self.st.frei_art(tag)
         return art == "urlaub" or (art == "feiertag" and bool(self.st.e["heizung"]["feiertag_frei"]))
 
-    def plan(self, tag: date, trocknen: bool) -> Plan | None:
+    def plan(self, tag: date, trocknen: bool, warm: WarmAb | None = None) -> Plan | None:
         """Heizplan eines Tages (logik/arbeitszeit.tagesplan), dazu „Noch früher“ aus der Nachricht.
 
         Je Auswertung zwischengespeichert (sie läuft bei jeder Zustandsänderung, z. B. jedem Leistungswert).
+        `warm`: lernender Container mit „Warm ab“ (AN-0004, `warm_ab`).
         """
-        if (tag, trocknen) in self._plan_cache:
-            return self._plan_cache[(tag, trocknen)]
+        if (tag, trocknen, warm) in self._plan_cache:
+            return self._plan_cache[(tag, trocknen, warm)]
         st = self.st
         p = tagesplan(
             tag, st.arbeitszeiten(), st.ausnahmen(), self.heiz_regeln(), st.wetter_tag_plan(tag), trocknen,
-            frei=self.ist_frei(tag),
+            frei=self.ist_frei(tag), warm=warm,
         )
         extra = int(st.lz.get("frueher", {}).get(tag.isoformat()) or 0)
         if p is not None and extra:
             p = replace(p, start=max(0, p.start - extra))
-        self._plan_cache[(tag, trocknen)] = p
+        self._plan_cache[(tag, trocknen, warm)] = p
         return p
+
+    def plan_bereich(self, tag: date, bid: str, jetzt: datetime | None = None) -> Plan | None:
+        """Heizplan eines Containers: mit „Warm ab“, wenn er lernt (AN-0004), sonst der Plan der Baustelle."""
+        e = self.st.einstellungen.bereich(bid)
+        return self.plan(tag, bool(e["trocknen"]), self.warm_ab(bid, tag, jetzt or dt_util.now()))
+
+    # ------------------------------------------------------------------ Warm ab (AN-0004, Optimum Start)
+    def warm_ab(self, bid: str, tag: date, jetzt: datetime) -> WarmAb | None:
+        """„Warm ab“ eines lernenden Containers im Modus Thermostat; None für alle anderen.
+
+        Die Aufheizzeit kommt aus dem Lernstand und der Temperatur von jetzt. Hat der Container heute schon nach dem
+        gelernten Beginn zu heizen begonnen, bleibt sie für den Tag fest – sonst rutschte der Beginn mit dem Aufheizen
+        wieder nach hinten.
+        """
+        st = self.st
+        e = st.einstellungen.bereich(bid)
+        info = st.bereiche.get(bid)
+        if info is None or not info.fuehler or not e.get("lernen") or self.modus(bid) != "thermo":
+            return None
+        h = st.e["heizung"]
+        fest = st.lz.setdefault("warm_start", {}).get(bid)
+        if fest and fest[0] == tag.isoformat():
+            auf: int | None = int(fest[1])
+        else:
+            stand = self.lern_staende.get(bid) or {}
+            auf = lernen.aufheiz_min(stand, innen=st.temperatur(info.fuehler), soll=self.soll_temperatur(bid),
+                                     aussen=st.daten.wetter.aussen)
+        return WarmAb(
+            vor_min=int(e["warm_vor"] if e.get("warm_vor") is not None else h.get("warm_vor_min", 0)),
+            nach_min=int(e["warm_nach"] if e.get("warm_nach") is not None else h.get("warm_nach_min", 0)),
+            max_min=int(h.get("warm_max_min", 120)), aufheiz_min=auf,
+        )
+
+    def _warm_festhalten(self, bid: str, warm: WarmAb | None, plan: Plan | None, heute: date, minute: int) -> None:
+        """Ab dem gelernten Beginn bis Arbeitsbeginn die Aufheizzeit des Tages festhalten (im Store, übersteht Neustarts)."""
+        fest = self.st.lz.setdefault("warm_start", {})
+        if fest.get(bid) and fest[bid][0] != heute.isoformat():
+            del fest[bid]
+        if warm is None or warm.aufheiz_min is None or plan is None or bid in fest:
+            return
+        if plan.vor <= minute < plan.a:
+            fest[bid] = [heute.isoformat(), warm.aufheiz_min]
+            self.st.einstellungen.speichern()
 
     def plan_neu(self) -> None:
         """Nach einer Änderung an Arbeitszeit, Ausnahmen oder „Noch früher“ neu rechnen."""
@@ -262,7 +307,9 @@ class Heizung(Funktion):
         for info in self.bereiche():
             bid = info.id
             e = st.einstellungen.bereich(bid)
-            plan = self.plan(heute, bool(e["trocknen"]))
+            warm = self.warm_ab(bid, heute, jetzt)
+            plan = self.plan(heute, bool(e["trocknen"]), warm)
+            self._warm_festhalten(bid, warm, plan, heute, minute)
             self.plaene[bid] = plan
             frei, warm = frei_heute, zu_warm
             if jetzt_bis is not None:
@@ -365,6 +412,29 @@ class Heizung(Funktion):
             **lernen.anzeige(self.lern_staende.get(bid) or {}),
             "anteil": round(anteil * 100) if anteil is not None else None,
             "erwartet": round(nachlauf, 2), "aus_bei": round(soll_t - nachlauf, 2), "zyklus_min": lernen.ZYKLUS_MIN,
+            "warm": self.warm_anzeige(bid),
+        }
+
+    def warm_anzeige(self, bid: str) -> dict[str, Any] | None:
+        """„Warm ab“ von heute für die Seite (AN-0004); None, wenn der Container nicht lernend im Thermostat regelt."""
+        jetzt = dt_util.now()
+        warm = self.warm_ab(bid, jetzt.date(), jetzt)
+        if warm is None:
+            return None
+        e = self.st.einstellungen.bereich(bid)
+        plan = self.plan(jetzt.date(), bool(e["trocknen"]), warm)
+        info = self.st.bereiche[bid]
+        stand = self.lern_staende.get(bid) or {}
+        bd = lernen.band(self.st.daten.wetter.aussen)
+        rate = (stand.get("aufheizen") or {}).get(bd)
+        return {
+            "gelernt": warm.aufheiz_min is not None, "band": bd, "rate": rate[0] if rate else None, "n": int(rate[1]) if rate else 0,
+            "n_noetig": lernen.AUF_N, "vor": warm.vor_min, "nach": warm.nach_min, "max": warm.max_min,
+            "vor_eigen": e.get("warm_vor") is not None, "nach_eigen": e.get("warm_nach") is not None,
+            "aufheiz_min": warm.aufheiz_min, "innen": self.st.temperatur(info.fuehler), "soll": self.soll_temperatur(bid),
+            "fest": bool(self.st.lz.get("warm_start", {}).get(bid)),
+            "plan": None if plan is None else {"start": plan.vor, "ziel": plan.a - warm.vor_min, "a": plan.a, "b": plan.b,
+                                               "ende": plan.nach, "begrenzt": warm.aufheiz_min is not None and warm.vor_min + warm.aufheiz_min > max(warm.max_min, warm.vor_min)},
         }
 
     # ------------------------------------------------------------------ Staffelung und Schalten
@@ -592,7 +662,7 @@ class Heizung(Funktion):
         e = self.st.einstellungen.bereich(bid)
         if e["bedarf"] or not e["auto"] or not self.st.automatik:
             return None
-        s = plan_status(jetzt.date(), jetzt.hour * 60 + jetzt.minute, lambda t: self.plan(t, bool(e["trocknen"])))
+        s = plan_status(jetzt.date(), jetzt.hour * 60 + jetzt.minute, lambda t: self.plan_bereich(t, bid, jetzt))
         if s.minute is None or s.tag is None or s.art == StatusArt.HEIZT:
             return None
         if s.tag in (jetzt.date(), jetzt.date() + timedelta(days=1)):

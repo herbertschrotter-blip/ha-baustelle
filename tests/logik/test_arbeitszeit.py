@@ -11,6 +11,7 @@ from logik.arbeitszeit import (
     HeizRegeln,
     Plan,
     PlanGrund,
+    WarmAb,
     StatusArt,
     WetterTag,
     arbeit_am,
@@ -299,3 +300,25 @@ def test_bereinigen_beim_laden():
     alt = {k: v for k, v in erste_arbeitszeit(date(2026, 9, 29)).items() if k != "auto"}
     assert arbeitszeiten_bereinigen([alt, EIGENE]) == [{**EIGENE, "auto": False}]
     assert arbeitszeiten_bereinigen([alt]) == [{**alt, "auto": True}]   # nur die automatische: bleibt, gekennzeichnet
+
+
+# ---------------------------------------------------------------- AN-0004: „Warm ab“ für lernende Container
+def test_warm_ab_ersetzt_vorheizen_fruehstart_und_nachheizen():
+    kalt_regen = WetterTag(frueh_min_temp=-3, regen_vortag_mm=6, regen_heute_mm=6)
+    warm = WarmAb(vor_min=15, nach_min=10, max_min=120, aufheiz_min=50)
+    p = tagesplan(MI, LISTE, [], REGELN, kalt_regen, trocknen=True, warm=warm)
+    # Soll 15 min vor 07:00 erreicht, 50 min Aufheizen → Vorheizen ab 05:55; kein Kälte-Frühstart, früher nach Regen bleibt
+    assert p.vor == t(5, 55) and p.start == t(5, 55) - REGELN.trocknen_frueher_min
+    assert PlanGrund.GELERNT in p.gruende and PlanGrund.FRUEHSTART not in p.gruende and PlanGrund.FRUEHER_NACH_REGEN in p.gruende
+    # warm halten 10 min statt Nachheizen, danach Kleidung trocknen
+    assert p.nach == p.b + 10 and p.ende == p.nach + REGELN.trocknen_laenger_min
+
+
+def test_warm_ab_obergrenze_und_rueckfall():
+    p = tagesplan(MI, LISTE, [], REGELN, WetterTag(), trocknen=False, warm=WarmAb(vor_min=15, max_min=120, aufheiz_min=300))
+    assert p.vor == t(7) - 120                       # nie früher als „frühestens“
+    p = tagesplan(MI, LISTE, [], REGELN, WetterTag(), trocknen=False, warm=WarmAb(vor_min=30, max_min=20, aufheiz_min=0))
+    assert p.vor == t(7) - 30                        # Grenze kleiner als „Soll erreicht vor“: dieses gilt
+    # noch nicht gelernt: alte Regeln (Vorheizen 45, Kälte-Frühstart, Nachheizen)
+    alt = tagesplan(MI, LISTE, [], REGELN, WetterTag(frueh_min_temp=-1.2), trocknen=False, warm=WarmAb(vor_min=15, aufheiz_min=None))
+    assert (alt.start, alt.vor) == (t(5, 45), t(6, 15)) and alt.nach == alt.b + REGELN.nachheizen_min and PlanGrund.GELERNT not in alt.gruende

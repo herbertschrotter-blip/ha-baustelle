@@ -13,6 +13,10 @@ Dazu lernt jeder Container selbst:
   darunter größer (je Messung ein Schritt).
 - **K außen** (Wärmeverlust): bleibt der Raum in einem ruhigen Zyklus nahe am Soll im Mittel darunter, wird er größer,
   darüber kleiner.
+- **Aufheizen** (AN-0004, „Optimum Start“ wie Honeywell/Netatmo): wie viele °C je Stunde der Raum beim durchgehenden
+  Heizen gewinnt, je Außentemperatur (kalt/mild). Daraus rechnet `aufheiz_min`, wie lange der Container bis zum Soll
+  braucht – der Heizplan beginnt dann selbst so früh, dass das Soll rechtzeitig erreicht ist (`arbeitszeit.WarmAb`).
+  Die Kälte steckt in der Rate, darum braucht ein lernender Container keinen Kälte-Frühstart.
 
 Alle Werte sind begrenzt; ohne Messung gilt Nachlauf 0 und die Startwerte – dann verhält sich die Regelung wie TPI.
 Zeiten sind `datetime` (mit Zone), Temperaturen °C.
@@ -23,6 +27,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from math import ceil
 from typing import Any
 
 ZYKLUS_MIN = 10
@@ -45,6 +50,13 @@ EIN_FENSTER_MIN = 60           # Heizdauer = Minuten „ein“ in der Stunde vor
 KLASSEN = (("kurz", 15), ("mittel", 45), ("lang", None))
 ARTEN = ("oel", "konvektor")
 BAENDER = ("kalt", "mild")
+AUF_AB_GRAD = 1.0              # Aufheizen zählt, wenn es so weit unter dem Soll beginnt
+AUF_MIN_MIN = 20               # … mindestens so lange durchgehend heizt
+AUF_MIN_ANSTIEG = 0.5          # … und der Raum mindestens so viel wärmer wird
+AUF_MAX_MIN = 240
+AUF_N = 3                      # ab so vielen Messungen je Außenband rechnet der Container den Beginn selbst
+AUF_GRENZEN = (0.2, 20.0)      # °C je Stunde
+AUF_RASTER_MIN = 5             # Aufheizdauer auf 5 min aufgerundet (ruhiger Plan)
 
 
 # ---------------------------------------------------------------------------------------------------------- Regeln
@@ -140,7 +152,7 @@ def kext_neu(kext: float, mittel_unter_soll: float) -> float:
 def neuer_stand() -> dict[str, Any]:
     """Lernstand eines Containers (JSON-fähig, im Store unter laufzeit.lernen.<container>)."""
     return {"kint": KINT_START, "kext": KEXT_START, "n_kint": 0, "n_kext": 0, "nachlauf": {}, "treffer": [], "zyklen": 0,
-            "ein": [], "beob": None, "zyklus": None, "letzte": None}
+            "ein": [], "beob": None, "zyklus": None, "letzte": None, "aufheizen": {}, "auf": None}
 
 
 def _zeit(text: str | None) -> datetime | None:
@@ -178,6 +190,15 @@ def takt(
             dauer = ein_minuten(log, jetzt)
             s["beob"] = {"aus": _iso(jetzt), "temp": ab, "spitze": max(ab, innen if innen is not None else ab),
                          "spitze_zeit": _iso(jetzt), "soll": soll, "schluessel": schluessel(art, klasse(dauer), band(aussen))}
+    # Aufheizen (AN-0004): durchgehend heizen von deutlich unter dem Soll
+    auf = s["auf"]
+    if auf is not None:
+        dauer_auf = (jetzt - _zeit(auf["start"])).total_seconds() / 60
+        ende_temp = innen if heizt else s["letzte"]
+        if not heizt or (innen is not None and innen >= soll - SPITZE_VORBEI) or dauer_auf >= AUF_MAX_MIN:
+            s = _auf_ende(s, dauer_auf, ende_temp)
+    elif heizt and not lief and innen is not None and innen <= soll - AUF_AB_GRAD:
+        s["auf"] = {"start": _iso(jetzt), "temp": innen, "band": band(aussen)}
     if innen is not None:
         s["letzte"] = innen
     grenze = jetzt.timestamp() - 2 * 3600
@@ -202,6 +223,32 @@ def takt(
     else:
         s["zyklus"] = {**z, "summe": z["summe"] + soll - innen, "n": z["n"] + 1}
     return s
+
+
+def _auf_ende(s: dict[str, Any], minuten: float, temp: float | None) -> dict[str, Any]:
+    """Aufheizen abschließen: lang genug und spürbar wärmer → Rate (°C/h) in den Mittelwert des Außenbands."""
+    auf = s["auf"]
+    s = {**s, "auf": None}
+    if temp is None or minuten < AUF_MIN_MIN or temp - auf["temp"] < AUF_MIN_ANSTIEG:
+        return s
+    rate = min(AUF_GRENZEN[1], max(AUF_GRENZEN[0], (temp - auf["temp"]) / minuten * 60))
+    alt = s["aufheizen"].get(auf["band"])
+    if alt is None:
+        neu = [round(rate, 3), 1]
+    else:   # erste Messungen gleich gewichtet, danach gleitend wie beim Nachlauf
+        n = int(alt[1]) + 1
+        neu = [round(alt[0] + (rate - alt[0]) * max(GEWICHT, 1 / n), 3), n]
+    s["aufheizen"] = {**s["aufheizen"], auf["band"]: neu}
+    return s
+
+
+def aufheiz_min(stand: Mapping[str, Any], *, innen: float | None, soll: float, aussen: float | None) -> int | None:
+    """Minuten bis zum Soll mit der gelernten Rate des Außenbands (auf 5 min aufgerundet); None = noch nicht gelernt."""
+    e = (stand.get("aufheizen") or {}).get(band(aussen))
+    if innen is None or not e or int(e[1]) < AUF_N or float(e[0]) <= 0:
+        return None
+    roh = max(0.0, soll - innen) / float(e[0]) * 60
+    return int(ceil(roh / AUF_RASTER_MIN - 1e-9) * AUF_RASTER_MIN)
 
 
 def _beob_ende(s: dict[str, Any], jetzt: datetime, *, abbruch: bool) -> dict[str, Any]:
@@ -232,4 +279,6 @@ def anzeige(stand: Mapping[str, Any]) -> dict[str, Any]:
         "kext": {"wert": s["kext"], "start": KEXT_START, "fort": min(1.0, s["n_kext"] / LERN_ZYKLEN)},
         "nachlauf": {k: {"grad": v[0], "min": v[1], "n": v[2]} for k, v in s["nachlauf"].items()},
         "treffer": list(s["treffer"]),
+        "aufheizen": {k: {"rate": v[0], "n": v[1]} for k, v in s["aufheizen"].items()},
+        "auf_n": AUF_N,
     }

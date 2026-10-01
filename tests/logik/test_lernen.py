@@ -7,9 +7,11 @@ import pytest
 from logik.lernen import (
     KEXT_START,
     KINT_START,
+    AUF_N,
     STOPP_AB_MIN,
     Tpi,
     anzeige,
+    aufheiz_min,
     band,
     ein_minuten,
     klasse,
@@ -104,3 +106,38 @@ def test_kext_lernt_in_ruhigen_zyklen():
     # regelt nicht (z. B. Hand): nichts lernen
     s2 = takt(neuer_stand(), jetzt=T0, heizt=False, innen=19.5, soll=20.0, aussen=0.0, art="oel", regelt=False)
     assert s2["zyklus"] is None
+
+
+# ---------------------------------------------------------------- AN-0004: Aufheizen lernen
+def _aufheizen(stand, von, bis, minuten, aussen=0.0, soll=20.0, ab=T0):
+    """minuten lang durchgehend heizen, Temperatur linear von → bis, dann aus."""
+    t = ab
+    for i in range(minuten):
+        stand = takt(stand, jetzt=t, heizt=True, innen=von + (bis - von) * i / minuten, soll=soll, aussen=aussen, art="oel", regelt=True)
+        t += timedelta(minutes=1)
+    stand = takt(stand, jetzt=t, heizt=False, innen=bis, soll=soll, aussen=aussen, art="oel", regelt=True)
+    return stand, t + timedelta(hours=3)
+
+
+def test_aufheizen_lernt_rate_je_band():
+    s, t = _aufheizen(neuer_stand(), 15.0, 18.0, 60)             # 3 °C in 60 min (letzte Heizminute 17,95)
+    assert s["auf"] is None and s["aufheizen"]["kalt"][1] == 1
+    assert s["aufheizen"]["kalt"][0] == pytest.approx(2.95, abs=0.01)
+    assert aufheiz_min(s, innen=16.0, soll=20.0, aussen=0.0) is None     # erst ab AUF_N Messungen
+    for _ in range(AUF_N - 1):
+        s, t = _aufheizen(s, 15.0, 18.0, 60, ab=t)
+    assert s["aufheizen"]["kalt"][1] == AUF_N
+    assert aufheiz_min(s, innen=16.0, soll=20.0, aussen=0.0) == 85        # 4 °C / 2,95 °C/h = 81,4 → 85 min
+    assert aufheiz_min(s, innen=21.0, soll=20.0, aussen=0.0) == 0
+    assert aufheiz_min(s, innen=16.0, soll=20.0, aussen=10.0) is None     # mild: noch nichts gelernt
+    a = anzeige(s)
+    assert a["aufheizen"]["kalt"]["n"] == AUF_N and a["auf_n"] == AUF_N
+
+
+def test_aufheizen_zaehlt_nicht_nahe_am_soll_oder_zu_kurz():
+    s, _ = _aufheizen(neuer_stand(), 19.5, 20.0, 60)               # beginnt nur 0,5 °C unter dem Soll
+    assert s["aufheizen"] == {}
+    s, _ = _aufheizen(neuer_stand(), 15.0, 16.0, 10)               # zu kurz
+    assert s["aufheizen"] == {}
+    s, _ = _aufheizen(neuer_stand(), 15.0, 21.0, 120)              # erreicht das Soll: endet dort
+    assert s["aufheizen"]["kalt"][1] == 1 and s["auf"] is None

@@ -49,6 +49,11 @@ STANDARD: dict[str, Any] = {
         "fruehstart": True,
         "fruehstart_unter": 0.0,
         "fruehstart_min": 30,
+        # lernende Container (AN-0004): Soll erreicht … min vor Arbeitsbeginn, warm halten … min nach Arbeitsende,
+        # frühestens … min vor Arbeitsbeginn heizen
+        "warm_vor_min": 0,
+        "warm_nach_min": 0,
+        "warm_max_min": 120,
         "frost": True,
         "frost_grenze": 5.0,
         "frost_aus": None,        # Frostschutz aus über … °C; None = Grenze + 2 °C (neu 0.7.8)
@@ -72,7 +77,7 @@ STANDARD: dict[str, Any] = {
     # „frueher“: Nachricht „Noch früher“ – Tag (ISO) → zusätzliche Minuten Frühstart; „regen“: Regen je Tag (mm) für
     # „nach Regen früher“ am Folgetag
     "laufzeit": {"bedarf_bis": {}, "boost_bis": {}, "jetzt_bis": None, "hand": {}, "frueher": {}, "regen": {},
-                 "lernen": {}},   # lernen: Lernstand je Container (logik/lernen, 0.8)
+                 "lernen": {}, "warm_start": {}},   # lernen: Lernstand je Container (logik/lernen, 0.8)
     "meldungen_einst": {
         "empfaenger": [],
         "knoepfe": True,
@@ -106,6 +111,8 @@ STANDARD_BEREICH: dict[str, Any] = {
     # Modus (neu 0.7.8): plan | thermo | bedarf | hand | aus; None = aus `auto`/`bedarf` und Fühler abgeleitet
     "modus": None,
     "lernen": False,   # lernende Regelung (0.8): TPI mit gelerntem Nachlauf, startet aus
+    "warm_vor": None,  # AN-0004: eigener Wert für „Soll erreicht vor Beginn“; None = wie die Baustelle
+    "warm_nach": None,
 }
 
 

@@ -95,7 +95,7 @@ def _abschnitte(st: Steuerung, heute: date, jetzt: datetime) -> dict[str, dict[s
                 if tag == heute and (bis := heizung.bis("bedarf_bis", info.id, jetzt)) is not None:
                     teile.append([_minute_im_tag(jetzt, tag), _minute_im_tag(bis, tag), "termin"])
             elif e["auto"]:
-                plan = heizung.plan(tag, bool(e["trocknen"]))
+                plan = heizung.plan_bereich(tag, info.id, jetzt)   # lernend: mit „Warm ab“ (AN-0004)
                 teile = [[von, bis, str(art)] for von, bis, art in plan.abschnitte()] if plan else []
             je_tag[tag.isoformat()] = [x for x in teile if x[1] > x[0]]
         ergebnis[info.id] = je_tag

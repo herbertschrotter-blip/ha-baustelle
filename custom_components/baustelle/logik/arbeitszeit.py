@@ -20,6 +20,9 @@ Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
   eingetragene.
 - Der Abschnitt vor dem Vorheizen heißt immer „fruehstart“, auch wenn er (teils) vom Regen am Vortag kommt – das Mockup
   zeichnet beides als einen Abschnitt „Frühstart“.
+- Lernende Container mit gelernter Aufheizzeit (`WarmAb`, AN-0004): Vorheizen = „Soll erreicht vor Beginn“ + Aufheizzeit,
+  höchstens `max_min`; kein Kälte-Frühstart; Nachheizen = „warm halten“. Früher nach Regen und Kleidung trocknen
+  kommen wie bisher dazu (Herbert 01.10.2026).
 """
 
 from __future__ import annotations
@@ -48,6 +51,7 @@ class PlanGrund(StrEnum):
     FRUEHSTART = "fruehstart"
     FRUEHER_NACH_REGEN = "frueher_nach_regen"
     TROCKNEN = "trocknen"
+    GELERNT = "gelernt"   # AN-0004: Beginn aus der gelernten Aufheizzeit
 
 
 class Abschnitt(StrEnum):
@@ -123,6 +127,21 @@ class HeizRegeln:
     trocknen_ab_mm: float = 2.0
     trocknen_laenger_min: int = 45
     trocknen_frueher_min: int = 15
+
+
+@dataclass(frozen=True)
+class WarmAb:
+    """„Warm ab“ eines lernenden Containers (AN-0004, Optimum Start).
+
+    Soll erreicht `vor_min` vor Arbeitsbeginn, warm halten bis `nach_min` nach Arbeitsende, nie früher als `max_min`
+    vor Arbeitsbeginn beginnen. `aufheiz_min`: gelernte Minuten bis zum Soll (`lernen.aufheiz_min`); None = noch nicht
+    gelernt – dann gelten Vorheizen, Kälte-Frühstart und Nachheizen wie bisher.
+    """
+
+    vor_min: int = 0
+    nach_min: int = 0
+    max_min: int = 120
+    aufheiz_min: int | None = None
 
 
 @dataclass(frozen=True)
@@ -252,11 +271,12 @@ def tagesplan(
     wetter: WetterTag,
     trocknen: bool,
     frei: bool = False,
+    warm: WarmAb | None = None,
 ) -> Plan | None:
     """Heizplan eines Containers an einem Tag (Mockup `planTag`); None, wenn frei.
 
     `frei` ist Feiertag oder Urlaub (der Aufrufer prüft `feiertag_frei`). Eine Ausnahme `arbeit`/`zeiten` geht vor.
-    `trocknen` ist der Schalter „Kleidung trocknen“ des Containers.
+    `trocknen` ist der Schalter „Kleidung trocknen“ des Containers. `warm`: lernender Container (AN-0004).
     """
     ausnahmen = list(ausnahmen)
     ausnahme = ausnahme_am(ausnahmen, tag)
@@ -269,9 +289,14 @@ def tagesplan(
     if b <= a:
         return None
     gruende: list[str] = [PlanGrund.AUSNAHME] if ausnahme is not None else []
-    vor = a - regeln.vorheizen_min
+    gelernt = warm is not None and warm.aufheiz_min is not None
+    if gelernt:
+        vor = a - min(warm.vor_min + warm.aufheiz_min, max(warm.max_min, warm.vor_min))
+        gruende.append(PlanGrund.GELERNT)
+    else:
+        vor = a - regeln.vorheizen_min
     extra = 0
-    if regeln.fruehstart and wetter.frueh_min_temp is not None and wetter.frueh_min_temp < regeln.fruehstart_unter:
+    if not gelernt and regeln.fruehstart and wetter.frueh_min_temp is not None and wetter.frueh_min_temp < regeln.fruehstart_unter:
         extra += regeln.fruehstart_min
         gruende.append(PlanGrund.FRUEHSTART)
     if trocknen and wetter.regen_vortag_mm is not None and wetter.regen_vortag_mm >= regeln.trocknen_ab_mm:
@@ -281,7 +306,7 @@ def tagesplan(
     if trocknen and wetter.regen_heute_mm is not None and wetter.regen_heute_mm >= regeln.trocknen_ab_mm:
         laenger = regeln.trocknen_laenger_min
         gruende.append(PlanGrund.TROCKNEN)
-    nach = b + regeln.nachheizen_min
+    nach = b + (warm.nach_min if gelernt else regeln.nachheizen_min)
     return Plan(
         start=max(0, vor - extra),
         vor=max(0, vor),

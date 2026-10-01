@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.11] – 2026-10-01
+
+- „Warm ab“ für lernende Container (AN-0004, Mockup warm-ab.html abgenommen): jeder Container mit lernender Regelung
+  lernt, wie schnell er aufheizt (°C je Stunde, getrennt für kalt und mild draußen), und beginnt selbst so früh, dass
+  das Soll rechtzeitig erreicht ist – statt Vorheizen, Kälte-Frühstart und Nachheizen. Einstellbar unter Heizung ›
+  Regeln: „Soll erreicht“ (min vor Arbeitsbeginn), „Warm halten“ (min nach Arbeitsende), „Frühestens“ (Grenze); je
+  Container ein eigener Wert unter Bearbeiten. Früher nach Regen und Kleidung trocknen kommen weiter dazu. Bis 3
+  Aufheizungen gemessen sind, gelten die bisherigen Regeln.
+- Anzeige: Heizung › Heute nennt je lernendem Container den Beginn („heizt ab 05:30, damit um 06:45 20 °C“), der
+  Container-Kopf ebenso, der Lernstand zeigt „Aufheizen“.
+
 ## [0.8.10] – 2026-10-01
 
 - Heizung › Heute (AN-0003): unter der Arbeitszeit steht, wie sich die Heizzeit zusammensetzt, z. B. „Heizt

@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.10",
+   "version": "0.8.11",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -300,6 +300,9 @@
     "fruehstart": true,
     "fruehstart_unter": 0.0,
     "fruehstart_min": 30,
+    "warm_vor_min": 0,
+    "warm_nach_min": 0,
+    "warm_max_min": 120,
     "frost": true,
     "frost_grenze": 5.0,
     "frost_aus": null,
@@ -372,7 +375,9 @@
      "anschluss": "a1",
      "tuer": null,
      "modus": null,
-     "lernen": false
+     "lernen": false,
+     "warm_vor": null,
+     "warm_nach": null
     },
     "mannschaft": {
      "auto": true,
@@ -383,7 +388,9 @@
      "anschluss": "a1",
      "tuer": null,
      "modus": null,
-     "lernen": false
+     "lernen": false,
+     "warm_vor": null,
+     "warm_nach": null
     },
     "magazin": {
      "auto": true,
@@ -394,7 +401,9 @@
      "anschluss": "sued",
      "tuer": "binary_sensor.tuer_magazin",
      "modus": null,
-     "lernen": false
+     "lernen": false,
+     "warm_vor": null,
+     "warm_nach": null
     },
     "schacht": {
      "auto": true,
@@ -405,7 +414,9 @@
      "anschluss": "sued",
      "tuer": null,
      "modus": null,
-     "lernen": false
+     "lernen": false,
+     "warm_vor": null,
+     "warm_nach": null
     }
    },
    "meldungen_einst": {
@@ -516,10 +527,13 @@
       },
       "nachlauf": {},
       "treffer": [],
+      "aufheizen": {},
+      "auf_n": 3,
       "anteil": null,
       "erwartet": 0.0,
       "aus_bei": 20.0,
-      "zyklus_min": 10
+      "zyklus_min": 10,
+      "warm": null
      },
      "firma": "eigen"
     },
@@ -564,10 +578,13 @@
       },
       "nachlauf": {},
       "treffer": [],
+      "aufheizen": {},
+      "auf_n": 3,
       "anteil": null,
       "erwartet": 0.0,
       "aus_bei": 20.0,
-      "zyklus_min": 10
+      "zyklus_min": 10,
+      "warm": null
      },
      "firma": "huber"
     },
@@ -1231,7 +1248,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.10",
+   "version": "0.8.11",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1309,6 +1326,9 @@
     "fruehstart": true,
     "fruehstart_unter": 0.0,
     "fruehstart_min": 30,
+    "warm_vor_min": 0,
+    "warm_nach_min": 0,
+    "warm_max_min": 120,
     "frost": true,
     "frost_grenze": 5.0,
     "frost_aus": null,
@@ -1358,7 +1378,9 @@
      "anschluss": "a1",
      "tuer": null,
      "modus": null,
-     "lernen": false
+     "lernen": false,
+     "warm_vor": null,
+     "warm_nach": null
     }
    },
    "meldungen_einst": {

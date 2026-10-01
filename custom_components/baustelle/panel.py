@@ -49,6 +49,9 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("termine_kalender",): vol.Any(None, cv.entity_domain("calendar")),
     ("heizung", "vorheizen_min"): vol.All(GANZ, vol.Range(0, 240)),
     ("heizung", "nachheizen_min"): vol.All(GANZ, vol.Range(0, 240)),
+    ("heizung", "warm_vor_min"): vol.All(GANZ, vol.Range(0, 240)),
+    ("heizung", "warm_nach_min"): vol.All(GANZ, vol.Range(0, 240)),
+    ("heizung", "warm_max_min"): vol.All(GANZ, vol.Range(15, 480)),
     ("heizung", "soll"): vol.All(ZAHL, vol.Range(5, 30)),
     ("heizung", "toleranz"): vol.All(ZAHL, vol.Range(0.1, 3)),
     ("heizung", "heizgrenze"): vol.All(ZAHL, vol.Range(0, 30)),
@@ -102,6 +105,8 @@ SETZEN_BEREICH: dict[str, Any] = {
     "tuer": vol.Any(None, cv.entity_domain("binary_sensor")),
     "modus": vol.In(["plan", "thermo", "bedarf", "hand", "aus"]),
     "lernen": cv.boolean,
+    "warm_vor": vol.Any(None, vol.All(GANZ, vol.Range(0, 240))),
+    "warm_nach": vol.Any(None, vol.All(GANZ, vol.Range(0, 240))),
 }
 
 ARBEITSZEIT = vol.Schema({

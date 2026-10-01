@@ -733,6 +733,10 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 @media (max-width: 700px) { .ev-sl { grid-template-columns: 1fr; } .ev-nav { display: none; } }
 .schmal .ev-sl { grid-template-columns: 1fr; } .schmal .ev-nav { display: none; }
 .ev-nav button .ev-ic, .ev-titel .ev-ic { grid-row: 1 / 3; font-size: 18px; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: rgba(127,127,127,.16); }
+/* Warm ab (AN-0004) */
+.wa-tab { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 10px; align-items: center; margin: 4px 0 8px; }
+.wa-tab > b { font-size: 12px; color: var(--ink2); font-weight: 500; } .wa-tab > div b { font-size: 15px; } .wa-tab > div .leise { display: block; font-size: 11px; }
+.wa-heute { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(255,159,10,.12); margin: 6px 0; font-size: 13px; } .wa-heute b { font-size: 15px; }
 .aw-leiste { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; } .aw-leiste .seg { margin: 0; }
 .aw-delta { font-style: normal; font-size: 12px; margin-left: 6px; } .aw-delta.mehr { color: #ff9f0a; } .aw-delta.weniger { color: #30d158; } .gruen-t { color: #30d158; }
 .aw-raster { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 110px; gap: 12px; grid-auto-flow: dense; }
@@ -978,7 +982,7 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
   staffel: ['staffel', 'an'], nutzbar: ['staffel', 'nutzbar_prozent'], max_gleich: ['staffel', 'max_gleichzeitig'], min_lauf: ['staffel', 'min_lauf_min'],
   min_pause: ['staffel', 'min_pause_min'], takt: ['staffel', 'takt_min'], tuer_pause: ['heizung', 'tuer_pause_min'], tuer_melden: ['heizung', 'tuer_melden_min'],
   knoepfe: ['meldungen_einst', 'knoepfe'], bericht: ['bericht', 'haeufigkeit'], bericht_handy: ['bericht', 'handy'], bericht_mail: ['bericht', 'mail'],
-  mail: ['bericht', 'mail_an'], bericht_csv: ['bericht', 'csv'], vorheizen: ['heizung', 'vorheizen_min'], nachheizen: ['heizung', 'nachheizen_min'],
+  mail: ['bericht', 'mail_an'], bericht_csv: ['bericht', 'csv'], vorheizen: ['heizung', 'vorheizen_min'], nachheizen: ['heizung', 'nachheizen_min'], warm_vor: ['heizung', 'warm_vor_min'], warm_nach: ['heizung', 'warm_nach_min'], warm_max: ['heizung', 'warm_max_min'],
   soll: ['heizung', 'soll'], grenze: ['heizung', 'heizgrenze'], basis: ['heizung', 'heizgrenze_basis'], fruehstart: ['heizung', 'fruehstart'],
   frueh_temp: ['heizung', 'fruehstart_unter'], frueh_min: ['heizung', 'fruehstart_min'], frost: ['heizung', 'frost'], frost_temp: ['heizung', 'frost_grenze'],
   tr_mm: ['heizung', 'trocknen_ab_mm'], tr_laenger: ['heizung', 'trocknen_laenger_min'], tr_frueher: ['heizung', 'trocknen_frueher_min'],
@@ -991,7 +995,7 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
 const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], min_pause: [0, 120], takt: [5, 240], tuer_pause: [1, 120], tuer_melden: [1, 240],
   vorheizen: [0, 240], nachheizen: [0, 240], soll: [5, 30], grenze: [0, 30], frueh_temp: [-15, 20], frueh_min: [0, 240], frost_temp: [0, 15],
   tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480],
-  frost_aus: [1, 20], absenk: [5, 20], offline_min: [1, 1440], trocken_w: [5, 5000], dauer_min: [5, 1440], zyklen_h: [2, 200], kalt_min: [15, 1440], hand_h: [1, 240] };
+  frost_aus: [1, 20], absenk: [5, 20], offline_min: [1, 1440], trocken_w: [5, 5000], dauer_min: [5, 1440], zyklen_h: [2, 200], kalt_min: [15, 1440], hand_h: [1, 240], warm_vor: [0, 240], warm_nach: [0, 240], warm_max: [15, 480] };
 /* Modus je Container (0.7.8): wie im Mockup, Thermostat nur mit Fühler */
 const MODI = [['plan', 'Zeitplan'], ['thermo', 'Thermostat'], ['bedarf', 'Bei Bedarf'], ['hand', 'Hand'], ['aus', 'Aus']];
 const MODUS_TEXT = { plan: 'an in der Heizzeit – der Thermostat am Heizkörper regelt', thermo: 'in der Heizzeit auf das Soll nach dem Fühler',
@@ -1200,7 +1204,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.10';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.11';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1401,7 +1405,7 @@ class BaustellePanel extends HTMLElement {
       staffel: st.an !== false, nutzbar: v(st.nutzbar_prozent, 67), max_gleich: v(st.max_gleichzeitig, 5), min_lauf: v(st.min_lauf_min, 10), min_pause: v(st.min_pause_min, 5), takt: v(st.takt_min, 15),
       tuer_pause: v(h.tuer_pause_min, 3), tuer_melden: v(h.tuer_melden_min, 10), knoepfe: me.knoepfe !== false,
       bericht: be.haeufigkeit || 'aus', bericht_handy: be.handy !== false, bericht_mail: !!be.mail, mail: be.mail_an || '', mail_dienst: be.mail_dienst || '', bericht_csv: be.csv !== false,
-      vorheizen: v(h.vorheizen_min, 45), nachheizen: v(h.nachheizen_min, 15), soll: v(h.soll, 20), grenze: v(h.heizgrenze, 15), basis: h.heizgrenze_basis === 'jetzt' ? 'jetzt' : 'Tageshöchstwert',
+      vorheizen: v(h.vorheizen_min, 45), nachheizen: v(h.nachheizen_min, 15), warm_vor: v(h.warm_vor_min, 0), warm_nach: v(h.warm_nach_min, 0), warm_max: v(h.warm_max_min, 120), soll: v(h.soll, 20), grenze: v(h.heizgrenze, 15), basis: h.heizgrenze_basis === 'jetzt' ? 'jetzt' : 'Tageshöchstwert',
       fruehstart: h.fruehstart !== false, frueh_temp: v(h.fruehstart_unter, 0), frueh_min: v(h.fruehstart_min, 30), frost: h.frost !== false, frost_temp: v(h.frost_grenze, 5),
       tr_mm: v(h.trocknen_ab_mm, 2), tr_laenger: v(h.trocknen_laenger_min, 45), tr_frueher: v(h.trocknen_frueher_min, 15),
       empfaenger: (me.empfaenger || opt.empfaenger || []).map(namen).join(', ') || 'keiner gewählt',
@@ -1432,7 +1436,7 @@ class BaustellePanel extends HTMLElement {
         bedarfBisIso: c.bedarf_bis || null, bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
         boost: !!c.boost_bis, boostBis: c.boost_bis || null,
         modus: pumpe ? null : MODI.some(m => m[0] === c.modus) ? c.modus : eb.bedarf ? 'bedarf' : eb.auto === false ? 'hand' : b.fuehler ? 'thermo' : 'plan',
-        lern: c.lernen || null };   // lernende Regelung (0.8): Lernstand von der Integration
+        lern: c.lernen || null, warmVor: zahl(eb.warm_vor) ? Number(eb.warm_vor) : null, warmNach: zahl(eb.warm_nach) ? Number(eb.warm_nach) : null };   // lernende Regelung (0.8): Lernstand von der Integration
     });
     const plan = {}, frei = {};
     const freiName = {};
@@ -1686,6 +1690,22 @@ class BaustellePanel extends HTMLElement {
   get azListe() { return [...this.d.arbeitszeiten].sort((a, b) => a.ab.localeCompare(b.ab)); }
   get azJetzt() { const L = this.azListe; return L.filter(a => a.ab <= this.z.HEUTE).at(-1) || L[0] || null; }
   /* Heizplan eines Tages – berechnet von der Integration (plan_woche), hier nur in Text übersetzt */
+  aufheizTeil(b) {
+    const a = (b.lern && b.lern.aufheizen) || {}, w = b.lern && b.lern.warm, n0 = (b.lern && b.lern.auf_n) || 3;
+    const z = x => x ? `<div><b>${de(x.rate)} °C/h</b><span class="leise">${x.n}× gemessen${x.n < n0 ? ' · noch zu wenig' : ''}</span></div>` : '<div><span class="leise">noch nicht gelernt</span></div>';
+    return `<div class="gruppe-t">Aufheizen</div><div class="wa-tab"><b></b><b>kalt &lt; 5 °C</b><b>mild</b><span>wie schnell es warm wird</span>${z(a.kalt)}${z(a.mild)}</div>
+      ${w && w.gelernt && w.plan ? `<div class="wa-heute">⏰<div>Heute ab <b>${uhr(w.plan.start)}</b> – ${w.aufheiz_min} min für ${zahl(w.innen) ? de(w.innen) : '–'} → ${de(w.soll)} °C, warm um <b>${uhr(w.plan.ziel)}</b> (${w.vor ? `${w.vor} min vor Arbeitsbeginn` : 'bei Arbeitsbeginn'})${w.plan.begrenzt ? ' · begrenzt durch „Frühestens“' : ''}</div></div>`
+        : w ? `<div class="leise">Ab ${n0} Aufheizungen je Wetter rechnet der Container den Beginn selbst; bis dahin gelten Vorheizen und Kälte-Frühstart.</div>` : '<div class="leise">Der gelernte Beginn wirkt im Modus Thermostat.</div>'}
+      <div class="leise">Gemessen wird jedes Aufheizen von mindestens 1 °C unter dem Soll, solange der Heizkörper durchgehend läuft. Kälte draußen steckt in der Rate – darum braucht es keinen eigenen Kälte-Frühstart.</div>`;
+  }
+  /* AN-0004: „Warm ab“ eines lernenden Containers – alle Zahlen von der Integration (laufzeit.container.<id>.lernen.warm) */
+  warmText(b, kurz = false) {
+    const w = b.lern && b.lern.warm; if (!w) return '';
+    if (!w.gelernt) return kurz ? 'Aufheizen lernt noch' : `lernt noch (${w.n}/${w.n_noetig} Aufheizungen bei ${w.band === 'kalt' ? 'Kälte' : 'mildem Wetter'}) – bis dahin Vorheizen und Kälte-Frühstart`;
+    const pl = w.plan; if (!pl) return kurz ? '' : 'heute frei';
+    if (kurz) return `heute ab ${uhr(pl.start)} → ${de(w.soll)} °C um ${uhr(pl.ziel)}`;
+    return `heizt ab ${uhr(pl.start)}, damit um ${uhr(pl.ziel)} ${de(w.soll)} °C${zahl(w.innen) ? ` (jetzt ${de(w.innen)} °C` : ' ('}${zahl(w.rate) ? `, ${de(w.rate)} °C/h gelernt` : ''}${pl.begrenzt ? ', begrenzt' : ''}) · warm bis ${uhr(pl.ende)}`;
+  }
   /* AN-0003: wie sich die Heizzeit zusammensetzt – nur die Abschnitte der Integration (start, vor, a, b, nach, ende) */
   planRechnung(p) {
     const min = (x, y) => `${Math.round(y - x)} min`, teile = [];
@@ -1703,6 +1723,7 @@ class BaustellePanel extends HTMLElement {
     const gruende = (q.gruende || []).map(c => c === 'ausnahme' ? `Ausnahme: ${(q.ausnahme && (q.ausnahme.notiz || AUSNAHME[q.ausnahme.art])) || 'andere Zeiten'}`
       : c === 'fruehstart' ? (zahl(w.kalt) ? `Frühstart ${de(w.kalt).replace('-', '−')} °C` : 'Frühstart')
       : c === 'frueher_nach_regen' ? 'früher nach Regen'
+      : c === 'gelernt' ? '🧠 gelernter Beginn'
       : c === 'trocknen' ? (zahl(w.regen) ? `Kleidung trocknen, ${de(w.regen, w.regen % 1 ? 1 : 0)} mm Regen` : 'Kleidung trocknen') : String(c));
     return { vor: q.vor, extra: zahl(q.start) ? q.start : q.vor, a: q.a, b: q.b, nach: q.nach, ende: q.ende, gruende, codes: q.gruende || [], ausnahme: q.ausnahme || null };
   }
@@ -2118,7 +2139,7 @@ class BaustellePanel extends HTMLElement {
   sollAktiv(b) { return !!b.fuehler && b.t !== null && ['thermo', 'bedarf'].includes(b.modus); }   // Soll gilt nur, wenn die Integration nach dem Fühler regelt
   cRegelText(b) {
     const soll = b.soll ?? this.d.e.soll;
-    if (b.modus === 'thermo' && b.lern && b.lern.an) return `🧠 Thermostat · lernend – ${b.lern.anteil !== null ? `${b.lern.anteil} % je ${b.lern.zyklus_min} min · ` : ''}Nachlauf +${de(b.lern.erwartet)} °C → aus bei ${de(b.lern.aus_bei)} °C`;
+    if (b.modus === 'thermo' && b.lern && b.lern.an) return `🧠 Thermostat · lernend – ${b.lern.anteil !== null ? `${b.lern.anteil} % je ${b.lern.zyklus_min} min · ` : ''}Nachlauf +${de(b.lern.erwartet)} °C → aus bei ${de(b.lern.aus_bei)} °C${b.lern.warm && this.warmText(b, true) ? ` · ${this.warmText(b, true)}` : ''}`;
     return { thermo: `Thermostat regelt in der Heizzeit auf ${de(soll)} °C`, plan: 'Zeitplan – der Heizkörperthermostat regelt', hand: 'Hand – die Automatik schaltet nicht',
       bedarf: `nur bei Bedarf${b.fuehler ? ` · regelt auf ${de(soll)} °C` : ''}`, aus: 'Aus – nur Frostschutz' }[b.modus] || '';
   }
@@ -2291,7 +2312,7 @@ class BaustellePanel extends HTMLElement {
     const ft = this.feiertage(), naechster = ft && ft[0];
     const morgen = plusTage(this.z.HEUTE, 1), wm = this.wetterTag(morgen), pm = this.d.plan[morgen];
     const regel = (ic, titel, text, an) => `<div class="hr-zeile ${an ? 'an' : ''}"><span class="hr-ic">${ic}</span><div><b>${titel}</b><div class="leise">${text}</div></div><span class="hr-an">${an ? '●' : '○'}</span></div>`;
-    const C = d.bereiche.filter(b => !b.pumpe), ur = this.urlaube();
+    const C = d.bereiche.filter(b => !b.pumpe), ur = this.urlaube(), lernend = C.filter(b => b.lern && b.lern.warm);   // AN-0004
     const freiT = e.urlaub === 'absenk' ? `heute abgesenkt auf ${de(e.absenk)} °C (mit Fühler), sonst Frostschutz` : e.urlaub === 'aus' ? 'heute alles aus – auch kein Frostschutz' : 'heute nur Frostschutz';
     const frei = { urlaub: ['Urlaub', freiT], feiertag: ['Feiertag', freiT] }[d.status];
     const urlaubsKal = d.optionen.urlaub_kalender, feiertagsKal = d.optionen.feiertag_kalender;
@@ -2299,6 +2320,7 @@ class BaustellePanel extends HTMLElement {
       <div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">welche Regeln greifen</span></div>
         ${regel('🕖', `Arbeitszeit ${p ? `${uhr(p.a)}–${uhr(p.b)}` : 'frei'}`, `${az ? `„${esc(az.name)}“` : 'keine Arbeitszeit'} · heizt ${p ? `${uhr(p.extra)}–${uhr(p.ende)}` : 'nicht'}`, !!p)}
         ${p ? `<div class="zeile unter hz-rechnung"><span class="leise">${this.planRechnung(p)}</span></div>` : ''}
+        ${lernend.map(b => `<div class="zeile unter"><span class="leise">🧠 <b>${esc(b.name)}</b>: ${this.warmText(b)}</span></div>`).join('')}
         ${regel('🌡', `Heizgrenze ${de(e.grenze, 0)} °C`, zahl(bezug) ? `${e.basis === 'jetzt' ? 'jetzt' : 'Höchstwert heute'} ${de(bezug, 0)} °C → ${hg.zu_warm ?? bezug > e.grenze ? 'zu warm, es wird nicht geheizt' : 'es wird geheizt'}` : 'kein Wert vom Wetter', !(hg.zu_warm ?? (zahl(bezug) && bezug > e.grenze)))}
         ${regel('🌧', 'Kleidung trocknen', zahl(w.regen_heute) ? `${de(w.regen_heute, w.regen_heute % 1 ? 1 : 0)} mm Regen seit gestern (ab ${de(e.tr_mm)} mm) → ${w.regen_heute >= e.tr_mm ? `${e.tr_laenger} min länger, bis ${p ? uhr(p.ende) : '–'}` : 'nicht nötig'}` : 'kein Regenwert vom Wetter', zahl(w.regen_heute) && w.regen_heute >= e.tr_mm)}
         ${regel('❄', 'Kälte-Frühstart morgen', zahl(wm.kalt) ? `${de(wm.kalt).replace('-', '−')} °C erwartet (unter ${de(e.frueh_temp, 0).replace('-', '−')} °C) → ${wm.kalt < e.frueh_temp ? `${e.frueh_min} min früher` : 'nicht nötig'}${pm && (pm.gruende || []).includes('frueher_nach_regen') ? `, dazu ${e.tr_frueher} min nach Regen` : ''}` : 'noch keine Vorhersage für morgen', e.fruehstart && zahl(wm.kalt) && wm.kalt < e.frueh_temp)}
@@ -2309,15 +2331,19 @@ class BaustellePanel extends HTMLElement {
       ${this.azBlock()}
       ${this.ausnahmenBlock()}
       <div class="glas-panel block"><div class="block-kopf"><b>So wird geheizt</b><span class="leise">in der Arbeitszeit immer</span></div>
-        <div class="zeile"><div><b>Vorheizen</b><div class="leise">vor Arbeitsbeginn, damit es warm ist</div></div>${st('vorheizen', 5, min)}</div>
-        <div class="zeile"><div><b>Nachheizen</b><div class="leise">nach Arbeitsende, jeden Tag</div></div>${st('nachheizen', 5, min)}</div>
+        <div class="zeile"><div><b>Vorheizen</b><div class="leise">vor Arbeitsbeginn, damit es warm ist${lernend.length ? ' · <i>nicht für lernende Container</i>' : ''}</div></div>${st('vorheizen', 5, min)}</div>
+        <div class="zeile"><div><b>Nachheizen</b><div class="leise">nach Arbeitsende, jeden Tag${lernend.length ? ' · <i>nicht für lernende Container</i>' : ''}</div></div>${st('nachheizen', 5, min)}</div>
+        <div class="zeile"><div><b>🧠 Lernende Container</b><div class="leise">heizen selbst so früh, dass das Soll rechtzeitig erreicht ist – statt Vorheizen, Kälte-Frühstart und Nachheizen. Bis genug gelernt ist, gelten die Werte oben.${lernend.length ? ` Jetzt: ${lernend.map(b => esc(b.name)).join(', ')}.` : ' Gilt für Container mit Fühler, Modus Thermostat und lernender Regelung.'}</div></div></div>
+        <div class="zeile unter"><div><span>Soll erreicht</span><div class="leise">vor Arbeitsbeginn, z. B. zum Umziehen</div></div>${st('warm_vor', 5, v => v ? `${v} min vorher` : 'bei Beginn')}</div>
+        <div class="zeile unter"><div><span>Warm halten</span><div class="leise">nach Arbeitsende; Kleidung trocknen kommt dazu</div></div>${st('warm_nach', 5, v => v ? `${v} min länger` : 'bis Ende')}</div>
+        <div class="zeile unter"><div><span>Frühestens</span><div class="leise">vor Arbeitsbeginn – Grenze, falls der Raum sehr kalt ist</div></div>${st('warm_max', 15, v => `${v} min vorher`)}</div>
         <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">alle Heizkörper eines Containers zugleich, Vorrang in der Staffelung – bis zum Soll, ohne Fühler für</div></div>${st('boost_min', 5, min)}</div>
         <div class="zeile"><div><b>🚪 Tür offen</b><div class="leise">Heizung pausieren nach</div></div>${st('tuer_pause', 1, min)}</div>
         <div class="zeile unter"><span>Nachricht nach</span>${st('tuer_melden', 5, min)}</div>
         <div class="zeile"><div><b>🌡 Solltemperatur</b><div class="leise">für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat</div></div>${st('soll', .5, grad)}</div>
         <div class="zeile"><div><b>Heizgrenze</b><div class="leise">nicht heizen, wenn es wärmer ist</div></div>${st('grenze', .5, grad)}</div>
         <div class="zeile"><span>Grundlage</span><div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
-        <div class="zeile"><div><b>Kälte-Frühstart</b><div class="leise">unter ${de(e.frueh_temp, 0).replace('-', '−')} °C zusätzlich früher</div></div>${schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"')}</div>
+        <div class="zeile"><div><b>Kälte-Frühstart</b><div class="leise">${lernend.length ? '<i>nicht für lernende Container</i> · ' : ''}unter ${de(e.frueh_temp, 0).replace('-', '−')} °C zusätzlich früher</div></div>${schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"')}</div>
         ${e.fruehstart ? `<div class="zeile unter"><span>wenn morgens kälter als</span>${st('frueh_temp', 1, v => `${de(v, 0).replace('-', '−')} °C`)}</div>
         <div class="zeile unter"><span>so viel früher</span>${st('frueh_min', 5, min)}</div>` : ''}
         <div class="zeile"><div><b>Frostschutz</b><div class="leise">hält jeden Container über der Grenze, auch außerhalb der Arbeitszeit</div></div>${schalter(e.frost, 'e-bool', 'data-k="frost"')}</div>
@@ -3193,6 +3219,10 @@ class BaustellePanel extends HTMLElement {
       return `${griff}<div class="block-kopf"><h3>Bearbeiten</h3><span class="leise">${b.pumpe ? 'Pumpenschacht' : 'Container'}</span></div>
         <label class="feld">Name<input value="${esc(e.name)}" data-b="name"></label>
         ${b.pumpe ? '' : `<div class="zeile"><div><b>Nur bei Bedarf heizen</b><div class="leise">z. B. Besprechungscontainer: heizt nur per Schalter oder Termin, sonst Frostschutz</div></div>${schalter(e.bedarf, 'ge-bedarf')}</div>`}
+        ${b.lern && b.lern.warm ? (() => { const w = { vor: b.warmVor ?? d.e.warm_vor, nach: b.warmNach ?? d.e.warm_nach, vor_eigen: b.warmVor !== null, nach_eigen: b.warmNach !== null }, sw = (k, v, eigen, f) => `<span class="stepper klein"><button data-act="warm-eigen" data-k="${k}" data-d="-5">−</button><b class="${eigen ? 'eigen' : ''}">${f(v)}</b><button data-act="warm-eigen" data-k="${k}" data-d="5">+</button></span>`;
+          return `<div class="gruppe-t">🧠 Warm ab</div><div class="zeile"><div><span>Soll erreicht</span><div class="leise">${w.vor_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('vor', w.vor, w.vor_eigen, v => v ? `${v} min vorher` : 'bei Beginn')}</div>
+            <div class="zeile"><div><span>Warm halten</span><div class="leise">${w.nach_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('nach', w.nach, w.nach_eigen, v => v ? `${v} min länger` : 'bis Ende')}</div>
+            ${w.vor_eigen || w.nach_eigen ? '<button class="zeile" data-act="warm-zurueck"><span class="blau">Wie die Baustelle</span></button>' : ''}`; })() : ''}
         ${b.pumpe ? '' : `<label class="feld">Temperaturfühler<select data-bfu>${this.optionen(fuehler, e.fuehler, '– keiner –')}</select></label>`}
         ${b.pumpe ? '' : `<label class="feld">Türkontakt<select data-btuer>${this.optionen(tueren, e.tuer, 'keiner')}</select></label>`}
         <label class="feld">Stromanschluss<select data-ban>${d.anschluesse.map(a => `<option value="${esc(a.id)}" ${e.anschluss === a.id ? 'selected' : ''}>${esc(a.name)} · ${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A</option>`).join('')}</select></label>
@@ -3252,6 +3282,7 @@ class BaustellePanel extends HTMLElement {
         <div class="gruppe-t">Regelung (TPI, ${l.zyklus_min}-min-Zyklen)</div>
         ${balkenK('K innen – Trägheit des Raums', l.kint)}${balkenK('K außen – Wärmeverlust nach außen', l.kext)}
         <div class="leise">Einschaltanteil = K innen × (Soll − innen − Nachlauf) + K außen × (Soll − außen)</div>
+        ${this.aufheizTeil(b)}
         <div class="block-kopf"><div class="gruppe-t">Nachlauf nach dem Ausschalten</div><div class="seg klein">${[['kalt', 'kalt < 5 °C'], ['mild', 'mild']].map(([k, t]) => `<button data-act="lern-k" data-v="${k}" class="${(s.lk || 'kalt') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
         <div class="lern-tab"><span></span><b>mit Ölradiator</b><b>nur Konvektor</b>
           ${[['kurz', '< 15 min'], ['mittel', '15–45 min'], ['lang', '> 45 min']].map(([kl, t]) => `<span>${t}</span><div>${zelle('oel', kl)}</div><div>${zelle('konvektor', kl)}</div>`).join('')}</div>
@@ -3563,6 +3594,9 @@ class BaustellePanel extends HTMLElement {
       case 'tab-einst': S.evGruppe = el.dataset.g || (S.sheet && S.sheet.art === 'strom' ? 'strom' : S.evGruppe); return this.gehe('einst');
       case 'ev-gruppe': S.evGruppe = el.dataset.v; S.evDev = null; return this.render(true);
       case 'ev-dev': S.evDev = el.dataset.v; return neu();
+      case 'warm-eigen': { if (!b) return; const vor = el.dataset.k === 'vor', alt = vor ? b.warmVor ?? d.e.warm_vor : b.warmNach ?? d.e.warm_nach;   // AN-0004
+        return this.setzen(['bereiche', b.id, vor ? 'warm_vor' : 'warm_nach'], Math.max(0, Math.min(240, alt + +el.dataset.d))); }
+      case 'warm-zurueck': return this.setzen(['bereiche', b.id, 'warm_vor'], null).then(() => this.setzen(['bereiche', b.id, 'warm_nach'], null));
       case 'az-alt': S.azAlt = !S.azAlt; return neu();
       case 'az-heizung': return this.gehe('heizung');
       case 'az-neu': case 'az-vorlage': { const v = a === 'az-vorlage' ? d.arbeitszeiten[S.sheet.i] : this.azJetzt;

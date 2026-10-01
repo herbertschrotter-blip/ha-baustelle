@@ -758,6 +758,33 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       const q = { ...p, extra: p.a - 90, vor: p.a - 30, codes: ['fruehstart', 'frueher_nach_regen'], nach: p.b + 15, ende: p.b + 45 };
       erwarte('AN-0003: 30 Vorheizen + 60 Kälte und Regen', /60 min früher \(Kälte \+ Regen gestern\) \+ 30 min Vorheizen \+ Arbeit/.test(panel.planRechnung(q)) && panel.planRechnung(q).includes('30 min Kleidung trocknen'));
       await klick({ act: 'zu' }, 10); } }
+  /* AN-0004: „Warm ab“ – Werte von der Integration (lernen.warm), Einstellungen je Baustelle und Container */
+  { const b0 = panel.d.bereiche.find(x => x.fuehler && !x.pumpe), welt = struktur.find(x => x.baustelle.entry_id === panel.d.entry);
+    const c = welt.laufzeit.container[b0.id], alt = JSON.parse(JSON.stringify(c));
+    c.modus = 'thermo';
+    c.lernen = { an: true, zyklen: 4, zyklus_min: 10, anteil: 100, erwartet: 0, aus_bei: 20, kint: { wert: .6, start: .6, fort: 0 }, kext: { wert: .01, start: .01, fort: 0 }, nachlauf: {}, treffer: [],
+      aufheizen: { kalt: { rate: 3.2, n: 4 } }, auf_n: 3,
+      warm: { gelernt: true, band: 'kalt', rate: 3.2, n: 4, n_noetig: 3, vor: 15, nach: 0, max: 120, vor_eigen: false, nach_eigen: false, aufheiz_min: 70, innen: 16.4, soll: 20, fest: false,
+        plan: { start: 330, ziel: 405, a: 420, b: 990, ende: 990, begrenzt: false } } };
+    const nachPanel = () => { panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen(); };
+    nachPanel(); const b = () => panel.d.bereiche.find(x => x.id === b0.id);
+    await klick({ act: 'tab', v: 'heizung' }, 10); await klick({ act: 'hz-auf', k: 'regeln' }, 10);
+    erwarte('AN-0004: Regeln mit Soll erreicht / Warm halten / Frühestens', ['data-k="warm_vor"', 'data-k="warm_nach"', 'data-k="warm_max"', 'nicht für lernende Container'].every(t => ui.innerHTML.includes(t)));
+    neu(); await klick({ act: 'st', k: 'warm_vor', d: '5' }, 10);
+    erwarte('AN-0004: „Soll erreicht“ speichert heizung.warm_vor_min', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'heizung.warm_vor_min' && m.wert === 5));
+    await klick({ act: 'zu' }, 5); await klick({ act: 'hz-auf', k: 'heute' }, 10);
+    erwarte('AN-0004: Heute zeigt den gelernten Beginn', ui.innerHTML.includes(`<b>${b0.name}</b>: heizt ab 05:30, damit um 06:45 20,0 °C (jetzt 16,4 °C, 3,2 °C/h gelernt) · warm bis 16:30`));
+    await klick({ act: 'zu' }, 5); await klick({ act: 'container', id: b0.id }, 10);
+    erwarte('AN-0004: Container-Kopf mit „heute ab“', ui.innerHTML.includes('heute ab 05:30 → 20,0 °C um 06:45'));
+    await klick({ act: 'sheet', s: 'lernen' }, 10);
+    erwarte('AN-0004: Lernstand mit Aufheizen', ui.innerHTML.includes('3,2 °C/h') && ui.innerHTML.includes('Heute ab <b>05:30</b> – 70 min'));
+    await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'bereich' }, 10);
+    erwarte('AN-0004: Bearbeiten mit eigenem „Warm ab“', ui.innerHTML.includes('🧠 Warm ab') && ui.innerHTML.includes('data-act="warm-eigen"'));
+    neu(); await klick({ act: 'warm-eigen', k: 'vor', d: '5' }, 10);
+    erwarte('AN-0004: eigener Wert je Container', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `bereiche.${b0.id}.warm_vor`));
+    c.lernen.warm = { ...c.lernen.warm, gelernt: false, n: 1, plan: null }; nachPanel();
+    erwarte('AN-0004: lernt noch', panel.warmText(b()).startsWith('lernt noch (1/3 Aufheizungen bei Kälte)'));
+    await klick({ act: 'zu' }, 5); Object.keys(c).forEach(k => delete c[k]); Object.assign(c, alt); nachPanel(); await klick({ act: 'tab', v: 'einst' }, 30); }
   /* WU-0007: alle Einstellungen in Gruppen mit Seitenleiste (Handy: Chips) */
   { const gruppe = async g => { await klick({ act: 'ev-gruppe', v: g }, 20); pruefe(`Einstellungen ${g}`); return ui.innerHTML; };
     erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'container', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));

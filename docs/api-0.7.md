@@ -194,6 +194,13 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `{an, zyklen, kint: {wert, start, fort}, kext: {…}, nachlauf: {"oel|lang|kalt": {grad, min, n}, …}, treffer: [Spitze −
   Soll …], anteil (% je Zyklus oder null), erwartet (°C), aus_bei (°C), zyklus_min}`. `baustelle/aktion` `lern_reset`
   mit `bereich` setzt den Lernstand zurück.
+- „Warm ab“ (AN-0004, Optimum Start): Einstellungen `heizung.warm_vor_min` (Soll erreicht … min vor Arbeitsbeginn, 0–240),
+  `heizung.warm_nach_min` (warm halten … min nach Arbeitsende, 0–240), `heizung.warm_max_min` (frühestens … min vor
+  Arbeitsbeginn, 15–480); je Container `bereiche.<id>.warm_vor` / `warm_nach` (Zahl oder `null` = wie die Baustelle).
+  `laufzeit.container.<id>.lernen` zusätzlich `aufheizen: {kalt|mild: {rate (°C/h), n}}`, `auf_n` (nötige Messungen) und
+  `warm` (nur lernend im Modus Thermostat, sonst `null`): `{gelernt, band, rate, n, n_noetig, vor, nach, max, vor_eigen,
+  nach_eigen, aufheiz_min, innen, soll, fest, plan: {start, ziel, a, b, ende, begrenzt} | null}` (Minuten seit Mitternacht).
+  Plangrund `gelernt` in `plan_woche` und `abschnitte` der lernenden Container.
 - Gerät aktiv/inaktiv (WU-0004): `baustelle/aktion` `aktiv` mit `geraet` und `an` (bool). Inaktiv: einmal ausschalten,
   danach schaltet die Automatik es nicht, es zählt nicht in der Staffelung, keine Warnungen; gespeichert unter
   `einstellungen.geraete.<id>.aktiv`, sichtbar in `laufzeit.geraete.<id>.aktiv`. `geraete[]` hat zusätzlich
