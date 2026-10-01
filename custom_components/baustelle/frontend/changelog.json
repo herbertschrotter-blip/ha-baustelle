@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.8.35",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Staffelung nach Bedarf in °C (Herbert 01.10.2026): nach den festen Stufen (Frostschutz, Schnell aufheizen, erster im Container, Priorität) entscheidet, wie weit ein Container in 15 min unter dem Soll wäre – jetzt unter dem Soll, plus Abkühlen ohne Heizen (gemessen, wenn er aus ist, sonst die gelernte Abkühlrate – die Trägheit des Containers), minus Nachlauf des Ölradiators, plus was bis Arbeitsbeginn bzw. „Soll erreicht … vorher“ mit der gelernten Aufheizrate fehlt, plus ein Zuschlag für wenig Heizzeit in der letzten Stunde. Der Rundlauf tauscht jeden Takt den obersten Wartenden gegen den untersten Laufenden.",
+      "Überlast: abgeworfen wird erst, wenn ein Anschluss länger als 30 s zu voll ist (kurze Spitzen, z. B. ein Thermostat, der kurz anspringt), dann der unterste der Rangliste – bei gleichem Rang der größere Verbraucher.",
+      "Stromverteilung mit Rangliste: je Heizkörper die Stufen, der Bedarf in °C und zum Antippen, woraus er entsteht."
+    ]
+  },
+  {
     "version": "0.8.34",
     "datum": "2026-10-01",
     "punkte": [

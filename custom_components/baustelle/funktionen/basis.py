@@ -141,8 +141,8 @@ class Funktion:
         """Ziel eines geschalteten Geräts; Standard wie sein Bereich (z. B. hält die Heizung einen Zusatz zurück)."""
         return soll.ein
 
-    def staffel_vorrang(self, soll: tuple[Soll, LageContainer], schaltet: bool) -> dict[str, Any]:
-        """Vorrang eines Geräts in der Staffelung (Felder von `staffel.Last`) aus dem Soll seines Bereichs."""
+    def staffel_vorrang(self, soll: tuple[Soll, LageContainer], schaltet: bool, bereich: str = "") -> dict[str, Any]:
+        """Vorrang eines Geräts in der Staffelung (Felder von `staffel.Last`) aus dem Soll seines Bereichs `bereich`."""
         return {}
 
     def schaltet_ohne_automatik(self) -> bool:

@@ -48,6 +48,12 @@ Entscheidungen, wo der Bauplan (Abschnitt 2.3) offen ist – jeweils im Sinne de
   Heizer läuft (nach Frost und Boost, vor Priorität und Defizit); ein Zweitgerät verdrängt im Rundlauf nie den einzigen
   laufenden Heizer eines anderen Containers; abgegeben und abgeworfen werden zuerst Zweitgeräte. Ohne `gruppe` gilt
   das nicht.
+- **Bedarf in °C** (Herbert 01.10.2026, `logik/bedarf`): `defizit` ist der Bedarf in 15 min (Trend, Nachlauf,
+  Zielzeit, Gerechtigkeit). Innerhalb einer Stufe kommt der höhere Bedarf zuerst; abgeworfen und abgegeben wird der
+  unterste – bei gleichem Rang der größere Verbraucher (weniger Schaltungen). Der Rundlauf tauscht weiter jeden Takt:
+  der oberste Wartende gegen den untersten Laufenden (so kommt jeder Container dran).
+- **Überlast erst nach `UEBERLAST_S`** (Vorbild Lastmanager): der Aufrufer sagt je Anschluss, ob abgeworfen werden darf
+  (`abwerfen`); solange nicht, wird dort nur nichts Neues eingeschaltet.
 - Gerechnet wird mit dem **gemessenen** Verbrauch (FE-0011, Herbert 01.10.2026): ein eingeschalteter Heizkörper, dessen
   Thermostat gerade abgeschaltet hat, zählt mit dem, was er zieht (`last_kw`). Springt er wieder an und der Anschluss
   wird zu voll, geht sofort der zuletzt eingeschaltete aus (Schritt 2) und die Heizkörper wechseln im Rundlauf.
@@ -62,6 +68,7 @@ from enum import StrEnum
 from typing import Any
 
 SPANNUNG_V = 230
+UEBERLAST_S = 30    # so lange darf ein Anschluss zu voll sein, bevor abgeworfen wird (kurze Spitzen ignorieren)
 ANLAUF_MIN = 2      # so lange zählt ein eben eingeschalteter Heizer mindestens mit seiner vollen Leistung (FE-0011)
 TOLERANZ_KW = 1e-6  # 1 mW: Rundungsreste der Kommazahlen, keine Messgenauigkeit
 
@@ -188,11 +195,28 @@ def anlauf_folge(lasten: list[Last]) -> list[Last]:
     return sorted(lasten, key=lambda l: (not l.frost, not l.boost, -l.prio, l.id))
 
 
+def _bedarf(last: Last) -> float:
+    return last.defizit if last.defizit is not None else 0.0
+
+
 def _abschalt_reihenfolge(lasten: list[Last], laufend: dict[str, int] | None = None) -> list[Last]:
-    """Zuerst normale, dann Boost, zuletzt Frost; darin zuerst Zweitgeräte (AN-0013), jeweils der zuletzt eingeschaltete
-    zuerst."""
+    """Der unterste zuerst: normale vor Boost vor Frost; darin Zweitgeräte (AN-0013), niedrige Priorität, kleiner Bedarf;
+    bei Gleichstand der größere Verbraucher, dann der zuletzt eingeschaltete."""
     n = laufend or {}
-    return sorted(lasten, key=lambda l: (l.frost, l.boost, bool(l.gruppe) and n.get(l.gruppe, 0) <= 1, l.an_seit_min, l.id))
+    return sorted(lasten, key=lambda l: (l.frost, l.boost, bool(l.gruppe) and n.get(l.gruppe, 0) <= 1, l.prio, _bedarf(l),
+                                         -l.kw, l.an_seit_min, l.id))
+
+
+def rangliste(lasten: list[Last]) -> list[str]:
+    """Heizer (laufend oder wollend) von oben (zuerst an) nach unten (gibt zuerst ab) – für die Seite."""
+    heizer = [l for l in lasten if l.heizer and (l.an or l.will)]
+    laufend = [l for l in heizer if l.an]
+    erste: dict[str, str] = {}
+    for l in sorted(laufend, key=lambda l: (-l.prio, -_bedarf(l), l.id)) + sorted(heizer, key=lambda l: (-l.prio, -_bedarf(l), l.id)):
+        if l.gruppe:
+            erste.setdefault(l.gruppe, l.id)
+    return [l.id for l in sorted(sorted(heizer, key=lambda l: (-l.kw, l.id)),
+                                 key=lambda l: (l.frost, l.boost, not l.gruppe or erste.get(l.gruppe) == l.id, l.prio, _bedarf(l)), reverse=True)]
 
 
 def staffeln(
@@ -200,6 +224,7 @@ def staffeln(
     lasten: list[Last],
     regeln: StaffelRegeln,
     frei_stabil_kw: dict[str, float] | None = None,
+    abwerfen: dict[str, bool] | None = None,
 ) -> StaffelErgebnis:
     """Ein Schritt der Staffelung über alle Anschlüsse."""
     bekannt = {a.id for a in anschluesse}
@@ -244,7 +269,11 @@ def staffeln(
 
     # 2. Überlast → sofort der zuletzt eingeschaltete aus
     abgeworfen: set[str] = set()
+    gesperrt: set[str] = set()   # zu voll, aber noch nicht lange genug (UEBERLAST_S): nichts Neues
     for a in anschluesse:
+        if frei_ist[a.id] < -TOLERANZ_KW and abwerfen is not None and not abwerfen.get(a.id, True):
+            gesperrt.add(a.id)
+            continue
         while frei_ist[a.id] < -TOLERANZ_KW:
             dran = _abschalt_reihenfolge([nach_id[i] for i in an if nach_id[i].anschluss == a.id], laufend())
             if not dran:
@@ -265,7 +294,7 @@ def staffeln(
 
     # 4. Wartende einschalten, sonst Rundlauf
     neu = 0
-    ueberlast = {nach_id[i].anschluss for i in abgeworfen if wartet[i] == Warten.ANSCHLUSS_VOLL}
+    ueberlast = {nach_id[i].anschluss for i in abgeworfen if wartet[i] == Warten.ANSCHLUSS_VOLL} | gesperrt
     kandidaten = [l for l in heizer if l.will and l.id not in an and l.id not in abgeworfen and l.anschluss in bekannt]
     getauscht: set[str] = set()
     offen = list(kandidaten)
@@ -316,8 +345,10 @@ def staffeln(
 
         jetzt = [r for rest, r in moeglich if rest <= 0]
         if jetzt and neu < regeln.neue_je_schritt:
-            # normale vor Boost; Zweitgeräte vor dem einzigen eines Containers (AN-0013); dann der am längsten laufende
-            r = min(jetzt, key=lambda x: (x.boost, bool(x.gruppe) and n_lauf.get(x.gruppe, 0) <= 1, -x.an_seit_min, x.prio, x.id))
+            # normale vor Boost; Zweitgeräte vor dem einzigen eines Containers (AN-0013); dann der unterste (Priorität,
+            # Bedarf), bei Gleichstand der größere und der am längsten laufende
+            r = min(jetzt, key=lambda x: (x.boost, bool(x.gruppe) and n_lauf.get(x.gruppe, 0) <= 1, x.prio, _bedarf(x),
+                                          -x.kw, -x.an_seit_min, x.id))
             schalte_aus(r)
             getauscht.add(r.id)
             wartet[r.id] = Warten.RUNDLAUF

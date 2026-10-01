@@ -18,7 +18,7 @@ import voluptuous as vol
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.baustelle.const import DOMAIN
 from custom_components.baustelle.daten import struktur
@@ -109,6 +109,13 @@ async def _start(
 async def _minuten(hass: HomeAssistant, freezer, st, minuten: float = 1) -> None:
     freezer.tick(timedelta(minutes=minuten))
     st.auswerten()
+    await hass.async_block_till_done()
+
+
+async def _ueberlast_abwarten(hass: HomeAssistant, freezer) -> None:
+    """Abwurf erst nach `staffel.UEBERLAST_S` (kurze Spitzen ignorieren): die Integration wertet dann selbst neu aus."""
+    freezer.tick(timedelta(seconds=31))
+    async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
 
@@ -380,6 +387,8 @@ async def test_pumpe_zaehlt_mit_und_verdraengt_heizung(hass: HomeAssistant, free
     await _minuten(hass, freezer, st, 2)
     hass.states.async_set("sensor.p1_power", "760")
     await hass.async_block_till_done()
+    assert _an(hass, "switch.hk1")                                     # kurze Spitze: noch nicht (30 s)
+    await _ueberlast_abwarten(hass, freezer)
     assert not _an(hass, "switch.hk1")
     assert "Staffelung: Heizkörper 1 wartet (Anschluss voll)" in _texte(st, "schalten")
     assert _warte(hass, entry, HK1)["grund"] == "mindestpause"         # gleich danach: Pause nach dem Abwurf
@@ -393,6 +402,7 @@ async def test_pumpe_mit_anlaufspitze_wirft_heizung_ab(hass: HomeAssistant, free
     await _minuten(hass, freezer, st, 1)
     hass.states.async_set("sensor.p1_power", "1500")                   # 2,0 + 1,5 > 3,082
     await hass.async_block_till_done()
+    await _ueberlast_abwarten(hass, freezer)
     assert not _an(hass, "switch.hk1") and _warte(hass, entry, HK1)["grund"] == "mindestpause"
     assert "Staffelung: Heizkörper 1 wartet (Anschluss voll)" in _texte(st, "schalten")
     await _minuten(hass, freezer, st, 6)                               # nach der Pause: Anschluss weiter voll
@@ -491,6 +501,7 @@ async def test_inaktives_geraet_von_hand_an_zaehlt_mit(hass: HomeAssistant, free
     hass.states.async_set("sensor.hk1_power", "2000")
     hass.states.async_set("switch.hk1", "on")                          # am Gerät eingeschaltet
     await hass.async_block_till_done()
+    await _ueberlast_abwarten(hass, freezer)
     assert not _an(hass, "switch.hk2") and "Staffelung: Heizkörper 2 wartet (Anschluss voll)" in _texte(st, "schalten")
     await _minuten(hass, freezer, st, 6)
     assert not _an(hass, "switch.hk2") and _warte(hass, entry, HK2)["grund"] == "anschluss_voll"
@@ -506,6 +517,7 @@ async def test_hand_ein_zaehlt_mit_und_wirft_automatik_ab(hass: HomeAssistant, f
     hass.states.async_set("switch.hk1", "on", context=Context(user_id="nutzer"))
     await hass.async_block_till_done()
     assert HK1 in st.lz["hand"]
+    await _ueberlast_abwarten(hass, freezer)
     assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk2")     # Überlast: der automatische geht
     lz = _lz(hass, entry)
     assert lz["geraete"][HK1]["warte"] is None and lz["geraete"][HK1]["hand_seit"]
@@ -673,3 +685,40 @@ async def test_einer_je_container_zuerst(hass: HomeAssistant, freezer, shellys) 
     await _minuten(hass, freezer, st, 20)
     an = {n for n in (1, 2, 3) if _an(hass, f"switch.hk{n}")}
     assert 3 in an and len(an & {1, 2}) == 1                 # C1 und C2 je einer, auch nach dem Rundlauf
+
+
+async def test_bedarf_wer_auskuehlt_kommt_zuerst(hass: HomeAssistant, freezer, shellys) -> None:
+    """Herbert 01.10.2026: gleich kalt, ein Platz – der Container, der gerade auskühlt (gemessen), kommt vor dem, dessen
+    Temperatur steht. Rangliste und Aufschlüsselung des Bedarfs kommen bei der Seite an."""
+    entry, st = await _start(hass, freezer, shellys, automatik=False,
+                             zustand={"sensor.temp_c1": "19.5", "sensor.temp_c2": "19.5"})
+    for m in range(16):                                      # C2 kühlt 2 °C/h aus, C1 bleibt bei 19,5
+        hass.states.async_set("sensor.temp_c2", f"{19.5 - m * 2 / 60:.3f}")
+        await _minuten(hass, freezer, st, 1)
+    hass.states.async_set("sensor.temp_c1", "19.0")
+    hass.states.async_set("sensor.temp_c2", "19.0")
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    lz = _lz(hass, entry)
+    assert _an(hass, "switch.hk2") and not _an(hass, "switch.hk1")
+    b2 = lz["container"][C2]["bedarf"]
+    # läuft jetzt: die zuletzt gemessene Abkühlung gilt weiter (noch nichts gelernt)
+    assert b2["abkuehl_h"] == pytest.approx(2.0, abs=0.3) and b2["summe"] > lz["container"][C1]["bedarf"]["summe"]
+    assert lz["staffel"]["rang"][0] == HK2
+
+
+async def test_bedarf_ziel_bis_arbeitsbeginn(hass: HomeAssistant, freezer, shellys) -> None:
+    """Schafft ein Container sein Soll bis Arbeitsbeginn mit der gelernten Aufheizrate nicht mehr, kommt das Fehlende
+    dazu – er kommt vor einem, der gleich kalt ist, aber schnell aufheizt."""
+    from custom_components.baustelle.logik import lernen
+    entry, st = await _start(hass, freezer, shellys, automatik=False,
+                             zustand={"sensor.temp_c1": "17.0", "sensor.temp_c2": "17.0"})
+    freezer.move_to("2026-09-29 06:20:00+02:00")            # Vorheizen ab 06:15, Arbeitsbeginn 07:00
+    schluessel = lernen.auf_schluessel(lernen.band(st.daten.wetter.aussen), 1)
+    st.lz.setdefault("lernen", {})[C1] = {**lernen.neuer_stand(), "aufheizen": {schluessel: [1.0, 5]}}   # schafft 1 °C/h
+    st.lz["lernen"][C2] = {**lernen.neuer_stand(), "aufheizen": {schluessel: [6.0, 5]}}                # schafft es
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    lz = _lz(hass, entry)
+    assert lz["container"][C1]["bedarf"]["ziel"] == pytest.approx(3.0 - 40 / 60, abs=0.05) and lz["container"][C2]["bedarf"]["ziel"] == 0
+    assert lz["staffel"]["rang"][0] == HK1

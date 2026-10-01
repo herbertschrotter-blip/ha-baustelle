@@ -196,6 +196,8 @@ class Steuerung:
         self._frei_verlauf: deque[tuple[datetime, dict[str, float]]] = deque()
         self._letzter_anlauf: datetime | None = None
         self._anlauf_geplant: CALLBACK_TYPE | None = None
+        self._ueberlast_seit: dict[str, datetime] = {}   # Anschluss zu voll seit … (Abwurf erst nach UEBERLAST_S)
+        self._ueberlast_geplant: CALLBACK_TYPE | None = None
         self._letzte_soll: dict[str, tuple[bool | None, str]] = {}
         self._letztes_warten: dict[str, str] = {}
         self._warn_alt: dict[str, warn_logik.Warnung] = {}
@@ -310,6 +312,9 @@ class Steuerung:
         if self._anlauf_geplant is not None:
             self._anlauf_geplant()
             self._anlauf_geplant = None
+        if self._ueberlast_geplant is not None:
+            self._ueberlast_geplant()
+            self._ueberlast_geplant = None
         if self._bericht_abmelden:
             self._bericht_abmelden()
             self._bericht_abmelden = None
@@ -720,7 +725,7 @@ class Steuerung:
                 self._wartet_seit.setdefault(g.id, jetzt)
             else:
                 self._wartet_seit.pop(g.id, None)
-            vorrang = self.funktion_von(g).staffel_vorrang(s_c, schaltet) if s_c is not None else {}
+            vorrang = self.funktion_von(g).staffel_vorrang(s_c, schaltet, g.bereich) if s_c is not None else {}
             lasten.append(
                 staffel_logik.Last(
                     id=g.id, anschluss=e.get("anschluss") or "", kw=kw, heizer=schaltet, an=an, gruppe=g.bereich,
@@ -746,6 +751,7 @@ class Steuerung:
                     min_pause_min=float(s["min_pause_min"]), takt_min=float(s["takt_min"]),
                 ),
                 stabil,
+                self._abwerfen(jetzt, frei_jetzt),
             )
             an_set = set(ergebnis.an)
             for gid, grund in ergebnis.wartet.items():
@@ -780,6 +786,24 @@ class Steuerung:
                 self.auswerten()
             self._anlauf_geplant = async_call_later(self.hass, ANLAUF_S, _weiter)
 
+    def _abwerfen(self, jetzt: datetime, frei: dict[str, float]) -> dict[str, bool]:
+        """Abwurf je Anschluss erst, wenn er `staffel.UEBERLAST_S` lang zu voll ist (kurze Spitzen, z. B. ein Thermostat,
+        der kurz anspringt); dann wird noch einmal ausgewertet."""
+        erlaubt: dict[str, bool] = {}
+        for aid, f in frei.items():
+            if f >= -staffel_logik.TOLERANZ_KW:
+                self._ueberlast_seit.pop(aid, None)
+                continue
+            seit = self._ueberlast_seit.setdefault(aid, jetzt)
+            erlaubt[aid] = (jetzt - seit).total_seconds() >= staffel_logik.UEBERLAST_S
+            if not erlaubt[aid] and self._ueberlast_geplant is None:
+                @callback
+                def _nochmal(_now: datetime) -> None:
+                    self._ueberlast_geplant = None
+                    self.auswerten()
+                self._ueberlast_geplant = async_call_later(self.hass, staffel_logik.UEBERLAST_S + 1, _nochmal)
+        return erlaubt
+
     def _staffel_anzeige(
         self, anschluesse: list[staffel_logik.Anschluss], lasten: list[staffel_logik.Last], frei: dict[str, float]
     ) -> None:
@@ -806,6 +830,7 @@ class Steuerung:
             "warten": len(self.daten.warte),
             "max": int(s["max_gleichzeitig"]),
             "anschluesse": liste,
+            "rang": staffel_logik.rangliste(lasten),   # oben zuerst an, unten gibt zuerst ab (Bedarf in °C)
         }
 
     @callback

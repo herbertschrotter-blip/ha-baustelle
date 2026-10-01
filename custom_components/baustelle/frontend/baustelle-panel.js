@@ -784,6 +784,18 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .aw-wahl .zeile { gap: 12px; } .aw-wahl-k { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; } .aw-wahl-k .chip { min-width: 34px; justify-content: center; }
 .aw-gr { display: inline-flex; align-items: center; gap: 4px; } .aw-gr small { font-size: 11px; color: var(--ink2); } .aw-gr b { min-width: 14px; text-align: center; }
 @media (max-width: 700px) { .aw-raster { grid-template-columns: repeat(2, 1fr); } .aw-frei-s { grid-column: span min(var(--w), 2); }
+/* Rangliste der Staffelung (Bedarf in °C) */
+.sr-kopf { display: flex; align-items: baseline; gap: 8px; margin: 14px 2px 6px; } .sr-kopf b { font-size: 16px; }
+.sr-liste { border-radius: 16px; background: rgba(120,120,128,.10); padding: 2px 10px; }
+.sr-zeile { display: grid; grid-template-columns: 28px 1fr auto; gap: 2px 10px; padding: 9px 4px; border-top: 1px solid var(--gridc); align-items: center; cursor: pointer; }
+.sr-zeile:first-child { border-top: 0; } .sr-nr { font-size: 17px; font-weight: 600; text-align: center; color: var(--ink2); }
+.sr-name b { font-size: 14px; } .sr-bedarf { text-align: right; font-size: 18px; font-weight: 500; white-space: nowrap; } .sr-bedarf small { display: block; font-size: 11px; color: var(--ink2); font-weight: 400; }
+.sr-stufe { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 8px; margin: 2px 4px 0 0; background: rgba(120,120,128,.2); }
+.sr-stufe.frost { background: color-mix(in srgb, var(--blau) 30%, transparent); } .sr-stufe.boost { background: color-mix(in srgb, var(--amber) 35%, transparent); }
+.sr-stufe.erster { background: color-mix(in srgb, #30d158 30%, transparent); }
+.sr-auf { grid-column: 2 / -1; display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 12.5px; padding: 6px 10px; margin-top: 4px; border-radius: 10px; background: rgba(120,120,128,.12); }
+.sr-auf b { text-align: right; font-weight: 500; white-space: nowrap; } .sr-auf .summe { border-top: 1px solid var(--gridc); padding-top: 3px; font-weight: 600; }
+.sr-zust { grid-column: 2 / -1; font-size: 12px; }
 /* AN-0012: Regeln nach Tagesablauf */
 .rv-kopf { display: flex; align-items: baseline; gap: 8px; margin: 14px 2px 4px; } .rv-kopf b { font-size: 16px; } .rv-kopf .leise { font-size: 12px; }
 .rv-karte { border-radius: 16px; background: rgba(120,120,128,.10); padding: 2px 12px; margin-bottom: 6px; } .rv-karte > .zeile:first-child { border-top: 0; }
@@ -1338,7 +1350,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.34';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.35';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1566,7 +1578,7 @@ class BaustellePanel extends HTMLElement {
       const tuer = eb.tuer ? { eid: eb.tuer, sensor: (tuerS && tuerS.attributes.friendly_name) || eb.tuer, offen: c.tuer && c.tuer.offen ? Math.max(1, this.minSeitAb(c.tuer.seit, jetztMs) ?? 1) : 0 } : undefined;
       return { id: b.id, name: b.name || b.id, f: zahl(b.nr) ? Number(b.nr) : i, art: b.art, pumpe, fuehler: b.fuehler || null, z: zst, grund: c.grund || null,
         t: zahl(c.temperatur) ? Number(c.temperatur) : null, kw: zahl(c.kw) ? Number(c.kw) : null, text: c.text || '', geraete,
-        auto: eb.auto !== false, trocknen: !!eb.trocknen, stufenAn: !!eb.stufen, stufen: c.stufen || null, soll: zahl(eb.soll) ? Number(eb.soll) : undefined, bedarf: !!eb.bedarf, prio: eb.prio || 'normal',
+        auto: eb.auto !== false, trocknen: !!eb.trocknen, stufenAn: !!eb.stufen, stufen: c.stufen || null, bedarfGrad: c.bedarf || null, soll: zahl(eb.soll) ? Number(eb.soll) : undefined, bedarf: !!eb.bedarf, prio: eb.prio || 'normal',
         anschluss: eb.anschluss || (anschluesse[0] && anschluesse[0].id) || null, firma: c.firma || 'eigen', tuer, offline,
         bedarfBisIso: c.bedarf_bis || null, bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
         boost: !!c.boost_bis, boostBis: c.boost_bis || null,
@@ -3126,6 +3138,33 @@ class BaustellePanel extends HTMLElement {
     window.addEventListener('pointermove', bewegt); window.addEventListener('pointerup', fertig); window.addEventListener('pointercancel', fertig);
   }
 
+  /* Rangliste der Staffelung (Herbert 01.10.2026, Mockup staffel-rang.html): Reihenfolge und Bedarf in °C rechnet die
+     Integration (laufzeit.staffel.rang, laufzeit.container.<id>.bedarf) – die Seite zeigt nur an */
+  stromRang(L, zustand) {
+    const d = this.d, rang = (d.staffel && d.staffel.rang) || [], offen = this.s.srOffen || [];
+    const nachId = Object.fromEntries(L.hk.map(x => [x.g.id, x])), zeilen = rang.map(id => nachId[id]).filter(Boolean);
+    if (!zeilen.length) return '';
+    const f = (v, k = 2) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${de(Math.abs(v), k)}`, gesehen = new Set();
+    const letzterAn = [...zeilen].reverse().find(x => x.g.an);
+    return `<div class="sr-kopf"><b>Rangliste</b><span class="leise">oben = zuerst an, unten = gibt zuerst ab</span></div>
+      <div class="sr-liste">${zeilen.map((x, i) => {
+        const { b, g } = x, B = b.bedarfGrad, erster = !gesehen.has(b.id); gesehen.add(b.id);
+        const stufen = (b.z === 'frost' ? '<span class="sr-stufe frost">❄ Frostschutz</span>' : '') + (b.boost ? '<span class="sr-stufe boost">⚡ Schnell</span>' : '')
+          + (erster ? '<span class="sr-stufe erster">erster im Container</span>' : '<span class="sr-stufe">Zweitgerät</span>') + (b.prio && b.prio !== 'normal' ? `<span class="sr-stufe">Priorität ${esc(b.prio)}</span>` : '');
+        const [zt, zk] = zustand(x), auf = offen.includes(g.id);
+        const mitFuehler = B && zahl(B.jetzt);
+        const wert = B ? `<div class="sr-bedarf">${f(B.summe)} °C<small>${mitFuehler ? `Bedarf in ${B.horizont_min} min` : 'ohne Fühler'}</small></div>` : '<div class="sr-bedarf">–<small>noch nicht gerechnet</small></div>';
+        const teile = !B ? '' : mitFuehler ? [
+          [`jetzt ${de(b.t, 1)} °C, Soll ${de(b.soll ?? d.e.soll, 1)} °C`, B.jetzt],
+          ...(zahl(B.abkuehlen) ? [[`kühlt ohne Heizen ${de(B.abkuehl_h, 1)} °C/h ab (${B.gemessen ? 'gemessen' : 'gelernt'}) → in ${B.horizont_min} min`, B.abkuehlen]] : []),
+          ...(B.nachlauf ? [['heizt nach dem Aus noch nach (gelernt)', B.nachlauf]] : []),
+          ...(B.ziel ? [[`schafft das Soll bis Arbeitsbeginn nicht (${zahl(B.aufheiz_h) ? `${de(B.aufheiz_h, 1)} °C/h gelernt` : 'gelernt'})`, B.ziel]] : []),
+          ...(B.gerecht ? [[`wenig Heizzeit in der letzten Stunde (${B.heiz_min} min)`, B.gerecht]] : []),
+        ] : [['Ohne Fühler kein Bedarf – kommt über die Heizzeit der letzten Stunde reihum dran', B.gerecht]];
+        const aufHtml = !auf || !teile.length ? '' : `<div class="sr-auf">${teile.map(([t, v]) => `<span>${t}</span><b>${f(v)} °C</b>`).join('')}<span class="summe">Bedarf</span><b class="summe">${f(B.summe)} °C</b></div>`;
+        return `<div class="sr-zeile" data-act="sr-auf" data-id="${esc(g.id)}" role="button" tabindex="0"><span class="sr-nr">${i + 1}</span><div class="sr-name"><b>${esc(b.name)} · ${esc(g.n)}</b><div>${stufen}</div></div>${wert}
+          <div class="sr-zust"><span class="${zk}">${zt}${x === letzterAn && g.an ? ' · gibt als nächstes ab' : ''}</span> <span class="leise">· antippen: woraus</span></div>${aufHtml}</div>`; }).join('')}</div>`;
+  }
   /* ---- Pumpen (0.7.8, wie 0.6.3 eigener Reiter) ---- */
   v_pumpen() {
     const d = this.d, e = d.e, P = d.bereiche.filter(b => b.pumpe), pc = this.s.pchart || 'pumpzeit', st = (k, s, fmt) => this.stepper(k, s, fmt);
@@ -3646,7 +3685,8 @@ class BaustellePanel extends HTMLElement {
           <div class="strom-spur"><i class="s-heiz" style="width:${w(a.heiz)}"></i><i class="s-pumpe" style="width:${w(a.pumpe)}"></i><i class="s-sonst" style="width:${w(a.sonst)}"></i><i class="s-res" style="width:${w(a.reserve)}"></i></div>
           <div class="leise">${a.frei < 2 ? `<span class="amber-t">nur ${de(Math.max(0, a.frei))} kW frei</span>` : `${de(a.frei)} kW frei`} für Heizungen</div>
           ${L.hk.filter(x => x.b.anschluss === a.id).map(x => { const [t, k] = zustand(x); return `<div class="zeile"><span>${esc(x.b.name)} · ${esc(x.g.n)}</span><span class="${k}">${t}</span></div>`; }).join('')}</div>`; }).join('')}
-        <div class="hinweis-k">Je Anschluss gilt: ${e.nutzbar} % der Anschlussleistung (vorsichtig, weil die Verteilung auf die Phasen unbekannt ist) minus Reserve minus alles, was gerade läuft (gemessen). Gerechnet wird mit dem gemessenen Verbrauch: ein eingeschalteter Heizkörper, dessen Thermostat gerade abgeschaltet hat, zählt mit dem, was er zieht. Springt er wieder an und es wird zu voll, geht sofort der zuletzt eingeschaltete aus. Ein Heizkörper kommt erst dazu, wenn eine Minute lang genug für seine volle Leistung frei ist. Jeder läuft mindestens ${e.min_lauf} min und pausiert mindestens ${e.min_pause} min; dürfen nicht alle, wechseln sie alle ${e.takt} min – wer am weitesten unter dem Soll ist, zuerst. Jeder Container bekommt zuerst einen Heizkörper; ein zweiter im selben Container kommt erst dazu, wenn Platz ist, und verdrängt nie den einzigen eines anderen.</div>
+        ${e.staffel ? this.stromRang(L, zustand) : ''}
+        <div class="hinweis-k">Je Anschluss gilt: ${e.nutzbar} % der Anschlussleistung (vorsichtig, weil die Verteilung auf die Phasen unbekannt ist) minus Reserve minus alles, was gerade läuft (gemessen). Gerechnet wird mit dem gemessenen Verbrauch: ein eingeschalteter Heizkörper, dessen Thermostat gerade abgeschaltet hat, zählt mit dem, was er zieht. Ist der Anschluss länger als 30 s zu voll, geht der unterste der Rangliste aus – bei gleichem Rang der größere. Die Rangliste: Frostschutz, Schnell aufheizen, erster im Container, Priorität, dann der Bedarf in °C (jetzt unter dem Soll + Abkühlen ohne Heizen − Nachlauf + was bis Arbeitsbeginn fehlt + wenig Heizzeit in der letzten Stunde). Ein Heizkörper kommt erst dazu, wenn eine Minute lang genug für seine volle Leistung frei ist. Jeder läuft mindestens ${e.min_lauf} min und pausiert mindestens ${e.min_pause} min; dürfen nicht alle, wechseln sie alle ${e.takt} min – der oberste Wartende gegen den untersten Laufenden. Jeder Container bekommt zuerst einen Heizkörper; ein zweiter im selben Container kommt erst dazu, wenn Platz ist, und verdrängt nie den einzigen eines anderen.</div>
         ${knopf('Anschlüsse einstellen', 'tab-einst', 'leise-k')}${knopf('Schließen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'anschluss') {
@@ -4074,6 +4114,7 @@ class BaustellePanel extends HTMLElement {
       case 'kk-nureur': S.sheet.nurEur = !S.sheet.nurEur; S.sheet.k = null; return neu();
       case 'kk-hinzu': return this.kkHinzu(S.sheet);
       case 'kk-layout': S.kkLayout = !S.kkLayout; return neu();
+      case 'sr-auf': { const o = S.srOffen ||= [], id = el.dataset.id; if (o.includes(id)) o.splice(o.indexOf(id), 1); else o.push(id); return neu(); }
       case 'kk-dia': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; if (!x) return; x.dia = x.dia === false; this.kkMerken(ort); return neu(); }
       case 'kk-auf': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; return x ? this.kkAuf(x, ort) : undefined; }
       case 'aw-stufe': { const x = this.awAuswahl()[+el.dataset.i], st = awStufen(x.k).find(q => q[0] === el.dataset.v); if (!st) return; Object.assign(x, { w: st[1], h: st[2], st: st[0] }); this.awMerken(); return neu(); }

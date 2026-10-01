@@ -33,7 +33,10 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
     "abschnitte": {"<bid>": {"2026-09-28": [[375, 420, "vorheizen"], [420, 990, "arbeitszeit"]]}},
     "staffel": {"an": true, "laufen": 4, "warten": 1, "max": 5,
                 "anschluesse": [{"id": "", "name": "", "voll_kw": 22.1, "grenze_kw": 14.8, "reserve_kw": 4,
-                                 "heiz_kw": 7.99, "pumpe_kw": 0, "sonst_kw": 1.79, "frei_kw": 1.01}]},
+                                 "heiz_kw": 7.99, "pumpe_kw": 0, "sonst_kw": 1.79, "frei_kw": 1.01}],
+                "rang": ["<gid>", "…"]},   // oben zuerst an, unten gibt zuerst ab (Bedarf in °C, logik/bedarf)
+    // je Container zusätzlich laufzeit.container.<id>.bedarf (Staffelung): {"summe", "jetzt", "abkuehlen", "abkuehl_h",
+    //   "gemessen", "trend_h", "nachlauf", "aufheiz_h", "ziel", "gerecht", "heiz_min", "horizont_min"} – °C bzw. °C/h, min
     "warnungen": [{"key": "", "art": "", "stufe": "stoerung|hinweis", "bereich": "<bid>|null", "geraet": "<gid>|null",
                    "titel": "nicht erreichbar", "hilfe": "", "seit": "ISO", "stumm_bis": "ISO|null"}],
     "wetter": {"aussen": 4.2, "aussen_max": 9, "frueh_min": -1.2, "regen_vortag": 6, "regen_heute": 6, "zustand": "rainy"},

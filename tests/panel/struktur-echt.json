@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.34",
+   "version": "0.8.35",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -578,6 +578,20 @@
       "grund": null,
       "text": ""
      },
+     "bedarf": {
+      "summe": 0.35,
+      "jetzt": -0.1,
+      "abkuehlen": 0.45,
+      "abkuehl_h": 1.8,
+      "gemessen": false,
+      "trend_h": 0.98,
+      "nachlauf": -0.0,
+      "aufheiz_h": null,
+      "ziel": 0.0,
+      "gerecht": 0.0,
+      "heiz_min": 35,
+      "horizont_min": 15
+     },
      "firma": "eigen"
     },
     "mannschaft": {
@@ -602,6 +616,20 @@
       "zusatz_an": false,
       "grund": null,
       "text": ""
+     },
+     "bedarf": {
+      "summe": 0.2,
+      "jetzt": null,
+      "abkuehlen": null,
+      "abkuehl_h": null,
+      "gemessen": false,
+      "trend_h": null,
+      "nachlauf": 0.0,
+      "aufheiz_h": null,
+      "ziel": 0.0,
+      "gerecht": 0.2,
+      "heiz_min": 0,
+      "horizont_min": 15
      },
      "firma": "eigen"
     },
@@ -644,6 +672,20 @@
       "warm": null
      },
      "stufen": null,
+     "bedarf": {
+      "summe": 0.699,
+      "jetzt": 0.5,
+      "abkuehlen": 0.199,
+      "abkuehl_h": 0.79,
+      "gemessen": true,
+      "trend_h": -0.79,
+      "nachlauf": 0.0,
+      "aufheiz_h": null,
+      "ziel": 0.0,
+      "gerecht": 0.0,
+      "heiz_min": 25,
+      "horizont_min": 15
+     },
      "firma": "huber"
     },
     "schacht": {
@@ -658,6 +700,7 @@
      "modus": null,
      "lernen": null,
      "stufen": null,
+     "bedarf": null,
      "firma": "eigen"
     }
    },
@@ -1088,6 +1131,9 @@
       "sonst_kw": 0,
       "frei_kw": 6.397
      }
+    ],
+    "rang": [
+     "polier_r1"
     ]
    },
    "warnungen": [
@@ -1496,7 +1542,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.34",
+   "version": "0.8.35",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1711,6 +1757,20 @@
      "modus": "plan",
      "lernen": null,
      "stufen": null,
+     "bedarf": {
+      "summe": 0.0,
+      "jetzt": null,
+      "abkuehlen": null,
+      "abkuehl_h": null,
+      "gemessen": false,
+      "trend_h": null,
+      "nachlauf": 0.0,
+      "aufheiz_h": null,
+      "ziel": 0.0,
+      "gerecht": 0.0,
+      "heiz_min": 0,
+      "horizont_min": 15
+     },
      "firma": "eigen"
     }
    },
@@ -1790,7 +1850,8 @@
       "sonst_kw": 0,
       "frei_kw": 11.794
      }
-    ]
+    ],
+    "rang": []
    },
    "warnungen": [],
    "wetter": {

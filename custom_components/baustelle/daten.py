@@ -141,6 +141,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "modus": heizung.modus(bid) if info.art == ART_CONTAINER else None,
             "lernen": heizung.lern_anzeige(bid) if info.art == ART_CONTAINER else None,   # lernende Regelung (0.8)
             "stufen": heizung.stufen_anzeige(bid) if info.art == ART_CONTAINER else None,   # Zusatz-Heizkörper (AN-0006)
+            "bedarf": heizung.bedarf_anzeige(bid) if info.art == ART_CONTAINER else None,   # Bedarf in °C (Staffelung)
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}

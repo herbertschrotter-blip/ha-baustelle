@@ -755,6 +755,18 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     if (g) { const alt = [g.an, g.kwJetzt]; g.an = true; g.kwJetzt = 0; await klick({ act: 'sheet', s: 'strom' }, 10); pruefe('Stromverteilung gemessen');
       erwarte('FE-0011: Stromverteilung nach Messung', ui.innerHTML.includes('gemessenen Verbrauch') && ui.innerHTML.includes('Jeder Container bekommt zuerst einen Heizkörper') && (!panel.last().A.length || ui.innerHTML.includes('zieht gerade nichts')));
       [g.an, g.kwJetzt] = alt; await klick({ act: 'zu' }); } }
+  /* Rangliste nach Bedarf in °C (Herbert 01.10.2026): Reihenfolge und Aufschlüsselung von der Integration */
+  { const L = panel.last(), staffelAlt = panel.d.e.staffel; panel.d.e.staffel = true; if (L.hk.length) {
+      const alt = panel.d.staffel; panel.d.staffel = { ...(alt || {}), rang: L.hk.map(x => x.g.id) };
+      const b = L.hk[0].b, altB = b.bedarfGrad, mitT = b.t !== null && b.t !== undefined;
+      b.bedarfGrad = mitT ? { summe: 1.25, jetzt: 1.0, abkuehlen: 0.5, abkuehl_h: 2.0, gemessen: true, trend_h: -2.0, nachlauf: -0.3, aufheiz_h: 3.0, ziel: 0.0, gerecht: 0.05, heiz_min: 30, horizont_min: 15 }
+        : { summe: 0.2, jetzt: null, abkuehlen: null, abkuehl_h: null, gemessen: false, trend_h: null, nachlauf: 0, aufheiz_h: null, ziel: 0, gerecht: 0.2, heiz_min: 10, horizont_min: 15 };
+      await klick({ act: 'sheet', s: 'strom' }, 10); pruefe('Stromverteilung Rangliste');
+      erwarte('Rangliste in der Stromverteilung', ui.innerHTML.includes('Rangliste') && (ui.innerHTML.match(/class="sr-zeile"/g) || []).length === L.hk.length && ui.innerHTML.includes('erster im Container'));
+      await klick({ act: 'sr-auf', id: L.hk[0].g.id }, 5); pruefe('Rangliste aufgeklappt');
+      erwarte('Rangliste: Aufschlüsselung des Bedarfs', ui.innerHTML.includes('class="summe">Bedarf') && (mitT ? ui.innerHTML.includes('kühlt ohne Heizen 2,0 °C/h ab (gemessen)') : ui.innerHTML.includes('Ohne Fühler kein Bedarf')));
+      panel.d.staffel = alt; b.bedarfGrad = altB; panel.s.srOffen = []; await klick({ act: 'zu' }); }
+    panel.d.e.staffel = staffelAlt; }
   /* WU-0014: Kachel-Katalog – Übersicht und Auswertung, Suche mit Chips, jede Kachel in S/M/L (L mit und ohne Diagramm), Antippen öffnet die Ansicht */
   { panel.s.kkUe = null; await klick({ act: 'tab', v: 'uebersicht' }, 30); pruefe('Übersicht mit Kacheln');
     erwarte('WU-0014: Meine Kacheln auf der Übersicht (Vorschlag)', ui.innerHTML.includes('Meine Kacheln') && (ui.innerHTML.match(/data-act="kk-auf" data-ort="ue"/g) || []).length === 3 && ui.innerHTML.includes('kk-neu-k'));

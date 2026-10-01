@@ -29,7 +29,7 @@ from ..const import (
     ZIEHT_STROM_W,
 )
 from .. import texte
-from ..logik import lernen, stufen
+from ..logik import bedarf as bedarf_logik, lernen, stufen
 from ..logik import warnungen as warn_logik
 from ..logik.arbeitszeit import (
     AusnahmeArt,
@@ -129,6 +129,13 @@ class Heizung(Funktion):
         self._stufen: dict[str, tuple[bool, str | None]] = {}
         self._haupt_lauf: dict[str, tuple[datetime, float | None]] = {}
         self._zusatz_gelernt: dict[str, bool] = {}
+        # Bedarf in °C für die Staffelung (Herbert 01.10.2026): Temperaturen der letzten Minuten, Heizzeit der letzten
+        # Stunde, Zielzeit (Arbeitsbeginn bzw. „Soll erreicht … vorher“) und der zuletzt gerechnete Bedarf
+        self._temp_punkte: dict[str, list[tuple[datetime, float]]] = {}
+        self._heiz_punkte: dict[str, list[tuple[datetime, float]]] = {}
+        self._warm_vor: dict[str, int] = {}
+        self.bedarf_jetzt: dict[str, bedarf_logik.Bedarf] = {}
+        self._abkuehl_zuletzt: dict[str, float] = {}   # zuletzt gemessene Abkühlung ohne Heizen (°C/h)
 
     # ------------------------------------------------------------------ Einstellungen je Container
     def modus(self, bid: str) -> str:
@@ -337,6 +344,7 @@ class Heizung(Funktion):
             plan = self.plan(heute, bool(e["trocknen"]), warm_ab)
             self._warm_festhalten(bid, warm_ab, plan, heute, minute)
             self.plaene[bid] = plan
+            self._warm_vor[bid] = warm_ab.vor_min if warm_ab is not None else 0
             frei, warm = frei_heute, zu_warm
             if jetzt_bis is not None:
                 # „alle jetzt heizen“: wie in der Arbeitszeit, auch an freien Tagen und über der Heizgrenze (§5)
@@ -400,6 +408,11 @@ class Heizung(Funktion):
         wert = self.st.temperatur(fuehler)
         zuletzt = self.st.lz.setdefault("fuehler_zuletzt", {})
         if wert is not None:
+            punkte = self._temp_punkte.setdefault(bid, [])   # für den Trend (Bedarf in °C)
+            if not punkte or (jetzt - punkte[-1][0]).total_seconds() >= 30:
+                punkte.append((jetzt, wert))
+                while punkte and (jetzt - punkte[0][0]).total_seconds() > bedarf_logik.TREND_FENSTER_MIN * 60 + 120:
+                    punkte.pop(0)
             if not zuletzt.get(bid) or zuletzt[bid][1] != wert:
                 zuletzt[bid] = [jetzt.isoformat(timespec="seconds"), wert]
             else:
@@ -584,14 +597,69 @@ class Heizung(Funktion):
         """Geschaltet werden nur Heizkörper (Mockup „geschaltet werden nur Heizungen“)."""
         return g.rolle == ROLLE_HEIZKOERPER
 
-    def staffel_vorrang(self, soll: tuple[Soll, LageContainer], schaltet: bool) -> dict[str, Any]:
-        """Frostschutz und Boost zuerst, dann wer am weitesten unter dem Soll ist."""
+    def staffel_vorrang(self, soll: tuple[Soll, LageContainer], schaltet: bool, bereich: str = "") -> dict[str, Any]:
+        """Frostschutz und Boost zuerst, dann der Bedarf in °C in 15 min (logik/bedarf)."""
         s, lage = soll
+        b = self.bedarf(bereich, lage)
         return {
             "frost": schaltet and s.grund == SollGrund.FROST,
             "boost": schaltet and s.grund == SollGrund.BOOST,
-            "defizit": (lage.soll - lage.temperatur) if lage.temperatur is not None else None,
+            "defizit": b.summe if b is not None else None,
         }
+
+    def bedarf(self, bid: str, lage: LageContainer, jetzt: datetime | None = None) -> bedarf_logik.Bedarf | None:
+        """Bedarf eines Containers in °C (Trend, Nachlauf, Zielzeit, Gerechtigkeit) – auch für die Seite gemerkt."""
+        info = self.st.bereiche.get(bid)
+        if info is None:
+            return None
+        jetzt = jetzt or dt_util.now()
+        heizer = self.heizer_von(bid)
+        laeuft = any(self._zieht_strom(g) for g in heizer)
+        innen = lage.temperatur
+        trend = bedarf_logik.trend_c_h(self._temp_punkte.get(bid, []), jetzt) if innen is not None else None
+        nachlauf = self.tpi_jetzt.get(bid, (None, 0.0))[1]
+        ziel = 0.0
+        plan = self.plaene.get(bid)
+        if innen is not None and plan is not None:
+            bis = plan.a - self._warm_vor.get(bid, 0) - (jetzt.hour * 60 + jetzt.minute)
+            ziel = bedarf_logik.ziel_fehlt(innen, lage.soll, self._aufheiz_rate(bid), bis)
+        gelernt = self.st.zaehler.get(f"abkuehl:{bid}")   # gelernte Abkühlrate (Trägheit, wie im Vergleich Öl/Konvektor)
+        if not laeuft and trend is not None:
+            self._abkuehl_zuletzt[bid] = max(0.0, -trend)
+        elif gelernt is None:
+            gelernt = self._abkuehl_zuletzt.get(bid)   # noch nichts gelernt: die zuletzt gemessene Abkühlung
+        b = bedarf_logik.bedarf(innen=innen, soll=lage.soll, trend_h=trend, abkuehl_gelernt_h=float(gelernt) if gelernt is not None else None,
+                                nachlauf=nachlauf, laeuft=laeuft, ziel=ziel,
+                                zuschlag_gerecht=self._gerecht(bid, jetzt))
+        self.bedarf_jetzt[bid] = b
+        return b
+
+    def _aufheiz_rate(self, bid: str) -> float | None:
+        """Gelernte Aufheizrate (°C/h) für das Wetter von jetzt und die Zahl der Heizkörper (wie „Warm ab“)."""
+        stand = self.lern_staende.get(bid) or {}
+        anzahl = 1 if self.stufen_an(bid) and not self._zusatz_gelernt.get(bid) else (len(self.heizer_von(bid)) or 1)
+        rate = (stand.get("aufheizen") or {}).get(lernen.auf_schluessel(lernen.band(self.st.daten.wetter.aussen), anzahl))
+        return float(rate[0]) if rate else None
+
+    def _heiz_min(self, bid: str, jetzt: datetime) -> float:
+        return sum(m for t, m in self._heiz_punkte.get(bid, []) if (jetzt - t).total_seconds() <= 3600)
+
+    def _gerecht(self, bid: str, jetzt: datetime) -> float:
+        """Zuschlag für wenig Heizzeit in der letzten Stunde gegenüber dem Schnitt der Container mit Heizkörpern."""
+        alle = [b.id for b in self.bereiche() if self.heizer_von(b.id)]
+        if len(alle) < 2:
+            return 0.0
+        return bedarf_logik.gerecht(self._heiz_min(bid, jetzt), sum(self._heiz_min(b, jetzt) for b in alle) / len(alle))
+
+    def bedarf_anzeige(self, bid: str) -> dict[str, Any] | None:
+        """Bedarf für die Seite (laufzeit.container.<id>.bedarf) – zuletzt in der Staffelung gerechnet."""
+        b = self.bedarf_jetzt.get(bid)
+        if b is None:
+            return None
+        return {"summe": b.summe, "jetzt": b.jetzt, "abkuehlen": b.abkuehlen, "abkuehl_h": b.abkuehl_h, "gemessen": b.gemessen,
+                "trend_h": b.trend_h, "nachlauf": b.nachlauf, "aufheiz_h": self._aufheiz_rate(bid),
+                "ziel": b.ziel, "gerecht": b.gerecht, "heiz_min": round(self._heiz_min(bid, dt_util.now())),
+                "horizont_min": bedarf_logik.HORIZONT_MIN}
 
     def schaltet_ohne_automatik(self) -> bool:
         """„Frostschutz auch bei Automatik aus“: `soll` will dann nur Frost-Container schalten."""
@@ -879,6 +947,11 @@ class Heizung(Funktion):
         return True
 
     def zaehlen_bereich(self, bid: str, heizt: bool, jetzt: datetime, stunden: float) -> None:
+        punkte = self._heiz_punkte.setdefault(bid, [])   # Heizzeit der letzten Stunde (Bedarf: Gerechtigkeit)
+        if heizt:
+            punkte.append((jetzt, stunden * 60))
+        while punkte and (jetzt - punkte[0][0]).total_seconds() > 3600:
+            punkte.pop(0)
         if heizt:
             self.st.zaehler_plus(f"heizzeit:{bid}", stunden)   # eingeschaltet
         if bid in self._strom_jetzt:   # AN-0011: davon tatsächlich geheizt (Strom über 50 W) – nur das ist ein Heiztag
