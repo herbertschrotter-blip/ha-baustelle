@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.27] – 2026-10-01
+
+- Leistung im Container (AN-0010): beim Ziehen des Stundenreglers laufen Diagramm und Zahlen gleich mit (kurz
+  entprellt), nicht erst beim Loslassen; bis die Stunde geladen ist, bleibt das vorige Diagramm abgeblendet stehen.
+
 ## [0.8.26] – 2026-10-01
 
 - Gerät schaltet sich selbst wieder ein (FE-0010): muss die Automatik ein Gerät in 10 min mindestens 3-mal

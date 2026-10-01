@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.27",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Leistung im Container (AN-0010): beim Ziehen des Stundenreglers laufen Diagramm und Zahlen gleich mit (kurz entprellt), nicht erst beim Loslassen; bis die Stunde geladen ist, bleibt das vorige Diagramm abgeblendet stehen."
+    ]
+  },
+  {
     "version": "0.8.26",
     "datum": "2026-10-01",
     "punkte": [

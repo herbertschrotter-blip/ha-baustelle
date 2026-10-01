@@ -1237,7 +1237,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.26';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.27';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -3863,9 +3863,11 @@ class BaustellePanel extends HTMLElement {
   }
   eingabe(ev) {
     const el = ev.target, ds = (el && el.dataset) || {}, sh = this.s.sheet;
-    if (ds.lh !== undefined) {   // WU-0011: beim Ziehen nur die Stunde zeigen, geladen wird beim Loslassen
-      const h = +el.value, w = this.shadowRoot && this.shadowRoot.querySelector('.lh-wert');
+    if (ds.lh !== undefined) {   // AN-0010: beim Ziehen gleich mitladen (kurz entprellt), nur den Datenteil tauschen
+      const max = sh && sh.v ? 23 : +this.z.JETZT.slice(0, 2), h = Math.min(+el.value, max), w = this.shadowRoot && this.shadowRoot.querySelector('.lh-wert');
       if (w) w.textContent = `${String(h).padStart(2, '0')}:00–${String((h + 1) % 24).padStart(2, '0')}:00`;
+      clearTimeout(this._lhZiehen);
+      this._lhZiehen = setTimeout(() => { if (this.s.sheet && this.s.sheet.art === 'leistung' && this.s.sheet.h !== h) { this.s.sheet.h = h; this.leistungTeil(); } }, 150);
       return;
     }
     if (ds.vls !== undefined) {   // Suche in der Chronik (WU-0006): neu zeichnen, Fokus und Cursor behalten

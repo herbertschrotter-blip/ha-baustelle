@@ -770,8 +770,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         && (jetztH === 23 || teile.slice(jetztH + 1).every(t => t.startsWith('rgba'))));   // künftige Stunden grau
     }
     erwarte('WU-0011: Schieberegler 0–23 statt Stunden-Knöpfen', /<input type="range" min="0" max="23" step="1" value="\d+" data-lh/.test(ui.innerHTML) && !ui.innerHTML.includes('data-act="lh-h"'));
-    panel.eingabe({ target: { dataset: { lh: '' }, value: String(Math.max(0, jetztH - 2)) } });
-    erwarte('WU-0011: Ziehen lädt noch nichts', panel.s.sheet.h === undefined);
+    { const st0 = global.setTimeout; let lauf = null; global.setTimeout = f => { lauf = f; return 1; };   // AN-0010: Ziehen lädt gleich mit
+      panel.eingabe({ target: { dataset: { lh: '' }, value: String(Math.max(0, jetztH - 1)) } }); global.setTimeout = st0;
+      erwarte('AN-0010: Ziehen setzt die Stunde nach kurzer Pause', typeof lauf === 'function' && (lauf(), panel.s.sheet.h === Math.max(0, jetztH - 1))); }
     neu(); panel.aenderung({ target: { dataset: { lh: '' }, value: String(Math.max(0, jetztH - 2)) } }); await ruhe(30);
     erwarte('AN-0005: andere Stunde wählbar (holt den Verlauf dieser Stunde)', panel.s.sheet.h === Math.max(0, jetztH - 2) && aufrufe.some(m => m.type === 'history/history_during_period'));
     panel.aenderung({ target: { dataset: { lh: '' }, value: '23' } }); await ruhe(30);
