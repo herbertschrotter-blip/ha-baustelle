@@ -19,7 +19,7 @@ class HTMLElement {
   dispatchEvent() { return true; }
 }
 const registry = {}, felder = {};
-global.window = global; global.Date = Date; global.HTMLElement = HTMLElement;
+global.window = global; global.Date = Date; global.addEventListener = () => {}; global.HTMLElement = HTMLElement;
 global.customElements = { define: (n, c) => { registry[n] = c; }, get: n => registry[n] };
 global.document = { body: element('body'), createElement: n => registry[n] ? new registry[n]() : element(n), getElementById: id => felder[id] ||= element() };
 global.localStorage = { getItem: () => null, setItem() {} };

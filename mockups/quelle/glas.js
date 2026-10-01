@@ -12,7 +12,7 @@ const beispiel = lies('tests/panel/beispiel-hass.js');
 const struktur = lies('tests/panel/struktur-0.7.json');
 const vektor = Object.fromEntries(['abrechnung', 'je-geraet', 'typvergleich', 'wetter', 'kennzahlen', 'verlauf', 'monate'].map(n => {
   const f = path.join(repo, 'tests', 'vektoren', `auswertung-${n}.json`);
-  return [n, fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).faelle : []];
+  return [n, fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).faelle.filter(x => x.name.startsWith('struktur-0.7 ')).map(x => ({ name: x.name, erwartet: x.erwartet })) : []];   // nur das Beispiel – hält glas.html klein
 }));
 const version = (panel.match(/const SEITE_VERSION = '([^']+)'/) || [])[1] || '?';
 const sicher = t => t.replace(/<\/script/gi, '<\\/script');
@@ -54,6 +54,12 @@ body.hell { background: #dfe3ea; }
   <div class="desktop-spalte"><h2>Desktop</h2><div class="desktop" id="desktop"></div></div>
 </div>
 <script>
+/* Fehler sichtbar machen (ohne Browser-Konsole, z. B. auf dem Handy) */
+window.addEventListener('error', e => fehlerZeigen(e.message + (e.filename ? ' · ' + e.filename.split('/').pop() + ':' + e.lineno : '')));
+window.addEventListener('unhandledrejection', e => fehlerZeigen('Promise: ' + ((e.reason && e.reason.message) || e.reason)));
+function fehlerZeigen(t) { const b = document.querySelector('.bar'); if (!b) return; const s = document.createElement('span'); s.style.cssText = 'flex-basis:100%;color:#ff6b6b;font-size:12px'; s.textContent = '⚠ ' + t; b.appendChild(s); }
+</script>
+<script>
 /* Uhr: Beispieltag 29.09.2026, die Uhrzeit wählt die Leiste – die Zeit läuft von dort weiter */
 const BEISPIEL_TAG = '2026-09-29', _Date = Date, _jetzt = _Date.now.bind(_Date);
 let VERSATZ = _Date.parse(BEISPIEL_TAG + 'T16:20:00+02:00') - _jetzt();
@@ -84,7 +90,7 @@ beispiel();
 const P = [];
 for (const [id, schmal] of [['telefon', true], ['desktop', false]]) {
   const el = document.createElement('baustelle-panel'); el.panel = { config: { version: ${JSON.stringify(version)} } }; el.narrow = schmal;
-  document.getElementById(id).appendChild(el); P.push(el);
+  el._ziel = id; P.push(el);
 }
 /* Sonne wie sun.sun am Beispieltag (etwa 47° N): Aufgang 07:05, Untergang 18:45 */
 const AUF = 7 * 60 + 5, AB = 18 * 60 + 45, iso = min => new _Date(_Date.parse(BEISPIEL_TAG + 'T00:00:00+02:00') + min * 6e4).toISOString();
@@ -109,7 +115,8 @@ uhrEl.oninput = () => { const ziel = _Date.parse(BEISPIEL_TAG + 'T00:00:00+02:00
 wetterEl.onchange = hassNeu;
 document.getElementById('modus').onclick = () => { document.body.classList.toggle('hell'); hassNeu(); };
 document.getElementById('neu').onclick = () => { beispiel(); for (const p of P) p.cache = {}; hassNeu(); for (const p of P) p._laden(); };
-hassNeu();
+hassNeu();   // wie HA: erst hass, dann einhängen
+for (const p of P) document.getElementById(p._ziel).appendChild(p);
 setInterval(hassNeu, 60000);
 </script>
 </body></html>
