@@ -51,6 +51,7 @@ Auswertung waren noch alt“).
 | `glas.html` (WU-0013, AN-0007) | Container-Verbrauch mit „ohne Automatik“ (Ø je Gerät/Typ, Kennzahlen, gestrichelte Linie, Erklärung) – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.23 |
 | `glas.html` (AN-0008) | Ölradiator oder Konvektor fair (kWh je Gradstunde, nur Thermostat mit Fühler, zählende/ausgeschlossene Container) mit Ersparnis-Diagramm Ölradiatoren gegen „mit Konvektoren“ – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.24 |
 | `glas.html` (AN-0009) | Geräteübersicht mit Statuspunkt (erreichbar / nicht erreichbar seit …) und Signalbalken (4 Striche) – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.25 |
+| `glas.html` (AN-0011) | Heizzeit zweifach: „h eingeschaltet“ und „h tatsächlich geheizt“ (Strom über 50 W) mit „% davon mit Strom“ – im Master-Mockup gezeigt | **Abgenommen von Herbert am 01.10.2026**, eingebaut in 0.8.29 |
 
 Bewusst offen bzw. für den Bau festgelegt:
 - Animationen und Zeitleiste im Zeitplan brauchen eine eigene Karte; erste Stufe mit eingebauten Karten

@@ -64,7 +64,8 @@ async def async_setup_entry(
         bereich: list[SensorEntity] = [LeistungSensor(st, bid)]
         bereich += [ZaehlerSensor(st, z, bereich_id=bid) for z in _bereich_zaehler(bid)]
         if heizung and info.art == ART_CONTAINER:
-            bereich += [GrundSensor(st, bid), ZaehlerSensor(st, _heizzeit(bid), bereich_id=bid)]
+            bereich += [GrundSensor(st, bid), ZaehlerSensor(st, _heizzeit(bid), bereich_id=bid),
+                        ZaehlerSensor(st, _heizzeit_strom(bid), bereich_id=bid)]   # AN-0011: davon tatsächlich geheizt
         async_add_entities(bereich, config_subentry_id=bid)
     for gid, g in st.geraete.items():
         geraet = [ZaehlerSensor(st, z, geraet_id=gid) for z in _geraet_zaehler(gid, g.rolle)]
@@ -220,6 +221,11 @@ def _typ_zaehler(typ: str) -> list[Zaehler]:
 
 def _heizzeit(bid: str) -> Zaehler:
     return Zaehler("heizzeit", lambda st: st.zaehler.get(f"heizzeit:{bid}", 0.0), **STUNDEN)
+
+
+def _heizzeit_strom(bid: str) -> Zaehler:
+    """AN-0011: Stunden, in denen ein Heizkörper des Containers wirklich Strom zieht (über 50 W)."""
+    return Zaehler("heizzeit_strom", lambda st: st.zaehler.get(f"heizzeit_strom:{bid}", 0.0), **STUNDEN)
 
 
 def _geraet_zaehler(gid: str, rolle: str) -> list[Zaehler]:

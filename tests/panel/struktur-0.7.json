@@ -104,7 +104,13 @@
    "schacht_p2_pumpzyklen": "sensor.schacht_p2_pumpzyklen",
    "schacht_p2_pumpe_laeuft": "binary_sensor.schacht_p2_laeuft",
    "schacht_p2_erreichbar": "binary_sensor.schacht_p2_erreichbar",
-   "schacht_p2_problem": "binary_sensor.schacht_p2_problem"
+   "schacht_p2_problem": "binary_sensor.schacht_p2_problem",
+   "polier_heizzeit_strom": "sensor.polier_heizzeit_geheizt",
+   "mannschaft_heizzeit_strom": "sensor.mannschaft_heizzeit_geheizt",
+   "magazin_heizzeit_strom": "sensor.magazin_heizzeit_geheizt",
+   "sanitaer_heizzeit_strom": "sensor.sanitaer_heizzeit_geheizt",
+   "lager_heizzeit_strom": "sensor.lager_heizzeit_geheizt",
+   "besprechung_heizzeit_strom": "sensor.besprechung_heizzeit_geheizt"
   },
   "bereiche": [
    {
@@ -2217,7 +2223,10 @@
    "k_mannschaft_r2_erreichbar": "binary_sensor.k_mannschaft_r2_erreichbar",
    "k_mannschaft_r2_problem": "binary_sensor.k_mannschaft_r2_problem",
    "k_lager_r_erreichbar": "binary_sensor.k_lager_r_erreichbar",
-   "k_lager_r_problem": "binary_sensor.k_lager_r_problem"
+   "k_lager_r_problem": "binary_sensor.k_lager_r_problem",
+   "k-polier_heizzeit_strom": "sensor.k_polier_heizzeit_geheizt",
+   "k-mannschaft_heizzeit_strom": "sensor.k_mannschaft_heizzeit_geheizt",
+   "k-lager_heizzeit_strom": "sensor.k_lager_heizzeit_geheizt"
   },
   "bereiche": [
    {
@@ -2969,7 +2978,12 @@
    "lieboch_3_erreichbar": "binary_sensor.lieboch_3_erreichbar",
    "lieboch_3_problem": "binary_sensor.lieboch_3_problem",
    "lieboch_4_erreichbar": "binary_sensor.lieboch_4_erreichbar",
-   "lieboch_4_problem": "binary_sensor.lieboch_4_problem"
+   "lieboch_4_problem": "binary_sensor.lieboch_4_problem",
+   "lieboch-0_heizzeit_strom": "sensor.lieboch_0_heizzeit_geheizt",
+   "lieboch-1_heizzeit_strom": "sensor.lieboch_1_heizzeit_geheizt",
+   "lieboch-2_heizzeit_strom": "sensor.lieboch_2_heizzeit_geheizt",
+   "lieboch-3_heizzeit_strom": "sensor.lieboch_3_heizzeit_geheizt",
+   "lieboch-4_heizzeit_strom": "sensor.lieboch_4_heizzeit_geheizt"
   },
   "bereiche": [
    {
@@ -3260,7 +3274,10 @@
    "wundschuh_1_erreichbar": "binary_sensor.wundschuh_1_erreichbar",
    "wundschuh_1_problem": "binary_sensor.wundschuh_1_problem",
    "wundschuh_2_erreichbar": "binary_sensor.wundschuh_2_erreichbar",
-   "wundschuh_2_problem": "binary_sensor.wundschuh_2_problem"
+   "wundschuh_2_problem": "binary_sensor.wundschuh_2_problem",
+   "wundschuh-0_heizzeit_strom": "sensor.wundschuh_0_heizzeit_geheizt",
+   "wundschuh-1_heizzeit_strom": "sensor.wundschuh_1_heizzeit_geheizt",
+   "wundschuh-2_heizzeit_strom": "sensor.wundschuh_2_heizzeit_geheizt"
   },
   "bereiche": [
    {

@@ -311,6 +311,9 @@
       "heizzeit": {
         "name": "Heating time"
       },
+      "heizzeit_strom": {
+        "name": "Heating time drawing power"
+      },
       "mittel_im_betrieb": {
         "name": "{geraet} avg. power while heating"
       },

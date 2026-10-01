@@ -1034,6 +1034,27 @@ async def test_geraet_schaltet_sich_selbst_ein(hass: HomeAssistant, baustelle, f
     assert sum("schaltet sich selbst wieder ein" in str(c.data) for c in nachrichten) == 1
 
 
+async def test_heizzeit_eingeschaltet_und_geheizt(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
+    """AN-0011: Heizzeit zählt die Schaltzeit, „tatsächlich geheizt“ nur bei Stromfluss über 50 W."""
+    st = baustelle.runtime_data
+    st.e["staffel"]["an"] = False
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert hass.states.get("switch.hk1").state == "on"
+    h0, s0 = st.zaehler.get(f"heizzeit:{C1}", 0.0), st.zaehler.get(f"heizzeit_strom:{C1}", 0.0)
+    hass.states.async_set("sensor.hk1_power", "0")                 # Thermostat am Heizkörper hat abgeschaltet
+    for m in range(1, 31):
+        await _zu(hass, freezer, f"2026-09-29 10:{m:02d}:00+02:00", st)
+    assert st.zaehler[f"heizzeit:{C1}"] - h0 == pytest.approx(0.5, abs=0.02) and st.zaehler.get(f"heizzeit_strom:{C1}", 0.0) - s0 == pytest.approx(0.0)
+    hass.states.async_set("sensor.hk1_power", "1500")
+    for m in range(31, 61):
+        await _zu(hass, freezer, f"2026-09-29 10:{m:02d}:00+02:00" if m < 60 else "2026-09-29 11:00:00+02:00", st)
+    assert st.zaehler[f"heizzeit_strom:{C1}"] - s0 == pytest.approx(0.5, abs=0.02)
+    ents = struktur(hass, baustelle)["entitaeten"]
+    assert any(k.endswith(f"{C1}_heizzeit_strom") for k in ents)
+
+
 async def test_geraet_inaktiv(hass: HomeAssistant, baustelle, freezer, shellys) -> None:
     """WU-0004: inaktives Gerät wird einmal ausgeschaltet, dann schaltet die Automatik es nicht mehr und es meldet nichts."""
     st = baustelle.runtime_data

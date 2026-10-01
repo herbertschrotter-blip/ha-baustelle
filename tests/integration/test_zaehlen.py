@@ -153,6 +153,11 @@ async def test_heiztage(hass: HomeAssistant, baustelle, freezer) -> None:
     st = baustelle.runtime_data
     hass.states.async_set("switch.hk2", "on")
     await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=1))
+    st.auswerten()
+    assert st.zaehler.get("heiztage", 0) == 0   # AN-0011: eingeschaltet, aber kein Strom – kein Heiztag
+    hass.states.async_set("sensor.hk2_power", "2000")
+    await hass.async_block_till_done()
     for _ in range(3):
         freezer.tick(timedelta(minutes=1))
         st.auswerten()

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.29] – 2026-10-01
+
+- Heizzeit zweifach (AN-0011): neben der eingeschalteten Zeit zählt die Integration, wie lange ein Container
+  tatsächlich geheizt hat (Heizkörper zieht über 50 W Strom; ohne Leistungsmessung wie eingeschaltet), neuer Sensor
+  „Heizzeit geheizt“ je Container. Die Seite zeigt „h eingeschaltet“, „h tatsächlich geheizt“ und „% davon mit Strom“.
+- Heiztage zählen nur noch Tage, an denen ein Heizkörper tatsächlich Strom gezogen hat (Zähler, Verlauf, Bericht);
+  Tage vor 0.8.29 bleiben nach der eingeschalteten Zeit gezählt. Die Prognose der Heizperiode rechnet weiter mit den
+  gemessenen kWh, die Rangliste „kWh je Heizstunde“ weiter mit der eingeschalteten Zeit.
+
 ## [0.8.28] – 2026-10-01
 
 - Leistung im Container: kein Flackern mehr beim Ziehen des Stundenreglers – der ganze Tag wird einmal geladen und

@@ -283,10 +283,11 @@ async def async_verlauf(hass: HomeAssistant, q: Quelle) -> dict[str, Any]:
     von, bis = a.verlauf_zeitraum(heute, beginn, ende)
     energie = q.eid(eid, "energie")
     heizzeit = {b["id"]: i for b in q.bereiche if b["art"] == ART_CONTAINER and (i := q.eid(b["id"], "heizzeit"))}
-    roh = await async_statistik(hass, [energie, *heizzeit.values()], a.mitternacht(von, zone), a.mitternacht(bis, zone),
-                                "day", {"change"})
+    strom = {b["id"]: i for b in q.bereiche if b["art"] == ART_CONTAINER and (i := q.eid(b["id"], "heizzeit_strom"))}
+    roh = await async_statistik(hass, [energie, *heizzeit.values(), *strom.values()], a.mitternacht(von, zone),
+                                a.mitternacht(bis, zone), "day", {"change"})
     vw = a.verlauf_werte(roh.get(energie) if energie else None, {b: roh.get(i, []) for b, i in heizzeit.items()}, zone,
-                         beginn, q.zaehler.get("heiztage"))
+                         beginn, q.zaehler.get("heiztage"), {b: roh.get(i, []) for b, i in strom.items()})
     zustaende = {k: _zustand(hass, q.eid(eid, k)) for k in ("energie", "kosten", "ersparnis")}
     kennzahlen = a.kennzahlen(q.zaehler, zustaende, q.preis, len(q.bereiche), vw["heiztage"], vw["monate"])
     # Verbrauch je Monat und Container

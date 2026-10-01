@@ -189,6 +189,20 @@ def test_heiztage_wie_bericht():
     assert bericht_heiztage({b: dict(w) for b, w in heizzeit.items()}, date(2026, 9, 1), date(2026, 9, 4)) == len(tage)
 
 
+def test_heiztage_tatsaechlich_geheizt():
+    """AN-0011: Heiztag nur mit Strom; Tage ohne Strom-Wert (vor 0.8.29) zählen nach der eingeschalteten Zeit."""
+    ein = {"polier": [(date(2026, 9, 1), 2.0), (date(2026, 9, 2), 2.0)], "lager": [(date(2026, 9, 3), 1.0)]}
+    strom = {"polier": [(date(2026, 9, 2), 0.0)], "lager": [(date(2026, 9, 3), 0.4)]}
+    h = a.heizzeit_geheizt(ein, strom)
+    assert h["polier"] == [(date(2026, 9, 1), 2.0), (date(2026, 9, 2), 0.0)]
+    assert a.heiztag_daten(h) == {date(2026, 9, 1), date(2026, 9, 3)}
+    zone = ZoneInfo("Europe/Vienna")
+    p = lambda t, h: {"start": f"{t}T00:00:00+02:00", "change": h}
+    w = a.verlauf_werte(None, {"polier": [p("2026-09-01", 2.0), p("2026-09-02", 2.0)]}, zone,
+                        heizzeit_strom={"polier": [p("2026-09-02", 0.0)]})
+    assert w["heiztage"] == 1
+
+
 @pytest.mark.parametrize("fall", faelle("kennzahlen"))
 def test_kennzahlen(fall):
     e = fall["eingabe"]

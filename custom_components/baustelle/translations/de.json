@@ -311,6 +311,9 @@
       "heizzeit": {
         "name": "Heizzeit"
       },
+      "heizzeit_strom": {
+        "name": "Heizzeit geheizt"
+      },
       "mittel_im_betrieb": {
         "name": "{geraet} Ø Leistung im Betrieb"
       },

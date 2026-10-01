@@ -29,7 +29,7 @@ from homeassistant.util import dt as dt_util
 from .const import AKTION_PRAEFIX, DOMAIN, EVENT_NACHRICHT_AKTION, URL_SEITE
 from . import auswertung
 from .funktionen.heizung import FRUEHER_MIN, FRUEHSTART_NACHRICHT, Heizung
-from .logik import bericht as bericht_logik, warnungen as warn_logik
+from .logik import auswertung as auswertung_logik, bericht as bericht_logik, warnungen as warn_logik
 from .logik.arbeitszeit import AusnahmeArt, uhrzeit
 from . import texte
 
@@ -370,8 +370,13 @@ class Nachrichten:
         return await self._async_je_tag({bid: f"{bid}_energie" for bid in self.st.bereiche}, von, bis)
 
     async def async_heizzeit_je_tag(self, von: date, bis: date) -> dict[str, dict[date, float]]:
-        """Heizstunden je Container (ohne Pumpenschächte) und Tag – für die Heiztage wie der Zähler `heiztage`."""
-        return await self._async_je_tag({b.id: f"{b.id}_heizzeit" for b in Heizung.von(self.st).bereiche()}, von, bis)
+        """Heizstunden je Container (ohne Pumpenschächte) und Tag – für die Heiztage wie der Zähler `heiztage`:
+        tatsächlich geheizt (AN-0011), an Tagen vor 0.8.29 eingeschaltet."""
+        bereiche = Heizung.von(self.st).bereiche()
+        ein = await self._async_je_tag({b.id: f"{b.id}_heizzeit" for b in bereiche}, von, bis)
+        strom = await self._async_je_tag({b.id: f"{b.id}_heizzeit_strom" for b in bereiche}, von, bis)
+        return {bid: dict(werte) for bid, werte in auswertung_logik.heizzeit_geheizt(
+            {b: w.items() for b, w in ein.items()}, {b: w.items() for b, w in strom.items()}).items()}
 
     async def _async_je_tag(self, schluessel: dict[str, str], von: date, bis: date) -> dict[str, dict[date, float]]:
         return await auswertung.async_je_tag(self.hass, self._statistik_ids(schluessel), von, bis)

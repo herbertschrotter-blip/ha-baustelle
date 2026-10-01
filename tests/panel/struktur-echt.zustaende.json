@@ -193,6 +193,15 @@
     "friendly_name": "Büro Heating time"
    }
   },
+  "sensor.buro_heating_time_drawing_power": {
+   "state": "0.0",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Büro Heating time drawing power"
+   }
+  },
   "sensor.buro_power": {
    "state": "0.0",
    "attributes": {
@@ -439,6 +448,15 @@
     "friendly_name": "Magazin Heating time"
    }
   },
+  "sensor.magazin_heating_time_drawing_power": {
+   "state": "7.05",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Magazin Heating time drawing power"
+   }
+  },
   "sensor.magazin_power": {
    "state": "0.0",
    "attributes": {
@@ -515,6 +533,15 @@
     "unit_of_measurement": "h",
     "device_class": "duration",
     "friendly_name": "Mannschaft Heating time"
+   }
+  },
+  "sensor.mannschaft_heating_time_drawing_power": {
+   "state": "1.75",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Mannschaft Heating time drawing power"
    }
   },
   "sensor.mannschaft_k1_leistung": {
@@ -612,6 +639,15 @@
     "unit_of_measurement": "h",
     "device_class": "duration",
     "friendly_name": "Polier Heating time"
+   }
+  },
+  "sensor.polier_heating_time_drawing_power": {
+   "state": "5.1",
+   "attributes": {
+    "state_class": "total_increasing",
+    "unit_of_measurement": "h",
+    "device_class": "duration",
+    "friendly_name": "Polier Heating time drawing power"
    }
   },
   "sensor.polier_k1_leistung": {

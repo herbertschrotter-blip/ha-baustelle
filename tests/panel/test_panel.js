@@ -805,6 +805,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('FE-0009: Kosten-Kachel zeigt € ', ui.innerHTML.includes('<h3>Kosten</h3>') && ui.innerHTML.includes('€ je Stunde'));
     await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'heizzeit-c', id: b.id }, 30); pruefe('Heizzeit');
     erwarte('FE-0009: Heizzeit-Kachel zeigt Heizstunden', ui.innerHTML.includes('<h3>Heizzeit · ') && ui.innerHTML.includes('data-chart="hz-c-'));
+    if (panel.eid(panel.d, b.id, 'heizzeit_strom')) erwarte('AN-0011: eingeschaltet und tatsächlich geheizt', ui.innerHTML.includes('h eingeschaltet') && ui.innerHTML.includes('h tatsächlich geheizt') && ui.innerHTML.includes('eingeschaltet</span>'));
     await klick({ act: 'vb-zeitraum', ziel: 'sheet', v: 'Woche' }, 30); pruefe('Heizzeit Woche'); erwarte('FE-0009: Heizzeit je Tag', ui.innerHTML.includes('h je Tag'));
     await klick({ act: 'zu' }, 5); await klick({ act: 'tab', v: 'uebersicht' }, 10); }
   /* AN-0006: Zusatz-Heizkörper nur bei Bedarf – Schwellen, Schalter je Container, Zusatz im Gerät, Anzeige */

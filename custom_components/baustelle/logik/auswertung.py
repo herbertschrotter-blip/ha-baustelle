@@ -15,7 +15,9 @@ Abweichend von der Seite (fachlich richtig, wie Bericht und Zähler der Integrat
   Wechsel mitten am Tag gilt ab dem Folgetag. Die Seite nahm bei „Tag“ die Firma je Stunde und beim „Jahr“ die Firma am
   Monatsersten für den ganzen Monat – für das Jahr bekommt `abrechnung` deshalb Werte je Tag.
 - **Heiztage ohne Zähler:** Tage ab Beginn, an denen ein Container geheizt hat (Heizzeit > 0, wie Zähler `heiztage` und
-  Bericht), nicht Tage mit mehr als 0,5 kWh der ganzen Baustelle; Monate = Monate mit einem Heiztag.
+  Bericht), nicht Tage mit mehr als 0,5 kWh der ganzen Baustelle; Monate = Monate mit einem Heiztag. Seit 0.8.29 zählt
+  die tatsächlich geheizte Zeit (Strom gezogen, AN-0011); Tage davor zählen nach der eingeschalteten Zeit
+  (`heizzeit_geheizt`).
 """
 
 from __future__ import annotations
@@ -318,6 +320,19 @@ def verlauf_zeitraum(heute: date, beginn: date | None, ende: date | None) -> tup
     return von, (ende or heute) + timedelta(days=1)
 
 
+def heizzeit_geheizt(
+    ein: Mapping[str, Iterable[tuple[date, float | None]]], strom: Mapping[str, Iterable[tuple[date, float | None]]]
+) -> dict[str, list[tuple[date, float | None]]]:
+    """Heizzeit je Container und Tag für die Heiztage: tatsächlich geheizt (Strom gezogen, AN-0011), wo es den Wert für
+    den Tag gibt; sonst (Tage vor 0.8.29) die eingeschaltete Zeit."""
+    ergebnis: dict[str, list[tuple[date, float | None]]] = {}
+    for bid in {*ein, *strom}:
+        tage = dict(ein.get(bid, ()))
+        tage.update(strom.get(bid, ()))
+        ergebnis[bid] = sorted(tage.items())
+    return ergebnis
+
+
 def heiztag_daten(heizzeit: Mapping[str, Iterable[tuple[date, float | None]]], von: date | None = None, bis: date | None = None) -> set[date]:
     """Tage (von–bis einschließlich) mit Heizzeit über 0 in irgendeinem Container – wie der Zähler `heiztage`.
 
@@ -335,11 +350,13 @@ def verlauf_werte(
     zone: tzinfo,
     beginn: date | None = None,
     heiztage_zaehler: float | None = None,
+    heizzeit_strom: Mapping[str, Sequence[Punkt]] | None = None,
 ) -> dict[str, Any]:
     """Heiztage, Monate mit Heizung und kWh je Monat (`JJJJ-MM`) einer Baustelle aus der Tagesstatistik.
 
-    `energie`: Energie der Baustelle je Tag; `heizzeit`: Heizzeit je Container und Tag. Heiztage zählt die Integration
-    (`heiztage_zaehler`); nur ohne Zähler kommen sie aus der Heizzeit.
+    `energie`: Energie der Baustelle je Tag; `heizzeit`: Heizzeit je Container und Tag (eingeschaltet), `heizzeit_strom`:
+    davon tatsächlich geheizt (`heizzeit_geheizt`). Heiztage zählt die Integration (`heiztage_zaehler`); nur ohne Zähler
+    kommen sie aus der Heizzeit.
     """
     je_monat: dict[str, float] = {}
     je_tag: dict[str, float] = {}   # kWh je Tag `JJJJ-MM-TT` (Chronik der Seite, WU-0006)
@@ -348,11 +365,11 @@ def verlauf_werte(
         wert = float(p["change"]) if ist_zahl(p.get("change")) else 0.0
         je_monat[tag.strftime("%Y-%m")] = je_monat.get(tag.strftime("%Y-%m"), 0.0) + wert
         je_tag[tag.strftime("%Y-%m-%d")] = je_tag.get(tag.strftime("%Y-%m-%d"), 0.0) + wert
-    tage = heiztag_daten(
-        {sid: [(lokal(p["start"], zone).date(), float(p["change"]) if ist_zahl(p.get("change")) else 0.0) for p in punkte]
-         for sid, punkte in heizzeit.items()},
-        von=beginn,
-    )
+    def je_tag_h(punkte: Mapping[str, Sequence[Punkt]]) -> dict[str, list[tuple[date, float]]]:
+        return {sid: [(lokal(p["start"], zone).date(), float(p["change"]) if ist_zahl(p.get("change")) else 0.0)
+                      for p in werte] for sid, werte in punkte.items()}
+
+    tage = heiztag_daten(heizzeit_geheizt(je_tag_h(heizzeit), je_tag_h(heizzeit_strom or {})), von=beginn)
     heiztage = heiztage_zaehler if ist_zahl(heiztage_zaehler) else len(tage)
     return {"heiztage": heiztage, "monate": len({(t.year, t.month) for t in tage}), "je_monat": je_monat, "je_tag": je_tag}
 

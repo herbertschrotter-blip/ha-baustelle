@@ -171,7 +171,7 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
 - `laufzeit.termine`: eine Serie kommt je Vorkommen im Zeitraum (laufende und nächste Woche) mit derselben `uid` und
   `rrule` – so liefert sie der Kalender, und so plant die Integration die Heizzeiten. Die Seite fasst sie zu einer Zeile
   zusammen; `calendar/event/delete` mit dieser `uid` (ohne `recurrence_id`) löscht die ganze Serie.
-- `zaehler.heiztage` (Tage, an denen eine Heizung lief) ist die Zahl, die die Seite als „Heiztage“ zeigt.
+- `zaehler.heiztage` (Tage, an denen ein Heizkörper tatsächlich Strom gezogen hat, ab 0.8.29; davor: eingeschaltet war) ist die Zahl, die die Seite als „Heiztage“ zeigt.
 - Werte für `baustelle/setzen` aus den Steppern der Seite bleiben in den Bereichen von `panel.py` `SETZEN`.
 
 ## 7. Aus 0.6.3 zurück (0.7.8, Mockup glas.html abgenommen 30.09.2026)

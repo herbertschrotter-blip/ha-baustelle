@@ -119,6 +119,7 @@ class Heizung(Funktion):
         self._tuer_pause: dict[str, bool] = {}   # war zuletzt wegen offener Tür pausiert
         self._grund_beim_heizen: dict[str, str | None] = {}   # Grund der letzten Minute, in der geheizt wurde (K innen)
         self._grund_letzte_minute: dict[str, str | None] = {}
+        self._strom_jetzt: set[str] = set()   # AN-0011: Container, deren Heizkörper in diesem Zählschritt Strom ziehen
         self._unter_soll_seit: dict[str, datetime] = {}
         self._hand_phase: dict[str, bool] = {}
         self._phase: dict[str, tuple[bool, datetime, float]] = {}  # Bereich → (heizt, seit, Temperatur beim Beginn)
@@ -866,12 +867,17 @@ class Heizung(Funktion):
             return False
         if g.rolle == ROLLE_HEIZKOERPER:
             self.st.zaehler_plus(f"heizzeit_typ:{g.typ}", stunden)
+            if leistung is None or leistung > ZIEHT_STROM_W:   # AN-0011: tatsächlich geheizt (ohne Messung: wie geschaltet)
+                self._strom_jetzt.add(g.bereich)
         return True
 
     def zaehlen_bereich(self, bid: str, heizt: bool, jetzt: datetime, stunden: float) -> None:
         if heizt:
+            self.st.zaehler_plus(f"heizzeit:{bid}", stunden)   # eingeschaltet
+        if bid in self._strom_jetzt:   # AN-0011: davon tatsächlich geheizt (Strom über 50 W) – nur das ist ein Heiztag
+            self._strom_jetzt.discard(bid)
             self._heiztag = True
-            self.st.zaehler_plus(f"heizzeit:{bid}", stunden)
+            self.st.zaehler_plus(f"heizzeit_strom:{bid}", stunden)
         self._temperaturverhalten(bid, heizt, jetzt, stunden)
 
     def energie_buchen(self, g: GeraetInfo, kwh: float) -> None:
