@@ -296,7 +296,7 @@ async def async_verlauf(hass: HomeAssistant, q: Quelle) -> dict[str, Any]:
                                   a.mitternacht(m_bis, zone), "month", {"change"})
     je_monat = a.monate_je_container(monate, bereiche, roh_m, zone)
     return {
-        **kennzahlen, "je_monat": vw["je_monat"],
+        **kennzahlen, "je_monat": vw["je_monat"], "je_tag": vw["je_tag"],   # je_tag: Chronik der Seite (WU-0006)
         "monate_je_container": {"labels": je_monat["labels"],
                                 "reihen": [{"bereich": b["id"], **r, **x} for b, r, x in
                                            zip(bereiche, je_monat["reihen"], a.monate_summen(je_monat["reihen"], q.preis),

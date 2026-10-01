@@ -613,3 +613,29 @@ body.hell { background: #d9dee5; color: #111; }
 .aw-dia-leg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
 .aw-klein .aw-rang-z { width: 100%; grid-template-columns: 1fr 1fr auto; background: none; border: 0; color: var(--ink); font: inherit; padding: 6px 0; cursor: pointer; text-align: left; }
 .aw-klein .aw-rang-z em { font-style: normal; color: var(--ink2); }
+
+/* WU-0006: Varianten des Verlaufs */
+.vl-archiv { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.vl-karte { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 18px; color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.vl-karte.aktiv { box-shadow: inset 0 0 0 1px rgba(48,209,88,.5); } .vl-funke { width: 100%; height: 40px; display: block; margin-top: 4px; }
+.vl-monate { display: flex; justify-content: space-between; font-size: 10px; color: var(--ink2); }
+.vl-zahlen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; } .vl-zahlen div { display: flex; flex-direction: column; } .vl-zahlen b { font-size: 16px; } .vl-zahlen small { font-size: 11px; color: var(--ink2); }
+.vl-mehr { align-self: flex-end; } .gruen-t { color: #30d158; }
+.vl-chronik { display: grid; grid-template-columns: 1fr 280px; gap: 12px; align-items: start; } .vl-seite { position: sticky; top: 12px; }
+.vl-filter { padding: 10px 12px; margin-bottom: 12px; } .vl-suche { width: 100%; box-sizing: border-box; margin-bottom: 8px; font: inherit; color: var(--ink); background: rgba(127,127,127,.16); border: 1px solid var(--panel-rand); border-radius: 10px; padding: 7px 10px; }
+.vl-tag { padding: 10px 14px; margin-bottom: 10px; } .vl-tag-kopf { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-bottom: 6px; border-bottom: 1px solid var(--gridc); margin-bottom: 4px; }
+.vl-ereignis { display: grid; grid-template-columns: 44px 24px 1fr; gap: 8px; align-items: center; padding: 5px 0; font-size: 13px; }
+.vl-punkt { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; }
+.vl-tab-kopf, .vl-tab-zeile { display: grid; grid-template-columns: 1.6fr repeat(6, 1fr); gap: 6px; align-items: center; font-size: 13px; text-align: right; }
+.vl-tab-kopf button { background: none; border: 0; color: var(--ink2); font: inherit; font-size: 11px; text-align: right; cursor: pointer; padding: 4px 0; } .vl-tab-kopf button:first-child { text-align: left; } .vl-tab-kopf button.on { color: var(--ink); font-weight: 600; }
+.vl-tab-zeile { width: 100%; background: none; border: 0; border-top: 1px solid var(--gridc); color: var(--ink); font: inherit; padding: 9px 0; cursor: pointer; }
+.vl-tab-name { text-align: left; display: flex; flex-direction: column; } .vl-tab-name small { color: var(--ink2); font-size: 11px; }
+.vl-bs { margin-bottom: 12px; } .vl-kal-wrap { overflow-x: auto; } .vl-kal-monate { display: grid; font-size: 10px; color: var(--ink2); margin-bottom: 4px; min-width: 620px; }
+.vl-kal { display: grid; grid-template-rows: repeat(7, 12px); gap: 3px; min-width: 620px; }
+.vl-kal-t { width: 100%; height: 12px; border-radius: 3px; border: 0; padding: 0; cursor: pointer; background: rgba(127,127,127,.15); display: inline-block; }
+.vl-kal-t.s1 { background: rgba(255,159,10,.3); } .vl-kal-t.s2 { background: rgba(255,159,10,.55); } .vl-kal-t.s3 { background: rgba(255,159,10,.8); } .vl-kal-t.s4 { background: #ff9f0a; }
+.vl-kal-t.gewaehlt { outline: 2px solid var(--ink); } .vl-kal-leg { display: flex; align-items: center; gap: 4px; margin-top: 8px; } .vl-kal-leg i { width: 12px; } .vl-hinweis { margin: 4px 2px; }
+.telefon .vl-chronik { grid-template-columns: 1fr; } .telefon .vl-seite { position: static; }
+.telefon .vl-tab-kopf, .telefon .vl-tab-zeile { grid-template-columns: 1.6fr repeat(3, 1fr); } .telefon .vl-tab-kopf button:nth-child(n+5), .telefon .vl-tab-zeile > :nth-child(n+5) { display: none; }
+@media (max-width: 700px) { .vl-chronik { grid-template-columns: 1fr; } .vl-seite { position: static; } }
+.vl-reiter { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; } .vl-reiter .seg { margin: 0; } .vl-chronik.ohne-seite { grid-template-columns: 1fr; }

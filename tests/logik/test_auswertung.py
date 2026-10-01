@@ -4,7 +4,7 @@ Wo die Seite anders rechnete als die Integration, steht im Vektor `abweichung`; 
 docs/bauplan-module.md §5) und der Test prüft zusätzlich, dass die Seite dort wirklich anders war.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import json
 import math
 from pathlib import Path
@@ -174,7 +174,8 @@ def test_verlauf(fall):
     von, bis = a.verlauf_zeitraum(date.fromisoformat(e["heute"]), tag(e["beginn"]), tag(e["ende"]))
     assert (a.mitternacht(von, zone), a.mitternacht(bis, zone)) == (utc(soll["anfrage"]["start_time"]), utc(soll["anfrage"]["end_time"]))
     ist = a.verlauf_werte(e["energie"], e["heizzeit"], zone, tag(e["beginn"]), e["heiztage_zaehler"])
-    nahe(ist, {k: soll[k] for k in ("heiztage", "monate", "je_monat")})
+    nahe({k: ist[k] for k in ("heiztage", "monate", "je_monat")}, {k: soll[k] for k in ("heiztage", "monate", "je_monat")})
+    assert sum(ist["je_tag"].values()) == pytest.approx(sum(ist["je_monat"].values()))   # WU-0006: Tage ergeben die Monate
     if fall.get("abweichung"):
         assert (fall["seite"]["heiztage"], fall["seite"]["monate"]) != (soll["heiztage"], soll["monate"])
     else:
@@ -299,3 +300,12 @@ def test_erkenntnisse_reihenfolge_und_schwellen():
     ruhig = erkenntnisse(r[:1], ohne=None, gerade={"k": 0.4}, veraenderung_kwh=-10, typ_weniger=3)
     assert ruhig == []
     assert [x["art"] for x in erkenntnisse(r, ohne=None, gerade=None, veraenderung_kwh=-20, typ_weniger=-8)] == ["groesster", "sparsamster", "weniger", "typ"]
+
+
+def test_verlauf_je_tag():
+    """WU-0006: kWh je Tag (lokaler Tag) für die Chronik."""
+    zone = ZoneInfo("Europe/Vienna")
+    energie = [{"start": datetime(2026, 9, 29, 22, 0, tzinfo=timezone.utc).timestamp() * 1000, "change": 5.0},   # 30.09. 00:00 Wien
+               {"start": datetime(2026, 9, 28, 22, 0, tzinfo=timezone.utc).timestamp() * 1000, "change": 3.5}]
+    w = a.verlauf_werte(energie, {}, zone)
+    assert w["je_tag"] == {"2026-09-30": 5.0, "2026-09-29": 3.5} and w["je_monat"] == {"2026-09": 8.5}

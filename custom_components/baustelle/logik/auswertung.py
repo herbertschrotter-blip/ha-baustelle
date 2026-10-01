@@ -342,16 +342,19 @@ def verlauf_werte(
     (`heiztage_zaehler`); nur ohne Zähler kommen sie aus der Heizzeit.
     """
     je_monat: dict[str, float] = {}
+    je_tag: dict[str, float] = {}   # kWh je Tag `JJJJ-MM-TT` (Chronik der Seite, WU-0006)
     for p in energie or []:
-        monat = lokal(p["start"], zone).strftime("%Y-%m")
-        je_monat[monat] = je_monat.get(monat, 0.0) + (float(p["change"]) if ist_zahl(p.get("change")) else 0.0)
+        tag = lokal(p["start"], zone)
+        wert = float(p["change"]) if ist_zahl(p.get("change")) else 0.0
+        je_monat[tag.strftime("%Y-%m")] = je_monat.get(tag.strftime("%Y-%m"), 0.0) + wert
+        je_tag[tag.strftime("%Y-%m-%d")] = je_tag.get(tag.strftime("%Y-%m-%d"), 0.0) + wert
     tage = heiztag_daten(
         {sid: [(lokal(p["start"], zone).date(), float(p["change"]) if ist_zahl(p.get("change")) else 0.0) for p in punkte]
          for sid, punkte in heizzeit.items()},
         von=beginn,
     )
     heiztage = heiztage_zaehler if ist_zahl(heiztage_zaehler) else len(tage)
-    return {"heiztage": heiztage, "monate": len({(t.year, t.month) for t in tage}), "je_monat": je_monat}
+    return {"heiztage": heiztage, "monate": len({(t.year, t.month) for t in tage}), "je_monat": je_monat, "je_tag": je_tag}
 
 
 def kennzahlen(

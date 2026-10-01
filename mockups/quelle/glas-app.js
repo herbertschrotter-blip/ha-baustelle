@@ -1184,28 +1184,78 @@ class App {
       ${erkl(this.d.e.erklaer, 'Die Hochrechnung nimmt den Verbrauch je Heiztag bisher und rechnet ihn auf die Heizperiode hoch. Endet die Baustelle früher, zählt nur bis zum Ende.')}</div>`;
   }
 
-  v_verlauf() {
-    const BS = this.d.baustellen, liste = BS.filter(b => b.aktiv === (this.s.verlauf === 'aktiv')), m = this.s.vglArt || 'tag';
-    const wert = b => m === 'tag' ? b.kwh / b.heiztage : m === 'monat' ? b.eur / b.monate : b.kwh;
-    const fmt = v => m === 'tag' ? `${de(v, 1)} kWh` : m === 'monat' ? `${de(v, 0)} €` : `${de(v, 0)} kWh`, max = Math.max(...BS.map(wert));
-    const MON = ['Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep'];
-    const mitDaten = BS.map((b, i) => ({ b, i })).filter(({ b }) => Object.keys(b.verlauf).length);
-    const reihen = mitDaten.map(({ b, i }) => ({ name: b.name, v: MON.map(x => b.verlauf[x] || 0), farbe: `var(--s${i + 1})` }));
-    const draussen = BS.filter(b => !Object.keys(b.verlauf).length).map(b => b.name);
-    return `${this.kopf('Verlauf', 'BAUSTELLEN')}
-      <div class="glas-panel block"><div class="block-kopf"><b>Vergleich</b><span class="leise">alle Baustellen</span></div>
-        <div class="seg">${[['tag', 'kWh je Heiztag'], ['monat', '€ je Monat'], ['ges', 'gesamt']].map(([k, t]) => `<button data-act="vgl" data-v="${k}" class="${k === m ? 'on' : ''}">${t}</button>`).join('')}</div>
-        ${BS.map((b, i) => `<div class="hbar"><span class="hb-n">${esc(b.name)}</span><span class="hb-spur"><i style="width:${wert(b) / max * 100}%;background:var(--s${i + 1})"></i></span><span class="hb-w">${fmt(wert(b))}</span></div>`).join('')}
-        <div class="leise">${m === 'tag' ? 'Gut vergleichbar, weil unabhängig von der Dauer der Baustelle.' : m === 'monat' ? 'Kosten geteilt durch die Monate mit Heizung.' : 'Summe über die ganze Baustelle.'}</div></div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Letzte 12 Monate</b><span class="leise">kWh je Monat, gestapelt nach Baustelle</span></div>
-        <div class="chart-wrap">${flaeche('zwoelf', reihen, MON, 'kWh', 2)}</div>
-        ${draussen.length ? `<div class="leise">Ohne Werte in diesem Zeitraum: ${draussen.map(esc).join(', ')}</div>` : ''}</div>
-      <div class="seg glas-panel">${[['aktiv', 'Aktiv'], ['ab', 'Abgeschlossen']].map(([k, t]) => `<button data-act="verlauf" data-v="${k}" class="${k === this.s.verlauf ? 'on' : ''}">${t}</button>`).join('')}</div>
-      ${liste.map((b, i) => `<button class="glas-panel bs-karte" data-act="bs-oeffnen" data-i="${BS.indexOf(b)}" style="animation-delay:${i * 60}ms">
-        <div class="bs-kopf"><b>${esc(b.name)}</b><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></div>
-        <div class="leise">${b.zeit} · ${b.container} Container · ${b.heiztage} Heiztage</div>
-        <div class="bs-zahlen"><span><b>${de(b.kwh, 0)}</b> kWh</span><span><b>${de(b.eur, 2)}</b> €</span><span class="leise">${b.aktiv ? 'Übersicht ›' : 'ansehen ›'}</span></div></button>`).join('')}
-      ${this.s.verlauf === 'aktiv' ? this.protokoll() : ''}`;
+  v_verlauf() { return this.v_verlauf_5(); }   // WU-0006: Archiv + Protokoll (abgenommen 01.10.2026)
+
+
+  /* ================= WU-0006: vier Varianten des Verlaufs (Vorführ-Leiste „Verlauf“) ================= */
+  vlMonate(b) { const M = ['Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep']; return M.map(m => b.verlauf[m] || 0); }
+  vlFunke(werte, farbe, w = 120, h = 34) {
+    const max = Math.max(1, ...werte), bw = w / werte.length;
+    return `<svg class="vl-funke" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${werte.map((v, i) => `<rect x="${(i * bw + 1).toFixed(1)}" y="${(h - v / max * h).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${(v / max * h).toFixed(1)}" rx="1.5" fill="${farbe}" opacity="${v ? .9 : .15}"/>`).join('')}</svg>`;
+  }
+  vlSumme() { const BS = this.d.baustellen; return { kwh: BS.reduce((a, b) => a + b.kwh, 0), eur: BS.reduce((a, b) => a + b.eur, 0), gespart: BS.reduce((a, b) => a + (b.gespart || 0), 0) * this.d.e.preis, n: BS.length, aktiv: BS.filter(b => b.aktiv).length }; }
+  vlProtokollKnopf() { return `<button class="glas-panel chip" data-act="sheet" data-s="vl-protokoll">📜 Protokoll</button>`; }
+  /* Tageswerte für Kalender und Chronik (Beispiel): kWh je Tag aus den Monatswerten verteilt, nur Werktage mit Heizung */
+  vlTage(b) {
+    const r = zufall(b.name.length * 7 + 3), tage = [], heute = new Date(HEUTE + 'T12:00:00');
+    for (let k = 364; k >= 0; k--) { const t = new Date(heute); t.setDate(t.getDate() - k); const mon = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][t.getMonth()];
+      const wt = t.getDay(), monat = b.verlauf[mon] || 0, kwh = monat && wt > 0 && wt < 6 ? monat / 21 * (.6 + r() * .8) : 0; tage.push({ iso: t.toISOString().slice(0, 10), wt, kwh }); }
+    return tage;
+  }
+
+  /* 1 · Archiv: Baustellen als große Karten mit Mini-Verlauf, Summe oben, Protokoll über Knopf */
+  v_verlauf_1(teil = false) {
+    const BS = this.d.baustellen, S = this.vlSumme(), sortiert = [...BS].sort((a, b) => (b.aktiv - a.aktiv));
+    return `${teil ? '' : this.kopf('Verlauf', 'BAUSTELLEN', this.vlProtokollKnopf())}
+      <div class="glas-panel kennz vier">${[[S.n, `Baustellen · ${S.aktiv} aktiv`], [de(S.kwh, 0), 'kWh gesamt'], [`${de(S.eur, 0)} €`, 'Kosten gesamt'], [`${de(S.gespart, 0)} €`, 'gespart']].map(([w, t]) => `<div><b>${w}</b><span>${t}</span></div>`).join('')}</div>
+      <div class="vl-archiv">${sortiert.map(b => { const i = BS.indexOf(b), farbe = `var(--s${i + 1})`;
+        return `<button class="glas-panel vl-karte ${b.aktiv ? 'aktiv' : ''}" data-act="bs-oeffnen" data-i="${i}">
+          <div class="bs-kopf"><b>${esc(b.name)}</b><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></div>
+          <div class="leise">${b.zeit} · ${b.container} Container · ${b.heiztage} Heiztage</div>
+          ${this.vlFunke(this.vlMonate(b), farbe)}<div class="vl-monate"><span>Okt</span><span>Sep</span></div>
+          <div class="vl-zahlen"><div><b>${de(b.kwh, 0)}</b><small>kWh</small></div><div><b>${de(b.eur, 0)} €</b><small>Kosten</small></div><div><b>${de(b.kwh / b.heiztage, 1)}</b><small>kWh/Heiztag</small></div><div><b class="gruen-t">${de((b.gespart || 0) * this.d.e.preis, 0)} €</b><small>gespart</small></div></div>
+          <span class="leise vl-mehr">${b.aktiv ? 'Übersicht ›' : 'ansehen ›'}</span></button>`; }).join('')}</div>`;
+  }
+  /* 2 · Chronik: Protokoll als Zeitleiste nach Tagen mit Filter und Suche, Tagessumme je Tag; Baustellen kompakt daneben */
+  v_verlauf_2(teil = false) {
+    const BS = this.d.baustellen, f = this.s.pfilter || 'alle', q = (this.s.vlSuche || '').toLowerCase();
+    const ART = { warnung: ['⚠', 'var(--rot)'], ok: ['✓', '#30d158'], schalten: ['⏻', 'var(--amber)'], wetter: ['☁', 'var(--blau)'], nachricht: ['✉', 'var(--ink2)'], einstellung: ['⚙', 'var(--ink2)'] };
+    const passt = e => (f === 'alle' || e[2] === f || (f === 'warnung' && e[2] === 'ok') || (f === 'schalten' && e[2] === 'einstellung')) && (!q || `${e[3] ? this.bName(e[3]) : ''} ${e[4]}`.toLowerCase().includes(q));
+    const tage = []; for (const e of this.d.protokoll.filter(passt)) { const t = tage.at(-1); if (t && t.tag === e[0]) t.e.push(e); else tage.push({ tag: e[0], e: [e] }); }
+    const r = zufall(5);
+    return `${teil ? '' : this.kopf('Verlauf', 'CHRONIK')}
+      <div class="vl-chronik ${teil ? 'ohne-seite' : ''}"><div>
+        <div class="glas-panel vl-filter"><input class="vl-suche" placeholder="Suchen (Container, Text) …" value="${esc(this.s.vlSuche || '')}" data-vls>
+          <div class="vb-wer">${[['alle', 'Alle'], ['warnung', '⚠ Warnungen'], ['schalten', '⏻ Schalten'], ['wetter', '☁ Wetter'], ['nachricht', '✉ Nachrichten']].map(([k, t]) => `<button data-act="pfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+        ${tage.length ? tage.map(t => { const kwh = 6 + r() * 18;
+          return `<div class="glas-panel vl-tag"><div class="vl-tag-kopf"><b>${t.tag}</b><span class="leise">${de(kwh, 1)} kWh · ${de(kwh * this.d.e.preis, 2)} € · ${t.e.length} Einträge</span></div>
+            ${t.e.map(e => { const [ic, farbe] = ART[e[2]] || ['•', 'var(--ink2)']; return `<div class="vl-ereignis"><span class="zeit">${e[1]}</span><span class="vl-punkt" style="background:${farbe}">${ic}</span><div>${e[3] ? `<b>${esc(this.bName(e[3]))}</b> ` : ''}<span class="leise">${esc(e[4])}</span></div></div>`; }).join('')}</div>`; }).join('')
+          : '<div class="glas-panel block"><div class="leer">Keine Einträge</div></div>'}</div>
+        ${teil ? '' : `<div class="vl-seite"><div class="glas-panel liste"><div class="gruppe">Baustellen</div>${BS.map((b, i) => `<button class="zeile" data-act="bs-oeffnen" data-i="${i}"><span><i class="farbpunkt" style="background:var(--s${i + 1})"></i>${esc(b.name)}</span><span class="leise">${de(b.kwh, 0)} kWh · ${b.aktiv ? 'aktiv' : 'fertig'} ›</span></button>`).join('')}</div></div>`}
+      </div>`;
+  }
+  /* 3 · Vergleich: sortierbare Tabelle aller Baustellen, 12-Monats-Diagramm */
+  v_verlauf_3(teil = false) {
+    const BS = this.d.baustellen, sp = this.s.vlSort || 'tag', ab = this.s.vlAb !== false;
+    const spalten = [['name', 'Baustelle'], ['tag', 'kWh/Heiztag'], ['monat', '€/Monat'], ['kwh', 'kWh'], ['eur', '€'], ['heiztage', 'Heiztage'], ['container', 'Cont.']];
+    const wert = (b, k) => ({ name: b.name, tag: b.kwh / b.heiztage, monat: b.eur / b.monate, kwh: b.kwh, eur: b.eur, heiztage: b.heiztage, container: b.container })[k];
+    const zeilen = BS.map((b, i) => ({ b, i })).sort((x, y) => { const a = wert(x.b, sp), c = wert(y.b, sp); return (typeof a === 'string' ? a.localeCompare(c) : a - c) * (ab ? -1 : 1); });
+    const besterTag = Math.min(...BS.map(b => b.kwh / b.heiztage));
+    const MON = ['Okt', 'Nov', 'Dez', 'Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep'], reihen = BS.map((b, i) => ({ name: b.name, v: this.vlMonate(b), farbe: `var(--s${i + 1})` })).filter(x => x.v.some(Boolean));
+    return `${teil ? '' : this.kopf('Verlauf', 'VERGLEICH DER BAUSTELLEN', this.vlProtokollKnopf())}
+      <div class="glas-panel block vl-tabelle"><div class="block-kopf"><b>Alle Baustellen</b><span class="leise">Spalte antippen sortiert · kWh je Heiztag ist am besten vergleichbar</span></div>
+        <div class="vl-tab-kopf">${spalten.map(([k, t]) => `<button data-act="vl-sort" data-v="${k}" class="${sp === k ? 'on' : ''}">${t}${sp === k ? (ab ? ' ▼' : ' ▲') : ''}</button>`).join('')}</div>
+        ${zeilen.map(({ b, i }) => `<button class="vl-tab-zeile" data-act="bs-oeffnen" data-i="${i}"><span class="vl-tab-name"><i class="farbpunkt" style="background:var(--s${i + 1})"></i>${esc(b.name)}<small>${b.aktiv ? 'aktiv' : b.zeit}</small></span>
+          <b class="${b.kwh / b.heiztage === besterTag ? 'gruen-t' : ''}">${de(b.kwh / b.heiztage, 1)}</b><span>${de(b.eur / b.monate, 0)}</span><span>${de(b.kwh, 0)}</span><span>${de(b.eur, 0)}</span><span>${b.heiztage}</span><span>${b.container}</span></button>`).join('')}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Letzte 12 Monate</b><span class="leise">kWh je Monat, gestapelt nach Baustelle</span></div><div class="chart-wrap">${flaeche('vl-zwoelf', reihen, MON, 'kWh', 2)}</div></div>`;
+  }
+  /* 5 · gewählt (Herbert 01.10.2026): Archiv als Einstieg, Vergleich als Umschalter, Chronik als eigener Reiter „Protokoll“ */
+  v_verlauf_5() {
+    const reiter = this.s.vlReiter || 'bs', art = this.s.vlArt || 'karten';
+    return `${this.kopf('Verlauf', reiter === 'bs' ? 'BAUSTELLEN' : esc(this.d.baustellen[0].name).toUpperCase())}
+      <div class="vl-reiter"><div class="seg glas-panel">${[['bs', 'Baustellen'], ['prot', 'Protokoll']].map(([k, t]) => `<button data-act="vl-reiter" data-v="${k}" class="${reiter === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+        ${reiter === 'bs' ? `<div class="seg glas-panel klein">${[['karten', '▦ Karten'], ['tabelle', '☰ Vergleich']].map(([k, t]) => `<button data-act="vl-art" data-v="${k}" class="${art === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}</div>
+      ${reiter === 'prot' ? this.v_verlauf_2(true) : art === 'tabelle' ? this.v_verlauf_3(true) : this.v_verlauf_1(true)}`;
   }
   v_ueber() {
     const neu = ['Staffelung der Heizungen je Stromanschluss', 'Arbeitszeiten mit Startdatum, Vor- und Nachheizen', 'Firmen und Abrechnung, Auswertung über alle laufenden Baustellen',
@@ -1587,6 +1637,7 @@ class App {
         <div class="leise">Neuer Shelly: die Werte des alten bleiben im Verlauf. Anderer Container: Verbrauch zählt ab jetzt dort.</div>
         ${knopf('Speichern', 'gf-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
+    if (s.art === 'vl-protokoll') return `${griff}${this.protokoll()}${knopf('Schließen', 'zu', 'leise-k')}`;   // WU-0006
     if (s.art === 'aw-detail') {   // WU-0005: Detail einer Kachel/Karte
       const D = this.awDaten(); return `${griff}<div class="aw-detail">${this.awBlock(s.k, D)}</div>${knopf('Schließen', 'zu', 'leise-k')}`;
     }
@@ -1756,6 +1807,9 @@ class App {
       case 'urlaub-weg': { const u = d.urlaube.splice(+el.dataset.i, 1)[0]; neu(); return this.toast(`${u.name} gelöscht`); }
       case 'urlaub-speichern': { const f = this.s.sheet.form; if (!f.von || !f.bis || f.bis < f.von) return this.toast('Bitte Von und Bis prüfen');
         d.urlaube.push({ name: f.name.trim() || 'Urlaub', von: f.von, bis: f.bis }); d.urlaube.sort((a, b) => a.von.localeCompare(b.von)); this.s.sheet = this.zurueck; neu(); return this.toast('Eingetragen – in der Zeit nur Frostschutz'); }
+      case 'vl-reiter': this.s.vlReiter = el.dataset.v; return neu();
+      case 'vl-art': this.s.vlArt = el.dataset.v; return neu();
+      case 'vl-sort': { const v = el.dataset.v; this.s.vlAb = this.s.vlSort === v ? !(this.s.vlAb !== false) : true; this.s.vlSort = v; return neu(); }
       case 'vgl': this.s.vglArt = el.dataset.v; return neu();
       case 'bs-oeffnen': { const i = +el.dataset.i; if (d.baustellen[i].aktiv) return this.gehe('uebersicht'); this.s.bs = i; return this.gehe('bsdetail'); }
       case 'csv': return this.csv(el.dataset.art);
@@ -1853,6 +1907,7 @@ class App {
     if (el.dataset.k === 'preis') this.d.e.preis = +el.value || 0;
     if (el.dataset.azn) this.s.sheet.form[el.dataset.azn] = el.value;
     if (el.dataset.gf) this.s.sheet.form[el.dataset.gf] = el.value;
+    if (el.dataset.vls !== undefined) { this.s.vlSuche = el.value; this.render(); const x = this.root.querySelector('[data-vls]'); if (x && x.focus) { x.focus(); x.setSelectionRange?.(el.value.length, el.value.length); } }
     if (el.dataset.ur) this.s.sheet.form[el.dataset.ur] = el.value;
     if (el.dataset.tm) this.s.sheet.form[el.dataset.tm] = el.value;
     if (el.dataset.au) { this.s.sheet.form[el.dataset.au] = el.value; if (el.dataset.au === 'datum') this.render(); }

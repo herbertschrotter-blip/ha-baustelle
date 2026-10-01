@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.8.5",
+    "datum": "2026-10-01",
+    "punkte": [
+      "Verlauf neu (WU-0006, Mockup glas.html abgenommen): Reiter **Baustellen** – Summe über alle und je Baustelle eine Karte mit Mini-Verlauf der letzten 12 Monate, kWh, Kosten, kWh je Heiztag und gespart; Umschalter **Vergleich** als sortierbare Tabelle mit 12-Monats-Diagramm. Reiter **Protokoll** – Chronik nach Tagen mit Tagessumme (kWh, €), Filter und Suche.",
+      "Integration: Verlauf liefert zusätzlich kWh je Tag (`je_tag`)."
+    ]
+  },
+  {
     "version": "0.8.4",
     "datum": "2026-10-01",
     "punkte": [

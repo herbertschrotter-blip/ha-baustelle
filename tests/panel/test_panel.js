@@ -431,7 +431,8 @@ async function allgemein() {
   const m1 = await gesendet('baustelle/meldung', 'Meldung erledigt', { act: 'm-status', id: 'm1' }); erwarte('Meldung mit meldung_id, ohne id', m1 && m1.meldung_id === 'm1' && !('id' in m1));
   await gesendet('baustelle/meldung', 'Meldung löschen', { act: 'm-weg', id: 'm2' });
   await gesendet('auth/sign_path', 'Diagnose', { act: 'diagnose' });
-  await klick({ act: 'tab', v: 'verlauf' }); panel.cache = {}; await gesendet('baustelle/protokoll', 'Protokoll', { act: 'pfilter', v: 'warnung' });
+  await klick({ act: 'tab', v: 'verlauf' }); await klick({ act: 'vl-reiter', v: 'prot' }); panel.cache = {}; await gesendet('baustelle/protokoll', 'Protokoll', { act: 'pfilter', v: 'warnung' });
+  await klick({ act: 'vl-reiter', v: 'bs' });
   await klick({ act: 'tab', v: 'auswertung' }, 30);
   const csvF = panel.csv('firma'), csvV = panel.csv();
   erwarte('CSV Abrechnung', csvF && csvF.length > 1 && !csvF.join().includes('NaN') && !csvF.join().includes('undefined'));
@@ -714,7 +715,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'm-md' }, 20); await klick({ act: 'm-json' });
   neu(); await klick({ act: 'diagnose' }, 20); erwarte('Diagnose über auth/sign_path', (a => a && a.path === '/api/diagnostics/config_entry/dobl')(letzte('auth/sign_path').at(-1)) && downloads.some(x => /baustelle-dobl/.test(x)));
   // Protokoll über baustelle/protokoll
-  await klick({ act: 'tab', v: 'verlauf' }); neu(); panel.cache = {}; await klick({ act: 'pfilter', v: 'warnung' }, 30);
+  await klick({ act: 'tab', v: 'verlauf' }); await klick({ act: 'vl-reiter', v: 'prot' }); neu(); panel.cache = {}; await klick({ act: 'pfilter', v: 'warnung' }, 30);
   erwarte('Protokoll gefiltert über baustelle/protokoll', (a => a && a.entry_id === 'dobl' && a.filter === 'alle')(letzte('baustelle/protokoll').at(-1)) && /nicht erreichbar/.test(ui.innerHTML) && !/Vorheizen – alle Container ein/.test(ui.innerHTML));
   // CSV
   await klick({ act: 'tab', v: 'auswertung' }, 30);
@@ -940,9 +941,19 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const A = fall('abrechnung', 'dobl diese Monat');
     erwarte('CSV Abrechnung = CSV der Integration', JSON.stringify(panel.csv('firma')) === JSON.stringify(A.csv_firma));
     erwarte('CSV Verbrauch = CSV der Integration', JSON.stringify(panel.csv()) === JSON.stringify(A.csv_verbrauch));
-    await klick({ act: 'tab', v: 'verlauf' }, 40); await klick({ act: 'vgl', v: 'tag' }, 20); const vl = ui.innerHTML, K = fall('kennzahlen', 'dobl');
+    await klick({ act: 'tab', v: 'verlauf' }, 40); await klick({ act: 'vl-reiter', v: 'bs' }); await klick({ act: 'vl-art', v: 'karten' }, 20); const vl = ui.innerHTML, K = fall('kennzahlen', 'dobl');
     erwarte('Verlauf über baustelle/auswertung (teil verlauf) je Baustelle', ['dobl', 'kalsdorf', 'lieboch', 'wundschuh'].every(e => alleAufrufe.some(a => a.type === 'baustelle/auswertung' && a.entry_id === e && a.teil === 'verlauf')));
-    erwarte('Verlauf: Kennzahlen und Vergleich der Integration', vl.includes(`<b>${deT(K.kwh, 0)}</b> kWh`) && vl.includes(`<b>${deT(K.eur, 2)}</b> €`) && vl.includes(`${deT(K.vergleich.tag, 1)} kWh</span>`));
+    erwarte('Verlauf: Kennzahlen und Vergleich der Integration', vl.includes(`<b>${deT(K.kwh, 0)}</b><small>kWh</small>`) && vl.includes(`<b>${deT(K.eur, 0)} €</b>`) && vl.includes(`<b>${deT(K.vergleich.tag, 1)}</b><small>kWh/Heiztag`));
+    /* WU-0006: Vergleich als sortierbare Tabelle, Chronik mit Tagessumme und Suche */
+    await klick({ act: 'vl-art', v: 'tabelle' }, 20); pruefe('Verlauf Vergleich');
+    erwarte('WU-0006: Vergleich mit allen Baustellen und 12 Monaten', (ui.innerHTML.match(/class="vl-tab-zeile"/g) || []).length === 4 && ui.innerHTML.includes('data-chart="zwoelf"'));
+    for (const k of ['name', 'kwh', 'eur', 'heiztage', 'container', 'monat', 'tag']) { await klick({ act: 'vl-sort', v: k }); pruefe(`Verlauf sortiert ${k}`); }
+    await klick({ act: 'vl-art', v: 'karten' });
+    panel.cache[`v:dobl:${panel.d.z.HEUTE}`] = { daten: { ...(panel.verlaufDaten(panel.d) || {}), je_tag: { [panel.d.z.HEUTE]: 12.5 } }, zeit: Date.now(), laeuft: false };
+    await klick({ act: 'vl-reiter', v: 'prot' }, 20); pruefe('Verlauf Chronik');
+    erwarte('WU-0006: Chronik mit Tagessumme', /12,5 kWh · /.test(ui.innerHTML) && ui.innerHTML.includes('vl-tag-kopf'));
+    panel.eingabe({ target: { dataset: { vls: '' }, value: 'zzzz-nichts' } }); erwarte('WU-0006: Suche', /Nichts gefunden/.test(ui.innerHTML));
+    panel.eingabe({ target: { dataset: { vls: '' }, value: '' } }); await klick({ act: 'vl-reiter', v: 'bs' });
     await klick({ act: 'bs-oeffnen', id: 'lieboch' }, 40); const bd = ui.innerHTML, L = fall('kennzahlen', 'lieboch'), M = fall('monate', 'lieboch');
     erwarte('Detailseite: Kennzahlen und Verbrauch je Monat der Integration', bd.includes(`<b>${deT(L.kwh, 0)}</b><span>kWh`) && M.reihen.every(r => bd.includes(`<span class="n">${esc(r.name)}</span>`)));
     erwarte('Detailseite: CSV der Integration', JSON.stringify(panel.csv()) === JSON.stringify(M.csv));

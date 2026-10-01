@@ -70,5 +70,11 @@ if (require.main === module) {
   klick({ act: 'aw-bearb' }); A.awAuswahl().forEach((x, i) => klick({ act: 'aw-stufe', i: String(i), v: awStufenErste(x.k) })); klick({ act: 'aw-bearb' }); pr('alle bausteine kleinste stufe');
   klick({ act: 'aw-bearb' }); klick({ act: 'aw-vorlage', v: 'misch' }); klick({ act: 'aw-bearb' });
   klick({ act: 'aw-scope', v: 'diese' });
+  /* WU-0006: Verlauf – Reiter Baustellen (Karten/Vergleich) und Protokoll */
+  klick({ act: 'tab', v: 'verlauf' }); pr('verlauf');
+  for (const k of ['name', 'tag', 'monat', 'kwh', 'eur', 'heiztage', 'container']) { klick({ act: 'vl-art', v: 'tabelle' }); klick({ act: 'vl-sort', v: k }); pr(`vergleich ${k}`); }
+  klick({ act: 'vl-reiter', v: 'prot' }); for (const fl of ['warnung', 'schalten', 'wetter', 'nachricht', 'alle']) { klick({ act: 'pfilter', v: fl }); pr(`chronik ${fl}`); } klick({ act: 'vl-reiter', v: 'bs' });
+  for (const [r2, a2] of [['bs', 'karten'], ['bs', 'tabelle'], ['prot', 'karten']]) { klick({ act: 'vl-reiter', v: r2 }); klick({ act: 'vl-art', v: a2 }); pr(`verlauf 5 ${r2} ${a2}`); }
+  if (!ui().includes('vl-tag')) f.push('Verlauf 5: Protokoll-Reiter'); klick({ act: 'vl-reiter', v: 'bs' }); klick({ act: 'vl-art', v: 'karten' });
   console.log(f.length ? f.join('\n') : 'Grundprüfung sauber');
 }

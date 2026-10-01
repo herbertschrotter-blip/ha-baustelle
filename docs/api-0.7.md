@@ -259,7 +259,7 @@ Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle
 `baustelle/auswertung`, `teil: verlauf` (Reiter Verlauf, Detailseite; `zeitraum`/`scope` ohne Bedeutung):
 
 ```json
-{"kwh": 412, "eur": 115.36, "gespart": 515.2, "container": 7, "heiztage": 16, "monate": 1,
+{"kwh": 412, "eur": 115.36, "gespart": 515.2, "container": 7, "heiztage": 16, "monate": 1, "je_tag": {"2026-09-30": 25.4},
  "vergleich": {"tag": 25.75, "monat": 115.36, "ges": 412},
  "je_monat": {"2026-09": 340.9},
  "monate_je_container": {"labels": ["Sep"], "reihen": [{"bereich": "<bid>", "name": "Polier", "v": [330.9],
