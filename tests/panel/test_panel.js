@@ -774,7 +774,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       panel.eingabe({ target: { dataset: { lh: '' }, value: String(Math.max(0, jetztH - 1)) } }); global.setTimeout = st0;
       erwarte('AN-0010: Ziehen setzt die Stunde nach kurzer Pause', typeof lauf === 'function' && (lauf(), panel.s.sheet.h === Math.max(0, jetztH - 1))); }
     neu(); panel.aenderung({ target: { dataset: { lh: '' }, value: String(Math.max(0, jetztH - 2)) } }); await ruhe(30);
-    erwarte('AN-0005: andere Stunde wählbar (holt den Verlauf dieser Stunde)', panel.s.sheet.h === Math.max(0, jetztH - 2) && aufrufe.some(m => m.type === 'history/history_during_period'));
+    erwarte('AN-0005: andere Stunde wählbar – ohne neue Abfrage (der Tag ist schon da, flackerfrei)', panel.s.sheet.h === Math.max(0, jetztH - 2) && !aufrufe.some(m => m.type === 'history/history_during_period')
+      && ui.innerHTML.includes(`${String(Math.max(0, jetztH - 2)).padStart(2, '0')}:00–`));
     panel.aenderung({ target: { dataset: { lh: '' }, value: '23' } }); await ruhe(30);
     erwarte('WU-0011: künftige Stunden heute nicht wählbar', jetztH === 23 || ui.innerHTML.includes(`>${String(jetztH).padStart(2, '0')}:00–`));
     { // WU-0012: Regler loslassen tauscht nur Kopf und Datenteil (die Seite wird nicht neu gezeichnet)
@@ -788,8 +789,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       erwarte('WU-0012: nur der Datenteil wird getauscht', ui.innerHTML === 'SEITE' && teile['.lh-daten'].innerHTML !== 'ALT' && teile['.lh-wert'].textContent === '00:00–01:00');
       global.document.createElement = erz; teile['.lh-daten'] = alt.d; teile['.lh-wert'] = alt.w; panel.render(); await ruhe(); }
     neu(); await klick({ act: 'lh-art', v: 'tag' }, 30); pruefe('Leistung ganzer Tag');
-    const tagAuf = aufrufe.find(m => m.type === 'history/history_during_period');
-    erwarte('WU-0011: ganzer Tag 0–24 Uhr', ui.innerHTML.includes('ganzer Tag') && !ui.innerHTML.includes('data-lh') && tagAuf && panel.lokal(Date.parse(tagAuf.start_time), panel.z.zone).slice(11, 16) === '00:00');
+    const tagAuf = alleAufrufe.filter(m => m.type === 'history/history_during_period' && (m.entity_ids || []).some(e => e.includes('leistung') || e.includes('power'))).at(-1);
+    erwarte('WU-0011: ganzer Tag 0–24 Uhr (eine Abfrage für den Tag)', ui.innerHTML.includes('ganzer Tag') && !ui.innerHTML.includes('data-lh') && tagAuf && panel.lokal(Date.parse(tagAuf.start_time), panel.z.zone).slice(11, 16) === '00:00');
     await klick({ act: 'lh-art', v: 'stunde' }, 30);
     await klick({ act: 'zr-schritt', ziel: 'sheet', max: '30', d: '1' }, 30); pruefe('Leistung gestern'); erwarte('AN-0005: gestern', ui.innerHTML.includes('<b>Gestern</b>'));
     await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'verbrauch', id: b.id }, 30); pruefe('Verbrauch mit ohne Automatik');

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.28] – 2026-10-01
+
+- Leistung im Container: kein Flackern mehr beim Ziehen des Stundenreglers – der ganze Tag wird einmal geladen und
+  jede Stunde nur noch daraus ausgeschnitten; Abblenden nur noch beim ersten Laden eines Tages.
+
 ## [0.8.27] – 2026-10-01
 
 - Leistung im Container (AN-0010): beim Ziehen des Stundenreglers laufen Diagramm und Zahlen gleich mit (kurz

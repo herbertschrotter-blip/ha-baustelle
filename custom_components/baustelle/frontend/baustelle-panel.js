@@ -1237,7 +1237,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.27';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.28';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1690,8 +1690,10 @@ class BaustellePanel extends HTMLElement {
     const von = this.zoneMs(tag, ganzerTag ? '00:00' : `${String(h).padStart(2, '0')}:00`, d.z.zone), bis = ganzerTag ? this.zoneMs(plusTage(tag, 1), '00:00', d.z.zone) : von + 36e5;
     const laufend = !v && (ganzerTag || h === jetztH);
     const geraete = b.geraete.filter(g => g.leistung), ids = geraete.map(g => g.leistung);
-    const roh = !ids.length ? {} : this._holen(`lh:${d.entry}:${b.id}:${tag}:${ganzerTag ? 'tag' : h}`, () => this._hass.callWS({ type: 'history/history_during_period', start_time: new Date(von).toISOString(),
-      end_time: new Date(Math.min(bis, d.z.jetztMs)).toISOString(), entity_ids: ids, minimal_response: true, no_attributes: true, significant_changes_only: false }), laufend ? 30000 : undefined);
+    // flackerfrei (Herbert 01.10.2026): einmal der ganze Tag, jede Stunde wird daraus nur ausgeschnitten – beim Ziehen kein Laden
+    const tagVon = this.zoneMs(tag, '00:00', d.z.zone), tagBis = this.zoneMs(plusTage(tag, 1), '00:00', d.z.zone);
+    const roh = !ids.length ? {} : this._holen(`lh:${d.entry}:${b.id}:${tag}:tag`, () => this._hass.callWS({ type: 'history/history_during_period', start_time: new Date(tagVon).toISOString(),
+      end_time: new Date(Math.min(tagBis, d.z.jetztMs)).toISOString(), entity_ids: ids, minimal_response: true, no_attributes: true, significant_changes_only: false }), !v ? 30000 : undefined);
     const ende = laufend ? d.z.jetztMs : bis, farben = ['var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
     const hh = k => String(k).padStart(2, '0');
     // Streifen je Stunde: blau, wo der Container verbraucht hat (HA-Statistik), sonst grau – auch künftige Stunden
@@ -1705,8 +1707,10 @@ class BaustellePanel extends HTMLElement {
     if (!ids.length) inhalt = '<div class="leer">Kein Leistungssensor an den Geräten</div>';
     else if (roh === undefined) inhalt = this._lhLetzt ? `<div class="lh-laedt">${this._lhLetzt}</div>` : LAEDT;   // WU-0012: alter Stand bleibt stehen
     else {
-      const reihen = geraete.map((g, k) => ({ name: g.n, farbe: farben[k % farben.length], punkte: ((roh || {})[g.leistung] || [])
-        .map(x => [zahl(x.lu) ? x.lu * 1000 : Date.parse(x.last_updated || x.last_changed), zahl(x.s ?? x.state) ? Number(x.s ?? x.state) : null]).filter(p => Number.isFinite(p[0])).map(([t, w]) => [Math.max(t, von), w]) }));
+      const ausschnitt = alle => { const vorher = alle.filter(p => p[0] <= von).at(-1), drin = alle.filter(p => p[0] > von && p[0] < bis);
+        return [...(vorher ? [[von, vorher[1]]] : []), ...drin]; };   // Stand zu Beginn der Stunde + alle Messwerte darin
+      const reihen = geraete.map((g, k) => ({ name: g.n, farbe: farben[k % farben.length], punkte: ausschnitt(((roh || {})[g.leistung] || [])
+        .map(x => [zahl(x.lu) ? x.lu * 1000 : Date.parse(x.last_updated || x.last_changed), zahl(x.s ?? x.state) ? Number(x.s ?? x.state) : null]).filter(p => Number.isFinite(p[0])).sort((p, q) => p[0] - q[0])) }));
       const zeiten = [...new Set(reihen.flatMap(r => r.punkte.map(p => p[0])))].sort((a, b2) => a - b2);
       const wert = (r, t) => { let w = null; for (const p of r.punkte) { if (p[0] > t) break; w = p[1]; } return w; };
       const summeR = { name: 'Summe', farbe: 'var(--s1)', summe: true, punkte: zeiten.map(t => [t, reihen.reduce((a, r) => a + (wert(r, t) || 0), 0)]) };
