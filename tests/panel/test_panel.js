@@ -793,6 +793,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       erwarte('AN-0006: Gerät als Zusatz einstellbar', ui.innerHTML.includes('data-act="g-zusatz"'));
       neu(); await klick({ act: 'g-zusatz', id: g2.id }, 10);
       erwarte('AN-0006: speichert geraete.<id>.zusatz', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `geraete.${g2.id}.zusatz` && m.wert === true));
+      if (!g2.leistung) { neu(); await klick({ act: 'g-kw', id: g2.id, d: '0.1' }, 10);
+        erwarte('Szenarien: Nennleistung ohne Messung einstellbar', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `geraete.${g2.id}.nenn_kw`)); }
       await klick({ act: 'zu' }, 5);
       c.stufen = { an: true, haupt: [b0.geraete.filter(g => g.heizer)[0].id], zusatz: [g2.id], zusatz_an: false, grund: null, text: '' };
       panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen(); panel.render(); await ruhe();

@@ -1218,7 +1218,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.16';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.17';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1437,7 +1437,7 @@ class BaustellePanel extends HTMLElement {
       const geraete = (r.geraete || []).filter(g => g.bereich === b.id).map(g => { const x = gAlle[g.id] || {};
         return { id: g.id, n: g.name || g.id, typ: TYP_TEXT(g), rolle: g.rolle, gtyp: g.typ, heizer: HEIZER(g), kw: v(g.nenn_kw, 0), kwJetzt: x.kw, an: !!x.an,
           hand: !!x.hand_seit, hand_seit: x.hand_seit || null, warte: x.warte || null, erreichbar: x.erreichbar !== false, schalter: g.schalter, leistung: g.leistung, energie: g.energie,
-          aktiv: x.aktiv !== false, zusatz: !!x.zusatz, leistungEigen: g.leistung_eigen || null, energieEigen: g.energie_eigen || null }; });
+          aktiv: x.aktiv !== false, zusatz: !!x.zusatz, nennKwEigen: zahl(g.nenn_kw_eigen) ? Number(g.nenn_kw_eigen) : null, leistungEigen: g.leistung_eigen || null, energieEigen: g.energie_eigen || null }; });
       let zst = c.zustand in FARBE ? c.zustand : (pumpe ? 'aus' : 'aus');
       const offline = zst === 'offline' || (geraete.length > 0 && geraete.every(g => !g.erreichbar));
       if (offline) zst = 'offline';
@@ -3338,6 +3338,7 @@ class BaustellePanel extends HTMLElement {
         <label class="feld">Leistungssensor<select data-gf="leistung">${this.optionen(leistung, f.leistung, auto(g.leistung, g.leistungEigen))}</select></label>
         <label class="feld">Energiesensor<select data-gf="energie">${this.optionen(energie, f.energie, auto(g.energie, g.energieEigen))}</select></label>
         <div class="zeile"><div><b>Aktiv</b><div class="leise">aus: die Automatik schaltet das Gerät nicht, es zählt nicht in der Staffelung, keine Warnungen</div></div>${schalter(f.aktiv, 'gf-aktiv')}</div>
+        ${!g.leistung ? `<div class="zeile"><div><b>Leistung ohne Messung</b><div class="leise">zählt so in der Staffelung, wenn das Gerät an ist${g.nennKwEigen === null ? ' · Standard' : ''}</div></div><span class="stepper klein"><button data-act="g-kw" data-id="${g.id}" data-d="-0.1">−</button><b class="${g.nennKwEigen !== null ? 'eigen' : ''}">${de(g.nennKwEigen ?? g.kw, 1)} kW</b><button data-act="g-kw" data-id="${g.id}" data-d="0.1">+</button></span></div>` : ''}
         ${g.heizer && b.geraete.filter(x => x.heizer).length >= 2 ? `<div class="zeile"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">${b.stufenAn ? 'heizt nur dazu, wenn einer nicht reicht' : 'wirkt, wenn im Container „Zusatz nur bei Bedarf“ an ist'}${b.stufen && b.stufen.haupt.includes(g.id) && !g.zusatz ? ' · jetzt der erste' : ''}</div></div>${schalter(g.zusatz, 'g-zusatz', `data-id="${g.id}"`)}</div>` : ''}
         <div class="leise">Neuer Shelly: die Werte des alten bleiben im Verlauf. Anderer Container: der Verbrauch zählt ab jetzt dort.</div>
         ${knopf('Speichern', 'gf-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
@@ -3670,6 +3671,8 @@ class BaustellePanel extends HTMLElement {
       case 'ev-gruppe': S.evGruppe = el.dataset.v; S.evDev = null; return this.render(true);
       case 'ev-dev': S.evDev = el.dataset.v; return neu();
       case 'b-stufen': return b && this.setzen(['bereiche', b.id, 'stufen'], !b.stufenAn);   // AN-0006
+      case 'g-kw': { const g = b && b.geraete.find(x => x.id === el.dataset.id); if (!g) return;   // Szenarien: Nennleistung ohne Messung
+        return this.setzen(['geraete', g.id, 'nenn_kw'], Math.max(0, Math.min(10, Math.round(((g.nennKwEigen ?? g.kw) + +el.dataset.d) * 10) / 10))); }
       case 'g-zusatz': { const g = b && b.geraete.find(x => x.id === el.dataset.id); return g && this.setzen(['geraete', g.id, 'zusatz'], !g.zusatz); }
       case 'warm-eigen': { if (!b) return; const vor = el.dataset.k === 'vor', alt = vor ? b.warmVor ?? d.e.warm_vor : b.warmNach ?? d.e.warm_nach;   // AN-0004
         return this.setzen(['bereiche', b.id, vor ? 'warm_vor' : 'warm_nach'], Math.max(0, Math.min(240, alt + +el.dataset.d))); }

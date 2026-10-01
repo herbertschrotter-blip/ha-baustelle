@@ -274,8 +274,7 @@ async def test_hand_modus_schaltet_nicht_aber_frostschutz(hass: HomeAssistant, f
 
 
 async def test_hand_modus_ohne_fuehler_text(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
-    """FRAGE: Hand ohne Fühler zeigt „an · Thermostat regelt“ statt „heizt · Hand“ (heizung.py: Fühler-Zweig vor
-    Hand-Zweig). Geprüft wird das tatsächliche Verhalten."""
+    """Szenarien, Herbert 01.10.2026: „heizt · Hand“ hat Vorrang vor „an · Thermostat regelt“, auch ohne Fühler."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client, fuehler=False)
     assert (await _modus(b, "hand"))["success"]
     hass.states.async_set("switch.hk1", "on")
@@ -283,7 +282,7 @@ async def test_hand_modus_ohne_fuehler_text(hass: HomeAssistant, freezer, shelly
     await _zu(b, "nachts")
     await _automatik(b)
     assert _an(b)
-    assert (_c(b)["grund"], _c(b)["text"]) == ("hand", "an · Thermostat regelt")
+    assert (_c(b)["grund"], _c(b)["text"]) == ("hand", "heizt · Hand")
 
 
 async def test_aus_ohne_fuehler_frostschutz_nach_aussen(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
@@ -616,9 +615,10 @@ async def test_tuer_im_modus_hand_heizkoerper_aus(hass: HomeAssistant, freezer, 
 
 
 async def test_geraete_hand_im_modus_hand(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
-    """FRAGE: Im Modus Hand wird ein in HA geschalteter Heizkörper zusätzlich Gerät-Hand; nach 8 h kommt
-    „✋ … seit 8 h auf Hand“ aufs Handy, die Automatik übernimmt aber nie (Soll None, heizung.py:587).
-    Geprüft wird das tatsächliche Verhalten."""
+    """Szenarien, Herbert 01.10.2026: Im Modus Hand wird ein in HA geschalteter Heizkörper zusätzlich Gerät-Hand; die
+    Meldung „hand_zu_lange“ entfällt im Modus Hand (Hand ist dort gewollt) – keine Warnung, keine Nachricht nach 8 h;
+    die Automatik übernimmt nicht. (Einzelne Heizkörper auf Hand im Automatik-Modus melden weiter:
+    test_steuerung.py::test_hand_zu_lange_nachricht_und_automatik_uebernehmen.)"""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client)
     await _temp(b, "17.0")
     assert (await _modus(b, "hand"))["success"]
@@ -631,21 +631,22 @@ async def test_geraete_hand_im_modus_hand(hass: HomeAssistant, freezer, shellys,
     await _zu(b, "2026-09-29 18:30:00+02:00")
     await _zu(b, "2026-09-29 19:10:00+02:00")                  # Höchstdauer + Nachfrist vorbei
     assert _an(b) and HK1 in b.st.lz["hand"]
-    assert ("hand_zu_lange", C1, HK1) in _warn(b)
-    assert "✋ Heizkörper 1 Container 1 seit 8 h auf Hand" in [n.data["title"] for n in nachrichten]
+    assert ("hand_zu_lange", C1, HK1) not in _warn(b)
+    assert not [n for n in nachrichten if n.data["title"].startswith("✋")]
 
 
-@pytest.mark.parametrize(("fuehler", "modus", "warnung"), [
-    (False, "plan", False), (True, "plan", True), (True, "thermo", True),
+@pytest.mark.parametrize(("fuehler", "modus", "warnung", "text"), [
+    (False, "plan", False, "an · Thermostat regelt"),
+    (True, "plan", False, "an · Thermostat regelt"),
+    (True, "thermo", True, "an · zieht keinen Strom"),
 ], ids=["plan-ohne", "plan-fuehler", "thermo-fuehler"])
 async def test_heizkoerper_an_zieht_keinen_strom(
-    hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client, fuehler, modus, warnung,
+    hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client, fuehler, modus, warnung, text,
 ) -> None:
-    """FRAGE: Heizkörper eingeschaltet, 0 W (sein eigener Thermostat hat abgeschaltet), innen 19 °C < Soll.
-    Kachel immer „aus“/„an · zieht keinen Strom“ (heizung.py:698, 0.7.3) – auch ohne Fühler, wo laut
-    warnungen.py 0 W normal ist und das Mockup „an · Thermostat regelt“ zeigt. Warnung `keine_leistung` kommt mit
-    Fühler auch im Modus Zeitplan (warnungen.py:299 prüft nur den Fühler, nicht den Modus), obwohl dort der
-    Heizkörperthermostat regelt. Geprüft wird das tatsächliche Verhalten."""
+    """Szenarien, Herbert 01.10.2026: Heizkörper eingeschaltet, 0 W (sein eigener Thermostat hat abgeschaltet), innen
+    19 °C < Soll. „an · zieht keinen Strom“ und die Warnung `keine_leistung` nur, wo die Integration auf das Soll
+    regelt (Thermostat/Bei Bedarf mit Fühler); im Zeitplan (mit oder ohne Fühler) regelt der Heizkörperthermostat:
+    „an · Thermostat regelt“, keine Warnung. Zustand der Kachel jeweils „aus“."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client, fuehler=fuehler)
     await _temp(b, "19.0")
     assert (await _modus(b, modus))["success"]
@@ -653,6 +654,23 @@ async def test_heizkoerper_an_zieht_keinen_strom(
     await _automatik(b)
     hass.states.async_set("sensor.hk1_power", "0")
     await _zu(b, "2026-09-29 10:05:00+02:00")
-    assert _an(b) and (_c(b)["zustand"], _c(b)["text"]) == ("aus", "an · zieht keinen Strom")
+    assert _an(b) and (_c(b)["zustand"], _c(b)["text"]) == ("aus", text)
     assert (("keine_leistung", C1, HK1) in _warn(b)) is warnung
+
+
+@pytest.mark.parametrize(("modus", "warnung"), [("plan", False), ("thermo", True)])
+async def test_zu_kalt_nur_wenn_die_integration_regelt(
+    hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client, modus, warnung,
+) -> None:
+    """Szenarien, Herbert 01.10.2026: „zu kalt“ (über 1 °C unter dem Soll seit `kalt_min`) nur im Modus
+    Thermostat/Bei Bedarf; im Zeitplan regelt der Heizkörperthermostat – keine Warnung."""
+    b = await _aufbau(hass, freezer, shellys, hass_ws_client)
+    await _temp(b, "17.0")
+    assert (await _modus(b, modus))["success"]
+    await _zu(b, "arbeitszeit")
+    await _automatik(b)
+    await _zu(b, "2026-09-29 10:30:00+02:00")
+    await _zu(b, "2026-09-29 11:05:00+02:00")                  # länger als `kalt_min` (60 min) unter dem Soll
+    assert _an(b)
+    assert (("zu_kalt", C1, None) in _warn(b)) is warnung
 

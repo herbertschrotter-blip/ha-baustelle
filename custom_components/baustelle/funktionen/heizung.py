@@ -112,9 +112,13 @@ class Heizung(Funktion):
         self._lern_minute: dict[str, int] = {}
         self._plan_cache: dict[tuple[date, bool, WarmAb | None], Plan | None] = {}
         self._zu_warm_vorher: bool | None = None
-        self.tuer_trotzdem: set[str] = set()  # Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist
+        # Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist – im Store, übersteht Neustarts (Szenarien)
+        self.tuer_trotzdem: set[str] = set()   # wird bei der ersten Auswertung aus dem Store geladen
+        self._trotzdem_geladen = False
         self._frost: dict[str, bool] = {}
         self._tuer_pause: dict[str, bool] = {}   # war zuletzt wegen offener Tür pausiert
+        self._grund_beim_heizen: dict[str, str | None] = {}   # Grund der letzten Minute, in der geheizt wurde (K innen)
+        self._grund_letzte_minute: dict[str, str | None] = {}
         self._unter_soll_seit: dict[str, datetime] = {}
         self._hand_phase: dict[str, bool] = {}
         self._phase: dict[str, tuple[bool, datetime, float]] = {}  # Bereich → (heizt, seit, Temperatur beim Beginn)
@@ -319,6 +323,9 @@ class Heizung(Funktion):
         heute, minute = jetzt.date(), jetzt.hour * 60 + jetzt.minute
         h = st.e["heizung"]
         jetzt_bis = self.jetzt_bis(jetzt)
+        if not self._trotzdem_geladen:   # der Store ist erst nach dem Anlegen der Funktion geladen
+            self.tuer_trotzdem |= set(st.lz.get("tuer_trotzdem") or [])
+            self._trotzdem_geladen = True
         frei_heute = frei_gilt(self.ist_frei(heute), ausnahme_am(st.ausnahmen(), heute))   # Ausnahme „Arbeit“ geht vor
         zu_warm = self.zu_warm(wetter)
         ergebnis: dict[str, tuple[Soll, LageContainer]] = {}
@@ -345,7 +352,9 @@ class Heizung(Funktion):
                 if bid not in self.tuer_trotzdem:
                     tuer_min = minuten_seit(dt_util.as_local(s.last_changed), jetzt)
             else:
-                self.tuer_trotzdem.discard(bid)
+                if bid in self.tuer_trotzdem:
+                    self.tuer_trotzdem.discard(bid)
+                    self.trotzdem_merken()
             fenster = self._termin_fenster(bid)
             aktive = [f for f in fenster if im_fenster(bedarf_fenster([(f[0], f[1])], int(h["vorheizen_min"])), jetzt)]
             bedarf_aktiv = self.bis("bedarf_bis", bid, jetzt) is not None or bool(aktive) or jetzt_bis is not None
@@ -376,6 +385,11 @@ class Heizung(Funktion):
             self._stufen_rechnen(bid, soll, temp, soll_t, wetter, jetzt, plan, minute, warm_ab)
             ergebnis[bid] = (soll, lage)
         return ergebnis
+
+    def trotzdem_merken(self) -> None:
+        """„Trotzdem heizen“ im Store festhalten (übersteht einen Neustart)."""
+        self.st.lz["tuer_trotzdem"] = sorted(self.tuer_trotzdem)
+        self.st.einstellungen.speichern()
 
     def temperatur_gehalten(self, bid: str, fuehler: str | None, jetzt: datetime) -> float | None:
         """Raumtemperatur; meldet der Fühler kurz nichts (Funk, HA-Start), gilt bis 15 min der letzte Wert (logik/regelung)."""
@@ -497,10 +511,17 @@ class Heizung(Funktion):
             heizer = [g for g in self.st.geraete_in(info.id) if g.rolle == ROLLE_HEIZKOERPER]
             regelt = (info.id in self.tpi_jetzt and self._lern_grund.get(info.id) in LERN_GRUENDE
                       and not any(g.id in self.st.lz["hand"] for g in heizer))
+            grund_jetzt = self._lern_grund.get(info.id)
+            if any(self._zieht_strom(g) for g in heizer):   # Grund, der das Heizen bis zuletzt hielt (Minute davor:
+                # endet Schnell aufheizen, schaltet dieselbe Auswertung aus – dann steht schon der neue Grund da)
+                self._grund_beim_heizen[info.id] = self._grund_letzte_minute.get(info.id, grund_jetzt)
+            self._grund_letzte_minute[info.id] = grund_jetzt
             alt = self.lern_staende.get(info.id) or lernen.neuer_stand()
             neu = lernen.takt(
                 alt, jetzt=jetzt, heizt=any(self._zieht_strom(g) for g in heizer), anzahl=sum(1 for g in heizer if self._zieht_strom(g)),
                 tuer_offen=self._tuer_offen(e), innen=self.st.temperatur(info.fuehler),
+                hand=any(g.id in self.st.lz["hand"] for g in heizer),
+                kint_ok=self._grund_beim_heizen.get(info.id) != SollGrund.BOOST,   # Grund der letzten Heizminute
                 soll=self.soll_temperatur(info.id), aussen=wetter.aussen, art=self._lern_art(info.id), regelt=regelt,
             )
             vorher, jetzt_offen = (alt.get("offen") or {}).get("art"), (neu.get("offen") or {}).get("art")
@@ -704,6 +725,7 @@ class Heizung(Funktion):
                 warn_logik.ContainerZustand(
                     id=info.id, temperatur=temp, soll=soll_t, in_arbeitszeit=in_az, fuehler=bool(info.fuehler),
                     unter_soll_seit=self._unter_soll_seit.get(info.id), tuer_offen_seit=tuer_seit, tuer_pausiert=pausiert,
+                    modus=self.modus(info.id),
                 )
             )
         return liste
@@ -728,7 +750,8 @@ class Heizung(Funktion):
         if offline:
             zustand, text = "offline", "nicht erreichbar"
         elif heizer_an and not zieht and grund not in (SollGrund.TUER_OFFEN, SollGrund.BEREIT):
-            zustand, text = "aus", "an · zieht keinen Strom"
+            regelt = self.modus(bid) in ("thermo", "bedarf") and st.daten.temperatur[bid] is not None
+            zustand, text = "aus", ("an · zieht keinen Strom" if regelt else "an · Thermostat regelt")   # Szenarien
         elif grund == SollGrund.FROST and zieht:
             zustand, text = "frost", "Frostschutz"
         elif grund == SollGrund.TUER_OFFEN:
@@ -746,10 +769,10 @@ class Heizung(Funktion):
             if grund == SollGrund.BEDARF:
                 bis = self.bis("bedarf_bis", bid, jetzt) or self._termin_ende(bid, jetzt)
                 text = f"heizt bis {bis.strftime('%H:%M')}" if bis else "heizt · bei Bedarf"
+            elif grund == SollGrund.HAND or not e["auto"] or any(g.id in st.lz["hand"] for g in geraete if g.rolle in HEIZROLLEN):
+                text = "heizt · Hand"   # auch ein Heizkörper im Handbetrieb (FE-0004), auch ohne Fühler (Szenarien)
             elif st.daten.temperatur[bid] is None:
                 text = "an · Thermostat regelt"
-            elif grund == SollGrund.HAND or not e["auto"] or any(g.id in st.lz["hand"] for g in geraete if g.rolle in HEIZROLLEN):
-                text = "heizt · Hand"   # auch ein Heizkörper im Handbetrieb (FE-0004: vorher „heizt · Arbeitszeit“)
             elif grund == SollGrund.ABSENKEN:
                 text = "heizt · abgesenkt"
             else:

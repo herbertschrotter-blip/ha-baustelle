@@ -218,7 +218,8 @@ def struktur(hass: HomeAssistant, entry: ConfigEntry, version: str = "") -> dict
              # selbst gewählt (sonst automatisch am Shelly erkannt) – für „Gerät bearbeiten“ (WU-0004)
              "leistung_eigen": (s.data.get(CONF_LEISTUNG) if (s := entry.subentries.get(g.id)) else None) or None,
              "energie_eigen": (s.data.get(CONF_ENERGIE) if (s := entry.subentries.get(g.id)) else None) or None,
-             "nenn_kw": st.nenn_kw(g)}
+             "nenn_kw": st.nenn_kw(g),
+             "nenn_kw_eigen": (st.e.get("geraete") or {}).get(g.id, {}).get("nenn_kw")}   # im Gerät eingestellt (Szenarien)
             for g in st.geraete.values()
         ],
         einstellungen={k: v for k, v in st.e.items() if k not in NICHT_IN_EINSTELLUNGEN},

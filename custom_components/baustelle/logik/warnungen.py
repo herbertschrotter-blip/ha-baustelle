@@ -140,6 +140,13 @@ class ContainerZustand:
     unter_soll_seit: datetime | None = None
     tuer_offen_seit: datetime | None = None
     tuer_pausiert: bool = True      # Tür pausiert die Heizung (sonst nur ein Sicherheitshinweis, Szenarien)
+    modus: str = ""                 # thermo | bedarf | plan | hand | aus ("" = unbekannt: wie früher prüfen)
+
+    @property
+    def regelt_soll(self) -> bool:
+        """Regelt der Container auf das Soll (Thermostat, Bei Bedarf)? Nur dann sind „zu kalt“/„zieht keinen Strom“
+        Fehler – im Zeitplan regelt der Heizkörperthermostat (Szenarien, Herbert 01.10.2026)."""
+        return self.modus in ("", "thermo", "bedarf")
 
 
 @dataclass(frozen=True)
@@ -298,6 +305,7 @@ def _pruefe_geraet(
         and einst.aktiv(Art.KEINE_LEISTUNG)
         and c is not None
         and c.fuehler
+        and c.regelt_soll
         and c.temperatur is not None
         and c.soll is not None
         and c.temperatur < c.soll
@@ -309,6 +317,7 @@ def _pruefe_geraet(
     if (
         g.erreichbar
         and g.hand_seit is not None
+        and not (c is not None and c.modus == "hand")   # im Modus Hand ist Hand gewollt: keine Erinnerung
         and _minuten(g.hand_seit, jetzt) > einst.hand_h * 60
         and einst.aktiv(Art.HAND_ZU_LANGE)
     ):
@@ -338,6 +347,7 @@ def _pruefe_container(c: ContainerZustand, einst: WarnEinstellungen, jetzt: date
         t is not None
         and c.soll is not None
         and c.in_arbeitszeit
+        and c.regelt_soll
         and t < c.soll - 1.0
         and c.unter_soll_seit is not None
         and _minuten(c.unter_soll_seit, jetzt) >= einst.kalt_min

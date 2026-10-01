@@ -29,6 +29,7 @@ class Pumpen(Funktion):
     arten = (ART_PUMPENSCHACHT,)
     rollen = (ROLLE_PUMPE,)
     staffel_feld = "pumpe_kw"
+    standard_kw = 0.8   # Pumpe ohne Leistungssensor zählt so in der Staffelung (Szenarien; je Gerät änderbar)
 
     def __init__(self, st: Steuerung) -> None:
         super().__init__(st)

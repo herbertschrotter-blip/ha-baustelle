@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.17] – 2026-10-01
+
+Weitere Entscheidungen aus den Szenarien:
+
+- Lernen: von Hand geschaltete Heizkörper lernen nichts; das Ende von „Schnell aufheizen“ lernt kein K innen.
+- Handbetrieb: im Modus Hand keine Erinnerung „seit 8 h auf Hand“; die Kachel zeigt „heizt · Hand“ auch ohne Fühler.
+- 0 W: „an · zieht keinen Strom“ und die Warnungen „zieht keinen Strom“/„zu kalt“ nur, wenn der Container selbst auf
+  das Soll regelt (Thermostat, Bei Bedarf); im Zeitplan und ohne Fühler „an · Thermostat regelt“.
+- Staffelung: Pumpen ohne Leistungssensor zählen mit 0,8 kW; jedes Gerät ohne Messung kann in „Gerät bearbeiten“
+  eine eigene Leistung bekommen; ein Heizkörper, der beim Heizen offline geht, zählt weiter mit, bis er zurück ist.
+- „Trotzdem heizen“ übersteht einen Neustart; lernende Regelung ohne Fühler wird abgelehnt; die Frühstart-Nachricht
+  nennt den frühesten Beginn aller Container mit Heizkörpern (auch gelernte).
+
 ## [0.8.16] – 2026-10-01
 
 Entscheidungen zu den Fragen aus den Szenarien:

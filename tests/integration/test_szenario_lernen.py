@@ -201,13 +201,16 @@ async def test_bedarf_modus_lernend_nur_bei_bedarf(hass: HomeAssistant, freezer,
 
 
 async def test_lernen_ohne_fuehler(hass: HomeAssistant, baustelle, freezer, shellys, ws) -> None:
-    """Container 2 hat keinen Fühler: `lernen` wird angenommen, wirkt aber nicht (kein Lernstand, Plan heizt durch).
-    FRAGE: soll `setzen bereiche.<id>.lernen` ohne Fühler wie Thermostat mit `invalid_format` abgelehnt werden?"""
+    """Szenarien, Herbert 01.10.2026: Container 2 hat keinen Fühler – `setzen bereiche.<id>.lernen = true` wird wie
+    Thermostat ohne Fühler mit `invalid_format` abgelehnt; der Plan heizt durch, es entsteht kein Lernstand.
+    Ausschalten (`false`) geht weiter."""
     st = baustelle.runtime_data
     st.e["staffel"]["an"] = False
     antwort = await ws(baustelle, "baustelle/setzen", pfad=["bereiche", C2, "lernen"], wert=True)
-    assert antwort["success"] is True                       # tatsächlich: angenommen (FRAGE)
-    assert st.einstellungen.bereich(C2)["lernen"] is True
+    assert antwort["success"] is False and antwort["error"]["code"] == "invalid_format"
+    assert not st.einstellungen.bereich(C2).get("lernen")
+    antwort = await ws(baustelle, "baustelle/setzen", pfad=["bereiche", C2, "lernen"], wert=False)
+    assert antwort["success"] is True
     freezer.move_to(ZEHN_UHR)
     st.einstellung_setzen(("automatik",), True)
     await hass.async_block_till_done()
@@ -386,11 +389,12 @@ async def test_warm_ab_wechsel_mild_kalt_am_morgen(hass: HomeAssistant, freezer,
     assert _an(hass, "switch.hk1")
 
 
-async def test_fruehstart_nachricht_trotz_lernendem_container(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """Alle Heizkörper im lernenden Container 1 (gelernt): die Vorabend-Nachricht „Vorheizen startet schon um 05:45“
-    kommt trotzdem (Plan der Baustelle), obwohl Container 1 ohne Frühstart erst 05:40 beginnt.
-    FRAGE: Nachricht nur, wenn ein nicht lernender Container den Frühstart wirklich nutzt?"""
+async def test_fruehstart_nachricht_nennt_beginn_des_lernenden_containers(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    """Szenarien, Herbert 01.10.2026: die Vorabend-Nachricht nennt den frühesten Beginn aller Container (auto, nicht
+    Bei Bedarf), auch gelernte. Alle Heizkörper im lernenden Container 1 (gelernt, ohne Kälte-Frühstart 06:20),
+    Container 2 (leer) auf Bei Bedarf zählt nicht → „06:20“ statt des Baustellen-Plans 05:45."""
     entry, st = await _einrichten(hass, freezer, shellys, "2026-09-29 17:00:00+02:00", hk2_bereich=C1)
+    st.einstellungen.bereich(C2)["bedarf"] = True
     st.lz["lernen"][C1] = _gelernt(3.0, n2=6.0)
     st.lz["wetter_tage"] = {"2026-09-30": {"frueh": -4.0}}
     hass.states.async_set("sensor.temp_c1", "16.0")
@@ -398,10 +402,28 @@ async def test_fruehstart_nachricht_trotz_lernendem_container(hass: HomeAssistan
     freezer.move_to("2026-09-29 18:00:00+02:00")
     st._takt(dt_util.now())  # noqa: SLF001
     await hass.async_block_till_done()
-    frueh = [x for x in nachrichten if x.data["title"].startswith("❄")]
-    assert len(frueh) == 1 and "05:45" in frueh[0].data["message"]       # tatsächlich (FRAGE)
     plan = st.funktion("heizung").plan_bereich(datetime(2026, 9, 30).date(), C1)
     assert plan.start == plan.vor == 7 * 60 - 40 and "fruehstart" not in plan.gruende   # 2 Heizkörper: 4 °C / 6 °C/h = 40 min
+    frueh = [x for x in nachrichten if x.data["title"].startswith("❄")]
+    assert len(frueh) == 1
+    assert "Vorheizen startet schon um 06:20" in frueh[0].data["message"] and "05:45" not in frueh[0].data["message"]
+    assert "Noch früher (05:50)" in str(frueh[0].data)
+
+
+async def test_fruehstart_nachricht_lernender_container_frueher_als_plan(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    """Szenarien, Herbert 01.10.2026: beginnt ein gelernter Container früher als der Baustellen-Plan (langsam: 2 °C/h,
+    16 → 20 °C = 120 min → 05:00), nennt die Nachricht diesen Beginn; Container 2 (Plan, 05:45) ist später."""
+    entry, st = await _einrichten(hass, freezer, shellys, "2026-09-29 17:00:00+02:00")
+    st.lz["lernen"][C1] = _gelernt(2.0)
+    st.lz["wetter_tage"] = {"2026-09-30": {"frueh": -4.0}}
+    hass.states.async_set("sensor.temp_c1", "16.0")
+    st.einstellung_setzen(("automatik",), True)
+    freezer.move_to("2026-09-29 18:00:00+02:00")
+    st._takt(dt_util.now())  # noqa: SLF001
+    await hass.async_block_till_done()
+    assert st.funktion("heizung").plan_bereich(datetime(2026, 9, 30).date(), C1).start == 7 * 60 - 120
+    frueh = [x for x in nachrichten if x.data["title"].startswith("❄")]
+    assert len(frueh) == 1 and "Vorheizen startet schon um 05:00" in frueh[0].data["message"]
 
 
 # ====================================================================== C. Warm ab + Zusatz nur bei Bedarf (AN-0006)
@@ -545,9 +567,8 @@ async def test_tuerkontakt_pausiert_lernt_keinen_nachlauf(hass: HomeAssistant, f
 
 # ====================================================================== E. Hand, Schnell aufheizen, jetzt heizen, Termin
 async def test_hand_waehrend_lernen(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """Heizkörper von Hand ein (außerhalb der Heizzeit) und von Hand aus: K außen lernt nicht (regelt nicht selbst),
-    aber Nachlauf und K innen werden aus dem Hand-Zyklus gelernt.
-    FRAGE: soll ein Hand-Zyklus K innen verändern? Der Nutzer schaltet aus, nicht die Regelung."""
+    """Szenarien, Herbert 01.10.2026: von Hand wird nichts gelernt – Heizkörper von Hand ein (außerhalb der Heizzeit)
+    und von Hand aus: kein K außen, kein Nachlauf, kein K innen, keine Aufheizrate; laufende Messungen verworfen."""
     entry, st = await _einrichten(hass, freezer, shellys, "2026-09-29 19:00:00+02:00")
     hass.states.async_set("sensor.aussen", "6.0")
     hass.states.async_set("sensor.temp_c1", "19.6")
@@ -568,7 +589,9 @@ async def test_hand_waehrend_lernen(hass: HomeAssistant, freezer, shellys, nachr
         await uhr.minute(temp)
     stand = st.lz["lernen"][C1]
     assert stand["n_kext"] == 0                           # K außen: nicht gelernt (OK)
-    assert stand["zyklen"] == 1 and stand["n_kint"] == 1 and stand["kint"] < 0.6   # tatsächlich (FRAGE)
+    assert stand["zyklen"] == 0 and stand["n_kint"] == 0 and stand["nachlauf"] == {}
+    assert stand["beob"] is None and stand["auf"] is None and stand["zyklus"] is None
+    assert stand["kint"] == 0.6 and stand["aufheizen"] == {}
 
 
 async def test_schnell_aufheizen_waehrend_lernen(hass: HomeAssistant, freezer, shellys, nachrichten, ws) -> None:
@@ -589,6 +612,28 @@ async def test_schnell_aufheizen_waehrend_lernen(hass: HomeAssistant, freezer, s
     assert C1 not in st.lz["boost_bis"]
     await uhr.minute(20.2, n=2)
     assert not _an(hass, "switch.hk1") and st.daten.grund[C1] == "arbeitszeit"
+
+
+async def test_schnell_aufheizen_ende_lernt_kein_kint(hass: HomeAssistant, freezer, shellys, nachrichten, ws) -> None:
+    """Szenarien, Herbert 01.10.2026: das Ausschalten am Ende von „Schnell aufheizen“ lernt den Nachlauf, aber kein
+    K innen (die Regelung hat nicht ausgeschaltet)."""
+    entry, st = await _einrichten(hass, freezer, shellys)
+    hass.states.async_set("sensor.temp_c1", "19.5")
+    freezer.move_to(ZEHN_UHR)
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    assert (await ws(entry, "baustelle/aktion", aktion="boost", bereich=C1, an=True))["success"] is True
+    uhr = Uhr(hass, freezer, st, ZEHN_UHR)
+    await uhr.minute(19.5, n=12)
+    await uhr.minute(20.0)                                # Soll erreicht: Boost beendet, Heizkörper aus
+    assert not _an(hass, "switch.hk1") and C1 not in st.lz["boost_bis"]
+    await uhr.minute(20.2)
+    assert st.lz["lernen"][C1]["beob"]["kint"] is False
+    for temp in (20.4, 20.5, 20.5, 20.4, 20.3, 20.2):     # Nachlauf: Spitze 20,5, danach 0,2 °C darunter
+        await uhr.minute(temp)
+    stand = st.lz["lernen"][C1]
+    assert stand["beob"] is None and stand["zyklen"] == 1 and stand["nachlauf"] != {}
+    assert stand["n_kint"] == 0 and stand["kint"] == 0.6
 
 
 async def test_jetzt_heizen_mit_lernender_regelung(hass: HomeAssistant, freezer, shellys, nachrichten, ws) -> None:

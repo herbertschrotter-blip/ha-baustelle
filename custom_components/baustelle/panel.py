@@ -114,7 +114,10 @@ SETZEN_BEREICH: dict[str, Any] = {
     "warm_nach": vol.Any(None, vol.All(GANZ, vol.Range(0, 240))),
     "stufen": cv.boolean,
 }
-SETZEN_GERAET: dict[str, Any] = {"zusatz": cv.boolean}   # AN-0006
+SETZEN_GERAET: dict[str, Any] = {   # AN-0006, Szenarien
+    "zusatz": cv.boolean,
+    "nenn_kw": vol.Any(None, vol.All(ZAHL, vol.Range(0, 10))),   # Leistung ohne Messung (Staffelung)
+}
 
 ARBEITSZEIT = vol.Schema({
     vol.Required("ab"): DATUM,
@@ -214,6 +217,8 @@ def pruefe_setzen(st: Any, pfad: list[str], wert: Any) -> Any:
         wert = SETZEN_BEREICH[pfad[2]](wert)
         if pfad[2] == "anschluss" and wert not in {a["id"] for a in st.e["anschluesse"]}:
             raise vol.Invalid(f"Unbekannter Anschluss {wert}")
+        if pfad[2] == "lernen" and wert and not st.bereiche[pfad[1]].fuehler:
+            raise vol.Invalid("Die lernende Regelung braucht einen Temperaturfühler")   # Szenarien
         if pfad[2] == "modus" and wert == "thermo" and not st.bereiche[pfad[1]].fuehler:
             raise vol.Invalid("Thermostat braucht einen Temperaturfühler")
         return wert

@@ -13,6 +13,7 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+import voluptuous as vol
 
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers.entity_component import DATA_INSTANCES
@@ -20,6 +21,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.baustelle.const import DOMAIN
 from custom_components.baustelle.daten import struktur
+from custom_components.baustelle.panel import pruefe_setzen
 
 from .conftest import C1, C2, HK1, HK2, P1, SCHACHT, STANDARD_ZUSTAND, eid, sub
 
@@ -396,12 +398,25 @@ async def test_pumpe_mit_anlaufspitze_wirft_heizung_ab(hass: HomeAssistant, free
     assert "switch.p1" not in [e for e, _ in shellys.aufrufe]
 
 
-async def test_pumpe_ohne_leistungssensor_zaehlt_nichts(hass: HomeAssistant, freezer, shellys) -> None:
-    """FRAGE: Pumpen haben `standard_kw` 0 – eine laufende Pumpe ohne Messung belegt am Anschluss nichts."""
+async def test_pumpe_ohne_leistungssensor_zaehlt_standard_kw(hass: HomeAssistant, freezer, shellys) -> None:
+    """Szenarien, Herbert 01.10.2026: eine laufende Pumpe ohne Leistungssensor zählt mit `standard_kw` 0,8 kW –
+    am kleinen Anschluss (2,466 kW) verdrängt sie den Heizkörper (2,0 + 0,8 > 2,466). Je Gerät änderbar über
+    `geraete.<id>.nenn_kw`: mit 0,3 kW passt der Heizkörper wieder dazu."""
     entry, st = await _start(hass, freezer, shellys, pumpe_eigen=False, ohne_leistung=(P1,))
     assert _an(hass, "switch.p1")
-    assert _an(hass, "switch.hk1")                                     # tatsächlich: Heizung, als liefe keine Pumpe
-    assert _anschluss(hass, entry)["pumpe_kw"] == 0
+    assert not _an(hass, "switch.hk1") and _warte(hass, entry, HK1)["grund"] == "anschluss_voll"
+    assert _anschluss(hass, entry)["pumpe_kw"] == pytest.approx(0.8)
+    pumpe = next(g for g in struktur(hass, entry)["geraete"] if g["id"] == P1)
+    assert pumpe["nenn_kw"] == pytest.approx(0.8) and pumpe["nenn_kw_eigen"] is None
+    # je Gerät einstellen (Prüfung wie über baustelle/setzen; ungültig → abgelehnt)
+    with pytest.raises(vol.Invalid):
+        pruefe_setzen(st, ["geraete", P1, "nenn_kw"], 20)
+    st.einstellung_setzen(("geraete", P1, "nenn_kw"), pruefe_setzen(st, ["geraete", P1, "nenn_kw"], 0.3))
+    await _minuten(hass, freezer, st, 2)
+    assert _anschluss(hass, entry)["pumpe_kw"] == pytest.approx(0.3)
+    assert _an(hass, "switch.hk1") and _an(hass, "switch.p1")
+    assert next(g for g in struktur(hass, entry)["geraete"] if g["id"] == P1)["nenn_kw_eigen"] == pytest.approx(0.3)
+    assert "switch.p1" not in [e for e, _ in shellys.aufrufe]          # Pumpe nie geschaltet
 
 
 # ---------------------------------------------------------------------- Zusatz-Heizkörper (AN-0006) mit Staffelung
@@ -519,16 +534,18 @@ async def test_shelly_offline_wird_nicht_geschaltet_und_zaehlt_nicht(hass: HomeA
     assert _warte(hass, entry, HK1) == {"grund": "rundlauf", "dran_in_min": 9}
 
 
-async def test_shelly_offline_waehrend_er_heizt_zaehlt_null(hass: HomeAssistant, freezer, shellys) -> None:
-    """FRAGE: ein nicht erreichbarer Shelly, der vorher heizte (läuft vermutlich weiter), belegt am Anschluss nichts –
-    tatsächlich darf der nächste Heizkörper sofort dazu (mögliche Überlast)."""
+async def test_shelly_offline_waehrend_er_heizt_zaehlt_nennleistung(hass: HomeAssistant, freezer, shellys) -> None:
+    """Szenarien, Herbert 01.10.2026: ein Heizkörper, der offline geht, während er lief, zählt mit seiner
+    Nennleistung weiter, bis er wieder erreichbar ist – am kleinen Anschluss wartet Heizkörper 2 weiter."""
     entry, st = await _start(hass, freezer, shellys)
     assert _an(hass, "switch.hk1")
     await _minuten(hass, freezer, st, 2)
     hass.states.async_set("switch.hk1", "unavailable")
+    vorher = len(shellys.aufrufe)
     await _minuten(hass, freezer, st, 1.1)
-    assert _an(hass, "switch.hk2")
-    assert _anschluss(hass, entry)["heiz_kw"] == pytest.approx(2.0)
+    assert not _an(hass, "switch.hk2") and _warte(hass, entry, HK2) is not None
+    assert _anschluss(hass, entry)["heiz_kw"] == pytest.approx(2.0)   # nur der offline gegangene Heizkörper 1
+    assert "switch.hk1" not in [e for e, _ in shellys.aufrufe[vorher:]]   # offline: nicht geschaltet
 
 
 async def test_heizkoerper_ohne_leistungssensor_zaehlt_nennleistung(hass: HomeAssistant, freezer, shellys) -> None:

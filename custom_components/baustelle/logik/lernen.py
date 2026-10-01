@@ -176,13 +176,15 @@ def _iso(zeit: datetime) -> str:
 
 def takt(
     stand: dict[str, Any], *, jetzt: datetime, heizt: bool, innen: float | None, soll: float, aussen: float | None,
-    art: str, regelt: bool, anzahl: int = 1, tuer_offen: bool = False,
+    art: str, regelt: bool, anzahl: int = 1, tuer_offen: bool = False, hand: bool = False, kint_ok: bool = True,
 ) -> dict[str, Any]:
     """Eine Minute Lernen: Ein-Zeiten mitschreiben, Nachlauf nach dem Ausschalten beobachten, K-Werte anpassen.
 
     `heizt`: ein Heizkörper des Containers zieht gerade Strom. `art`: „oel“ oder „konvektor“ (was eingeschaltet ist
     bzw. zuletzt war). `regelt`: der Container regelt gerade selbst (lernender Thermostat) – nur dann wird K außen
     gelernt. `anzahl`: so viele Heizkörper ziehen gerade Strom (Aufheizen je Anzahl). `tuer_offen`: Türkontakt offen.
+    `hand`: von Hand geschaltet – dann wird nichts gelernt (Szenarien, Herbert 01.10.2026). `kint_ok`: False, wenn
+    nicht die Regelung ausschaltet (z. B. Ende von „Schnell aufheizen“) – dann kein K innen aus diesem Ausschalten.
     Gibt den neuen Stand zurück (der alte bleibt unverändert).
     """
     s = {**neuer_stand(), **stand}
@@ -197,7 +199,9 @@ def takt(
         s["auf"] = s["beob"] = s["zyklus"] = None
     elif s["offen"] is not None and (s["ruhe_bis"] is None or jetzt >= _zeit(s["ruhe_bis"])):
         s["offen"] = None
-    ruhe = s["ruhe_bis"] is not None and jetzt < _zeit(s["ruhe_bis"])
+    if hand:   # von Hand geschaltet: laufende Messungen verwerfen, keine neuen
+        s["auf"] = s["beob"] = s["zyklus"] = None
+    ruhe = hand or (s["ruhe_bis"] is not None and jetzt < _zeit(s["ruhe_bis"]))
     log = [(_zeit(a), _zeit(e)) for a, e in s["ein"]]
     lief = bool(log) and log[-1][1] is None
     # Ein-Zeiten der letzten zwei Stunden
@@ -213,7 +217,8 @@ def takt(
         if ab is not None and not ruhe:
             dauer = ein_minuten(log, jetzt)
             s["beob"] = {"aus": _iso(jetzt), "temp": ab, "spitze": max(ab, innen if innen is not None else ab),
-                         "spitze_zeit": _iso(jetzt), "soll": soll, "schluessel": schluessel(art, klasse(dauer), band(aussen))}
+                         "spitze_zeit": _iso(jetzt), "soll": soll, "schluessel": schluessel(art, klasse(dauer), band(aussen)),
+                         "kint": kint_ok}
     # Aufheizen (AN-0004): durchgehend heizen von deutlich unter dem Soll
     auf = s["auf"]
     if auf is not None:
@@ -313,7 +318,7 @@ def _beob_ende(s: dict[str, Any], jetzt: datetime, *, abbruch: bool) -> dict[str
     s["zyklen"] = int(s["zyklen"]) + 1
     abweichung = b["spitze"] - b["soll"]
     s["treffer"] = [*s["treffer"], round(abweichung, 2)][-TREFFER_MAX:]
-    if b["soll"] - b["temp"] < 1.0:      # nahe am Soll ausgeschaltet: sagt etwas über K innen
+    if b.get("kint", True) and b["soll"] - b["temp"] < 1.0:      # nahe am Soll von der Regelung ausgeschaltet: K innen
         s["kint"] = kint_neu(float(s["kint"]), abweichung)
         s["n_kint"] = int(s["n_kint"]) + 1
     return s

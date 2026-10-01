@@ -201,3 +201,27 @@ def test_tuerkontakt_verwirft_nachlauf_und_zyklus():
     assert s["beob"] is not None
     s = takt(s, jetzt=t, heizt=False, innen=19.3, soll=20.0, aussen=0.0, art="oel", regelt=True, tuer_offen=True)
     assert s["beob"] is None and s["offen"]["art"] == "kontakt" and s["nachlauf"] == {}
+
+
+def test_von_hand_wird_nichts_gelernt():
+    """Szenarien (Herbert 01.10.2026): Hand-Zyklen lernen weder Aufheizen noch Nachlauf noch K innen."""
+    s, t = neuer_stand(), T0
+    for i in range(30):
+        s = takt(s, jetzt=t, heizt=True, innen=16.0 + 0.05 * i, soll=20.0, aussen=0.0, art="oel", regelt=False, hand=True)
+        t += timedelta(minutes=1)
+    s = takt(s, jetzt=t, heizt=False, innen=19.6, soll=20.0, aussen=0.0, art="oel", regelt=False, hand=True)
+    assert s["auf"] is None and s["beob"] is None and s["aufheizen"] == {}
+
+
+def test_ende_von_schnell_aufheizen_lernt_kein_k_innen():
+    s, t = _lauf(neuer_stand(), 30, [19.6, 19.8, 20.0, 20.2, 20.4, 20.6, 20.4])
+    assert s["n_kint"] == 1                                         # Regelung schaltet aus: K innen wird gelernt
+    s2, t2 = neuer_stand(), T0
+    for _ in range(30):
+        s2 = takt(s2, jetzt=t2, heizt=True, innen=19.6, soll=20.0, aussen=0.0, art="oel", regelt=True)
+        t2 += timedelta(minutes=1)
+    s2 = takt(s2, jetzt=t2, heizt=False, innen=19.6, soll=20.0, aussen=0.0, art="oel", regelt=True, kint_ok=False)
+    for temp in (19.8, 20.0, 20.2, 20.4, 20.6, 20.4):
+        t2 += timedelta(minutes=1)
+        s2 = takt(s2, jetzt=t2, heizt=False, innen=temp, soll=20.0, aussen=0.0, art="oel", regelt=True)
+    assert s2["zyklen"] == 1 and s2["n_kint"] == 0                  # Nachlauf ja, K innen nein

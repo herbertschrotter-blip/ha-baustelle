@@ -189,6 +189,7 @@ class Steuerung:
         self._eigene_kontexte: deque[str] = deque(maxlen=100)
         self._letzter_befehl: dict[str, tuple[bool, datetime]] = {}
         self._offline_seit: dict[str, datetime] = {}
+        self._lief: dict[str, bool] = {}   # zuletzt bekannter Zustand je Gerät (offline: zählt weiter, wenn es lief)
         self._wartet_seit: dict[str, datetime] = {}
         self._frei_verlauf: deque[tuple[datetime, dict[str, float]]] = deque()
         self._letzter_anlauf: datetime | None = None
@@ -655,6 +656,9 @@ class Steuerung:
         mittel_w = self.zaehler.get(f"mittel:{g.id}")
         if isinstance(mittel_w, (int, float)) and mittel_w > ZIEHT_STROM_W:
             return round(mittel_w / 1000, 3)
+        eigen = (self.e.get("geraete") or {}).get(g.id, {}).get("nenn_kw")   # im Gerät eingestellt (Szenarien)
+        if isinstance(eigen, (int, float)):
+            return float(eigen)
         return f.standard_kw if (f := self._je_rolle.get(g.rolle)) is not None else 0.0
 
     def _staffeln(self, jetzt: datetime, soll: SollJeBereich) -> tuple[set[str], dict[str, bool | None]]:
@@ -671,6 +675,8 @@ class Steuerung:
             zustand = self.hass.states.get(g.schalter)
             erreichbar = zustand is not None and zustand.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
             an = erreichbar and zustand is not None and zustand.state == STATE_ON
+            if erreichbar:
+                self._lief[g.id] = an
             letzter = self._letzter_befehl.get(g.id)
             if erreichbar and letzter is not None and jetzt - letzter[1] < timedelta(seconds=55):
                 an = letzter[0]   # eigener Befehl noch unterwegs: zählt schon als geschaltet
@@ -686,6 +692,8 @@ class Steuerung:
             if schaltet:
                 kw = self.nenn_kw(g)  # vorsichtig: auch wenn das Gerät gerade nicht zieht (Thermostat)
                 ziel[g.id] = bool(ein)
+            elif not erreichbar and self._lief.get(g.id):
+                kw, an = self.nenn_kw(g), True   # offline, lief aber zuletzt: vorsichtig weiter mitzählen (Szenarien)
             else:
                 kw = (leistung_w / 1000 if leistung_w is not None else (self.nenn_kw(g) if an else 0.0)) if an else 0.0
             if schaltet and ein and not an:

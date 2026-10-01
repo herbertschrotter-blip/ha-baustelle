@@ -398,9 +398,9 @@ async def test_trotzdem_heizen_protokoll_nicht_tuer_zu(hass: HomeAssistant, baus
     assert "Tür zu – Heizung läuft weiter" not in _texte(st, "ok")
 
 
-async def test_trotzdem_heizen_ueberlebt_kein_neuladen(hass: HomeAssistant, baustelle, freezer, shellys, nachrichten) -> None:
-    """FRAGE: „Trotzdem heizen“ steht nur im Speicher (Heizung.tuer_trotzdem); nach einem Neuladen (HA-Neustart)
-    pausiert die Heizung wieder und die Nachricht kommt erneut. Getestet: tatsächliches Verhalten."""
+async def test_trotzdem_heizen_ueberlebt_neuladen(hass: HomeAssistant, baustelle, freezer, shellys, nachrichten) -> None:
+    """Szenarien, Herbert 01.10.2026: „Trotzdem heizen“ steht im Store (`lz["tuer_trotzdem"]`) und übersteht ein
+    Neuladen (HA-Neustart): die Heizung läuft weiter; erst wenn die Tür zu ist, wird der Eintrag gelöscht."""
     st = baustelle.runtime_data
     await _start(hass, freezer, st)
     await _tuer(hass, TUER1, "on")
@@ -408,13 +408,18 @@ async def test_trotzdem_heizen_ueberlebt_kein_neuladen(hass: HomeAssistant, baus
     st.nachrichten.knopf("trotzdem", C1)
     await _zu(hass, freezer, "10:10:05", st)
     assert _an(hass, "switch.hk1")
+    assert st.lz["tuer_trotzdem"] == [C1]
     assert await hass.config_entries.async_reload(baustelle.entry_id)
     await hass.async_block_till_done()
     shellys.anmelden()
     st = baustelle.runtime_data
     await _zu(hass, freezer, "10:11:00", st)
-    assert C1 not in Heizung.von(st).tuer_trotzdem
-    assert not _an(hass, "switch.hk1") and st.daten.grund[C1] == "tuer_offen"
+    assert C1 in Heizung.von(st).tuer_trotzdem
+    assert _an(hass, "switch.hk1") and st.daten.grund[C1] != "tuer_offen"
+    # Tür zu: „Trotzdem“ ist erledigt, auch im Store
+    await _tuer(hass, TUER1, "off")
+    await _zu(hass, freezer, "10:12:00", st)
+    assert C1 not in Heizung.von(st).tuer_trotzdem and st.lz["tuer_trotzdem"] == []
 
 
 # ====================================================================== Türkontakt nicht erreichbar

@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.16",
+   "version": "0.8.17",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -132,7 +132,8 @@
     "energie": null,
     "leistung_eigen": "sensor.polier_r1_leistung",
     "energie_eigen": null,
-    "nenn_kw": 1.98
+    "nenn_kw": 1.98,
+    "nenn_kw_eigen": null
    },
    {
     "id": "polier_k1",
@@ -145,7 +146,8 @@
     "energie": null,
     "leistung_eigen": "sensor.polier_k1_leistung",
     "energie_eigen": null,
-    "nenn_kw": 2.01
+    "nenn_kw": 2.01,
+    "nenn_kw_eigen": null
    },
    {
     "id": "mannschaft_k1",
@@ -158,7 +160,8 @@
     "energie": null,
     "leistung_eigen": "sensor.mannschaft_k1_leistung",
     "energie_eigen": null,
-    "nenn_kw": 1.99
+    "nenn_kw": 1.99,
+    "nenn_kw_eigen": null
    },
    {
     "id": "mannschaft_k2",
@@ -171,7 +174,8 @@
     "energie": null,
     "leistung_eigen": "sensor.mannschaft_k2_leistung",
     "energie_eigen": null,
-    "nenn_kw": 2.0
+    "nenn_kw": 2.0,
+    "nenn_kw_eigen": null
    },
    {
     "id": "magazin_r1",
@@ -184,7 +188,8 @@
     "energie": null,
     "leistung_eigen": "sensor.magazin_r1_leistung",
     "energie_eigen": null,
-    "nenn_kw": 1.5
+    "nenn_kw": 1.5,
+    "nenn_kw_eigen": null
    },
    {
     "id": "magazin_t1",
@@ -197,7 +202,8 @@
     "energie": null,
     "leistung_eigen": "sensor.magazin_t1_leistung",
     "energie_eigen": null,
-    "nenn_kw": 2.0
+    "nenn_kw": 2.0,
+    "nenn_kw_eigen": null
    },
    {
     "id": "schacht_p1",
@@ -210,7 +216,8 @@
     "energie": null,
     "leistung_eigen": "sensor.schacht_p1_leistung",
     "energie_eigen": null,
-    "nenn_kw": 0.0
+    "nenn_kw": 0.8,
+    "nenn_kw_eigen": null
    }
   ],
   "einstellungen": {
@@ -1294,7 +1301,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.16",
+   "version": "0.8.17",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1354,7 +1361,8 @@
     "energie": null,
     "leistung_eigen": "sensor.buero_r1_leistung",
     "energie_eigen": null,
-    "nenn_kw": 2.0
+    "nenn_kw": 2.0,
+    "nenn_kw_eigen": null
    }
   ],
   "einstellungen": {

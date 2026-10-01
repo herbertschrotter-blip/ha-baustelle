@@ -460,3 +460,18 @@ def test_baustelle_offline():
     assert baustelle_offline([False, False, False])
     assert not baustelle_offline([False, True])
     assert not baustelle_offline([])
+
+
+def test_warnungen_nach_modus():
+    """Szenarien (Herbert 01.10.2026): „zieht keinen Strom“ und „zu kalt“ nur, wenn der Container auf das Soll regelt
+    (Thermostat, Bei Bedarf); „auf Hand“ nicht im Modus Hand."""
+    h = GeraetZustand(id="h1", bereich="buero", name="Radiator", an=True, an_seit=vor(5), leistung=0.0)
+    for modus, erwartet in (("thermo", 1), ("bedarf", 1), ("plan", 0), ("hand", 0), ("", 1)):
+        c = ContainerZustand(id="buero", temperatur=18.0, soll=20.0, fuehler=True, modus=modus)
+        assert len(nur(Art.KEINE_LEISTUNG, zustand(h, container=[c]))) == erwartet, modus
+    kalt = dict(id="buero", temperatur=18.0, soll=20.0, fuehler=True, in_arbeitszeit=True, unter_soll_seit=vor(120))
+    assert len(nur(Art.ZU_KALT, zustand(container=[ContainerZustand(**kalt, modus="thermo")]))) == 1
+    assert nur(Art.ZU_KALT, zustand(container=[ContainerZustand(**kalt, modus="plan")])) == []
+    g = GeraetZustand(id="s1", bereich="magazin", name="Steckdose", hand_seit=vor(9 * 60))
+    assert len(nur(Art.HAND_ZU_LANGE, zustand(g, container=[ContainerZustand(id="magazin", modus="plan")]))) == 1
+    assert nur(Art.HAND_ZU_LANGE, zustand(g, container=[ContainerZustand(id="magazin", modus="hand")])) == []

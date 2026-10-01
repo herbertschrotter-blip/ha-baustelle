@@ -154,10 +154,15 @@ class Nachrichten:
         self.st.einstellungen.speichern()
         temp = self.st.wetter_tag_plan(morgen).frueh_min_temp
         grad = warn_logik._zahl(temp or 0, 0).replace("-", "−")
-        frueher = uhrzeit(max(0, plan.start - FRUEHER_MIN))
+        # frühester Beginn aller Container – lernende beginnen selbst (AN-0004), nicht nach dem Plan der Baustelle
+        hz = Heizung.von(self.st)
+        starts = [p.start for b in hz.bereiche() if (e := self.st.einstellungen.bereich(b.id)).get("auto", True)
+                  and not e.get("bedarf") and hz.heizer_von(b.id) and (p := hz.plan_bereich(morgen, b.id)) is not None]
+        start = min(starts) if starts else plan.start
+        frueher = uhrzeit(max(0, start - FRUEHER_MIN))
         self.melden(
             f"❄ Morgen {grad} °C",
-            f"Vorheizen startet schon um {uhrzeit(plan.start)}. Arbeitsbeginn {uhrzeit(plan.a)}.",
+            f"Vorheizen startet schon um {uhrzeit(start)}. Arbeitsbeginn {uhrzeit(plan.a)}.",
             aktionen=[self._aktion("frei", morgen.isoformat(), "Morgen nicht heizen"),
                       self._aktion("frueher", morgen.isoformat(), f"Noch früher ({frueher})")],
             tag="baustelle_fruehstart",
@@ -189,6 +194,7 @@ class Nachrichten:
                          f"Knopf „{texte_bis}“: {warn_logik.titel(w) if w else wert}")
         elif befehl == "trotzdem" and wert in st.bereiche:
             Heizung.von(st).tuer_trotzdem.add(wert)
+            Heizung.von(st).trotzdem_merken()
             st.warnung_vergessen(wert, warn_logik.Art.TUER_OFFEN)   # die Tür ist nicht zu – kein „Tür zu“ ins Protokoll
             st.protokoll("nachricht", wert, "Knopf „Trotzdem heizen“: heizt trotz offener Tür, bis sie zu ist")
         elif befehl == "automatik" and wert in st.geraete:
