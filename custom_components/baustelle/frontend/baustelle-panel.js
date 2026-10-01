@@ -1200,7 +1200,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.9';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.10';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1686,6 +1686,16 @@ class BaustellePanel extends HTMLElement {
   get azListe() { return [...this.d.arbeitszeiten].sort((a, b) => a.ab.localeCompare(b.ab)); }
   get azJetzt() { const L = this.azListe; return L.filter(a => a.ab <= this.z.HEUTE).at(-1) || L[0] || null; }
   /* Heizplan eines Tages – berechnet von der Integration (plan_woche), hier nur in Text übersetzt */
+  /* AN-0003: wie sich die Heizzeit zusammensetzt – nur die Abschnitte der Integration (start, vor, a, b, nach, ende) */
+  planRechnung(p) {
+    const min = (x, y) => `${Math.round(y - x)} min`, teile = [];
+    if (p.vor > p.extra) teile.push(`${min(p.extra, p.vor)} früher (${[p.codes.includes('fruehstart') && 'Kälte', p.codes.includes('frueher_nach_regen') && 'Regen gestern'].filter(Boolean).join(' + ') || 'Frühstart'})`);
+    if (p.a > p.vor) teile.push(`${min(p.vor, p.a)} Vorheizen`);
+    teile.push(`Arbeit ${uhr(p.a)}–${uhr(p.b)}`);
+    if (p.nach > p.b) teile.push(`${min(p.b, p.nach)} Nachheizen`);
+    if (p.ende > p.nach) teile.push(`${min(p.nach, p.ende)} Kleidung trocknen`);
+    return `Heizt ${uhr(p.extra)}–${uhr(p.ende)} = ${teile.join(' + ')}`;
+  }
   planTag(tag) {
     const iso = this.z.WOCHE_ISO[TAGE.indexOf(tag)], q = this.d.plan[iso];
     if (!q) return null;
@@ -2288,6 +2298,7 @@ class BaustellePanel extends HTMLElement {
     return `${this.kopf('Heizung', esc(d.titel), `<div>${schalter(e.auto, 'auto')}</div>`)}
       <div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">welche Regeln greifen</span></div>
         ${regel('🕖', `Arbeitszeit ${p ? `${uhr(p.a)}–${uhr(p.b)}` : 'frei'}`, `${az ? `„${esc(az.name)}“` : 'keine Arbeitszeit'} · heizt ${p ? `${uhr(p.extra)}–${uhr(p.ende)}` : 'nicht'}`, !!p)}
+        ${p ? `<div class="zeile unter hz-rechnung"><span class="leise">${this.planRechnung(p)}</span></div>` : ''}
         ${regel('🌡', `Heizgrenze ${de(e.grenze, 0)} °C`, zahl(bezug) ? `${e.basis === 'jetzt' ? 'jetzt' : 'Höchstwert heute'} ${de(bezug, 0)} °C → ${hg.zu_warm ?? bezug > e.grenze ? 'zu warm, es wird nicht geheizt' : 'es wird geheizt'}` : 'kein Wert vom Wetter', !(hg.zu_warm ?? (zahl(bezug) && bezug > e.grenze)))}
         ${regel('🌧', 'Kleidung trocknen', zahl(w.regen_heute) ? `${de(w.regen_heute, w.regen_heute % 1 ? 1 : 0)} mm Regen seit gestern (ab ${de(e.tr_mm)} mm) → ${w.regen_heute >= e.tr_mm ? `${e.tr_laenger} min länger, bis ${p ? uhr(p.ende) : '–'}` : 'nicht nötig'}` : 'kein Regenwert vom Wetter', zahl(w.regen_heute) && w.regen_heute >= e.tr_mm)}
         ${regel('❄', 'Kälte-Frühstart morgen', zahl(wm.kalt) ? `${de(wm.kalt).replace('-', '−')} °C erwartet (unter ${de(e.frueh_temp, 0).replace('-', '−')} °C) → ${wm.kalt < e.frueh_temp ? `${e.frueh_min} min früher` : 'nicht nötig'}${pm && (pm.gruende || []).includes('frueher_nach_regen') ? `, dazu ${e.tr_frueher} min nach Regen` : ''}` : 'noch keine Vorhersage für morgen', e.fruehstart && zahl(wm.kalt) && wm.kalt < e.frueh_temp)}
@@ -2313,7 +2324,7 @@ class BaustellePanel extends HTMLElement {
         ${e.frost ? `<div class="zeile unter"><span>ein unter</span>${st('frost_temp', .5, grad)}</div>
         <div class="zeile unter"><span>aus über</span>${st('frost_aus', .5, grad)}</div>
         <div class="zeile unter"><div><span>auch bei Automatik aus</span><div class="leise">schaltet dann nur den Frostschutz, sonst nichts</div></div>${schalter(e.frost_immer, 'e-bool', 'data-k="frost_immer"')}</div>` : ''}
-        ${erkl(e.erklaer, 'Vorheizen und Nachheizen gelten jeden Arbeitstag. Die Heizgrenze verhindert Heizen an warmen Tagen. Der Frostschutz springt unter „ein“ an und hört erst über „aus“ wieder auf, damit der Heizkörper nicht dauernd ein- und ausschaltet. Ohne Fühler kennt die Integration keine Innentemperatur – der Frostschutz braucht einen Fühler.')}</div>
+        ${erkl(e.erklaer, 'Vorheizen und Nachheizen gelten jeden Arbeitstag. Die Verlängerungen zählen zusammen: vor der Arbeit Vorheizen + Kälte-Frühstart + früher nach Regen, danach Nachheizen + Kleidung trocknen (AN-0003). Die Heizgrenze verhindert Heizen an warmen Tagen. Der Frostschutz springt unter „ein“ an und hört erst über „aus“ wieder auf, damit der Heizkörper nicht dauernd ein- und ausschaltet. Ohne Fühler kennt die Integration keine Innentemperatur – der Frostschutz braucht einen Fühler.')}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen zusätzlich zum Nachheizen</span></div>
         <div class="zeile"><span>ab Regen (seit gestern)</span>${st('tr_mm', .5, mm)}</div>
         <div class="zeile"><span>zusätzlich nach dem Nachheizen</span>${st('tr_laenger', 5, min)}</div>

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.10] – 2026-10-01
+
+- Heizung › Heute (AN-0003): unter der Arbeitszeit steht, wie sich die Heizzeit zusammensetzt, z. B. „Heizt
+  05:30–17:30 = 60 min früher (Kälte + Regen gestern) + 30 min Vorheizen + Arbeit 07:00–16:30 + 15 min Nachheizen +
+  45 min Kleidung trocknen“ – die Verlängerungen zählen zusammen (so bleibt es); die Erklärung unter „So wird
+  geheizt“ sagt das auch.
+
 ## [0.8.9] – 2026-10-01
 
 - Neuer Container (WU-0008): die Heizungsart wird erst abgefragt, wenn gleich ein Shelly gewählt ist („Welche Heizung

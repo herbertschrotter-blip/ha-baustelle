@@ -751,6 +751,13 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Alle laufenden: ohne Je Gerät und Temperaturen', !ui.innerHTML.includes('Je Gerät') && !ui.innerHTML.includes('data-act="tv"'));
   await klick({ act: 'aw-scope', v: 'diese' }, 30);
   await klick({ act: 'tab', v: 'einst' }, 30);
+  /* AN-0003: Zusammensetzung der Heizzeit sichtbar (Verlängerungen zählen zusammen) */
+  { const p = panel.planTag(panel.z.HEUTE_TAG), uhr2 = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    if (p) { await klick({ act: 'hz-auf', k: 'heute' }, 20); const h = ui.innerHTML;
+      erwarte('AN-0003: Rechnung der Heizzeit unter „Heute“', h.includes(`Heizt ${uhr2(p.extra)}–`) && h.includes(`= ${p.extra === p.ende ? '' : ''}`) && /Arbeit/.test(h));
+      const q = { ...p, extra: p.a - 90, vor: p.a - 30, codes: ['fruehstart', 'frueher_nach_regen'], nach: p.b + 15, ende: p.b + 45 };
+      erwarte('AN-0003: 30 Vorheizen + 60 Kälte und Regen', /60 min früher \(Kälte \+ Regen gestern\) \+ 30 min Vorheizen \+ Arbeit/.test(panel.planRechnung(q)) && panel.planRechnung(q).includes('30 min Kleidung trocknen'));
+      await klick({ act: 'zu' }, 10); } }
   /* WU-0007: alle Einstellungen in Gruppen mit Seitenleiste (Handy: Chips) */
   { const gruppe = async g => { await klick({ act: 'ev-gruppe', v: g }, 20); pruefe(`Einstellungen ${g}`); return ui.innerHTML; };
     erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'container', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
