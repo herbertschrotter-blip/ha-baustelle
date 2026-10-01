@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.20] – 2026-10-01
+
+- Leistung im Container (WU-0011): Umschalter „Stunde | Tag“; für die Stunde ein Schieberegler über die volle Breite
+  (0–23 Uhr, rastet je Stunde ein, lädt beim Loslassen, heute nur bis zur aktuellen Stunde) statt der Stunden-Knöpfe;
+  „Tag“ zeigt jeden Messwert von 0 bis 24 Uhr.
+
 ## [0.8.19] – 2026-10-01
 
 - Geräteübersicht (WU-0010): Einstellungen › Geräte zeigt alle eingebundenen Geräte nach Funktion – Schaltgeräte,

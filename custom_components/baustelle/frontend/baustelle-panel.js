@@ -737,6 +737,13 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .wa-tab { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 10px; align-items: center; margin: 4px 0 8px; }
 .wa-tab > b { font-size: 12px; color: var(--ink2); font-weight: 500; } .wa-tab > div b { font-size: 15px; } .wa-tab > div .leise { display: block; font-size: 11px; }
 .wa-heute { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(255,159,10,.12); margin: 6px 0; font-size: 13px; } .wa-heute b { font-size: 15px; }
+.lh-regler { position: relative; margin: 4px 2px 18px; }
+.lh-regler input[type=range] { width: 100%; margin: 0; height: 28px; background: transparent; -webkit-appearance: none; appearance: none; }
+.lh-regler input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--s1) 0 calc(100% - var(--zukunft)), rgba(127,127,127,.25) 0); }
+.lh-regler input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--s1) 0 calc(100% - var(--zukunft)), rgba(127,127,127,.25) 0); }
+.lh-regler input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -8px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.lh-regler input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.lh-skala { position: relative; height: 14px; margin: 0 12px; } .lh-skala span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--ink2); }
 .lh-stunden { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0 10px; scrollbar-width: thin; } .lh-stunden .chip { flex: 0 0 auto; min-width: 38px; padding: 4px 6px; font-size: 12px; }
 .zeile.ger { display: grid; grid-template-columns: 28px 1fr auto 14px; gap: 2px 10px; align-items: center; text-decoration: none; color: inherit; }
 .ger-ic { font-size: 17px; text-align: center; } .ger-z { font-size: 12.5px; text-align: right; white-space: nowrap; } a.zeile.ger:hover { background: rgba(127,127,127,.1); }
@@ -1093,17 +1100,18 @@ function balken(id, werte, labels, einheit, d = 1) {
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${b}<rect class="treffer" x="0" y="0" width="0" height="0"/></svg>`;
 }
 /* AN-0005: Leistung je Messwert über eine Stunde (Stufen, wie der Shelly meldet); reihen [{name, farbe, punkte: [[ms, W]]}] */
-function stufen(id, reihen, von, bis, einheit = 'W') {
+function stufen(id, reihen, von, bis, einheit = 'W', achse = null) {
   const W = 320, H = 160, L = 34, R = 8, T = 10, U = 22, alle = reihen.flatMap(r => r.punkte.map(p => p[1])).filter(zahl);
   const hi = Math.max(...alle, 0) * 1.1 || 100, x = t => L + (Math.min(bis, Math.max(von, t)) - von) / (bis - von) * (W - L - R), y = v => T + (1 - v / hi) * (H - T - U);
   const stufe = hi > 4000 ? 1000 : hi > 2000 ? 500 : hi > 800 ? 200 : hi > 300 ? 100 : 50;
   const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_, k) => k * stufe).map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v >= 1000 ? de(v / 1000, 1) + ' k' : v}</text>`).join('');
-  const achse = [0, 10, 20, 30, 40, 50, 60].map(m => `<text x="${x(von + m * 6e4)}" y="${H - 6}" class="ax" text-anchor="middle">:${String(m % 60).padStart(2, '0')}</text>`).join('');
+  const marken = achse || [0, 10, 20, 30, 40, 50, 60].map(m => [von + m * 6e4, `:${String(m % 60).padStart(2, '0')}`]);   // WU-0011: Tag mit Stunden
+  const achseSvg = marken.map(([t, l]) => `<text x="${x(t)}" y="${H - 6}" class="ax" text-anchor="middle">${l}</text>`).join('');
   const pfade = reihen.map(r => { let d = ''; r.punkte.forEach(([t, v], i) => { const nx = i + 1 < r.punkte.length ? r.punkte[i + 1][0] : bis; if (!zahl(v)) return;
       d += `${d ? 'L' : 'M'}${x(t).toFixed(1)} ${y(v).toFixed(1)}H${x(nx).toFixed(1)}`; });
     return d ? `<path d="${d}" fill="none" stroke="${r.farbe}" stroke-width="${r.summe ? 2.4 : 1.6}" ${r.summe ? '' : 'opacity=".75"'}/>` : ''; }).join('');
   CHARTS[id] = { art: 'stufen', einheit, reihen, von, bis, L, B: W - R, W, x, y, unten: H - U };
-  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}${pfade}<g class="hover"></g></svg>`;
+  return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achseSvg}${pfade}<g class="hover"></g></svg>`;
 }
 function streu(id, pkt, k, d0) {
   const W = 320, H = 170, L = 30, R = 8, T = 10, U = 24;
@@ -1220,7 +1228,7 @@ const AW_SPEICHER = 'baustelle-aw-bausteine';
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.19';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.20';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1667,13 +1675,18 @@ class BaustellePanel extends HTMLElement {
   /* AN-0005: Leistung einer Stunde, jeder Messwert der Leistungssensoren (HA-Verlauf), je Gerät und als Summe */
   leistungInhalt(s) {
     const d = this.d, b = d.bereiche.find(x => x.id === s.auswahl[0]) || this.b; if (!b) return '';
-    const v = s.v || 0, tag = plusTage(this.z.HEUTE, -v), jetztH = +this.z.JETZT.slice(0, 2), h = zahl(s.h) ? s.h : v ? 12 : jetztH;
-    const von = this.zoneMs(tag, `${String(h).padStart(2, '0')}:00`, d.z.zone), bis = von + 36e5, laufend = !v && h === jetztH;
+    const v = s.v || 0, tag = plusTage(this.z.HEUTE, -v), jetztH = +this.z.JETZT.slice(0, 2), h = Math.min(zahl(s.h) ? s.h : v ? 12 : jetztH, v ? 23 : jetztH);
+    const ganzerTag = s.lart === 'tag';   // WU-0011: Stunde oder ganzer Tag
+    const von = this.zoneMs(tag, ganzerTag ? '00:00' : `${String(h).padStart(2, '0')}:00`, d.z.zone), bis = ganzerTag ? this.zoneMs(plusTage(tag, 1), '00:00', d.z.zone) : von + 36e5;
+    const laufend = !v && (ganzerTag || h === jetztH);
     const geraete = b.geraete.filter(g => g.leistung), ids = geraete.map(g => g.leistung);
-    const roh = !ids.length ? {} : this._holen(`lh:${d.entry}:${b.id}:${tag}:${h}`, () => this._hass.callWS({ type: 'history/history_during_period', start_time: new Date(von).toISOString(),
+    const roh = !ids.length ? {} : this._holen(`lh:${d.entry}:${b.id}:${tag}:${ganzerTag ? 'tag' : h}`, () => this._hass.callWS({ type: 'history/history_during_period', start_time: new Date(von).toISOString(),
       end_time: new Date(Math.min(bis, d.z.jetztMs)).toISOString(), entity_ids: ids, minimal_response: true, no_attributes: true, significant_changes_only: false }), laufend ? 30000 : undefined);
     const ende = laufend ? d.z.jetztMs : bis, farben = ['var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
-    const stunden = [...Array(24)].map((_, k) => `<button class="chip glas-panel ${k === h ? 'amber' : ''}" data-act="lh-h" data-v="${k}" ${!v && k > jetztH ? 'disabled' : ''}>${String(k).padStart(2, '0')}</button>`).join('');
+    const hh = k => String(k).padStart(2, '0'), zukunft = v ? 0 : (23 - jetztH) / 23 * 100;
+    const regler = ganzerTag ? '' : `<div class="lh-regler" style="--zukunft:${zukunft.toFixed(1)}%">
+        <input type="range" min="0" max="23" step="1" value="${h}" data-lh aria-label="Stunde wählen">
+        <div class="lh-skala">${[0, 6, 12, 18, 23].map(k => `<span style="left:${(k / 23 * 100).toFixed(1)}%">${k === 23 ? '23' : hh(k)}</span>`).join('')}</div></div>`;
     let inhalt;
     if (!ids.length) inhalt = '<div class="leer">Kein Leistungssensor an den Geräten</div>';
     else if (roh === undefined) inhalt = LAEDT;
@@ -1687,11 +1700,12 @@ class BaustellePanel extends HTMLElement {
       const spitze = Math.max(0, ...summeR.punkte.map(p => p[1]));
       const mittel = summeR.punkte.length ? summeR.punkte.reduce((a, p, i) => a + p[1] * ((i + 1 < summeR.punkte.length ? summeR.punkte[i + 1][0] : ende) - p[0]), 0) / Math.max(1, ende - summeR.punkte[0][0]) : 0;
       inhalt = `<div class="kennz"><div><b>${de(mittel / 1000, 2)}</b><span>kW im Mittel</span></div><div><b>${de(spitze / 1000, 2)}</b><span>kW Spitze</span></div><div><b>${reihen.reduce((a, r) => a + r.punkte.length, 0)}</b><span>Messwerte</span></div></div>
-        <div class="chart-wrap">${stufen(`lh-${b.id}-${tag}-${h}`, zeige, von, bis)}</div>
+        <div class="chart-wrap">${stufen(`lh-${b.id}-${tag}-${ganzerTag ? 'tag' : h}`, zeige, von, bis, 'W', ganzerTag ? [0, 4, 8, 12, 16, 20, 24].map(k => [von + k * 36e5, hh(k)]) : null)}</div>
         <div class="legende">${zeige.map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}<span class="leise">jeder Messwert des Shellys${laufend ? ' · bis jetzt' : ''}</span></div>`;
     }
-    return `<div class="block-kopf"><h3>Leistung · ${esc(b.name)}</h3><span class="leise">${String(h).padStart(2, '0')}:00–${String((h + 1) % 24).padStart(2, '0')}:00</span></div>
-      ${this.zrWahl('sheet', 'Tag', this.zrGrenze())}<div class="lh-stunden">${stunden}</div>${inhalt}`;
+    return `<div class="block-kopf"><h3>Leistung · ${esc(b.name)}</h3><span class="leise lh-wert">${ganzerTag ? 'ganzer Tag' : `${hh(h)}:00–${hh((h + 1) % 24)}:00`}</span></div>
+      <div class="seg">${[['stunde', 'Stunde'], ['tag', 'Tag']].map(([k, t]) => `<button data-act="lh-art" data-v="${k}" class="${(ganzerTag ? 'tag' : 'stunde') === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      ${this.zrWahl('sheet', 'Tag', this.zrGrenze())}${regler}${inhalt}`;
   }
   /* FE-0009: Heizzeit eines Containers (Pumpenschacht: Pumpzeit) je Stunde, Tag oder Monat */
   heizzeitInhalt(s) {
@@ -3518,6 +3532,7 @@ class BaustellePanel extends HTMLElement {
       case 'wetterquelle-auf': return this.klick({ target: { closest: () => ({ dataset: { act: 'sheet', s: 'wetterquelle' } }) } });
       case 'wa': S.sheet.wa = el.dataset.v; return neu();
       case 'lh-h': S.sheet.h = +el.dataset.v; return neu();   // AN-0005: Stunde der Leistung
+      case 'lh-art': S.sheet.lart = el.dataset.v; return neu();   // WU-0011: Stunde | Tag
       case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
       case 'aw-scope': S.awScope = el.dataset.v; S.aw.auswahl = this.quellen(S.aw, 'aw').map(q => q.id); return neu();
       case 'vb-zeitraum': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; if (st.zeitraum !== el.dataset.v) st.v = 0; st.zeitraum = el.dataset.v; S.zrKal = null; return neu(); }
@@ -3789,6 +3804,11 @@ class BaustellePanel extends HTMLElement {
   }
   eingabe(ev) {
     const el = ev.target, ds = (el && el.dataset) || {}, sh = this.s.sheet;
+    if (ds.lh !== undefined) {   // WU-0011: beim Ziehen nur die Stunde zeigen, geladen wird beim Loslassen
+      const h = +el.value, w = this.shadowRoot && this.shadowRoot.querySelector('.lh-wert');
+      if (w) w.textContent = `${String(h).padStart(2, '0')}:00–${String((h + 1) % 24).padStart(2, '0')}:00`;
+      return;
+    }
     if (ds.vls !== undefined) {   // Suche in der Chronik (WU-0006): neu zeichnen, Fokus und Cursor behalten
       this.s.vlSuche = el.value; this.render();
       const x = this.shadowRoot && this.shadowRoot.querySelector('[data-vls]'); if (x && x.focus) { x.focus(); if (x.setSelectionRange) x.setSelectionRange(el.value.length, el.value.length); }
@@ -3819,6 +3839,7 @@ class BaustellePanel extends HTMLElement {
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
   aenderung(ev) {
     const el = ev.target, k = el && el.dataset && el.dataset.k;
+    if (el && el.dataset && el.dataset.lh !== undefined && this.s.sheet) { this.s.sheet.h = +el.value; return this.render(); }   // WU-0011: Regler losgelassen
     if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
     if (k === 'mail') return this.setzen(PFAD.mail, String(el.value).trim(), 'Gespeichert');
     const jm = el && el.dataset && el.dataset.jm;
