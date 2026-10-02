@@ -130,10 +130,10 @@ def _texte(b: SimpleNamespace, art: str | None = None) -> list[str]:
 MATRIX = [
     # Thermostat mit Fühler: auf Soll in der Heizzeit, sonst aus; Frostschutz geht vor
     pytest.param(True, "thermo", "17.0", "arbeitszeit", True, "heizt", "arbeitszeit", "heizt · Arbeitszeit", id="thermo-kalt-arbeitszeit"),
-    pytest.param(True, "thermo", "20.0", "arbeitszeit", False, "aus", "arbeitszeit", "aus", id="thermo-toleranz-arbeitszeit"),
-    pytest.param(True, "thermo", "21.0", "arbeitszeit", False, "aus", "arbeitszeit", "aus", id="thermo-warm-arbeitszeit"),
+    pytest.param(True, "thermo", "20.0", "arbeitszeit", False, "aus", "arbeitszeit", "Soll erreicht · hält 20,0 °C", id="thermo-toleranz-arbeitszeit"),
+    pytest.param(True, "thermo", "21.0", "arbeitszeit", False, "aus", "arbeitszeit", "Soll erreicht · hält 20,0 °C", id="thermo-warm-arbeitszeit"),
     pytest.param(True, "thermo", "17.0", "vorheizen", True, "heizt", "vorheizen", "heizt · Arbeitszeit", id="thermo-kalt-vorheizen"),
-    pytest.param(True, "thermo", "21.0", "vorheizen", False, "aus", "vorheizen", "aus", id="thermo-warm-vorheizen"),
+    pytest.param(True, "thermo", "21.0", "vorheizen", False, "aus", "vorheizen", "Soll erreicht · hält 20,0 °C", id="thermo-warm-vorheizen"),
     pytest.param(True, "thermo", "17.0", "nachheizen", True, "heizt", "nachheizen", "heizt · Arbeitszeit", id="thermo-kalt-nachheizen"),
     pytest.param(True, "thermo", "17.0", "nach_arbeitsende", False, "aus", "ausserhalb", "aus bis 06:15", id="thermo-kalt-nach-arbeitsende"),
     pytest.param(True, "thermo", "17.0", "nachts", False, "aus", "ausserhalb", "aus bis 06:15", id="thermo-kalt-nachts"),

@@ -1382,7 +1382,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.40';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.41';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -2460,7 +2460,7 @@ class BaustellePanel extends HTMLElement {
     const knopf = (v, t) => `<button data-act="sg-gefuehl" data-v="${v}">${t}</button>`;
     return `<div class="sg-box"><div class="sg-gefuehl">${knopf(-1, '🥶 zu kalt')}${knopf(0, '👍 passt')}${knopf(1, '🥵 zu warm')}</div>
       ${gl && S.versch ? `<div class="sg-versch"><span>gleitend ${G ? de(G.soll, 1) : '–'} °C <b>${S.versch > 0 ? '+' : '−'}${de(Math.abs(S.versch), 1)}</b> · bis morgen früh</span><button class="glas-panel chip" data-act="sg-zurueck" data-id="${b.id}">↺ gleitend</button></div>` : ''}
-      <div class="sg-gefuehl-t">${gl ? (S.versch ? '+ / − lernt mit wie „zu kalt“ / „zu warm“' : `Soll gleitend ${de(this.sollVon(b), 1)} °C – dein Gefühl hilft beim Lernen`) : 'hilft beim gleitenden Soll (Heizung › Regeln)'}</div></div>`;
+      <div class="sg-gefuehl-t">${gl ? (S.versch ? '+ / − lernt mit wie „zu kalt“ / „zu warm“' : `Soll gleitend ${G ? de(G.soll, 1) : '–'} °C${zahl(S.eigen) && S.eigen ? ` ${S.eigen > 0 ? '+' : '−'}${de(Math.abs(S.eigen), 1)} eigenes Soll = ${de(this.sollVon(b), 1)} °C` : ''} – dein Gefühl hilft beim Lernen`) : 'hilft beim gleitenden Soll (Heizung › Regeln)'}</div></div>`;
   }
   cOhneFuehler(b) { return `<div class="c-ohne glas-panel"><small>LEISTUNG JETZT</small><b>${de(kwVon(b))}<small> kW</small></b><span class="leise">kein Fühler – der Heizkörperthermostat regelt</span></div>`; }
   /* Tagesdiagramm: Heizzeit als Band, innen/außen, Soll gestrichelt, geheizte Stunden als Balken, Jetzt-Marke */

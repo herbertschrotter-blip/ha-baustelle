@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.41] – 2026-10-02
+
+- Container in der Heizzeit, aber gerade aus (FE-0014): die Kachel sagt jetzt, warum – „Takt-Pause · lernend 80 %
+  je 10 min“, wenn die lernende Regelung im Takt pausiert, bzw. „Soll erreicht · hält 22,6 °C“ – statt „aus bis …“.
+- Unter dem Thermostat-Rad steht beim gleitenden Soll auch ein eigenes Soll des Containers: „Soll gleitend 21,6 °C
+  +1,0 eigenes Soll = 22,6 °C“.
+
 ## [0.8.40] – 2026-10-02
 
 - Screenshots zur Meldung (WU-0016): im Melde-Fenster „📷 Screenshot“ mit bis zu 3 Bildern – „📎 Bild wählen“ (am

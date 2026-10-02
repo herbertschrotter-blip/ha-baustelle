@@ -150,6 +150,11 @@ async def test_thermo_regelt_lernend_nach_tpi(hass: HomeAssistant, freezer, shel
     # Hysterese hätte bei 19,5 (≤ Soll − 0,3) durchgehend geheizt; TPI: etwa die Hälfte des Zyklus ein
     assert 3 <= sum(zustaende) <= 6, zustaende
     assert _c(hass, entry)["modus"] == "thermo"
+    # FE-0014: in der Pause des Takts zeigt die Kachel nicht „aus bis …“, sondern die Takt-Pause
+    while _an(hass, "switch.hk1"):
+        await uhr.minute(19.5)
+    import re
+    assert re.fullmatch(r"Takt-Pause · lernend 4\d % je 10 min", _c(hass, entry)["text"]), _c(hass, entry)["text"]
 
 
 async def test_plan_modus_ignoriert_lernende_regelung(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:

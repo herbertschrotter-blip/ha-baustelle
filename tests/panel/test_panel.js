@@ -761,7 +761,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const G = { ...alt[1] || {}, ...{ aussen_mittel: 6.4, tage: 3, start: 21.56, gefuehl: 0.15, soll: 21.71, n: 1, schritt: 0.15, rueck: [], kurve: [] } };
     panel.d.e.soll_art = 'gleitend'; panel.d.sollG = G;   // die Daten wurden nach dem Setzen neu geladen
     const b = panel.d.bereiche.find(x => x.fuehler && !x.pumpe && x.t !== null);
-    if (b) { const altB = [b.modus, b.sollJ]; b.modus = 'thermo'; b.sollJ = { wert: 22.21, versch: 0.5, versch_bis: '2026-09-30T03:00:00+02:00', eigen: null };
+    if (b) { const altB = [b.modus, b.sollJ]; b.modus = 'thermo'; b.sollJ = { wert: 22.71, versch: 0, versch_bis: null, eigen: 1.0 };
+      await klick({ act: 'container', id: b.id }, 20); erwarte('FE-0014: eigenes Soll unter dem Rad erklärt', ui.innerHTML.includes('Soll gleitend 21,7 °C +1,0 eigenes Soll = 22,7 °C'));
+      b.sollJ = { wert: 22.21, versch: 0.5, versch_bis: '2026-09-30T03:00:00+02:00', eigen: null };
       await klick({ act: 'container', id: b.id }, 20); pruefe('Container Soll gleitend');
       erwarte('Container: Gefühl, Verschiebung, gültiges Soll im Rad', ['data-act="sg-gefuehl"', '↺ gleitend', 'bis morgen früh', 'Soll 22,2'].every(t => ui.innerHTML.includes(t)));
       neu(); await klick({ act: 'c-soll', d: '0.5' }); await klick({ act: 'sg-gefuehl', v: '-1' }); await klick({ act: 'sg-zurueck', id: b.id });

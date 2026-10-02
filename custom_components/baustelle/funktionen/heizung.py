@@ -952,6 +952,14 @@ class Heizung(Funktion):
             zustand = "aus"
             naechster = self._naechster_start(jetzt, bid)
             text = f"aus bis {naechster}" if naechster else "aus"
+            # FE-0014: in der Heizzeit aus, weil die Regelung gerade nicht heizen will – das sagen, statt „aus bis …“
+            if grund in HEIZ_GRUENDE and grund not in (SollGrund.FROST, SollGrund.ABSENKEN):
+                tpi = self.tpi_jetzt.get(bid)
+                innen = st.daten.temperatur[bid]
+                if tpi is not None and 0 < tpi[0] < 1:
+                    text = f"Takt-Pause · lernend {round(tpi[0] * 100)} % je {lernen.ZYKLUS_MIN} min"
+                elif innen is not None:
+                    text = f"Soll erreicht · hält {warn_logik._zahl(self.soll_temperatur(bid))} °C"
         if an and not heizer_an and zustand == "aus":
             text = "aus · Steckdose an"
         if zustand in ("aus", "bereit") and grund != SollGrund.TUER_OFFEN and self._tuer_offen(e):
