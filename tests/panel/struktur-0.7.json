@@ -627,7 +627,7 @@
     "polier": {
      "zustand": "heizt",
      "grund": "arbeitszeit",
-     "text": "heizt · Arbeitszeit",
+     "text": "heizt auf 21,0 °C · Arbeitszeit",
      "temperatur": 19.4,
      "kw": 3.99,
      "bedarf_bis": null,

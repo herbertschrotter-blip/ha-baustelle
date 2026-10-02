@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.42] – 2026-10-02
+
+- Kachel-Texte der Container eindeutig (FE-0015): mit Fühler und Thermostat-Regelung „heizt auf 22,6 °C ·
+  Arbeitszeit“ (statt „heizt · Arbeitszeit“), ohne Fühler bzw. im Modus Zeitplan „heizt · Heizplan · Vorheizen“ (statt
+  „an · Thermostat regelt“), eingeschaltet ohne Strom „an · Regler am Gerät aus · Arbeitszeit“ – jeweils mit dem
+  Abschnitt des Tages (Frühstart, Vorheizen, Arbeitszeit, Nachheizen).
+
 ## [0.8.41] – 2026-10-02
 
 - Container in der Heizzeit, aber gerade aus (FE-0014): die Kachel sagt jetzt, warum – „Takt-Pause · lernend 80 %

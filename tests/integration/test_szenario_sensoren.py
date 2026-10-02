@@ -129,17 +129,17 @@ def _texte(b: SimpleNamespace, art: str | None = None) -> list[str]:
 # (fühler, modus, innen, zeit) → (Heizkörper an, zustand, grund, text)
 MATRIX = [
     # Thermostat mit Fühler: auf Soll in der Heizzeit, sonst aus; Frostschutz geht vor
-    pytest.param(True, "thermo", "17.0", "arbeitszeit", True, "heizt", "arbeitszeit", "heizt · Arbeitszeit", id="thermo-kalt-arbeitszeit"),
+    pytest.param(True, "thermo", "17.0", "arbeitszeit", True, "heizt", "arbeitszeit", "heizt auf 20,0 °C · Arbeitszeit", id="thermo-kalt-arbeitszeit"),
     pytest.param(True, "thermo", "20.0", "arbeitszeit", False, "aus", "arbeitszeit", "Soll erreicht · hält 20,0 °C", id="thermo-toleranz-arbeitszeit"),
     pytest.param(True, "thermo", "21.0", "arbeitszeit", False, "aus", "arbeitszeit", "Soll erreicht · hält 20,0 °C", id="thermo-warm-arbeitszeit"),
-    pytest.param(True, "thermo", "17.0", "vorheizen", True, "heizt", "vorheizen", "heizt · Arbeitszeit", id="thermo-kalt-vorheizen"),
+    pytest.param(True, "thermo", "17.0", "vorheizen", True, "heizt", "vorheizen", "heizt auf 20,0 °C · Vorheizen", id="thermo-kalt-vorheizen"),
     pytest.param(True, "thermo", "21.0", "vorheizen", False, "aus", "vorheizen", "Soll erreicht · hält 20,0 °C", id="thermo-warm-vorheizen"),
-    pytest.param(True, "thermo", "17.0", "nachheizen", True, "heizt", "nachheizen", "heizt · Arbeitszeit", id="thermo-kalt-nachheizen"),
+    pytest.param(True, "thermo", "17.0", "nachheizen", True, "heizt", "nachheizen", "heizt auf 20,0 °C · Nachheizen", id="thermo-kalt-nachheizen"),
     pytest.param(True, "thermo", "17.0", "nach_arbeitsende", False, "aus", "ausserhalb", "aus bis 06:15", id="thermo-kalt-nach-arbeitsende"),
     pytest.param(True, "thermo", "17.0", "nachts", False, "aus", "ausserhalb", "aus bis 06:15", id="thermo-kalt-nachts"),
     pytest.param(True, "thermo", "4.0", "nachts", True, "frost", "frost", "Frostschutz", id="thermo-frost-nachts"),
     # Zeitplan mit Fühler: in der Heizzeit an (der Heizkörperthermostat regelt), auch über Soll
-    pytest.param(True, "plan", "21.0", "arbeitszeit", True, "heizt", "arbeitszeit", "heizt · Arbeitszeit", id="plan-fuehler-warm-arbeitszeit"),
+    pytest.param(True, "plan", "21.0", "arbeitszeit", True, "heizt", "arbeitszeit", "heizt · Heizplan · Arbeitszeit", id="plan-fuehler-warm-arbeitszeit"),
     pytest.param(True, "plan", "17.0", "nachts", False, "aus", "ausserhalb", "aus bis 06:15", id="plan-fuehler-nachts"),
     pytest.param(True, "plan", "4.0", "nachts", True, "frost", "frost", "Frostschutz", id="plan-fuehler-frost-nachts"),
     # Aus: nur Frostschutz
@@ -150,8 +150,8 @@ MATRIX = [
     # Hand: die Automatik schaltet nicht (Heizkörper bleibt, wie er ist: hier aus)
     pytest.param(True, "hand", "17.0", "arbeitszeit", False, "aus", "hand", "aus", id="hand-fuehler-arbeitszeit"),
     # ohne Fühler
-    pytest.param(False, "plan", None, "arbeitszeit", True, "heizt", "arbeitszeit", "an · Thermostat regelt", id="plan-ohne-arbeitszeit"),
-    pytest.param(False, "plan", None, "vorheizen", True, "heizt", "vorheizen", "an · Thermostat regelt", id="plan-ohne-vorheizen"),
+    pytest.param(False, "plan", None, "arbeitszeit", True, "heizt", "arbeitszeit", "heizt · Heizplan · Arbeitszeit", id="plan-ohne-arbeitszeit"),
+    pytest.param(False, "plan", None, "vorheizen", True, "heizt", "vorheizen", "heizt · Heizplan · Vorheizen", id="plan-ohne-vorheizen"),
     pytest.param(False, "plan", None, "nachts", False, "aus", "ausserhalb", "aus bis 06:15", id="plan-ohne-nachts"),
     pytest.param(False, "bedarf", None, "arbeitszeit", False, "bereit", "bereit", "bei Bedarf · nur Frostschutz", id="bedarf-ohne-bereit"),
     pytest.param(False, "hand", None, "arbeitszeit", False, "aus", "hand", "aus", id="hand-ohne-arbeitszeit"),
@@ -192,7 +192,7 @@ async def test_thermo_ohne_fuehler_abgelehnt(hass: HomeAssistant, freezer, shell
     assert b.st.e["bereiche"][C1]["modus"] is None and _c(b)["modus"] == "plan"
     await _zu(b, "arbeitszeit")
     await _automatik(b)
-    assert _an(b) and _c(b)["text"] == "an · Thermostat regelt"
+    assert _an(b) and _c(b)["text"] == "heizt · Heizplan · Arbeitszeit"
 
 
 async def test_modus_abgeleitet_je_aufbau(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
@@ -274,7 +274,7 @@ async def test_hand_modus_schaltet_nicht_aber_frostschutz(hass: HomeAssistant, f
 
 
 async def test_hand_modus_ohne_fuehler_text(hass: HomeAssistant, freezer, shellys, nachrichten, hass_ws_client) -> None:
-    """Szenarien, Herbert 01.10.2026: „heizt · Hand“ hat Vorrang vor „an · Thermostat regelt“, auch ohne Fühler."""
+    """Szenarien, Herbert 01.10.2026: „heizt · Hand“ hat Vorrang vor „heizt · Heizplan“, auch ohne Fühler."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client, fuehler=False)
     assert (await _modus(b, "hand"))["success"]
     hass.states.async_set("switch.hk1", "on")
@@ -441,7 +441,7 @@ async def test_fuehler_faellt_aus_waehrend_thermo(
 ) -> None:
     """Szenarien, Herbert 01.10.2026: Fühler fällt im Modus Thermostat aus, während der Raum über Soll ist
     (Heizkörper aus): bis 15 min gilt der letzte Wert (bleibt aus), danach verhält sich der Container wie ohne
-    Fühler – Heizkörper an, „an · Thermostat regelt“ –, dazu die Warnung `fuehler_fehlt`. Regelt der Fühler wieder,
+    Fühler – Heizkörper an, „heizt · Heizplan“ –, dazu die Warnung `fuehler_fehlt`. Regelt der Fühler wieder,
     schaltet der Thermostat ab."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client)
     await _temp(b, "21.0")
@@ -456,7 +456,7 @@ async def test_fuehler_faellt_aus_waehrend_thermo(
     await _zu(b, "2026-09-29 10:16:00+02:00")
     c = _c(b)
     assert _an(b) and (c["zustand"], c["grund"], c["text"], c["modus"], c["temperatur"]) == (
-        "heizt", "arbeitszeit", "an · Thermostat regelt", "thermo", None)
+        "heizt", "arbeitszeit", "heizt · Heizplan · Arbeitszeit", "thermo", None)
     assert ("fuehler_fehlt", C1, None) in _warn(b)
     assert struktur(hass, b.entry)["laufzeit"]["container"][C1]["lernen"]["anteil"] is None
     await _temp(b, "21.0")
@@ -636,8 +636,8 @@ async def test_geraete_hand_im_modus_hand(hass: HomeAssistant, freezer, shellys,
 
 
 @pytest.mark.parametrize(("fuehler", "modus", "warnung", "text"), [
-    (False, "plan", False, "an · Thermostat regelt"),
-    (True, "plan", False, "an · Thermostat regelt"),
+    (False, "plan", False, "an · Regler am Gerät aus · Arbeitszeit"),
+    (True, "plan", False, "an · Regler am Gerät aus · Arbeitszeit"),
     (True, "thermo", True, "an · zieht keinen Strom"),
 ], ids=["plan-ohne", "plan-fuehler", "thermo-fuehler"])
 async def test_heizkoerper_an_zieht_keinen_strom(
@@ -646,7 +646,7 @@ async def test_heizkoerper_an_zieht_keinen_strom(
     """Szenarien, Herbert 01.10.2026: Heizkörper eingeschaltet, 0 W (sein eigener Thermostat hat abgeschaltet), innen
     19 °C < Soll. „an · zieht keinen Strom“ und die Warnung `keine_leistung` nur, wo die Integration auf das Soll
     regelt (Thermostat/Bei Bedarf mit Fühler); im Zeitplan (mit oder ohne Fühler) regelt der Heizkörperthermostat:
-    „an · Thermostat regelt“, keine Warnung. Zustand der Kachel jeweils „aus“."""
+    „heizt · Heizplan“, keine Warnung. Zustand der Kachel jeweils „aus“."""
     b = await _aufbau(hass, freezer, shellys, hass_ws_client, fuehler=fuehler)
     await _temp(b, "19.0")
     assert (await _modus(b, modus))["success"]

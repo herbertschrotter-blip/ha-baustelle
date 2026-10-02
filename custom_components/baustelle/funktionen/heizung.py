@@ -86,7 +86,8 @@ MODI = tuple(MODUS_TEXT)
 STANDARD_HEIZ_KW = 2.0  # Heizkörper ohne Messung (Mockup: 2,0 kW)
 FRUEHSTART_NACHRICHT = time(18, 0)  # Abend vorher: „Morgen −4 °C – Vorheizen startet schon um …“
 FRUEHER_MIN = 30  # Knopf „Noch früher“
-VERSCH_BIS = time(3, 0)  # + / − am Rad (Soll gleitend) gilt bis morgen früh, vor dem Vorheizen
+VERSCH_BIS = time(3, 0)
+ABSCHNITT_TEXT = {"fruehstart": "Frühstart", "vorheizen": "Vorheizen", "arbeitszeit": "Arbeitszeit", "nachheizen": "Nachheizen"}   # FE-0015  # + / − am Rad (Soll gleitend) gilt bis morgen früh, vor dem Vorheizen
 WETTER_PROTOKOLL_AB = time(5, 0)  # Mockup: „05:00 wetter …“
 
 
@@ -918,11 +919,15 @@ class Heizung(Funktion):
         # ZIEHT_STROM_W; ohne Leistungssensor zählt der Schalter (Meldung Herbert, 30.09.2026)
         zieht = any(self._zieht_strom(g) for g in geraete if g.rolle in HEIZROLLEN)
         e = st.einstellungen.bereich(bid)
+        # FE-0015: mit Fühler regelt die Integration auf das Soll („heizt auf 22,6 °C“), sonst gilt der Heizplan und der
+        # Regler am Heizkörper – dazu der Abschnitt des Tages
+        regelt = self.modus(bid) in ("thermo", "bedarf") and st.daten.temperatur[bid] is not None
+        abschnitt = ABSCHNITT_TEXT.get(str(grund))
+        dazu = f" · {abschnitt}" if abschnitt else ""
         if offline:
             zustand, text = "offline", "nicht erreichbar"
         elif heizer_an and not zieht and grund not in (SollGrund.TUER_OFFEN, SollGrund.BEREIT):
-            regelt = self.modus(bid) in ("thermo", "bedarf") and st.daten.temperatur[bid] is not None
-            zustand, text = "aus", ("an · zieht keinen Strom" if regelt else "an · Thermostat regelt")   # Szenarien
+            zustand, text = "aus", ("an · zieht keinen Strom" if regelt else f"an · Regler am Gerät aus{dazu}")   # Szenarien
         elif grund == SollGrund.FROST and zieht:
             zustand, text = "frost", "Frostschutz"
         elif grund == SollGrund.TUER_OFFEN:
@@ -942,12 +947,12 @@ class Heizung(Funktion):
                 text = f"heizt bis {bis.strftime('%H:%M')}" if bis else "heizt · bei Bedarf"
             elif grund == SollGrund.HAND or not e["auto"] or any(g.id in st.lz["hand"] for g in geraete if g.rolle in HEIZROLLEN):
                 text = "heizt · Hand"   # auch ein Heizkörper im Handbetrieb (FE-0004), auch ohne Fühler (Szenarien)
-            elif st.daten.temperatur[bid] is None:
-                text = "an · Thermostat regelt"
             elif grund == SollGrund.ABSENKEN:
                 text = "heizt · abgesenkt"
+            elif regelt:
+                text = f"heizt auf {warn_logik._zahl(self.soll_temperatur(bid))} °C{dazu}"
             else:
-                text = "heizt · Arbeitszeit"
+                text = f"heizt · Heizplan{dazu}"
         else:
             zustand = "aus"
             naechster = self._naechster_start(jetzt, bid)

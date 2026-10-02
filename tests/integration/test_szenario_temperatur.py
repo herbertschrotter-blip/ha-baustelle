@@ -652,7 +652,7 @@ async def test_fuehler_faellt_aus_in_der_arbeitszeit(hass: HomeAssistant, freeze
     assert not _an(hass, "switch.hk1") and st.daten.grund[C1] == "arbeitszeit"
     await _zu(hass, freezer, "2026-09-29 10:16:00+02:00", st)
     assert _an(hass, "switch.hk1") and st.daten.grund[C1] == "arbeitszeit"
-    assert st.daten.text[C1] == "an · Thermostat regelt"
+    assert st.daten.text[C1] == "heizt · Heizplan · Arbeitszeit"
 
 
 async def test_fuehler_beim_start_unbekannt(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
@@ -662,4 +662,4 @@ async def test_fuehler_beim_start_unbekannt(hass: HomeAssistant, freezer, shelly
     hass.states.async_set("sensor.temp_c1", "unknown")
     await _automatik(hass, st)
     assert _an(hass, "switch.hk1") and st.daten.grund[C1] == "arbeitszeit"
-    assert st.daten.text[C1] == "an · Thermostat regelt"
+    assert st.daten.text[C1] == "heizt · Heizplan · Arbeitszeit"
