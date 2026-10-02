@@ -719,6 +719,25 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const S = letzte('baustelle/setzen').map(a => `${a.pfad.join('.')}=${a.wert}`);
     erwarte('AN-0012: neue Regler setzen die Integration (' + S.join(', ') + ')', ['heizung.toleranz=0.4', 'heizung.hand_nachfrist_min=35', 'heizung.fuehler_halten_min=20', 'heizung.zieht_strom_w=55'].every(x => S.includes(x)));
     await klick({ act: 'zu' }); }
+  /* WU-0017: Vergleich kWh / Kosten – 2 bis 4 Container, Zeitraum, Balken oder Linien, Unterschied in Zahlen */
+  { panel.s.kkUe = []; await klick({ act: 'tab', v: 'uebersicht' }, 10); await klick({ act: 'kk-plus', ort: 'ue' });
+    await klick({ act: 'kk-gk', k: 'v-kwh', v: 'L' }); pruefe('Vergleich anlegen');
+    erwarte('WU-0017: Auswahl 2–4 Container, Zeitraum, Balken/Linien', ui.innerHTML.includes('2 bis 4 wählen') && ui.innerHTML.includes('data-act="vg-zr"') && ui.innerHTML.includes('data-act="vg-art"'));
+    const C = panel.d.bereiche.filter(b => !b.pumpe);
+    if (C.length >= 3) await klick({ act: 'vg-id', id: C[2].id });
+    await klick({ act: 'vg-id', id: C[0].id }); if (C.length === 2) erwarte('WU-0017: mindestens 2', panel.letzterToast === 'Mindestens 2 Container');
+    if (C.length >= 3) await klick({ act: 'vg-id', id: C[0].id });
+    await klick({ act: 'vg-zr', v: 'Woche' }); await klick({ act: 'vg-art', v: 'linien' }); await klick({ act: 'kk-hinzu' }, 20); pruefe('Vergleich auf der Übersicht');
+    const x = panel.kkListe('ue').at(-1);
+    erwarte('WU-0017: Kachel gespeichert', x.k === 'v-kwh' && x.ids.length === Math.min(3, C.length) && x.zr === 'Woche' && x.art === 'linien' && x.st === 'L');
+    erwarte('WU-0017: Linien und Unterschied in kWh und %', ui.innerHTML.includes('class="vg-svg"') && /<b>\+[\d,]+ kWh<\/b>( \(\+\d+ %\))? zu /.test(ui.innerHTML));
+    panel.s.kkUe.push(panel.kkGross({ k: 'v-eur', an: true, ids: C.slice(0, 2).map(b => b.id), zr: 'Tag', dia: false }, 'L'), panel.kkGross({ k: 'v-eur', an: true, ids: C.slice(0, 2).map(b => b.id), zr: 'Monat' }, 'M'));
+    panel.render(); await ruhe(20); pruefe('Vergleich Kosten');
+    erwarte('WU-0017: Tabelle mit „mehr“ und Kosten-Unterschied in €', ui.innerHTML.includes('<th>mehr</th>') && /<b>\+[\d,]+ €<\/b>/.test(ui.innerHTML));
+    await klick({ act: 'kk-layout' }); await klick({ act: 'vg-art-k', ort: 'ue', i: '0' }); erwarte('WU-0017: Balken/Linien in Anpassen', panel.kkListe('ue')[0].art === 'balken');
+    await klick({ act: 'kk-layout' }); await klick({ act: 'kk-auf', ort: 'ue', i: '0' }, 10);
+    erwarte('WU-0017: Antippen öffnet den Verbrauch mit diesen Containern', panel.s.sheet && panel.s.sheet.art === 'verbrauch' && panel.s.sheet.auswahl.length === x.ids.length);
+    await klick({ act: 'zu' }); panel.s.kkUe = null; }
   /* WU-0016: Screenshots zur Meldung – Bereich im Melde-Fenster, Senden mit Bildern, Vorschau in der Meldungsliste */
   { await klick({ act: 'melden' }, 10); pruefe('Melden mit Screenshot');
     erwarte('WU-0016: Screenshot-Bereich mit Bild wählen', ui.innerHTML.includes('📷 Screenshot') && ui.innerHTML.includes('data-mb="datei"') && ui.innerHTML.includes('0 von 3'));

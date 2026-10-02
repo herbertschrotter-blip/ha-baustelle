@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.43] – 2026-10-02
+
+- Zwei neue Kacheln im Katalog (WU-0017): „Vergleich kWh“ und „Vergleich Kosten“ stellen 2 bis 4 Container gegenüber –
+  mit Zeitraum heute/Woche/Monat (auf der Übersicht; in der Auswertung der gewählte), in S, M und L. Der Unterschied
+  steht in Zahlen und Prozent („Polier +5,3 kWh (+53 %) zu Mannschaft 01“ bzw. „+1,48 €“). L zeigt ein Diagramm –
+  Balken nebeneinander oder Linien, beim Anlegen und unter ✎ Anpassen wählbar – oder eine Tabelle mit kWh, €, „mehr“
+  als der sparsamste, Heizzeit und kWh je Stunde. Antippen öffnet den Verbrauch mit genau diesen Containern.
+
 ## [0.8.42] – 2026-10-02
 
 - Kachel-Texte der Container eindeutig (FE-0015): mit Fühler und Thermostat-Regelung „heizt auf 22,6 °C ·

@@ -796,6 +796,14 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .sr-auf { grid-column: 2 / -1; display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 12.5px; padding: 6px 10px; margin-top: 4px; border-radius: 10px; background: rgba(120,120,128,.12); }
 .sr-auf b { text-align: right; font-weight: 500; white-space: nowrap; } .sr-auf .summe { border-top: 1px solid var(--gridc); padding-top: 3px; font-weight: 600; }
 .sr-zust { grid-column: 2 / -1; font-size: 12px; }
+/* WU-0017: Vergleich-Kacheln */
+.vg-zeilen { display: flex; flex-direction: column; gap: 2px; margin-top: auto; font-size: 12px; } .vg-zeilen div { display: flex; justify-content: space-between; gap: 6px; }
+.vg-zeilen span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink2); } .vg-zeilen b { font-weight: 600; white-space: nowrap; }
+.vg-zeilen i, .vg-tab i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }
+.vg-tab { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; } .vg-tab th { font-weight: 500; color: var(--ink2); text-align: right; padding: 2px 4px; }
+.vg-tab th:first-child, .vg-tab td:first-child { text-align: left; } .vg-tab td { text-align: right; padding: 3px 4px; border-top: 1px solid var(--gridc); white-space: nowrap; }
+.vg-chips button.on { outline: 2px solid var(--amber); } .vg-svg { width: 100%; height: 100%; } .vg-svg .ax { font-size: 9px; fill: var(--ink2); } .vg-svg .gr { stroke: var(--gridc); }
+.aw-art-k { right: 78px; font-size: 11px; }
 /* WU-0016: Bilder zur Meldung */
 .mb-box { border-radius: 14px; background: rgba(120,120,128,.10); padding: 10px 12px; margin: 6px 0; } .mb-kopf { display: flex; align-items: baseline; gap: 6px; } .mb-kopf b { font-size: 14px; }
 .mb-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px; }
@@ -1354,6 +1362,8 @@ const KK = {
   'c-heizzeit': { ber: 'container', je: 'c', ic: '⏱', name: 'Heizzeit', text: 'eingeschaltet und tatsächlich geheizt', such: 'stunden laufzeit zeit strom' },
   'c-ohne': { ber: 'container', je: 'c', ic: '🌱', name: 'Ohne Automatik', text: 'Container gegen Dauerbetrieb (24/7)', such: 'gespart ersparnis dauerbetrieb euro' },
   'c-warm': { ber: 'container', je: 'f', ic: '🧠', name: 'Warm ab (lernend)', text: 'Gelernter Heizbeginn, damit das Soll rechtzeitig erreicht ist', such: 'lernen aufheizen beginn start' },
+  'v-kwh': { ber: 'container', je: 'v', ic: '⚖', name: 'Vergleich kWh', text: '2–4 Container gegenüber – Verbrauch', such: 'vergleich gegenüber kwh verbrauch container' },   // WU-0017
+  'v-eur': { ber: 'container', je: 'v', ic: '⚖', name: 'Vergleich Kosten', text: '2–4 Container gegenüber – Kosten in €', such: 'vergleich gegenüber euro kosten container' },
   'p-pumpzeit': { ber: 'pumpen', je: 'p', ic: '⏱', name: 'Pumpzeit', text: 'Wie lange gepumpt wurde', such: 'schacht pumpe laufzeit stunden wasser' },
   'p-zyklen': { ber: 'pumpen', je: 'p', ic: '🔁', name: 'Zyklen', text: 'Ein/Aus im Zeitraum – viele deuten auf Schwimmer oder Grundwasser', such: 'schacht pumpe schwimmer an aus' },
   'h-plan': { ber: 'heizung', ic: '📅', name: 'Heizplan heute / Woche', text: 'Vorheizen, Arbeitszeit, Nachheizen, Trocknen', such: 'zeitplan arbeitszeit vorheizen nachheizen woche' },
@@ -1382,7 +1392,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.42';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.43';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -2868,7 +2878,7 @@ class BaustellePanel extends HTMLElement {
   awAuswahl() {
     if (!this.s.awListe) { let l = null; try { l = JSON.parse(localStorage.getItem(AW_SPEICHER) || 'null'); } catch (e) { l = null; }
       if (!Array.isArray(l)) this.awVorlage('misch', false);
-      else { const bekannt = l.filter(x => x && (AW_BAUSTEINE[x.k] || KK[x.k])).map(x => ({ k: x.k, an: !!x.an, ...(KK[x.k] ? { id: x.id, dia: x.dia } : {}), w: Math.min(4, Math.max(1, +x.w || 2)), h: Math.min(6, Math.max(1, +x.h || 2)) }));
+      else { const bekannt = l.filter(x => x && (AW_BAUSTEINE[x.k] || KK[x.k])).map(x => ({ k: x.k, an: !!x.an, ...(KK[x.k] ? { id: x.id, dia: x.dia, ids: x.ids, zr: x.zr, art: x.art } : {}), w: Math.min(4, Math.max(1, +x.w || 2)), h: Math.min(6, Math.max(1, +x.h || 2)) }));
         this.s.awListe = [...bekannt, ...Object.keys(AW_BAUSTEINE).filter(k => !bekannt.some(x => x.k === k)).map(k => ({ k, an: false, w: 4, h: AW_HOEHE[k] || 2 }))]; } }
     this.s.awListe = this.s.awListe.map(x => x.st ? x : this.awGross(x));
     return this.s.awListe;
@@ -2953,15 +2963,17 @@ class BaustellePanel extends HTMLElement {
   kkListe(ort) {
     if (ort !== 'ue') return this.awAuswahl();
     if (!this.s.kkUe) { let l = null; try { l = JSON.parse(localStorage.getItem(KK_SPEICHER) || 'null'); } catch (e) { l = null; }
-      this.s.kkUe = (Array.isArray(l) ? l.filter(x => x && KK[x.k]) : KK_START).map(x => this.kkGross({ k: x.k, id: x.id, dia: x.dia, an: true }, x.st)); }
+      this.s.kkUe = (Array.isArray(l) ? l.filter(x => x && KK[x.k]) : KK_START).map(x => this.kkGross({ k: x.k, id: x.id, dia: x.dia, ids: x.ids, zr: x.zr, art: x.art, an: true }, x.st)); }
     return this.s.kkUe;
   }
   kkGross(x, st) { const g = awStufen(x.k).find(q => q[0] === st) || awStufe(x.k, x.w || 2, x.h || 1); return { ...x, w: g[1], h: g[2], st: g[0] }; }
   kkMerken(ort) {
     if (ort !== 'ue') return this.awMerken();
-    try { localStorage.setItem(KK_SPEICHER, JSON.stringify(this.s.kkUe.map(({ k, id, dia, st }) => ({ k, id, dia, st })))); } catch (e) { /* egal */ }
+    try { localStorage.setItem(KK_SPEICHER, JSON.stringify(this.s.kkUe.map(({ k, id, dia, st, ids, zr, art }) => ({ k, id, dia, st, ids, zr, art })))); } catch (e) { /* egal */ }
   }
-  kkName(x) { if (AW_BAUSTEINE[x.k]) return AW_BAUSTEINE[x.k][0]; const e = KK[x.k], b = e && e.je ? this.kkB(x) : null; return e ? `${e.name}${b ? ` · ${b.name}` : ''}` : x.k; }
+  kkName(x) { if (AW_BAUSTEINE[x.k]) return AW_BAUSTEINE[x.k][0];
+    if (KK[x.k] && KK[x.k].je === 'v') return `${KK[x.k].name}${(x.ids || []).length ? ` · ${x.ids.map(id => (this.d.bereiche.find(b => b.id === id) || { name: id }).name).join(' / ')}` : ''}`;
+    const e = KK[x.k], b = e && e.je ? this.kkB(x) : null; return e ? `${e.name}${b ? ` · ${b.name}` : ''}` : x.k; }
   kkWahlListe(k) { const e = KK[k], B = this.d.bereiche; return !e || !e.je ? [] : e.je === 'p' ? B.filter(b => b.pumpe) : B.filter(b => !b.pumpe && (e.je !== 'f' || b.fuehler)); }
   kkB(x) { const L = this.kkWahlListe(x.k); return L.find(b => b.id === x.id) || L[0] || null; }
   /* Zeitraum und Werte: in der Auswertung der gewählte Zeitraum (auch für Container), auf der Übersicht Baustelle = dieser Monat, Container = heute */
@@ -3073,6 +3085,7 @@ class BaustellePanel extends HTMLElement {
   }
   /* eine Kachel in S / M / L (L mit Diagramm oder vier Kennzahlen); ort 'kat' = Vorschau im Katalog */
   kkKachel(x, i, ort, c) {
+    if (KK[x.k] && KK[x.k].je === 'v') return this.vgKachel(x, i, ort, c);   // WU-0017
     const e = KK[x.k], b = e.je ? this.kkB(x) : null, gr = x.st, kopf = `<div class="kk-kopf"><span class="kk-ic">${e.ic}</span><small>${esc(e.name)}</small></div>`;
     if (e.je && !b) return `<div class="glas-panel kk">${kopf}<span class="kk-wo">kein ${e.je === 'p' ? 'Schacht' : 'Container'} vorhanden</span></div>`;
     const D = this.kkDaten(x, b, c), mitDia = gr === 'L' && x.dia !== false;
@@ -3095,6 +3108,7 @@ class BaustellePanel extends HTMLElement {
     return `<div class="aw-raster ${layout ? 'layout' : ''}" data-ort="${ort}">${teile.map(({ x, i, html }) => `<div class="aw-frei-s ${this.s.kkFrisch === `${ort}:${x.k}:${x.id || ''}` ? 'kk-frisch' : ''}" data-i="${i}" style="--w:${x.w};--h:${x.h}"><div class="aw-inhalt">${html}</div>
         ${layout ? `<div class="aw-ueber"><span class="aw-griff" data-zug="move" title="verschieben">⠿</span><span class="aw-name">${esc(this.kkName(x))} · <b class="aw-mass">${x.st}</b></span>
           ${KK[x.k] && x.st === 'L' ? `<button class="aw-dia-k ${x.dia !== false ? 'on' : ''}" data-act="kk-dia" data-ort="${ort}" data-i="${i}" title="mit oder ohne Diagramm" aria-label="Diagramm ein/aus">📈</button>` : ''}
+          ${KK[x.k] && KK[x.k].je === 'v' && x.st === 'L' && x.dia !== false ? `<button class="aw-dia-k aw-art-k on" data-act="vg-art-k" data-ort="${ort}" data-i="${i}" title="Balken oder Linien" aria-label="Balken oder Linien">${x.art === 'linien' ? '〰' : '▮▮'}</button>` : ''}
           <button class="aw-x" data-act="aw-weg" data-ort="${ort}" data-i="${i}" aria-label="${KK[x.k] ? 'entfernen' : 'ausblenden'}">✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : ''}</div>`).join('')}
       ${layout ? '' : `<button class="glas-panel kk-neu-k" data-act="kk-plus" data-ort="${ort}"><span>+</span>Kachel</button>`}</div>`;
   }
@@ -3123,6 +3137,7 @@ class BaustellePanel extends HTMLElement {
         <span class="kk-tr-gr">${e.stufen.map(([g]) => `<button data-act="kk-gk" data-k="${e.k}" data-v="${g}" class="${on && s.st === g ? 'on' : ''}">${g}</button>`).join('')}</span></div>${on ? this.kkWahl(s, e) : ''}`; }).join('');
   }
   kkWahl(s, e) {
+    if (e.je === 'v') return this.vgWahl(s, e);   // WU-0017
     const opts = e.je ? this.kkWahlListe(e.k) : [], ort = s.ort === 'aw' ? 'Auswertung' : 'Übersicht';
     if (e.je && !opts.some(b => b.id === s.id)) s.id = opts[0] && opts[0].id;
     if (!e.stufen.some(q => q[0] === s.st)) s.st = (e.stufen.find(q => q[0] === 'M') || e.stufen[0])[0];
@@ -3151,16 +3166,70 @@ class BaustellePanel extends HTMLElement {
     const e = this.kkEintraege(s.ort).find(y => y.k === s.k); if (!e) return;
     const L = this.kkListe(s.ort);
     if (e.baustein) { const x = L.find(y => y.k === e.k); Object.assign(x, this.kkGross(x, s.st), { an: true }); }
+    else if (e.je === 'v') L.push(this.kkGross({ k: e.k, an: true, ids: [...s.ids], zr: s.zr, art: s.art || 'balken', ...(s.st === 'L' ? { dia: !!s.dia } : {}) }, s.st));   // WU-0017
     else L.push(this.kkGross({ k: e.k, an: true, ...(e.je ? { id: s.id } : {}), ...(s.st === 'L' ? { dia: !!s.dia } : {}) }, s.st));
     this.kkMerken(s.ort);
-    const neu = { k: e.k, id: e.je ? s.id : undefined };
+    const neu = { k: e.k, id: e.je && e.je !== 'v' ? s.id : undefined, ids: e.je === 'v' ? s.ids : undefined };
     this.s.kkFrisch = `${s.ort}:${neu.k}:${neu.id || ''}`; clearTimeout(this._kkFrisch); this._kkFrisch = setTimeout(() => { this.s.kkFrisch = null; }, 2000);
     this.s.sheet = null; this.s.kkLayout = false; this.s.awLayout = false; this.s.awBearb = false; this.render();
     this.toast(`Kachel „${this.kkName(neu)}“ (${s.st}) hinzugefügt`);
   }
+  /* WU-0017: Vergleich kWh / Kosten – 2 bis 4 Container gegenüber (Mockup vergleich-kacheln.html, abgenommen 02.10.2026):
+     Summen aus der Statistik wie die anderen Container-Kacheln; Unterschied in kWh bzw. € und % zum sparsamsten */
+  vgWerte(x, c) {
+    const d = this.d, z = c.ort === 'aw' ? c.zc : (x.zr || 'Tag'), v = c.ort === 'aw' ? c.vc : 0, eur = x.k === 'v-eur', f = eur ? d.e.preis : 1;
+    const R = (x.ids || []).map(id => d.bereiche.find(b => b.id === id)).filter(Boolean).map(b => {
+      const r = this.verbrauch(d, b.id, z, v), h = this.heizStunden(d, b, z, v);
+      return { b, r: r && r.map(q => (q || 0) * f), su: r ? summe(r) * f : null, kwh: r ? summe(r) : null, h: h ? summe(h) : null }; });
+    const ok = R.filter(q => zahl(q.su)), min = ok.length ? Math.min(...ok.map(q => q.su)) : null, max = ok.length ? Math.max(...ok.map(q => q.su)) : null;
+    return { z, v, eur, R, zr: this.zeitraum(z, v), wann: this.zrText(z, v), min, vorne: ok.find(q => q.su === max), hinten: ok.find(q => q.su === min) };
+  }
+  vgDia(W0, art) {
+    const R = W0.R.filter(q => q.r); if (!R.length) return '';
+    const n = W0.zr.labels.length, W = 320, H = 150, L = 34, Rr = 8, T = 8, U = 18, hi = Math.max(...R.flatMap(q => q.r), 0.01) * 1.1;
+    const y = v => T + (1 - v / hi) * (H - T - U), bw = (W - L - Rr) / n, jedes = { Tag: 6, Woche: 1, Monat: 7 }[W0.z] || 3, fb = b => BEREICH_FARBEN[b.f % BEREICH_FARBEN.length];
+    const stufe = hi > 200 ? 100 : hi > 40 ? 20 : hi > 12 ? 5 : hi > 4 ? 2 : hi > 1.5 ? .5 : .2;
+    const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_, q) => q * stufe).map(v => `<line class="gr" x1="${L}" x2="${W - Rr}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="ax" x="${L - 4}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end">${de(v, stufe < 1 ? 1 : 0)}</text>`).join('');
+    const achse = W0.zr.labels.map((t, i) => i % jedes ? '' : `<text class="ax" x="${(L + i * bw + bw / 2).toFixed(1)}" y="${H - 4}" text-anchor="middle">${esc(String(t))}</text>`).join('');
+    const inhalt = art === 'linien'
+      ? R.map(q => `<path d="${q.r.map((v, i) => `${i ? 'L' : 'M'}${(L + i * bw + bw / 2).toFixed(1)} ${y(v).toFixed(1)}`).join('')}" fill="none" stroke="${fb(q.b)}" stroke-width="2.2" stroke-linejoin="round"/>`).join('')
+      : W0.zr.labels.map((_, i) => R.map((q, k) => { const w = bw * .8 / R.length, xx = L + i * bw + bw * .1 + k * w, v = q.r[i] || 0;
+        return v > 0 ? `<rect x="${xx.toFixed(1)}" y="${y(v).toFixed(1)}" width="${Math.max(1, w - .5).toFixed(1)}" height="${(y(0) - y(v)).toFixed(1)}" fill="${fb(q.b)}" rx="1"/>` : ''; }).join('')).join('');
+    return `<svg class="vg-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${raster}${achse}${inhalt}</svg>`;
+  }
+  vgKachel(x, i, ort, c) {
+    const e = KK[x.k], W0 = this.vgWerte(x, c), R = W0.R, gr = x.st, eur = W0.eur, fb = b => BEREICH_FARBEN[b.f % BEREICH_FARBEN.length];
+    const wert = v => zahl(v) ? (eur ? `${de(v, 2)} €` : `${de(v, v < 100 ? 1 : 0)} kWh`) : '–';
+    const kopf = `<div class="kk-kopf"><span class="kk-ic">${e.ic}</span><small>${esc(e.name)}</small></div>`;
+    const { vorne, hinten, min } = W0, diff = vorne && hinten && vorne !== hinten ? vorne.su - hinten.su : null;
+    const unter = diff === null ? (R.length ? 'gleich viel' : 'keine Container') : `${esc(vorne.b.name)} <b>+${wert(diff)}</b>${min > 0 ? ` (+${de((vorne.su / min - 1) * 100, 0)} %)` : ''} zu ${esc(hinten.b.name)}`;
+    const zeilen = `<div class="vg-zeilen">${R.map(q => `<div><span><i style="background:${fb(q.b)}"></i>${esc(q.b.name)}</span><b>${wert(q.su)}</b></div>`).join('')}</div>`;
+    let inhalt;
+    if (gr === 'S') inhalt = kopf + zeilen;
+    else if (gr === 'M') inhalt = `<div class="kk-m-l">${kopf}<span class="kk-wo">${esc(W0.wann)}</span><span class="kk-vgl">${unter}</span></div><div class="kk-m-r">${kkBalken(R.map(q => [q.b.name, q.su || 0, wert(q.su), fb(q.b)]))}</div>`;
+    else inhalt = `${kopf}<div class="kk-l-zeile"><span class="kk-wo">${esc(W0.wann)}</span></div><span class="kk-vgl">${unter}</span>`
+      + (x.dia !== false ? `<div class="kk-dia">${this.vgDia(W0, x.art) || '<div class="leer">Noch keine Werte</div>'}</div>${zeilen}`
+        : `<table class="vg-tab"><tr><th></th><th>kWh</th><th>€</th><th>mehr</th><th>Heizzeit</th><th>kWh/h</th></tr>${R.map(q => `<tr><td><i style="background:${fb(q.b)}"></i>${esc(q.b.name)}</td>
+          <td>${zahl(q.kwh) ? de(q.kwh, 1) : '–'}</td><td>${zahl(q.kwh) ? de(q.kwh * this.d.e.preis, 2) : '–'}</td><td>${zahl(q.su) && zahl(min) && q.su > min ? `+${wert(q.su - min)}` : '–'}</td><td>${stdMin(q.h)}</td><td>${q.h > 0 ? de(q.kwh / q.h, 2) : '–'}</td></tr>`).join('')}</table>`);
+    return ort === 'kat' ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>`
+      : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i}" title="${esc(this.kkName(x))} – antippen öffnet den Verbrauch">${inhalt}</div>`;
+  }
+  vgWahl(s, e) {
+    const B = this.d.bereiche.filter(b => !b.pumpe), ort = s.ort === 'aw' ? 'Auswertung' : 'Übersicht';
+    s.ids = (s.ids || B.slice(0, 2).map(b => b.id)).filter(id => B.some(b => b.id === id)); s.zr ||= 'Tag'; s.art ||= 'balken';
+    if (!['S', 'M', 'L'].includes(s.st)) s.st = 'M';
+    return `<div class="kk-wahl"><div class="gruppe-t">Container · 2 bis 4 wählen</div><div class="vb-wer vg-chips">${B.map(b => `<button data-act="vg-id" data-id="${b.id}" class="${s.ids.includes(b.id) ? 'on' : ''}"><i style="background:${BEREICH_FARBEN[b.f % BEREICH_FARBEN.length]}"></i>${esc(b.name)}</button>`).join('')}</div>
+      ${s.ort === 'aw' ? '<div class="leise">Zeitraum: der gewählte der Auswertung</div>' : `<div class="gruppe-t">Zeitraum</div><div class="seg">${[['Tag', 'heute'], ['Woche', 'diese Woche'], ['Monat', 'dieser Monat']].map(([k, t]) => `<button data-act="vg-zr" data-v="${k}" class="${s.zr === k ? 'on' : ''}">${t}</button>`).join('')}</div>`}
+      <div class="gruppe-t">Größe</div><div class="seg">${KK_GROESSE.map(([g, t, m]) => `<button data-act="kk-gr" data-v="${g}" class="${s.st === g ? 'on' : ''}">${t} · ${m}</button>`).join('')}</div>
+      ${s.st === 'L' ? `<div class="zeile kk-sw"><div><span>mit Diagramm</span><div class="leise">aus: Tabelle kWh, €, mehr als der sparsamste, Heizzeit, kWh je Stunde</div></div>${schalter(s.dia, 'kk-dia-w')}</div>
+        ${s.dia ? `<div class="seg">${[['balken', '▮▮ Balken'], ['linien', '〰 Linien']].map(([k, t]) => `<button data-act="vg-art" data-v="${k}" class="${s.art === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}` : ''}
+      <div class="gruppe-t">Vorschau</div><div class="aw-raster kk-vorschau"><div class="aw-frei-s" style="--w:${s.st === 'S' ? 1 : 2};--h:${s.st === 'L' ? 2 : 1}"><div class="aw-inhalt">${this.vgKachel({ k: e.k, ids: s.ids, zr: s.zr, st: s.st, dia: s.dia, art: s.art }, 0, 'kat', this.kkCtx(s.ort))}</div></div></div>
+      <button class="knopf amber" data-act="kk-hinzu" ${s.ids.length < 2 ? 'disabled' : ''}>Zur ${ort} hinzufügen</button></div>`;
+  }
   /* Antippen: die passende vorhandene Ansicht oder Einblendung der Seite */
   kkAuf(x, ort) {
-    const S = this.s, c = this.kkCtx(ort), e = KK[x.k], b = e && e.je ? this.kkB(x) : null;
+    const S = this.s, c = this.kkCtx(ort), e = KK[x.k], b = e && e.je && e.je !== 'v' ? this.kkB(x) : null;
+    if (e && e.je === 'v') { S.sheet = { art: 'verbrauch', t: x.k === 'v-eur' ? 'eur' : undefined, auswahl: [...(x.ids || [])], zeitraum: ort === 'aw' ? c.zc : x.zr || 'Tag', v: ort === 'aw' ? c.vc : 0 }; return this.render(); }   // WU-0017
     const blatt = (art, extra = {}) => { S.sheet = { art, auswahl: b ? [b.id] : [], zeitraum: c.zc, v: c.vc, ...extra }; this.render(); };
     const detail = k => { if (S.view !== 'auswertung') this.gehe('auswertung'); S.sheet = { art: 'aw-detail', k }; this.render(); };
     switch (x.k) {
@@ -4261,6 +4330,12 @@ class BaustellePanel extends HTMLElement {
       case 'kk-nurje': S.sheet.nurJe = !S.sheet.nurJe; S.sheet.k = null; return neu();
       case 'kk-nureur': S.sheet.nurEur = !S.sheet.nurEur; S.sheet.k = null; return neu();
       case 'kk-hinzu': return this.kkHinzu(S.sheet);
+      case 'vg-id': { const sh = S.sheet, j = sh.ids.indexOf(el.dataset.id);   // WU-0017: 2 bis 4 Container
+        if (j >= 0) { if (sh.ids.length <= 2) return this.toast('Mindestens 2 Container'); sh.ids.splice(j, 1); } else { if (sh.ids.length >= 4) return this.toast('Höchstens 4 Container'); sh.ids.push(el.dataset.id); }
+        return neu(); }
+      case 'vg-zr': S.sheet.zr = el.dataset.v; return neu();
+      case 'vg-art': S.sheet.art = el.dataset.v; return neu();
+      case 'vg-art-k': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; if (!x) return; x.art = x.art === 'linien' ? 'balken' : 'linien'; this.kkMerken(ort); return neu(); }
       case 'kk-layout': S.kkLayout = !S.kkLayout; return neu();
       case 'sg-gefuehl': { const v = +el.dataset.v; return this.aktion('gefuehl', { bereich: b.id, wert: v }, v === 0 ? 'Gemerkt: passt' : `Gemerkt: ${v < 0 ? 'zu kalt' : 'zu warm'} – das Soll lernt mit`); }
       case 'sg-zurueck': return this.aktion('soll_versch_weg', { bereich: el.dataset.id }, 'Zurück auf gleitendes Soll');
