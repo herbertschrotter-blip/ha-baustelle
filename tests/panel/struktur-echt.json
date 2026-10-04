@@ -1871,6 +1871,17 @@
     "batterie": null,
     "signal": null
    }
+  },
+  "rechte": {
+   "aendern": true,
+   "aktionen": [
+    "gefuehl",
+    "warnung_stumm",
+    "jetzt_heizen",
+    "boost",
+    "bedarf",
+    "bedarf_aus"
+   ]
   }
  },
  {
@@ -2285,6 +2296,17 @@
     "batterie": null,
     "signal": null
    }
+  },
+  "rechte": {
+   "aendern": true,
+   "aktionen": [
+    "gefuehl",
+    "warnung_stumm",
+    "jetzt_heizen",
+    "boost",
+    "bedarf",
+    "bedarf_aus"
+   ]
   }
  }
 ]

@@ -27,6 +27,7 @@ from .funktionen.heizung import Heizung
 from .logik import preise as preise_logik
 from .logik.arbeitszeit import arbeitszeit_loeschen, arbeitszeiten_speichern
 from .logik.auswertung import ARTEN
+from .logik.rechte import darf, rechte
 from .logik.warnungen import Art
 
 if TYPE_CHECKING:
@@ -253,6 +254,14 @@ def _steuerung(hass: HomeAssistant, connection: websocket_api.ActiveConnection, 
     return st
 
 
+def _darf(connection: websocket_api.ActiveConnection, msg: dict[str, Any], befehl: str, aktion: str | None = None) -> bool:
+    """Ändern nur Admins, Ausnahmen in `logik.rechte` (Bauplan 0.7 §8); sonst Fehler `unauthorized`."""
+    if darf(bool(connection.user and connection.user.is_admin), befehl, aktion):
+        return True
+    connection.send_error(msg["id"], websocket_api.ERR_UNAUTHORIZED, "Nur Admins dürfen ändern")
+    return False
+
+
 def _fehler(connection: websocket_api.ActiveConnection, msg: dict[str, Any], text: str) -> None:
     connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, text)
 
@@ -263,8 +272,9 @@ def _fehler(connection: websocket_api.ActiveConnection, msg: dict[str, Any], tex
 def ws_struktur(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Alle Baustellen (auch abgeschlossene) mit Einrichtung, Einstellungen, Zählern und Laufzeit."""
     version = hass.data.get(DATA_VERSION, "")
+    r = rechte(bool(connection.user and connection.user.is_admin))   # Bauplan 0.7 §8: für den angemeldeten Benutzer
     connection.send_result(
-        msg["id"], [struktur(hass, entry, version) for entry in hass.config_entries.async_entries(DOMAIN)]
+        msg["id"], [{**struktur(hass, entry, version), "rechte": r} for entry in hass.config_entries.async_entries(DOMAIN)]
     )
 
 
@@ -317,7 +327,7 @@ def pruefe_setzen(st: Any, pfad: list[str], wert: Any) -> Any:
 @callback
 def ws_setzen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Eine Einstellung setzen (Pfad + Wert, geprüft)."""
-    if (st := _steuerung(hass, connection, msg)) is None:
+    if not _darf(connection, msg, "setzen") or (st := _steuerung(hass, connection, msg)) is None:
         return
     try:
         wert = pruefe_setzen(st, msg["pfad"], msg["wert"])
@@ -524,7 +534,7 @@ def _datum(iso: str) -> str:
 @callback
 def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Eintrag einer Liste anlegen, ändern oder löschen."""
-    if (st := _steuerung(hass, connection, msg)) is None:
+    if not _darf(connection, msg, "liste") or (st := _steuerung(hass, connection, msg)) is None:
         return
     Heizung.von(st).plan_neu()
     try:
@@ -565,7 +575,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
 @websocket_api.async_response
 async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Bedarf, Boost, alle jetzt heizen, Gerät schalten, Warnung stumm, Bericht jetzt senden."""
-    if (st := _steuerung(hass, connection, msg)) is None:
+    if not _darf(connection, msg, "aktion", msg["aktion"]) or (st := _steuerung(hass, connection, msg)) is None:
         return
     aktion = msg["aktion"]
     jetzt = dt_util.now()
@@ -839,6 +849,8 @@ async def ws_meldungen(hass: HomeAssistant, connection: websocket_api.ActiveConn
 @websocket_api.async_response
 async def ws_meldung(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Meldung speichern, erledigen/wieder öffnen oder löschen."""
+    if not _darf(connection, msg, "meldung", msg["aktion"]):
+        return
     meldungen: Meldungen = hass.data[DATA_MELDUNGEN]
     liste = await meldungen.async_laden()
     jetzt = dt_util.now().isoformat(timespec="seconds")

@@ -18,6 +18,7 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
   "geraete": [{"id": "", "name": "", "bereich": "", "schalter": "switch.x", "rolle": "heizung|trockner|pumpe|steckdose",
                "typ": "oelradiator|konvektor|…", "leistung": "sensor.x|null", "energie": "sensor.x|null", "nenn_kw": 2.0}],
   "einstellungen": {"…": "Store v2 ohne zaehler, protokoll, meldungen, laufzeit (siehe bauplan §1)"},
+  "rechte": {"aendern": true, "aktionen": ["gefuehl", "warnung_stumm", "jetzt_heizen", "boost", "bedarf", "bedarf_aus"]},   // für den angemeldeten Benutzer (0.8.49, bauplan §8)
   "zaehler": {"…": "wie 0.6"},
   "laufzeit": {
     "status": "automatik_aus|bereit|heizt|heizgrenze|urlaub|feiertag|frei|abgeschlossen",
@@ -74,6 +75,10 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
   Energie-Sensoren je Container (Stunde/Tag/Monat).
 
 ## 2. Befehle (alle mit `entry_id`, Antwort `{ok: true}` oder Fehler `invalid_format`/`not_found`)
+
+**Rechte (0.8.49, bauplan §8):** `setzen`, `liste`, `aktion` und `meldung` (`status`, `loeschen`) nur für Admins, sonst
+Fehler `unauthorized` („Nur Admins dürfen ändern“). Auch ohne Admin gehen die Aktionen aus `rechte.aktionen` sowie
+`meldung` `neu` und `bild`; alle lesenden Befehle gelten für jeden Benutzer.
 
 | type | Felder | Wirkung |
 |---|---|---|

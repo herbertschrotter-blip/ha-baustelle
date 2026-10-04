@@ -333,7 +333,7 @@ Melden-Knopf: `python3 tools/ticket.py liste` (Ticket-Profil in CLAUDE.md).
 Ergebnis einer Bewertung der Integration als Ganzes (Sitzung „ha-baustelle Teil 2“). Backend, Datenbasis und Tests sind
 gut; vor dem Einsatz in der Firma auf mehreren Baustellen fehlt:
 
-- [ ] **Berechtigungen:** Die Seite ist mit `require_admin=False` für jeden HA-Benutzer offen, und keiner der
+- [x] **Berechtigungen** (0.8.49, Plan §8): Die Seite ist mit `require_admin=False` für jeden HA-Benutzer offen, und keiner der
       WebSocket-Befehle in `panel.py` prüft Admin-Rechte. Ändern (setzen, aktion, liste, Tickets) nur für Admins oder eine
       eigene Gruppe, lesen für alle – mit Tests. Wichtigster Punkt vor einem zentralen Firmen-Server.
 - [ ] **Rückfallebene in den Shellys:** Fällt der zentrale Server oder das WireGuard-VPN aus, schaltet auf der Baustelle
@@ -355,3 +355,38 @@ Präsentation für die Firma (Chef): Artifact „Baustelle – weniger Heizkoste
 04.10.2026 mit Messwerten der Pilotbaustelle (−71 %, ≈ 1.000 € je Heizkörper und Winter, 2,7 t CO₂). Platzhalter
 offen: Anzahl Heizkörper der Firma, zweite Baustelle. Für die Bildschirmfotos wurde Chromium vorübergehend im
 Terminal-Add-on installiert (verschwindet beim Neustart des Add-ons).
+
+## 8. Berechtigungen (Herbert, 04.10.2026)
+
+Entscheidungen:
+
+- **Lesen alle, ändern nur Admins.** Die Seite bleibt für jeden HA-Benutzer sichtbar (`require_admin=False`).
+  Geprüft wird mit HA-Bordmitteln (`connection.user.is_admin`), keine eigene Gruppe, keine neue Einstellung.
+- **Ausnahmen für Nicht-Admins** (Bedienung vor Ort): `gefuehl` (zu kalt / passt / zu warm), `warnung_stumm`,
+  `jetzt_heizen`, `boost`, `bedarf`, `bedarf_aus` (Knopf „Bei Bedarf“ = jetzt heizen bis …). Alle anderen Aktionen,
+  `setzen` und `liste` nur für Admins.
+- **Meldungen:** Jeder darf melden (`meldung` `neu`), die Liste sehen und Bilder ansehen; Status ändern, wieder öffnen
+  und löschen nur Admins. Der Dienst `baustelle.ticket` bleibt, wie er ist (Dienste ruft die Seite nicht auf; Claude
+  ruft ihn mit dem Token aus dem Terminal).
+- **Anzeige:** Für Nicht-Admins oben der Hinweis „Nur ansehen“; Schalter, Regler, Speichern- und Bearbeiten-Knöpfe
+  ausgegraut, Blättern, Reiter, Zeiträume und die erlaubten Aktionen gehen weiter. Gesperrt wird **immer** in der
+  Integration; die Seite zeigt nur an.
+
+Umsetzung:
+
+1. `logik/rechte.py` (ohne HA-Code, Test `tests/logik/test_rechte.py`): `AKTIONEN_ALLE` (die Ausnahmen oben),
+   `darf(admin, befehl, aktion=None) -> bool` und `rechte(admin) -> {"aendern": bool, "aktionen": [..]}`. Die Regel
+   steht nur hier.
+2. `panel.py`: in `setzen`, `liste`, `aktion` und `meldung` vor jeder Änderung `darf(...)`; sonst Fehler
+   `unauthorized` („Nur Admins dürfen ändern“). `baustelle/struktur` liefert je Baustelle `rechte` für den
+   angemeldeten Benutzer (api-0.7 §1, Beispiel `tests/panel/struktur-0.7.json`).
+3. Seite: liest `rechte` (fehlt das Feld → alles erlaubt, wie bisher); `nur-lesen` am Wurzelelement, Hinweis oben,
+   eine Prüfung vor den Aufrufen (`ws`, direkte `callWS`, Dialoge/Flows) und vor dem Öffnen der Bearbeiten-Fenster;
+   Schalter (`schalter()`) und Speichern-Knöpfe ausgegraut.
+4. Tests: Logik (jede Kombination), Integration mit Nicht-Admin (jeder ändernde Befehl abgewiesen, erlaubte Aktionen
+   und `meldung neu` gehen, `struktur.rechte` stimmt), Panel-Test mit `rechte.aendern = false` (Hinweis da, Schalter
+   gesperrt, Aufruf unterbleibt).
+
+Bleibt offen (HA-Grenze): Die Entitäten der Integration (z. B. Schalter „Automatik“) kann in HA jeder Benutzer
+außerhalb der Gruppe „Nur lesen“ schalten; HA kennt keine Rechte je Entität. Container und Baustellen anlegen,
+ändern und löschen laufen über Config-/Subentry-Flows und sind in HA schon nur für Admins.

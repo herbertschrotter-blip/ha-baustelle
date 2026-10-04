@@ -116,6 +116,16 @@ function bcSchacht(laeuft) {
   </svg>`;
 }
 
+/* Bauplan 0.7 §8: Nicht-Admins sehen nur an. Gesperrt wird in der Integration; hier nur ausgegraut, was ändert
+   (Schalter, die nur in der Seite wirken – Melden, Bedarf-Auswahl, Kachel-Katalog, eigene Auswertung –, bleiben frei).
+   Was vor Ort trotzdem geht, liefert die Integration (`rechte.aktionen`); VOR_ORT ordnet die Knöpfe diesen Aktionen zu. */
+const NUR_ANSEHEN = 'Nur ansehen – ändern dürfen nur Admins';
+const NUR_LESEN_SPERRE = ['.sw:not([data-act="ml-stand"]):not([data-act="bedarf-boost"]):not([data-act="kk-dia-w"]):not([data-act="aw-an"])', '[data-act$="-speichern"]', '[data-act$="-weg"]', '[data-act$="-bearbeiten"]', '[data-act="lern-reset"]',
+  '[data-act="abschliessen"]', '[data-act="neu-anlegen"]', '[data-act="wetterquelle-auf"]', 'input[data-k]', 'select[data-jm]',
+  ...['termin', 'urlaub', 'container-neu', 'wetterquelle', 'bs-loeschen', 'zeitraum-bs', 'name', 'baustelle-neu'].map(x => `[data-act="sheet"][data-s="${x}"]`)];
+const VOR_ORT = { 'w-stumm': 'warnung_stumm', 'sg-gefuehl': 'gefuehl', 'bedarf-auf': 'bedarf', 'bedarf-an': 'bedarf', 'bedarf-aus': 'bedarf_aus',
+  boost: 'boost', 'jetzt-an': 'jetzt_heizen', 'jetzt-aus': 'jetzt_heizen' };
+
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
 .wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
@@ -587,6 +597,8 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .bs-zeile .bs-wahl { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; text-align: left; }
 .bs-zeile .bs-ic { color: var(--ink2); padding: 4px 8px; font-size: 16px; }
 .neu-version { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; margin-bottom: 12px; border-color: var(--amber); }
+${NUR_LESEN_SPERRE.map(x => `.nur-lesen ${x}`).join(', ')} { opacity: .45; filter: grayscale(1); cursor: not-allowed; }
+.nur-lesen-hinweis { border-color: var(--line, rgba(127,127,127,.4)); }
 .neu-version .chip { color: var(--amber); background: color-mix(in srgb, var(--amber) 18%, transparent); font-weight: 600; white-space: nowrap; }
 .sheet .zeile { padding: 8px 0; } .sheet .zeile + .zeile { border-top: 1px solid var(--gridc); }
 .sheet input[type=time] { flex: 1; } .x { color: var(--rot) !important; padding: 4px 8px !important; }
@@ -1398,7 +1410,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.48';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.49';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1498,6 +1510,21 @@ class BaustellePanel extends HTMLElement {
       }).catch(() => {});
     }
     if (this.neueVersion !== vorher) this.render();
+  }
+  /* Bauplan 0.7 §8: Rechte des angemeldeten Benutzers aus baustelle/struktur (ohne Angabe: alles wie bisher) */
+  rechte() { const r = (this.roh || [])[0]; return (r && r.rechte) || { aendern: true, aktionen: [] }; }
+  nurLesen() { return !this.rechte().aendern; }
+  gesperrt(el) {
+    if (!this.nurLesen() || !el || !el.matches) return false;
+    const a = VOR_ORT[el.dataset && el.dataset.act]; return a ? !this.rechte().aktionen.includes(a) : NUR_LESEN_SPERRE.some(x => el.matches(x));
+  }
+  darfSenden(msg) {   // Meldungen entscheidet die Integration (melden darf jeder, Status nur Admins)
+    if (!this.nurLesen() || msg.type === 'baustelle/meldung') return true;
+    return msg.type === 'baustelle/aktion' && this.rechte().aktionen.includes(msg.aktion);
+  }
+  nurLesenHinweis() {
+    if (!this.roh || !this.nurLesen()) return '';
+    return `<div class="glas-panel neu-version nur-lesen-hinweis"><span>👁 ${NUR_ANSEHEN} <span class="leise">· jetzt heizen, Gefühl und Warnungen stumm gehen trotzdem</span></span></div>`;
   }
   versionHinweis() {
     if (!this.neueVersion) return '';
@@ -2275,13 +2302,14 @@ class BaustellePanel extends HTMLElement {
     const melden = this.d ? this.d.e.melden : true;
     let sheet = '';
     if (this.s.sheet) { try { sheet = this.sheet(); } catch (e) { this.s.sheet = null; sheet = ''; } }
-    this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this.versionHinweis()}${seite}</div></div>
+    this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this.versionHinweis()}${this.nurLesenHinweis()}${seite}</div></div>
       ${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
       <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
       <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${melden && this.roh && this.s.sheet && this.s.sheet.art !== 'melden' ? `<button class="melden-knopf im-sheet" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}${sheet}</div>
       <div class="tip"></div><div class="toast glas-panel"></div>
       ${melden && this.roh && !this.s.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}`;
+    if (this.ui.classList) this.ui.classList.toggle('nur-lesen', this.nurLesen());
     const sc = this.root.querySelector('.scroll'); if (sc) sc.scrollTop = pos;
     const evc2 = this.root.querySelector('.ev-chips');
     if (evc2) { evc2.scrollLeft = evPos; const on = evc2.querySelector('.chip.amber');   // gewählte Kategorie sichtbar, mittig, wenn sie draußen liegt
@@ -4207,12 +4235,14 @@ class BaustellePanel extends HTMLElement {
   /* ---- Aufrufe an die Integration (docs/api-0.7.md §2) und an HA ---- */
   fehlerText(e) { return (e && e.body && e.body.message) || (e && e.message) || (e && e.code) || String(e); }
   async ws(msg, ok) {
+    if (!this.darfSenden(msg)) { this.toast(NUR_ANSEHEN); return null; }
     try { const r = await this._hass.callWS(msg); if (ok) this.toast(ok); return r === undefined ? true : r; }
     catch (e) { this.toast(`Fehler: ${this.fehlerText(e)}`); return null; }
     finally { this._laden(); }
   }
   /* Einstellung setzen: sofort anzeigen, dann an die Integration (Pfad wie im Store) */
   setzen(pfad, wert, ok) {
+    if (this.nurLesen()) { this.toast(NUR_ANSEHEN); this.render(); return Promise.resolve(null); }   // Feld zurück auf den alten Wert
     const r = this.d && this.d.r;
     this._rohText = null;   // Antwort der Integration immer übernehmen (auch wenn sie den Wert ablehnt)
     if (r) { let o = r.einstellungen ||= {}; for (const k of pfad.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; o[pfad[pfad.length - 1]] = wert; this._neuBauen(); this.render(); }
@@ -4222,6 +4252,7 @@ class BaustellePanel extends HTMLElement {
   liste(liste, aktion, eintrag, ok) { return this.ws({ type: 'baustelle/liste', entry_id: this.d.entry, liste, aktion, eintrag }, ok); }
   /* Einrichtungs-Dialoge von HA (dieselben wie unter Einstellungen → Geräte & Dienste) */
   async dialog(pfad, start, daten) {
+    if (this.nurLesen()) throw new Error(NUR_ANSEHEN);
     const form = await this._hass.callApi('POST', pfad, start);
     if (!form || form.type !== 'form') return form;
     return this._hass.callApi('POST', `${pfad}/${form.flow_id}`, daten);
@@ -4252,6 +4283,7 @@ class BaustellePanel extends HTMLElement {
   /* ---- Aktionen ---- */
   klick(ev) {
     const el = ev.target && ev.target.closest && ev.target.closest('[data-act]'); if (!el) return;
+    if (this.gesperrt(el)) return this.toast(NUR_ANSEHEN);
     const a = el.dataset.act, d = this.d, b = this.b, S = this.s;
     const neu = () => this.render();
     switch (a) {

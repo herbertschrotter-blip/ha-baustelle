@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.49] – 2026-10-04
+
+- Berechtigungen (Bauplan §8): Lesen dürfen alle HA-Benutzer, ändern nur Admins. Die Integration weist Einstellungen,
+  Listen, Aktionen und Statusänderungen von Meldungen anderer Benutzer ab. Vor Ort geht es auch ohne Admin: jetzt heizen
+  („Bei Bedarf“, alle jetzt heizen, schnell aufheizen), Gefühl zu kalt/zu warm, Warnung stumm schalten; melden darf jeder.
+- Seite für Nicht-Admins: oben „👁 Nur ansehen – ändern dürfen nur Admins“, Schalter, Felder, Speichern- und
+  Bearbeiten-Knöpfe ausgegraut; Blättern, Reiter, Zeiträume und Auswertung gehen wie bisher.
+
 ## [0.8.48] – 2026-10-04
 
 - „Ohne Automatik“ zählte inaktive Heizkörper mit (FE-0020): Im Verbrauch eines Containers lief ein deaktivierter

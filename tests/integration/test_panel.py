@@ -533,3 +533,37 @@ async def test_alte_automatische_arbeitszeit_weicht(hass: HomeAssistant, freezer
     assert [(a["ab"], a["name"]) for a in st.e["arbeitszeiten"]] == [("2026-02-09", "Meine")]
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+async def test_nur_admins_aendern(hass: HomeAssistant, baustelle, ws, shellys, freezer, hass_admin_user) -> None:
+    """Bauplan 0.7 §8: lesen alle, ändern nur Admins; vor Ort gehen Gefühl, Warnung stumm und jetzt heizen."""
+    st = baustelle.runtime_data
+    freezer.move_to("2026-09-29 17:00:00+02:00")
+    assert (await ws.rufe("baustelle/struktur", mit_entry=False))["result"][0]["rechte"]["aendern"] is True
+    mid = (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="neu", meldung={"art": "fehler", "text": "x"}))["result"]["id"]
+    hass_admin_user.groups = []   # derselbe Benutzer, jetzt ohne Admin-Recht
+    r = (await ws.rufe("baustelle/struktur", mit_entry=False))["result"][0]["rechte"]
+    assert r["aendern"] is False and "gefuehl" in r["aktionen"] and "automatik" not in r["aktionen"]
+
+    def abgewiesen(antwort: dict) -> bool:
+        return not antwort["success"] and antwort["error"]["code"] == "unauthorized"
+
+    assert abgewiesen(await ws.rufe("baustelle/setzen", pfad=["automatik"], wert=True))
+    assert st.e["automatik"] is False
+    assert abgewiesen(await ws.rufe("baustelle/liste", liste="ausnahmen", aktion="speichern",
+                                    eintrag={"datum": "2026-10-02", "art": "frei"}))
+    for aktion, felder in [("automatik", {"geraet": HK2}), ("schalten", {"geraet": HK2, "an": True}),
+                           ("lern_reset", {"bereich": C1}), ("zuruecksetzen", {}), ("test_meldung", {}),
+                           ("soll_versch", {"bereich": C1, "d": 1})]:
+        assert abgewiesen(await ws.rufe("baustelle/aktion", aktion=aktion, **felder)), aktion
+    assert abgewiesen(await ws.rufe("baustelle/meldung", mit_entry=False, aktion="status", meldung_id=mid, status="geschlossen"))
+    assert abgewiesen(await ws.rufe("baustelle/meldung", mit_entry=False, aktion="loeschen", meldung_id=mid))
+    # erlaubt: lesen, melden, Bedienung vor Ort
+    assert (await ws.rufe("baustelle/protokoll"))["success"]
+    assert (await ws.rufe("baustelle/meldungen", mit_entry=False))["success"]
+    assert (await ws.rufe("baustelle/meldung", mit_entry=False, aktion="neu", meldung={"art": "wunsch", "text": "y"}))["success"]
+    assert (await ws.rufe("baustelle/aktion", aktion="bedarf", bereich=C2, minuten=60, boost=True))["success"]
+    assert (await ws.rufe("baustelle/aktion", aktion="bedarf_aus", bereich=C2))["success"]
+    assert (await ws.rufe("baustelle/aktion", aktion="boost", bereich=C1, an=True))["success"]
+    assert (await ws.rufe("baustelle/aktion", aktion="jetzt_heizen", minuten=60))["success"]
+    assert (await ws.rufe("baustelle/aktion", aktion="warnung_stumm", key="kein_wetter"))["success"]

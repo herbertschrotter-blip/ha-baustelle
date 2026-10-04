@@ -1178,6 +1178,38 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       erwarte('Firma je Container von der Integration, nicht aus der Zuordnung', panel.d.bereiche.find(b => b.id === bid).firma === fx.id); }
     struktur = alt; }
 
+  /* Bauplan 0.7 §8: Nicht-Admin sieht nur an – Hinweis, Schalter gesperrt, nichts Änderndes gesendet; vor Ort erlaubt bleibt */
+  { const vorher = struktur, b0 = vorher[0];
+    // einfacher Ersatz für Element.matches (Klasse, Tag, [a="v"], [a$="v"], :not([a="v"]))
+    const el = (ds, cls = '', tag = 'button') => ({ dataset: ds, matches: sel => {
+      for (const m of sel.matchAll(/:not\(\[data-act="([^"]+)"\]\)/g)) if (ds.act === m[1]) return false;
+      const rest = sel.replace(/:not\([^)]*\)/g, '');
+      return [...rest.matchAll(/\[([\w-]+)(\$?)="([^"]*)"\]|\[([\w-]+)\]|\.([\w-]+)|^([a-z]+)/g)].every(([, a, e, v, nur, k, t]) => {
+        const w = x => ds[x.replace(/^data-/, '').replace(/-(\w)/g, (_, c) => c.toUpperCase())];
+        if (a) return e ? String(w(a) ?? '').endsWith(v) : w(a) === v;
+        if (nur) return w(nur) !== undefined;
+        if (k) return cls.split(' ').includes(k);
+        return tag === t; }); } });
+    const klickEl = async (e, n) => { panel.klick({ target: { closest: () => e } }); await ruhe(n); };
+    struktur = vorher.map(x => ({ ...x, rechte: { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] } }));
+    global.location = { search: `?baustelle=${b0.baustelle.entry_id}` }; panel.cache = {}; await panel._laden(); panel._adresse(); await ruhe(30);
+    await klick({ act: 'tab', v: 'uebersicht' }, 30);
+    let h = pruefe('nur ansehen');
+    erwarte('§8: Hinweis „Nur ansehen“ für Nicht-Admins', h.includes('nur-lesen-hinweis') && h.includes('Nur ansehen'));
+    erwarte('§8: Wurzel mit Klasse nur-lesen', panel.ui.classList.contains('nur-lesen'));
+    neu(); await klickEl(el({ act: 'e-bool', k: 'fruehstart' }, 'sw'));
+    erwarte('§8: Schalter gesperrt, nichts gesendet', !letzte('baustelle/setzen').length && panel.letzterToast === 'Nur ansehen – ändern dürfen nur Admins');
+    neu(); await klickEl(el({ act: 'az-speichern' })); await klickEl(el({ act: 'sheet', s: 'termin' }));
+    erwarte('§8: Speichern und Bearbeiten-Fenster gesperrt', !aufrufe.length && !(panel.s.sheet && panel.s.sheet.art === 'termin'));
+    erwarte('§8: Schalter, die nur in der Seite wirken, bleiben frei', !panel.gesperrt(el({ act: 'ml-stand' }, 'sw')) && !panel.gesperrt(el({ act: 'bedarf-boost' }, 'sw')));
+    neu(); panel.setzen(['heizung', 'fruehstart'], false); await panel.aktion('lern_reset', { bereich: 'polier' }); await ruhe();
+    erwarte('§8: Änderungen gar nicht erst gesendet (setzen, Aktion nur für Admins)', !letzte('baustelle/setzen').length && !letzte('baustelle/aktion').length);
+    neu(); await klickEl(el({ act: 'boost', id: 'polier' }));
+    erwarte('§8: vor Ort erlaubt – schnell aufheizen geht', letzte('baustelle/aktion').some(x => x.aktion === 'boost'));
+    neu(); panel.letzterToast = ''; struktur = vorher; panel.cache = {}; await panel._laden(); await ruhe(30);
+    h = pruefe('wieder Admin');
+    erwarte('§8: Admin sieht keinen Hinweis', !h.includes('nur-lesen-hinweis') && !panel.ui.classList.contains('nur-lesen')); }
+
   /* Fast leere Baustelle (frisch angelegt, noch nicht geladen): nirgends undefined/NaN */
   struktur = [{ baustelle: { entry_id: 'leer', titel: 'Neu', optionen: {}, geladen: false }, entitaeten: {}, bereiche: [{ id: 'c1', name: 'Container 1', art: 'container', fuehler: null }],
     geraete: [], einstellungen: {}, zaehler: {}, laufzeit: {} }];

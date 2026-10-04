@@ -2284,6 +2284,17 @@
     "batterie": null,
     "signal": null
    }
+  },
+  "rechte": {
+   "aendern": true,
+   "aktionen": [
+    "gefuehl",
+    "warnung_stumm",
+    "jetzt_heizen",
+    "boost",
+    "bedarf",
+    "bedarf_aus"
+   ]
   }
  },
  {
@@ -3089,7 +3100,18 @@
     ]
    ]
   },
-  "geraete_links": {}
+  "geraete_links": {},
+  "rechte": {
+   "aendern": true,
+   "aktionen": [
+    "gefuehl",
+    "warnung_stumm",
+    "jetzt_heizen",
+    "boost",
+    "bedarf",
+    "bedarf_aus"
+   ]
+  }
  },
  {
   "baustelle": {
@@ -3399,7 +3421,18 @@
    "termine": [],
    "protokoll": []
   },
-  "geraete_links": {}
+  "geraete_links": {},
+  "rechte": {
+   "aendern": true,
+   "aktionen": [
+    "gefuehl",
+    "warnung_stumm",
+    "jetzt_heizen",
+    "boost",
+    "bedarf",
+    "bedarf_aus"
+   ]
+  }
  },
  {
   "baustelle": {
@@ -3657,6 +3690,17 @@
    "termine": [],
    "protokoll": []
   },
-  "geraete_links": {}
+  "geraete_links": {},
+  "rechte": {
+   "aendern": true,
+   "aktionen": [
+    "gefuehl",
+    "warnung_stumm",
+    "jetzt_heizen",
+    "boost",
+    "bedarf",
+    "bedarf_aus"
+   ]
+  }
  }
 ]
