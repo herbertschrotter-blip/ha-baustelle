@@ -327,3 +327,31 @@ Melden-Knopf: `python3 tools/ticket.py liste` (Ticket-Profil in CLAUDE.md).
       Automatik aus“ (startet aus – die Regel „schaltet nur, wenn Herbert die Automatik einschaltet“ bleibt);
       Kälte-Frühstart auf der Seite bis −15 °C (neuer Stepper, fehlte bisher).
 - [ ] Push nach GitHub durch Herbert (Push-Policy user-only), der Zweig `v0.7.0` ist in `main` zusammengeführt.
+
+## 7. Offen nach der Bewertung (Stand 04.10.2026, 0.8.48)
+
+Ergebnis einer Bewertung der Integration als Ganzes (Sitzung „ha-baustelle Teil 2“). Backend, Datenbasis und Tests sind
+gut; vor dem Einsatz in der Firma auf mehreren Baustellen fehlt:
+
+- [ ] **Berechtigungen:** Die Seite ist mit `require_admin=False` für jeden HA-Benutzer offen, und keiner der
+      WebSocket-Befehle in `panel.py` prüft Admin-Rechte. Ändern (setzen, aktion, liste, Tickets) nur für Admins oder eine
+      eigene Gruppe, lesen für alle – mit Tests. Wichtigster Punkt vor einem zentralen Firmen-Server.
+- [ ] **Rückfallebene in den Shellys:** Fällt der zentrale Server oder das WireGuard-VPN aus, schaltet auf der Baustelle
+      niemand. Abschaltautomatik bzw. einfacher Zeitplan im Gerät festlegen und testen, bevor eine zweite Baustelle über
+      VPN läuft.
+- [ ] **Stabilisieren:** eine Zeit lang nur Tickets, keine neuen Funktionen (153 Commits in 6 Tagen, viele Fehler kurz
+      nach Funktionen) – mindestens einen kalten Monat Pilotbetrieb.
+- [ ] **Code der Seite aufteilen:** `frontend/baustelle-panel.js` ist ein Block (≈ 4.700 Zeilen, ≈ 550 KB, HTML als
+      Text + `innerHTML`). In Module zerlegen (Himmel, Diagramme, je Ansicht) mit Bündler, langfristig Lit-Komponenten
+      wie HA; `funktionen/heizung.py` (≈ 1.200 Zeilen) und `steuerung.py` (≈ 1.300) weiter zerlegen.
+- [ ] **Speicherdatei:** Einstellungen, Zähler und bis zu 1.000 Protokolleinträge liegen in einer Store-Datei, die bei
+      jeder Änderung ganz geschrieben wird – bei vielen Baustellen Protokoll trennen bzw. ins Logbuch/Recorder.
+- [ ] **Beispieldaten Pumpen:** Im Master-Mockup zeigt der Reiter Pumpen „203 h 13 min Laufzeit heute“ und eine
+      überladene Achse (Beispiel-hass, `tests/panel/beispiel-hass.js`) – korrigieren.
+- [ ] **Betrieb in der Firma:** zweite Person, die den Code versteht; kurze Betriebsanleitung (einspielen, sichern,
+      Störung).
+
+Präsentation für die Firma (Chef): Artifact „Baustelle – weniger Heizkosten“ (16:9) und PDF im A4-Hochformat, erstellt
+04.10.2026 mit Messwerten der Pilotbaustelle (−71 %, ≈ 1.000 € je Heizkörper und Winter, 2,7 t CO₂). Platzhalter
+offen: Anzahl Heizkörper der Firma, zweite Baustelle. Für die Bildschirmfotos wurde Chromium vorübergehend im
+Terminal-Add-on installiert (verschwindet beim Neustart des Add-ons).
