@@ -336,7 +336,7 @@ gut; vor dem Einsatz in der Firma auf mehreren Baustellen fehlt:
 - [x] **Berechtigungen** (0.8.49, Plan §8): Die Seite ist mit `require_admin=False` für jeden HA-Benutzer offen, und keiner der
       WebSocket-Befehle in `panel.py` prüft Admin-Rechte. Ändern (setzen, aktion, liste, Tickets) nur für Admins oder eine
       eigene Gruppe, lesen für alle – mit Tests. Wichtigster Punkt vor einem zentralen Firmen-Server.
-- [ ] **Rückfallebene in den Shellys:** Fällt der zentrale Server oder das WireGuard-VPN aus, schaltet auf der Baustelle
+- [ ] **Rückfallebene in den Shellys** (Plan §9): Fällt der zentrale Server oder das WireGuard-VPN aus, schaltet auf der Baustelle
       niemand. Abschaltautomatik bzw. einfacher Zeitplan im Gerät festlegen und testen, bevor eine zweite Baustelle über
       VPN läuft.
 - [ ] **Stabilisieren:** eine Zeit lang nur Tickets, keine neuen Funktionen (153 Commits in 6 Tagen, viele Fehler kurz
@@ -390,3 +390,30 @@ Umsetzung:
 Bleibt offen (HA-Grenze): Die Entitäten der Integration (z. B. Schalter „Automatik“) kann in HA jeder Benutzer
 außerhalb der Gruppe „Nur lesen“ schalten; HA kennt keine Rechte je Entität. Container und Baustellen anlegen,
 ändern und löschen laufen über Config-/Subentry-Flows und sind in HA schon nur für Admins.
+
+## 9. Rückfallebene in den Shellys (Herbert, 05.10.2026) – Plan, noch nicht gebaut
+
+Ziel: Fällt HA, der zentrale Server oder das VPN aus, heizen die Plugs (Shelly Plug S Gen3: Skripte, Speicher (KVS),
+Bluetooth/BTHome) mit einem gespeicherten Programm selbst weiter.
+
+Entscheidungen:
+
+- **Fühler: Shelly BLU H&T statt FRITZ!Smart Control 440** je Container. Der Plug liest ihn direkt (Bluetooth), HA liest
+  ihn über die Plugs mit (Bluetooth-Proxy). Türsensor ebenso als Shelly BLU Door/Window. Die Hardware muss vorher
+  beschafft werden.
+- **Notprogramm mit Lebenszeichen:** HA schreibt täglich und bei jeder Änderung das fertige Programm der nächsten
+  7 Tage in den Plug (Fenster je Tag, Soll, Toleranz, Frostgrenzen, Fühler, Tür; Feiertage, Urlaub, Ausnahmen und die
+  gelernte Vorheizzeit schon eingerechnet) und meldet sich alle paar Minuten. Das Skript im Plug tut nichts, solange
+  das Lebenszeichen frisch ist (z. B. < 15 min); bleibt es aus, übernimmt es, bis HA zurück ist. Nie zwei Steuerungen
+  zugleich. Das Skript rechnet keine Fachregeln, es führt nur die Tabelle aus (Fachregeln bleiben in `logik/`).
+- **Je Modus:** Zeitplan ganz; Thermostat mit Fühler (Soll ± Toleranz im Fenster, ohne Fühler Rückfall auf Zeitplan);
+  Bei Bedarf: laufende Anforderung zu Ende, danach Frostschutz; Hand: kein Programm; Aus: aus; Frostschutz in jedem
+  Modus mit Fühler; Tür offen → Pause.
+- **Staffelung im Notbetrieb: keine Grenze** – jeder Plug heizt nach seinem Programm.
+- **Ohne Uhrzeit** (Strom weg und kein Internet): nur Frostschutz, bis die Zeit wieder da ist. Prüfen: Router der
+  Baustelle als Zeitserver im Plug eintragen (FRITZ!Box/Teltonika, Zeit aus dem Mobilfunknetz).
+- **Taste am Plug: Drücken = 1 h heizen** (wie „Bei Bedarf“, mit und ohne HA), nochmal drücken beendet. Ausschalten
+  von Hand geht dann nur über die Seite.
+
+Offen vor dem Bau: Übertragung (Shelly-RPC über HTTP: KVS, Script.PutCode; Gerätepasswort als `!secret`), Skript im Repo
+mit Simulationstest in Node, Anzeige „Notbetrieb“ im Protokoll und auf der Seite.
