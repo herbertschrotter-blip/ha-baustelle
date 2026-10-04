@@ -355,7 +355,8 @@ async def async_ohne(
     q = quelle(hass, entry)
     heizer_alle = [g for g in q.geraete if g["rolle"] == ROLLE_HEIZKOERPER]
     mittel = {g["id"]: (q.st.zaehler.get(f"mittel:{g['id']}") if q.st is not None else None) for g in heizer_alle}
-    kw = a.ohne_kw([(g["id"], str(g["typ"] or "")) for g in heizer_alle], mittel, basis)
+    inaktiv = {g["id"] for g in heizer_alle if q.st is not None and (i := q.st.geraete.get(g["id"])) is not None and not q.st.geraet_aktiv(i)}
+    kw = a.ohne_kw([(g["id"], str(g["typ"] or "")) for g in heizer_alle], mittel, basis, inaktiv)   # FE-0020
     eigene = [g for g in heizer_alle if g["bereich"] == bereich]
     kw_summe = sum(kw.get(g["id"], 0.0) for g in eigene)
     beginn, _ = beginn_der_baustelle(entry)

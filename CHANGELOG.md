@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.48] – 2026-10-04
+
+- „Ohne Automatik“ zählte inaktive Heizkörper mit (FE-0020): Im Verbrauch eines Containers lief ein deaktivierter
+  Heizkörper ohne eigene Messung mit dem Ø seines Typs rund um die Uhr mit (Poliercontainer 3,6 statt 1,8 kW). Inaktive
+  Heizkörper zählen jetzt weder im Container noch im Zähler „ohne Automatik“ der Baustelle.
+
 ## [0.8.47] – 2026-10-04
 
 - Containergröße (AN-0014): In „Container bearbeiten“ neu „Größe“ – Einzel (innen 5,90 × 2,29 m ≈ 13,5 m², 2,30 m hoch

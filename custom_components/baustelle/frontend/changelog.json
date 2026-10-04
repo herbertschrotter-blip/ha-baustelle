@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.48",
+    "datum": "2026-10-04",
+    "punkte": [
+      "„Ohne Automatik“ zählte inaktive Heizkörper mit (FE-0020): Im Verbrauch eines Containers lief ein deaktivierter Heizkörper ohne eigene Messung mit dem Ø seines Typs rund um die Uhr mit (Poliercontainer 3,6 statt 1,8 kW). Inaktive Heizkörper zählen jetzt weder im Container noch im Zähler „ohne Automatik“ der Baustelle."
+    ]
+  },
+  {
     "version": "0.8.47",
     "datum": "2026-10-04",
     "punkte": [

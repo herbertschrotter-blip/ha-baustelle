@@ -350,6 +350,9 @@ def test_ohne_kw_je_geraet_oder_typ():
     assert ohne_kw(geraete, mittel, "geraet") == {"a": 2.0, "b": 1.6, "c": 1.5, "d": 1.5}   # d ohne Messung: Ø des Typs
     assert ohne_kw(geraete, mittel, "typ") == {"a": 1.8, "b": 1.8, "c": 1.5, "d": 1.5}
     assert ohne_kw([("x", "konvektor")], {}, "geraet") == {}
+    # FE-0020: inaktive sind nicht dabei (auch nicht mit dem Ø des Typs), ihre Messung zählt aber im Ø
+    assert ohne_kw(geraete, mittel, "geraet", {"b", "d"}) == {"a": 2.0, "c": 1.5}
+    assert ohne_kw(geraete, mittel, "typ", {"b"}) == {"a": 1.8, "c": 1.5, "d": 1.5}
 
 
 def test_typ_vergleich_fair():

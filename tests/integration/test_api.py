@@ -131,6 +131,10 @@ async def test_ohne_automatik_je_container(hass: HomeAssistant, baustelle, freez
     await ws.send_json({"id": 2, "type": "baustelle/ohne", "entry_id": baustelle.entry_id, "bereich": C1, "zeitraum": "Tag", "basis": "typ"})
     r = (await ws.receive_json())["result"]
     assert r["basis"] == "typ" and r["kw"] == 2.0     # einziger Ölradiator: Ø des Typs = eigener Wert
+    st.geraet_aktiv_setzen(st.geraete[HK1], False)    # FE-0020: inaktiv → läuft auch ohne Automatik nicht
+    await ws.send_json({"id": 3, "type": "baustelle/ohne", "entry_id": baustelle.entry_id, "bereich": C1, "zeitraum": "Tag"})
+    r = (await ws.receive_json())["result"]
+    assert r["kw"] == 0 and r["ohne_kwh"] == 0 and r["geraete"] == [{"id": HK1, "typ": "oelradiator", "kw": None}]
 
 
 async def test_soll_gleitend(hass: HomeAssistant, baustelle, freezer, shellys, hass_ws_client) -> None:

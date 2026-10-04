@@ -1055,7 +1055,7 @@ class Heizung(Funktion):
         mittel_w = mittel_im_betrieb(z.get(f"mittel:{g.id}"), leistung if an else None)
         if mittel_w is not None:
             z[f"mittel:{g.id}"] = mittel_w
-            if self.aktiv():
+            if self.aktiv() and self.st.geraet_aktiv(g):   # FE-0020: inaktive liefen auch ohne Automatik nicht
                 self._ohne_w += mittel_w
         if not an:
             return False

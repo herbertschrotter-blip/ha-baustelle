@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import math
 from calendar import monthrange
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone, tzinfo
 from typing import Any, TypeGuard
@@ -444,10 +444,13 @@ def stunden_je_periode(zr: Zeitraum, ab: datetime, bis: datetime, zone: tzinfo) 
     return [max(0.0, (min(e, bis) - max(s, ab)).total_seconds() / 3600) for s, e in zip(g, g[1:])]
 
 
-def ohne_kw(geraete: Sequence[tuple[str, str]], mittel_w: Mapping[str, float | None], basis: str) -> dict[str, float]:
+def ohne_kw(
+    geraete: Sequence[tuple[str, str]], mittel_w: Mapping[str, float | None], basis: str, inaktiv: Collection[str] = (),
+) -> dict[str, float]:
     """Leistung je Heizkörper für „ohne Automatik“ (WU-0013): `geraet` = seine gemessene Ø-Leistung im Betrieb,
     `typ` = Ø aller Heizkörper desselben Typs (Ölradiator/Konvektor); ohne Messung: Ø des Typs, sonst nicht dabei.
-    `geraete`: (id, typ) aller Heizkörper der Baustelle; Ergebnis in kW."""
+    Inaktive Heizkörper liefen auch ohne Automatik nicht – sie sind nicht dabei (FE-0020); ihre Messung zählt aber im
+    Ø des Typs. `geraete`: (id, typ) aller Heizkörper der Baustelle; Ergebnis in kW."""
     je_typ: dict[str, list[float]] = {}
     for gid, typ in geraete:
         if ist_zahl(mittel_w.get(gid)):
@@ -455,6 +458,8 @@ def ohne_kw(geraete: Sequence[tuple[str, str]], mittel_w: Mapping[str, float | N
     typ_mittel = {t: sum(v) / len(v) for t, v in je_typ.items()}
     kw: dict[str, float] = {}
     for gid, typ in geraete:
+        if gid in inaktiv:
+            continue
         eigen = mittel_w.get(gid)
         wert = typ_mittel.get(typ) if basis == "typ" or not ist_zahl(eigen) else float(eigen)   # type: ignore[arg-type]
         if wert is not None:

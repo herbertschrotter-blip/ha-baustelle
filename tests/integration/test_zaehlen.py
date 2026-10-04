@@ -100,6 +100,15 @@ async def test_heizzeit_mittel_ohne_automatik(hass: HomeAssistant, baustelle, fr
     # ohne Automatik: 2 kW rund um die Uhr
     assert st.zaehler["ohne"] == pytest.approx(0.2, abs=0.04)
     assert _wert(hass, "h2_mittel_im_betrieb") == pytest.approx(2000)
+    # FE-0020: inaktiv → zählt nicht mehr zu „ohne Automatik“ (die Messung bleibt)
+    st.geraet_aktiv_setzen(st.geraete["h2"], False)
+    await hass.async_block_till_done()
+    vorher = st.zaehler["ohne"]
+    for _ in range(6):
+        freezer.tick(timedelta(minutes=1))
+        st.auswerten()
+    await hass.async_block_till_done()
+    assert st.zaehler["ohne"] == pytest.approx(vorher) and st.zaehler["mittel:h2"] == pytest.approx(2000)
 
 
 async def test_pumpzeit_und_zyklen(hass: HomeAssistant, baustelle, freezer) -> None:
