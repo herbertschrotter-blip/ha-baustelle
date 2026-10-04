@@ -417,3 +417,22 @@ Entscheidungen:
 
 Offen vor dem Bau: Übertragung (Shelly-RPC über HTTP: KVS, Script.PutCode; Gerätepasswort als `!secret`), Skript im Repo
 mit Simulationstest in Node, Anzeige „Notbetrieb“ im Protokoll und auf der Seite.
+
+## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut
+
+Ziel: die Daten für die Seite **und** außerhalb von HA (Excel, Power BI, Buchhaltung), mehrere HA-Instanzen zentral,
+Rohdaten (Minutenwerte) über Jahre.
+
+Entscheidungen:
+
+- **Keine eigene Datenbank in der Integration.** Ebene 1 bleibt in jeder HA-Instanz: Einstellungen im Store, Messwerte
+  in der HA-Langzeitstatistik (Stundenwerte, dauerhaft), daraus Auswertung, Abrechnung, Bericht, CSV; Lücken nach
+  Ausfällen werden aus dem Stundenbuch der Plugs nachgetragen (§9).
+- **Ebene 2 zentral: PostgreSQL + TimescaleDB** in der Firma. Jede HA-Instanz schreibt ihre Zustände laufend hinein
+  (Anbindung prüfen: benutzerdefinierte Integration LTSS „Long Time State Storage“); für die zentrale HA-Instanz kann
+  dieselbe Datenbank auch der Recorder sein (`db_url`). Zeitreihen über Jahre mit Verdichtung (TimescaleDB).
+- **Zuordnung mitliefern:** Die Integration hängt an ihre Sensoren Merkmale (Baustelle, Container, Firma, Gerätetyp),
+  damit die zentralen Daten ohne HA auswertbar sind; für Excel/Power BI Ansichten (Views) je Baustelle und Firma.
+
+Offen: Server und Betrieb der Datenbank in der Firma (Sicherung, Zugänge), Pufferung bei VPN-Ausfall (LTSS schreibt nur,
+solange die Verbindung steht – die Lücken füllt Ebene 1), Reihenfolge nach dem Pilot-Winter (§7 „Stabilisieren“).
