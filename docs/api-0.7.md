@@ -49,6 +49,10 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
     // WU-0016: baustelle/meldung neu nimmt meldung.bilder (bis 3 Data-URLs JPEG/PNG/WebP, je ≤ 1,5 MB) an, speichert sie als
     //   <config>/baustelle/meldungen/<Ticket>-<n>.<endung>, die Meldung hat "bilder": [Dateinamen]; aktion "bild"
     //   {meldung_id, nr} liefert {"url": Data-URL}; „loeschen“ löscht die Bilder mit.
+    // Strompreis mit „gilt ab“: einstellungen.preise = [{"ab", "preis"}, …] (leer = nur einstellungen.preis); baustelle/liste
+    //   preise speichern {ab, preis} / loeschen {ab} (der letzte bleibt); einstellungen.preis = Preis von heute.
+    //   baustelle/auswertung und baustelle/abrechnung rechnen jeden Tag mit dem damaligen Preis („preis“ = gewichtetes
+    //   Mittel im Zeitraum); optional {preis} simuliert alle € mit diesem Preis (Antwort „simuliert“: true).
     // baustelle/aktion zuruecksetzen: alle Zähler und alles Gelernte auf null (Einstellungen, Protokoll, HA-Statistik bleiben), lädt neu.
     "warnungen": [{"key": "", "art": "", "stufe": "stoerung|hinweis", "bereich": "<bid>|null", "geraet": "<gid>|null",
                    "titel": "nicht erreichbar", "hilfe": "", "seit": "ISO", "stumm_bis": "ISO|null"}],

@@ -796,6 +796,11 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .sr-auf { grid-column: 2 / -1; display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: 12.5px; padding: 6px 10px; margin-top: 4px; border-radius: 10px; background: rgba(120,120,128,.12); }
 .sr-auf b { text-align: right; font-weight: 500; white-space: nowrap; } .sr-auf .summe { border-top: 1px solid var(--gridc); padding-top: 3px; font-weight: 600; }
 .sr-zust { grid-column: 2 / -1; font-size: 12px; }
+/* Strompreis mit „gilt ab“ und Preis simulieren */
+.sp-zeile { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-top: 1px solid var(--gridc); } .sp-zeile b { font-size: 15px; } .sp-zeile .x { margin-left: auto; }
+.sp-sim { display: inline-flex; align-items: center; gap: 6px; } .sp-sim b { font-size: 16px; min-width: 56px; text-align: center; }
+.sp-chip-sim { background: color-mix(in srgb, #bf5af2 30%, transparent) !important; }
+.sp-band { margin: 6px 0; font-size: 13px; padding: 6px 10px; border-radius: 12px; background: color-mix(in srgb, #bf5af2 18%, transparent); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* WU-0017: Vergleich-Kacheln */
 .vg-zeilen { display: flex; flex-direction: column; gap: 2px; margin-top: auto; font-size: 12px; } .vg-zeilen div { display: flex; justify-content: space-between; gap: 6px; }
 .vg-zeilen span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink2); } .vg-zeilen b { font-weight: 600; white-space: nowrap; }
@@ -1353,6 +1358,7 @@ const KK = {
   'b-wetter': { ber: 'baustelle', ic: '🌦', name: 'Wetter-Einfluss', text: 'kWh je Grad kälter, letzte 30 Heiztage', such: 'temperatur außen kälte grad' },
   'b-strom': { ber: 'baustelle', ic: '⚡', name: 'Stromverteilung · Staffelung', text: 'Last je Anschluss, Grenze und Reserve', such: 'anschluss ampere kw last verteiler staffel' },
   'b-oel': { ber: 'baustelle', ic: '⚖', name: 'Ölradiator-Ersparnis', text: 'Ölradiator gegen Konvektor, fair verglichen', such: 'konvektor heizkörper typ vergleich euro' },
+  'b-preis': { ber: 'baustelle', ic: '🧮', name: 'Preis simulieren', text: 'Verbrauch mit einem anderen Strompreis – was hätte es gekostet', such: 'euro preis simulieren tarif was wäre wenn' },
   'b-geraete': { ber: 'baustelle', ic: '📶', name: 'Geräte · erreichbar & Signal', text: 'Wie viele Shellys antworten, WLAN-Signal', such: 'shelly wlan signal offline erreichbar' },
   'b-wer': { ber: 'baustelle', ic: '🔥', name: 'Wer verbraucht was', text: 'Rangliste der Container nach kWh', such: 'rangliste container verbrauch kwh euro' },
   'c-temp': { ber: 'container', je: 'f', ic: '🌡', name: 'Temperatur', text: 'innen jetzt, Verlauf heute mit außen', such: 'grad celsius fühler innen außen' },
@@ -1392,7 +1398,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.45';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.46';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1593,7 +1599,7 @@ class BaustellePanel extends HTMLElement {
     const h = e0.heizung || {}, st = e0.staffel || {}, me = e0.meldungen_einst || {}, ar = me.arten || {}, be = e0.bericht || {};
     const v = (x, std) => zahl(x) ? Number(x) : std;
     const namen = s => { const x = this._hass && this._hass.states[`notify.${s}`]; return (x && x.attributes.friendly_name) || String(s).replace(/^mobile_app_/, '').replace(/_/g, ' '); };
-    const e = { preis: v(e0.preis, 0), feiertag_frei: h.feiertag_frei !== false, boost_min: v(h.boost_min, 30), soll_art: h.soll_art === 'gleitend' ? 'gleitend' : 'fest', gleit_min: v(h.gleit_min, 21), gleit_max: v(h.gleit_max, 24),
+    const e = { preis: v(e0.preis, 0), preise: Array.isArray(e0.preise) ? e0.preise : [], feiertag_frei: h.feiertag_frei !== false, boost_min: v(h.boost_min, 30), soll_art: h.soll_art === 'gleitend' ? 'gleitend' : 'fest', gleit_min: v(h.gleit_min, 21), gleit_max: v(h.gleit_max, 24),
       gleit_je: v(h.gleit_je, 0.1), gleit_bezug: v(h.gleit_bezug, 12), gleit_tage: v(h.gleit_tage, 3), toleranz: v(h.toleranz, 0.3), hand_nachfrist: v(h.hand_nachfrist_min, 30),
       fuehler_halten: v(h.fuehler_halten_min, 15), zieht_w: v(h.zieht_strom_w, 50), melden: e0.melden_knopf !== false,
       staffel: st.an !== false, nutzbar: v(st.nutzbar_prozent, 67), max_gleich: v(st.max_gleichzeitig, 5), min_lauf: v(st.min_lauf_min, 10), min_pause: v(st.min_pause_min, 5), takt: v(st.takt_min, 15),
@@ -1830,14 +1836,17 @@ class BaustellePanel extends HTMLElement {
       <div class="${cls}">${inhalt}</div>
       <div class="zr-kal-fuss"><button class="glas-panel chip" data-act="zr-setz" ${zd} data-v="0">${{ Tag: 'Heute', Woche: 'Diese Woche', Monat: 'Dieser Monat', Jahr: 'Dieses Jahr' }[z]}</button></div></div>`;
   }
-  awDaten(z, versatz = 0, scope = this.s.awScope || 'diese', d = this.d) {
+  /* Preis simulieren (Herbert 04.10.2026): in der Auswertung mit dem Chip „💶 Preis“; die Integration rechnet alle € damit */
+  simAktiv() { return !!this.s.awSim && this.s.view === 'auswertung'; }
+  simPreis() { if (!zahl(this.s.simPreis)) { let v = null; try { v = parseFloat(localStorage.getItem('baustelle-sim-preis')); } catch (e) { v = null; } this.s.simPreis = zahl(v) ? v : this.d.e.preis; } return this.s.simPreis; }
+  awDaten(z, versatz = 0, scope = this.s.awScope || 'diese', d = this.d, preis = this.simAktiv() ? this.simPreis() : null) {
     if (!d) return null;
-    const r = this._holen(`aw:${d.entry}:${z}:${versatz}:${scope}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'baustelle/auswertung', entry_id: d.entry, zeitraum: z, versatz, scope }));
+    const r = this._holen(`aw:${d.entry}:${z}:${versatz}:${scope}:${d.z.HEUTE}:${preis ?? ''}`, () => this._hass.callWS({ type: 'baustelle/auswertung', entry_id: d.entry, zeitraum: z, versatz, scope, ...(preis !== null ? { preis } : {}) }));
     return r === undefined ? null : r || {};
   }
-  abDaten(z, scope = this.s.awScope || 'diese', d = this.d, versatz = 0) {
+  abDaten(z, scope = this.s.awScope || 'diese', d = this.d, versatz = 0, preis = this.simAktiv() ? this.simPreis() : null) {
     if (!d) return null;
-    const r = this._holen(`ab:${d.entry}:${z}:${versatz}:${scope}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'baustelle/abrechnung', entry_id: d.entry, zeitraum: z, versatz, scope }));
+    const r = this._holen(`ab:${d.entry}:${z}:${versatz}:${scope}:${d.z.HEUTE}:${preis ?? ''}`, () => this._hass.callWS({ type: 'baustelle/abrechnung', entry_id: d.entry, zeitraum: z, versatz, scope, ...(preis !== null ? { preis } : {}) }));
     return r === undefined ? null : r || {};
   }
   verlaufDaten(x) {
@@ -3086,6 +3095,7 @@ class BaustellePanel extends HTMLElement {
   /* eine Kachel in S / M / L (L mit Diagramm oder vier Kennzahlen); ort 'kat' = Vorschau im Katalog */
   kkKachel(x, i, ort, c) {
     if (KK[x.k] && KK[x.k].je === 'v') return this.vgKachel(x, i, ort, c);   // WU-0017
+    if (x.k === 'b-preis') return this.spKachel(x, i, ort, c);
     const e = KK[x.k], b = e.je ? this.kkB(x) : null, gr = x.st, kopf = `<div class="kk-kopf"><span class="kk-ic">${e.ic}</span><small>${esc(e.name)}</small></div>`;
     if (e.je && !b) return `<div class="glas-panel kk">${kopf}<span class="kk-wo">kein ${e.je === 'p' ? 'Schacht' : 'Container'} vorhanden</span></div>`;
     const D = this.kkDaten(x, b, c), mitDia = gr === 'L' && x.dia !== false;
@@ -3240,6 +3250,7 @@ class BaustellePanel extends HTMLElement {
       case 'b-oel': return detail('vergleich');
       case 'b-wer': return detail('rangliste');
       case 'b-strom': S.sheet = { art: 'strom' }; return this.render();
+      case 'b-preis': S.awSim = true; return this.gehe('auswertung');   // Auswertung mit dem simulierten Preis
       case 'b-geraete': S.evGruppe = 'geraete'; return this.gehe('einst');
       case 'c-leistung': return blatt('leistung', { zeitraum: 'Tag', v: 0 });
       case 'c-verbrauch': case 'c-ohne': return blatt('verbrauch');
@@ -3255,8 +3266,8 @@ class BaustellePanel extends HTMLElement {
     const d = this.d, L = this.awAuswahl(), bearb = this.s.awBearb, layout = this.s.awLayout;
     this._awTeile = { B, A, z };   // für die Detail-Einblendung
     const kopf = this.kopf('Auswertung', alle ? 'ALLE LAUFENDEN BAUSTELLEN' : esc(d.titel), `<span class="aw-knoepfe"><button class="glas-panel chip ${layout ? 'amber' : ''}" data-act="aw-layout">${layout ? '✓ Fertig' : '✥ Layout'}</button>
-        <button class="glas-panel chip ${bearb ? 'amber' : ''}" data-act="aw-bearb">${bearb ? '✓ Fertig' : '✎ Anpassen'}</button><button class="glas-panel chip" data-act="csv">⇩ CSV</button><button class="glas-panel chip kk-plus" data-act="kk-plus" data-ort="aw">＋ Kachel</button></span>`);
-    const leiste = `<div class="aw-leiste"><div class="seg glas-panel">${['Tag', 'Woche', 'Monat', 'Jahr'].map(t => `<button data-act="vb-zeitraum" data-ziel="aw" data-v="${t}" class="${z === t ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <button class="glas-panel chip ${bearb ? 'amber' : ''}" data-act="aw-bearb">${bearb ? '✓ Fertig' : '✎ Anpassen'}</button><button class="glas-panel chip ${this.s.awSim ? 'sp-chip-sim' : ''}" data-act="sp-aw">💶 ${this.s.awSim ? `simuliert ${de(this.simPreis(), 2)} €` : 'Preis: tatsächlich'}</button><button class="glas-panel chip" data-act="csv">⇩ CSV</button><button class="glas-panel chip kk-plus" data-act="kk-plus" data-ort="aw">＋ Kachel</button></span>`);
+    const leiste = `${this.s.awSim ? `<div class="sp-band">🧮 Simuliert: alle € dieser Auswertung mit <span class="sp-sim"><button class="glas-panel chip" data-act="sp-sim" data-d="-0.01">−</button><b>${de(this.simPreis(), 2)} €/kWh</b><button class="glas-panel chip" data-act="sp-sim" data-d="0.01">+</button></span> <button class="rv-link" data-act="sp-aw">zurück auf tatsächlich</button></div>` : ''}<div class="aw-leiste"><div class="seg glas-panel">${['Tag', 'Woche', 'Monat', 'Jahr'].map(t => `<button data-act="vb-zeitraum" data-ziel="aw" data-v="${t}" class="${z === t ? 'on' : ''}">${t}</button>`).join('')}</div>
       <div class="seg glas-panel">${[['diese', 'Diese Baustelle'], ['alle', `Alle laufenden (${this.laufende().length})`]].map(([k, t]) => `<button data-act="aw-scope" data-v="${k}" class="${(this.s.awScope || 'diese') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
       ${this.zrWahl('aw', z, this.zrGrenze(alle))}`;
     if (bearb) {
@@ -3337,6 +3348,34 @@ class BaustellePanel extends HTMLElement {
     }).catch(() => this.toast('Aufnahme abgebrochen'));
   }
   mlBild(m, i) { const r = this._holen(`mb:${m.id}:${i}`, () => this._hass.callWS({ type: 'baustelle/meldung', aktion: 'bild', meldung_id: m.id, nr: i }), 3600000); return r && r.url; }
+  /* Kachel „Preis simulieren“: tatsächliche € (je Tag der damalige Preis) gegen alle kWh × simulierter Preis – beides rechnet die Integration */
+  spKachel(x, i, ort, c) {
+    const sim = this.simPreis(), A2 = this.awDaten(c.z, c.v, ort === 'aw' ? this.s.awScope || 'diese' : 'diese', this.d, sim), S2 = (A2 && A2.summen) || {}, S = c.S;
+    const echt = S.eur, simE = S2.eur, kwh = S.kwh, diff = zahl(simE) && zahl(echt) ? simE - echt : null, gr = x.st;
+    const kopf = '<div class="kk-kopf"><span class="kk-ic">🧮</span><small>Preis simulieren</small></div>';
+    const regler = `<div class="sp-sim"><button class="glas-panel chip" data-act="sp-sim" data-d="-0.01" aria-label="Preis niedriger">−</button><b>${de(sim, 2)} €</b><button class="glas-panel chip" data-act="sp-sim" data-d="0.01" aria-label="Preis höher">+</button></div>`;
+    const zahlH = `<b class="kk-zahl">${zahl(simE) ? de(simE, simE < 100 ? 2 : 0) : '–'}<small> €</small></b>`;
+    const unter = diff === null ? 'lädt …' : `${diff > 0 ? '+' : diff < 0 ? '−' : '±'}${de(Math.abs(diff), 2)} € gegenüber tatsächlich ${de(echt, 2)} €`;
+    let inhalt;
+    if (gr === 'S') inhalt = `${kopf}${zahlH}<span class="kk-wo">bei ${de(sim, 2)} €/kWh</span>`;
+    else if (gr === 'M') inhalt = `<div class="kk-m-l">${kopf}${zahlH}<span class="kk-vgl">${unter}</span></div><div class="kk-m-r">${regler}<span class="kk-wo">${zahl(kwh) ? de(kwh, 0) : '–'} kWh · ${esc(this.zrText(c.z, c.v))}</span></div>`;
+    else inhalt = `${kopf}<div class="kk-l-zeile">${zahlH}<span class="kk-wo">${esc(this.zrText(c.z, c.v))}</span></div><span class="kk-vgl">${unter}</span>${regler}
+      <div class="kk-dia zeilen"><div class="kk-dia-in">${kkBalken([['tatsächlich', echt || 0, zahl(echt) ? `${de(echt, 2)} €` : '–', 'var(--s1)'], [`bei ${de(sim, 2)} €`, simE || 0, zahl(simE) ? `${de(simE, 2)} €` : '–', '#bf5af2']])}</div></div>
+      <div class="leise">tatsächlich = je Tag der damals gültige Preis · simuliert = alle ${zahl(kwh) ? de(kwh, 0) : '–'} kWh × ${de(sim, 2)} €</div>`;
+    return ort === 'kat' ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>`
+      : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i}" title="antippen: Auswertung mit diesem Preis">${inhalt}</div>`;
+  }
+  /* Strompreis mit „gilt ab“ (Herbert 04.10.2026, Mockup strompreis.html): Liste wie die Arbeitszeit; die Integration
+     rechnet jeden Tag mit dem Preis, der damals galt */
+  preisListe() {
+    const e = this.d.e, H = this.z.HEUTE, L = (e.preise.length ? e.preise : [{ ab: null, preis: e.preis }]).slice().sort((a, b) => String(b.ab).localeCompare(String(a.ab)));
+    const jetzt = L.find(x => !x.ab || x.ab <= H);
+    return `<div class="gruppe-t">Strompreis</div>${L.map((x, i) => { const bis = i && L[i - 1].ab ? plusTage(L[i - 1].ab, -1) : null;
+      return `<div class="sp-zeile"><b>${de(x.preis, 2)} €/kWh</b><span class="leise">${x === jetzt ? '<span class="badge gruen">gilt jetzt</span> ' : x.ab > H ? '<span class="badge blau-b">geplant</span> ' : ''}${x.ab && x.ab > '2000-01-01' ? `ab ${datum(x.ab)}` : 'bisher'}${bis ? ` bis ${datum(bis)}` : ''}</span>
+        ${L.length > 1 && x.ab ? `<button class="x" data-act="sp-weg" data-ab="${x.ab}" title="Preis löschen">✕</button>` : ''}</div>`; }).join('')}
+      <button class="zeile" data-act="sp-neu"><span class="blau">+ Neuer Preis ab …</span></button>
+      <div class="leise">Auswertung, Abrechnung nach Firma und CSV rechnen jeden Tag mit dem Preis, der an dem Tag galt. Ein neuer Preis ändert nichts an Vergangenem.</div>`;
+  }
   /* Rangliste der Staffelung (Herbert 01.10.2026, Mockup staffel-rang.html): Reihenfolge und Bedarf in °C rechnet die
      Integration (laufzeit.staffel.rang, laufzeit.container.<id>.bedarf) – die Seite zeigt nur an */
   stromRang(L, zustand) {
@@ -3710,7 +3749,7 @@ class BaustellePanel extends HTMLElement {
         ${d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
         <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button></div>
       <div class="glas-panel liste"><div class="gruppe">Strom</div>
-        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label>
+        ${this.preisListe()}
         <div class="zeile"><div><b>⚡ Staffelung</b><div class="leise">verteilt die Heizungen auf den freien Strom – geschaltet werden nur Heizungen</div></div>${schalter(e.staffel, 'e-bool', 'data-k="staffel"')}</div>
         ${e.staffel ? `<div class="gruppe-t gt-einzug">Anschlüsse</div>
         ${d.anschluesse.map(a => `<button class="zeile unter" data-act="anschluss-auf" data-id="${esc(a.id)}"><div><b>${esc(a.name)}</b><div class="leise">${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A · Reserve ${de(a.reserve)} kW · ${d.bereiche.filter(b => b.anschluss === a.id).map(b => esc(b.name)).join(', ') || 'keine Container'}</div></div><span class="chev">›</span></button>`).join('')}
@@ -3956,6 +3995,11 @@ class BaustellePanel extends HTMLElement {
         <div class="leise">Kommt in den HA-Kalender „${esc(kal ? this.name(kal) : 'Termine')}“ (Serien als Wiederholung im Kalender). Die Heizung startet ${d.e.vorheizen} min vorher (Vorheizen) und hört zum Ende auf.</div>
         ${knopf('Eintragen', 'termin-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
+    if (s.art === 'preis-neu') {
+      return `${griff}<h3>Neuer Strompreis</h3><label class="feld">gilt ab<input type="date" value="${s.ab}" data-sp="ab"></label>
+        <label class="feld">Preis je kWh<input type="number" step="0.01" min="0" value="${s.preis}" data-sp="preis"></label>
+        <div class="leise">Bis zu diesem Tag gilt weiter der bisherige Preis – Vergangenes bleibt, wie es war.</div>${knopf('Speichern', 'sp-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
+    }
     if (s.art === 'm-bild') {   // WU-0016: Bild einer Meldung groß
       const m = (this.meldungen() || []).find(x => x.id === s.id), u = m && this.mlBild(m, s.i);
       return `${griff}<h3>${esc((m && m.ticket) || 'Meldung')} · Bild ${s.i + 1}</h3>${u ? `<img class="mb-gross" src="${u}" alt="Bild">` : LAEDT}${knopf('Schließen')}`;
@@ -4113,7 +4157,7 @@ class BaustellePanel extends HTMLElement {
         ${d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
         <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button>
         <div class="gruppe-t">Strom und Abrechnung</div>
-        <label class="zeile"><span>Preis je kWh</span><span class="eingabe"><input type="number" step="0.01" data-k="preis" value="${e.preis}"> €</span></label>
+        ${this.preisListe()}
         ${d.firmen.map(f => { const n = d.bereiche.filter(b => (b.firma || 'eigen') === f.id).length;
           return `<button class="zeile" data-act="firma-auf" data-id="${esc(f.id)}"><span>${esc(f.name)}${f.eigen ? ' <span class="badge">eigene</span>' : ''}</span><span class="leise">${n} Container ›</span></button>`; }).join('')}
         <button class="zeile" data-act="firma-auf"><span class="blau">+ Firma hinzufügen</span></button>
@@ -4334,6 +4378,12 @@ class BaustellePanel extends HTMLElement {
         if (j >= 0) { if (sh.ids.length <= 2) return this.toast('Mindestens 2 Container'); sh.ids.splice(j, 1); } else { if (sh.ids.length >= 4) return this.toast('Höchstens 4 Container'); sh.ids.push(el.dataset.id); }
         return neu(); }
       case 'vg-zr': S.sheet.zr = el.dataset.v; return neu();
+      case 'sp-neu': S.sheet = { art: 'preis-neu', ab: plusTage(this.z.HEUTE, 1), preis: d.e.preis }; return neu();
+      case 'sp-speichern': { const f = S.sheet, p = parseFloat(String(f.preis).replace(',', '.')); if (!f.ab || !zahl(p) || p < 0) return this.toast('Bitte Datum und Preis prüfen');
+        S.sheet = null; neu(); this.cache = {}; return this.liste('preise', 'speichern', { ab: f.ab, preis: p }, `Strompreis ${de(p, 2)} € ab ${datum(f.ab)} gespeichert`); }
+      case 'sp-weg': this.cache = {}; return this.liste('preise', 'loeschen', { ab: el.dataset.ab }, 'Strompreis gelöscht');
+      case 'sp-sim': { S.simPreis = Math.max(0, Math.round((this.simPreis() + +el.dataset.d) * 100) / 100); try { localStorage.setItem('baustelle-sim-preis', String(S.simPreis)); } catch (e) { /* egal */ } return neu(); }
+      case 'sp-aw': S.awSim = !S.awSim; return neu();
       case 'vg-art': S.sheet.art = el.dataset.v; return neu();
       case 'vg-art-k': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; if (!x) return; x.art = x.art === 'linien' ? 'balken' : 'linien'; this.kkMerken(ort); return neu(); }
       case 'kk-layout': S.kkLayout = !S.kkLayout; return neu();
@@ -4534,6 +4584,7 @@ class BaustellePanel extends HTMLElement {
       this._lhZiehen = setTimeout(() => { if (this.s.sheet && this.s.sheet.art === 'leistung' && this.s.sheet.h !== h) { this.s.sheet.h = h; this.leistungTeil(); } }, 150);
       return;
     }
+    if (ds.sp && sh && sh.art === 'preis-neu') { sh[ds.sp] = el.value; return; }   // Strompreis ab …
     if (ds.kk === 'q' && sh && sh.art === 'kk-katalog') {   // WU-0014: Treffer neu, Fokus bleibt im Suchfeld
       sh.q = el.value; sh.k = null; const t = this.shadowRoot && this.shadowRoot.querySelector('.kk-treffer'); if (t) t.innerHTML = this.kkTreffer(sh); return;
     }

@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.45",
+   "version": "0.8.46",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -226,6 +226,7 @@
   "einstellungen": {
    "automatik": true,
    "preis": 0.28,
+   "preise": [],
    "arbeitszeiten": [
     {
      "ab": "2026-09-01",
@@ -1821,7 +1822,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.45",
+   "version": "0.8.46",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1889,6 +1890,7 @@
   "einstellungen": {
    "automatik": false,
    "preis": 0.28,
+   "preise": [],
    "arbeitszeiten": [],
    "ausnahmen": [],
    "heizung": {

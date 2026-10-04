@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.8.46",
+    "datum": "2026-10-04",
+    "punkte": [
+      "Strompreis mit „gilt ab“: statt eines Preises eine Preisliste (Einstellungen › Strom, Baustelle bearbeiten) – „+ Neuer Preis ab …“, ✕ zum Löschen. Kosten-Zähler, Auswertung, Abrechnung nach Firma, CSV und Bericht rechnen jeden Tag mit dem Preis, der an dem Tag galt (vorher rückwirkend mit dem Preis von jetzt).",
+      "Preis simulieren: neue Kachel „Preis simulieren“ (−/+ für den Preis, tatsächlich gegen simuliert) und in der Auswertung der Chip „💶 Preis“ – alle € der Auswertung und Abrechnung mit einem anderen Preis, ohne etwas zu speichern."
+    ]
+  },
+  {
     "version": "0.8.45",
     "datum": "2026-10-04",
     "punkte": [

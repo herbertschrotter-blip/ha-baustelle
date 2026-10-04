@@ -12,9 +12,9 @@ geladene Baustellen (Verlauf) kommen aus der Einrichtung (Subentries), ohne Eins
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, tzinfo
+from datetime import date, datetime, timedelta, tzinfo
 from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.config_entries import ConfigEntry
@@ -41,7 +41,7 @@ from .const import (
     SUB_BEREICH,
     SUB_GERAET,
 )
-from .logik import auswertung as a
+from .logik import auswertung as a, preise as preise_logik
 from .logik import zeitraum
 from .logik.abrechnung import EIGEN
 
@@ -81,6 +81,11 @@ class Quelle:
     @property
     def preis(self) -> float:
         return float(self.st.e["preis"]) if self.st is not None else 0.0
+
+    @property
+    def preise(self) -> list[tuple[date, float]]:
+        """Strompreis mit „gilt ab“ (logik/preise)."""
+        return preise_logik.liste(self.st.e.get("preise") if self.st is not None else None, self.preis)
 
     def option_datum(self, key: str) -> date | None:
         wert = self.entry.options.get(key)
@@ -183,12 +188,21 @@ def werte_je_tag(q: Quelle, je_tag: dict[str, dict[date, float]]) -> dict[str, l
     return {b["id"]: [(a.mitternacht(t, zone), k) for t, k in sorted(je_tag.get(b["id"], {}).items())] for b in q.bereiche}
 
 
+def preis_fn(quellen: list[Quelle], preis_sim: float | None = None) -> Callable[[str, date], float] | None:
+    """Preis je Baustelle und Tag (Strompreis mit „gilt ab“); beim Simulieren keiner – dann gilt der eine Preis."""
+    if preis_sim is not None:
+        return None
+    preise = {q.entry.entry_id: q.preise for q in quellen}
+    return lambda entry, tag: preise_logik.preis_am(preise[entry], tag)
+
+
 def abrechnung_daten(
-    quellen: list[Quelle], werte: Mapping[str, Mapping[str, Sequence[tuple[Any, float | None]]]], preis: float
+    quellen: list[Quelle], werte: Mapping[str, Mapping[str, Sequence[tuple[Any, float | None]]]], preis: float,
+    pfn: Callable[[str, date], float] | None = None,
 ) -> list[dict[str, Any]]:
     """Abrechnung je Firma und Container mit € und Anteil, Namen der Container und Baustellen (Seite und Bericht)."""
     zone = _zone()
-    daten = a.abrechnung_geld(a.abrechnung([q.baustelle() for q in quellen], werte, zone), preis)
+    daten = a.abrechnung_geld(a.abrechnung([q.baustelle() for q in quellen], werte, zone, pfn), preis)
     titel = {q.entry.entry_id: q.entry.title for q in quellen}
     namen = {(q.entry.entry_id, b["id"]): b["name"] for q in quellen for b in q.bereiche}
     return [
@@ -204,14 +218,15 @@ def csv_abrechnung(quellen: list[Quelle], daten: list[dict[str, Any]], zeitraum:
 
 
 async def async_abrechnung(
-    hass: HomeAssistant, entry: ConfigEntry, art: str, versatz: int = 0, scope: str = "diese"
+    hass: HomeAssistant, entry: ConfigEntry, art: str, versatz: int = 0, scope: str = "diese", preis_sim: float | None = None
 ) -> dict[str, Any]:
     """Befehl `baustelle/abrechnung`: Tabelle je Firma und Container, Verbrauch je Firma und Periode, beide CSV."""
     zone, heute = _zone(), dt_util.now().date()
     zr = a.zeitraum(art, heute, versatz)
     haupt = quelle(hass, entry)
     quellen = [haupt] if scope == "diese" else [quelle(hass, e) for e in laufende(hass)]
-    preis = haupt.preis
+    preis = haupt.preis if preis_sim is None else preis_sim
+    pfn = preis_fn(quellen, preis_sim)   # jeder Tag mit dem Preis, der damals galt; beim Simulieren der eine Preis
     # Tag je Stunde, sonst je Tag (auch beim Jahr: die Firma gilt je Tag)
     periode = "hour" if zr.periode == "hour" else "day"
     ids = [i for q in quellen for b in q.bereiche for i in q.energie_ids(b["id"])]
@@ -232,17 +247,36 @@ async def async_abrechnung(
             werte[eid][b["id"]] = sorted(je.items())
             v = a.verbrauch(je_periode, teile, zr.n)
             werte_zeitraum[eid][b["id"]] = [(zr.beginn(i, zone), v[i]) for i in range(zr.n)]
-    daten = abrechnung_daten(quellen, werte, preis)
+    daten = abrechnung_daten(quellen, werte, preis, pfn)
     baustellen = [q.baustelle() for q in quellen]
+    kwh, eur = sum(z["kwh"] for z in daten), sum(z["eur"] for z in daten)
+    if pfn is not None:
+        preis = eur / kwh if kwh else preise_logik.preis_am(haupt.preise, zr.bis - timedelta(days=1))   # Mittel im Zeitraum
     return {
-        "zeitraum": _zeitraum_dict(zr), "preis": preis, "kwh": sum(z["kwh"] for z in daten), "firmen": daten,
+        "zeitraum": _zeitraum_dict(zr), "preis": preis, "simuliert": preis_sim is not None, "kwh": kwh, "firmen": daten,
         "reihen": a.firmen_reihen(baustellen, werte, zr, zone),
         "csv": {"firma": csv_abrechnung(quellen, daten, art, preis),
-                "verbrauch": a.csv_text(a.csv_verbrauch(baustellen, werte_zeitraum, zr, preis, zone))},
+                "verbrauch": a.csv_text(a.csv_verbrauch(baustellen, werte_zeitraum, zr, preis, zone, pfn))},
     }
 
 
 # ------------------------------------------------------------------ Auswertung
+async def _preis_zeitraum(hass: HomeAssistant, quellen: list[Quelle], zr: a.Zeitraum) -> float:
+    """Preis eines Zeitraums: Tagespreise gewichtet mit dem Verbrauch je Tag (logik/preise) – alle € der Auswertung
+    passen so zur Summe der Tage. Mehrere Baustellen: gemeinsam gewichtet."""
+    zone, bis = _zone(), zr.bis - timedelta(days=1)
+    ids = {q.entry.entry_id: q.eid(q.entry.entry_id, "energie") for q in quellen}
+    roh = await async_statistik(hass, [i for i in ids.values() if i], a.mitternacht(zr.von, zone), a.mitternacht(zr.bis, zone), "day", {"change"})
+    kwh = geld = 0.0
+    for q in quellen:
+        punkte = [(a.lokal(p["start"], zone).date(), float(p["change"]) if a.ist_zahl(p.get("change")) else None)
+                  for p in roh.get(ids[q.entry.entry_id] or "", [])]
+        k = sum(v for _, v in punkte if v and v > 0)
+        kwh += k
+        geld += k * preise_logik.preis_mittel(q.preise, punkte, bis)
+    return geld / kwh if kwh > 0 else preise_logik.preis_am(quellen[0].preise, bis)
+
+
 
 
 def _zustand(hass: HomeAssistant, entity_id: str | None) -> float | None:
@@ -334,7 +368,7 @@ async def async_ohne(
 
 
 async def async_auswertung(
-    hass: HomeAssistant, entry: ConfigEntry, art: str, versatz: int = 0, scope: str = "diese"
+    hass: HomeAssistant, entry: ConfigEntry, art: str, versatz: int = 0, scope: str = "diese", preis_sim: float | None = None
 ) -> dict[str, Any]:
     """Befehl `baustelle/auswertung`: Kennzahlen des Zeitraums (mit Vergleich zum Zeitraum davor), Ohne Automatik, Je
     Gerät, Wetter-Einfluss, Ölradiator/Konvektor und Heizperiode."""
@@ -346,7 +380,7 @@ async def async_auswertung(
     vorher = [await _summen(hass, x, zr_vorher) for x in quellen]
     summen = {k: sum(s[k] for s in jetzt) for k in ("kwh", "heizzeit", "pumpzeit", "ohne")}
     davor = {k: sum(s[k] for s in vorher) for k in ("kwh", "heizzeit", "pumpzeit")}
-    preis = q.preis
+    preis = preis_sim if preis_sim is not None else await _preis_zeitraum(hass, quellen, zr)
     # Je Gerät (diese Baustelle): kWh aus den Energiezählern der Geräte, Pumpzeit aus der Statistik
     eigene = next((s for x, s in zip(quellen, jetzt, strict=True) if x is q), None) or await _summen(hass, q, zr)
     g_ids = sorted({g["energie"] for g in q.geraete if g["energie"]})
@@ -385,7 +419,7 @@ async def async_auswertung(
     hp_von = min(12, max(1, int(entry.options.get(CONF_HEIZPERIODE_VON) or 10)))
     hp_bis = min(12, max(1, int(entry.options.get(CONF_HEIZPERIODE_BIS) or 4)))
     return {
-        "zeitraum": _zeitraum_dict(zr), "preis": preis,
+        "zeitraum": _zeitraum_dict(zr), "preis": preis, "simuliert": preis_sim is not None,
         "summen": {**summen, "eur": a.geld(summen["kwh"], preis), "vorher": davor,
                    "veraenderung": {k: a.veraenderung(summen[k], davor[k]) for k in davor},
                    "ohne_automatik": oa},

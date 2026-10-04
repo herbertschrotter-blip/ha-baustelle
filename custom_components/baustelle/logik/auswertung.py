@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import math
 from calendar import monthrange
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone, tzinfo
 from typing import Any, TypeGuard
@@ -201,8 +201,12 @@ def abrechnung(
     baustellen: Sequence[Mapping[str, Any]],
     werte: Mapping[str, Mapping[str, Sequence[tuple[Any, float | None]]]],
     zone: tzinfo,
+    preis_fn: Callable[[str, date], float] | None = None,
 ) -> list[dict[str, Any]]:
     """kWh je Firma und Container: `[{"firma", "eigen", "kwh", "container": [{"entry", "bereich", "kwh"}]}]`.
+
+    Mit `preis_fn(entry, tag)` zusätzlich „eur“ je Firma und Container – jeder Tag mit dem Preis, der damals galt
+    (Strompreis mit „gilt ab“, Herbert 04.10.2026).
 
     `werte[entry][bereich]` = `[(beginn, kWh), …]` je Stunde oder Tag (beim Jahr je Tag, nicht je Monat). Firmen
     verschiedener Baustellen mit gleichem Namen sind eine Zeile; die eigene Firma zuerst, sonst in der Reihenfolge des
@@ -215,13 +219,19 @@ def abrechnung(
                 if not kwh:
                     continue
                 f = firma_am_tag(b, bereich["id"], zeitpunkt(beginn), zone)
-                zeile = zeilen.setdefault(EIGEN if f.get("eigen") else f["name"], {"f": f, "c": {}, "kwh": 0.0})
+                zeile = zeilen.setdefault(EIGEN if f.get("eigen") else f["name"], {"f": f, "c": {}, "kwh": 0.0, "eur": 0.0})
                 zeile["kwh"] += kwh
-                c = zeile["c"].setdefault((b["entry"], bereich["id"]), {"entry": b["entry"], "bereich": bereich["id"], "kwh": 0.0})
+                c = zeile["c"].setdefault((b["entry"], bereich["id"]), {"entry": b["entry"], "bereich": bereich["id"], "kwh": 0.0, "eur": 0.0})
                 c["kwh"] += kwh
+                if preis_fn is not None:
+                    e = kwh * preis_fn(b["entry"], zeitpunkt(beginn).astimezone(zone).date())
+                    zeile["eur"] += e
+                    c["eur"] += e
     liste = sorted(zeilen.values(), key=lambda z: 0 if z["f"].get("eigen") else 1)
     return [
-        {"firma": z["f"]["name"], "eigen": bool(z["f"].get("eigen")), "kwh": z["kwh"], "container": list(z["c"].values())}
+        {"firma": z["f"]["name"], "eigen": bool(z["f"].get("eigen")), "kwh": z["kwh"],
+         **({"eur": z["eur"]} if preis_fn is not None else {}),
+         "container": [c if preis_fn is not None else {k: v for k, v in c.items() if k != "eur"} for c in z["c"].values()]}
         for z in liste
     ]
 
@@ -271,8 +281,9 @@ def csv_firma(daten: Sequence[Mapping[str, Any]], baustellen: Sequence[Mapping[s
     zeilen = [_zeile(["Zeitraum", "Firma", "Baustelle", "Container", "kWh", "Preis €/kWh", "Betrag €"])]
     for z in daten:
         for c in z["container"]:
+            eur = c.get("eur", c["kwh"] * preis)   # mit Preis je Tag: Preis = Mittel des Containers
             zeilen.append(_zeile([art, z["firma"], titel[c["entry"]], container[(c["entry"], c["bereich"])],
-                                  fest(c["kwh"], 2), fest(preis, 2), fest(c["kwh"] * preis, 2)]))
+                                  fest(c["kwh"], 2), fest(eur / c["kwh"] if c["kwh"] else preis, 2), fest(eur, 2)]))
     return zeilen
 
 
@@ -282,15 +293,18 @@ def csv_verbrauch(
     zr: Zeitraum,
     preis: float,
     zone: tzinfo,
+    preis_fn: Callable[[str, date], float] | None = None,
 ) -> list[str]:
-    """Verbrauch je Periode, Baustelle und Container als CSV (Firma zu Beginn der Periode, nach dem Tag)."""
+    """Verbrauch je Periode, Baustelle und Container als CSV (Firma zu Beginn der Periode, nach dem Tag); mit `preis_fn`
+    jede Periode mit dem Preis ihres Beginns."""
     zeilen = [_zeile(["Zeit", "Baustelle", "Firma", "Container", "kWh", "Kosten €"])]
     for b in baustellen:
         for bereich in b["bereiche"]:
             for i, (beginn, kwh) in enumerate(werte[b["entry"]][bereich["id"]]):
                 f = firma_am_tag(b, bereich["id"], zeitpunkt(beginn), zone)
                 w = float(kwh) if ist_zahl(kwh) else 0.0
-                zeilen.append(_zeile([zr.label_csv(i), b["titel"], f["name"], bereich["name"], fest(w, 3), fest(w * preis, 2)]))
+                p = preis_fn(b["entry"], zeitpunkt(beginn).astimezone(zone).date()) if preis_fn is not None else preis
+                zeilen.append(_zeile([zr.label_csv(i), b["titel"], f["name"], bereich["name"], fest(w, 3), fest(w * p, 2)]))
     return zeilen
 
 
@@ -492,8 +506,8 @@ def abrechnung_geld(daten: Sequence[Mapping[str, Any]], preis: float) -> list[di
     """Abrechnung je Firma: € und Anteil in % am Verbrauch aller Firmen, je Container €."""
     ges = summe(z["kwh"] for z in daten)
     return [
-        {**z, "eur": z["kwh"] * preis, "anteil": z["kwh"] / ges * 100 if ges else 0.0,
-         "container": [{**c, "eur": c["kwh"] * preis} for c in z["container"]]}
+        {**z, "eur": z.get("eur", z["kwh"] * preis), "anteil": z["kwh"] / ges * 100 if ges else 0.0,
+         "container": [{**c, "eur": c.get("eur", c["kwh"] * preis)} for c in z["container"]]}
         for z in daten
     ]
 

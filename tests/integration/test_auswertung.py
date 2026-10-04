@@ -246,3 +246,47 @@ async def test_verlauf_auch_ohne_geladene_baustelle(hass: HomeAssistant, baustel
     assert h["monate_je_container"]["labels"] == ["Nov", "Dez", "Jän", "Feb", "Mär"]
     assert [r["name"] for r in h["monate_je_container"]["reihen"]] == ["Büro"] and h["container"] == 1
     assert h["kwh"] == 0 and h["heiztage"] == 0   # nicht geladen: keine Zähler, keine Sensoren
+
+
+async def test_strompreis_mit_gilt_ab(hass: HomeAssistant, baustelle, ws, statistik) -> None:
+    """Herbert 04.10.2026: Preisliste mit „gilt ab“ – Abrechnung je Tag mit dem damaligen Preis, Auswertung mit dem
+    nach Verbrauch gewichteten Preis; Simulieren rechnet alles mit einem Preis, ohne etwas zu speichern."""
+    st = baustelle.runtime_data
+    st.einstellung_setzen(("preis",), 0.3)
+    for ab, p in (("2026-09-01", 0.3), ("2026-09-15", 0.2)):
+        r0 = await ws("baustelle/liste", liste="preise", aktion="speichern", eintrag={"ab": ab, "preis": p}); assert r0["success"], r0
+    # der bisherige Preis bleibt für die Zeit davor erhalten; heute (29.09.) gilt 0,20 €
+    assert [(x["ab"], x["preis"]) for x in st.e["preise"]] == [("2000-01-01", 0.3), ("2026-09-01", 0.3), ("2026-09-15", 0.2)]
+    assert st.e["preis"] == 0.2
+    r = (await ws("baustelle/abrechnung", zeitraum="Monat"))["result"]
+    ges_kwh, ges_eur = r["kwh"], sum(f["eur"] for f in r["firmen"])
+    tage = {}   # kWh je Tag aus den Reihen (Firma egal)
+    for reihe in r["reihen"].values():
+        for i, v in enumerate(reihe):
+            tage[i + 1] = tage.get(i + 1, 0) + (v or 0)
+    erwartet = sum(v * (0.3 if t < 15 else 0.2) for t, v in tage.items())
+    assert ges_eur == pytest.approx(erwartet) and r["preis"] == pytest.approx(ges_eur / ges_kwh) and not r["simuliert"]
+    sim = (await ws("baustelle/abrechnung", zeitraum="Monat", preis=0.5))["result"]
+    assert sim["simuliert"] and sum(f["eur"] for f in sim["firmen"]) == pytest.approx(ges_kwh * 0.5)
+    a = (await ws("baustelle/auswertung", zeitraum="Monat"))["result"]
+    assert 0.2 <= a["preis"] <= 0.3 and not a["simuliert"]
+    a_sim = (await ws("baustelle/auswertung", zeitraum="Monat", preis=0.5))["result"]
+    assert a_sim["simuliert"] and a_sim["summen"]["eur"] == pytest.approx(a_sim["summen"]["kwh"] * 0.5)
+    assert st.e["preise"][-1]["preis"] == 0.2                                     # Simulieren speichert nichts
+    # löschen; der letzte Preis bleibt
+    for ab in ("2026-09-15", "2026-09-01"):
+        assert (await ws("baustelle/liste", liste="preise", aktion="loeschen", eintrag={"ab": ab}))["success"]
+    assert not (await ws("baustelle/liste", liste="preise", aktion="loeschen", eintrag={"ab": "2000-01-01"}))["success"]
+    assert st.e["preis"] == 0.3
+
+
+async def test_kosten_zum_preis_von_heute(hass: HomeAssistant, baustelle, freezer) -> None:
+    """Kosten-Zähler: jede kWh mit dem Preis, der an dem Tag gilt (Preisliste)."""
+    st = baustelle.runtime_data
+    st.e["preise"] = [{"ab": "2026-09-01", "preis": 0.3}, {"ab": "2026-09-29", "preis": 0.1}]
+    st.preis_abgleichen()
+    assert st.e["preis"] == 0.1
+    k0 = st.zaehler.get("kosten", 0.0)
+    g = next(iter(st.geraete.values()))
+    st._energie_buchen(g, 2.0)
+    assert st.zaehler["kosten"] - k0 == pytest.approx(0.2)

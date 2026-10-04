@@ -79,6 +79,7 @@ from .funktionen.basis import (
 )
 from .logik import regelung as regel_logik, staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import Arbeitszeit, Ausnahme, WetterTag
+from .logik import preise as preise_logik
 from .logik.zaehlen import energie_zuwachs, leistung_integriert, zaehlerstand
 from . import texte
 from .texte import GRUND_TEXT
@@ -857,6 +858,7 @@ class Steuerung:
     def _auswerten(self) -> None:
         jetzt = dt_util.now()
         self._laufzeit_aufraeumen(jetzt)
+        self.preis_abgleichen()   # neuer Strompreis ab heute (Preisliste mit „gilt ab“)
         wetter = self._wetter(jetzt)
         self.daten.wetter = wetter
         soll: SollJeBereich = {}
@@ -1149,6 +1151,21 @@ class Steuerung:
         z.setdefault("seit", dt_util.now().isoformat())
         self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
 
+    # ------------------------------------------------------------------ Strompreis mit „gilt ab“ (logik/preise)
+    def preise(self) -> list[tuple[date, float]]:
+        return preise_logik.liste(self.e.get("preise"), float(self.e["preis"]))
+
+    def preis_am(self, tag: date) -> float:
+        return preise_logik.preis_am(self.preise(), tag)
+
+    def preis_abgleichen(self) -> None:
+        """`preis` (Preis von heute, für Seite und Sensoren) aus der Liste nachziehen."""
+        if self.e.get("preise"):
+            heute = self.preis_am(dt_util.now().date())
+            if heute != self.e["preis"]:
+                self.e["preis"] = heute
+                self.einstellungen.speichern()
+
     def zaehler_minus(self, key: str, wert: float) -> None:
         """Zähler verringern, nie unter null (Reparatur falscher Buchungen, FE-0016)."""
         if key in self.zaehler and wert > 0:
@@ -1177,7 +1194,7 @@ class Steuerung:
         """Energie eines Shelly der Baustelle und seinem Bereich zurechnen; Kosten zum aktuellen Preis."""
         if kwh <= 0 or not self.aktiv:
             return
-        preis = float(self.e["preis"])
+        preis = self.preis_am(dt_util.now().date())   # Kosten zum Preis, der heute gilt
         for key in ("energie", f"energie:{g.bereich}"):
             self.zaehler_plus(key, kwh)
         for key in ("kosten", f"kosten:{g.bereich}"):

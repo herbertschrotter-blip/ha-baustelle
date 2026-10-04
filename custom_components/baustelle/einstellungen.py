@@ -37,6 +37,7 @@ ANSCHLUSS_STANDARD = "a1"
 STANDARD: dict[str, Any] = {
     "automatik": False,
     "preis": 0.28,
+    "preise": [],   # Strompreis mit „gilt ab“ (logik/preise): [{"ab": "2026-09-01", "preis": 0.28}, …]; leer = nur `preis`
     "arbeitszeiten": [],  # beim ersten Laden: eine Arbeitszeit ab heute (siehe `logik.arbeitszeit.erste_arbeitszeit`)
     "ausnahmen": [],
     "heizung": {

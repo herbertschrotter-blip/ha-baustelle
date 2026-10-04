@@ -6,7 +6,7 @@ import base64
 import binascii
 import os
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 import uuid
@@ -24,6 +24,7 @@ from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
 from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldungen
 from .funktionen.heizung import Heizung
+from .logik import preise as preise_logik
 from .logik.arbeitszeit import arbeitszeit_loeschen, arbeitszeiten_speichern
 from .logik.auswertung import ARTEN
 from .logik.warnungen import Art
@@ -354,6 +355,20 @@ def _neue_id(praefix: str) -> str:
 def _liste_aendern(st: Any, liste: str, aktion: str, eintrag: dict[str, Any]) -> dict[str, Any]:
     e = st.e
     jetzt = dt_util.now()
+    if liste == "preise":   # Strompreis mit „gilt ab“ (Herbert 04.10.2026)
+        ab = DATUM(eintrag.get("ab"))
+        roh = e.get("preise") or ([{"ab": "2000-01-01", "preis": e["preis"]}] if aktion == "speichern" else [])
+        if aktion == "loeschen":
+            if len(roh) <= 1:
+                raise vol.Invalid("Der letzte Strompreis lässt sich nicht löschen")
+            e["preise"] = [x for x in roh if str(x.get("ab")) != ab]
+            st.protokoll("einstellung", None, f"Strompreis ab {_datum(ab)} gelöscht")
+        else:
+            preis = vol.All(ZAHL, vol.Range(min=0, max=10))(eintrag.get("preis"))
+            e["preise"] = preise_logik.speichern(roh, date.fromisoformat(ab), preis)
+            st.protokoll("einstellung", None, f"Strompreis {preis:.2f} €/kWh ab {_datum(ab)}".replace(".", ","))
+        st.preis_abgleichen()
+        return {"ok": True}
     if liste == "arbeitszeiten":
         if aktion == "loeschen":
             ab = DATUM(eintrag.get("ab"))
@@ -501,7 +516,7 @@ def _datum(iso: str) -> str:
 @websocket_api.websocket_command({
     vol.Required("type"): "baustelle/liste",
     vol.Required("entry_id"): str,
-    vol.Required("liste"): vol.In(["arbeitszeiten", "ausnahmen", "anschluesse", "firmen"]),
+    vol.Required("liste"): vol.In(["arbeitszeiten", "ausnahmen", "anschluesse", "firmen", "preise"]),
     vol.Required("aktion"): vol.In(["speichern", "loeschen"]),
     vol.Required("eintrag"): dict,
 })
@@ -729,6 +744,7 @@ def _eintrag(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
 
 @websocket_api.websocket_command({
     vol.Required("type"): "baustelle/auswertung", **ZEITRAUM,
+    vol.Optional("preis"): vol.All(vol.Coerce(float), vol.Range(0, 10)),   # Preis simulieren (nichts wird gespeichert)
     vol.Optional("teil", default="zeitraum"): vol.In(["zeitraum", "verlauf"]),
 })
 @websocket_api.async_response
@@ -739,7 +755,7 @@ async def ws_auswertung(hass: HomeAssistant, connection: websocket_api.ActiveCon
     if msg["teil"] == "verlauf":
         ergebnis = await auswertung.async_verlauf(hass, auswertung.quelle(hass, entry))
     else:
-        ergebnis = await auswertung.async_auswertung(hass, entry, msg["zeitraum"], msg["versatz"], msg["scope"])
+        ergebnis = await auswertung.async_auswertung(hass, entry, msg["zeitraum"], msg["versatz"], msg["scope"], msg.get("preis"))
     connection.send_result(msg["id"], ergebnis)
 
 
@@ -755,13 +771,14 @@ async def ws_ohne(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
     connection.send_result(msg["id"], await auswertung.async_ohne(hass, entry, msg["bereich"], msg["zeitraum"], msg["versatz"], msg["basis"]))
 
 
-@websocket_api.websocket_command({vol.Required("type"): "baustelle/abrechnung", **ZEITRAUM})
+@websocket_api.websocket_command({vol.Required("type"): "baustelle/abrechnung", **ZEITRAUM,
+                                  vol.Optional("preis"): vol.All(vol.Coerce(float), vol.Range(0, 10))})
 @websocket_api.async_response
 async def ws_abrechnung(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Abrechnung nach Firma (Tabelle, Verbrauch je Firma und Periode) und beide CSV wie bisher auf der Seite."""
     if (entry := _eintrag(hass, connection, msg)) is None:
         return
-    connection.send_result(msg["id"], await auswertung.async_abrechnung(hass, entry, msg["zeitraum"], msg["versatz"], msg["scope"]))
+    connection.send_result(msg["id"], await auswertung.async_abrechnung(hass, entry, msg["zeitraum"], msg["versatz"], msg["scope"], msg.get("preis")))
 
 
 # ---------------------------------------------------------------------- protokoll

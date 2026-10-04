@@ -719,6 +719,19 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const S = letzte('baustelle/setzen').map(a => `${a.pfad.join('.')}=${a.wert}`);
     erwarte('AN-0012: neue Regler setzen die Integration (' + S.join(', ') + ')', ['heizung.toleranz=0.4', 'heizung.hand_nachfrist_min=35', 'heizung.fuehler_halten_min=20', 'heizung.zieht_strom_w=55'].every(x => S.includes(x)));
     await klick({ act: 'zu' }); }
+  /* Strompreis mit „gilt ab“ und Preis simulieren (Herbert 04.10.2026) */
+  { panel.s.evGruppe = 'strom'; await klick({ act: 'tab', v: 'einst' }, 10); pruefe('Strompreis-Liste');
+    erwarte('Strompreis: Liste mit „gilt jetzt“ und „Neuer Preis ab“', ui.innerHTML.includes('Neuer Preis ab') && ui.innerHTML.includes('gilt jetzt'));
+    await klick({ act: 'sp-neu' }); pruefe('Neuer Strompreis'); eingabe({ sp: 'preis' }, '0,19'); neu(); await klick({ act: 'sp-speichern' }, 10);
+    erwarte('Strompreis speichern über baustelle/liste', letzte('baustelle/liste').some(a => a.liste === 'preise' && a.aktion === 'speichern' && a.eintrag.preis === 0.19 && a.eintrag.ab));
+    panel.s.awSim = false; await klick({ act: 'tab', v: 'auswertung' }, 20); neu(); await klick({ act: 'sp-aw' }, 20); pruefe('Auswertung simuliert');
+    erwarte('Simulieren: Band und Auswertung mit Preis', ui.innerHTML.includes('Simuliert: alle €') && letzte('baustelle/auswertung').some(a => typeof a.preis === 'number'));
+    const p0 = panel.simPreis(); await klick({ act: 'sp-sim', d: '0.01' }, 10); erwarte('Simulieren: Preis ±', Math.abs(panel.simPreis() - p0 - 0.01) < 1e-9);
+    await klick({ act: 'sp-aw' }, 10); erwarte('Simulieren aus', !panel.s.awSim && !ui.innerHTML.includes('Simuliert: alle €'));
+    panel.s.kkUe = [panel.kkGross({ k: 'b-preis', an: true }, 'L')]; await klick({ act: 'tab', v: 'uebersicht' }, 20); pruefe('Kachel Preis simulieren');
+    erwarte('Kachel Preis simulieren mit Regler', ui.innerHTML.includes('Preis simulieren') && ui.innerHTML.includes('data-act="sp-sim"'));
+    await klick({ act: 'kk-auf', ort: 'ue', i: '0' }, 10); erwarte('Kachel öffnet die Auswertung simuliert', panel.s.view === 'auswertung' && panel.s.awSim);
+    panel.s.awSim = false; panel.s.kkUe = null; }
   /* WU-0017: Vergleich kWh / Kosten – 2 bis 4 Container, Zeitraum, Balken oder Linien, Unterschied in Zahlen */
   { panel.s.kkUe = []; await klick({ act: 'tab', v: 'uebersicht' }, 10); await klick({ act: 'kk-plus', ort: 'ue' });
     await klick({ act: 'kk-gk', k: 'v-kwh', v: 'L' }); pruefe('Vergleich anlegen');
@@ -1016,7 +1029,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
     const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'data-act="auto"', 'data-k="frost_aussen"'],
       container: ['Container und Geräte', 'Je Container'],
-      geraete: ['Schaltgeräte', 'class="zeile ger"'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Preis je kWh', 'Staffelung'], firmen: ['Firma hinzufügen'],
+      geraete: ['Schaltgeräte', 'class="zeile ger"'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Neuer Preis ab', 'Staffelung'], firmen: ['Firma hinzufügen'],
       meldungen: ['Test-Nachricht senden', 'data-k="kalt_min"', 'data-k="hand_h"'], bericht: ['Wie oft'], app: ['Erklärungen anzeigen', 'Melden-Knopf', 'data-act="aw-vorlage" data-v="misch"'],
       dev: ['Meldungen', 'data-act="ev-dev"'], ueber: ['Version'] };
     for (const [g, texte] of Object.entries(soll)) { const h = await gruppe(g); const fehlt = texte.filter(t => !h.includes(t)); erwarte(`WU-0007: Gruppe ${g} – fehlt ${fehlt.join(', ')}`, !fehlt.length); }
@@ -1062,7 +1075,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'bs-bearbeiten', id: 'dobl' }, 30); pruefe('Baustelle bearbeiten');
   /* AN-0002: Bearbeiten zeigt nur die Daten der Baustelle; Unterdialoge kehren dorthin zurück */
   erwarte('AN-0002: Bearbeiten (aktiv) öffnet „Baustelle bearbeiten“', panel.s.sheet && panel.s.sheet.art === 'bs-bearbeiten' && panel.d.entry === 'dobl'
-    && ['Beginn und Ende', 'Heizperiode', 'Außentemperatur', '+ Container oder Schacht', 'Preis je kWh', '+ Firma hinzufügen', 'Baustelle abschließen', 'Alle Einstellungen'].every(t => ui.innerHTML.includes(t))
+    && ['Beginn und Ende', 'Heizperiode', 'Außentemperatur', '+ Container oder Schacht', 'Neuer Preis ab', '+ Firma hinzufügen', 'Baustelle abschließen', 'Alle Einstellungen'].every(t => ui.innerHTML.includes(t))
     && !ui.innerHTML.includes('Test-Nachricht senden') && !ui.innerHTML.includes('Staffelung</b>'));
   for (const ds of [{ act: 'sheet', s: 'name' }, { act: 'sheet', s: 'zeitraum-bs' }, { act: 'sheet', s: 'wetterquelle' }, { act: 'bereich-einst', id: panel.d.bereiche[0].id }, { act: 'firma-auf', id: panel.d.firmen[0].id }]) {
     await klick(ds); await klick({ act: 'zu' });

@@ -251,16 +251,19 @@ class Nachrichten:
         je_tag = await self.async_verbrauch_je_tag(vorher_von, bis)
         im = {bid: {t: k for t, k in tage.items() if von <= t <= bis} for bid, tage in je_tag.items()}
         davor = sum(k for tage in je_tag.values() for t, k in tage.items() if vorher_von <= t <= vorher_bis)
-        preis = float(st.e["preis"])
         kwh = sum(sum(t.values()) for t in im.values())
-        # Abrechnung nach Firma wie auf der Seite (baustelle/abrechnung): Firma je Tag, dieselbe CSV
+        # Abrechnung nach Firma wie auf der Seite (baustelle/abrechnung): Firma je Tag, dieselbe CSV; jeder Tag mit
+        # dem Strompreis, der damals galt
         q = auswertung.quelle(self.hass, st.entry)
-        firmen = auswertung.abrechnung_daten([q], {st.entry.entry_id: auswertung.werte_je_tag(q, im)}, preis)
+        pfn = auswertung.preis_fn([q])
+        firmen = auswertung.abrechnung_daten([q], {st.entry.entry_id: auswertung.werte_je_tag(q, im)}, q.preis, pfn)
+        eur = sum(f["eur"] for f in firmen)
+        preis = eur / kwh if kwh else q.preis
         namen = {bid: info.name for bid, info in st.bereiche.items()}
         stumm = {k: z for k, v in st.e["stumm"].items() if (z := dt_util.parse_datetime(str(v))) is not None}
         offen = warn_logik.sichtbar(st.daten.warnungen, stumm, dt_util.now())
         daten = {
-            "baustelle": st.entry.title, "art": art, "von": von, "bis": bis, "kwh": kwh, "eur": kwh * preis,
+            "baustelle": st.entry.title, "art": art, "von": von, "bis": bis, "kwh": kwh, "eur": eur,
             "vergleich_prozent": (kwh - davor) / davor * 100 if davor > 0 else None,
             "firmen": [{"name": f["firma"], "kwh": f["kwh"], "eur": f["eur"]} for f in firmen],
             # wie Mockup „Bericht · Beispiel“: alle Container und Pumpenschächte der Baustelle

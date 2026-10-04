@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.46] – 2026-10-04
+
+- Strompreis mit „gilt ab“: statt eines Preises eine Preisliste (Einstellungen › Strom, Baustelle bearbeiten) – „+ Neuer
+  Preis ab …“, ✕ zum Löschen. Kosten-Zähler, Auswertung, Abrechnung nach Firma, CSV und Bericht rechnen jeden Tag mit dem
+  Preis, der an dem Tag galt (vorher rückwirkend mit dem Preis von jetzt).
+- Preis simulieren: neue Kachel „Preis simulieren“ (−/+ für den Preis, tatsächlich gegen simuliert) und in der
+  Auswertung der Chip „💶 Preis“ – alle € der Auswertung und Abrechnung mit einem anderen Preis, ohne etwas zu speichern.
+
 ## [0.8.45] – 2026-10-04
 
 - „energie_korrektur“ nimmt auf Wunsch nur Kosten zurück (`eur`) – für Buchungen zu einem früheren Strompreis
