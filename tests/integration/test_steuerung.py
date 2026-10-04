@@ -421,7 +421,7 @@ async def test_store_v1_nur_zaehler_uebernehmen(hass: HomeAssistant, freezer, ha
     assert e["heizung"]["soll"] == 20.0 and e["heizung"]["heizgrenze_basis"] == "tageshoechst"
     assert e["bereiche"][C1] == {"auto": True, "trocknen": False, "soll": None, "bedarf": False, "prio": "normal",
                                  "anschluss": "a1", "tuer": None, "modus": None, "lernen": False,
-                                 "warm_vor": None, "warm_nach": None, "stufen": False}
+                                 "warm_vor": None, "warm_nach": None, "stufen": False, "groesse_m2": None}
     assert e["arbeitszeiten"][0]["ab"] == "2026-09-29" and e["arbeitszeiten"][0]["tage"]["4"] == ["07:00", "12:30"]
     assert e["meldungen_einst"]["empfaenger"] == ["mobile_app_test"]
     assert e["protokoll"][0][1:] == ["einstellung", None, "Umstellung auf 0.7.0: Einstellungen neu, Zähler übernommen"]
@@ -872,7 +872,7 @@ async def test_warm_ab_gelernter_beginn(hass: HomeAssistant, baustelle, freezer,
     assert warm["gelernt"] is True and warm["aufheiz_min"] == 80 and warm["plan"]["start"] == 5 * 60 + 25 and warm["plan"]["ziel"] == 6 * 60 + 45
     assert hass.states.get("switch.hk1").state == "off"
     await _zu(hass, freezer, "2026-09-30 05:30:00+02:00", st)
-    assert hass.states.get("switch.hk1").state == "on" and st.lz["warm_start"][C1] == ["2026-09-30", 80, False]
+    assert hass.states.get("switch.hk1").state == "on" and st.lz["warm_start"][C1] == ["2026-09-30", 80, False, False]
     hass.states.async_set("sensor.temp_c1", "18.5")                             # wärmer: Beginn bleibt fest
     await _zu(hass, freezer, "2026-09-30 06:00:00+02:00", st)
     assert hass.states.get("switch.hk1").state == "on"

@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.8.47",
+    "datum": "2026-10-04",
+    "punkte": [
+      "Containergröße (AN-0014): In „Container bearbeiten“ neu „Größe“ – Einzel (innen 5,90 × 2,29 m ≈ 13,5 m², 2,30 m hoch ≈ 31 m³), Doppel (5,90 × 4,74 m ≈ 28 m², ≈ 64 m³) oder m² frei. Ohne Angabe gilt Einzel.",
+      "Lernende Regelung: Solange ein Container noch nichts gelernt hat, schätzt er das Aufheizen aus der Größe (Einzel ≈ 2,5 °C/h, Doppel ≈ 1,2 °C/h) und beginnt damit rechtzeitig vor Arbeitsbeginn – „Aufheizen geschätzt aus der Größe“. Sobald er gelernt hat, gilt das Gelernte.",
+      "Vergleiche je m²: „Wer verbraucht was“ mit Spalte kWh/m², „Ölradiator oder Konvektor“ mit Zeile „kWh je Gradstunde und m²“."
+    ]
+  },
+  {
     "version": "0.8.46",
     "datum": "2026-10-04",
     "punkte": [

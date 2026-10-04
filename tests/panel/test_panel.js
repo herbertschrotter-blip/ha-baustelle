@@ -304,6 +304,18 @@ async function allgemein() {
   erwarte('Bearbeiten: Name, Gerät ändern/hinzufügen über Subentry-Dialoge', api.some(a => a[2] && a[2].subentry_id === x.id) && (!frei[1] || api.some(a => a[2] && a[2].schalter === frei[1])));
   erwarte('Bearbeiten: Tür, Anschluss, Bedarf über baustelle/setzen', ['tuer', 'bedarf'].every(k => letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', x.id, k]))));
   if (an.id !== x.anschluss) erwarte('Bearbeiten: Anschluss', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', x.id, 'anschluss'])));
+  if (x.groesse) {   // AN-0014: Größe – Doppel speichert die Fläche der Integration, m² frei den eingetragenen Wert
+    await klick({ act: 'container', id: x.id }, 20); neu(); await klick({ act: 'sheet', s: 'bereich' });
+    erwarte('AN-0014: Größe im Dialog mit Text der Integration', ui.innerHTML.includes('data-act="groesse-art"') && ui.innerHTML.includes('container innen 5,90 × '));
+    await klick({ act: 'groesse-art', v: x.groesse.art === 'doppel' ? 'einzel' : 'doppel' });
+    await klick({ act: 'b-speichern' }, 60);
+    const g = letzte('baustelle/setzen').find(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', x.id, 'groesse_m2']));
+    erwarte('AN-0014: Größe über baustelle/setzen', g && g.wert === (x.groesse.art === 'doppel' ? null : x.groesse.typen.doppel.m2));
+    await klick({ act: 'container', id: x.id }, 20); neu(); await klick({ act: 'sheet', s: 'bereich' }); await klick({ act: 'groesse-art', v: 'frei' });
+    erwarte('AN-0014: m² frei mit Eingabe', ui.innerHTML.includes('data-bm2'));
+    eingabe({ bm2: '' }, '19.5'); await klick({ act: 'b-speichern' }, 60);
+    erwarte('AN-0014: m² frei gespeichert', letzte('baustelle/setzen').some(a => a.pfad[2] === 'groesse_m2' && a.wert === 19.5));
+  }
   neu(); await klick({ act: 'sheet', s: 'wetterquelle' }); eingabe({ wq: 'termine_kalender' }, d().termineKal || ''); await klick({ act: 'wetterquelle-speichern' }, 40);
   neu(); await klick({ act: 'sheet', s: 'name' }); eingabe({ nm: 'name' }, d().titel); await gesendet('config_entries/update', 'Name', { act: 'name-speichern' });
   await klick({ act: 'sheet', s: 'nachrichten' }); await klick({ act: 'n-knopf', t: 'Bis morgen stumm' }); pruefe('Nachrichten-Knopf');

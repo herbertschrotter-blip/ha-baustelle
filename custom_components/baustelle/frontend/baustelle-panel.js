@@ -772,7 +772,7 @@ const GLAS_CSS = `:host { display: block; height: 100%; }
 .aw-zeile { display: flex; justify-content: space-between; width: 100%; font-size: 14px; } .aw-zeile b { font-size: 14px; }
 .aw-betrag { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 18px; } .aw-betrag small { display: block; }
 .aw-betrag > div > b { font-size: 46px; display: block; line-height: 1.1; margin: 4px 0; } .aw-betrag-r { display: flex; flex-direction: column; gap: 12px; } .aw-betrag-r b { font-size: 24px; }
-.aw-tab-kopf, .aw-tab-zeile { display: grid; grid-template-columns: 1fr 56px 64px 64px 56px 48px; gap: 8px; align-items: center; font-size: 13px; }
+.aw-tab-kopf, .aw-tab-zeile { display: grid; grid-template-columns: 1fr 56px 64px 64px 56px 56px 48px; gap: 8px; align-items: center; font-size: 13px; }
 .aw-tab-kopf { color: var(--ink2); font-size: 11px; padding: 0 0 6px; text-align: right; } .aw-tab-kopf span:first-child { text-align: left; }
 .aw-tab-zeile { width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--gridc); background: none; color: var(--ink); font: inherit; cursor: pointer; text-align: right; }
 .aw-tab-name { text-align: left; display: flex; flex-direction: column; gap: 4px; } .aw-tab-name em { font-style: normal; color: var(--ink2); margin-right: 6px; }
@@ -1398,7 +1398,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.46';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.47';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1636,7 +1636,7 @@ class BaustellePanel extends HTMLElement {
         bedarfBisIso: c.bedarf_bis || null, bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
         boost: !!c.boost_bis, boostBis: c.boost_bis || null,
         modus: pumpe ? null : MODI.some(m => m[0] === c.modus) ? c.modus : eb.bedarf ? 'bedarf' : eb.auto === false ? 'hand' : b.fuehler ? 'thermo' : 'plan',
-        lern: c.lernen || null, warmVor: zahl(eb.warm_vor) ? Number(eb.warm_vor) : null, warmNach: zahl(eb.warm_nach) ? Number(eb.warm_nach) : null };   // lernende Regelung (0.8): Lernstand von der Integration
+        lern: c.lernen || null, groesse: c.groesse || null, warmVor: zahl(eb.warm_vor) ? Number(eb.warm_vor) : null, warmNach: zahl(eb.warm_nach) ? Number(eb.warm_nach) : null };   // lernende Regelung (0.8): Lernstand von der Integration
     });
     const plan = {}, frei = {};
     const freiName = {};
@@ -2629,6 +2629,17 @@ class BaustellePanel extends HTMLElement {
   /* AN-0012: Regeln nach Tagesablauf gruppiert (Mockup regeln-varianten.html, Variante B, abgenommen 01.10.2026) – auch die bisher
      festen Werte: einstellbar (Schaltabstand, „heizt tatsächlich ab“, Handbetrieb übernehmen, Fühler ohne Wert) oder als „Feste Regeln“ */
   /* Solltemperatur fest oder gleitend – alle Zahlen von der Integration (laufzeit.soll_gleitend, logik/soll) */
+  /* AN-0014: Größe im Dialog „Container bearbeiten“ – Einzel, Doppel oder m² frei; Werte und Schätzung von der Integration */
+  groesseBlock(b, e) {
+    const G = b.groesse, T = G.typen, art = e.groesseArt, typ = k => `${k === 'einzel' ? 'Einzel' : 'Doppel'}container innen ${de(T[k].laenge, 2)} × ${de(T[k].breite, 2)} m ≈ ${de(T[k].m2, 1)} m² · ${de(G.hoehe, 2)} m hoch ≈ ${de(T[k].m3, 0)} m³`;
+    const w = b.lern && b.lern.warm, gleich = art === G.art && (art !== 'frei' || Number(e.m2) === G.m2);
+    return `<div class="zeile"><div><b>Größe</b><div class="leise">für Vergleiche (kWh je m²) und als Startwert der lernenden Regelung</div></div>
+      <div class="seg klein">${[['einzel', 'Einzel'], ['doppel', 'Doppel'], ['frei', 'm²']].map(([k, t]) => `<button data-act="groesse-art" data-v="${k}" class="${art === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+      ${art === 'frei' ? `<label class="zeile unter"><span>Fläche innen</span><span class="eingabe"><input type="number" step="0.5" min="4" value="${esc(e.m2 ?? '')}" data-bm2> m²</span></label>
+        <div class="leise" style="padding:0 0 6px 12px">Höhe ${de(G.hoehe, 2)} m${gleich ? ` ≈ ${de(G.m3, 0)} m³` : ''}</div>` : `<div class="leise" style="padding:0 0 6px 12px">${typ(art)}</div>`}
+      ${w && w.geschaetzt && gleich ? `<div class="leise" style="padding:0 0 6px 12px">🧠 Noch nichts gelernt: Aufheizen geschätzt aus der Größe – ${de(w.geschaetzt, 1)} °C/h</div>` : ''}`;
+  }
+
   sollBlock(z) {
     const e = this.d.e, G = this.d.sollG, gl = e.soll_art === 'gleitend', grad = v => `${de(v, 1)} °C`;
     const kopf = z('🌡 Solltemperatur', 'für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat',
@@ -2825,7 +2836,7 @@ class BaustellePanel extends HTMLElement {
         <div class="hinweis-k">${k < 0 ? `Je Grad kälter <b>≈ +${de(-k, 1)} kWh</b> am Tag (${de(eur_je_grad, 2)} €).${zahl(null0) ? ` Ab etwa <b>${de(null0, 0)} °C</b> wird kaum mehr geheizt – ` : ' '}` : 'Noch kein klarer Zusammenhang mit der Außentemperatur. '}die Heizgrenze steht auf ${de(d.e.grenze, 0)} °C.</div>`;
     }
     // AN-0008: fair – nur Zeiten im Modus Thermostat mit Fühler, Container mit einem Typ, kWh je Gradstunde (Integration)
-    const T = ['oelradiator', 'konvektor'].map(t => { const x = (A && A.typ && A.typ[t]) || {}; return { kwhG: x.kwh_gradh ?? null, auf: x.auf ?? null, ab: x.ab ?? null, container: x.container || [] }; });
+    const T = ['oelradiator', 'konvektor'].map(t => { const x = (A && A.typ && A.typ[t]) || {}; return { kwhG: x.kwh_gradh ?? null, kwhGm2: x.kwh_gradh_m2 ?? null, auf: x.auf ?? null, ab: x.ab ?? null, container: x.container || [] }; });
     const vglOk = !!(A && A.typ && A.typ.vergleichbar), aussen = (A && A.typ && A.typ.ausgeschlossen) || [];
     // Was die Ölradiatoren gegenüber Konvektoren gespart haben (Integration: typ.ersparnis)
     const er = A && A.typ && A.typ.ersparnis, zrE = this.zeitraum(z, aw.v || 0);
@@ -2869,6 +2880,7 @@ class BaustellePanel extends HTMLElement {
       vergleich: `<div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">fair: gleiche Regelung · aus eigenen Messungen</span></div>
         <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
           ${zeile('kWh je Gradstunde', 'kwhG', true, v => de(v, 3))}
+          ${zeile('kWh je Gradstunde und m²', 'kwhGm2', true, v => de(v, 4))}
           ${zeile('Aufheizen', 'auf', false, v => `${de(v, 1)} °C/h`)}
           ${zeile('Abkühlen nach Aus', 'ab', true, v => `${de(v, 1)} °C/h`)}
           <tr><td>zählt</td><td class="leise">${T[0].container.map(esc).join(', ') || '–'}</td><td class="leise">${T[1].container.map(esc).join(', ') || '–'}</td></tr></table>
@@ -2925,10 +2937,10 @@ class BaustellePanel extends HTMLElement {
           ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch</div>' : rang.slice(0, 3).map((c, i) => { const hier = d.bereiche.find(b => b.id === c.bereich);
             return `<button class="aw-rang aw-rang-z" ${hier ? `data-act="container" data-id="${esc(c.bereich)}"` : 'disabled'}><span><em>${i + 1}</em> ${esc(c.name)}</span><i style="width:${(c.kwh || 0) / max * 100}%;background:${hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : 'var(--ink2)'}"></i><em>${de(c.kwh, 0)} kWh · ${de(c.eur, 2)} €</em></button>`; }).join('')}</div>`;
         return `<div class="glas-panel block"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">antippen öffnet den Container</span></div>
-        ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : `<div class="aw-tab-kopf"><span></span><span>kWh</span><span>€</span><span>Heizzeit</span><span>kWh/h</span><span>jetzt</span></div>
+        ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : `<div class="aw-tab-kopf"><span></span><span>kWh</span><span>€</span><span>Heizzeit</span><span>kWh/h</span><span>kWh/m²</span><span>jetzt</span></div>
         ${rang.map((c, i) => { const hier = d.bereiche.find(b => b.id === c.bereich), farbe = hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : 'var(--ink2)';
           return `<button class="aw-tab-zeile" ${hier ? `data-act="container" data-id="${esc(c.bereich)}"` : 'disabled'}><span class="aw-tab-name"><span><em>${i + 1}</em>${esc(c.name)}</span>${this.s.awScope === 'alle' ? `<small>${esc(c.baustelle || '')}</small>` : ''}
-            <i style="width:${(c.kwh || 0) / max * 100}%;background:${farbe}"></i></span><b>${de(c.kwh, 0)}</b><span>${de(c.eur, 2)}</span><span>${de(c.heizzeit, 1)} h</span><span>${zahl(c.kwh_h) ? de(c.kwh_h, 2) : '–'}</span><span>${hier ? temp(c.bereich) : '–'}</span></button>`; }).join('')}`}</div>`;
+            <i style="width:${(c.kwh || 0) / max * 100}%;background:${farbe}"></i></span><b>${de(c.kwh, 0)}</b><span>${de(c.eur, 2)}</span><span>${de(c.heizzeit, 1)} h</span><span>${zahl(c.kwh_h) ? de(c.kwh_h, 2) : '–'}</span><span>${zahl(c.kwh_m2) ? de(c.kwh_m2, 2) : '–'}</span><span>${hier ? temp(c.bereich) : '–'}</span></button>`; }).join('')}`}</div>`;
       case 'erkenntnisse': { const E = this.awErkenntnisse(A, z);
         return laed ? `<div class="glas-panel block">${LAEDT}</div>` : !E.length ? '<div class="glas-panel block"><div class="block-kopf"><b>Was fällt auf</b></div><div class="leer">Noch nichts Auffälliges</div></div>'
           : `<div class="aw-karten">${E.map(([i, t, x, kk]) => `<button class="glas-panel aw-karte" data-act="aw-detail" data-k="${kk}"><span>${i}</span><b>${t}</b><small>${x}</small></button>`).join('')}</div>`; }
@@ -4057,6 +4069,7 @@ class BaustellePanel extends HTMLElement {
     if (s.art === 'bereich') {
       const b = this.b; if (!b) { this.s.sheet = null; return ''; }
       const e = s.edit ||= { bedarf: !!b.bedarf, name: b.name, anschluss: b.anschluss || (d.anschluesse[0] && d.anschluesse[0].id) || '', tuer: (b.tuer && b.tuer.eid) || '', firma: b.firma || 'eigen', fuehler: b.fuehler || '',
+        groesseArt: (b.groesse && b.groesse.art) || 'einzel', m2: b.groesse ? b.groesse.m2 : null,
         geraete: b.geraete.map(g => ({ id: g.id, n: g.n, typ: g.typ, schalter: g.schalter, leistung: g.leistung, energie: g.energie, alt: { n: g.n, typ: g.typ } })) };
       const typen = b.pumpe ? ['Pumpe'] : ['Ölradiator', 'Konvektor', 'Bautrockner', 'Steckdose'];
       const wahl = (i, g) => `<select data-ge="typ" data-i="${i}">${typen.map(t => `<option ${g.typ === t ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
@@ -4072,6 +4085,7 @@ class BaustellePanel extends HTMLElement {
           return `<div class="gruppe-t">🧠 Warm ab</div><div class="zeile"><div><span>Soll erreicht</span><div class="leise">${w.vor_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('vor', w.vor, w.vor_eigen, v => v ? `${v} min vorher` : 'bei Beginn')}</div>
             <div class="zeile"><div><span>Warm halten</span><div class="leise">${w.nach_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('nach', w.nach, w.nach_eigen, v => v ? `${v} min länger` : 'bis Ende')}</div>
             ${w.vor_eigen || w.nach_eigen ? '<button class="zeile" data-act="warm-zurueck"><span class="blau">Wie die Baustelle</span></button>' : ''}`; })() : ''}
+        ${b.pumpe || !b.groesse ? '' : this.groesseBlock(b, e)}
         ${b.pumpe ? '' : `<label class="feld">Temperaturfühler<select data-bfu>${this.optionen(fuehler, e.fuehler, '– keiner –')}</select></label>`}
         ${b.pumpe ? '' : `<label class="feld">Türkontakt<select data-btuer>${this.optionen(tueren, e.tuer, 'keiner')}</select></label>`}
         <label class="feld">Stromanschluss<select data-ban>${d.anschluesse.map(a => `<option value="${esc(a.id)}" ${e.anschluss === a.id ? 'selected' : ''}>${esc(a.name)} · ${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A</option>`).join('')}</select></label>
@@ -4533,6 +4547,8 @@ class BaustellePanel extends HTMLElement {
             if (this.flowFehler(r)) return r; }
           const call = (k, w) => this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: pfad(k), wert: w });
           if (e.bedarf !== !!eb.bedarf) await call('bedarf', e.bedarf);
+          if (x.groesse) { const m2 = e.groesseArt === 'einzel' ? null : e.groesseArt === 'doppel' ? x.groesse.typen.doppel.m2 : (zahl(e.m2) && Number(e.m2) >= 4 ? Number(e.m2) : undefined);   // AN-0014
+            if (m2 !== undefined && m2 !== (eb.groesse_m2 ?? null)) await call('groesse_m2', m2); }
           if ((e.tuer || null) !== (eb.tuer || null)) await call('tuer', e.tuer || null);
           if (e.anschluss && e.anschluss !== x.anschluss) await call('anschluss', e.anschluss);
           if (e.firma !== x.firma) {
@@ -4547,6 +4563,7 @@ class BaustellePanel extends HTMLElement {
           return true;
         }, e.geraete.some(g => g.weg && !g.neu) ? `Gespeichert · ${e.geraete.filter(g => g.weg && !g.neu).length} entfernt – Werte bleiben im Verlauf` : 'Gespeichert').then(() => this._laden()); }
       case 'ge-bedarf': S.sheet.edit.bedarf = !S.sheet.edit.bedarf; return neu();
+      case 'groesse-art': { const e = S.sheet.edit; e.groesseArt = el.dataset.v; if (e.groesseArt === 'frei' && !zahl(e.m2)) e.m2 = b.groesse.m2; return neu(); }
       case 'ge-weg': { const g = S.sheet.edit.geraete[+el.dataset.i]; if (g.neu) S.sheet.edit.geraete.splice(+el.dataset.i, 1); else g.weg = true; return neu(); }
       case 'ge-zurueck': S.sheet.edit.geraete[+el.dataset.i].weg = false; return neu();
       case 'ge-neu': S.sheet.edit.geraete.push({ neu: true, schalter: '', n: '', typ: b.pumpe ? 'Pumpe' : 'Ölradiator' }); return neu();
@@ -4602,6 +4619,7 @@ class BaustellePanel extends HTMLElement {
     if (ds.bf) sh.edit.firma = el.value;
     if (ds.btuer !== undefined) sh.edit.tuer = el.value;
     if (ds.bfu !== undefined) sh.edit.fuehler = el.value;
+    if (ds.bm2 !== undefined) sh.edit.m2 = el.value;
     if (ds.ban !== undefined) { sh.edit.anschluss = el.value; this.render(); }
     if (ds.an) sh.form[ds.an] = el.value;
     if (ds.fn !== undefined) sh.form.name = el.value;

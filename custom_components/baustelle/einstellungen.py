@@ -134,6 +134,7 @@ STANDARD_BEREICH: dict[str, Any] = {
     "warm_vor": None,  # AN-0004: eigener Wert für „Soll erreicht vor Beginn“; None = wie die Baustelle
     "warm_nach": None,
     "stufen": False,   # AN-0006: Zusatz-Heizkörper nur bei Bedarf (ab 2 Heizkörpern)
+    "groesse_m2": None,   # AN-0014: Fläche innen in m²; None = Einzelcontainer (13,5 m²), Doppel 28 m²
 }
 
 

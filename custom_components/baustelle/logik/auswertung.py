@@ -30,6 +30,7 @@ from datetime import date, datetime, timedelta, timezone, tzinfo
 from typing import Any, TypeGuard
 
 from .abrechnung import EIGEN, firma_von, zahl as fest
+from . import groesse
 
 ARTEN = ("Tag", "Woche", "Monat", "Jahr")
 TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
@@ -588,9 +589,10 @@ def typ_vergleich_fair(container: Sequence[Mapping[str, Any]]) -> dict[str, Any]
 
     Gezählt werden nur Zeiten, in denen ein Container mit Fühler im Modus Thermostat geregelt wurde (Zähler `vgl_*`),
     und nur Container mit einem einzigen Heizkörper-Typ (gemischte zählen für keinen). Kennzahl ist kWh je Gradstunde
-    (Strom je Stunde und °C, um den es drinnen wärmer ist als draußen), dazu Aufheiz- und Abkühlrate.
+    (Strom je Stunde und °C, um den es drinnen wärmer ist als draußen), dazu Aufheiz- und Abkühlrate und – für
+    verschieden große Container – kWh je Gradstunde und m² (AN-0014; ohne Größe ein Einzelcontainer).
 
-    `container`: `[{"id", "name", "typen": [..], "fuehler": bool, "modus", "kwh", "gradh", "auf", "ab"}]`.
+    `container`: `[{"id", "name", "typen": [..], "fuehler": bool, "modus", "kwh", "gradh", "auf", "ab"[, "m2"]}]`.
     """
     zaehlen: dict[str, list[Mapping[str, Any]]] = {"oelradiator": [], "konvektor": []}
     ausgeschlossen: list[dict[str, str]] = []
@@ -618,7 +620,8 @@ def typ_vergleich_fair(container: Sequence[Mapping[str, Any]]) -> dict[str, Any]
         liste = zaehlen.get(typ, [])
         gradh = summe(float(c["gradh"]) for c in liste)
         kwh = summe(float(c["kwh"]) for c in liste if ist_zahl(c.get("kwh")))
-        ergebnis[typ] = {"kwh_gradh": kwh / gradh if gradh else None, "auf": mittel_von(liste, "auf"),
+        gradh_m2 = summe(float(c["gradh"]) * groesse.flaeche(c.get("m2")) for c in liste)
+        ergebnis[typ] = {"kwh_gradh": kwh / gradh if gradh else None, "kwh_gradh_m2": kwh / gradh_m2 if gradh_m2 else None, "auf": mittel_von(liste, "auf"),
                          "ab": mittel_von(liste, "ab"), "container": [str(c.get("name") or c.get("id")) for c in liste],
                          "ids": [str(c.get("id")) for c in liste]}
     o, k = ergebnis["oelradiator"]["kwh_gradh"], ergebnis["konvektor"]["kwh_gradh"]
@@ -733,14 +736,15 @@ ERKENNTNISSE_MAX = 5
 
 
 def rangliste(container: Iterable[Mapping[str, Any]], preis: float) -> list[dict[str, Any]]:
-    """Container nach Verbrauch: `container` = [{bereich, name, kwh, heizzeit[, baustelle]}] → dazu €, kWh je
-    Heizstunde (ohne Heizzeit None) und Anteil in % an allen; absteigend nach kWh, bei Gleichstand nach Name."""
+    """Container nach Verbrauch: `container` = [{bereich, name, kwh, heizzeit[, baustelle, m2]}] → dazu €, kWh je
+    Heizstunde (ohne Heizzeit None), kWh je m² (AN-0014; ohne Größe ein Einzelcontainer) und Anteil in % an allen;
+    absteigend nach kWh, bei Gleichstand nach Name."""
     liste = [dict(c) for c in container]
     ges = sum(float(c.get("kwh") or 0) for c in liste)
     for c in liste:
         kwh, h = float(c.get("kwh") or 0), float(c.get("heizzeit") or 0)
         c.update(kwh=kwh, heizzeit=h, eur=geld(kwh, preis), kwh_h=kwh / h if h > 0 else None,
-                 anteil=kwh / ges * 100 if ges > 0 else 0.0)
+                 anteil=kwh / ges * 100 if ges > 0 else 0.0, kwh_m2=groesse.je_m2(kwh, c.get("m2")))
     return sorted(liste, key=lambda c: (-c["kwh"], str(c.get("name") or "")))
 
 

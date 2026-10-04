@@ -383,3 +383,15 @@ def test_typ_ersparnis():
     mehr = typ_ersparnis([10.0], {"oelradiator": {"kwh_gradh": 0.2}, "konvektor": {"kwh_gradh": 0.1}, "vergleichbar": True}, 0.3)
     assert mehr["erspart_kwh"] == -5.0                     # Ölradiator braucht mehr: negativ
     assert typ_ersparnis([1.0], {**typ, "vergleichbar": False}, 0.3) is None
+
+
+def test_je_m2_rangliste_und_vergleich():
+    """AN-0014: kWh je m² in der Rangliste, kWh je Gradstunde und m² beim Ölradiator/Konvektor; ohne Größe Einzel."""
+    from logik.auswertung import typ_vergleich_fair
+    r = rangliste([{"bereich": "a", "name": "Polier", "kwh": 56, "heizzeit": 20, "m2": 28}, {"bereich": "b", "name": "M01", "kwh": 27, "heizzeit": 10}], 0.3)
+    assert [x["kwh_m2"] for x in r] == [2.0, 2.0]
+    t = typ_vergleich_fair([
+        {"id": "a", "name": "Polier", "typen": ["oelradiator"], "fuehler": True, "modus": "thermo", "kwh": 56.0, "gradh": 200.0, "m2": 28},
+        {"id": "b", "name": "M01", "typen": ["konvektor"], "fuehler": True, "modus": "thermo", "kwh": 27.0, "gradh": 200.0},
+    ])
+    assert t["oelradiator"]["kwh_gradh_m2"] == 0.01 and t["konvektor"]["kwh_gradh_m2"] == 0.01

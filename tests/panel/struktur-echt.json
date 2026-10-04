@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.46",
+   "version": "0.8.47",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -403,7 +403,8 @@
      "lernen": false,
      "warm_vor": null,
      "warm_nach": null,
-     "stufen": false
+     "stufen": false,
+     "groesse_m2": null
     },
     "mannschaft": {
      "auto": true,
@@ -417,7 +418,8 @@
      "lernen": false,
      "warm_vor": null,
      "warm_nach": null,
-     "stufen": false
+     "stufen": false,
+     "groesse_m2": null
     },
     "magazin": {
      "auto": true,
@@ -431,7 +433,8 @@
      "lernen": false,
      "warm_vor": null,
      "warm_nach": null,
-     "stufen": false
+     "stufen": false,
+     "groesse_m2": null
     },
     "schacht": {
      "auto": true,
@@ -445,7 +448,8 @@
      "lernen": false,
      "warm_vor": null,
      "warm_nach": null,
-     "stufen": false
+     "stufen": false,
+     "groesse_m2": null
     }
    },
    "meldungen_einst": {
@@ -605,6 +609,27 @@
       "versch_bis": null,
       "eigen": null
      },
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     },
      "firma": "eigen"
     },
     "mannschaft": {
@@ -649,6 +674,27 @@
       "versch": 0.0,
       "versch_bis": null,
       "eigen": null
+     },
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
      },
      "firma": "eigen"
     },
@@ -711,6 +757,27 @@
       "versch_bis": null,
       "eigen": null
      },
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     },
      "firma": "huber"
     },
     "schacht": {
@@ -727,6 +794,7 @@
      "stufen": null,
      "bedarf": null,
      "soll": null,
+     "groesse": null,
      "firma": "eigen"
     }
    },
@@ -1822,7 +1890,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.46",
+   "version": "0.8.47",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1972,7 +2040,8 @@
      "lernen": false,
      "warm_vor": null,
      "warm_nach": null,
-     "stufen": false
+     "stufen": false,
+     "groesse_m2": null
     }
    },
    "meldungen_einst": {
@@ -2063,6 +2132,27 @@
       "versch": 0.0,
       "versch_bis": null,
       "eigen": null
+     },
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
      },
      "firma": "eigen"
     }

@@ -29,7 +29,7 @@ from ..const import (
     ZIEHT_STROM_W,
 )
 from .. import texte
-from ..logik import bedarf as bedarf_logik, lernen, soll as soll_logik, stufen
+from ..logik import bedarf as bedarf_logik, groesse, lernen, soll as soll_logik, stufen
 from ..logik import warnungen as warn_logik
 from ..logik.arbeitszeit import (
     AusnahmeArt,
@@ -131,6 +131,7 @@ class Heizung(Funktion):
         self._stufen: dict[str, tuple[bool, str | None]] = {}
         self._haupt_lauf: dict[str, tuple[datetime, float | None]] = {}
         self._zusatz_gelernt: dict[str, bool] = {}
+        self._geschaetzt: dict[str, bool] = {}   # AN-0014: Aufheizzeit aus der Größe, noch nichts gelernt
         # Bedarf in °C für die Staffelung (Herbert 01.10.2026): Temperaturen der letzten Minuten, Heizzeit der letzten
         # Stunde, Zielzeit (Arbeitsbeginn bzw. „Soll erreicht … vorher“) und der zuletzt gerechnete Bedarf
         self._temp_punkte: dict[str, list[tuple[datetime, float]]] = {}
@@ -384,6 +385,7 @@ class Heizung(Funktion):
         if fest and fest[0] == tag.isoformat():
             auf: int | None = int(fest[1])
             self._zusatz_gelernt[bid] = bool(fest[2]) if len(fest) > 2 else False
+            self._geschaetzt[bid] = bool(fest[3]) if len(fest) > 3 else False
         else:
             stand = self.lern_staende.get(bid) or {}
             ein = dict(innen=st.temperatur(info.fuehler), soll=self.soll_temperatur(bid), aussen=st.daten.wetter.aussen)
@@ -396,6 +398,10 @@ class Heizung(Funktion):
                     auf, self._zusatz_gelernt[bid] = (aufa if aufa is not None else auf1), auf1 is not None or aufa is not None
             else:
                 auf, self._zusatz_gelernt[bid] = lernen.aufheiz_min(stand, **ein, anzahl=alle), False
+            self._geschaetzt[bid] = False
+            if auf is None:   # AN-0014: noch nichts gelernt → Startwert aus der Größe (Einzel ≈ 2,5 °C/h)
+                auf = groesse.aufheiz_min(e.get("groesse_m2"), innen=ein["innen"], soll=ein["soll"])
+                self._geschaetzt[bid] = auf is not None
         return WarmAb(
             vor_min=int(e["warm_vor"] if e.get("warm_vor") is not None else h.get("warm_vor_min", 0)),
             nach_min=int(e["warm_nach"] if e.get("warm_nach") is not None else h.get("warm_nach_min", 0)),
@@ -410,7 +416,7 @@ class Heizung(Funktion):
         if warm is None or warm.aufheiz_min is None or plan is None or bid in fest:
             return
         if plan.vor <= minute < plan.a:
-            fest[bid] = [heute.isoformat(), warm.aufheiz_min, bool(self._zusatz_gelernt.get(bid))]
+            fest[bid] = [heute.isoformat(), warm.aufheiz_min, bool(self._zusatz_gelernt.get(bid)), bool(self._geschaetzt.get(bid))]
             self.st.einstellungen.speichern()
 
     def plan_neu(self) -> None:
@@ -682,7 +688,8 @@ class Heizung(Funktion):
         anzahl = 1 if self.stufen_an(bid) and not self._zusatz_gelernt.get(bid) else (len(self.heizer_von(bid)) or 1)
         rate = (stand.get("aufheizen") or {}).get(lernen.auf_schluessel(bd, anzahl))
         return {
-            "gelernt": warm.aufheiz_min is not None, "band": bd, "rate": rate[0] if rate else None, "n": int(rate[1]) if rate else 0,
+            "gelernt": warm.aufheiz_min is not None and not self._geschaetzt.get(bid), "band": bd,
+            "geschaetzt": groesse.rate_geschaetzt(e.get("groesse_m2")) if self._geschaetzt.get(bid) else None, "rate": rate[0] if rate else None, "n": int(rate[1]) if rate else 0,
             "n_noetig": lernen.AUF_N, "vor": warm.vor_min, "nach": warm.nach_min, "max": warm.max_min,
             "vor_eigen": e.get("warm_vor") is not None, "nach_eigen": e.get("warm_nach") is not None,
             "aufheiz_min": warm.aufheiz_min, "innen": self.st.temperatur(info.fuehler), "soll": self.soll_temperatur(bid),

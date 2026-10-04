@@ -18,6 +18,7 @@ from .const import (
 from .funktionen import aktive
 from .funktionen.heizung import Heizung
 from .funktionen.pumpen import Pumpen
+from .logik import groesse
 from .logik.abrechnung import EIGEN, firma_von
 from .logik.arbeitszeit import Plan, uhrzeit
 from .logik.warnungen import titel as warn_titel
@@ -150,6 +151,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "stufen": heizung.stufen_anzeige(bid) if info.art == ART_CONTAINER else None,   # Zusatz-Heizkörper (AN-0006)
             "bedarf": heizung.bedarf_anzeige(bid) if info.art == ART_CONTAINER else None,   # Bedarf in °C (Staffelung)
             "soll": heizung.soll_anzeige(bid) if info.art == ART_CONTAINER else None,   # Soll jetzt (fest/gleitend)
+            "groesse": groesse.anzeige(st.einstellungen.bereich(bid).get("groesse_m2")) if info.art == ART_CONTAINER else None,   # AN-0014
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}

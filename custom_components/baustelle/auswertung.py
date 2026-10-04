@@ -87,6 +87,10 @@ class Quelle:
         """Strompreis mit „gilt ab“ (logik/preise)."""
         return preise_logik.liste(self.st.e.get("preise") if self.st is not None else None, self.preis)
 
+    def m2(self, bereich: str) -> float | None:
+        """Fläche innen des Containers (AN-0014); None = Einzelcontainer."""
+        return self.st.einstellungen.bereich(bereich).get("groesse_m2") if self.st is not None else None
+
     def option_datum(self, key: str) -> date | None:
         wert = self.entry.options.get(key)
         return date.fromisoformat(wert) if wert else None
@@ -305,7 +309,7 @@ async def _summen(hass: HomeAssistant, q: Quelle, zr: a.Zeitraum) -> dict[str, A
         # je Container (Rangliste der Auswertung, WU-0005)
         "je_container": [{"bereich": b["id"], "name": b["name"], "baustelle": q.entry.title,
                           "kwh": a.summe(a.verbrauch(w, q.energie_ids(b["id"]), zr.n)),
-                          "heizzeit": a.summe(w.get(q.eid(b["id"], "heizzeit") or "", leer))} for b in container],
+                          "heizzeit": a.summe(w.get(q.eid(b["id"], "heizzeit") or "", leer)), "m2": q.m2(b["id"])} for b in container],
     }
 
 
@@ -403,7 +407,7 @@ async def async_auswertung(
          "fuehler": bool(q.st and q.st.bereiche.get(b["id"]) and q.st.bereiche[b["id"]].fuehler),
          "modus": Heizung.von(q.st).modus(b["id"]) if q.st is not None else None,
          "kwh": z.get(f"vgl_kwh:{b['id']}"), "gradh": z.get(f"vgl_gradh:{b['id']}"),
-         "auf": z.get(f"vgl_aufheiz:{b['id']}"), "ab": z.get(f"vgl_abkuehl:{b['id']}")}
+         "auf": z.get(f"vgl_aufheiz:{b['id']}"), "ab": z.get(f"vgl_abkuehl:{b['id']}"), "m2": q.m2(b["id"])}
         for b in q.bereiche if b["art"] == ART_CONTAINER
     ])
     # Was die Ölradiatoren gegenüber Konvektoren gespart haben – ihr Verbrauch im Zeitraum, umgerechnet (AN-0008)

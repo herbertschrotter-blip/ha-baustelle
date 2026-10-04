@@ -127,6 +127,7 @@ SETZEN_BEREICH: dict[str, Any] = {
     "warm_vor": vol.Any(None, vol.All(GANZ, vol.Range(0, 240))),
     "warm_nach": vol.Any(None, vol.All(GANZ, vol.Range(0, 240))),
     "stufen": cv.boolean,
+    "groesse_m2": vol.Any(None, vol.All(ZAHL, vol.Range(4, 200))),   # AN-0014
 }
 SETZEN_GERAET: dict[str, Any] = {   # AN-0006, Szenarien
     "zusatz": cv.boolean,

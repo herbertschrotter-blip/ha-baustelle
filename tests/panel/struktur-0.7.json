@@ -636,7 +636,28 @@
       "offen": false,
       "seit": null
      },
-     "firma": "eigen"
+     "firma": "eigen",
+     "groesse": {
+      "art": "doppel",
+      "m2": 28.0,
+      "m3": 64.39999999999999,
+      "hoehe": 2.3,
+      "rate": 1.2053571428571428,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     },
     "mannschaft": {
      "zustand": "trocknen",
@@ -647,7 +668,28 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "firma": "eigen"
+     "firma": "eigen",
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     },
     "magazin": {
      "zustand": "pause",
@@ -661,7 +703,28 @@
       "offen": true,
       "seit": "2026-09-29T16:14:00+02:00"
      },
-     "firma": "huber"
+     "firma": "huber",
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     },
     "sanitaer": {
      "zustand": "frost",
@@ -672,7 +735,28 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "firma": "eigen"
+     "firma": "eigen",
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     },
     "lager": {
      "zustand": "offline",
@@ -683,7 +767,28 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "firma": "leitner"
+     "firma": "leitner",
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     },
     "besprechung": {
      "zustand": "bereit",
@@ -694,7 +799,28 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "firma": "eigen"
+     "firma": "eigen",
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     },
     "schacht": {
      "zustand": "laeuft",
@@ -2471,7 +2597,28 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "firma": "eigen"
+     "firma": "eigen",
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     },
     "k-mannschaft": {
      "zustand": "heizt",
@@ -2482,7 +2629,28 @@
      "bedarf_bis": null,
      "boost_bis": "2026-09-29T16:50:00+02:00",
      "tuer": null,
-     "firma": "eigen"
+     "firma": "eigen",
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     },
     "k-lager": {
      "zustand": "aus",
@@ -2493,7 +2661,28 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "firma": "huber"
+     "firma": "huber",
+     "groesse": {
+      "art": "einzel",
+      "m2": 13.5,
+      "m3": 31.049999999999997,
+      "hoehe": 2.3,
+      "rate": 2.5,
+      "typen": {
+       "einzel": {
+        "laenge": 5.9,
+        "breite": 2.29,
+        "m2": 13.5,
+        "m3": 31.049999999999997
+       },
+       "doppel": {
+        "laenge": 5.9,
+        "breite": 4.74,
+        "m2": 28.0,
+        "m3": 64.39999999999999
+       }
+      }
+     }
     }
    },
    "geraete": {

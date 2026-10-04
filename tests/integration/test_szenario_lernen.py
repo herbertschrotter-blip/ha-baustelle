@@ -252,24 +252,46 @@ async def test_lern_reset_vergisst_auch_warm_ab(hass: HomeAssistant, freezer, sh
     assert st.lz["warm_start"][C1][1] == 80
     await ws(entry, "baustelle/aktion", aktion="lern_reset", bereich=C1)
     warm = _c(hass, entry)["lernen"]["warm"]
-    assert warm["gelernt"] is False and warm["plan"]["start"] == 7 * 60 - 45
+    assert warm["gelernt"] is False and warm["geschaetzt"] == 2.5 and warm["plan"]["start"] == 7 * 60 - 100   # AN-0014
 
 
 # ====================================================================== B. Warm ab (AN-0004)
 async def test_warm_ab_ungelernt_alte_regeln_mit_fruehstart(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
-    """Noch nicht gelernt: Vorheizen 45 min, Kälte-Frühstart 30 min, Nachheizen 15 min – wie ohne Lernen."""
+    """Noch nicht gelernt und keine Innentemperatur: Vorheizen 45 min, Kälte-Frühstart 30 min, Nachheizen 15 min."""
     entry, st = await _einrichten(hass, freezer, shellys, "2026-09-30 04:00:00+02:00")
     st.lz["wetter_tage"] = {"2026-09-30": {"frueh": -4.0}}
-    hass.states.async_set("sensor.temp_c1", "16.0")
+    hass.states.async_set("sensor.temp_c1", "unavailable")
     st.einstellung_setzen(("automatik",), True)
     await hass.async_block_till_done()
     warm = _c(hass, entry)["lernen"]["warm"]
     assert warm["gelernt"] is False and warm["aufheiz_min"] is None and warm["n"] == 0 and warm["n_noetig"] == 3
+    assert warm["geschaetzt"] is None
     assert warm["plan"] == {"start": 375, "ziel": 420, "a": 420, "b": 990, "ende": 1005, "begrenzt": False}
     ab = struktur(hass, entry)["laufzeit"]["abschnitte"][C1]["2026-09-30"]
     assert ab == [[345, 375, "fruehstart"], [375, 420, "vorheizen"], [420, 990, "arbeitszeit"], [990, 1005, "nachheizen"]]
-    await _zu(hass, freezer, "2026-09-30 05:46:00+02:00", st)
-    assert _an(hass, "switch.hk1") and st.daten.grund[C1] == "fruehstart"
+
+
+async def test_warm_ab_ungelernt_geschaetzt_aus_der_groesse(hass: HomeAssistant, freezer, shellys, nachrichten, ws) -> None:
+    """AN-0014: noch nichts gelernt → Aufheizen aus der Größe geschätzt (Einzel 2,5 °C/h: 16 → 20 °C = 100 min,
+    Doppel 28 m² ≈ 1,2 °C/h = 200 min), wie gelernt ohne Kälte-Frühstart; die Größe ist je Container einstellbar."""
+    entry, st = await _einrichten(hass, freezer, shellys, "2026-09-30 04:00:00+02:00")
+    st.lz["wetter_tage"] = {"2026-09-30": {"frueh": -4.0}}
+    st.einstellung_setzen(("heizung", "warm_max_min"), 240)
+    hass.states.async_set("sensor.temp_c1", "16.0")
+    st.einstellung_setzen(("automatik",), True)
+    await hass.async_block_till_done()
+    warm = _c(hass, entry)["lernen"]["warm"]
+    assert warm["gelernt"] is False and warm["geschaetzt"] == 2.5 and warm["aufheiz_min"] == 100 and warm["plan"]["start"] == 320
+    ab = struktur(hass, entry)["laufzeit"]["abschnitte"][C1]["2026-09-30"]
+    assert ab[0] == [320, 420, "vorheizen"] and all(x[2] != "fruehstart" for x in ab)
+    antwort = await ws(entry, "baustelle/setzen", pfad=["bereiche", C1, "groesse_m2"], wert=28)
+    assert antwort["success"] is True
+    warm = _c(hass, entry)["lernen"]["warm"]
+    assert round(warm["geschaetzt"], 2) == 1.21 and warm["aufheiz_min"] == 200 and warm["plan"]["start"] == 220
+    antwort = await ws(entry, "baustelle/setzen", pfad=["bereiche", C1, "groesse_m2"], wert=2)
+    assert antwort["success"] is False
+    await _zu(hass, freezer, "2026-09-30 04:01:00+02:00", st)
+    assert st.lz["warm_start"][C1] == ["2026-09-30", 200, False, True]   # fest, mit Merker „geschätzt“
 
 
 async def test_warm_ab_gelernt_kein_fruehstart(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
@@ -304,7 +326,7 @@ async def test_warm_ab_beginn_fest_ueber_sprung_und_neustart(hass: HomeAssistant
     hass.states.async_set("sensor.temp_c1", "16.0")
     st.einstellung_setzen(("automatik",), True)
     await _zu(hass, freezer, "2026-09-30 05:41:00+02:00", st)
-    assert _an(hass, "switch.hk1") and st.lz["warm_start"][C1] == ["2026-09-30", 80, False]
+    assert _an(hass, "switch.hk1") and st.lz["warm_start"][C1] == ["2026-09-30", 80, False, False]
     hass.states.async_set("sensor.temp_c1", "18.5")            # ohne Festhalten: 30 min → Beginn erst 06:30
     await _zu(hass, freezer, "2026-09-30 05:50:00+02:00", st)
     assert _an(hass, "switch.hk1") and _c(hass, entry)["lernen"]["warm"]["plan"]["start"] == 340
@@ -386,7 +408,7 @@ async def test_warm_ab_wechsel_mild_kalt_am_morgen(hass: HomeAssistant, freezer,
     assert warm["band"] == "kalt" and warm["rate"] == 2.0 and warm["aufheiz_min"] == 120 and warm["plan"]["start"] == 300
     assert not _an(hass, "switch.hk1")
     await _zu(hass, freezer, "2026-09-30 05:01:00+02:00", st)
-    assert _an(hass, "switch.hk1") and st.lz["warm_start"][C1] == ["2026-09-30", 120, False]
+    assert _an(hass, "switch.hk1") and st.lz["warm_start"][C1] == ["2026-09-30", 120, False, False]
     hass.states.async_set("sensor.aussen", "8.0")
     await _zu(hass, freezer, "2026-09-30 05:10:00+02:00", st)
     warm = _c(hass, entry)["lernen"]["warm"]
@@ -452,7 +474,7 @@ async def test_warm_ab_zusatz_einer_reicht(hass: HomeAssistant, freezer, shellys
     await _zu(hass, freezer, "2026-09-30 05:41:00+02:00", st)
     assert _an(hass, "switch.hk1") and not _an(hass, "switch.hk2")
     s = _c(hass, entry)["stufen"]
-    assert s["zusatz_an"] is False and st.lz["warm_start"][C1] == ["2026-09-30", 80, False]
+    assert s["zusatz_an"] is False and st.lz["warm_start"][C1] == ["2026-09-30", 80, False, False]
 
 
 async def test_warm_ab_zusatz_reicht_nicht(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
@@ -466,7 +488,7 @@ async def test_warm_ab_zusatz_reicht_nicht(hass: HomeAssistant, freezer, shellys
     await _zu(hass, freezer, "2026-09-30 06:01:00+02:00", st)
     assert _an(hass, "switch.hk1") and _an(hass, "switch.hk2")
     s = _c(hass, entry)["stufen"]
-    assert s["zusatz_an"] is True and s["grund"] == "gelernt" and st.lz["warm_start"][C1] == ["2026-09-30", 60, True]
+    assert s["zusatz_an"] is True and s["grund"] == "gelernt" and st.lz["warm_start"][C1] == ["2026-09-30", 60, True, False]
     assert any("Zusatz-Heizkörper dazu" in t for t in _texte(st, "schalten"))
     # Arbeitszeit, fast warm: Zusatz wieder aus, der Haupt regelt allein
     hass.states.async_set("sensor.temp_c1", "19.7")
@@ -742,7 +764,7 @@ async def test_plan_wochenwechsel(hass: HomeAssistant, freezer, shellys, nachric
     assert lz["abschnitte"][C1]["2026-10-05"][0] == [340, 420, "vorheizen"]
     assert lz["container"][C1]["lernen"]["warm"]["aufheiz_min"] == 80     # nicht 200 vom Freitag
     await _zu(hass, freezer, "2026-10-05 05:41:00+02:00", st)
-    assert _an(hass, "switch.hk1") and st.lz["warm_start"][C1] == ["2026-10-05", 80, False]
+    assert _an(hass, "switch.hk1") and st.lz["warm_start"][C1] == ["2026-10-05", 80, False, False]
 
 
 async def test_ausnahme_heute_laenger_mit_warm_nach(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
