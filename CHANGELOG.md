@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.45] – 2026-10-04
+
+- „energie_korrektur“ nimmt auf Wunsch nur Kosten zurück (`eur`) – für Buchungen zu einem früheren Strompreis
+  (FE-0016: die falschen Rücksprünge vor dem 04.10. 09:00 liefen noch zu 0,28 €/kWh).
+
 ## [0.8.44] – 2026-10-04
 
 - Verbrauch viel zu hoch, Spitzen (FE-0016, FE-0017, FE-0018): Shelly-Zähler springen manchmal um etwa 1 Wh zurück

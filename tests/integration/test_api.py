@@ -228,3 +228,7 @@ async def test_energie_korrektur(hass: HomeAssistant, baustelle, freezer, shelly
     assert (z["energie"], z[f"energie:{C1}"], z["energie_heizen"], z["energie_typ:oelradiator"]) == (20.0, 10.0, 15.0, 10.0)
     assert z["kosten"] == pytest.approx(max(0.0, 15.0 - 30 * preis)) and z[f"kosten:{C1}"] == pytest.approx(max(0.0, 12.0 - 30 * preis))
     assert any("falsch gezählt" in p[3] for p in st.e["protokoll"])
+    k = z["kosten"]
+    await ws.send_json({"id": 2, "type": "baustelle/aktion", "entry_id": baustelle.entry_id, "aktion": "energie_korrektur", "geraet": HK1, "eur": 0.5})
+    assert (await ws.receive_json())["success"]
+    assert z["kosten"] == pytest.approx(max(0.0, k - 0.5)) and z["energie"] == 20.0          # nur Kosten

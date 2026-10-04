@@ -1155,9 +1155,15 @@ class Steuerung:
             self.zaehler[key] = max(0.0, float(self.zaehler[key]) - wert)
             self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
 
+    def kosten_ausbuchen(self, g: GeraetInfo, eur: float) -> None:
+        """FE-0016: falsch gezählte Kosten eines Geräts zurücknehmen (z. B. zum Preis von damals)."""
+        for key in ("kosten", f"kosten:{g.bereich}"):
+            self.zaehler_minus(key, eur)
+        self.protokoll("einstellung", g.bereich, f"{g.name}: {eur:.2f} € falsch gezählt – zurückgenommen".replace(".", ","))
+
     def energie_ausbuchen(self, g: GeraetInfo, kwh: float) -> None:
         """FE-0016: falsch gezählte Energie eines Geräts zurücknehmen – Energie und Kosten je Bereich und gesamt, dazu die
-        Zähler der Funktion; Kosten zum Preis von jetzt."""
+        Zähler der Funktion; Kosten zum Preis von jetzt (anderer Preis damals: Rest mit `kosten_ausbuchen`)."""
         preis = float(self.e["preis"])
         for key in ("energie", f"energie:{g.bereich}"):
             self.zaehler_minus(key, kwh)

@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.45",
+    "datum": "2026-10-04",
+    "punkte": [
+      "„energie_korrektur“ nimmt auf Wunsch nur Kosten zurück (`eur`) – für Buchungen zu einem früheren Strompreis (FE-0016: die falschen Rücksprünge vor dem 04.10. 09:00 liefen noch zu 0,28 €/kWh)."
+    ]
+  },
+  {
     "version": "0.8.44",
     "datum": "2026-10-04",
     "punkte": [

@@ -544,6 +544,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Optional("wert"): vol.In([-1, 0, 1]),                       # Gefühl: zu kalt | passt | zu warm
     vol.Optional("d"): vol.All(vol.Coerce(float), vol.Range(-5, 5)),   # + / − am Rad (Soll gleitend)
     vol.Optional("kwh"): vol.All(vol.Coerce(float), vol.Range(0, 1000)),   # FE-0016: falsch gezählte Energie
+    vol.Optional("eur"): vol.All(vol.Coerce(float), vol.Range(0, 1000)),   # … bzw. nur Kosten
 })
 @websocket_api.async_response
 async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
@@ -666,10 +667,13 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         st.protokoll("einstellung", None, "Soll gleitend: gelerntes Gefühl vergessen")
     elif aktion == "energie_korrektur":   # FE-0016: falsch gezählte Energie eines Geräts zurücknehmen
         g = st.geraete.get(msg.get("geraet") or "")
-        if g is None or not msg.get("kwh"):
-            _fehler(connection, msg, "energie_korrektur braucht geraet und kwh")
+        if g is None or not (msg.get("kwh") or msg.get("eur")):
+            _fehler(connection, msg, "energie_korrektur braucht geraet und kwh oder eur")
             return
-        st.energie_ausbuchen(g, float(msg["kwh"]))
+        if msg.get("kwh"):
+            st.energie_ausbuchen(g, float(msg["kwh"]))
+        if msg.get("eur"):
+            st.kosten_ausbuchen(g, float(msg["eur"]))
     elif aktion == "zuruecksetzen":
         # Herbert 01.10.2026: alle Zähler (Verbrauch, Kosten, Heizzeit, Heiztage, Pumpzeit, ohne Automatik, Ø-Leistung,
         # Auf-/Abkühlraten, fairer Vergleich) und alles Gelernte (lernende Regelung, Warm ab, Gefühl, Außenmittel, + / −)
