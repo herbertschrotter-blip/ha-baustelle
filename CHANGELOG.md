@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.44] – 2026-10-04
+
+- Verbrauch viel zu hoch, Spitzen (FE-0016, FE-0017, FE-0018): Shelly-Zähler springen manchmal um etwa 1 Wh zurück
+  (Messrauschen). Die Integration hielt das für einen Zähler-Neustart und zählte den ganzen Stand noch einmal – bei
+  Mannschaft 02 z. B. +32,7 und +37,6 kWh in einer Stunde. Jetzt gilt ein Rücksprung bis 0,1 kWh als Rauschen und zählt
+  nichts; nur ein echter Neustart zählt neu.
+- Neue Aktion „energie_korrektur“: nimmt falsch gezählte Energie eines Geräts zurück (Energie, Kosten, Energie fürs
+  Heizen, je Typ, fairer Vergleich) – damit wurden die Rücksprünge seit dem 01.10. herausgerechnet.
+
 ## [0.8.43] – 2026-10-02
 
 - Zwei neue Kacheln im Katalog (WU-0017): „Vergleich kWh“ und „Vergleich Kosten“ stellen 2 bis 4 Container gegenüber –

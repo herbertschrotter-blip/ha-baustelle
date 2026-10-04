@@ -79,7 +79,7 @@ from .funktionen.basis import (
 )
 from .logik import regelung as regel_logik, staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import Arbeitszeit, Ausnahme, WetterTag
-from .logik.zaehlen import energie_zuwachs, leistung_integriert
+from .logik.zaehlen import energie_zuwachs, leistung_integriert, zaehlerstand
 from . import texte
 from .texte import GRUND_TEXT
 
@@ -1149,6 +1149,24 @@ class Steuerung:
         z.setdefault("seit", dt_util.now().isoformat())
         self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
 
+    def zaehler_minus(self, key: str, wert: float) -> None:
+        """Zähler verringern, nie unter null (Reparatur falscher Buchungen, FE-0016)."""
+        if key in self.zaehler and wert > 0:
+            self.zaehler[key] = max(0.0, float(self.zaehler[key]) - wert)
+            self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
+
+    def energie_ausbuchen(self, g: GeraetInfo, kwh: float) -> None:
+        """FE-0016: falsch gezählte Energie eines Geräts zurücknehmen – Energie und Kosten je Bereich und gesamt, dazu die
+        Zähler der Funktion; Kosten zum Preis von jetzt."""
+        preis = float(self.e["preis"])
+        for key in ("energie", f"energie:{g.bereich}"):
+            self.zaehler_minus(key, kwh)
+        for key in ("kosten", f"kosten:{g.bereich}"):
+            self.zaehler_minus(key, kwh * preis)
+        if (f := self._je_rolle.get(g.rolle)) is not None:
+            f.energie_ausbuchen(g, kwh)
+        self.protokoll("einstellung", g.bereich, f"{g.name}: {kwh:.2f} kWh falsch gezählt – zurückgenommen".replace(".", ","))
+
     def _energie_buchen(self, g: GeraetInfo, kwh: float) -> None:
         """Energie eines Shelly der Baustelle und seinem Bereich zurechnen; Kosten zum aktuellen Preis."""
         if kwh <= 0 or not self.aktiv:
@@ -1167,7 +1185,7 @@ class Steuerung:
             return
         key = f"stand:{g.id}"
         alt = self.zaehler.get(key)
-        self.zaehler[key] = stand
+        self.zaehler[key] = zaehlerstand(alt, stand)   # FE-0016: Rauschen verschiebt den Stand nicht
         self._energie_buchen(g, energie_zuwachs(alt, stand))
         self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
 

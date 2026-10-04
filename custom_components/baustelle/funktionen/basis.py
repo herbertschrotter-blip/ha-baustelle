@@ -200,6 +200,10 @@ class Funktion:
         """Zusätzliche Energiezähler der Funktion für ein Gerät (Energie und Kosten je Bereich bucht der Kern)."""
         return None
 
+    def energie_ausbuchen(self, g: GeraetInfo, kwh: float) -> None:
+        """Falsch gezählte Energie aus den Zählern der Funktion zurücknehmen (FE-0016, Gegenstück zu `energie_buchen`)."""
+        return None
+
     def status(self, jetzt: datetime) -> tuple[str, str, datetime | None] | None:
         """(status, text, nächster Schaltpunkt) der Baustelle; None = die nächste Funktion bestimmt ihn."""
         return None

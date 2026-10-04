@@ -531,7 +531,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Required("aktion"): vol.In(
         ["bedarf", "bedarf_aus", "boost", "jetzt_heizen", "schalten", "automatik", "warnung_stumm", "bericht_senden",
          "test_meldung", "lern_reset", "aktiv", "gefuehl", "soll_versch", "soll_versch_weg", "gefuehl_vergessen",
-         "zuruecksetzen"]
+         "zuruecksetzen", "energie_korrektur"]
     ),
     vol.Optional("bereich"): str,
     vol.Optional("geraet"): str,
@@ -543,6 +543,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
     vol.Optional("art"): vol.In(["woche", "monat"]),
     vol.Optional("wert"): vol.In([-1, 0, 1]),                       # Gefühl: zu kalt | passt | zu warm
     vol.Optional("d"): vol.All(vol.Coerce(float), vol.Range(-5, 5)),   # + / − am Rad (Soll gleitend)
+    vol.Optional("kwh"): vol.All(vol.Coerce(float), vol.Range(0, 1000)),   # FE-0016: falsch gezählte Energie
 })
 @websocket_api.async_response
 async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
@@ -663,6 +664,12 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
     elif aktion == "gefuehl_vergessen":
         lz["gefuehl"] = []
         st.protokoll("einstellung", None, "Soll gleitend: gelerntes Gefühl vergessen")
+    elif aktion == "energie_korrektur":   # FE-0016: falsch gezählte Energie eines Geräts zurücknehmen
+        g = st.geraete.get(msg.get("geraet") or "")
+        if g is None or not msg.get("kwh"):
+            _fehler(connection, msg, "energie_korrektur braucht geraet und kwh")
+            return
+        st.energie_ausbuchen(g, float(msg["kwh"]))
     elif aktion == "zuruecksetzen":
         # Herbert 01.10.2026: alle Zähler (Verbrauch, Kosten, Heizzeit, Heiztage, Pumpzeit, ohne Automatik, Ø-Leistung,
         # Auf-/Abkühlraten, fairer Vergleich) und alles Gelernte (lernende Regelung, Warm ab, Gefühl, Außenmittel, + / −)

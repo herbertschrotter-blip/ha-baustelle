@@ -62,3 +62,15 @@ def test_temperaturverhalten():
     assert gradstunden(18.0, 3.0, 2.0) == pytest.approx(30.0)
     assert gradstunden(5.0, 8.0, 2.0) == 0.0
     assert gradstunden(None, 3.0, 1.0) == 0.0
+
+
+def test_ruecksprung_ist_rauschen_kein_neustart():
+    """FE-0016: der Shelly springt manchmal ~1 Wh zurück (32,688155 → 32,687104) – vorher zählte das den ganzen Stand
+    (32,7 kWh) noch einmal. Jetzt zählt es nichts, der gemerkte Stand bleibt; ein echter Neustart zählt weiter."""
+    from logik.zaehlen import zaehlerstand
+    assert energie_zuwachs(32.688155, 32.687104) == 0.0
+    assert zaehlerstand(32.688155, 32.687104) == 32.688155
+    assert energie_zuwachs(32.688155, 32.720525) == pytest.approx(0.03237)   # danach normal weiter
+    assert energie_zuwachs(14.48, 0.0) == 0.0 and zaehlerstand(14.48, 0.0) == 0.0     # echter Neustart
+    assert energie_zuwachs(14.48, 0.3) == pytest.approx(0.3)
+    assert zaehlerstand(None, 5.0) == 5.0

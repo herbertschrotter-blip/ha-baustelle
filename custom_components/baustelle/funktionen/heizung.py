@@ -1080,6 +1080,13 @@ class Heizung(Funktion):
             if self.vergleichbar(g.bereich):
                 self.st.zaehler_plus(f"vgl_kwh:{g.bereich}", kwh)
 
+    def energie_ausbuchen(self, g: GeraetInfo, kwh: float) -> None:
+        """FE-0016: falsch gezählte Energie zurücknehmen (Energie fürs Heizen, je Typ, fairer Vergleich)."""
+        self.st.zaehler_minus("energie_heizen", kwh)
+        if g.rolle == ROLLE_HEIZKOERPER:
+            self.st.zaehler_minus(f"energie_typ:{g.typ}", kwh)
+            self.st.zaehler_minus(f"vgl_kwh:{g.bereich}", kwh)
+
     def vergleichbar(self, bid: str) -> bool:
         """Zählt der Container gerade für den fairen Vergleich Ölradiator/Konvektor (AN-0008)? Mit Fühler, im Modus
         Thermostat und nur ein Heizkörper-Typ."""

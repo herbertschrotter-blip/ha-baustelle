@@ -12,16 +12,29 @@ MITTEL_GEWICHT = 0.05
 BETRIEB_AB_W = 5.0
 
 
+# FE-0016: so weit springt ein Shelly-Zähler manchmal zurück (Messrauschen, ~1 Wh) – das ist kein Neustart
+RUECKSPRUNG_KWH = 0.1
+
+
 def energie_zuwachs(alt: float | None, neu: float | None) -> float:
     """Zuwachs zwischen zwei Ständen eines Energiezählers (kWh).
 
-    Zählt der Shelly neu (Stand kleiner als vorher), gilt der neue Stand als Zuwachs.
-    Unglaubwürdige Sprünge und fehlende Werte zählen nicht.
+    Zählt der Shelly neu (Stand deutlich kleiner als vorher), gilt der neue Stand als Zuwachs. Ein Rücksprung um
+    höchstens `RUECKSPRUNG_KWH` ist Rauschen und zählt nichts (FE-0016: vorher wurde dann der ganze Stand noch einmal
+    gezählt). Unglaubwürdige Sprünge und fehlende Werte zählen nicht.
     """
     if alt is None or neu is None:
         return 0.0
+    if neu < alt and alt - neu <= RUECKSPRUNG_KWH:
+        return 0.0
     zuwachs = neu - alt if neu >= alt else neu
     return zuwachs if 0.0 <= zuwachs <= MAX_SPRUNG_KWH else 0.0
+
+
+def zaehlerstand(alt: float | None, neu: float) -> float:
+    """Stand, den sich die Integration merkt: bei Rauschen (kleiner Rücksprung) der alte – sonst würde der Rücksprung
+    beim nächsten Wert noch einmal gezählt."""
+    return alt if alt is not None and neu < alt and alt - neu <= RUECKSPRUNG_KWH else neu
 
 
 def leistung_integriert(leistung_w: float | None, stunden: float) -> float:

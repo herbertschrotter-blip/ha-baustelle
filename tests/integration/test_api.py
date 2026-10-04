@@ -215,3 +215,16 @@ async def test_mehrere_ausnahmen_je_tag(hass: HomeAssistant, baustelle, freezer,
     assert [a["art"] for a in st.e["ausnahmen"] if a["datum"] == "2026-10-02"] == ["frei"]
     await liste("speichern", {**fr, "von": "07:00", "bis": "12:00"})        # Zeitfenster ersetzt „frei“
     assert [a["art"] for a in st.e["ausnahmen"] if a["datum"] == "2026-10-02"] == ["arbeit"]
+
+
+async def test_energie_korrektur(hass: HomeAssistant, baustelle, freezer, shellys, hass_ws_client) -> None:
+    """FE-0016: falsch gezählte Energie eines Heizkörpers zurücknehmen – Energie, Kosten, Energie fürs Heizen und je Typ."""
+    ws = await hass_ws_client(hass)
+    st = baustelle.runtime_data
+    st.zaehler.update({"energie": 50.0, f"energie:{C1}": 40.0, "kosten": 15.0, f"kosten:{C1}": 12.0, "energie_heizen": 45.0, "energie_typ:oelradiator": 40.0})
+    await ws.send_json({"id": 1, "type": "baustelle/aktion", "entry_id": baustelle.entry_id, "aktion": "energie_korrektur", "geraet": HK1, "kwh": 30.0})
+    assert (await ws.receive_json())["success"]
+    z, preis = st.zaehler, float(st.e["preis"])
+    assert (z["energie"], z[f"energie:{C1}"], z["energie_heizen"], z["energie_typ:oelradiator"]) == (20.0, 10.0, 15.0, 10.0)
+    assert z["kosten"] == pytest.approx(max(0.0, 15.0 - 30 * preis)) and z[f"kosten:{C1}"] == pytest.approx(max(0.0, 12.0 - 30 * preis))
+    assert any("falsch gezählt" in p[3] for p in st.e["protokoll"])
