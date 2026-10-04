@@ -344,7 +344,7 @@ gut; vor dem Einsatz in der Firma auf mehreren Baustellen fehlt:
 - [ ] **Code der Seite aufteilen:** `frontend/baustelle-panel.js` ist ein Block (≈ 4.700 Zeilen, ≈ 550 KB, HTML als
       Text + `innerHTML`). In Module zerlegen (Himmel, Diagramme, je Ansicht) mit Bündler, langfristig Lit-Komponenten
       wie HA; `funktionen/heizung.py` (≈ 1.200 Zeilen) und `steuerung.py` (≈ 1.300) weiter zerlegen.
-- [ ] **Speicherdatei:** Einstellungen, Zähler und bis zu 1.000 Protokolleinträge liegen in einer Store-Datei, die bei
+- [ ] **Speicherdatei** (→ `bauplan-datenbank.md`, eigene Datenbank): Einstellungen, Zähler und bis zu 1.000 Protokolleinträge liegen in einer Store-Datei, die bei
       jeder Änderung ganz geschrieben wird – bei vielen Baustellen Protokoll trennen bzw. ins Logbuch/Recorder.
 - [ ] **Beispieldaten Pumpen:** Im Master-Mockup zeigt der Reiter Pumpen „203 h 13 min Laufzeit heute“ und eine
       überladene Achse (Beispiel-hass, `tests/panel/beispiel-hass.js`) – korrigieren.
@@ -419,6 +419,9 @@ Offen vor dem Bau: Übertragung (Shelly-RPC über HTTP: KVS, Script.PutCode; Ger
 mit Simulationstest in Node, Anzeige „Notbetrieb“ im Protokoll und auf der Seite.
 
 ## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut
+
+> **Überholt (05.10.2026):** Herbert hat sich für eine **eigene Datenbank der Integration für alle Daten**
+> entschieden – Plan und Umbau in `docs/bauplan-datenbank.md`. Der Text unten bleibt als Verlauf.
 
 Ziel: die Daten für die Seite **und** außerhalb von HA (Excel, Power BI, Buchhaltung), mehrere HA-Instanzen zentral,
 Rohdaten (Minutenwerte) über Jahre.
