@@ -89,6 +89,7 @@ STANDARD: dict[str, Any] = {
         "fuehler_halten_min": 15,
         "zieht_strom_w": 50,
         "feiertag_frei": True,
+        "notprogramm": False,     # Notprogramm in den Plugs (BSM-017, startet aus wie die Automatik)
     },
     "staffel": {"an": True, "nutzbar_prozent": 67, "max_gleichzeitig": 5, "min_lauf_min": 10, "min_pause_min": 5,
                 "takt_min": 15},

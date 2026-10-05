@@ -255,7 +255,9 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `leistung_eigen`/`energie_eigen` (selbst gewählter Sensor, sonst `null` = am Shelly automatisch erkannt).
   Gerät bearbeiten: Subentry-Dialog `geraet` mit `subentry_id` (Bereich, Schalter, Name, Rolle, Typ, Sensoren).
 - `baustelle/setzen`: `erklaer` (Erklärtexte der Seite), `heizung.frost_immer` (0.7.9: Frostschutz auch bei
-  ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus).
+  ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus), `heizung.notprogramm` (0.8.63, BSM-017:
+  Notprogramm in den Plugs – Skript und Programm einspielen, Lebenszeichen alle 5 min; Standard aus, Ausschalten hält
+  das Skript an; Stand je Plug in der Diagnose unter `notprogramm`, Bauplan 0.7 §9).
 - Bericht (0.7.9): `heiztage` = Tage mit Heizzeit > 0 in einem Container (Statistik `<bid>_heizzeit`), wie `zaehler.heiztage`.
 - Beginn/Ende und Heizperiode: Options-Dialog (`beginn`, `ende`, `heizperiode_von`, `heizperiode_bis` als `"1"`…`"12"`).
   Beginn leer = Tag der Anlage. Ende (`logik/zeitraum.ende_beim_speichern`): beim Abschließen immer heute, bleibt

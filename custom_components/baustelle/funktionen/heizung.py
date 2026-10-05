@@ -286,7 +286,7 @@ class Heizung(Funktion):
             del lz["frueher"][iso]
         return geaendert
 
-    def _termin_fenster(self, bid: str) -> list[tuple[datetime, datetime, bool]]:
+    def termin_fenster(self, bid: str) -> list[tuple[datetime, datetime, bool]]:
         """Termine eines Bedarfs-Containers als (von, bis, boost)."""
         return [
             (von, bis, bool(t.get("boost")))
@@ -469,7 +469,7 @@ class Heizung(Funktion):
                 if bid in self.tuer_trotzdem:
                     self.tuer_trotzdem.discard(bid)
                     self.trotzdem_merken()
-            fenster = self._termin_fenster(bid)
+            fenster = self.termin_fenster(bid)
             aktive = [f for f in fenster if im_fenster(bedarf_fenster([(f[0], f[1])], int(h["vorheizen_min"])), jetzt)]
             bedarf_aktiv = self.bis("bedarf_bis", bid, jetzt) is not None or bool(aktive) or jetzt_bis is not None
             boost = self.bis("boost_bis", bid, jetzt) is not None or any(f[2] for f in aktive)
@@ -994,7 +994,7 @@ class Heizung(Funktion):
         return w is None or w > self.zieht_w()  # Sensor ohne Wert: wie ohne Messung
 
     def _termin_ende(self, bid: str, jetzt: datetime) -> datetime | None:
-        for von, bis, _ in self._termin_fenster(bid):
+        for von, bis, _ in self.termin_fenster(bid):
             if von - timedelta(minutes=int(self.st.e["heizung"]["vorheizen_min"])) <= jetzt < bis:
                 return bis
         return None

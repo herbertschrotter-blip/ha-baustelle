@@ -135,11 +135,15 @@ def thermostat(temperatur: float, soll: float, toleranz: float, war_ein: bool) -
     return temperatur <= round(soll - toleranz, 3)
 
 
+def frost_aus_wert(grenze: float, aus: float | None) -> float:
+    """Ab dieser Temperatur hört der Frostschutz auf: `aus`, wenn er über der Grenze liegt, sonst Grenze + 2 °C."""
+    if aus is not None and aus > grenze:
+        return aus
+    return grenze + FROST_SPANNE
+
+
 def frost_aus(lage: LageContainer) -> float:
-    """Ab dieser Temperatur hört der Frostschutz auf: `frost_aus`, wenn er über der Grenze liegt, sonst Grenze + 2 °C."""
-    if lage.frost_aus is not None and lage.frost_aus > lage.frost_grenze:
-        return lage.frost_aus
-    return lage.frost_grenze + FROST_SPANNE
+    return frost_aus_wert(lage.frost_grenze, lage.frost_aus)
 
 
 def frostschutz(lage: LageContainer) -> bool:

@@ -97,7 +97,7 @@ function mitFuehler(wert) { return (p) => fuehler(p, 202, typeof wert === 'funct
 fall('Programm wird beim Start mit einem Aufruf geladen', () => {
   const p = plug({ kvs: { ...GRUND, bs_p1: fenster([30, 42, 21]), anderes: 'x' } });
   const a = p.hb();
-  gleich([a.v, a.programm, a.fenster], [1, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
+  gleich([a.v, a.programm, a.fenster], [2, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
   gleich(p.maxOffen, 1, 'gleichzeitige Aufrufe beim Laden');
   return p;
 });
@@ -154,13 +154,25 @@ fall('Fenster endet: aus; HA meldet sich zurück: Skript hält still', () => {
 fall('Frostschutz in jedem Modus, mit Rückschaltung', () => {
   const p = plug({ kvs: { ...GRUND, bs_cfg: cfg({ m: 'aus' }) } });
   p.minuten(2 * 60); p.hb(); p.minuten(16, mitFuehler(8));
-  gleich(p.schaltungen, [], 'Modus aus, warm genug: nicht anfassen');
+  gleich(p.schaltungen, [], 'Modus aus, warm genug: bleibt aus');
   p.minuten(1, mitFuehler(4.5));
   gleich(p.relais, true, 'unter 5 °C ein');
   p.minuten(10, mitFuehler(6));
   gleich(p.relais, true, 'zwischen 5 und 7 °C bleibt ein');
-  p.minuten(1, mitFuehler(7.5));
-  gleich(p.relais, true, 'Modus aus: über 7 °C nicht anfassen (Frost vorbei, Relais bleibt)');
+  p.minuten(1, mitFuehler(7));
+  gleich(p.relais, false, 'Modus aus: ab 7 °C wieder aus');
+  return p;
+});
+
+fall('Hand: nach dem Frost einmal aus, danach nicht anfassen', () => {
+  const p = plug({ kvs: { ...GRUND, bs_cfg: cfg({ m: 'hand' }) }, uhr: T0 + 2 * 3600 });
+  p.hb(); p.minuten(16, mitFuehler(4));
+  gleich(p.relais, true, 'Frost ein');
+  p.minuten(1, mitFuehler(7.2));
+  gleich(p.relais, false, 'Frost vorbei: aus');
+  p.relais = true;                          // jemand schaltet von Hand ein
+  p.minuten(30, mitFuehler(8));
+  gleich(p.relais, true, 'danach nicht mehr anfassen');
   return p;
 });
 

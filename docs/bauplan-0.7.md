@@ -442,8 +442,16 @@ Entscheidungen:
   zählt die **Minuten ohne Lebenszeichen** (keine Uhrzeit nötig) und übernimmt nach 15 – auch nach einem Neustart des
   Plugs erst nach 15 min. Höchstens zwei Aufrufe gleichzeitig; Stundenbuch `bb_<0…27>` bis 137 Zeichen je Schlüssel.
 
-Offen: Übertragung (Shelly-RPC über HTTP: KVS, Script.PutCode; Gerätepasswort als `!secret`, BSM-017), Anzeige
-„Notbetrieb“ im Protokoll und auf der Seite (BSM-019).
+- **Übertragung gebaut (BSM-017, 0.8.63):** `notprogramm.py` – alle 5 min je Heizkörper-Plug (Adresse aus der
+  Shelly-Integration, Gen2+): Skript anlegen/neu hochladen/starten (ohne Kommentarzeilen, Stücke zu 800 Zeichen, UTF-8),
+  Programm aus `logik/notprogramm` (7 Tage, Fenster auf 15 min nach außen gerundet, nur geänderte Schlüssel schreiben,
+  danach `hb?neu`), Lebenszeichen. Fühler/Tür nur, wenn genau dieser Sensor am Plug gekoppelt ist (Bluetooth-Adresse
+  des Geräts in HA ↔ `bthomesensor` mit Objekt 69 bzw. 45). Abbildung der Regelung im Docstring von
+  `logik/notprogramm.py` (Hand/Automatik aus → nicht anfassen, Modus aus → aus, Bei Bedarf → Termine, frei → absenken
+  oder nur Frostschutz; keine Heizgrenze, kein Lernen, keine Zusatzstufe). Startet aus (`heizung.notprogramm`).
+
+Offen: Kopplungen selbst in Ordnung halten (fehlende koppeln, fremde entfernen – bisher nur lesen), Anzeige
+„Notbetrieb“ im Protokoll und auf der Seite (BSM-019); Gerätepasswort als `!secret`, falls je eins gesetzt wird.
 
 ## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut
 

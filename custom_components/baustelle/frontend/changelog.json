@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.8.63",
+    "datum": "2026-10-05",
+    "punkte": [
+      "Notprogramm: Übertragung in die Plugs (BSM-017). Neue Einstellung `heizung.notprogramm` (startet aus): Ist sie ein, richtet die Integration alle 5 min auf jedem Heizkörper-Plug das Skript ein (fehlt es oder ist es veraltet, wird es neu hochgeladen und gestartet), schreibt das Programm der nächsten 7 Tage (nur geänderte Teile) und schickt das Lebenszeichen. Das Programm bildet die Regelung ab (Hand und Automatik aus: nicht anfassen; Modus aus: aus; Bei Bedarf: Termine; frei: absenken bzw. nur Frostschutz) und nimmt den Fühler bzw. die Tür nur, wenn genau dieser Sensor am Plug gekoppelt ist. Ausschalten hält das Skript an. Stand je Plug in der Diagnose.",
+      "Skript Version 2: Modus „aus“ schaltet aus (wie die Regelung), bei Hand nach dem Frost einmal aus."
+    ]
+  },
+  {
     "version": "0.8.62",
     "datum": "2026-10-05",
     "punkte": [

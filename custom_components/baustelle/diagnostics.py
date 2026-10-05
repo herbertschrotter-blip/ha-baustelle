@@ -12,6 +12,7 @@ from . import BaustelleConfigEntry
 from .const import CONF_EMPFAENGER
 from .daten import struktur
 from .db import DATA_DB
+from .notprogramm import DATA_NOTPROGRAMM
 
 GESCHWAERZT = {CONF_EMPFAENGER}
 
@@ -20,6 +21,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: Baustel
     daten = struktur(hass, entry)
     daten["baustelle"]["optionen"] = async_redact_data(daten["baustelle"]["optionen"], GESCHWAERZT)
     daten["einstellungen"] = async_redact_data(daten["einstellungen"], {*GESCHWAERZT, "mail_an"})
+    daten["notprogramm"] = n.info() if (n := hass.data.get(DATA_NOTPROGRAMM, {}).get(entry.entry_id)) is not None else None
     daten["datenbank"] = db.info() if (db := hass.data.get(DATA_DB)) is not None else None
     if db is not None and db.bereit:   # BSM-009: Tagessummen der Datenbank gegen die HA-Statistik, letzte 14 Tage
         from homeassistant.util import dt as dt_util   # noqa: PLC0415

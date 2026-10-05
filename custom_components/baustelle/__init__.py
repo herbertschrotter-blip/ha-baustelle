@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 import voluptuous as vol
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
-from homeassistant.core import Event, HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.core import Event, HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
@@ -18,6 +18,7 @@ from .daten import struktur
 from .db import async_datenbank_starten, async_entfernen as async_db_entfernen, async_spiegeln, mitschreiber_starten, uebernahme_planen
 from .einstellungen import STATUS_TEXT, TICKET_STATUS, Einstellungen
 from .entity import HERSTELLER, MODELL
+from .notprogramm import DATA_NOTPROGRAMM, Notprogramm
 from .panel import DATA_MELDUNGEN, async_panel_anmelden
 from .steuerung import Steuerung
 
@@ -83,6 +84,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) ->
         entry.async_on_unload(mitschreiber.async_stop)
         if (abbrechen := uebernahme_planen(hass, steuerung, mitschreiber.start_zeit)) is not None:   # Altdaten (BSM-008)
             entry.async_on_unload(abbrechen)
+    notprogramm = Notprogramm(hass, steuerung)   # Skript und Programm in den Plugs (BSM-017)
+    hass.data.setdefault(DATA_NOTPROGRAMM, {})[entry.entry_id] = notprogramm
+    entry.async_on_unload(notprogramm.async_start())
+
+    @callback
+    def _notprogramm_weg() -> None:
+        hass.data.get(DATA_NOTPROGRAMM, {}).pop(entry.entry_id, None)
+    entry.async_on_unload(_notprogramm_weg)
     # Optionen und Subentries (Bereiche, Geräte) geändert → neu laden (Muster der Kern-Helfer)
     entry.async_on_unload(entry.add_update_listener(_neu_laden))
     return True

@@ -16,7 +16,7 @@
 // Grenzen am Gerät (BSM-013): höchstens 5 gleichzeitige Aufrufe je Skript – hier höchstens zwei; Arbeitsspeicher
 // für alle Skripte zusammen knapp (Plug S Gen3) – Fenster als Zahlenlisten, keine großen Objekte.
 
-let VERSION = 1;
+let VERSION = 2;
 let HB_MAX_MIN = 15;        // Minuten ohne Lebenszeichen → Notbetrieb (gezählt, braucht keine Uhrzeit)
 let FUEHLER_MAX_S = 1800;   // älterer Fühlerwert gilt als weg → im Thermostat wie Zeitplan
 let TASTE_S = 3600;         // Taste: 1 h heizen
@@ -61,20 +61,23 @@ function fenster(t) {
 
 function an() { return Shelly.getComponentStatus("switch", 0).output; }
 
-// Soll die Heizung jetzt an sein? true/false, null = nicht anfassen (nur Tabelle ausführen, keine Fachregeln)
+// Soll die Heizung jetzt an sein? true/false, null = nicht anfassen (nur Tabelle ausführen, keine Fachregeln;
+// Reihenfolge wie logik/regelung: Frost → Tür → Taste → Hand → Aus → Fenster)
 function entscheiden(t) {
   let temp = wert(cfg.t), tuer = wert(cfg.d);
   let ok = temp !== null && temp[1] < FUEHLER_MAX_S;
+  let frostEnde = false;
   if (ok && cfg.fe !== null && cfg.fe !== undefined) {   // Frostschutz in jedem Modus
     if (temp[0] < cfg.fe) frost = true;
-    if (temp[0] > cfg.fa) frost = false;
+    if (frost && temp[0] >= cfg.fa) { frost = false; frostEnde = true; }
     if (frost) return true;
   }
   if (t === 0) return false;                               // ohne Uhrzeit nur Frostschutz
   if (tuer !== null && tuer[0] === true) { if (!tuerSeit) tuerSeit = t; if (t - tuerSeit > cfg.tp * 60) return false; }
   else tuerSeit = 0;
   if (taste > t) return true;                              // Taste: 1 h heizen
-  if (cfg.m === "aus" || cfg.m === "hand") return null;
+  if (cfg.m === "hand") return frostEnde ? false : null;   // Frost vorbei: einmal aus, danach nicht anfassen
+  if (cfg.m === "aus") return false;
   let f = fenster(t);
   if (f === null) return false;
   if (cfg.m === "thermo" && ok) {
