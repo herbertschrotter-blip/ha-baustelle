@@ -24,7 +24,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 - [x] ~~**A1** (BSM-001) Shellys: Gerätepasswort~~ – **verworfen** 05.10.2026 (Herbert): Netz der Baustelle bleibt geschlossen; neu bewerten, wenn Fremde ins WLAN/VPN kommen
 - [x] **A2** (BSM-002) Heizung 01: nächtliches Auto-Update auf Beta-Firmware abschalten; Firmware aller Plugs auf „stable“ (Herbert, Claude prüft) – erledigt 05.10.2026: Update-Zeitpläne auf Heizung 01 (beta), 03, 04 (stable) gelöscht; Pumpe 3 offen (ausgesteckt)
-- [ ] **A3** (BSM-003) Datenbank Phase 0: 50-kWh-Grenze bei Lücken richtig stellen (`logik/zaehlen.py`, Test)
+- [x] **A3** (BSM-003) Datenbank Phase 0: 50-kWh-Grenze bei Lücken richtig stellen (`logik/zaehlen.py`, Test) – erledigt 0.8.52 (89ce622)
 - [ ] **A4** (BSM-004) Beispieldaten Pumpen im Master-Mockup richtigstellen („203 h Laufzeit heute“, überladene Achse – `tests/panel/beispiel-hass.js`)
 - [ ] **A5** (BSM-005) Datenschutz klären: welche Benutzer- und Anwesenheitsdaten gespeichert werden (Betriebsrat § 96 ArbVG, DSGVO); Vorgabe für Datenbank Phase 2 (Herbert)
 
