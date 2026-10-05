@@ -73,3 +73,20 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 - [ ] **H2** (BSM-027) Datenbank Phase 9 und Betriebsanleitung: einspielen, sichern, wiederherstellen, Störung; api-Doku auf die Datenbank
 - [ ] **H3** (BSM-028) Zweite Person einarbeiten (Code, Abläufe, Tickets)
 - [ ] **H4** (BSM-029) Präsentation für den Chef: Platzhalter füllen (Anzahl Heizkörper der Firma, zweite Baustelle)
+
+## Etappe I – Container-Inventar (BSM-031, Herbert 05.10.2026)
+
+Eigene Container und Ausrüstung als Inventar mit ID und Geschichte; Namen (englische Kürzel FOR/CRW/…, HZ bleibt,
+Endungen deutsch) und Labels automatisch beim Zuordnen mit Vorschau; Fremdcontainer als `<FIRMA>-NN_C_<Art>`, scheiden
+nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
+
+- [ ] **I1** (BSM-031.01) Bauplan und Kürzeltabelle
+- [ ] **I2** (BSM-031.02) Datenbank: Inventar für Container und Ausrüstung
+- [ ] **I3** (BSM-031.03) Namens- und Labelregeln in `logik/`
+- [ ] **I4** (BSM-031.04) Mockup: Container anlegen, Ausrüstung zuordnen, Vorschau
+- [ ] **I5** (BSM-031.05) WebSocket-API Inventar und Rechte
+- [ ] **I6** (BSM-031.06) Umbenennen ausführen (HA, Plug, BTHome, Labels, Verweise)
+- [ ] **I7** (BSM-031.07) Seite: Inventar, Dialoge, Vorschau
+- [ ] **I8** (BSM-031.08) Status statt „inaktiv“
+- [ ] **I9** (BSM-031.09) Bestand umstellen (POL → FOR, MAN → CRW)
+- [ ] **I10** (BSM-031.10) Aufkleber mit Name und QR-Code (später)

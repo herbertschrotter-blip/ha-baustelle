@@ -100,7 +100,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Projekt-Config: projects/bsm/
 - ClickUp: Space Smart Home 1200660000001609, Liste BSM Baustrommanager 1200660000007163
 - Nummernschema: BSM-NNN | KÜRZEL | Schritt Kurztitel, Etappe als Tag etappe-a … etappe-h (Fahrplan `docs/fahrplan.md`)
-- Nächste freie Nummer: BSM-031
+- Nächste freie Nummer: BSM-032
 - Melden-Tickets (FE-/WU-/AN-NNNN) laufen nicht über ClickUp, sondern über das Ticket-Profil
 
 ## Ticket-Profil
