@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.64",
+    "datum": "2026-10-05",
+    "punkte": [
+      "Notprogramm-Skript Version 3: Ein Tastendruck an einem gekoppelten Bluetooth-Sensor (z. B. beim Einrichten des Türsensors) zählte als Taste am Plug – ohne HA hätte er 1 h Heizen ausgelöst. Das Skript nimmt jetzt nur Ereignisse, die nicht von Bluetooth-Komponenten kommen. Die Integration spielt die neue Version selbst in alle Plugs ein."
+    ]
+  },
+  {
     "version": "0.8.63",
     "datum": "2026-10-05",
     "punkte": [

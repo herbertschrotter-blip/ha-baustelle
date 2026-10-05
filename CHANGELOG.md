@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.64] – 2026-10-05
+
+- Notprogramm-Skript Version 3: Ein Tastendruck an einem gekoppelten Bluetooth-Sensor (z. B. beim Einrichten des
+  Türsensors) zählte als Taste am Plug – ohne HA hätte er 1 h Heizen ausgelöst. Das Skript nimmt jetzt nur Ereignisse,
+  die nicht von Bluetooth-Komponenten kommen. Die Integration spielt die neue Version selbst in alle Plugs ein.
+
 ## [0.8.63] – 2026-10-05
 
 - Notprogramm: Übertragung in die Plugs (BSM-017). Neue Einstellung `heizung.notprogramm` (startet aus): Ist sie ein,

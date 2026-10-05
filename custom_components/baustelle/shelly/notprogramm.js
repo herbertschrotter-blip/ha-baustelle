@@ -16,7 +16,7 @@
 // Grenzen am Gerät (BSM-013): höchstens 5 gleichzeitige Aufrufe je Skript – hier höchstens zwei; Arbeitsspeicher
 // für alle Skripte zusammen knapp (Plug S Gen3) – Fenster als Zahlenlisten, keine großen Objekte.
 
-let VERSION = 2;
+let VERSION = 3;
 let HB_MAX_MIN = 15;        // Minuten ohne Lebenszeichen → Notbetrieb (gezählt, braucht keine Uhrzeit)
 let FUEHLER_MAX_S = 1800;   // älterer Fühlerwert gilt als weg → im Thermostat wie Zeitplan
 let TASTE_S = 3600;         // Taste: 1 h heizen
@@ -136,8 +136,11 @@ HTTPServer.registerEndpoint("hb", function (req, res) {
 
 // Taste: 1 h heizen bzw. beenden – mit HA nur melden (HA schaltet „Bei Bedarf“), ohne HA selbst.
 // PRÜFEN am Gerät (BSM-013): Name des Tastenereignisses beim Plug S Gen3; die Taste darf das Relais nicht selbst schalten.
+// Tasten gekoppelter Bluetooth-Sensoren (bthomedevice/bthomesensor) melden ebenfalls „single_push“ – nicht mitzählen.
 Shelly.addEventHandler(function (ev) {
   if (!ev || !ev.info || ev.info.event !== "single_push") return;
+  let k = ev.component || ev.info.component || "";
+  if (k.indexOf("bthome") === 0) return;
   let t = jetzt();
   taste = taste > t ? 0 : t + TASTE_S;
   Shelly.emitEvent("baustelle_taste", { bis: taste });

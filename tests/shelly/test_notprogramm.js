@@ -72,6 +72,7 @@ function plug({ kvs = {}, uhr = T0, sensoren = {} } = {}) {
     p.abarbeiten();
     return JSON.parse(res.body);
   };
+  p.sensorTaste = () => { for (const f of p.handler) f({ component: 'bthomedevice:201', id: 201, info: { component: 'bthomedevice:201', id: 201, event: 'single_push', ts: p.uhr } }); p.abarbeiten(); };
   p.taste = () => { for (const f of p.handler) f({ component: 'switch:0', id: 0, info: { component: 'switch:0', id: 0, event: 'single_push', ts: p.uhr } }); p.abarbeiten(); };
   p.abarbeiten();
   return p;
@@ -97,7 +98,7 @@ function mitFuehler(wert) { return (p) => fuehler(p, 202, typeof wert === 'funct
 fall('Programm wird beim Start mit einem Aufruf geladen', () => {
   const p = plug({ kvs: { ...GRUND, bs_p1: fenster([30, 42, 21]), anderes: 'x' } });
   const a = p.hb();
-  gleich([a.v, a.programm, a.fenster], [2, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
+  gleich([a.v, a.programm, a.fenster], [3, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
   gleich(p.maxOffen, 1, 'gleichzeitige Aufrufe beim Laden');
   return p;
 });
@@ -249,6 +250,16 @@ fall('Taste mit HA: nur melden; ohne HA: 1 h heizen, zweites Drücken beendet', 
   gleich(p.relais, false, 'nach einer Stunde aus');
   p.taste(); p.taste();
   gleich(p.relais, false, 'ein und gleich wieder aus');
+  return p;
+});
+
+fall('Taste eines Bluetooth-Sensors zählt nicht als Taste am Plug', () => {
+  const p = plug({ kvs: GRUND, uhr: T0 + 20 * 3600 });
+  p.hb(); p.minuten(20, mitFuehler(18));
+  p.sensorTaste();
+  gleich(p.ereignisse, [], 'kein Ereignis an HA');
+  gleich(p.hb().taste, 0, 'Taste nicht gesetzt');
+  gleich(p.relais, false, 'ohne HA nicht eingeschaltet');
   return p;
 });
 
