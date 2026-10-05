@@ -322,6 +322,9 @@
       },
       "pumpzyklen": {
         "name": "{geraet} pump cycles"
+      },
+      "datenbank": {
+        "name": "Database"
       }
     },
     "binary_sensor": {

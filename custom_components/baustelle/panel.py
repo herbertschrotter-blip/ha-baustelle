@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 from . import auswertung
 from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
+from .db import async_spiegeln
 from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldungen
 from .funktionen.heizung import Heizung
 from .logik import preise as preise_logik
@@ -355,6 +356,7 @@ def ws_setzen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
         st.auswerten()
     else:
         st.einstellung_setzen(pfad, wert)
+    hass.async_create_task(async_spiegeln(hass, struktur(hass, st.entry)), "baustelle_datenbank_spiegeln")
     connection.send_result(msg["id"], {"ok": True})
 
 
@@ -548,6 +550,7 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
         return
     st.einstellungen.speichern()
     st.auswerten()
+    hass.async_create_task(async_spiegeln(hass, struktur(hass, st.entry)), "baustelle_datenbank_spiegeln")
     connection.send_result(msg["id"], ergebnis)
 
 

@@ -5,7 +5,8 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 import voluptuous as vol
 
-from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import Event, HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
@@ -13,6 +14,8 @@ from homeassistant.loader import async_get_integration
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 
 from .const import ALTE_PLATTFORMEN, CONF_REGEN_SENSOR, CONF_TEMP_SENSOR, CONF_WETTER, DOMAIN, PLATFORMS
+from .daten import struktur
+from .db import async_datenbank_starten, async_entfernen as async_db_entfernen, async_spiegeln
 from .einstellungen import STATUS_TEXT, TICKET_STATUS, Einstellungen
 from .entity import HERSTELLER, MODELL
 from .panel import DATA_MELDUNGEN, async_panel_anmelden
@@ -27,6 +30,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Eigene Seite „Baustelle“ anmelden (unabhängig von den einzelnen Baustellen)."""
     version = str((await async_get_integration(hass, DOMAIN)).version)
     await async_panel_anmelden(hass, version)
+    db = await async_datenbank_starten(hass)   # eigene Datenbank (docs/bauplan-datenbank.md, Phase 1)
+
+    async def datenbank_schliessen(_event: Event) -> None:
+        await db.async_stop()
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, datenbank_schliessen)
 
     async def ticket(call: ServiceCall) -> ServiceResponse:
         """Ticket aus dem Melden-Knopf ändern (Status, Notiz, Version, Commit) – für die Bearbeitung in Claude Code."""
@@ -68,6 +77,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) ->
     _geraete_anlegen(hass, entry, steuerung)
     _verwaiste_geraete_entfernen(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    hass.async_create_task(async_spiegeln(hass, struktur(hass, entry)), "baustelle_datenbank_spiegeln")   # Stammdaten
     # Optionen und Subentries (Bereiche, Geräte) geändert → neu laden (Muster der Kern-Helfer)
     entry.async_on_unload(entry.add_update_listener(_neu_laden))
     return True
@@ -87,6 +97,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -
 async def async_remove_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) -> None:
     """Gespeicherte Einstellungen und Reparatur-Hinweise löschen; die Langzeitstatistik bleibt in HA erhalten."""
     await Einstellungen(hass, entry.entry_id).async_entfernen()
+    await async_db_entfernen(hass, entry.entry_id)   # in der Datenbank nur als entfernt kennzeichnen
     for (domain, issue_id) in list(ir.async_get(hass).issues):
         if domain == DOMAIN and issue_id.startswith(f"fehlt_{entry.entry_id}_"):
             ir.async_delete_issue(hass, DOMAIN, issue_id)

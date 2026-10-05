@@ -71,6 +71,9 @@
       },
       "mittel_konvektor": {
         "default": "mdi:heat-wave"
+      },
+      "datenbank": {
+        "default": "mdi:database"
       }
     },
     "binary_sensor": {

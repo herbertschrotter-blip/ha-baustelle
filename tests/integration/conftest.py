@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -22,6 +23,17 @@ C1, C2, SCHACHT, HK1, HK2, P1 = "sub_c1", "sub_c2", "sub_schacht", "sub_hk1", "s
 def eigene_integration(enable_custom_integrations):
     """custom_components/baustelle laden lassen."""
     return
+
+
+@pytest.fixture(autouse=True)
+def leere_datenbank(hass: HomeAssistant):
+    """Eigene Datenbank (BSM-006) liegt im gemeinsamen Test-Konfigurationsordner: vor und nach jedem Test entfernen."""
+    def weg() -> None:
+        for datei in Path(hass.config.path("baustelle")).glob("baustelle.db*"):
+            datei.unlink()
+    weg()
+    yield
+    weg()
 
 
 def sub(sid, typ, title, data) -> ConfigSubentryDataWithId:

@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.53",
+    "datum": "2026-10-05",
+    "punkte": [
+      "Eigene Datenbank, Phase 1 (BSM-006, `docs/bauplan-datenbank.md`): Die Integration legt `/config/baustelle/baustelle.db` an (SQLite, Aufbau 1 mit allen Tabellen für Stammdaten, Einstellungen, Messwerte, Auswertung, Protokoll und Meldungen) und spiegelt die Stammdaten jeder Baustelle hinein – Container, Geräte, Anschlüsse, Firmen, Firmenzuordnung, Preise, Arbeitszeiten, Ausnahmen; Entferntes bleibt als „entfernt“ stehen. Noch wird nichts aus der Datenbank gelesen. Neuer Diagnose-Sensor „Datenbank“ (Größe, Zustand, Fehler); vor einer HA-Sicherung wird die Datenbank abgeschlossen und das Schreiben angehalten. Fehler der Datenbank halten die Steuerung nie an."
+    ]
+  },
+  {
     "version": "0.8.52",
     "datum": "2026-10-05",
     "punkte": [

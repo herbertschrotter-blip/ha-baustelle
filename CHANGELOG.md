@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.53] – 2026-10-05
+
+- Eigene Datenbank, Phase 1 (BSM-006, `docs/bauplan-datenbank.md`): Die Integration legt `/config/baustelle/baustelle.db`
+  an (SQLite, Aufbau 1 mit allen Tabellen für Stammdaten, Einstellungen, Messwerte, Auswertung, Protokoll und
+  Meldungen) und spiegelt die Stammdaten jeder Baustelle hinein – Container, Geräte, Anschlüsse, Firmen,
+  Firmenzuordnung, Preise, Arbeitszeiten, Ausnahmen; Entferntes bleibt als „entfernt“ stehen. Noch wird nichts aus der
+  Datenbank gelesen. Neuer Diagnose-Sensor „Datenbank“ (Größe, Zustand, Fehler); vor einer HA-Sicherung wird die
+  Datenbank abgeschlossen und das Schreiben angehalten. Fehler der Datenbank halten die Steuerung nie an.
+
 ## [0.8.52] – 2026-10-05
 
 - Langer Ausfall zählt (BSM-003): War ein Shelly oder HA länger weg (z. B. 3 Tage) und lief die Heizung in der Zeit

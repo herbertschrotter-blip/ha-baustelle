@@ -34,6 +34,7 @@ from homeassistant.components.calendar import (  # noqa: PLC2701
     CalendarEvent,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.json import json_dumps
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
@@ -359,8 +360,10 @@ async def echte_baustelle(hass: HomeAssistant, freezer, hass_ws_client, hass_sto
 
 
 def _zustaende(hass: HomeAssistant) -> dict[str, Any]:
+    # ohne Datenbank-Sensor (BSM-006): Pfad und Größe hängen von der Testumgebung ab – die Datei bliebe nicht gleich
+    db = {e.entity_id for e in er.async_get(hass).entities.values() if e.unique_id.endswith("_datenbank")}
     return {s.entity_id: {"state": s.state, "attributes": json.loads(json.dumps(dict(s.attributes), default=str))}
-            for s in sorted(hass.states.async_all(), key=lambda s: s.entity_id)}
+            for s in sorted(hass.states.async_all(), key=lambda s: s.entity_id) if s.entity_id not in db}
 
 
 async def _node(*argumente: str, env: dict[str, str] | None = None) -> tuple[int, str]:

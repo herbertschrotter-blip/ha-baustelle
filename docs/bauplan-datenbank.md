@@ -121,8 +121,10 @@ Ansichten (Views), in SQLite und PostgreSQL gleich: `v_tag_firma` (kWh/€ je Fi
 
 - `schema.py` – Tabellen als SQLAlchemy Core (`Table`, `Column`), Ansichten, Indizes; eine Quelle für SQLite und
   PostgreSQL.
-- `verbindung.py` – Engine aus `db_url` (Standard `sqlite:////config/baustelle/baustelle.db`), SQLite mit WAL und
-  `synchronous=NORMAL`; alle Zugriffe in **einem** eigenen Thread (wie der Recorder), nie in der Ereignisschleife.
+- `verbindung.py` – Engine (Standard `sqlite:////config/baustelle/baustelle.db`, `db_url` kommt mit Phase 8), SQLite
+  mit WAL und `synchronous=NORMAL`; alle Zugriffe im Executor von HA nacheinander hinter einer Sperre, nie in der
+  Ereignisschleife (umgesetzt 0.8.53: kein eigener Thread – der müsste beim Entladen beendet werden und gilt in den
+  HA-Tests als hängender Thread).
 - `migration.py` – `schema_version` lesen, nummerierte Schritte anwenden; vor jeder Migration eine Kopie der
   SQLite-Datei (`baustelle.db.vor-<n>`).
 - `schreiber.py` – Warteschlange: Ereignisse und Protokoll sofort (gesammelt, höchstens alle 5 s), Minutenwerte
@@ -174,7 +176,7 @@ beobachten. Jede Phase hat einen Rückweg.
 | Phase | Inhalt | Der Pilot merkt | Rückweg | Version |
 |---|---|---|---|---|
 | **0** | Fix 50-kWh-Grenze bei Lücken (`logik/zaehlen.py`, mit Test) | lange Ausfälle zählen richtig | – | PATCH |
-| **1** | Grundgerüst: `db/` (Schema 1, Verbindung, Migration, Schreiber), `backup.py`, Diagnose-Sensor; Datenbank wird angelegt, Stammdaten gespiegelt | nichts | Option „Datenbank“ aus | PATCH |
+| **1** | Grundgerüst: `db/` (Schema 1, Verbindung, Migration, Schreiber), `backup.py`, Diagnose-Sensor; Datenbank wird angelegt, Stammdaten gespiegelt (beim Laden und nach Änderungen auf der Seite) – **erledigt 0.8.53 (BSM-006)** | nichts | Vorversion einspielen; Fehler der Datenbank halten die Steuerung nie an (statt eigener Option) | PATCH |
 | **2** | **Mitschreiben:** Einstellungen (jede Änderung mit Benutzer), Laufzeit, Ereignisse, Protokoll, Meldungen, Minutenwerte (`logik/minute.py`) – nur schreiben, gelesen wird weiter aus Store/Statistik | nichts | Option aus; Datei löschen | PATCH |
 | **3** | **Übernahme Altdaten:** Store (Einstellungen als erste Zeilen `quelle=migration`, Zähler, Laufzeit, Protokoll, Meldungen), HA-Verlauf 62 Tage → Minuten, Langzeitstatistik davor → Stundenzeilen (`dauer_s=3600`); einmal, wiederholbar | nichts | Übernahme neu laufen lassen | PATCH |
 | **4** | **Tagessummen + Abgleich:** `logik/tag.py`, `tag_*` nachts und laufend; Abgleich-Bericht alte Zähler ↔ Datenbank je Tag/Container/Firma (Diagnose und Test), Abweichungen klären | nichts | – | PATCH |

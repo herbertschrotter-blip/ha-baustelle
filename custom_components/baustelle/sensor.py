@@ -5,12 +5,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import (
     EntityCategory,
     UnitOfEnergy,
+    UnitOfInformation,
     UnitOfPower,
     UnitOfPrecipitationDepth,
     UnitOfTemperature,
@@ -20,6 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import BaustelleConfigEntry
+from .db import DATA_DB
 from .const import ART_CONTAINER, HEIZROLLEN, ROLLE_PUMPE, TYPEN
 from .entity import BaustelleEntity
 from .funktionen.heizung import Heizung
@@ -52,7 +54,7 @@ async def async_setup_entry(
 ) -> None:
     st = entry.runtime_data
     heizung = Heizung.von(st).aktiv()
-    liste: list[SensorEntity] = [StatusSensor(st), LeistungSensor(st)]
+    liste: list[SensorEntity] = [StatusSensor(st), LeistungSensor(st), DatenbankSensor(st)]
     if heizung:
         liste += [NaechsteSchaltzeitSensor(st), *(WetterSensor(st, w) for w in WETTER)]
     liste += [ZaehlerSensor(st, z) for z in ZAEHLER_BAUSTELLE if heizung or not z.nur_heizung]
@@ -71,6 +73,28 @@ async def async_setup_entry(
         geraet = [ZaehlerSensor(st, z, geraet_id=gid) for z in _geraet_zaehler(gid, g.rolle)]
         if geraet:
             async_add_entities(geraet, config_subentry_id=gid)
+
+class DatenbankSensor(BaustelleEntity, SensorEntity):
+    """Eigene Datenbank (eine je HA-Instanz): Größe, Zustand, Fehler, Warteschlange (docs/bauplan-datenbank.md §3.6)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.DATA_SIZE
+    _attr_native_unit_of_measurement = UnitOfInformation.MEGABYTES
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, steuerung: Steuerung) -> None:
+        super().__init__(steuerung, "datenbank")
+
+    @property
+    def native_value(self) -> float | None:
+        db = self.hass.data.get(DATA_DB)
+        return db.info()["groesse_mb"] if db is not None and db.bereit else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        db = self.hass.data.get(DATA_DB)
+        return {k: v for k, v in db.info().items() if k != "groesse_mb"} if db is not None else {"zustand": "aus"}
+
 
 class StatusSensor(BaustelleEntity, SensorEntity):
     """Was die Baustelle gerade tut."""

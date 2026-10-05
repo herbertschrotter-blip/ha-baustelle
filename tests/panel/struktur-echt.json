@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.52",
+   "version": "0.8.53",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -72,6 +72,7 @@
    "schacht_p1_pumpzyklen": "sensor.pumpe_1_pumpenschacht_pumpe_1_pump_cycles",
    "wohnbau_aussen": "sensor.wohnbau_kalsdorf_outdoor_temperature",
    "wohnbau_automatik": "switch.wohnbau_kalsdorf_automation",
+   "wohnbau_datenbank": "sensor.wohnbau_kalsdorf_database",
    "wohnbau_energie": "sensor.wohnbau_kalsdorf_energy",
    "wohnbau_energie_konvektor": "sensor.wohnbau_kalsdorf_energy_convectors",
    "wohnbau_energie_oelradiator": "sensor.wohnbau_kalsdorf_energy_oil_radiators",
@@ -1901,7 +1902,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.52",
+   "version": "0.8.53",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -1920,6 +1921,7 @@
    "buero_r1_problem": "binary_sensor.olradiator_1_buro_olradiator_1_problem",
    "halle_aussen": "sensor.halle_lieboch_outdoor_temperature",
    "halle_automatik": "switch.halle_lieboch_automation",
+   "halle_datenbank": "sensor.halle_lieboch_database",
    "halle_energie": "sensor.halle_lieboch_energy",
    "halle_energie_konvektor": "sensor.halle_lieboch_energy_convectors",
    "halle_energie_oelradiator": "sensor.halle_lieboch_energy_oil_radiators",
