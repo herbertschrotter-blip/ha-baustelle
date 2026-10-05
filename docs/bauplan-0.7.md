@@ -457,8 +457,11 @@ Entscheidungen:
   `_Lichtstufe`/`_Licht`. `BTHome.AddDevice` antwortet nicht – nach 3 s weiter, ein gescheiterter Schritt kommt in der
   nächsten Runde wieder dran. Protokoll „Notprogramm <Gerät>: … gekoppelt / entfernt / umbenannt“.
 
-Offen: Anzeige „Notbetrieb“ und „Jetzt prüfen“ auf der Seite (BSM-019); Warnung „Fühler fehlt“; Gerätepasswort als
-`!secret`, falls je eins gesetzt wird.
+- **Anzeige gebaut (BSM-019, 0.8.66):** Einstellungen › Notprogramm (Mockup `mockups/notprogramm.html`), „Jetzt prüfen“
+  und Dienst `baustelle.notprogramm_pruefen`, Warnung `notprogramm` nach 15 min, Protokoll „Notbetrieb … bis …“ beim
+  ersten Lebenszeichen danach (das Skript meldet „Notbetrieb seit“). Hinweis „Fühler nicht am Plug“ statt eigener Warnung.
+
+Offen: Gerätepasswort als `!secret`, falls je eins gesetzt wird.
 
 ## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut
 

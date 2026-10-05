@@ -29,6 +29,7 @@ from .logik import preise as preise_logik
 from .logik.arbeitszeit import arbeitszeit_loeschen, arbeitszeiten_speichern
 from .logik.auswertung import ARTEN
 from .logik.rechte import AKTIONEN_ALLE, darf, rechte
+from .notprogramm import DATA_NOTPROGRAMM
 from .logik.warnungen import Art
 
 if TYPE_CHECKING:
@@ -245,7 +246,7 @@ async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
     hass.data[DATA_MELDUNGEN] = Meldungen(hass)
     hass.async_create_task(hass.data[DATA_MELDUNGEN].async_laden(), "baustelle_meldungen_laden")  # lesbare Kopie beim Start
     for befehl in (ws_struktur, ws_setzen, ws_liste, ws_aktion, ws_bericht, ws_protokoll, ws_meldungen, ws_meldung,
-                   ws_auswertung, ws_abrechnung, ws_ohne, ws_statistik, ws_verlauf):
+                   ws_auswertung, ws_abrechnung, ws_ohne, ws_statistik, ws_verlauf, ws_notprogramm_pruefen):
         websocket_api.async_register_command(hass, befehl)
 
 
@@ -333,6 +334,23 @@ def pruefe_setzen(st: Any, pfad: list[str], wert: Any) -> Any:
     if schluessel not in SETZEN:
         raise vol.Invalid(f"Pfad {'.'.join(pfad)} ist nicht erlaubt")
     return SETZEN[schluessel](wert)
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "baustelle/notprogramm_pruefen",
+    vol.Required("entry_id"): str,
+})
+@websocket_api.async_response
+async def ws_notprogramm_pruefen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """BSM-019: jetzt eine Runde des Notprogramms (Skript, Kopplungen, Programm, Lebenszeichen) – nur Admins."""
+    if not _darf(connection, msg, "notprogramm_pruefen") or _steuerung(hass, connection, msg) is None:
+        return
+    np = hass.data.get(DATA_NOTPROGRAMM, {}).get(msg["entry_id"])
+    if np is None:
+        _fehler(connection, msg, "Notprogramm nicht geladen")
+        return
+    await np.async_runde()
+    connection.send_result(msg["id"], np.info())
 
 
 @websocket_api.websocket_command({

@@ -22,6 +22,7 @@ from .logik import groesse
 from .logik.abrechnung import EIGEN, firma_von
 from .logik.arbeitszeit import Plan, uhrzeit
 from .logik.warnungen import titel as warn_titel
+from .notprogramm import DATA_NOTPROGRAMM
 from . import texte
 
 if TYPE_CHECKING:
@@ -155,6 +156,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}
+    np = st.hass.data.get(DATA_NOTPROGRAMM, {}).get(st.entry.entry_id)
     for gid, g in st.geraete.items():
         s = hass.states.get(g.schalter)
         an = s is not None and s.state == STATE_ON
@@ -167,6 +169,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "warte": d.warte.get(gid),
             "aktiv": st.geraet_aktiv(g),   # WU-0004
             "zusatz": bool((st.e.get("geraete") or {}).get(gid, {}).get("zusatz")),   # AN-0006
+            "notprogramm": np.geraet_info(gid) if np is not None else None,   # BSM-019
         }
     stumm = st.e["stumm"]
     tuer_melden = st.e["heizung"]["tuer_melden_min"]
@@ -201,6 +204,8 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
         "probleme": d.probleme,
         "pumpe_laeuft": pumpen.pumpe_laeuft,
         "erreichbar": d.erreichbar,
+        "notprogramm": {"an": np.an, "geprueft": np.geprueft.isoformat(timespec="seconds") if np.geprueft else None}
+        if np is not None else None,   # BSM-019
     }
 
 

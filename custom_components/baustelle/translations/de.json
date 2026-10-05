@@ -379,6 +379,10 @@
           "description": "Wer ändert (Standard: Claude)"
         }
       }
+    },
+    "notprogramm_pruefen": {
+      "name": "Notprogramm jetzt prüfen",
+      "description": "Skript, Kopplungen, Programm und Lebenszeichen auf allen Heizungs-Plugs sofort prüfen und aktualisieren (sonst alle 5 min)."
     }
   },
   "exceptions": {

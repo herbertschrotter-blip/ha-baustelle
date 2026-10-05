@@ -448,7 +448,8 @@
     "tuer_pause_min": 3,
     "tuer_melden_min": 10,
     "boost_min": 30,
-    "feiertag_frei": true
+    "feiertag_frei": true,
+    "notprogramm": true
    },
    "staffel": {
     "an": true,
@@ -840,21 +841,84 @@
      "kw": 2,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "notprogramm": {
+      "zustand": "bereit",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": 3,
+      "programm": 10000,
+      "bis": "2026-10-04T18:30:00+02:00",
+      "modus": "thermo",
+      "soll": 20.0,
+      "toleranz": 0.3,
+      "frost_ein": 3.0,
+      "frost_aus": 5.0,
+      "fuehler": 202,
+      "tuer": 201,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": [
+       "2026-09-27T02:14:00+02:00",
+       "2026-09-27T02:41:00+02:00"
+      ],
+      "zuletzt": "2026-09-29T16:48:00+02:00",
+      "skript_id": 2,
+      "fuehler_fehlt": false
+     }
     },
     "polier_r2": {
      "an": true,
      "kw": 1.99,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "notprogramm": {
+      "zustand": "bereit",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": 3,
+      "programm": 10001,
+      "bis": "2026-10-04T18:30:00+02:00",
+      "modus": "thermo",
+      "soll": 20.0,
+      "toleranz": 0.3,
+      "frost_ein": 3.0,
+      "frost_aus": 5.0,
+      "fuehler": 202,
+      "tuer": 201,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": "2026-09-29T16:48:00+02:00",
+      "skript_id": 2,
+      "fuehler_fehlt": false
+     }
     },
     "mannschaft_r1": {
      "an": true,
      "kw": 2,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "notprogramm": {
+      "zustand": "bereit",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": 3,
+      "programm": 10002,
+      "bis": "2026-10-04T18:30:00+02:00",
+      "modus": "thermo",
+      "soll": 20.0,
+      "toleranz": 0.3,
+      "frost_ein": 3.0,
+      "frost_aus": 5.0,
+      "fuehler": 202,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": "2026-09-29T16:48:00+02:00",
+      "skript_id": 2,
+      "fuehler_fehlt": false
+     }
     },
     "mannschaft_k": {
      "an": false,
@@ -864,6 +928,26 @@
      "warte": {
       "grund": "anschluss_voll",
       "dran_in_min": 6
+     },
+     "notprogramm": {
+      "zustand": "bereit",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": 3,
+      "programm": 10003,
+      "bis": "2026-10-04T18:30:00+02:00",
+      "modus": "plan",
+      "soll": 20.0,
+      "toleranz": 0.3,
+      "frost_ein": 3.0,
+      "frost_aus": 5.0,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": "2026-09-29T16:48:00+02:00",
+      "skript_id": 2,
+      "fuehler_fehlt": true
      }
     },
     "mannschaft_t": {
@@ -878,7 +962,27 @@
      "kw": 0,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "notprogramm": {
+      "zustand": "bereit",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": 3,
+      "programm": 10004,
+      "bis": "2026-10-04T18:30:00+02:00",
+      "modus": "plan",
+      "soll": 20.0,
+      "toleranz": 0.3,
+      "frost_ein": 3.0,
+      "frost_aus": 5.0,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": "2026-09-29T16:48:00+02:00",
+      "skript_id": 2,
+      "fuehler_fehlt": false
+     }
     },
     "magazin_s": {
      "an": false,
@@ -892,21 +996,81 @@
      "kw": 2,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "notprogramm": {
+      "zustand": "bereit",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": 3,
+      "programm": 10005,
+      "bis": "2026-10-04T18:30:00+02:00",
+      "modus": "thermo",
+      "soll": 20.0,
+      "toleranz": 0.3,
+      "frost_ein": 3.0,
+      "frost_aus": 5.0,
+      "fuehler": 202,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": "2026-09-29T16:48:00+02:00",
+      "skript_id": 2,
+      "fuehler_fehlt": false
+     }
     },
     "lager_r": {
      "an": false,
      "kw": 0,
      "erreichbar": false,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "notprogramm": {
+      "zustand": "bereit",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": 3,
+      "programm": 10006,
+      "bis": "2026-10-04T18:30:00+02:00",
+      "modus": "plan",
+      "soll": 20.0,
+      "toleranz": 0.3,
+      "frost_ein": 3.0,
+      "frost_aus": 5.0,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": "2026-09-29T16:48:00+02:00",
+      "skript_id": 2,
+      "fuehler_fehlt": false
+     }
     },
     "besprechung_r": {
      "an": false,
      "kw": 0,
      "erreichbar": true,
      "hand_seit": null,
-     "warte": null
+     "warte": null,
+     "notprogramm": {
+      "zustand": "bereit",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": 3,
+      "programm": 10007,
+      "bis": "2026-10-04T18:30:00+02:00",
+      "modus": "thermo",
+      "soll": 20.0,
+      "toleranz": 0.3,
+      "frost_ein": 3.0,
+      "frost_aus": 5.0,
+      "fuehler": 202,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": "2026-09-29T16:48:00+02:00",
+      "skript_id": 2,
+      "fuehler_fehlt": false
+     }
     },
     "schacht_p1": {
      "an": true,
@@ -1894,7 +2058,11 @@
      null,
      "An Handy Herbert: „Pumpenschacht Nord: Dauerlauf 25 min“"
     ]
-   ]
+   ],
+   "notprogramm": {
+    "an": true,
+    "geprueft": "2026-09-29T16:48:00+02:00"
+   }
   },
   "geraete_links": {
    "binary_sensor.tuer_magazin": {

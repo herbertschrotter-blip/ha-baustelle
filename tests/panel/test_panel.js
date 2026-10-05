@@ -1056,9 +1056,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'ev-gruppe', v: 'strom' }, 10); erwarte('FE-0013: Position bleibt (' + leiste.scrollLeft + ')', leiste.scrollLeft === 200);
       Object.assign(chip, { offsetLeft: 700, offsetWidth: 80 }); await klick({ act: 'ev-gruppe', v: 'ueber' }, 10);
       erwarte('FE-0013: gewählte Kategorie mittig (' + leiste.scrollLeft + ')', leiste.scrollLeft === 700 - (300 - 80) / 2); }
-    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
+    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
     const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'data-act="auto"', 'data-k="frost_aussen"'],
-      container: ['Container und Geräte', 'Je Container'],
+      notprogramm: ['Notprogramm in den Plugs', 'data-act="np-an"'], container: ['Container und Geräte', 'Je Container'],
       geraete: ['Schaltgeräte', 'class="zeile ger"'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Neuer Preis ab', 'Staffelung'], firmen: ['Firma hinzufügen'],
       meldungen: ['Test-Nachricht senden', 'data-k="kalt_min"', 'data-k="hand_h"'], bericht: ['Wie oft'], app: ['Erklärungen anzeigen', 'Melden-Knopf', 'data-act="aw-vorlage" data-v="misch"'],
       dev: ['Meldungen', 'data-act="ev-dev"'], ueber: ['Version'] };
@@ -1068,8 +1068,21 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         erwarte('WU-0010: Geräte nach Funktion', ['Schaltgeräte', 'Temperaturfühler', 'Türkontakte', 'Wetter und Regen'].every(t => h.includes(t)));
         const web = Object.entries(L).find(([, l]) => l.web), ha = Object.entries(L).find(([, l]) => !l.web && l.ha);
         erwarte('AN-0009: Statuspunkt und Signalbalken', h.includes('class="ger-punkt da"') && /class="ger-sig s[0-4]" title="Signal -\d+ dBm"/.test(h));
+        erwarte('BSM-019: Heizungs-Plugs mit 🛟', h.includes('class="np-marke'));
         erwarte('WU-0010: Klick öffnet Website bzw. HA-Geräteseite', (!web || h.includes(`href="${web[1].web}" target="_blank"`)) && (!ha || h.includes(`href="${ha[1].ha}"`)));
       } }
+    { const h = await gruppe('notprogramm');   // BSM-019: Notprogramm anzeigen und prüfen
+      if (REFERENZ) {
+        erwarte('BSM-019: je Plug Zustand, Programm bis, Hinweis Fühler', h.includes('✓ bereit') && h.includes('Programm bis') && h.includes('Fühler nicht am Plug'));
+        await klick({ act: 'np-plug', id: panel.npPlugs()[0].g.id }, 10);
+        erwarte('BSM-019: Einzelheiten eines Plugs', ui.innerHTML.includes('Messwert Nr. 202') && ui.innerHTML.includes('Version 3') && ui.innerHTML.includes('zuletzt'));
+        await klick({ act: 'zu' }, 5);
+      }
+      neu(); await klick({ act: 'np-pruefen' }, 20);
+      erwarte('BSM-019: Jetzt prüfen über baustelle/notprogramm_pruefen', aufrufe.some(m => m.type === 'baustelle/notprogramm_pruefen' && m.entry_id === panel.d.entry));
+      neu(); const an = panel.d.e.notprogramm; await klick({ act: 'np-an' }, 10);
+      erwarte('BSM-019: Schalter über baustelle/setzen', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'heizung.notprogramm' && m.wert === !an));
+      await klick({ act: 'np-an' }, 10); }
     await gruppe('dev'); await klick({ act: 'ev-dev', v: 'werkzeuge' }, 20);
     erwarte('WU-0007: Entwicklung › Werkzeuge', ui.innerHTML.includes('Diagnose herunterladen') && !ui.innerHTML.includes('Melden-Knopf in jedem Fenster'));
     await gruppe('meldungen'); neu(); const k0 = panel.d.e.kalt_min; await klick({ act: 'st', k: 'kalt_min', d: '15' }, 10);

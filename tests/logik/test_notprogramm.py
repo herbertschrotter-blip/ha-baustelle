@@ -116,3 +116,10 @@ def test_kopplungen() -> None:
     assert max(i for i, k in enumerate(schritte) if k.art.endswith("_weg")) < min(i for i, k in enumerate(schritte) if k.art.endswith("_neu"))
     # nichts gewollt (Container ohne BLU-Sensor) → alles Fremde weg
     assert [k.art for k in kopplungen({}, {fremd: (202, "alt")}, {(fremd, 69): (209, None)})] == ["sensor_weg", "geraet_weg"]
+
+
+def test_gueltig_bis() -> None:
+    from logik.notprogramm import gueltig_bis
+    w = programm(V, [(T0 + 6 * H, T0 + 17 * H, 20.0), (T0 + 3 * TAG + 6 * H, T0 + 3 * TAG + 12 * H, 20.0)], WOCHE, T0)
+    assert gueltig_bis(w) == T0 + 3 * TAG + 12 * H
+    assert gueltig_bis(programm(V, [], WOCHE, T0)) is None

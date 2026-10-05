@@ -140,6 +140,13 @@ def programm(v: Vorgaben, fenster: Iterable[Fenster], wochentag: Mapping[int, in
     return werte
 
 
+def gueltig_bis(werte: Mapping[str, str]) -> int | None:
+    """Ende des letzten Fensters im Programm (Unix-Sekunden) – so lange heizt der Plug ohne HA nach Plan; None ohne Fenster."""
+    enden = [int(teil.split(",")[1]) for k, w in werte.items() if k.startswith("bs_p") and w != LEER
+             for teil in w.split(";") if teil.count(",") == 2]
+    return max(enden, default=None)
+
+
 def stand(werte: Mapping[str, str]) -> int | None:
     """Stand (`v`) eines Programms – das Skript nennt ihn in der Antwort auf das Lebenszeichen."""
     try:

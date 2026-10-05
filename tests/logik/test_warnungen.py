@@ -496,3 +496,13 @@ def test_selbst_ein():
     (w,) = nur(Art.SELBST_EIN, zustand(g))
     assert w.stufe == Stufe.STOERUNG and titel(w) == "Heizung 02 schaltet sich selbst wieder ein"
     assert nur(Art.SELBST_EIN, zustand(GeraetZustand(id="h2", bereich="polier", erreichbar=False, selbst_ein_seit=vor(9)))) == []
+
+
+def test_notprogramm():
+    """BSM-019: Plug nimmt das Notprogramm nicht an – Hinweis erst nach 15 min (eine Runde darf scheitern)."""
+    g = GeraetZustand(id="h2", bereich="polier", name="001-02_C_PLUG_POL", notprogramm_seit=vor(16), notprogramm_fehler="Passwort gesetzt")
+    (w,) = nur(Art.NOTPROGRAMM, zustand(g))
+    assert w.stufe == Stufe.HINWEIS and titel(w) == "001-02_C_PLUG_POL: Notprogramm nicht bereit (Passwort gesetzt)"
+    assert nur(Art.NOTPROGRAMM, zustand(GeraetZustand(id="h2", bereich="polier", notprogramm_seit=vor(10)))) == []
+    assert nur(Art.NOTPROGRAMM, zustand(GeraetZustand(id="h2", bereich="polier", erreichbar=False, offline_seit=vor(20),
+                                                      notprogramm_seit=vor(16)))) == []   # offline meldet schon „nicht erreichbar“

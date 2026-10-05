@@ -193,6 +193,7 @@ class Steuerung:
         self._letzter_befehl: dict[str, tuple[bool, datetime]] = {}
         self._offline_seit: dict[str, datetime] = {}
         self._lief: dict[str, bool] = {}
+        self.notprogramm_fehler: dict[str, tuple[datetime | None, str]] = {}   # BSM-019: setzt notprogramm.py (Warnung)
         self._aus_befehle: dict[str, list[datetime]] = {}   # FE-0010: Ausschaltbefehle je Gerät (letzte 10 min)   # zuletzt bekannter Zustand je Gerät (offline: zählt weiter, wenn es lief)
         self._wartet_seit: dict[str, datetime] = {}
         self._frei_verlauf: deque[tuple[datetime, dict[str, float]]] = deque()
@@ -1061,6 +1062,8 @@ class Steuerung:
                     an_seit=dt_util.as_local(zustand.last_changed) if an and zustand is not None else None,
                     hand_seit=self.funktion_von(g).hand_seit(g), laeuft_seit=laeuft_seit, zyklen_h=zyklen,
                     selbst_ein_seit=warn_logik.selbst_ein_seit(self._aus_befehle.get(g.id, []), jetzt),
+                    notprogramm_seit=self.notprogramm_fehler.get(g.id, (None, ""))[0],   # BSM-019
+                    notprogramm_fehler=self.notprogramm_fehler.get(g.id, (None, ""))[1],
                 )
             )
         return liste

@@ -379,6 +379,10 @@
           "description": "Who changes it (default: Claude)"
         }
       }
+    },
+    "notprogramm_pruefen": {
+      "name": "Check emergency program now",
+      "description": "Check and update script, pairings, program and heartbeat on all heating plugs right away (otherwise every 5 min)."
     }
   },
   "exceptions": {

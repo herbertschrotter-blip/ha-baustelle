@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.65",
+   "version": "0.8.66",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -472,7 +472,8 @@
      "kein_wetter": true,
      "hand_zu_lange": true,
      "tuer_offen": true,
-     "selbst_ein": true
+     "selbst_ein": true,
+     "notprogramm": true
     },
     "kalt_min": 60,
     "hand_h": 8,
@@ -809,7 +810,27 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
-     "zusatz": false
+     "zusatz": false,
+     "notprogramm": {
+      "zustand": "aus",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": null,
+      "programm": null,
+      "bis": null,
+      "modus": null,
+      "soll": null,
+      "toleranz": null,
+      "frost_ein": null,
+      "frost_aus": null,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": null,
+      "skript_id": null,
+      "fuehler_fehlt": false
+     }
     },
     "polier_k1": {
      "an": false,
@@ -818,7 +839,27 @@
      "hand_seit": "2026-09-29T11:00:00+02:00",
      "warte": null,
      "aktiv": true,
-     "zusatz": false
+     "zusatz": false,
+     "notprogramm": {
+      "zustand": "aus",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": null,
+      "programm": null,
+      "bis": null,
+      "modus": null,
+      "soll": null,
+      "toleranz": null,
+      "frost_ein": null,
+      "frost_aus": null,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": null,
+      "skript_id": null,
+      "fuehler_fehlt": false
+     }
     },
     "mannschaft_k1": {
      "an": false,
@@ -827,7 +868,27 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
-     "zusatz": false
+     "zusatz": false,
+     "notprogramm": {
+      "zustand": "aus",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": null,
+      "programm": null,
+      "bis": null,
+      "modus": null,
+      "soll": null,
+      "toleranz": null,
+      "frost_ein": null,
+      "frost_aus": null,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": null,
+      "skript_id": null,
+      "fuehler_fehlt": false
+     }
     },
     "mannschaft_k2": {
      "an": false,
@@ -836,7 +897,27 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
-     "zusatz": false
+     "zusatz": false,
+     "notprogramm": {
+      "zustand": "aus",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": null,
+      "programm": null,
+      "bis": null,
+      "modus": null,
+      "soll": null,
+      "toleranz": null,
+      "frost_ein": null,
+      "frost_aus": null,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": null,
+      "skript_id": null,
+      "fuehler_fehlt": false
+     }
     },
     "magazin_r1": {
      "an": false,
@@ -845,7 +926,27 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
-     "zusatz": false
+     "zusatz": false,
+     "notprogramm": {
+      "zustand": "aus",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": null,
+      "programm": null,
+      "bis": null,
+      "modus": null,
+      "soll": null,
+      "toleranz": null,
+      "frost_ein": null,
+      "frost_aus": null,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": null,
+      "skript_id": null,
+      "fuehler_fehlt": false
+     }
     },
     "magazin_t1": {
      "an": false,
@@ -854,7 +955,8 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
-     "zusatz": false
+     "zusatz": false,
+     "notprogramm": null
     },
     "schacht_p1": {
      "an": false,
@@ -863,7 +965,8 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
-     "zusatz": false
+     "zusatz": false,
+     "notprogramm": null
     }
    },
    "plan_woche": [
@@ -1691,7 +1794,11 @@
    "pumpe_laeuft": {
     "schacht_p1": false
    },
-   "erreichbar": true
+   "erreichbar": true,
+   "notprogramm": {
+    "an": false,
+    "geprueft": "2026-09-29T16:20:00+02:00"
+   }
   },
   "geraete_links": {
    "binary_sensor.tuer_magazin": {
@@ -1904,7 +2011,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.65",
+   "version": "0.8.66",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -2076,7 +2183,8 @@
      "kein_wetter": true,
      "hand_zu_lange": true,
      "tuer_offen": true,
-     "selbst_ein": true
+     "selbst_ein": true,
+     "notprogramm": true
     },
     "kalt_min": 60,
     "hand_h": 8,
@@ -2182,7 +2290,27 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
-     "zusatz": false
+     "zusatz": false,
+     "notprogramm": {
+      "zustand": "aus",
+      "fehler": null,
+      "fehler_seit": null,
+      "version": null,
+      "programm": null,
+      "bis": null,
+      "modus": null,
+      "soll": null,
+      "toleranz": null,
+      "frost_ein": null,
+      "frost_aus": null,
+      "fuehler": null,
+      "tuer": null,
+      "notbetrieb_seit": null,
+      "notbetrieb_zuletzt": null,
+      "zuletzt": null,
+      "skript_id": null,
+      "fuehler_fehlt": false
+     }
     }
    },
    "plan_woche": [
@@ -2281,7 +2409,11 @@
     "buero_r1": []
    },
    "pumpe_laeuft": {},
-   "erreichbar": true
+   "erreichbar": true,
+   "notprogramm": {
+    "an": false,
+    "geprueft": "2026-09-29T16:20:00+02:00"
+   }
   },
   "geraete_links": {
    "sensor.buero_r1_leistung": {

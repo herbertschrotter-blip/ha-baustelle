@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.66] – 2026-10-05
+
+- Notprogramm auf der Seite (BSM-019): neue Gruppe Einstellungen › 🛟 Notprogramm mit Schalter, „Jetzt prüfen“ und je
+  Heizungs-Plug Zustand (bereit, Notbetrieb, Fehler), Modus im Notbetrieb, Programm gültig bis und Hinweis, wenn der
+  Fühler nicht am Plug gekoppelt ist; Einzelheiten je Plug. In Einstellungen › Geräte tragen die Heizungs-Plugs ein 🛟.
+- „Jetzt prüfen“ gibt es auch als Dienst `baustelle.notprogramm_pruefen` (nur Admins).
+- Neue Warnung „Notprogramm nicht bereit“, wenn ein Plug 15 min lang Skript oder Programm nicht annimmt.
+- Protokoll „Notbetrieb …: von … bis …“, sobald ein Plug nach einem Ausfall wieder antwortet.
+
 ## [0.8.65] – 2026-10-05
 
 - Notprogramm: Die Integration hält die Bluetooth-Kopplungen der Heizungs-Plugs selbst in Ordnung (BSM-030). Fühler und

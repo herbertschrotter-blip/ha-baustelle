@@ -74,6 +74,7 @@ class Art(StrEnum):
     HAND_ZU_LANGE = "hand_zu_lange"
     TUER_OFFEN = "tuer_offen"
     SELBST_EIN = "selbst_ein"   # FE-0010: Gerät schaltet sich selbst wieder ein (z. B. Auto-ON-Timer am Shelly)
+    NOTPROGRAMM = "notprogramm"   # BSM-019: Plug nimmt Skript oder Programm des Notprogramms nicht an
 
 
 STOERUNGEN: frozenset[Art] = frozenset(
@@ -88,6 +89,7 @@ STOERUNGEN: frozenset[Art] = frozenset(
         Art.SELBST_EIN,
     }
 )
+NOTPROGRAMM_NACH_MIN = 15    # BSM-019: erst melden, wenn das Notprogramm so lange nicht in Ordnung ist (eine Runde kann scheitern)
 SELBST_EIN_AB = 3            # so oft musste die Automatik ein Gerät …
 SELBST_EIN_FENSTER_MIN = 10  # … in so vielen Minuten wieder ausschalten
 
@@ -133,6 +135,8 @@ class GeraetZustand:
     selbst_ein_seit: datetime | None = None   # FE-0010
     laeuft_seit: datetime | None = None
     zyklen_h: int = 0
+    notprogramm_seit: datetime | None = None   # BSM-019: seit wann das Notprogramm am Plug nicht in Ordnung ist
+    notprogramm_fehler: str = ""
 
 
 @dataclass(frozen=True)
@@ -326,6 +330,13 @@ def _pruefe_geraet(
         and _minuten(g.an_seit, jetzt) >= einst.keine_leistung_nach_min
     ):
         w.append(_warnung(Art.KEINE_LEISTUNG, g.an_seit or jetzt, g.bereich, g.id, name=g.name))
+    if (
+        g.erreichbar
+        and g.notprogramm_seit is not None
+        and _minuten(g.notprogramm_seit, jetzt) >= NOTPROGRAMM_NACH_MIN
+        and einst.aktiv(Art.NOTPROGRAMM)
+    ):
+        w.append(_warnung(Art.NOTPROGRAMM, g.notprogramm_seit, g.bereich, g.id, name=g.name, fehler=g.notprogramm_fehler))
     if g.erreichbar and g.selbst_ein_seit is not None and einst.aktiv(Art.SELBST_EIN):
         w.append(_warnung(Art.SELBST_EIN, g.selbst_ein_seit, g.bereich, g.id, name=g.name))
     if (
@@ -507,6 +518,8 @@ def titel(w: Warnung) -> str:
             return f"{name or 'Heizkörper'} zieht keinen Strom"
         case Art.SELBST_EIN:
             return f"{name or 'Gerät'} schaltet sich selbst wieder ein"
+        case Art.NOTPROGRAMM:
+            return f"{name or 'Plug'}: Notprogramm nicht bereit" + (f" ({v['fehler']})" if v.get("fehler") else "")
         case Art.FROSTGEFAHR:
             return f"Frostgefahr: {_zahl(v['temperatur'])} °C"
         case Art.ZU_KALT:

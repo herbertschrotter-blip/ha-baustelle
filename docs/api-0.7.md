@@ -258,6 +258,14 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus), `heizung.notprogramm` (0.8.63, BSM-017:
   Notprogramm in den Plugs – Skript und Programm einspielen, Lebenszeichen alle 5 min; Standard aus, Ausschalten hält
   das Skript an; Stand je Plug in der Diagnose unter `notprogramm`, Bauplan 0.7 §9).
+- Notprogramm anzeigen (0.8.66, BSM-019): `laufzeit.notprogramm` = `{an, geprueft}`; je Heizkörper-Plug
+  `laufzeit.geraete.<id>.notprogramm` = `{zustand: "aus"|"offen"|"bereit"|"not"|"fehler", fehler, fehler_seit, version,
+  programm, bis, modus: "thermo"|"plan"|"bedarf"|"hand"|"aus", soll, toleranz, frost_ein, frost_aus, fuehler, tuer,
+  notbetrieb_seit, notbetrieb_zuletzt: [von, bis], zuletzt, skript_id, fuehler_fehlt}` (andere Geräte `null`).
+  `baustelle/notprogramm_pruefen` (`entry_id`, nur Admins) und Dienst `baustelle.notprogramm_pruefen` (nur Admins) stoßen
+  sofort eine Runde an; die Antwort ist der Stand wie in der Diagnose. Warnung `notprogramm` (Hinweis), wenn ein Plug
+  15 min lang nicht bereit ist; Protokoll „Notbetrieb <Plug>: … bis … (… min)“, wenn ein Plug nach einem Ausfall wieder
+  antwortet.
 - Bericht (0.7.9): `heiztage` = Tage mit Heizzeit > 0 in einem Container (Statistik `<bid>_heizzeit`), wie `zaehler.heiztage`.
 - Beginn/Ende und Heizperiode: Options-Dialog (`beginn`, `ende`, `heizperiode_von`, `heizperiode_bis` als `"1"`…`"12"`).
   Beginn leer = Tag der Anlage. Ende (`logik/zeitraum.ende_beim_speichern`): beim Abschließen immer heute, bleibt

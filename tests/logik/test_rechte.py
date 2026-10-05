@@ -25,6 +25,7 @@ def test_aendern_nur_admin():
     assert not darf(False, "setzen")
     assert not darf(False, "liste")
     assert not darf(False, "unbekannt")
+    assert not darf(False, "notprogramm_pruefen")   # BSM-019: Runde anstoßen nur Admins
 
 
 def test_aktionen_vor_ort():

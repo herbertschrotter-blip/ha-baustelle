@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.baustelle import notprogramm as np_modul
 from custom_components.baustelle.logik import notprogramm as logik
+from custom_components.baustelle.logik.warnungen import titel
 from custom_components.baustelle.notprogramm import DATA_NOTPROGRAMM, SKRIPT_NAME, Notprogramm, skript_lesen
 
 from .conftest import baustelle_anlegen
@@ -36,6 +37,7 @@ class FakePlug:
         self.geladen: int | None = None
         self.aufrufe: list[str] = []
         self.erreichbar = True
+        self.nb = 0   # „Notbetrieb seit“ (Unix-Sekunden), das das Skript beim nächsten Lebenszeichen meldet
         self.komponenten = [
             {"key": "bthomedevice:200", "config": {"id": 200, "addr": BT_FUEHLER.lower()}},
             {"key": "bthomesensor:200", "config": {"id": 200, "addr": BT_FUEHLER.lower(), "obj_id": 1}},
@@ -107,7 +109,8 @@ class FakePlug:
             return AiohttpClientMockResponse(method, url, status=404, text="")
         self.aufrufe.append("hb?neu" if "neu" in url.query_string else "hb")
         version = int(m.group(1)) if (m := re.search(r"let VERSION = (\d+);", x["code"])) else None
-        antwort = {"v": version, "programm": self.geladen, "fenster": 0, "nb": 0, "taste": 0}
+        antwort = {"v": version, "programm": self.geladen, "fenster": 0, "nb": self.nb, "taste": 0}
+        self.nb = 0   # das Lebenszeichen beendet den Notbetrieb
         if "neu" in url.query_string:
             self.geladen = json.loads(self.kvs["bs_cfg"])["v"] if "bs_cfg" in self.kvs else None
         return AiohttpClientMockResponse(method, url, json=antwort)
@@ -271,3 +274,67 @@ async def test_kopplungen_in_ordnung_halten(hass: HomeAssistant, anlage) -> None
     for plug in plugs.values():
         assert not [a for a in plug.aufrufe if a.startswith("BTHome")], plug.aufrufe   # alles in Ordnung: nichts zu tun
     assert {k["key"] for k in plugs["plug1"].komponenten if k["key"].startswith("bthome")} == set(k1)
+
+
+async def test_anzeige_pruefen_dienst_rechte(hass: HomeAssistant, anlage, hass_ws_client, hass_admin_user) -> None:
+    """BSM-019: Zustand je Plug in der Struktur, „Jetzt prüfen“ (nur Admins) und Dienst."""
+    from custom_components.baustelle.daten import laufzeit
+    entry, np, plugs = anlage
+    st = entry.runtime_data
+    hk1 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk1")
+    p1 = next(g for g in st.geraete if st.geraete[g].rolle == "pumpe")
+    lz = laufzeit(st)
+    assert lz["notprogramm"] == {"an": False, "geprueft": None}
+    assert lz["geraete"][hk1]["notprogramm"]["zustand"] == "aus" and lz["geraete"][p1]["notprogramm"] is None
+    st.e["heizung"]["notprogramm"] = True
+    assert laufzeit(st)["geraete"][hk1]["notprogramm"]["zustand"] == "offen"   # eingeschaltet, noch nicht geprüft
+
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": "baustelle/notprogramm_pruefen", "entry_id": entry.entry_id})
+    antwort = await client.receive_json()
+    assert antwort["success"] and antwort["result"]["an"] is True and antwort["result"]["geprueft"]
+    n = laufzeit(st)["geraete"][hk1]["notprogramm"]
+    assert n["zustand"] == "bereit" and n["version"] == VERSION and n["programm"] is not None and n["fuehler"] == 202
+    assert n["modus"] == "hand" and n["bis"] is not None and n["soll"] is not None   # Automatik aus → Hand im Plug
+    hk2 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk2")
+    assert n["fuehler_fehlt"] is False and laufzeit(st)["geraete"][hk2]["notprogramm"]["fuehler_fehlt"] is False   # C2 ohne Fühler
+
+    plugs["plug1"].aufrufe.clear()
+    await hass.services.async_call("baustelle", "notprogramm_pruefen", {}, blocking=True)
+    assert "hb" in plugs["plug1"].aufrufe
+
+    hass_admin_user.groups = []   # ohne Admin-Recht
+    await client.send_json({"id": 2, "type": "baustelle/notprogramm_pruefen", "entry_id": entry.entry_id})
+    antwort = await client.receive_json()
+    assert not antwort["success"] and antwort["error"]["code"] == "unauthorized"
+
+
+async def test_notbetrieb_ins_protokoll_und_warnung(hass: HomeAssistant, anlage, freezer) -> None:
+    """Meldet der Plug „Notbetrieb seit …“, steht er im Protokoll; ein Fehler über 15 min wird zur Warnung."""
+    from custom_components.baustelle.daten import laufzeit
+    entry, np, plugs = anlage
+    st = entry.runtime_data
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    p1 = plugs["plug1"]
+    p1.nb = int(dt_util.utcnow().timestamp()) - 40 * 60   # HA war 40 min weg, der Plug im Notbetrieb
+    await np.async_runde()
+    texte = [e[3] for e in st.einstellungen.daten["protokoll"]]
+    assert any(t.startswith("Notbetrieb Heizkörper 1:") and "(40 min)" in t for t in texte), texte[:3]
+    hk1 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk1")
+    assert laufzeit(st)["geraete"][hk1]["notprogramm"]["notbetrieb_zuletzt"] is not None
+
+    # Fehler: erst nach 15 min eine Warnung
+    plugs["plug2"].erreichbar = False
+    await np.async_runde()
+    st.auswerten(); await hass.async_block_till_done()
+    assert not [w for w in st.daten.warnungen if w.art == "notprogramm"]
+    freezer.tick(16 * 60)
+    await np.async_runde()
+    st.auswerten(); await hass.async_block_till_done()
+    (w,) = [w for w in st.daten.warnungen if w.art == "notprogramm"]
+    assert "Notprogramm nicht bereit" in titel(w)
+    plugs["plug2"].erreichbar = True
+    await np.async_runde()
+    st.auswerten(); await hass.async_block_till_done()
+    assert not [w for w in st.daten.warnungen if w.art == "notprogramm"]

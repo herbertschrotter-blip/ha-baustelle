@@ -23,6 +23,7 @@ HILFE: dict[str, str] = {
     Art.FUEHLER_FEHLT: "Der Temperaturfühler meldet nichts oder die Batterie ist fast leer. Ohne Fühler bleibt die Heizung in der Heizzeit an.",
     Art.KEIN_WETTER: "Keine Vorhersage – Frühstart, Kleidung trocknen und Heizgrenze rechnen ohne Wetter.",
     Art.HAND_ZU_LANGE: "Von Hand eingeschaltet und nicht zurückgestellt. Soll wieder die Automatik übernehmen?",
+    Art.NOTPROGRAMM: "Der Plug nimmt das Notprogramm nicht an. Fällt Home Assistant jetzt aus, heizt er nach dem zuletzt geladenen Programm bzw. danach nur Frostschutz. Einstellungen › Notprogramm › Jetzt prüfen; hilft das nicht, den Plug neu starten.",
     Art.SELBST_EIN: "Das Gerät schaltet sich immer wieder selbst ein, die Automatik muss es ständig ausschalten. Am Shelly einen Timer „Auto ON“ (automatisch einschalten) oder einen Zeitplan prüfen und abschalten.",
     Art.TUER_OFFEN: "Heizt wieder, sobald die Tür zu ist. Nach {melden} min kommt eine Nachricht aufs Handy.",
 }
@@ -73,6 +74,8 @@ def wieder_ok(w: Warnung) -> str:
             return f"{name} wieder erreichbar".strip()
         case Art.TROCKENLAUF | Art.DAUERLAUF | Art.ZYKLEN_OFT:
             return f"{name or 'Pumpe'} wieder normal"
+        case Art.NOTPROGRAMM:
+            return f"{name or 'Plug'}: Notprogramm wieder bereit"
         case Art.TUER_OFFEN:
             return "Tür zu – Heizung läuft weiter" if w.werte.get("pausiert", True) else "Tür wieder zu"
     return f"wieder in Ordnung: {titel(w)}"

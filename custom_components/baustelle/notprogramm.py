@@ -111,6 +111,10 @@ class Plug:
         return cast(dict[str, Any], inhalt)
 
 
+def _iso(t: datetime | None) -> str | None:
+    return t.isoformat(timespec="seconds") if t else None
+
+
 @dataclass
 class Stand:
     """Was die Integration über einen Plug weiß (Diagnose, später Anzeige BSM-019)."""
@@ -122,14 +126,36 @@ class Stand:
     fuehler: int | None = None
     tuer: int | None = None
     fehler: str | None = None
+    fehler_seit: datetime | None = None
     zuletzt: datetime | None = None
+    bis: int | None = None            # Programm gültig bis (Ende des letzten Fensters)
+    cfg: dict[str, Any] = field(default_factory=dict)   # was im Plug gilt (Modus, Frost, Toleranz …)
+    soll: float | None = None
+    notbetrieb_zuletzt: tuple[datetime, datetime] | None = None
     geschrieben: dict[str, str] | None = field(default=None, repr=False)
     geprueft_aus: bool = False
 
-    def info(self) -> dict[str, Any]:
-        return {"skript_id": self.skript_id, "version": self.version, "programm": self.programm,
-                "notbetrieb": self.notbetrieb, "fuehler": self.fuehler, "tuer": self.tuer, "fehler": self.fehler,
-                "zuletzt": self.zuletzt.isoformat() if self.zuletzt else None}
+    def zustand(self, an: bool) -> str:
+        """aus | offen (noch nicht geprüft) | fehler | not (Notbetrieb laut letzter Antwort) | bereit."""
+        if not an:
+            return "aus"
+        if self.fehler:
+            return "fehler"
+        if self.zuletzt is None:
+            return "offen"
+        return "not" if self.notbetrieb else "bereit"
+
+    def info(self, an: bool = True) -> dict[str, Any]:
+        """Für Seite (`laufzeit.geraete.<id>.notprogramm`) und Diagnose."""
+        return {"zustand": self.zustand(an), "fehler": self.fehler, "fehler_seit": _iso(self.fehler_seit),
+                "version": self.version, "programm": self.programm,
+                "bis": _iso(dt_util.utc_from_timestamp(self.bis)) if self.bis else None,
+                "modus": self.cfg.get("m"), "soll": self.soll, "toleranz": self.cfg.get("tol"),
+                "frost_ein": self.cfg.get("fe"), "frost_aus": self.cfg.get("fa"),
+                "fuehler": self.fuehler, "tuer": self.tuer,
+                "notbetrieb_seit": _iso(dt_util.utc_from_timestamp(self.notbetrieb)) if self.notbetrieb else None,
+                "notbetrieb_zuletzt": [_iso(t) for t in self.notbetrieb_zuletzt] if self.notbetrieb_zuletzt else None,
+                "zuletzt": _iso(self.zuletzt), "skript_id": self.skript_id}
 
 
 class Notprogramm:
@@ -140,6 +166,7 @@ class Notprogramm:
         self.stand: dict[str, Stand] = {}
         self._sperre = asyncio.Lock()
         self._skript: tuple[int, str] | None = None
+        self.geprueft: datetime | None = None
 
     @callback
     def async_start(self) -> CALLBACK_TYPE:
@@ -160,9 +187,10 @@ class Notprogramm:
         await self.async_runde()
 
     async def async_runde(self) -> None:
-        """Eine Runde über alle Plugs (nie zwei gleichzeitig)."""
+        """Eine Runde über alle Plugs (nie zwei gleichzeitig; läuft schon eine, auf ihr Ende warten)."""
         if self._sperre.locked():
-            return
+            async with self._sperre:
+                return
         async with self._sperre:
             if self._skript is None:
                 self._skript = await self.hass.async_add_executor_job(skript_lesen)
@@ -174,11 +202,15 @@ class Notprogramm:
                         await self._async_plug(g, Plug(session, host), stand)
                     elif not stand.geprueft_aus:
                         await self._async_abschalten(Plug(session, host), stand)
-                    stand.fehler = None
+                    stand.fehler, stand.fehler_seit = None, None
                 except PlugFehler as err:
                     if stand.fehler != str(err):
                         _LOGGER.info("Notprogramm %s: %s", g.name, err)
-                    stand.fehler = str(err)
+                    stand.fehler, stand.fehler_seit = str(err), stand.fehler_seit or dt_util.now()
+            self.geprueft = dt_util.now()
+            # Warnung „Notprogramm nicht bereit“ (logik/warnungen, nach 15 min) – nur, solange es eingeschaltet ist
+            self.st.notprogramm_fehler = {gid: (s.fehler_seit, s.fehler or "") for gid, s in self.stand.items()
+                                          if self.an and s.fehler_seit is not None}
 
     # ------------------------------------------------------------------ Plugs
     def plugs(self) -> list[tuple[GeraetInfo, str]]:
@@ -322,6 +354,7 @@ class Notprogramm:
         skript_id = await self._async_skript(plug, stand)
         stand.skript_id = skript_id
         antwort = await plug.hb(skript_id)
+        self._notbetrieb_vorbei(g, stand, int(antwort.get("nb") or 0))
         if antwort.get("v") != self._skript[0]:
             await self._async_hochladen(plug, skript_id, laeuft=True)
             stand.geschrieben = None
@@ -345,7 +378,19 @@ class Notprogramm:
             antwort = await plug.hb(skript_id, neu=True)
             antwort["programm"] = logik.stand(werte)   # die Antwort kommt vor dem Laden
         stand.version, stand.programm = antwort.get("v"), antwort.get("programm")
-        stand.notbetrieb, stand.zuletzt = int(antwort.get("nb") or 0), dt_util.utcnow()
+        stand.notbetrieb, stand.zuletzt = 0, dt_util.utcnow()   # das Lebenszeichen hat den Notbetrieb gerade beendet
+        stand.bis, stand.cfg = logik.gueltig_bis(werte), json.loads(werte["bs_cfg"])
+        stand.soll = cast("Heizung", self.st.funktion("heizung")).soll_temperatur(g.bereich)
+
+    def _notbetrieb_vorbei(self, g: GeraetInfo, stand: Stand, seit: int) -> None:
+        """Meldet das Skript „Notbetrieb seit …“, war HA so lange weg: ins Protokoll (Bauplan §9) und merken."""
+        if not seit:
+            return
+        von, bis = dt_util.as_local(dt_util.utc_from_timestamp(seit)), dt_util.now()
+        stand.notbetrieb_zuletzt = (von, bis)
+        minuten = max(1, round((bis - von).total_seconds() / 60))
+        self.st.protokoll("warnung", g.bereich, f"Notbetrieb {g.name}: {von:%d.%m. %H:%M} bis {bis:%H:%M} ({minuten} min) – "
+                          "der Plug hat ohne Home Assistant nach dem Notprogramm geheizt")
 
     # ------------------------------------------------------------------ Programm
     def werte(self, g: GeraetInfo, temp_nr: int | None, tuer_nr: int | None, jetzt: datetime | None = None) -> dict[str, str]:
@@ -389,4 +434,17 @@ class Notprogramm:
     def info(self) -> dict[str, Any]:
         """Für die Diagnose (ohne Adressen)."""
         return {"an": self.an, "skript": self._skript[0] if self._skript else None,
-                "plugs": {self.st.geraete[gid].name if gid in self.st.geraete else gid: s.info() for gid, s in self.stand.items()}}
+                "geprueft": self.geprueft.isoformat(timespec="seconds") if self.geprueft else None,
+                "plugs": {self.st.geraete[gid].name if gid in self.st.geraete else gid: s.info(self.an) for gid, s in self.stand.items()}}
+
+    def geraet_info(self, gid: str) -> dict[str, Any] | None:
+        """Zustand des Notprogramms eines Heizkörper-Plugs für die Seite; None für andere Geräte."""
+        g = self.st.geraete.get(gid)
+        if g is None or g.rolle != ROLLE_HEIZKOERPER:
+            return None
+        s = self.stand.get(gid, Stand())
+        info = s.info(self.an)
+        # Hinweis: Container regelt mit Fühler, der Plug kennt ihn aber nicht (FRITZ-Fühler, nicht gekoppelt) → nur Zeitplan
+        info["fuehler_fehlt"] = (s.zuletzt is not None and s.fuehler is None and bool(self.st.bereiche[g.bereich].fuehler)
+                                 and cast("Heizung", self.st.funktion("heizung")).modus(g.bereich) == "thermo")
+        return info

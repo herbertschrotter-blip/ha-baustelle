@@ -9,6 +9,7 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Event, HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
@@ -53,6 +54,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                           commit=call.data.get("commit"), von=call.data.get("von") or "Claude")
         return {"ticket": m["ticket"], "status": m["status"], "status_text": STATUS_TEXT.get(m["status"], m["status"])}
 
+    async def notprogramm_pruefen(call: ServiceCall) -> None:
+        """BSM-019: Notprogramm aller Baustellen jetzt prüfen (wie der Knopf „Jetzt prüfen“)."""
+        for np in list(hass.data.get(DATA_NOTPROGRAMM, {}).values()):
+            await np.async_runde()
+
+    async_register_admin_service(hass, DOMAIN, "notprogramm_pruefen", notprogramm_pruefen)   # nur Admins (Bauplan §8)
     hass.services.async_register(
         DOMAIN, "ticket", ticket,
         schema=vol.Schema({
