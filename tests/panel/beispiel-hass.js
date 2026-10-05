@@ -14,15 +14,17 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
     const von = Date.parse(m.start_time), bis = Math.min(Date.parse(m.end_time || new Date(JETZT).toISOString()), JETZT), erg = {};
     for (const id of m.statistic_ids) {
       const r = zufall(hash(id + m.period)), punkte = [];
+      // BSM-004: die Seite holt die laufende Stunde aus der 5-Minuten-Statistik – wie eine Stunde, je Punkt ein Zwölftel
+      const fuenf = m.period === '5minute', std = m.period === 'hour' || fuenf, k = fuenf ? 1 / 12 : 1, schritt = fuenf ? 3e5 : 36e5;
       for (let t = von; t < bis;) {
         const h = new Date(t).getUTCHours() + 2, tag = new Date(t).getUTCDay();
         let p = {};
         if (/aussen|temperatur/.test(id)) p = { mean: id.includes('aussen') ? 4 + 3 * Math.sin((h - 9) / 24 * 2 * Math.PI) + r() : 17 + r() * 3 };
-        else if (/pumpzyklen/.test(id)) p = { change: Math.round((m.period === 'hour' ? 1 : 30) * r()) };
-        else if (/heizzeit|pumpzeit/.test(id)) p = { change: (m.period === 'hour' ? .7 : m.period === 'day' ? 6 : 150) * r() };
-        else p = { change: (m.period === 'hour' ? (h >= 6 && h < 18 ? 2.5 : .2) : m.period === 'day' ? (tag === 0 || tag === 6 ? 2 : 14) : 300) * (.6 + r() * .6) * (id.includes('ohne') ? 4 : 1) };
-        punkte.push({ start: t, end: t + 36e5, ...p });
-        if (m.period === 'hour') t += 36e5; else if (m.period === 'day') t += 864e5; else { const d = new Date(t); d.setUTCMonth(d.getUTCMonth() + 1); t = d.getTime(); }
+        else if (/pumpzyklen/.test(id)) p = { change: fuenf ? (r() < 1 / 12 ? 1 : 0) : Math.round((std ? 1 : 30) * r()) };
+        else if (/heizzeit|pumpzeit/.test(id)) p = { change: (std ? .7 * k : m.period === 'day' ? 6 : 150) * r() };
+        else p = { change: (std ? (h >= 6 && h < 18 ? 2.5 : .2) * k : m.period === 'day' ? (tag === 0 || tag === 6 ? 2 : 14) : 300) * (.6 + r() * .6) * (id.includes('ohne') ? 4 : 1) };
+        punkte.push({ start: t, end: t + schritt, ...p });
+        if (std) t += schritt; else if (m.period === 'day') t += 864e5; else { const d = new Date(t); d.setUTCMonth(d.getUTCMonth() + 1); t = d.getTime(); }
       }
       erg[id] = punkte;
     }

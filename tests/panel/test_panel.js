@@ -688,6 +688,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Reiter Pumpen, weil die Baustelle einen Schacht hat', ui.innerHTML.includes('data-v="pumpen"') && ui.innerHTML.includes('glas-nav glas-panel sechs'));
   await klick({ act: 'tab', v: 'pumpen' }, 30); pruefe('Pumpen');
   erwarte('Pumpen: Schacht, Diagramm, Überwachung', ui.innerHTML.includes('Pumpenschacht Nord') && ui.innerHTML.includes('Überwachung') && ui.innerHTML.includes('data-k="trocken_w"'));
+  { // BSM-004: Uhr auf den Beispieltag wie im Master-Mockup – dann ist die Woche „laufend“ und die Seite holt die
+    // laufende Stunde aus der 5-Minuten-Statistik (vorher lieferte das Beispiel dafür Monatswerte: „203 h 13 min“)
+    const echt = Date.now; Date.now = () => JETZT; panel.cache = {}; await klick({ act: 'tab', v: 'uebersicht' }, 20); await klick({ act: 'tab', v: 'pumpen' }, 40);
+    const m = ui.innerHTML.match(/<b>(?:(\d+) h )?(\d+) min<\/b><span>Laufzeit heute/);
+    Date.now = echt; panel.cache = {};
+    erwarte(`Pumpen: Laufzeit heute plausibel (unter 24 h) – ${m ? m[0].replace(/<[^>]+>/g, ' ') : 'nicht gefunden'}`, m && +(m[1] || 0) < 24); }
   for (const v of ['zyklen', 'verbrauch', 'pumpzeit']) { await klick({ act: 'p-chart', v }, 20); pruefe('Pumpen ' + v); }
   neu(); await klick({ act: 'st', k: 'trocken_w', d: '5' }); await klick({ act: 'st', k: 'offline_min', d: '1' });
   erwarte('Pumpen-Schwellen über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["meldungen_einst","trocken_unter_w"]' && a.wert === 35)
