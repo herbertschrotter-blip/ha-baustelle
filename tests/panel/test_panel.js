@@ -530,6 +530,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await setzen({ act: 'st', k: 'vorheizen', d: '5' }, ['heizung', 'vorheizen_min'], 50, 'Stepper Vorheizen');
   await setzen({ act: 'st', k: 'nutzbar', d: '-5' }, ['staffel', 'nutzbar_prozent'], 62, 'Stepper Nutzbar');
   await setzen({ act: 'st', k: 'soll', d: '0.5' }, ['heizung', 'soll'], 20.5, 'Stepper Soll');
+  if (panel.d.e.gleit_je === 0.1) {   // FE-0021: 0,05er-Schritte – − geht auch (vorher auf 0,1 gerundet)
+    await setzen({ act: 'st', k: 'gleit_je', d: '-0.05' }, ['heizung', 'gleit_je'], 0.05, 'Stepper je Grad kälter −');
+    await setzen({ act: 'st', k: 'gleit_je', d: '0.05' }, ['heizung', 'gleit_je'], Math.round((panel.d.e.gleit_je + 0.05) * 100) / 100, 'Stepper je Grad kälter +'); }
   await setzen({ act: 'e-bool', k: 'fruehstart' }, ['heizung', 'fruehstart'], false, 'Frühstart');
   await setzen({ act: 'e-bool', k: 'staffel' }, ['staffel', 'an'], false, 'Staffelung');
   await setzen({ act: 'e-bool', k: 'melden' }, ['melden_knopf'], false, 'Melden-Knopf');

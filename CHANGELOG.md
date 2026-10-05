@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.50] – 2026-10-05
+
+- „Wärmer je Grad kälter draußen“ ließ sich nur erhöhen (FE-0021): Die −/+-Knöpfe rundeten auf 0,1 – bei 0,05er-Schritten
+  blieb − auf dem alten Wert und + sprang um 0,1. Jetzt geht es in 0,05er-Schritten in beide Richtungen.
+
 ## [0.8.49] – 2026-10-05
 
 - Temperatur-Rad im Container mittig (WU-0018): Es stand links über den breiteren Knöpfen „zu kalt / passt / zu warm“.

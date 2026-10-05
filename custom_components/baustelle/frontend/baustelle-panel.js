@@ -1410,7 +1410,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.49';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.50';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -4476,7 +4476,7 @@ class BaustellePanel extends HTMLElement {
         if (ARTEN[k]) return this.setzen(['meldungen_einst', 'arten', ARTEN[k]], !d.e[k]);
         return this.setzen(PFAD[k], !d.e[k]); }
       case 'st': { const k = el.dataset.k, [min, max] = GRENZEN[k] || [0, 1e9];
-        const wert = Math.min(max, Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 10) / 10)); if (wert === d.e[k]) return undefined;
+        const wert = Math.min(max, Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 100) / 100)); if (wert === d.e[k]) return undefined;
         if (k === 'frost_aus' && wert <= d.e.frost_temp) return this.toast('„aus über“ muss über „ein unter“ liegen');
         if (k === 'frost_temp' && wert >= d.e.frost_aus) return this.toast('„ein unter“ muss unter „aus über“ liegen');
         return this.setzen(PFAD[k], wert); }
