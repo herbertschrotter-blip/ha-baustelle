@@ -22,8 +22,8 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe A – Schutz und kleine Fehler
 
-- [ ] **A1** (BSM-001) Shellys: Gerätepasswort für alle Plugs setzen und in der Shelly-Integration von HA nachtragen (Herbert)
-- [ ] **A2** (BSM-002) Heizung 01: nächtliches Auto-Update auf Beta-Firmware abschalten; Firmware aller Plugs auf „stable“ (Herbert, Claude prüft)
+- [x] ~~**A1** (BSM-001) Shellys: Gerätepasswort~~ – **verworfen** 05.10.2026 (Herbert): Netz der Baustelle bleibt geschlossen; neu bewerten, wenn Fremde ins WLAN/VPN kommen
+- [x] **A2** (BSM-002) Heizung 01: nächtliches Auto-Update auf Beta-Firmware abschalten; Firmware aller Plugs auf „stable“ (Herbert, Claude prüft) – erledigt 05.10.2026: Update-Zeitpläne auf Heizung 01 (beta), 03, 04 (stable) gelöscht; Pumpe 3 offen (ausgesteckt)
 - [ ] **A3** (BSM-003) Datenbank Phase 0: 50-kWh-Grenze bei Lücken richtig stellen (`logik/zaehlen.py`, Test)
 - [ ] **A4** (BSM-004) Beispieldaten Pumpen im Master-Mockup richtigstellen („203 h Laufzeit heute“, überladene Achse – `tests/panel/beispiel-hass.js`)
 - [ ] **A5** (BSM-005) Datenschutz klären: welche Benutzer- und Anwesenheitsdaten gespeichert werden (Betriebsrat § 96 ArbVG, DSGVO); Vorgabe für Datenbank Phase 2 (Herbert)
@@ -50,7 +50,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 ## Etappe E – Notprogramm bauen
 
 - [ ] **E1** (BSM-016) Skript `notprogramm.js` fertig, mit Simulationstest in Node
-- [ ] **E2** (BSM-017) Übertragung durch die Integration: Skript einrichten/aktualisieren, Programm (KVS) täglich und bei Änderung, Lebenszeichen alle 5 min, Passwort als `!secret`
+- [ ] **E2** (BSM-017) Übertragung durch die Integration: Skript einrichten/aktualisieren, Programm (KVS) täglich und bei Änderung, Lebenszeichen alle 5 min (ohne Gerätepasswort)
 - [ ] **E3** (BSM-018) Taste am Plug = 1 h heizen (mit HA über „Bei Bedarf“, ohne HA im Skript)
 - [ ] **E4** (BSM-019) Anzeige: Notprogramm je Plug (aktiv/fehlt/Fehler, Programm gültig bis), Protokoll „Notbetrieb“
 - [ ] **E5** (BSM-020) Datenbank Phase 7: Stundenbuch der Plugs nach einem Ausfall nachtragen
