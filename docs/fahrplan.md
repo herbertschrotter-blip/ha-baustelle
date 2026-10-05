@@ -44,7 +44,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe D – Datenbank umstellen
 
-- [ ] **D1** (BSM-014) Phase 5: Lesen aus der Datenbank – Auswertung, Abrechnung, Bericht, CSV, Zähler-Sensoren; `baustelle/verlauf`, Seite ohne direkte HA-Abfragen; Entscheidung Recorder (Sensoren behalten)
+- [x] **D1** (BSM-014) Phase 5: Lesen aus der Datenbank – Auswertung, Abrechnung, Bericht, CSV, Zähler-Sensoren; `baustelle/verlauf`, Seite ohne direkte HA-Abfragen; Entscheidung Recorder (Sensoren behalten) – erledigt 0.8.58–0.8.60, eingespielt 05.10.2026 (Zähler-Sensoren ziehen mit D2 um)
 - [ ] **D2** (BSM-015) Phase 6: Store ablösen – Einstellungen und Protokoll nur noch aus der Datenbank, Meldungen in der Datenbank
 
 ## Etappe E – Notprogramm bauen
