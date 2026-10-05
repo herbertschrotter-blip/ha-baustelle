@@ -433,8 +433,17 @@ Entscheidungen:
   Entscheidung stimmte (Soll 23,0, innen 22,5 → würde einschalten). Offen: Ereignis der Taste (braucht einen
   Tastendruck vor Ort, schaltet heute das Relais) und Übertragung mit Wartezeit nach dem Hochladen.
 
-Offen vor dem Bau: Übertragung (Shelly-RPC über HTTP: KVS, Script.PutCode; Gerätepasswort als `!secret`), Skript im Repo
-mit Simulationstest in Node, Anzeige „Notbetrieb“ im Protokoll und auf der Seite.
+- **Skript gebaut (BSM-016, 0.8.62):** `custom_components/baustelle/shelly/notprogramm.js` (wird mit der Integration
+  ausgeliefert, `VERSION` im Skript), Simulationstest `tests/shelly/test_notprogramm.js` (nachgebauter Plug, alle Fälle
+  oben, Grenzen des Geräts). Vertrag mit HA: `bs_cfg` = `{"v","m","tol","fe","fa","t","d","tp"}` (v = Stand des
+  Programms, m = `plan|thermo|bedarf|hand|aus`, t/d = Nummer des Messwerts), `bs_p0…bs_p6` = „start,ende,soll;…“ in
+  Unix-Sekunden; bei „Bei Bedarf“ schreibt HA nur die laufende Anforderung als Fenster. Lebenszeichen
+  `GET /script/<id>/hb` (`?neu` lädt das Programm neu) antwortet `{"v","programm","fenster","nb","taste"}`. Das Skript
+  zählt die **Minuten ohne Lebenszeichen** (keine Uhrzeit nötig) und übernimmt nach 15 – auch nach einem Neustart des
+  Plugs erst nach 15 min. Höchstens zwei Aufrufe gleichzeitig; Stundenbuch `bb_<0…27>` bis 137 Zeichen je Schlüssel.
+
+Offen: Übertragung (Shelly-RPC über HTTP: KVS, Script.PutCode; Gerätepasswort als `!secret`, BSM-017), Anzeige
+„Notbetrieb“ im Protokoll und auf der Seite (BSM-019).
 
 ## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut
 

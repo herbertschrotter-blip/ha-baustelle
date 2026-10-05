@@ -49,7 +49,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe E – Notprogramm bauen
 
-- [ ] **E1** (BSM-016) Skript `notprogramm.js` fertig, mit Simulationstest in Node
+- [x] **E1** (BSM-016) Skript `notprogramm.js` fertig, mit Simulationstest in Node – erledigt 0.8.62 (`tests/shelly/`, Check `notprogramm`)
 - [ ] **E2** (BSM-017) Übertragung durch die Integration: Skript einrichten/aktualisieren, Programm (KVS) täglich und bei Änderung, Lebenszeichen alle 5 min (ohne Gerätepasswort)
 - [ ] **E3** (BSM-018) Taste am Plug = 1 h heizen (mit HA über „Bei Bedarf“, ohne HA im Skript)
 - [ ] **E4** (BSM-019) Anzeige: Notprogramm je Plug (aktiv/fehlt/Fehler, Programm gültig bis), Protokoll „Notbetrieb“

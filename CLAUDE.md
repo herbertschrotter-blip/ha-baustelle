@@ -44,6 +44,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - logik: python3 -m pytest -q -p no:cacheprovider tests/logik [custom_components/baustelle/logik/**; tests/logik/**]
 - integration: uv run --no-project --python 3.14 --index-strategy unsafe-best-match --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration [custom_components/**; tests/integration/**]
 - panel: node --check custom_components/baustelle/frontend/baustelle-panel.js; node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json [custom_components/baustelle/frontend/**; tests/panel/**]
+- notprogramm: node --check custom_components/baustelle/shelly/notprogramm.js; node tests/shelly/test_notprogramm.js custom_components/baustelle/shelly/notprogramm.js [custom_components/baustelle/shelly/**; tests/shelly/**]
 
 ### Commit
 - Format: [vX.Y.Z] Modul, Typ: Kurztitel
@@ -51,7 +52,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Versionsquelle: changelog:CHANGELOG.md
 - Versionsregel: MINOR nur für eine wirklich neue Funktion, die es vorher nicht gab; Verbesserungen, Korrekturen und Umbauten (auch neue Gestaltung bestehender Seiten, z. B. neue Übersicht) sind PATCH – im Zweifel PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit (Herbert, 29.09.2026)
 - Push-Policy: user-only
-- Pre-Commit-Checks: logik; integration; panel
+- Pre-Commit-Checks: logik; integration; panel; notprogramm
 - Doku-Check: none
 
 ### Code
@@ -59,7 +60,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Pflichtkontext: CLAUDE.md; README.md; mockups/README.md
 - Aufgabenquelle: none
 - Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
-- Tests: logik; integration; panel
+- Tests: logik; integration; panel; notprogramm
 - Auslieferung: ref:README.md#Auslieferung
 - Mockup-Policy: none
 - Befund-Ort: none

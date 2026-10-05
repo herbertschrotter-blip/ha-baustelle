@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.62] – 2026-10-05
+
+- Notprogramm für die Plugs fertig (BSM-016): Das Skript liegt jetzt in der Integration
+  (`custom_components/baustelle/shelly/notprogramm.js`, mit Versionsnummer) und wird mit ihr ausgeliefert; eingespielt
+  in die Plugs wird es erst mit BSM-017. Es zählt die Minuten ohne Lebenszeichen und übernimmt erst nach 15 – auch nach
+  einem Neustart des Plugs, und unabhängig von der Uhrzeit. Neuer Simulationstest `tests/shelly/` mit nachgebautem Plug
+  (Lebenszeichen, Thermostat, Zeitplan, Frostschutz, ohne Uhrzeit, veralteter Fühler, Tür, Hand, Taste, Programm neu
+  laden, eine Woche Stundenbuch) samt den Grenzen des Geräts; läuft als Check `notprogramm` auch auf GitHub.
+
 ## [0.8.61] – 2026-10-05
 
 - Store-Datei abgelöst (BSM-015): Einstellungen, Zähler, Laufzeit, Protokoll und Meldungen kommen jetzt aus der eigenen
