@@ -146,3 +146,47 @@ def stand(werte: Mapping[str, str]) -> int | None:
         return int(json.loads(werte["bs_cfg"])["v"])
     except (KeyError, ValueError, TypeError):
         return None
+
+
+# ---------------------------------------------------------------------- Kopplungen am Plug (BSM-030)
+# Messwerte je Rolle (BTHome-Objekte) und ihr Namensteil nach Herberts Schema (`<Gerät>_<Messwert>`)
+OBJEKTE = {"fuehler": (1, 46, 69), "tuer": (1, 45, 63, 100)}
+MESSWERT = {1: "Batterie", 30: "Licht", 45: "Tuer", 46: "Feuchte", 63: "Drehung", 69: "Temperatur", 100: "Lichtstufe"}
+
+
+@dataclass(frozen=True)
+class Kopplung:
+    """Ein Schritt am Plug: `art` geraet_weg | sensor_weg | geraet_neu | sensor_neu | geraet_name | sensor_name."""
+
+    art: str
+    adresse: str
+    nr: int | None = None        # Komponenten-Nummer (bthomedevice:<nr> bzw. bthomesensor:<nr>)
+    obj: int | None = None
+    name: str | None = None
+
+
+def kopplungen(gewollt: Mapping[str, tuple[str, str]], geraete: Mapping[str, tuple[int, str | None]],
+               sensoren: Mapping[tuple[str, int], tuple[int, str | None]]) -> list[Kopplung]:
+    """Was am Plug zu tun ist, damit genau die Sensoren des Containers gekoppelt und richtig benannt sind.
+
+    `gewollt`: Bluetooth-Adresse → (Gerätename in HA, Rolle `fuehler`|`tuer`); `geraete`: gekoppelte Geräte am Plug
+    (Adresse → Nummer, Name); `sensoren`: gekoppelte Messwerte ((Adresse, Objekt) → Nummer, Name). Adressen klein.
+    Fremde Geräte samt Messwerten kommen weg; bei gewollten bleiben zusätzliche Messwerte (z. B. Licht am Display),
+    sie werden nur benannt. Reihenfolge: erst entfernen, dann anlegen, dann benennen.
+    """
+    weg = [Kopplung("sensor_weg", a, nr) for (a, _), (nr, _) in sorted(sensoren.items()) if a not in gewollt]
+    weg += [Kopplung("geraet_weg", a, nr) for a, (nr, _) in sorted(geraete.items()) if a not in gewollt]
+    neu: list[Kopplung] = []
+    namen: list[Kopplung] = []
+    for a, (name, rolle) in sorted(gewollt.items()):
+        if a not in geraete:
+            neu.append(Kopplung("geraet_neu", a, name=name))
+        elif geraete[a][1] != name:
+            namen.append(Kopplung("geraet_name", a, geraete[a][0], name=name))
+        for obj in OBJEKTE[rolle]:
+            if (a, obj) not in sensoren:
+                neu.append(Kopplung("sensor_neu", a, obj=obj, name=f"{name}_{MESSWERT[obj]}"))
+        for (sa, obj), (nr, alt) in sorted(sensoren.items()):
+            if sa == a and obj in MESSWERT and alt != f"{name}_{MESSWERT[obj]}":
+                namen.append(Kopplung("sensor_name", a, nr, obj, f"{name}_{MESSWERT[obj]}"))
+    return weg + neu + namen

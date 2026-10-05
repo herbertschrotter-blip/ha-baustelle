@@ -450,8 +450,15 @@ Entscheidungen:
   `logik/notprogramm.py` (Hand/Automatik aus → nicht anfassen, Modus aus → aus, Bei Bedarf → Termine, frei → absenken
   oder nur Frostschutz; keine Heizgrenze, kein Lernen, keine Zusatzstufe). Startet aus (`heizung.notprogramm`).
 
-Offen: Kopplungen selbst in Ordnung halten (fehlende koppeln, fremde entfernen – bisher nur lesen), Anzeige
-„Notbetrieb“ im Protokoll und auf der Seite (BSM-019); Gerätepasswort als `!secret`, falls je eins gesetzt wird.
+- **Kopplungen gebaut (BSM-030, 0.8.65):** je Runde und Plug plant `logik/notprogramm.kopplungen` die Schritte (erst
+  entfernen, dann anlegen, dann benennen): BLU-Fühler (Objekte 1/46/69) und -Tür (1/45/63/100) des Containers koppeln,
+  fremde Geräte samt Messwerten entfernen, zusätzliche Messwerte gewollter Geräte (Licht am Display) behalten und
+  benennen. Name = Gerätename in HA (Herberts Schema) + `_Batterie`/`_Feuchte`/`_Temperatur`/`_Tuer`/`_Drehung`/
+  `_Lichtstufe`/`_Licht`. `BTHome.AddDevice` antwortet nicht – nach 3 s weiter, ein gescheiterter Schritt kommt in der
+  nächsten Runde wieder dran. Protokoll „Notprogramm <Gerät>: … gekoppelt / entfernt / umbenannt“.
+
+Offen: Anzeige „Notbetrieb“ und „Jetzt prüfen“ auf der Seite (BSM-019); Warnung „Fühler fehlt“; Gerätepasswort als
+`!secret`, falls je eins gesetzt wird.
 
 ## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut
 

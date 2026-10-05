@@ -23,6 +23,7 @@ from custom_components.baustelle.notprogramm import DATA_NOTPROGRAMM, SKRIPT_NAM
 from .conftest import baustelle_anlegen
 
 BT_FUEHLER = "AA:BB:CC:DD:EE:01"
+BT_TUER = "08:B9:5F:00:00:02"
 VERSION = skript_lesen()[0]
 
 
@@ -70,6 +71,19 @@ class FakePlug:
                 assert len(p["value"]) <= logik.MAX_WERT
                 self.kvs[p["key"]] = p["value"]
                 return {"etag": "x"}
+            case "BTHome.DeleteSensor" | "BTHome.DeleteDevice":
+                art = "bthomesensor" if methode.endswith("Sensor") else "bthomedevice"
+                self.komponenten = [k for k in self.komponenten if k["key"] != f"{art}:{p['id']}"]
+                return None
+            case "BTHome.AddDevice" | "BTHome.AddSensor":
+                art = "bthomedevice" if methode.endswith("Device") else "bthomesensor"
+                nr = max([int(k["key"].split(":")[1]) for k in self.komponenten if k["key"].startswith(art)] + [199]) + 1
+                self.komponenten.append({"key": f"{art}:{nr}", "config": {"id": nr, **p["config"]}})
+                return {"added": f"{art}:{nr}"}
+            case "BTHomeDevice.SetConfig" | "BTHomeSensor.SetConfig":
+                art = "bthomedevice" if methode.startswith("BTHomeDevice") else "bthomesensor"
+                next(k for k in self.komponenten if k["key"] == f"{art}:{p['id']}")["config"].update(p["config"])
+                return {"restart_required": False}
             case "Shelly.GetComponents":
                 teile = self.komponenten[p.get("offset", 0):][:3]   # wie das Gerät: seitenweise
                 return {"components": teile, "offset": p.get("offset", 0), "total": len(self.komponenten)}
@@ -83,6 +97,9 @@ class FakePlug:
             return AiohttpClientMockResponse(method, url, exc=aiohttp.ClientConnectionError())
         if url.path == "/rpc":
             anfrage = json.loads(data)
+            if anfrage["method"] == "BTHome.AddDevice":   # wie das Gerät: legt an, antwortet aber nicht
+                self.rpc(anfrage["method"], anfrage["params"])
+                return AiohttpClientMockResponse(method, url, exc=TimeoutError())
             return AiohttpClientMockResponse(method, url, json={"id": 1, "result": self.rpc(anfrage["method"], anfrage["params"])})
         treffer = re.fullmatch(r"/script/(\d+)/hb", url.path)
         x = self.skripte.get(int(treffer.group(1))) if treffer else None
@@ -112,7 +129,13 @@ async def anlage(hass: HomeAssistant, freezer, shellys, nachrichten, aioclient_m
     _plug_eintragen(hass, "plug2", "switch.hk2", "aa:00:00:00:00:02")
     bthome = MockConfigEntry(domain="bthome", unique_id=BT_FUEHLER)
     bthome.add_to_hass(hass)
-    fuehler = dr.async_get(hass).async_get_or_create(config_entry_id=bthome.entry_id, connections={(dr.CONNECTION_BLUETOOTH, BT_FUEHLER)})
+    fuehler = dr.async_get(hass).async_get_or_create(config_entry_id=bthome.entry_id, connections={(dr.CONNECTION_BLUETOOTH, BT_FUEHLER)},
+                                                     name="001_C_TEMP_C1")
+    tuer = dr.async_get(hass).async_get_or_create(config_entry_id=bthome.entry_id, connections={(dr.CONNECTION_BLUETOOTH, BT_TUER)},
+                                                  name="SBDW-103C 142B")
+    dr.async_get(hass).async_update_device(tuer.id, name_by_user="002_C_DOOR_C2")   # von Herbert umbenannt
+    er.async_get(hass).async_get_or_create("binary_sensor", "bthome", f"{BT_TUER}-window", suggested_object_id="tuer_c2",
+                                           device_id=tuer.id, config_entry=bthome)
     er.async_get(hass).async_get_or_create("sensor", "bthome", f"{BT_FUEHLER}-temperature", suggested_object_id="temp_c1",
                                            device_id=fuehler.id, config_entry=bthome)
     plugs = {"plug1": FakePlug(), "plug2": FakePlug()}
@@ -222,3 +245,29 @@ async def test_plug_nicht_erreichbar(hass: HomeAssistant, anlage) -> None:
     await np.async_runde()
     assert stand["switch.hk1"].fehler is None and len(plugs["plug1"].kvs) == 8
     assert np.info()["plugs"]["Heizkörper 1"]["programm"] is not None
+
+
+async def test_kopplungen_in_ordnung_halten(hass: HomeAssistant, anlage) -> None:
+    """BSM-030: Fühler und Tür des Containers koppeln und benennen, Fremdes entfernen, Protokoll; danach Ruhe."""
+    entry, np, plugs = anlage
+    st = entry.runtime_data
+    st.einstellungen.bereich("sub_c2")["tuer"] = "binary_sensor.tuer_c2"
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    k1 = {k["key"]: k["config"] for k in plugs["plug1"].komponenten}
+    assert {c["name"] for c in k1.values()} == {"001_C_TEMP_C1", "001_C_TEMP_C1_Batterie", "001_C_TEMP_C1_Feuchte",
+                                                "001_C_TEMP_C1_Temperatur"}   # fremder Messwert weg, Feuchte neu
+    assert k1["bthomesensor:202"]["obj_id"] == 69                             # vorhandener Messwert bleibt (Nummer)
+    k2 = {c["name"]: c for c in (k["config"] for k in plugs["plug2"].komponenten)}
+    assert set(k2) == {"002_C_DOOR_C2", "002_C_DOOR_C2_Batterie", "002_C_DOOR_C2_Tuer", "002_C_DOOR_C2_Drehung",
+                       "002_C_DOOR_C2_Lichtstufe"}   # Fühler von Container 1 an Plug 2 entfernt, Tür gekoppelt
+    cfg2 = json.loads(plugs["plug2"].kvs["bs_cfg"])
+    assert cfg2["d"] == k2["002_C_DOOR_C2_Tuer"]["id"] and cfg2["t"] is None
+    texte = [e[3] for e in st.einstellungen.daten["protokoll"] if e[3].startswith("Notprogramm")]
+    assert any("002_C_DOOR_C2 gekoppelt" in t for t in texte) and any("001_C_TEMP_C1 umbenannt" in t for t in texte)
+    for plug in plugs.values():
+        plug.aufrufe.clear()
+    await np.async_runde()
+    for plug in plugs.values():
+        assert not [a for a in plug.aufrufe if a.startswith("BTHome")], plug.aufrufe   # alles in Ordnung: nichts zu tun
+    assert {k["key"] for k in plugs["plug1"].komponenten if k["key"].startswith("bthome")} == set(k1)

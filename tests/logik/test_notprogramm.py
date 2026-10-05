@@ -85,3 +85,34 @@ def test_stand_aendert_sich_mit_dem_inhalt() -> None:
     c = programm(V, [(T0 + 6 * H, T0 + 17 * H, 21.0)], WOCHE, T0)
     assert stand(a) == stand(b) != stand(c)
     assert stand({}) is None
+
+
+def test_kopplungen() -> None:
+    from logik.notprogramm import Kopplung, kopplungen
+    f, t, fremd = "fc:00:00:00:00:01", "08:00:00:00:00:02", "fc:00:00:00:00:09"
+    gewollt = {f: ("002_C_TEMP_MAN", "fuehler"), t: ("002_C_DOOR_MAN", "tuer")}
+    # alles in Ordnung → nichts zu tun
+    geraete = {f: (200, "002_C_TEMP_MAN"), t: (201, "002_C_DOOR_MAN")}
+    sensoren = {(f, 1): (200, "002_C_TEMP_MAN_Batterie"), (f, 46): (201, "002_C_TEMP_MAN_Feuchte"),
+                (f, 69): (202, "002_C_TEMP_MAN_Temperatur"), (t, 1): (203, "002_C_DOOR_MAN_Batterie"),
+                (t, 45): (204, "002_C_DOOR_MAN_Tuer"), (t, 63): (205, "002_C_DOOR_MAN_Drehung"),
+                (t, 100): (206, "002_C_DOOR_MAN_Lichtstufe")}
+    assert kopplungen(gewollt, geraete, sensoren) == []
+    # Tür fehlt ganz, Fühler falsch benannt, fremder Fühler gekoppelt, Display mit Licht (zusätzlich, bleibt)
+    geraete2 = {f: (200, "Shelly BLU H&T"), fremd: (202, "alt")}
+    sensoren2 = {(f, 1): (200, None), (f, 69): (202, "002_C_TEMP_MAN_Temperatur"), (f, 30): (207, None),
+                 (fremd, 69): (209, "alt_Temperatur")}
+    schritte = kopplungen(gewollt, geraete2, sensoren2)
+    arten = [(k.art, k.adresse, k.obj) for k in schritte]
+    assert arten[:2] == [("sensor_weg", fremd, None), ("geraet_weg", fremd, None)]
+    assert ("geraet_neu", t, None) in arten and ("sensor_neu", t, 45) in arten and ("sensor_neu", f, 46) in arten
+    assert ("geraet_name", f, None) in arten
+    assert ("sensor_neu", f, 69) not in arten and ("sensor_neu", f, 1) not in arten   # schon da
+    assert next(k for k in schritte if k.art == "geraet_neu").name == "002_C_DOOR_MAN"
+    assert {k.name for k in schritte if k.art == "sensor_neu" and k.adresse == t} == {
+        "002_C_DOOR_MAN_Batterie", "002_C_DOOR_MAN_Tuer", "002_C_DOOR_MAN_Drehung", "002_C_DOOR_MAN_Lichtstufe"}
+    namen = {k.nr: k.name for k in schritte if k.art == "sensor_name"}
+    assert namen == {200: "002_C_TEMP_MAN_Batterie", 207: "002_C_TEMP_MAN_Licht"}
+    assert max(i for i, k in enumerate(schritte) if k.art.endswith("_weg")) < min(i for i, k in enumerate(schritte) if k.art.endswith("_neu"))
+    # nichts gewollt (Container ohne BLU-Sensor) → alles Fremde weg
+    assert [k.art for k in kopplungen({}, {fremd: (202, "alt")}, {(fremd, 69): (209, None)})] == ["sensor_weg", "geraet_weg"]

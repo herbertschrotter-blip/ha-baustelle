@@ -8,6 +8,9 @@ Alle 5 min je Heizungs-Plug (Shelly Gen2+, Adresse aus der Shelly-Integration):
 
 Der Fühler bzw. die Tür kommt nur ins Programm, wenn genau dieser Sensor am Plug gekoppelt ist: gesucht wird über die
 Bluetooth-Adresse des Geräts in HA (BTHome) unter den `bthomesensor`-Komponenten des Plugs (Temperatur 69, Fenster 45).
+Die Kopplungen hält die Integration selbst in Ordnung (BSM-030): BLU-Fühler und -Tür des Containers koppeln (an jedem
+Plug des Containers), fremde Kopplungen entfernen, Namen nach Herberts Schema (Gerätename in HA + `_Temperatur` …);
+jede Änderung im Protokoll. Andere Komponenten (Skripte, Schalter) fasst sie nicht an.
 
 Startet ausgeschaltet (`heizung.notprogramm`): Erst wenn Herbert es einschaltet, spielt die Integration etwas in die
 Plugs. Ausschalten hält das Skript an und nimmt den Autostart weg – sonst übernähme es 15 min später.
@@ -51,6 +54,7 @@ ERSTE_RUNDE_S = 60
 STUECK = 800          # Zeichen je Script.PutCode (BSM-013)
 WARTEN_S = 2.0        # nach dem Start, bis der Endpunkt `hb` antwortet
 TIMEOUT_S = 10
+OHNE_ANTWORT_S = 3
 OBJ_TEMPERATUR, OBJ_FENSTER = 69, 45
 
 
@@ -74,16 +78,22 @@ class Plug:
     def __init__(self, session: aiohttp.ClientSession, host: str) -> None:
         self._session, self._host = session, host
 
-    async def rpc(self, methode: str, params: dict[str, Any] | None = None) -> Any:
+    async def rpc(self, methode: str, params: dict[str, Any] | None = None, *, ohne_antwort: bool = False) -> Any:
+        """Aufruf; `ohne_antwort`: das Gerät antwortet nicht verlässlich (BTHome.AddDevice) – kurz warten, dann weiter."""
         # UTF-8 statt \u-Maskierung: Script.PutCode lehnt maskierte Umlaute ab (BSM-013)
         daten = json.dumps({"id": 1, "method": methode, "params": params or {}}, ensure_ascii=False).encode()
         try:
-            async with self._session.post(f"http://{self._host}/rpc", data=daten, timeout=aiohttp.ClientTimeout(total=TIMEOUT_S),
+            async with self._session.post(f"http://{self._host}/rpc", data=daten,
+                                          timeout=aiohttp.ClientTimeout(total=OHNE_ANTWORT_S if ohne_antwort else TIMEOUT_S),
                                           headers={"Content-Type": "application/json"}) as antwort:
                 if antwort.status == 401:
                     raise PlugFehler("Passwort gesetzt")
                 inhalt = await antwort.json(content_type=None)
-        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+        except TimeoutError as err:
+            if ohne_antwort:
+                return None
+            raise PlugFehler(f"{methode}: {err.__class__.__name__}") from err
+        except (aiohttp.ClientError, ValueError) as err:
             raise PlugFehler(f"{methode}: {err.__class__.__name__}") from err
         if not isinstance(inhalt, dict) or "error" in inhalt:
             raise PlugFehler(f"{methode}: {(inhalt or {}).get('error', {}).get('message', 'Fehler')}")
@@ -197,20 +207,75 @@ class Notprogramm:
                 return wert.lower()
         return None
 
-    async def _messwerte(self, plug: Plug) -> dict[tuple[str, int], int]:
-        """Gekoppelte Messwerte am Plug: (Bluetooth-Adresse, Objekt) → Nummer von `bthomesensor:<nr>`."""
-        raus: dict[tuple[str, int], int] = {}
+    async def _gekoppelt(self, plug: Plug) -> tuple[dict[str, tuple[int, str | None]], dict[tuple[str, int], tuple[int, str | None]]]:
+        """Gekoppelte Geräte (Adresse → Nummer, Name) und Messwerte ((Adresse, Objekt) → Nummer, Name) am Plug."""
+        geraete: dict[str, tuple[int, str | None]] = {}
+        sensoren: dict[tuple[str, int], tuple[int, str | None]] = {}
         offset = 0
         while True:
             r = await plug.rpc("Shelly.GetComponents", {"dynamic_only": True, "include": ["config"], "offset": offset})
             teile = r.get("components") or []
             for k in teile:
-                c = k.get("config") or {}
-                if str(k.get("key", "")).startswith("bthomesensor:") and c.get("addr"):
-                    raus.setdefault((str(c["addr"]).lower(), int(c.get("obj_id", -1))), int(c["id"]))
+                c, key = k.get("config") or {}, str(k.get("key", ""))
+                if not c.get("addr"):
+                    continue
+                if key.startswith("bthomesensor:"):
+                    sensoren.setdefault((str(c["addr"]).lower(), int(c.get("obj_id", -1))), (int(c["id"]), c.get("name")))
+                elif key.startswith("bthomedevice:"):
+                    geraete.setdefault(str(c["addr"]).lower(), (int(c["id"]), c.get("name")))
             offset += len(teile)
             if not teile or offset >= int(r.get("total") or 0):
-                return raus
+                return geraete, sensoren
+
+    def _gewollt(self, g: GeraetInfo) -> dict[str, tuple[str, str]]:
+        """BLU-Sensoren des Containers: Bluetooth-Adresse → (Gerätename in HA, Rolle)."""
+        raus: dict[str, tuple[str, str]] = {}
+        for entity_id, rolle in ((self.st.bereiche[g.bereich].fuehler, "fuehler"), (self.st.einstellungen.bereich(g.bereich).get("tuer"), "tuer")):
+            if (a := self._bt_adresse(entity_id)) is not None and (name := self._geraet_name(entity_id)):
+                raus[a] = (name, rolle)
+        return raus
+
+    def _geraet_name(self, entity_id: str | None) -> str | None:
+        eintrag = er.async_get(self.hass).async_get(entity_id or "")
+        geraet = dr.async_get(self.hass).async_get(eintrag.device_id) if eintrag is not None and eintrag.device_id else None
+        if not isinstance(geraet, dr.DeviceEntry):
+            return None
+        adresse = next((w for art, w in geraet.connections if art == dr.CONNECTION_BLUETOOTH), "")
+        return geraet.name_by_user or geraet.name or f"BLU_{adresse.replace(':', '')[-4:].upper()}"
+
+    async def _async_kopplungen(self, g: GeraetInfo, plug: Plug) -> bool:
+        """Kopplungen am Plug in Ordnung bringen (logik/notprogramm.kopplungen); True, wenn sich etwas geändert hat.
+
+        Ein Schritt, der scheitert, wird in der nächsten Runde wieder versucht (z. B. Messwert vor dem Gerät angelegt).
+        """
+        geraete, sensoren = await self._gekoppelt(plug)
+        gewollt = self._gewollt(g)
+        namen = {a: n for a, (_, n) in geraete.items()} | {a: n for a, (n, _) in gewollt.items()}
+        texte: list[str] = []
+        for k in logik.kopplungen(gewollt, geraete, sensoren):
+            try:
+                match k.art:
+                    case "sensor_weg":
+                        await plug.rpc("BTHome.DeleteSensor", {"id": k.nr})
+                    case "geraet_weg":
+                        await plug.rpc("BTHome.DeleteDevice", {"id": k.nr})
+                        texte.append(f"{namen.get(k.adresse) or k.adresse} entfernt")
+                    case "geraet_neu":
+                        await plug.rpc("BTHome.AddDevice", {"config": {"addr": k.adresse, "name": k.name}}, ohne_antwort=True)
+                        texte.append(f"{k.name} gekoppelt")
+                    case "sensor_neu":
+                        await plug.rpc("BTHome.AddSensor", {"config": {"addr": k.adresse, "obj_id": k.obj, "idx": 0, "name": k.name}})
+                    case "geraet_name":
+                        await plug.rpc("BTHomeDevice.SetConfig", {"id": k.nr, "config": {"name": k.name}})
+                        texte.append(f"{k.name} umbenannt")
+                    case "sensor_name":
+                        await plug.rpc("BTHomeSensor.SetConfig", {"id": k.nr, "config": {"name": k.name}})
+            except PlugFehler as err:
+                _LOGGER.info("Notprogramm %s: Kopplung %s %s: %s", g.name, k.art, k.name or k.nr, err)
+                continue
+        if texte:
+            self.st.protokoll("einstellung", g.bereich, f"Notprogramm {g.name}: " + ", ".join(dict.fromkeys(texte)))
+        return bool(texte)
 
     # ------------------------------------------------------------------ Skript
     async def _async_skript(self, plug: Plug, stand: Stand) -> int:
@@ -261,7 +326,9 @@ class Notprogramm:
             await self._async_hochladen(plug, skript_id, laeuft=True)
             stand.geschrieben = None
             antwort = await plug.hb(skript_id)
-        messwerte = await self._messwerte(plug)
+        await self._async_kopplungen(g, plug)
+        _, sensoren = await self._gekoppelt(plug)
+        messwerte = {k: nr for k, (nr, _) in sensoren.items()}
         info = self.st.bereiche[g.bereich]
         e = self.st.einstellungen.bereich(g.bereich)
         stand.fuehler = messwerte.get((a, OBJ_TEMPERATUR)) if (a := self._bt_adresse(info.fuehler)) else None

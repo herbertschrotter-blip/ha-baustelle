@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.65] – 2026-10-05
+
+- Notprogramm: Die Integration hält die Bluetooth-Kopplungen der Heizungs-Plugs selbst in Ordnung (BSM-030). Fühler und
+  Türsensor (Shelly BLU) eines Containers werden an jedem seiner Plugs gekoppelt, fremde Kopplungen entfernt und alle
+  Namen nach dem Schema vergeben (Gerätename in HA + `_Temperatur`, `_Tuer` …). Jede Änderung steht im Protokoll.
+  Damit kennt z. B. auch der zweite Plug im Poliercontainer den Türsensor.
+
 ## [0.8.64] – 2026-10-05
 
 - Notprogramm-Skript Version 3: Ein Tastendruck an einem gekoppelten Bluetooth-Sensor (z. B. beim Einrichten des
