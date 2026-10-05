@@ -346,7 +346,7 @@ gut; vor dem Einsatz in der Firma auf mehreren Baustellen fehlt:
       wie HA; `funktionen/heizung.py` (≈ 1.200 Zeilen) und `steuerung.py` (≈ 1.300) weiter zerlegen.
 - [ ] **Speicherdatei** (→ `bauplan-datenbank.md`, eigene Datenbank): Einstellungen, Zähler und bis zu 1.000 Protokolleinträge liegen in einer Store-Datei, die bei
       jeder Änderung ganz geschrieben wird – bei vielen Baustellen Protokoll trennen bzw. ins Logbuch/Recorder.
-- [ ] **Beispieldaten Pumpen:** Im Master-Mockup zeigt der Reiter Pumpen „203 h 13 min Laufzeit heute“ und eine
+- [x] **Beispieldaten Pumpen** (BSM-004, 35a8e80): Im Master-Mockup zeigt der Reiter Pumpen „203 h 13 min Laufzeit heute“ und eine
       überladene Achse (Beispiel-hass, `tests/panel/beispiel-hass.js`) – korrigieren.
 - [ ] **Betrieb in der Firma:** zweite Person, die den Code versteht; kurze Betriebsanleitung (einspielen, sichern,
       Störung).
