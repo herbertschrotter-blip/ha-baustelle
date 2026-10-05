@@ -246,3 +246,17 @@ async def test_uebernahme_store(hass: HomeAssistant, baustelle, freezer) -> None
     assert len(_zeilen(hass, "protokoll")) == protokoll
     assert len([r for r in _zeilen(hass, "einstellung") if r["quelle"] == "migration"]) == len(migration)
 
+
+async def test_uebernahme_meldungen(hass: HomeAssistant, baustelle, hass_ws_client) -> None:
+    """Meldungen, die schon vor der Datenbank da waren, kommen mit der Übernahme hinein."""
+    await hass.async_block_till_done()
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "baustelle/meldung", "aktion": "neu", "meldung": {"art": "fehler", "text": "alt"}})
+    assert (await ws.receive_json())["success"]
+    db, st = hass.data[DATA_DB], baustelle.runtime_data
+    await db.async_ausfuehren(lambda v: v.execute(s.meldung.delete()))   # wie vor 0.8.54: nicht in der Datenbank
+    assert not _zeilen(hass, "meldung")
+    ergebnis = await async_uebernehmen(hass, db, st, dt_util.utcnow(), erzwingen=True)
+    assert ergebnis is not None and ergebnis["meldung"] == 1
+    assert [r["text"] for r in _zeilen(hass, "meldung")] == ["alt"]
+

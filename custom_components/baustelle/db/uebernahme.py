@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from .verbindung import Datenbank
 
 _LOGGER = logging.getLogger(__name__)
-UEBERNAHME_VERSION = 1
+UEBERNAHME_VERSION = 2   # 2: Meldungen, Wetter aus den eigenen Sensoren (läuft auf dem Pi einmal neu)
 VERLAUF_TAGE = 62
 NICHT_IN_EINSTELLUNGEN = {"protokoll", "meldungen", "laufzeit", "zaehler"}
 
@@ -127,8 +127,13 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
         if gid := reg.async_get_entity_id("sensor", DOMAIN, f"{b_id}_grund"):
             gruende[b_id] = gid
             ids.append(gid)
+    # Wetter: die eigenen Sensoren (damit rechnete die Regelung), sonst die eingestellten Sensoren
     o = st.entry.options
-    wetter_ids = [x for x in (o.get(CONF_TEMP_SENSOR), o.get(CONF_REGEN_SENSOR)) if x]
+    eigen = {k: reg.async_get_entity_id("sensor", DOMAIN, f"{bid}_{k}") for k in ("aussen", "regen", "tageshoechst")}
+    wetter_quelle = {"aussen": [x for x in (eigen["aussen"], o.get(CONF_TEMP_SENSOR)) if x],
+                     "regen": [x for x in (eigen["regen"], o.get(CONF_REGEN_SENSOR)) if x],
+                     "tageshoechst": [x for x in (eigen["tageshoechst"],) if x]}
+    wetter_ids = sorted({x for liste in wetter_quelle.values() for x in liste})
     verlauf = await _verlauf(hass, sorted(set(ids + wetter_ids)), start_verlauf, bis) if start_verlauf < bis else {}
 
     geraet_zeilen: list[dict[str, Any]] = []
@@ -149,14 +154,19 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
             bereich_zeilen.append({"bereich_id": b_id, "zeit": beginn_m, "baustelle_id": bid, "dauer_s": bm.dauer_s,
                                    "temperatur": bm.temperatur, "feuchte": None, "soll": None, "tuer_offen_s": bm.tuer_offen_s,
                                    "zustand": None, "grund": grund, "quelle": "import_verlauf"})
-    wetter_zeilen: list[dict[str, Any]] = []
-    if wetter_ids:
-        temp = BereichVerlauf(_zahlen(verlauf.get(o.get(CONF_TEMP_SENSOR) or "", [])), None, [])
-        regen = BereichVerlauf(_zahlen(verlauf.get(o.get(CONF_REGEN_SENSOR) or "", [])), None, [])
-        r_minuten = {b: rm.temperatur for b, rm, _ in nachspielen_bereich(regen, start_verlauf, bis)}
-        for beginn_m, wm, _ in nachspielen_bereich(temp, start_verlauf, bis):
-            wetter_zeilen.append({"baustelle_id": bid, "zeit": beginn_m, "dauer_s": wm.dauer_s, "aussen_temp": wm.temperatur,
-                                  "regen_mm": r_minuten.get(beginn_m), "hoechst_heute": None, "quelle": "import_verlauf"})
+    def wetter_minuten(art: str) -> dict[datetime, tuple[int, float | None]]:
+        for entity_id in wetter_quelle[art]:   # erste Quelle mit Werten
+            punkte = _zahlen(verlauf.get(entity_id, []))
+            if any(w is not None for _, w in punkte):
+                return {b: (m.dauer_s, m.temperatur) for b, m, _ in nachspielen_bereich(BereichVerlauf(punkte, None, []), start_verlauf, bis)}
+        return {}
+
+    aussen, regen, hoechst = wetter_minuten("aussen"), wetter_minuten("regen"), wetter_minuten("tageshoechst")
+    wetter_zeilen: list[dict[str, Any]] = [
+        {"baustelle_id": bid, "zeit": b, "dauer_s": (aussen.get(b) or regen.get(b) or hoechst.get(b) or (60, None))[0],
+         "aussen_temp": (aussen.get(b) or (0, None))[1], "regen_mm": (regen.get(b) or (0, None))[1],
+         "hoechst_heute": (hoechst.get(b) or (0, None))[1], "quelle": "import_verlauf"}
+        for b in sorted({*aussen, *regen, *hoechst})]
 
     # ---------------------------------------------------------------- Langzeitstatistik davor → Stunden
     stat_ids = {g.energie: ("g", gid) for gid, g in st.geraete.items() if g.energie}
@@ -208,6 +218,14 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
             v.execute(delete(s.zustand).where(and_(s.zustand.c.baustelle_id == bid, s.zustand.c.schluessel == schluessel)))
             v.execute(insert(s.zustand).values(baustelle_id=bid, schluessel=schluessel, wert=wert, geaendert=jetzt))
         return True   # None hieße für async_ausfuehren „fehlgeschlagen“
+
+    # Meldungen (eine Liste für die ganze Integration; die Tabelle wird je Speichern ganz ersetzt)
+    from ..panel import DATA_MELDUNGEN   # noqa: PLC0415 – panel importiert db (Kreis)
+    from . import meldungen_merken   # noqa: PLC0415
+    if (meldungen := hass.data.get(DATA_MELDUNGEN)) is not None:
+        meldungen_merken(hass, [dict(m) for m in await meldungen.async_laden()])
+        await db.schreiber.async_schreiben()
+        zahlen["meldung"] = len(meldungen.liste)
 
     if await db.async_ausfuehren(schreiben) is None:
         _LOGGER.warning("Übernahme der Altdaten für %s fehlgeschlagen: %s", st.entry.title, db.fehler)

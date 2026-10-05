@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.56] – 2026-10-05
+
+- Übernahme der Altdaten (BSM-008) ergänzt: auch die Meldungen, und das Wetter aus den eigenen Sensoren der Integration
+  (Außentemperatur, Regen, Tageshöchst – die Werte, mit denen die Regelung rechnete; sonst die eingestellten Sensoren).
+  Die Übernahme läuft dafür beim nächsten Start einmal neu und ersetzt die übernommenen Zeilen.
+
 ## [0.8.55] – 2026-10-05
 
 - Eigene Datenbank, Phase 3 (BSM-008): Nach dem Start übernimmt die Integration einmal die Altdaten jeder Baustelle –

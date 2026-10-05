@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.56",
+    "datum": "2026-10-05",
+    "punkte": [
+      "Übernahme der Altdaten (BSM-008) ergänzt: auch die Meldungen, und das Wetter aus den eigenen Sensoren der Integration (Außentemperatur, Regen, Tageshöchst – die Werte, mit denen die Regelung rechnete; sonst die eingestellten Sensoren). Die Übernahme läuft dafür beim nächsten Start einmal neu und ersetzt die übernommenen Zeilen."
+    ]
+  },
+  {
     "version": "0.8.55",
     "datum": "2026-10-05",
     "punkte": [
