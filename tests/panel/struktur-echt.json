@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.57",
+   "version": "0.8.58",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -493,6 +493,7 @@
     "tuer_offen:magazin": "2026-09-30T07:00:00+02:00"
    },
    "melden_knopf": true,
+   "auswertung_quelle": "datenbank",
    "erklaer": true,
    "geraete": {}
   },
@@ -1902,7 +1903,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.57",
+   "version": "0.8.58",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -2093,6 +2094,7 @@
    "termine_kalender": null,
    "stumm": {},
    "melden_knopf": true,
+   "auswertung_quelle": "datenbank",
    "erklaer": true,
    "geraete": {}
   },

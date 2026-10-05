@@ -37,7 +37,15 @@ def _schritt_2(verbindung: Connection) -> None:
     metadata.create_all(verbindung, tables=[metadata.tables[n] for n in JSON_TABELLEN])
 
 
-SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2}
+def _schritt_3(verbindung: Connection) -> None:
+    """Tagessummen bekommen „tatsächlich geheizt“ (strom_min); die Tage rechnet die Integration danach neu (tage.py)."""
+    for tabelle in ("tag_geraet", "tag_bereich"):
+        spalten = {c["name"] for c in inspect(verbindung).get_columns(tabelle)}
+        if "strom_min" not in spalten:
+            verbindung.execute(text(f'ALTER TABLE "{tabelle}" ADD COLUMN strom_min FLOAT'))
+
+
+SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3}
 
 
 def stand(verbindung: Connection) -> int:

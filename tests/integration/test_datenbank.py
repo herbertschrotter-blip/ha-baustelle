@@ -10,10 +10,12 @@ import pytest
 from sqlalchemy import create_engine, insert, select
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.baustelle import backup
+from custom_components.baustelle.const import DOMAIN
 from custom_components.baustelle.db import DATA_DB, DATEI
 from custom_components.baustelle.db import schema as s
 from custom_components.baustelle.db.migration import migrieren
@@ -216,9 +218,11 @@ async def test_migration_von_aufbau_1(hass: HomeAssistant, freezer, shellys, nac
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     db = hass.data[DATA_DB]
-    assert db.bereit and db.version == 2, db.fehler
-    assert [r["version"] for r in _zeilen(hass, "schema_version")] == [1, 2]
-    assert pfad.with_name("baustelle.db.vor-2").exists()
+    assert db.bereit and db.version == SCHEMA_VERSION, db.fehler
+    assert [r["version"] for r in _zeilen(hass, "schema_version")] == list(range(1, SCHEMA_VERSION + 1))
+    assert pfad.with_name(f"baustelle.db.vor-{SCHEMA_VERSION}").exists()
+    spalten = {z[1] for z in sqlite3.connect(pfad).execute("PRAGMA table_info(tag_bereich)")}
+    assert "strom_min" in spalten   # Aufbau 3
     assert any(r["id"] == "x" for r in _zeilen(hass, "instanz"))
     verbindung = sqlite3.connect(pfad)
     typen = {z[1]: z[2] for z in verbindung.execute("PRAGMA table_info(einstellung)")}
@@ -281,3 +285,45 @@ async def test_tagessummen_viertelstuendlich(hass: HomeAssistant, baustelle, fre
     from custom_components.baustelle.diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
     diag = await async_get_config_entry_diagnostics(hass, baustelle)
     assert any(z["bereich"] == "Container 1" and z["datenbank_kwh"] for z in diag["datenbank"]["abgleich"])
+
+
+# ---------------------------------------------------------------------- Phase 5: Statistik aus der Datenbank (BSM-014)
+async def test_statistik_aus_der_datenbank(hass: HomeAssistant, baustelle, freezer, hass_ws_client) -> None:
+    """baustelle/statistik antwortet wie recorder/statistics_during_period – aus Minuten (hour) und Tagessummen (day)."""
+    await hass.async_block_till_done()
+    st = baustelle.runtime_data
+    reg = er.async_get(hass)
+    e_c1 = reg.async_get_entity_id("sensor", DOMAIN, f"{C1}_energie")
+    h_c1 = reg.async_get_entity_id("sensor", DOMAIN, f"{C1}_heizzeit")
+    s_c1 = reg.async_get_entity_id("sensor", DOMAIN, f"{C1}_heizzeit_strom")
+    ohne = reg.async_get_entity_id("sensor", DOMAIN, f"{baustelle.entry_id}_energie_ohne_automatik")
+    await _minute(hass, freezer)                      # 16:51
+    hass.states.async_set("switch.hk1", "on")
+    hass.states.async_set("sensor.hk1_power", "1800")
+    await _minute(hass, freezer, 10)                  # 10 Minuten heizen bis 17:01
+    ws = await hass_ws_client(hass)
+
+    async def frage(periode: str, ids: list[str]) -> dict:
+        await ws.send_json({"id": frage.n, "type": "baustelle/statistik", "start_time": "2026-09-29T00:00:00+02:00",
+                            "end_time": "2026-09-30T00:00:00+02:00", "statistic_ids": ids, "period": periode,
+                            "types": ["change", "mean"], "entry_id": baustelle.entry_id})
+        frage.n += 1
+        antwort = await ws.receive_json()
+        assert antwort["success"], antwort
+        return antwort["result"]
+    frage.n = 1
+
+    stunde = await frage("hour", [e_c1, h_c1, s_c1, "sensor.temp_c1", ohne])
+    heiz = {dt_util.utc_from_timestamp(p["start"]).hour: p["change"] for p in stunde[h_c1]}
+    assert heiz[14] == pytest.approx(9 / 60, abs=0.01) and heiz[15] == pytest.approx(1 / 60, abs=0.01)   # 16:51–17:01 Ortszeit
+    assert sum(p["change"] for p in stunde[e_c1]) == pytest.approx(1.8 * 10 / 60, abs=0.01)
+    assert sum(p["change"] for p in stunde[s_c1]) == pytest.approx(10 / 60, abs=0.01)
+    assert all(p["mean"] == pytest.approx(19.0) for p in stunde["sensor.temp_c1"])
+    assert ohne not in stunde                         # kennt die Datenbank nicht → HA-Statistik (hier ohne Recorder: leer)
+    tag = await frage("day", [e_c1, h_c1])
+    assert len(tag[e_c1]) == 1 and tag[e_c1][0]["change"] == pytest.approx(0.3, abs=0.01)
+    assert tag[h_c1][0]["change"] == pytest.approx(10 / 60, abs=0.01)
+    assert (await frage("5minute", [e_c1]))[e_c1] == []   # die laufende Stunde hat die Datenbank schon
+    # Rückweg: auswertung_quelle = statistik → nicht aus der Datenbank
+    st.einstellung_setzen(("auswertung_quelle",), "statistik")
+    assert e_c1 not in await frage("hour", [e_c1])

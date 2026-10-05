@@ -1410,7 +1410,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.57';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.58';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1756,7 +1756,7 @@ class BaustellePanel extends HTMLElement {
     if (!ids.length) return { ...zr, werte: {} };
     const vonMs = this.zoneMs(zr.von, '00:00', d.z.zone), bisMs = this.zoneMs(zr.bis, '00:00', d.z.zone), jetztMs = Date.now();
     const laufend = jetztMs >= vonMs && jetztMs < bisMs, frisch = laufend ? 60000 : undefined;   // enthält „jetzt“: nach 1 min neu holen
-    const roh = this._holen(`s:${d.entry}:${z}:${zr.von}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
+    const roh = this._holen(`s:${d.entry}:${z}:${zr.von}`, () => this._hass.callWS({ type: 'baustelle/statistik', entry_id: d.entry,
       start_time: new Date(vonMs).toISOString(), end_time: new Date(bisMs).toISOString(),
       statistic_ids: ids, period: zr.periode, types: ['change', 'mean', 'state'], units: {} }), frisch);
     if (roh === undefined) return null;
@@ -1765,7 +1765,7 @@ class BaustellePanel extends HTMLElement {
     let kurz = null, kurzAb = 0;
     if (laufend) {
       const stunde = Math.floor(jetztMs / 36e5) * 36e5; kurzAb = Math.max(vonMs, jetztMs - stunde < 60000 ? stunde - 36e5 : stunde);
-      kurz = this._holen(`k:${d.entry}:${z}:${zr.von}:${kurzAb}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
+      kurz = this._holen(`k:${d.entry}:${z}:${zr.von}:${kurzAb}`, () => this._hass.callWS({ type: 'baustelle/statistik', entry_id: d.entry,
         start_time: new Date(kurzAb).toISOString(), statistic_ids: ids, period: '5minute', types: ['change', 'mean', 'state'], units: {} }), 60000) || null;
     }
     const ms = p => typeof p.start === 'number' ? (p.start < 1e11 ? p.start * 1000 : p.start) : Date.parse(p.start);
@@ -3479,7 +3479,7 @@ class BaustellePanel extends HTMLElement {
     const d = this.d, ids = [...new Set([...d.bereiche.filter(b => b.fuehler).map(b => b.fuehler), this.eid(d, d.entry, 'aussen')].filter(Boolean))].sort();
     const bis = plusTage(d.z.HEUTE, 1), von = plusTage(bis, -n), tage = [...Array(n)].map((_, k) => plusTage(von, k));
     if (!ids.length) return { tage, werte: {} };
-    const roh = this._holen(`t:${d.entry}:${n}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'recorder/statistics_during_period',
+    const roh = this._holen(`t:${d.entry}:${n}:${d.z.HEUTE}`, () => this._hass.callWS({ type: 'baustelle/statistik', entry_id: d.entry,
       start_time: new Date(this.zoneMs(von, '00:00', d.z.zone)).toISOString(), end_time: new Date(this.zoneMs(bis, '00:00', d.z.zone)).toISOString(),
       statistic_ids: ids, period: 'day', types: ['mean'], units: {} }));
     if (roh === undefined) return null;

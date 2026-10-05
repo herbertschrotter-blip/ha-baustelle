@@ -346,3 +346,14 @@ Gemeinsame Felder: `entry_id` (auch abgeschlossene oder nicht geladene Baustelle
 `"funktionen": ["heizung", "pumpen"]` – die eingeschalteten Funktionen nach den Optionen `heizung`/`pumpen`
 (`funktionen.aktive`, je Funktion ein Modul in `funktionen/`), auch bei einer nicht geladenen Baustelle. Die Seite zeigt
 den Reiter Heizung nur mit `heizung`, den Reiter Pumpen nur mit `pumpen` und mindestens einem Pumpenschacht.
+
+
+## 9. Statistik aus der eigenen Datenbank (0.8.58, BSM-014)
+
+`baustelle/statistik` (`start_time`, `end_time`, `statistic_ids`, `period`: 5minute|hour|day|week|month, `types`,
+`entry_id`) antwortet wie `recorder/statistics_during_period` – `{statistic_id: [{start, end, change|mean}]}`, `start`
+in Sekunden – aus der eigenen Datenbank: die eigenen Sensoren (`<bid>_energie`, `<entry>_energie`, `<bid>_heizzeit`,
+`<bid>_heizzeit_strom`, `<gid>_pumpzeit`, `<gid>_pumpzyklen`, `<entry>_aussen`), die Energiezähler der Shellys und die
+Fühler. Anders als HA mit der laufenden Stunde bzw. dem laufenden Tag; für diese IDs ist `5minute` leer. Was die
+Datenbank nicht kennt (`<entry>_energie_ohne_automatik`, `<entry>_ersparnis`) kommt aus der HA-Statistik. Einstellung
+`auswertung_quelle` (`baustelle/setzen`, `datenbank`|`statistik`) schaltet eine Baustelle auf die HA-Statistik zurück.

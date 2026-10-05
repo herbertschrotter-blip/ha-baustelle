@@ -149,17 +149,26 @@ def laufende(hass: HomeAssistant) -> list[ConfigEntry]:
 async def async_statistik(
     hass: HomeAssistant, ids: Iterable[str | None], start: datetime, ende: datetime, periode: str, arten: set[str]
 ) -> Statistik:
-    """Langzeitstatistik wie `recorder/statistics_during_period` (Periode hour/day/month); ohne Recorder leer."""
-    ids = {i for i in ids if i}
-    if not ids or "recorder" not in hass.config.components:
+    """Langzeitstatistik wie `recorder/statistics_during_period` (Periode hour/day/month/5minute).
+
+    BSM-014: zuerst aus der eigenen Datenbank (`db/statistik`), was sie nicht kennt aus der HA-Statistik (ohne Recorder
+    leer). Gleiche Form wie HA – Auswertung, Abrechnung, Bericht und CSV merken keinen Unterschied.
+    """
+    gesucht: set[str] = {i for i in ids if i}
+    if not gesucht:
         return {}
+    from .db.statistik import async_aus_datenbank  # noqa: PLC0415 – db → auswertung (Kreis beim Import)
+
+    ergebnis, rest = await async_aus_datenbank(hass, gesucht, start, ende, periode)
+    if not rest or "recorder" not in hass.config.components:
+        return ergebnis
     from homeassistant.components.recorder.statistics import statistics_during_period  # noqa: PLC0415
     from homeassistant.helpers.recorder import get_instance  # noqa: PLC0415
 
     daten = await get_instance(hass).async_add_executor_job(
-        statistics_during_period, hass, start, ende, ids, periode, None, arten
+        statistics_during_period, hass, start, ende, rest, periode, None, arten
     )
-    return cast(Statistik, daten)
+    return cast(Statistik, {**daten, **ergebnis})
 
 
 def _zone() -> tzinfo:

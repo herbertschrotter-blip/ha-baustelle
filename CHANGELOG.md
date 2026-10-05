@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.58] – 2026-10-05
+
+- Auswertung aus der eigenen Datenbank (BSM-014, Schritt 1): Auswertung, Abrechnung nach Firma, Bericht, CSV und die
+  Diagramme der Seite holen Verbrauch, Heizzeit, Pumpzeit, Zyklen und Temperaturen jetzt aus der eigenen Datenbank
+  statt aus der HA-Langzeitstatistik – gleiche Zahlen (Abgleich ab 02.10. gleich), dazu die laufende Stunde bis zur
+  letzten Minute und Daten, die älter sind als 62 Tage. „Ohne Automatik“ und „Ersparnis“ kommen noch aus HA.
+  Rückweg je Baustelle: Einstellung `auswertung_quelle` = `statistik`.
+- Datenbank Aufbau 3: Tagessummen mit „tatsächlich geheizt“; die Tage werden beim Start einmal neu gerechnet.
+
 ## [0.8.57] – 2026-10-05
 
 - Eigene Datenbank, Phase 4 (BSM-009): Tagessummen je Gerät und Container (kWh, € zum Preis des Tages, Firma,

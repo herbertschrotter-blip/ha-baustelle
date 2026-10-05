@@ -26,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Dialect
 
-SCHEMA_VERSION = 2   # 2: JSON in SQLite als Text (Aufbau 1 speicherte einzelne Zahlen als Zahl, BSM-007)
+SCHEMA_VERSION = 3   # 2: JSON in SQLite als Text (BSM-007); 3: Tagessummen mit „tatsächlich geheizt“ (strom_min, BSM-014)
 
 metadata = MetaData()
 
@@ -272,6 +272,7 @@ tag_geraet = Table(
     Column("zyklen", Integer),
     Column("laufzeit_min", Float),
     Column("ohne_kwh", Float),
+    Column("strom_min", Float),   # Aufbau 3: davon tatsächlich geheizt (AN-0011)
 )
 
 tag_bereich = Table(
@@ -290,6 +291,7 @@ tag_bereich = Table(
     Column("aussen_mittel", Float),
     Column("ohne_kwh", Float),
     Column("heiztag", Boolean),
+    Column("strom_min", Float),   # Aufbau 3: davon tatsächlich geheizt (AN-0011)
 )
 
 protokoll = Table(

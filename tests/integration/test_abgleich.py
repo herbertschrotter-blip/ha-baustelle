@@ -483,7 +483,8 @@ async def test_seite_gegen_echte_struktur(hass: HomeAssistant, echte_baustelle) 
     assert len(lz["staffel"]["anschluesse"]) == 2 and [p for p in lz["plan_woche"] if p["frei"] == "urlaub"]
     assert next(b for b in struktur if b["baustelle"]["entry_id"] == HALLE)["baustelle"]["status"] == "abgeschlossen"
 
-    # Auswertung und Abrechnung (api §8): die echte Baustelle ohne Recorder liefert leere, aber vollständige Antworten
+    # Auswertung und Abrechnung (api §8): seit BSM-014 aus der eigenen Datenbank (mitgeschrieben im Test) – vollständige
+    # Antworten, Auswertung und Abrechnung mit denselben kWh (bis auf Rundungsrauschen der Summenreihenfolge)
     for b in struktur:
         v = await rufe("baustelle/auswertung", entry_id=b["baustelle"]["entry_id"], teil="verlauf")
         assert {"kwh", "heiztage", "vergleich", "je_monat", "monate_je_container", "csv"} <= set(v)
@@ -491,8 +492,8 @@ async def test_seite_gegen_echte_struktur(hass: HomeAssistant, echte_baustelle) 
         for scope in ("diese", "alle"):
             aw = await rufe("baustelle/auswertung", entry_id=WOHNBAU, zeitraum=z, versatz=0, scope=scope)
             abr = await rufe("baustelle/abrechnung", entry_id=WOHNBAU, zeitraum=z, versatz=0, scope=scope)
-            assert aw["zeitraum"] == abr["zeitraum"] and aw["summen"]["kwh"] == abr["kwh"] == 0
-            assert abr["csv"]["firma"] == "\ufeffZeitraum;Firma;Baustelle;Container;kWh;Preis €/kWh;Betrag €"
+            assert aw["zeitraum"] == abr["zeitraum"] and aw["summen"]["kwh"] == pytest.approx(abr["kwh"], abs=1e-9)
+            assert abr["csv"]["firma"].startswith("\ufeffZeitraum;Firma;Baustelle;Container;kWh;Preis €/kWh;Betrag €")
     # FE-0008: frühere Zeiträume – auch Tage weit zurück (bis zum Beginn der Baustelle)
     for z, versatz in (("Tag", 400), ("Woche", 60), ("Monat", 14), ("Jahr", 3)):
         aw = await rufe("baustelle/auswertung", entry_id=WOHNBAU, zeitraum=z, versatz=versatz, scope="diese")

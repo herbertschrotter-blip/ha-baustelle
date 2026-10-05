@@ -52,6 +52,7 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("automatik",): cv.boolean,
     ("preis",): vol.All(ZAHL, vol.Range(min=0, max=10)),
     ("melden_knopf",): cv.boolean,
+    ("auswertung_quelle",): vol.In(["datenbank", "statistik"]),   # BSM-014: Rückweg auf die HA-Statistik
     ("erklaer",): cv.boolean,
     ("termine_kalender",): vol.Any(None, cv.entity_domain("calendar")),
     ("heizung", "vorheizen_min"): vol.All(GANZ, vol.Range(0, 240)),
@@ -243,7 +244,7 @@ async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
     hass.data[DATA_MELDUNGEN] = Meldungen(hass)
     hass.async_create_task(hass.data[DATA_MELDUNGEN].async_laden(), "baustelle_meldungen_laden")  # lesbare Kopie beim Start
     for befehl in (ws_struktur, ws_setzen, ws_liste, ws_aktion, ws_bericht, ws_protokoll, ws_meldungen, ws_meldung,
-                   ws_auswertung, ws_abrechnung, ws_ohne):
+                   ws_auswertung, ws_abrechnung, ws_ohne, ws_statistik):
         websocket_api.async_register_command(hass, befehl)
 
 
@@ -855,6 +856,28 @@ def ws_protokoll(hass: HomeAssistant, connection: websocket_api.ActiveConnection
 
 
 # ---------------------------------------------------------------------- meldungen
+@websocket_api.websocket_command({
+    vol.Required("type"): "baustelle/statistik",
+    vol.Required("start_time"): str,
+    vol.Optional("end_time"): vol.Any(None, str),
+    vol.Required("statistic_ids"): [str],
+    vol.Required("period"): vol.In(["5minute", "hour", "day", "week", "month"]),
+    vol.Optional("types"): [str],
+    vol.Optional("units"): dict,
+    vol.Optional("entry_id"): vol.Any(None, str),
+})
+@websocket_api.async_response
+async def ws_statistik(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Wie `recorder/statistics_during_period`, aber aus der eigenen Datenbank (BSM-014); Rest aus der HA-Statistik."""
+    start = dt_util.parse_datetime(msg["start_time"])
+    ende = dt_util.parse_datetime(msg["end_time"]) if msg.get("end_time") else dt_util.utcnow()
+    if start is None or ende is None:
+        _fehler(connection, msg, "start_time/end_time: ISO-Zeit erwartet")
+        return
+    arten = set(msg.get("types") or ["change", "mean", "state"])
+    connection.send_result(msg["id"], await auswertung.async_statistik(hass, msg["statistic_ids"], start, ende, msg["period"], arten))
+
+
 @websocket_api.websocket_command({vol.Required("type"): "baustelle/meldungen", vol.Optional("entry_id"): vol.Any(None, str)})
 @websocket_api.async_response
 async def ws_meldungen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:

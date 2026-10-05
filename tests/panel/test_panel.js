@@ -417,7 +417,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('FE-0008: ‹ fragt Auswertung und Abrechnung mit Versatz 1', panel.s.aw.v === 1 && seit(n0).some(m => m.type === 'baustelle/auswertung' && m.versatz === 1)
       && seit(n0).some(m => m.type === 'baustelle/abrechnung' && m.versatz === 1) && /data-act="zr-setz" data-ziel="aw" data-max="\d+" data-v="0">Aktuell/.test(ui.innerHTML));
     const vormonat = (() => { let m = +h.slice(5, 7) - 2, j = +h.slice(0, 4); if (m < 0) { m = 11; j--; } return `${j}-${String(m + 1).padStart(2, '0')}-01`; })();
-    erwarte('FE-0008: Diagramm holt die Statistik des Vormonats', seit(n0).some(m => m.type === 'recorder/statistics_during_period' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === vormonat));
+    erwarte('FE-0008: Diagramm holt die Statistik des Vormonats', seit(n0).some(m => m.type === 'baustelle/statistik' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === vormonat));
     for (const [z, art, gesucht] of [['Tag', 'Monat mit Tagen', 'zr-woche-z'], ['Woche', 'Monat mit KW', 'class="zr-woche'], ['Monat', 'Jahr mit Monaten', 'zr-kal-monate'], ['Jahr', 'Jahre', 'zr-kal-monate']]) {
       await klick({ act: 'vb-zeitraum', ziel: 'aw', v: z }, 20); await klick({ act: 'zr-kal', ziel: 'aw', max: '9' }, 10);
       erwarte(`FE-0008: Kalender ${z} = ${art}`, panel.s.aw.v === 0 && ui.innerHTML.includes('zr-kal ') && ui.innerHTML.includes(gesucht) && !/undefined|NaN/.test(ui.innerHTML.slice(ui.innerHTML.indexOf('zr-kal '), ui.innerHTML.indexOf('zr-kal-fuss'))));
@@ -433,10 +433,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const cid = panel.d.bereiche.find(b => !b.pumpe).id; await klick({ act: 'container', id: cid }, 20);
     erwarte('FE-0008: Container zeigt ‹ Heute ›', ui.innerHTML.includes('data-act="zr-schritt" data-ziel="c-Tag"'));
     n0 = alleAufrufe.length; await klick({ act: 'zr-schritt', ziel: 'c-Tag', max: '30', d: '1' }, 30);
-    erwarte('FE-0008: Container gestern holt die Statistik von gestern', seit(n0).some(m => m.type === 'recorder/statistics_during_period' && m.period === 'hour' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === plusTageT(h, -1))
+    erwarte('FE-0008: Container gestern holt die Statistik von gestern', seit(n0).some(m => m.type === 'baustelle/statistik' && m.period === 'hour' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === plusTageT(h, -1))
       && ui.innerHTML.includes('<b>Gestern</b>'));
     await klick({ act: 'cvd', v: 'woche' }, 20); n0 = alleAufrufe.length; await klick({ act: 'zr-schritt', ziel: 'c-Woche', max: '30', d: '1' }, 30);
-    erwarte('FE-0008: Container Vorwoche', seit(n0).some(m => m.type === 'recorder/statistics_during_period' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === plusTageT(mo, -7)) && ui.innerHTML.includes('<b>Vorwoche</b>'));
+    erwarte('FE-0008: Container Vorwoche', seit(n0).some(m => m.type === 'baustelle/statistik' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === plusTageT(mo, -7)) && ui.innerHTML.includes('<b>Vorwoche</b>'));
     await klick({ act: 'cvd', v: 'heute' }, 10); await klick({ act: 'tab', v: 'uebersicht' }, 10); }
   /* 0.8: lernende Regelung – Schalter, Regelungszeile, Lernstand, Setzen und Zurücksetzen */
   { await klick({ act: 'container', id: 'polier' }, 20);

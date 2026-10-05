@@ -113,6 +113,7 @@ STANDARD: dict[str, Any] = {
     "termine_kalender": None,
     "stumm": {},
     "melden_knopf": True,
+    "auswertung_quelle": "datenbank",   # BSM-014: Auswertung aus der eigenen Datenbank; „statistik“ = HA-Langzeitstatistik
     "erklaer": True,          # Erklärtexte „ⓘ“ auf der Seite (0.7.8)
     "geraete": {},            # je Gerät {"aktiv": False} = inaktiv: Automatik lässt es aus, keine Warnungen (WU-0004);
                               # {"zusatz": True} = Zusatz-Heizkörper (AN-0006)

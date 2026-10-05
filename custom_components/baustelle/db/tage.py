@@ -74,7 +74,8 @@ def tag_rechnen(v: Connection, r: TagRahmen, tag: date) -> tuple[int, int]:
         geraete_zeilen.append({
             "geraet_id": gid, "datum": tag, "baustelle_id": r.baustelle_id, "bereich_id": bereich_id or None,
             "firma_id": r.firma.get((bereich_id, tag)), "kwh": t.kwh, "eur": round(t.kwh * preis, 4), "preis": preis,
-            "heizzeit_min": t.heizzeit_min, "zyklen": t.zyklen, "laufzeit_min": t.heizzeit_min, "ohne_kwh": None})
+            "heizzeit_min": t.heizzeit_min, "zyklen": t.zyklen, "laufzeit_min": t.heizzeit_min, "ohne_kwh": None,
+            "strom_min": t.strom_min})
     bereiche: set[str] = set(je_bereich) | {r.geraete[g][0] for g in je_geraet if g in r.geraete}
     bereich_zeilen = []
     for b_id in sorted(bereiche):
@@ -85,7 +86,7 @@ def tag_rechnen(v: Connection, r: TagRahmen, tag: date) -> tuple[int, int]:
             "bereich_id": b_id, "datum": tag, "baustelle_id": r.baustelle_id, "firma_id": r.firma.get((b_id, tag)),
             "kwh": bt.kwh, "eur": round(bt.kwh * preis, 4), "heizzeit_min": bt.heizzeit_min, "gradh": bt.gradh,
             "temp_min": bt.temp_min, "temp_mittel": bt.temp_mittel, "temp_max": bt.temp_max,
-            "aussen_mittel": bt.aussen_mittel, "ohne_kwh": None, "heiztag": bt.heiztag})
+            "aussen_mittel": bt.aussen_mittel, "ohne_kwh": None, "heiztag": bt.heiztag, "strom_min": bt.strom_min})
     v.execute(delete(s.tag_geraet).where(s.tag_geraet.c.baustelle_id == r.baustelle_id, s.tag_geraet.c.datum == tag))
     v.execute(delete(s.tag_bereich).where(s.tag_bereich.c.baustelle_id == r.baustelle_id, s.tag_bereich.c.datum == tag))
     if geraete_zeilen:
@@ -138,8 +139,9 @@ async def async_fehlende_tage(db: Datenbank, st: Steuerung) -> int:
     if erste is None:
         return 0
     heute = dt_util.now().date()
+    # vorhanden = schon gerechnet und mit Aufbau 3 (strom_min) – ältere Tage werden einmal neu gerechnet
     vorhanden = set(await db.async_ausfuehren(lambda v: [r.datum for r in v.execute(
-        select(s.tag_bereich.c.datum).where(s.tag_bereich.c.baustelle_id == bid).distinct())]) or [])
+        select(s.tag_bereich.c.datum).where(s.tag_bereich.c.baustelle_id == bid, s.tag_bereich.c.strom_min.is_not(None)).distinct())]) or [])
     tag, fehlen = dt_util.as_local(_utc(erste)).astimezone(zone).date(), []
     while tag <= heute:
         if tag not in vorhanden or tag == heute:

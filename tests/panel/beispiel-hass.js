@@ -136,7 +136,7 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
       mit(m);
       switch (m.type) {
         case 'baustelle/struktur': if (fehlt()) throw { code: 'unknown_command', message: 'Unknown command.' }; if (haengt()) return new Promise(() => {}); return JSON.parse(JSON.stringify(welt()));
-        case 'recorder/statistics_during_period': return statistik(m);
+        case 'recorder/statistics_during_period': case 'baustelle/statistik': return statistik(m);   // BSM-014: Statistik aus der Datenbank (gleiche Form)
         case 'baustelle/auswertung': return fakeAuswertung(m);
         case 'baustelle/abrechnung': return fakeAbrechnung(m);
         case 'baustelle/ohne': { const n = { Tag: 24, Woche: 7, Monat: 30, Jahr: 12 }[m.zeitraum] || 24, kw = m.basis === 'typ' ? 1.8 : 2.0;   // WU-0013
