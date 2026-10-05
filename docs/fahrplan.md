@@ -54,7 +54,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 - [x] **E2b** (BSM-030) Kopplungen der Plugs selbst in Ordnung halten: fehlende Fühler/Tür des Containers koppeln, fremde entfernen, Namen nach Schema, Protokoll – erledigt 0.8.65
 - [ ] **E3** (BSM-018) Taste am Plug = 1 h heizen (mit HA über „Bei Bedarf“, ohne HA im Skript) – Ereignisse von Bluetooth-Sensoren ignoriert das Skript seit 0.8.64; offen: Ereignis der Plug-Taste vor Ort
 - [x] **E4** (BSM-019) Anzeige: Notprogramm je Plug (aktiv/fehlt/Fehler, Programm gültig bis), Protokoll „Notbetrieb“ – erledigt 0.8.66, eingespielt 05.10.2026 (Einstellungen › Notprogramm, Jetzt prüfen, Dienst, Warnung)
-- [ ] **E5** (BSM-020) Datenbank Phase 7: Stundenbuch der Plugs nach einem Ausfall nachtragen
+- [x] **E5** (BSM-020) Datenbank Phase 7: Stundenbuch der Plugs nach einem Ausfall nachtragen – erledigt 0.8.67, eingespielt 06.10.2026 (am echten Ausfall noch nicht erlebt → E6)
 - [ ] **E6** (BSM-021) Ausfall-Probe auf der Pilotbaustelle: HA bzw. VPN abschalten, Notbetrieb und Nachtragen prüfen
 
 ## Etappe F – Code aufteilen
