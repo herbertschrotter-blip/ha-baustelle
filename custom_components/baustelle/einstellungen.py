@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 from typing import Any
 
@@ -23,10 +24,12 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.file import write_utf8_file
 
 from .const import DOMAIN
-from .db import meldungen_merken
+from .db import DATA_DB, INTEGRATION, meldungen_merken
+from .db.speicher import OHNE, baustelle_laden, baustelle_speichern, meldungen_laden
 from .logik.arbeitszeit import arbeitszeiten_bereinigen, erste_arbeitszeit
 from .logik.warnungen import Art
 
+_LOGGER = logging.getLogger(__name__)
 STORE_VERSION = 2
 SPEICHER_VERZOEGERUNG_S = 2
 PROTOKOLL_MAX = 1000
@@ -166,17 +169,24 @@ class Einstellungen:
 
     def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
         self._hass = hass
+        self._entry_id = entry_id
         self._store: Store[dict[str, Any]] = _BaustelleStore(hass, STORE_VERSION, f"{DOMAIN}.{entry_id}")
         self.daten: dict[str, Any] = copy.deepcopy(STANDARD)
         self.von_v1 = False
         self._faellig: float | None = None  # Loop-Zeit, zu der der eingeplante Schreibvorgang läuft
+        # BSM-015: eigene Datenbank als Quelle – was zuletzt dorthin geschrieben wurde (nur Änderungen schreiben)
+        self.quelle = "store"
+        self._db_alt: dict[str, str] = {}
+        self._db_merker = False
 
     async def async_laden(self, bereich_ids: list[str], empfaenger: list[str] | None = None) -> None:
         """Laden, fehlende Werte ergänzen, Einstellungen gelöschter Bereiche entfernen.
 
         `empfaenger` (aus den Optionen von 0.6) wird übernommen, solange im Store noch keiner eingetragen ist.
         """
-        gespeichert = await self._store.async_load() or {}
+        gespeichert = await self._db_laden()
+        if gespeichert is None:   # Datenbank noch nicht Quelle (erster Start mit 0.8.61) oder nicht lesbar: Store
+            gespeichert = await self._store.async_load() or {}
         self.von_v1 = bool(gespeichert.pop("_von_v1", False))
         neu = not gespeichert or self.von_v1
         self.daten = _ergaenzen(gespeichert, STANDARD)
@@ -197,8 +207,8 @@ class Einstellungen:
             b = bereiche.setdefault(bid, {})
             _ergaenzen(b, {**STANDARD_BEREICH, "anschluss": erster})
         del self.daten["protokoll"][PROTOKOLL_MAX:]
-        if neu or geaendert:
-            self.speichern()
+        if neu or geaendert or (self.quelle == "store" and self._db_bereit()):
+            self.speichern()   # beim ersten Start mit der Datenbank: ganzer Stand als Ausgangsstand (Merker)
 
     def speichern(self, verzoegerung: float = SPEICHER_VERZOEGERUNG_S) -> None:
         """Verzögert speichern (mehrere Änderungen hintereinander → ein Schreibvorgang).
@@ -213,12 +223,62 @@ class Einstellungen:
         if self._faellig is not None and jetzt < self._faellig <= ziel:
             return
         self._faellig = ziel
-        self._store.async_delay_save(lambda: self.daten, verzoegerung)
+        self._store.async_delay_save(self._sichern, verzoegerung)
+
+    def _sichern(self) -> dict[str, Any]:
+        """Beim (verzögerten) Speichern: Änderungen auch in die eigene Datenbank (BSM-015); Store bleibt Kopie."""
+        self._db_schreiben()
+        return self.daten
 
     async def async_jetzt_speichern(self) -> None:
         """Sofort speichern (beim Entladen)."""
         self._faellig = None
+        self._db_schreiben()
+        if (db := self._hass.data.get(DATA_DB)) is not None:
+            await db.schreiber.async_schreiben()
         await self._store.async_save(self.daten)
+
+    # ------------------------------------------------------------------ eigene Datenbank (BSM-015)
+    def _db_bereit(self) -> bool:
+        db = self._hass.data.get(DATA_DB)
+        return db is not None and db.bereit
+
+    async def _db_laden(self) -> dict[str, Any] | None:
+        db = self._hass.data.get(DATA_DB)
+        if db is None or not db.bereit:
+            if db is not None:
+                _LOGGER.warning("Datenbank nicht lesbar (%s) – Einstellungen aus der Store-Kopie", db.fehler)
+            return None
+        daten = await db.async_ausfuehren(lambda v: baustelle_laden(v, self._entry_id))
+        if daten is None:
+            return None
+        self.quelle, self._db_merker = "datenbank", True
+        self._db_alt = self._db_stand(daten)
+        return daten
+
+    @staticmethod
+    def _db_stand(daten: dict[str, Any]) -> dict[str, str]:
+        stand = {f"e:{k}": json.dumps(w, sort_keys=True, default=str) for k, w in daten.items() if k not in OHNE}
+        stand["zaehler"] = json.dumps(daten.get("zaehler") or {}, sort_keys=True, default=str)
+        stand.update({f"lz:{k}": json.dumps(w, sort_keys=True, default=str) for k, w in (daten.get("laufzeit") or {}).items()})
+        return stand
+
+    def _db_schreiben(self) -> None:
+        """Was sich seit dem letzten Schreiben geändert hat, in die Datenbank (über die Warteschlange)."""
+        if not self._db_bereit():
+            return
+        neu = self._db_stand(self.daten)
+        geaendert = {k for k, t in neu.items() if self._db_alt.get(k) != t}
+        if not geaendert and self._db_merker:
+            return
+        einstellungen = {k[2:]: json.loads(neu[k]) for k in geaendert if k.startswith("e:")}
+        laufzeit = {k[3:]: json.loads(neu[k]) for k in geaendert if k.startswith("lz:")}
+        zaehler = json.loads(neu["zaehler"]) if "zaehler" in geaendert else None
+        quelle, merker, bid = ("speichern" if self._db_merker else "umstellung"), not self._db_merker, self._entry_id
+        db = self._hass.data[DATA_DB]
+        db.schreiber.dazu(lambda v: baustelle_speichern(v, bid, einstellungen, zaehler, laufzeit, quelle, merker))
+        self._hass.async_create_task(db.schreiber.async_schreiben(), "baustelle_einstellungen_datenbank")
+        self._db_alt, self._db_merker, self.quelle = neu, True, "datenbank"
 
     async def async_entfernen(self) -> None:
         """Datei beim Löschen der Baustelle entfernen."""
@@ -308,9 +368,17 @@ class Meldungen:
 
     async def async_laden(self) -> list[dict[str, Any]]:
         if not self._geladen:
-            daten = (await self._store.async_load()) or {}
-            self.liste = list(daten.get("meldungen") or [])
-            self.nummern = {k: int(v) for k, v in (daten.get("nummern") or {}).items()}
+            aus_db = None
+            if (db := self._hass.data.get(DATA_DB)) is not None and db.bereit:   # BSM-015: Datenbank ist Quelle
+                aus_db = await db.async_ausfuehren(lambda v: meldungen_laden(v, INTEGRATION))
+            if aus_db is not None:
+                self.liste, self.nummern = aus_db
+            else:   # erster Start mit 0.8.61 bzw. Datenbank nicht lesbar: Store
+                daten = (await self._store.async_load()) or {}
+                self.liste = list(daten.get("meldungen") or [])
+                self.nummern = {k: int(v) for k, v in (daten.get("nummern") or {}).items()}
+                if db is not None and db.bereit:
+                    meldungen_merken(self._hass, copy.deepcopy(self.liste), dict(self.nummern))   # Umstellung
             self._geladen = True
             if self._nummerieren():
                 self.speichern()
@@ -364,5 +432,5 @@ class Meldungen:
 
     def speichern(self) -> None:
         self._store.async_delay_save(lambda: {"meldungen": self.liste, "nummern": self.nummern}, SPEICHER_VERZOEGERUNG_S)
-        meldungen_merken(self._hass, copy.deepcopy(self.liste))   # eigene Datenbank (BSM-007)
+        meldungen_merken(self._hass, copy.deepcopy(self.liste), dict(self.nummern))   # eigene Datenbank (Quelle seit BSM-015)
         self._hass.async_create_task(self.async_exportieren(), "baustelle_meldungen_exportieren")

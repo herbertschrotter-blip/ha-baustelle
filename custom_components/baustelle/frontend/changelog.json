@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.8.61",
+    "datum": "2026-10-05",
+    "punkte": [
+      "Store-Datei abgelöst (BSM-015): Einstellungen, Zähler, Laufzeit, Protokoll und Meldungen kommen jetzt aus der eigenen Datenbank. Beim ersten Start wird der Stand der Store-Datei einmal als Ausgangsstand übernommen; die Store-Datei wird diese Version noch als Kopie mitgeschrieben (Rückweg) und danach entfernt. Das Protokoll hat keine Grenze von 1.000 Einträgen mehr – „ältere laden“ holt sie aus der Datenbank. Meldungen stehen vollständig in der Datenbank (Aufbau 6); `meldungen.json` und `meldungen.md` für das Ticket-Fenster bleiben.",
+      "Warteschlange der Datenbank: „jetzt schreiben“ wartet auf einen laufenden Schreibvorgang."
+    ]
+  },
+  {
     "version": "0.8.60",
     "datum": "2026-10-05",
     "punkte": [

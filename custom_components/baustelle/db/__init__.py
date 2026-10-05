@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from ..steuerung import Steuerung
 
 DATA_DB: HassKey[Datenbank] = HassKey(f"{DOMAIN}_datenbank")
+INTEGRATION = "_integration"   # baustelle_id für Daten der ganzen Integration (Ticket-Zähler)
 DATEI = "baustelle/baustelle.db"
 
 
@@ -96,7 +97,7 @@ def ereignis_merken(hass: HomeAssistant, baustelle_id: str, art: str, wert: Any,
     db.schreiber.dazu(lambda v: v.execute(insert(s.ereignis).values(**zeile)))
 
 
-def meldungen_merken(hass: HomeAssistant, liste: list[dict[str, Any]]) -> None:
+def meldungen_merken(hass: HomeAssistant, liste: list[dict[str, Any]], nummern: dict[str, int] | None = None) -> None:
     """Alle Meldungen mit Verlauf und Bildern (die Liste ist klein – je Speichern ganz ersetzt)."""
     if (db := hass.data.get(DATA_DB)) is None:
         return
@@ -106,7 +107,7 @@ def meldungen_merken(hass: HomeAssistant, liste: list[dict[str, Any]]) -> None:
 
     meldungen = [{"id": m["id"], "ticket": m.get("ticket"), "art": m.get("art") or "fehler", "status": m.get("status") or "neu",
                   "text": m.get("text"), "kontext": m.get("kontext"), "geraet": m.get("geraet"), "seite": m.get("seite"),
-                  "version": m.get("version"), "baustelle_id": m.get("baustelle"), "zeit": zeit(m.get("zeit"))}
+                  "version": m.get("version"), "baustelle_id": m.get("baustelle"), "zeit": zeit(m.get("zeit")), "daten": m}
                  for m in liste if m.get("id")]
     verlauf = [{"meldung_id": m["id"], "zeit": zeit(e.get("zeit")), "status": e.get("status"), "notiz": e.get("notiz"),
                 "version": e.get("version"), "commit": e.get("commit"), "von": e.get("von")}
@@ -114,11 +115,16 @@ def meldungen_merken(hass: HomeAssistant, liste: list[dict[str, Any]]) -> None:
     verlauf = list({(z["meldung_id"], z["zeit"]): z for z in verlauf}.values())   # gleiche Sekunde: der letzte gilt
     bilder = [{"meldung_id": m["id"], "nr": i, "datei": name} for m in liste if m.get("id") for i, name in enumerate(m.get("bilder") or [])]
 
+    jetzt = dt_util.utcnow()
+
     def schreiben(v: Connection) -> None:
         for tabelle, zeilen in ((s.meldung_bild, bilder), (s.meldung_verlauf, verlauf), (s.meldung, meldungen)):
             v.execute(delete(tabelle))
             if zeilen:
                 v.execute(insert(tabelle), zeilen)
+        if nummern is not None:   # Ticket-Zähler je Art (BSM-015: die Datenbank ist Quelle der Meldungen)
+            v.execute(delete(s.zustand).where(s.zustand.c.baustelle_id == INTEGRATION, s.zustand.c.schluessel == "meldungen_nummern"))
+            v.execute(insert(s.zustand).values(baustelle_id=INTEGRATION, schluessel="meldungen_nummern", wert=nummern, geaendert=jetzt))
 
     db.schreiber.dazu(schreiben)
 

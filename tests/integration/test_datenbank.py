@@ -351,3 +351,71 @@ async def test_verlauf_jeder_messwert(hass: HomeAssistant, baustelle, freezer, h
     leistung = antwort["result"]["sensor.hk1_power"]
     assert [p["s"] for p in leistung] == werte and all(isinstance(p["lu"], float) for p in leistung)
     assert [p["s"] for p in antwort["result"]["switch.hk1"]][-1] == "on"     # Schalter aus den Minuten
+
+
+# ---------------------------------------------------------------------- Phase 6: Store abgelöst (BSM-015)
+async def test_umstellung_und_laden_aus_der_datenbank(hass: HomeAssistant, baustelle, freezer, hass_storage) -> None:
+    """Erster Start: Stand aus dem Store wird Ausgangsstand (Merker); danach lädt die Integration aus der Datenbank."""
+    await hass.async_block_till_done()
+    st = baustelle.runtime_data
+    assert st.einstellungen.quelle == "store"   # erster Start: noch aus dem Store
+    await st.einstellungen.async_jetzt_speichern()
+    zustand = {r["schluessel"]: r for r in _zeilen(hass, "zustand")}
+    assert "speicher_db" in zustand and "zaehler" in zustand
+    assert {r["schluessel"] for r in _zeilen(hass, "einstellung") if r["quelle"] == "umstellung"} >= {"heizung", "arbeitszeiten"}
+    # Einstellung ändern, Store-Datei entfernen, neu laden: der Wert kommt aus der Datenbank
+    st.einstellung_setzen(("heizung", "soll"), 22.5)
+    st.zaehler["energie"] = 12.34
+    await st.einstellungen.async_jetzt_speichern()
+    hass_storage.pop(f"baustelle.{baustelle.entry_id}", None)
+    assert await hass.config_entries.async_reload(baustelle.entry_id)
+    await hass.async_block_till_done()
+    neu = baustelle.runtime_data
+    assert neu.einstellungen.quelle == "datenbank"
+    assert neu.e["heizung"]["soll"] == 22.5 and neu.zaehler["energie"] == pytest.approx(12.34)
+
+
+async def test_ohne_datenbank_store_kopie(hass: HomeAssistant, baustelle, freezer) -> None:
+    """Datenbank nicht lesbar: die Integration lädt aus der Store-Kopie (Rückweg, §5)."""
+    await hass.async_block_till_done()
+    st = baustelle.runtime_data
+    st.einstellung_setzen(("heizung", "soll"), 21.7)
+    await st.einstellungen.async_jetzt_speichern()
+    db = hass.data[DATA_DB]
+    engine, db.engine = db.engine, None   # wie „nicht erreichbar“
+    try:
+        assert await hass.config_entries.async_reload(baustelle.entry_id)
+        await hass.async_block_till_done()
+        assert baustelle.runtime_data.einstellungen.quelle == "store"
+        assert baustelle.runtime_data.e["heizung"]["soll"] == 21.7
+    finally:
+        db.engine = engine
+
+
+async def test_meldungen_nummern_aus_der_datenbank(hass: HomeAssistant, baustelle, hass_ws_client) -> None:
+    await hass.async_block_till_done()
+    ws = await hass_ws_client(hass)
+    for i, art in enumerate(["fehler", "fehler", "wunsch"], start=1):
+        await ws.send_json({"id": i, "type": "baustelle/meldung", "aktion": "neu", "meldung": {"art": art, "text": f"M{i}"}})
+        assert (await ws.receive_json())["success"]
+    await hass.data[DATA_DB].schreiber.async_schreiben()
+    from custom_components.baustelle.einstellungen import Meldungen  # noqa: PLC0415
+    frisch = Meldungen(hass)   # wie nach einem Neustart: aus der Datenbank
+    liste = await frisch.async_laden()
+    assert [m["ticket"] for m in liste] == ["WU-0001", "FE-0002", "FE-0001"] and liste[0]["text"] == "M3"
+    assert frisch.neue_nummer("fehler") == "FE-0003"
+
+
+async def test_protokoll_ohne_grenze(hass: HomeAssistant, baustelle, hass_ws_client) -> None:
+    await hass.async_block_till_done()
+    st = baustelle.runtime_data
+    basis = dt_util.now() - timedelta(days=2)
+    for i in range(1100):
+        st.protokoll("einstellung", None, f"P{i:04d}", zeit=basis + timedelta(seconds=i))
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "baustelle/protokoll", "entry_id": baustelle.entry_id, "filter": "einstellung",
+                        "vor": (basis + timedelta(seconds=50)).isoformat(), "limit": 1000})
+    antwort = await ws.receive_json()
+    texte = [e[3] for e in antwort["result"] if e[3].startswith("P")]
+    assert texte[:3] == ["P0049", "P0048", "P0047"] and texte[-1] == "P0000"   # älter als die 1.000 im Speicher
+    assert len(st.e["protokoll"]) == 1000

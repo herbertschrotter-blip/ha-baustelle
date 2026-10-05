@@ -2,11 +2,12 @@
 
 Schreibarbeiten werden gesammelt und in **einem** Schreibvorgang ausgeführt. Während einer HA-Sicherung oder ohne
 erreichbare Datenbank bleiben sie in der Warteschlange und werden später nachgeschrieben (höchstens `MAX_OFFEN`,
-dann fallen die ältesten weg – mit Warnung). Das regelmäßige Schreiben je Minute kommt mit Phase 2.
+dann fallen die ältesten weg – mit Warnung). Geschrieben wird je Minute (Mitschreiber) und beim Speichern.
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 import logging
 from typing import TYPE_CHECKING
@@ -28,6 +29,7 @@ class Schreiber:
     def __init__(self, db: Datenbank) -> None:
         self._db = db
         self._offen: list[Arbeit] = []
+        self._sperre = asyncio.Lock()   # wer schreiben will, wartet auf einen laufenden Schreibvorgang (sonst „fertig“ zu früh)
 
     def __len__(self) -> int:
         return len(self._offen)
@@ -40,7 +42,12 @@ class Schreiber:
             _LOGGER.warning("Datenbank: Warteschlange voll, %s alte Schreibvorgänge verworfen", weg)
 
     async def async_schreiben(self) -> bool:
-        """Alles Offene in einem Schreibvorgang; False, wenn es (noch) nicht ging."""
+        """Alles Offene in einem Schreibvorgang; False, wenn es (noch) nicht ging. Kehrt erst zurück, wenn auch ein
+        gerade laufender Schreibvorgang fertig ist."""
+        async with self._sperre:
+            return await self._schreiben()
+
+    async def _schreiben(self) -> bool:
         if not self._offen:
             return True
         if self._db.angehalten or not self._db.bereit:

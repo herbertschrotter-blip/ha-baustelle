@@ -56,7 +56,14 @@ def _schritt_5(verbindung: Connection) -> None:
     metadata.create_all(verbindung, tables=[metadata.tables["messwert"]], checkfirst=True)
 
 
-SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3, 4: _schritt_4, 5: _schritt_5}
+def _schritt_6(verbindung: Connection) -> None:
+    """Meldungen vollständig als JSON (Spalte daten) – die Datenbank wird ihre Quelle (BSM-015)."""
+    if "daten" not in {c["name"] for c in inspect(verbindung).get_columns("meldung")}:
+        verbindung.execute(text('ALTER TABLE "meldung" ADD COLUMN daten TEXT'))
+
+
+SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3, 4: _schritt_4, 5: _schritt_5,
+                                                     6: _schritt_6}
 
 
 def stand(verbindung: Connection) -> int:

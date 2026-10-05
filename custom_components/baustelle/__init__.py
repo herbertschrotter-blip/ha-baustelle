@@ -29,8 +29,9 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Eigene Seite „Baustelle“ anmelden (unabhängig von den einzelnen Baustellen)."""
     version = str((await async_get_integration(hass, DOMAIN)).version)
+    # eigene Datenbank zuerst (docs/bauplan-datenbank.md) – Seite und Meldungen laden schon aus ihr (BSM-015)
+    db = await async_datenbank_starten(hass)
     await async_panel_anmelden(hass, version)
-    db = await async_datenbank_starten(hass)   # eigene Datenbank (docs/bauplan-datenbank.md, Phase 1)
 
     async def datenbank_schliessen(_event: Event) -> None:
         await db.async_stop()

@@ -254,6 +254,9 @@ async def test_bericht_vorschau(hass: HomeAssistant, baustelle, ws, monkeypatch)
 async def test_protokoll(hass: HomeAssistant, baustelle, ws, freezer) -> None:
     st = baustelle.runtime_data
     st.e["protokoll"].clear()
+    from custom_components.baustelle.db import DATA_DB, schema  # noqa: PLC0415
+    await hass.data[DATA_DB].schreiber.async_schreiben()
+    await hass.data[DATA_DB].async_ausfuehren(lambda v: v.execute(schema.protokoll.delete()))   # BSM-015: Protokoll in der Datenbank
     basis = dt_util.now()
     for i, art in enumerate(["warnung", "schalten", "ok", "wetter", "nachricht", "schalten"]):
         st.protokoll(art, None, f"E{i}", zeit=basis + timedelta(minutes=i))

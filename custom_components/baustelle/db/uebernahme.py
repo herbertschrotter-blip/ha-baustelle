@@ -238,7 +238,7 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
     from ..panel import DATA_MELDUNGEN   # noqa: PLC0415 – panel importiert db (Kreis)
     from . import meldungen_merken   # noqa: PLC0415
     if (meldungen := hass.data.get(DATA_MELDUNGEN)) is not None:
-        meldungen_merken(hass, [dict(m) for m in await meldungen.async_laden()])
+        meldungen_merken(hass, [dict(m) for m in await meldungen.async_laden()], dict(meldungen.nummern))
         await db.schreiber.async_schreiben()
         zahlen["meldung"] = len(meldungen.liste)
 

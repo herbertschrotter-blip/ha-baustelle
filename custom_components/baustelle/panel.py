@@ -22,7 +22,7 @@ from homeassistant.util import dt as dt_util
 from . import auswertung
 from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
-from .db import async_spiegeln, einstellung_merken, ereignis_merken
+from .db import DATA_DB, async_spiegeln, einstellung_merken, ereignis_merken
 from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldungen
 from .funktionen.heizung import Heizung
 from .logik import preise as preise_logik
@@ -836,13 +836,20 @@ FILTER = {
     vol.Optional("vor"): vol.Any(None, str),
     vol.Optional("limit", default=50): vol.All(vol.Coerce(int), vol.Range(1, 1000)),
 })
-@callback
-def ws_protokoll(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+@websocket_api.async_response
+async def ws_protokoll(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Protokolleinträge, neueste zuerst; `vor` = nur ältere als dieser Zeitpunkt (zum Nachladen)."""
     if (st := _steuerung(hass, connection, msg)) is None:
         return
     arten = FILTER[msg["filter"]]
     vor = dt_util.parse_datetime(msg["vor"]) if msg.get("vor") else None
+    if (db := hass.data.get(DATA_DB)) is not None and db.bereit:   # BSM-015: ohne Grenze aus der Datenbank
+        from .db.speicher import protokoll_lesen  # noqa: PLC0415
+        await db.schreiber.async_schreiben()   # auch die Einträge der letzten Sekunden (noch in der Warteschlange)
+        aus_db = await db.async_ausfuehren(lambda v: protokoll_lesen(v, st.entry.entry_id, arten, vor, msg["limit"]))
+        if aus_db is not None:
+            connection.send_result(msg["id"], aus_db)
+            return
     ergebnis = []
     for eintrag in st.e["protokoll"]:
         if arten is not None and eintrag[1] not in arten:

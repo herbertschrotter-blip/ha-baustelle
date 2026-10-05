@@ -26,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Dialect
 
-SCHEMA_VERSION = 5   # 2: JSON als Text (BSM-007); 3: strom_min; 4: sekunden_strom; 5: jeder Messwert der Leistung (BSM-014)
+SCHEMA_VERSION = 6   # 2: JSON als Text; 3: strom_min; 4: sekunden_strom; 5: messwert (BSM-014); 6: Meldung vollständig (BSM-015)
 
 metadata = MetaData()
 
@@ -330,6 +330,7 @@ meldung = Table(
     Column("version", String(20)),
     Column("baustelle_id", String(ID)),
     _zeit("zeit", nullable=False),
+    Column("daten", JSONWERT),   # Aufbau 6: die ganze Meldung (kein Feld geht verloren, BSM-015)
 )
 
 meldung_verlauf = Table(
