@@ -32,7 +32,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 - [x] **B1** (BSM-006) Phase 1: Grundgerüst `db/` (Schema 1, Verbindung, Migration, Schreiber), `backup.py`, Diagnose-Sensor – erledigt 0.8.53 (86909bc), eingespielt 05.10.2026
 - [x] **B2** (BSM-007) Phase 2: Mitschreiben – Einstellungen mit Benutzer, Laufzeit, Ereignisse, Protokoll, Meldungen, Minutenwerte (`logik/minute.py`) – erledigt 0.8.54
-- [x] **B3** (BSM-008) Phase 3: Altdaten übernehmen – Store, Verlauf 62 Tage, Langzeitstatistik davor – erledigt 0.8.55
+- [x] **B3** (BSM-008) Phase 3: Altdaten übernehmen – Store, Verlauf 62 Tage, Langzeitstatistik davor – erledigt 0.8.55/0.8.56, eingespielt 05.10.2026 (Verlauf seit 29.09., 54 Meldungen, 1.000 Protokolleinträge)
 - [ ] **B4** (BSM-009) Phase 4: Tagessummen (`logik/tag.py`) und Abgleich mit den alten Zählern
 
 ## Etappe C – Notprogramm vorbereiten (parallel, wartet auf Hardware)
