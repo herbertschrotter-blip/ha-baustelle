@@ -30,7 +30,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe B – Datenbank Grundlage (Pilot merkt nichts)
 
-- [ ] **B1** (BSM-006) Phase 1: Grundgerüst `db/` (Schema 1, Verbindung, Migration, Schreiber), `backup.py`, Diagnose-Sensor
+- [x] **B1** (BSM-006) Phase 1: Grundgerüst `db/` (Schema 1, Verbindung, Migration, Schreiber), `backup.py`, Diagnose-Sensor – erledigt 0.8.53 (86909bc), eingespielt 05.10.2026
 - [ ] **B2** (BSM-007) Phase 2: Mitschreiben – Einstellungen mit Benutzer, Laufzeit, Ereignisse, Protokoll, Meldungen, Minutenwerte (`logik/minute.py`)
 - [ ] **B3** (BSM-008) Phase 3: Altdaten übernehmen – Store, Verlauf 62 Tage, Langzeitstatistik davor
 - [ ] **B4** (BSM-009) Phase 4: Tagessummen (`logik/tag.py`) und Abgleich mit den alten Zählern
