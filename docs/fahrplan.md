@@ -53,7 +53,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 - [x] **E2** (BSM-017) Übertragung durch die Integration: Skript einrichten/aktualisieren, Programm (KVS) täglich und bei Änderung, Lebenszeichen alle 5 min (ohne Gerätepasswort) – erledigt 0.8.63, eingespielt und eingeschaltet 05.10.2026 (alle 5 Plugs: Skript v2, Programm geladen, kein Notbetrieb); offen: Kopplungen selbst anlegen
 - [x] **E2b** (BSM-030) Kopplungen der Plugs selbst in Ordnung halten: fehlende Fühler/Tür des Containers koppeln, fremde entfernen, Namen nach Schema, Protokoll – erledigt 0.8.65
 - [ ] **E3** (BSM-018) Taste am Plug = 1 h heizen (mit HA über „Bei Bedarf“, ohne HA im Skript) – Ereignisse von Bluetooth-Sensoren ignoriert das Skript seit 0.8.64; offen: Ereignis der Plug-Taste vor Ort
-- [ ] **E4** (BSM-019) Anzeige: Notprogramm je Plug (aktiv/fehlt/Fehler, Programm gültig bis), Protokoll „Notbetrieb“
+- [x] **E4** (BSM-019) Anzeige: Notprogramm je Plug (aktiv/fehlt/Fehler, Programm gültig bis), Protokoll „Notbetrieb“ – erledigt 0.8.66, eingespielt 05.10.2026 (Einstellungen › Notprogramm, Jetzt prüfen, Dienst, Warnung)
 - [ ] **E5** (BSM-020) Datenbank Phase 7: Stundenbuch der Plugs nach einem Ausfall nachtragen
 - [ ] **E6** (BSM-021) Ausfall-Probe auf der Pilotbaustelle: HA bzw. VPN abschalten, Notbetrieb und Nachtragen prüfen
 
