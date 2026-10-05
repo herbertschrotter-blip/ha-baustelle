@@ -123,3 +123,16 @@ def test_gueltig_bis() -> None:
     w = programm(V, [(T0 + 6 * H, T0 + 17 * H, 20.0), (T0 + 3 * TAG + 6 * H, T0 + 3 * TAG + 12 * H, 20.0)], WOCHE, T0)
     assert gueltig_bis(w) == T0 + 3 * TAG + 12 * H
     assert gueltig_bis(programm(V, [], WOCHE, T0)) is None
+
+
+def test_stundenbuch() -> None:
+    from logik.notprogramm import BuchStunde, buch_lesen, im_ausfall
+    h = T0 // 3600
+    werte = {"bb_0": f"{h},120,30,215,60;{h + 1},500,60,,0", "bb_1": f"{h + 6},0,0,198,0;kaputt;{h + 7},x,1,1,1", "bs_cfg": "{}",
+             "bb_2": f"{h + 1},510,60,201,0"}   # dieselbe Stunde noch einmal: die letzte gilt
+    buch = buch_lesen(werte)
+    assert [s.stunde for s in buch] == [h, h + 1, h + 6]
+    assert buch[0] == BuchStunde(h, 120.0, 30, 21.5, 60) and buch[1].wh == 510 and buch[1].temperatur == 20.1
+    # Ausfall 00:40 bis 06:10 → Stunden 0, 1 und 6
+    assert [s.stunde for s in im_ausfall(buch, T0 + 40 * 60, T0 + 6 * H + 600)] == [h, h + 1, h + 6]
+    assert [s.stunde for s in im_ausfall(buch, T0 + H, T0 + 2 * H)] == [h + 1]

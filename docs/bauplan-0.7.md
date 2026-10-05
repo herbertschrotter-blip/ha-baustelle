@@ -461,6 +461,12 @@ Entscheidungen:
   und Dienst `baustelle.notprogramm_pruefen`, Warnung `notprogramm` nach 15 min, Protokoll „Notbetrieb … bis …“ beim
   ersten Lebenszeichen danach (das Skript meldet „Notbetrieb seit“). Hinweis „Fühler nicht am Plug“ statt eigener Warnung.
 
+- **Nachtragen gebaut (BSM-020, 0.8.67):** Skript Version 4 schreibt beim ersten Lebenszeichen nach dem Notbetrieb die
+  angefangene Stunde ins Stundenbuch; die Integration holt es in der Runde danach ab (`bb_*`, Stunden im Ausfall),
+  trägt es in die eigene Datenbank nach (`db/nachtrag.py`, Bauplan Datenbank Phase 7), rechnet die Tage neu und schreibt
+  „Notbetrieb … nachgetragen: … h, … kWh“ ins Protokoll. Begann der Notbetrieb ohne Uhrzeit (Skript meldet 1), gibt es
+  kein Stundenbuch: Protokoll „ohne Uhrzeit – Verbrauch als Summe bei der Rückkehr“.
+
 Offen: Gerätepasswort als `!secret`, falls je eins gesetzt wird.
 
 ## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut

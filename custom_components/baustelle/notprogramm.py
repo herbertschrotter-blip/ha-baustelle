@@ -37,6 +37,9 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, ROLLE_HEIZKOERPER
+from .db import DATA_DB
+from .db.nachtrag import nachtragen
+from .db.tage import async_tage_rechnen
 from .logik import notprogramm as logik
 from .logik.arbeitszeit import ausnahme_am, bedarf_fenster, frei_gilt
 
@@ -56,6 +59,7 @@ WARTEN_S = 2.0        # nach dem Start, bis der Endpunkt `hb` antwortet
 TIMEOUT_S = 10
 OHNE_ANTWORT_S = 3
 OBJ_TEMPERATUR, OBJ_FENSTER = 69, 45
+OHNE_UHRZEIT = 1_000_000_000   # „Notbetrieb seit“ kleiner: begann ohne Uhrzeit (das Skript meldet dann 1)
 
 
 class PlugFehler(Exception):
@@ -132,6 +136,7 @@ class Stand:
     cfg: dict[str, Any] = field(default_factory=dict)   # was im Plug gilt (Modus, Frost, Toleranz …)
     soll: float | None = None
     notbetrieb_zuletzt: tuple[datetime, datetime] | None = None
+    nachtrag_offen: tuple[int, int] | None = None   # Notbetrieb (Unix-Sekunden von, bis), dessen Stundenbuch noch fehlt
     geschrieben: dict[str, str] | None = field(default=None, repr=False)
     geprueft_aus: bool = False
 
@@ -353,6 +358,7 @@ class Notprogramm:
         stand.geprueft_aus = False
         skript_id = await self._async_skript(plug, stand)
         stand.skript_id = skript_id
+        nachtrag = stand.nachtrag_offen   # erst in der nächsten Runde: das Skript schreibt die angefangene Stunde nach dem Lebenszeichen
         antwort = await plug.hb(skript_id)
         self._notbetrieb_vorbei(g, stand, int(antwort.get("nb") or 0))
         if antwort.get("v") != self._skript[0]:
@@ -381,11 +387,50 @@ class Notprogramm:
         stand.notbetrieb, stand.zuletzt = 0, dt_util.utcnow()   # das Lebenszeichen hat den Notbetrieb gerade beendet
         stand.bis, stand.cfg = logik.gueltig_bis(werte), json.loads(werte["bs_cfg"])
         stand.soll = cast("Heizung", self.st.funktion("heizung")).soll_temperatur(g.bereich)
+        if nachtrag is not None:
+            await self._async_nachtragen(g, plug, stand, nachtrag)
+
+    async def _kvs(self, plug: Plug, muster: str) -> dict[str, str]:
+        """KVS-Werte nach Muster, seitenweise wie das Gerät sie liefert."""
+        raus: dict[str, str] = {}
+        offset = 0
+        while True:
+            r = await plug.rpc("KVS.GetMany", {"match": muster, "offset": offset})
+            teile = r.get("items") or []
+            raus.update({str(k["key"]): str(k.get("value") or "") for k in teile})
+            offset += len(teile)
+            if not teile or offset >= int(r.get("total") or offset):
+                return raus
+
+    async def _async_nachtragen(self, g: GeraetInfo, plug: Plug, stand: Stand, ausfall: tuple[int, int]) -> None:
+        """Stundenbuch nach einem Notbetrieb in die eigene Datenbank (BSM-020); bleibt offen, bis es geklappt hat."""
+        db = self.hass.data.get(DATA_DB)
+        if db is None or not db.bereit:
+            return
+        von, bis = ausfall
+        stunden = logik.im_ausfall(logik.buch_lesen(await self._kvs(plug, "bb_*")), von, bis)
+        zone, bid = dt_util.get_default_time_zone(), self.st.entry.entry_id
+        erg = await db.async_ausfuehren(lambda v: nachtragen(v, bid, g.id, g.bereich, stunden, dt_util.utc_from_timestamp(von),
+                                                             dt_util.utc_from_timestamp(bis), zone))
+        if erg is None:
+            return
+        db.geschrieben()
+        stand.nachtrag_offen = None
+        if erg.tage:
+            await async_tage_rechnen(db, self.st, list(erg.tage))
+        if erg.stunden:
+            self.st.protokoll("einstellung", g.bereich, f"Notbetrieb {g.name} nachgetragen: {erg.stunden} h aus dem Stundenbuch, "
+                              f"{erg.wh / 1000:.2f} kWh, {erg.sekunden_ein / 3600:.1f} h eingeschaltet".replace(".", ","))
 
     def _notbetrieb_vorbei(self, g: GeraetInfo, stand: Stand, seit: int) -> None:
         """Meldet das Skript „Notbetrieb seit …“, war HA so lange weg: ins Protokoll (Bauplan §9) und merken."""
         if not seit:
             return
+        if seit < OHNE_UHRZEIT:   # Notbetrieb begann ohne Uhrzeit: kein Stundenbuch, der Verbrauch zählt als Summe bei der Rückkehr
+            self.st.protokoll("warnung", g.bereich, f"Notbetrieb {g.name} bis {dt_util.now():%H:%M} – ohne Uhrzeit begonnen: "
+                              "kein Stundenbuch, der Verbrauch zählt als Summe bei der Rückkehr")
+            return
+        stand.nachtrag_offen = (seit, int(dt_util.utcnow().timestamp()))
         von, bis = dt_util.as_local(dt_util.utc_from_timestamp(seit)), dt_util.now()
         stand.notbetrieb_zuletzt = (von, bis)
         minuten = max(1, round((bis - von).total_seconds() / 60))

@@ -16,7 +16,7 @@
 // Grenzen am Gerät (BSM-013): höchstens 5 gleichzeitige Aufrufe je Skript – hier höchstens zwei; Arbeitsspeicher
 // für alle Skripte zusammen knapp (Plug S Gen3) – Fenster als Zahlenlisten, keine großen Objekte.
 
-let VERSION = 3;
+let VERSION = 4;
 let HB_MAX_MIN = 15;        // Minuten ohne Lebenszeichen → Notbetrieb (gezählt, braucht keine Uhrzeit)
 let FUEHLER_MAX_S = 1800;   // älterer Fühlerwert gilt als weg → im Thermostat wie Zeitplan
 let TASTE_S = 3600;         // Taste: 1 h heizen
@@ -93,20 +93,23 @@ function schalten(soll) {
   Shelly.call("Switch.Set", { id: 0, on: soll });
 }
 
-// Stundenbuch: je Stunde Wh, Minuten ein, Ø Temperatur*10, Tür offen in s – geschrieben beim Stundenwechsel
+// Stundenbuch: je Stunde Wh, Minuten ein, Ø Temperatur*10, Tür offen in s – geschrieben beim Stundenwechsel und, für
+// die angefangene Stunde, beim ersten Lebenszeichen nach dem Notbetrieb (HA trägt es danach nach, BSM-020)
+function stundeAbschliessen(e) {
+  let eintrag = bStunde + "," + Math.round(e - bE0) + "," + Math.round(bSek / 60) + "," + (bTn ? Math.round(bTs / bTn * 10) : "") + "," + bTuer;
+  let key = "bb_" + (Math.floor(bStunde / 6) % BUCH_N), block = Math.floor(bStunde / 6);
+  Shelly.call("KVS.Get", { key: key }, function (r) {
+    let alt = r && r.value ? r.value.split(";") : [];
+    if (alt.length && Math.floor(JSON.parse(alt[0].split(",")[0]) / 6) !== block) alt = [];   // Ring: alter Block
+    alt.push(eintrag);
+    Shelly.call("KVS.Set", { key: key, value: alt.join(";") });
+  });
+  bSek = 0; bTs = 0; bTn = 0; bTuer = 0;
+}
+
 function buchen(t) {
   let sw = Shelly.getComponentStatus("switch", 0), e = sw.aenergy ? sw.aenergy.total : 0, h = Math.floor(t / 3600);
-  if (bStunde && h !== bStunde) {
-    let eintrag = bStunde + "," + Math.round(e - bE0) + "," + Math.round(bSek / 60) + "," + (bTn ? Math.round(bTs / bTn * 10) : "") + "," + bTuer;
-    let key = "bb_" + (Math.floor(bStunde / 6) % BUCH_N), block = Math.floor(bStunde / 6);
-    Shelly.call("KVS.Get", { key: key }, function (r) {
-      let alt = r && r.value ? r.value.split(";") : [];
-      if (alt.length && Math.floor(JSON.parse(alt[0].split(",")[0]) / 6) !== block) alt = [];   // Ring: alter Block
-      alt.push(eintrag);
-      Shelly.call("KVS.Set", { key: key, value: alt.join(";") });
-    });
-    bSek = 0; bTs = 0; bTn = 0; bTuer = 0;
-  }
+  if (bStunde && h !== bStunde) stundeAbschliessen(e);
   if (!bStunde || h !== bStunde) { bStunde = h; bE0 = e; }
   if (sw.output) bSek += 60;
   let temp = cfg ? wert(cfg.t) : null;
@@ -130,6 +133,7 @@ HTTPServer.registerEndpoint("hb", function (req, res) {
   res.code = 200;
   res.body = JSON.stringify({ v: VERSION, programm: cfg ? cfg.v : null, fenster: fen.length, nb: nbSeit, taste: taste });
   res.send();
+  if (nbSeit && bStunde) { let sw = Shelly.getComponentStatus("switch", 0); stundeAbschliessen(sw.aenergy ? sw.aenergy.total : 0); bStunde = 0; }
   still = 0; nbSeit = 0;
   if (req.query && req.query.indexOf("neu") >= 0) laden();
 });

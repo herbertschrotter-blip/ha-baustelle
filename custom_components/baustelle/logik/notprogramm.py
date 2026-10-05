@@ -197,3 +197,36 @@ def kopplungen(gewollt: Mapping[str, tuple[str, str]], geraete: Mapping[str, tup
             if sa == a and obj in MESSWERT and alt != f"{name}_{MESSWERT[obj]}":
                 namen.append(Kopplung("sensor_name", a, nr, obj, f"{name}_{MESSWERT[obj]}"))
     return weg + neu + namen
+
+
+# ---------------------------------------------------------------------- Stundenbuch nach einem Ausfall (BSM-020)
+@dataclass(frozen=True)
+class BuchStunde:
+    """Eine Stunde aus dem Stundenbuch des Plugs (`bb_<n>` = „stunde,wh,min_ein,temp*10,tuer_s;…“)."""
+
+    stunde: int                 # Unix-Stunde (Sekunden / 3600)
+    wh: float
+    min_ein: int
+    temperatur: float | None
+    tuer_s: int
+
+
+def buch_lesen(werte: Mapping[str, str]) -> list[BuchStunde]:
+    """Alle Stunden aus den `bb_*`-Werten, nach Zeit sortiert; kaputte Teile fallen weg, doppelte Stunden: die letzte."""
+    stunden: dict[int, BuchStunde] = {}
+    for k, w in werte.items():
+        if not k.startswith("bb_") or not w:
+            continue
+        for teil in w.split(";"):
+            x = teil.split(",")
+            try:
+                stunden[int(x[0])] = BuchStunde(int(x[0]), max(0.0, float(x[1])), max(0, int(x[2])),
+                                                float(x[3]) / 10 if x[3] else None, max(0, int(x[4])))
+            except (IndexError, ValueError):
+                continue
+    return [stunden[h] for h in sorted(stunden)]
+
+
+def im_ausfall(buch: Iterable[BuchStunde], von: int, bis: int) -> list[BuchStunde]:
+    """Die Stunden, die in den Notbetrieb von `von` bis `bis` (Unix-Sekunden) fallen."""
+    return [s for s in buch if s.stunde * 3600 < bis and (s.stunde + 1) * 3600 > von]

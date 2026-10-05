@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.67] – 2026-10-06
+
+- Notprogramm: Nach einem Ausfall trägt die Integration das Stundenbuch der Plugs in die eigene Datenbank nach (BSM-020).
+  Je Stunde des Notbetriebs stehen dann Energie, Heizzeit, Temperatur und Tür offen in den Auswertungen, die Tage werden
+  neu gerechnet. War nur der Plug nicht erreichbar, wird der Zählersprung bei der Rückkehr um das Nachgetragene gekürzt
+  (nicht doppelt gezählt); war Home Assistant aus, füllen die Stunden die Lücke. Im Protokoll steht „Notbetrieb …
+  nachgetragen: … h, … kWh“; begann der Notbetrieb ohne Uhrzeit, steht dort, dass der Verbrauch als Summe zählt.
+- Skript Version 4: schreibt beim ersten Lebenszeichen nach dem Notbetrieb die angefangene Stunde ins Stundenbuch.
+
 ## [0.8.66] – 2026-10-05
 
 - Notprogramm auf der Seite (BSM-019): neue Gruppe Einstellungen › 🛟 Notprogramm mit Schalter, „Jetzt prüfen“ und je

@@ -98,7 +98,7 @@ function mitFuehler(wert) { return (p) => fuehler(p, 202, typeof wert === 'funct
 fall('Programm wird beim Start mit einem Aufruf geladen', () => {
   const p = plug({ kvs: { ...GRUND, bs_p1: fenster([30, 42, 21]), anderes: 'x' } });
   const a = p.hb();
-  gleich([a.v, a.programm, a.fenster], [3, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
+  gleich([a.v, a.programm, a.fenster], [4, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
   gleich(p.maxOffen, 1, 'gleichzeitige Aufrufe beim Laden');
   return p;
 });
@@ -301,12 +301,28 @@ fall('Stundenbuch: eine Woche Notbetrieb, Werte ≤ 253 Zeichen, Ring', () => {
   return p;
 });
 
+fall('Rückkehr von HA: angefangene Stunde kommt beim ersten Lebenszeichen ins Buch', () => {
+  const p = plug({ kvs: { ...GRUND, bs_cfg: cfg({ m: 'plan' }) }, uhr: T0 + 7 * 3600 });
+  p.hb(); p.minuten(16 + 60 + 25);          // Notbetrieb ab 07:16, 08:00 Stundenwechsel, jetzt 08:41
+  const h8 = Math.floor(T0 / 3600) + 8;
+  const vorher = Object.values(p.kvs).filter(v => String(v).includes(h8 + ',')).length;
+  gleich(vorher, 0, 'Stunde 8 noch nicht im Buch');
+  gleich(p.hb().nb > 0, true, 'Antwort nennt den Notbetrieb');
+  const zeile = Object.values(p.kvs).join(';').split(';').find(z => z.startsWith(h8 + ','));
+  gleich(!!zeile, true, 'Stunde 8 nach dem Lebenszeichen im Buch');
+  gleich(+zeile.split(',')[2], 42, 'Minuten ein in der angefangenen Stunde (Takte 08:00 … 08:41)');
+  const n = JSON.stringify(p.kvs); p.hb(); p.minuten(10); for (let i = 0; i < 3; i++) { p.hb(); p.minuten(5); }
+  gleich(JSON.stringify(p.kvs), n, 'danach schreibt es nichts mehr');
+  return p;
+});
+
 fall('Rückkehr von HA: Buch bleibt, nichts wird mehr geschrieben', () => {
   const p = plug({ kvs: GRUND });
   p.hb(); p.minuten(3 * 60);
-  const vorher = JSON.stringify(p.kvs);
   if (!Object.keys(p.kvs).some(k => k.startsWith('bb_'))) throw new Error('kein Stundenbuch im Notbetrieb');
-  for (let i = 0; i < 36; i++) { p.hb(); p.minuten(5); }
+  p.hb();                                   // schreibt die angefangene Stunde
+  const vorher = JSON.stringify(p.kvs);
+  for (let i = 0; i < 36; i++) { p.minuten(5); p.hb(); }
   gleich(JSON.stringify(p.kvs), vorher, 'Speicher mit HA unverändert');
   return p;
 });

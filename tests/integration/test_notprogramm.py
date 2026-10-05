@@ -338,3 +338,89 @@ async def test_notbetrieb_ins_protokoll_und_warnung(hass: HomeAssistant, anlage,
     await np.async_runde()
     st.auswerten(); await hass.async_block_till_done()
     assert not [w for w in st.daten.warnungen if w.art == "notprogramm"]
+
+
+async def test_stundenbuch_nachtragen(hass: HomeAssistant, anlage, freezer) -> None:
+    """BSM-020: HA lief, der Plug war 3 h nicht erreichbar (Notbetrieb) – Stundenbuch nachtragen, Sprung kürzen, Tage neu."""
+    from datetime import timedelta
+    from sqlalchemy import insert, select
+    from custom_components.baustelle.db import DATA_DB, schema as s
+    entry, np, plugs = anlage
+    st, db, p1 = entry.runtime_data, hass.data[DATA_DB], plugs["plug1"]
+    hk1 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk1")
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    jetzt = dt_util.utcnow().replace(second=0, microsecond=0)
+    von = jetzt - timedelta(hours=3, minutes=10)
+    # was HA in der Zeit geschrieben hat: Minuten ohne Verbindung, danach die erste erreichbare mit dem ganzen Zählersprung
+    zeilen = [dict(geraet_id=hk1, zeit=von + timedelta(minutes=i), baustelle_id=entry.entry_id, dauer_s=60, sekunden_ein=0,
+                   energie_wh=None, erreichbar=False, quelle="ha") for i in range(190)]
+    zeilen.append(dict(geraet_id=hk1, zeit=jetzt, baustelle_id=entry.entry_id, dauer_s=60, sekunden_ein=60, energie_wh=2500.0,
+                       erreichbar=True, quelle="ha"))
+    await db.async_ausfuehren(lambda v: v.execute(insert(s.geraet_minute), zeilen))
+    # Stundenbuch im Plug: je Stunde 500 Wh, 30 min ein, 21,0 °C
+    stunden = range(int(von.timestamp()) // 3600, int(jetzt.timestamp()) // 3600 + 1)
+    for h in stunden:
+        k = f"bb_{(h // 6) % 28}"
+        p1.kvs[k] = ";".join(x for x in [p1.kvs.get(k, ""), f"{h},500,30,210,0"] if x)
+    p1.nb = int(von.timestamp())
+    await np.async_runde()   # erkennt den Notbetrieb (Protokoll), trägt erst in der nächsten Runde nach
+    assert np.stand[hk1].nachtrag_offen is not None
+    await np.async_runde()
+    assert np.stand[hk1].nachtrag_offen is None
+
+    def lesen(v):
+        gm, tg = s.geraet_minute, s.tag_geraet
+        nach = list(v.execute(select(gm.c.zeit, gm.c.energie_wh, gm.c.sekunden_ein, gm.c.dauer_s).where(gm.c.geraet_id == hk1, gm.c.quelle == "notprogramm")))
+        ohne = v.execute(select(gm.c.zeit).where(gm.c.geraet_id == hk1, gm.c.erreichbar.is_(False))).all()
+        sprung = v.execute(select(gm.c.energie_wh).where(gm.c.geraet_id == hk1, gm.c.zeit == jetzt)).scalar()
+        tag = v.execute(select(tg.c.kwh, tg.c.heizzeit_min).where(tg.c.geraet_id == hk1)).all()
+        return nach, ohne, sprung, tag
+    nach, ohne, sprung, tag = await db.async_ausfuehren(lesen)
+    assert len(nach) == len(stunden) == 4 and all(z.energie_wh == 500 and z.sekunden_ein == 1800 for z in nach)
+    assert ohne == []                                # Minuten ohne Verbindung durch die Stunden ersetzt
+    assert sprung == 500.0                           # 2500 Wh Sprung − 2000 Wh nachgetragen (die letzte Stunde liegt danach)
+    assert tag and abs(sum(t.kwh for t in tag) - (4 * 0.5 + 0.5)) < 0.01   # Tagessumme neu: 2,0 kWh Stunden + 0,5 kWh Rest
+    texte = [e[3] for e in st.einstellungen.daten["protokoll"]]
+    assert any("nachgetragen: 4 h aus dem Stundenbuch, 2,00 kWh" in t for t in texte), texte[:3]
+
+    await np.async_runde()   # noch einmal: nichts doppelt
+    assert len((await db.async_ausfuehren(lesen))[0]) == 4
+
+
+async def test_notbetrieb_ohne_uhrzeit(hass: HomeAssistant, anlage) -> None:
+    entry, np, plugs = anlage
+    st = entry.runtime_data
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    plugs["plug1"].nb = 1   # das Skript meldet 1, wenn der Notbetrieb ohne Uhrzeit begann
+    await np.async_runde()
+    texte = [e[3] for e in st.einstellungen.daten["protokoll"]]
+    assert any("ohne Uhrzeit begonnen" in t and "als Summe" in t for t in texte)
+    assert all(s.nachtrag_offen is None for s in np.stand.values())
+
+
+async def test_stundenbuch_nach_ha_aus(hass: HomeAssistant, anlage) -> None:
+    """HA war aus: keine Minuten in der Zeit, nichts zu kürzen – die Stunden füllen die Lücke."""
+    from datetime import timedelta
+    from sqlalchemy import select
+    from custom_components.baustelle.db import DATA_DB, schema as s
+    entry, np, plugs = anlage
+    st, db, p1 = entry.runtime_data, hass.data[DATA_DB], plugs["plug1"]
+    hk1 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk1")
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    jetzt = dt_util.utcnow()
+    h = int((jetzt - timedelta(hours=2)).timestamp()) // 3600
+    p1.kvs["bb_27"] = "1,9,9,9,9"   # alter Block, liegt außerhalb des Ausfalls
+    p1.kvs[f"bb_{(h // 6) % 28}"] = f"{h},400,40,190,120;{h + 1},300,20,195,0" if (h + 1) // 6 == h // 6 else f"{h},400,40,190,120"
+    if (h + 1) // 6 != h // 6:
+        p1.kvs[f"bb_{((h + 1) // 6) % 28}"] = f"{h + 1},300,20,195,0"
+    p1.nb = h * 3600 + 600
+    await np.async_runde(); await np.async_runde()
+    zeilen = await db.async_ausfuehren(lambda v: v.execute(select(s.geraet_minute.c.energie_wh, s.geraet_minute.c.quelle)
+                                                              .where(s.geraet_minute.c.geraet_id == hk1)).all())
+    assert sorted(z.energie_wh for z in zeilen if z.quelle == "notprogramm") == [300.0, 400.0]
+    temp = await db.async_ausfuehren(lambda v: v.execute(select(s.bereich_minute.c.temperatur, s.bereich_minute.c.tuer_offen_s)
+                                                            .where(s.bereich_minute.c.quelle == "notprogramm")).all())
+    assert sorted(t.temperatur for t in temp) == [19.0, 19.5] and sum(t.tuer_offen_s for t in temp) == 120
