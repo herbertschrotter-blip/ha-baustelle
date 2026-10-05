@@ -29,7 +29,6 @@ import pytest
 
 from homeassistant.components.calendar import (  # noqa: PLC2701
     DATA_COMPONENT as KALENDER,
-    _api_event_dict_factory,
     CalendarEntity,
     CalendarEntityFeature,
     CalendarEvent,
@@ -38,6 +37,20 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers.json import json_dumps
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
+
+
+def _api_event_dict_factory(obj: Any) -> dict[str, Any]:
+    """Termin wie `GET /api/calendars/<id>` (nachgebildet: die gleichnamige Funktion in HA ist intern und fehlt in
+    älteren Versionen – GitHub-Prüflauf)."""
+    ergebnis: dict[str, Any] = {}
+    for name, wert in obj:
+        if isinstance(wert, datetime):
+            ergebnis[name] = {"dateTime": dt_util.as_local(wert).isoformat()}
+        elif isinstance(wert, date):
+            ergebnis[name] = {"date": wert.isoformat()}
+        else:
+            ergebnis[name] = wert
+    return ergebnis
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.baustelle.const import DOMAIN
