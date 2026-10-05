@@ -132,6 +132,15 @@ const hov = wo => { let t = ''; const alt = panel.tip; panel.tip = (e, h) => { t
   const einmal = [...quelle.matchAll(/^(\.[a-z][\w-]*(?: [.\w-]+)?) \{[^}\n]*animation: (?:rein|seite|wachsen) [^}\n]*\}/gm)].map(m => m[1]).filter(k => !k.startsWith('.seite'));
   const fehlt = einmal.filter(k => !still.includes(`.still ${k}`));
   erwarte(`kein Flackern beim Neuzeichnen – ohne .still-Regel: ${fehlt.join(', ')}`, einmal.length > 3 && !fehlt.length); }
+/* FE-0022: Abschnitte des CSS (Kommentar am Zeilenanfang) liegen auf oberster Ebene – nicht versehentlich in einem
+   @media-Block, sonst gelten sie nur am Handy (Kacheln, Staffel-Rangliste, Soll gleitend … fehlten am PC) */
+{ const quelle = fs.readFileSync(datei, 'utf8'), css = (quelle.match(/const GLAS_CSS = `([\s\S]*?)\n`;/) || [, ''])[1];
+  let tiefe = 0; const drin = [];
+  for (const zeile of css.split('\n')) {
+    if (zeile.startsWith('/*') && tiefe > 0) drin.push(zeile.slice(0, 50));
+    for (const z of zeile.replace(/\/\*.*?\*\//g, '')) tiefe += z === '{' ? 1 : z === '}' ? -1 : 0;
+  }
+  erwarte(`CSS-Abschnitte auf oberster Ebene (in @media eingeschlossen: ${drin.join(' | ')})`, css.length > 1000 && tiefe === 0 && !drin.length); }
 const HZ_KACHELN = [['heute'], ['plan'], ['wann'], ['container'], ['az'], ['ausn'], ['regeln'], ['trocknen'], ['urlaub']];
 const ANSICHTEN = ['uebersicht', 'heizung', 'pumpen', 'auswertung', 'verlauf', 'einst', 'ueber', 'dev'];
 const EINBLENDUNGEN = ['verbrauch', 'wetter', 'warnungen', 'baustellen', 'heizplan', 'strom', 'nachrichten', 'bericht', 'container-neu', 'abschliessen', 'urlaub', 'wetterquelle', 'name', 'baustelle-neu', 'termin', 'zeitraum-bs'];

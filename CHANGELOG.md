@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.51] – 2026-10-05
+
+- Am PC fehlte die Gestaltung mehrerer Teile (FE-0022): Ein Block für schmale Bildschirme war nicht geschlossen; das
+  CSS dahinter galt nur am Handy. Betroffen am PC: „Meine Kacheln“ (Inhalt zu groß, zum Scrollen), Vergleich-Kacheln,
+  Preis simulieren, Staffel-Rangliste, Bilder zur Meldung, mehrere Zeitfenster, Soll gleitend (zu kalt / passt / zu
+  warm) und Regeln nach Tagesablauf. Der Panel-Test prüft das jetzt.
+
 ## [0.8.50] – 2026-10-05
 
 - „Wärmer je Grad kälter draußen“ ließ sich nur erhöhen (FE-0021): Die −/+-Knöpfe rundeten auf 0,1 – bei 0,05er-Schritten
