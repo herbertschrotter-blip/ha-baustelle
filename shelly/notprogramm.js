@@ -10,7 +10,7 @@
 //           t/d = Komponenten-Nr. des BLU H&T bzw. Türsensors (bthomesensor:<nr>, null = keiner), tp = Tür-Pause (min)
 //   bs_p0 … bs_p6  Fenster als Unix-Sekunden „start,ende,soll;start,ende,soll“ (UTC – keine Zeitzonen im Gerät)
 // Lebenszeichen: HA ruft alle 5 min  http://<plug>/script/<id>/hb  auf (nur im RAM, schont den Speicher).
-// Stundenbuch (schreibt das Skript, nur im Notbetrieb): bs_b<n> = „stunde,wh,min_ein,temp*10,tuer_s;…“ (6 h je Schlüssel)
+// Stundenbuch (schreibt das Skript, nur im Notbetrieb): bb_<n> = „stunde,wh,min_ein,temp*10,tuer_s;…“ (6 h je Schlüssel)
 
 let HB_MAX_S = 15 * 60;        // so lange ohne Lebenszeichen, dann übernimmt das Skript
 let FUEHLER_MAX_S = 30 * 60;   // älter = Fühler weg → im Thermostat zurück auf Zeitplan
@@ -22,19 +22,24 @@ let buch = { stunde: 0, wh: 0, sek: 0, tsum: 0, tn: 0, tuer: 0, e0: null };
 
 function jetzt() { let s = Shelly.getComponentStatus("sys"); return s && s.unixtime ? s.unixtime : 0; }   // 0 = keine Uhrzeit
 
+// Ein Aufruf für alles (BSM-013: mehrere KVS.Get gleichzeitig → „Too many calls in progress“)
 function laden() {
-  Shelly.call("KVS.Get", { key: "bs_cfg" }, function (r) { if (r && r.value) cfg = JSON.parse(r.value); });
-  fenster = [];
-  for (let i = 0; i < 7; i++) {
-    Shelly.call("KVS.Get", { key: "bs_p" + i }, function (r) {
-      if (!r || !r.value) return;
-      let teile = r.value.split(";");
-      for (let k = 0; k < teile.length; k++) {
-        let f = teile[k].split(",");
-        if (f.length === 3) fenster.push({ s: JSON.parse(f[0]), e: JSON.parse(f[1]), soll: JSON.parse(f[2]) });
+  Shelly.call("KVS.GetMany", { match: "bs_*" }, function (r) {
+    if (!r || !r.items) return;
+    let liste = r.items, f2 = [], neuCfg = null;
+    for (let i = 0; i < liste.length; i++) {
+      let k = liste[i].key, w = liste[i].value;
+      if (k === "bs_cfg") neuCfg = JSON.parse(w);
+      else if (k.indexOf("bs_p") === 0 && w) {
+        let teile = w.split(";");
+        for (let j = 0; j < teile.length; j++) {
+          let f = teile[j].split(",");
+          if (f.length === 3) f2.push({ s: JSON.parse(f[0]), e: JSON.parse(f[1]), soll: JSON.parse(f[2]) });
+        }
       }
-    });
-  }
+    }
+    cfg = neuCfg; fenster = f2;
+  });
 }
 
 function sensor(nr) {   // {wert, alter_s} oder null – PRÜFEN: Status-Felder der BTHome-Komponente in Firmware 2.x
@@ -92,7 +97,7 @@ function buchen(t) {
   if (buch.stunde && stunde !== buch.stunde) {
     let eintrag = buch.stunde + "," + Math.round(sw.aenergy.total - buch.e0) + "," + Math.round(buch.sek / 60) + ","
       + (buch.tn ? Math.round(buch.tsum / buch.tn * 10) : "") + "," + buch.tuer;
-    let key = "bs_b" + (Math.floor(buch.stunde / 6) % BUCH_SCHLUESSEL);
+    let key = "bb_" + (Math.floor(buch.stunde / 6) % BUCH_SCHLUESSEL);
     Shelly.call("KVS.Get", { key: key }, function (r) {
       let alt = r && r.value ? r.value.split(";") : [];
       if (alt.length && Math.floor(JSON.parse(alt[0].split(",")[0]) / 6) !== Math.floor(buch.stunde / 6)) alt = [];   // Ring: alter Block

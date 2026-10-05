@@ -425,6 +425,14 @@ Entscheidungen:
   mehreren Plugs eines Containers gekoppelt sein (Poliercontainer: beide Plugs). `BTHome.AddDevice` arbeitet
   verzögert – nachsehen statt auf die Antwort warten.
 
+- **Erprobt an Plug 002-01 (BSM-013, 05.10.2026, Trockenlauf ohne Schalten):** Skript-Speicher 1,5 KB, Spitze 4,6 KB,
+  ≈ 5,5 KB frei neben dem Bluetooth-Skript von HA; höchstens wenige gleichzeitige Aufrufe je Skript („Too many calls in
+  progress“) → Programm mit **einem** `KVS.GetMany` (`bs_*`) laden, Stundenbuch unter eigenem Präfix `bb_`; KVS-Werte
+  **höchstens 253 Zeichen** (≈ 9 Fenster je Schlüssel), **höchstens 50 Schlüssel** je Plug (gebraucht: 1 + 7 + 28);
+  BTHome-Messwert `bthomesensor:<nr>` liefert `value` und `last_updated_ts` – der BLU H&T wurde gelesen und die
+  Entscheidung stimmte (Soll 23,0, innen 22,5 → würde einschalten). Offen: Ereignis der Taste (braucht einen
+  Tastendruck vor Ort, schaltet heute das Relais) und Übertragung mit Wartezeit nach dem Hochladen.
+
 Offen vor dem Bau: Übertragung (Shelly-RPC über HTTP: KVS, Script.PutCode; Gerätepasswort als `!secret`), Skript im Repo
 mit Simulationstest in Node, Anzeige „Notbetrieb“ im Protokoll und auf der Seite.
 
