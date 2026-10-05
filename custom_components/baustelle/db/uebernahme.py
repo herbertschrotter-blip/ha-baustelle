@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from .verbindung import Datenbank
 
 _LOGGER = logging.getLogger(__name__)
-UEBERNAHME_VERSION = 2   # 2: Meldungen, Wetter aus den eigenen Sensoren (läuft auf dem Pi einmal neu)
+UEBERNAHME_VERSION = 3   # 2: Meldungen, Wetter aus den eigenen Sensoren; 3: sekunden_strom (läuft jeweils einmal neu)
 VERLAUF_TAGE = 62
 NICHT_IN_EINSTELLUNGEN = {"protokoll", "meldungen", "laufzeit", "zaehler"}
 
@@ -137,12 +137,13 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
     verlauf = await _verlauf(hass, sorted(set(ids + wetter_ids)), start_verlauf, bis) if start_verlauf < bis else {}
 
     geraet_zeilen: list[dict[str, Any]] = []
+    zieht = float(st.e.get("heizung", {}).get("zieht_strom_w") or 50)
     for gid, g in st.geraete.items():
         v = GeraetVerlauf(_an(verlauf.get(g.schalter, [])), _zahlen(verlauf.get(g.leistung or "", [])),
                           _zahlen(verlauf.get(g.energie or "", [])), mit_zaehler=bool(g.energie))
-        for beginn_m, m in nachspielen_geraet(v, start_verlauf, bis):
+        for beginn_m, m in nachspielen_geraet(v, start_verlauf, bis, zieht):
             geraet_zeilen.append({"geraet_id": gid, "zeit": beginn_m, "baustelle_id": bid, "dauer_s": m.dauer_s,
-                                  "sekunden_ein": m.sekunden_ein, "leistung_w": m.leistung_w, "leistung_w_max": m.leistung_w_max,
+                                  "sekunden_ein": m.sekunden_ein, "sekunden_strom": m.sekunden_strom, "leistung_w": m.leistung_w, "leistung_w_max": m.leistung_w_max,
                                   "energie_wh": m.energie_wh, "zaehlerstand_kwh": m.zaehlerstand_kwh, "erreichbar": m.erreichbar,
                                   "quelle": "import_verlauf"})
     bereich_zeilen: list[dict[str, Any]] = []
@@ -178,6 +179,7 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
             t = _zeit(p["start"])
             if art == "g":
                 geraet_zeilen.append({"geraet_id": wessen, "zeit": t, "baustelle_id": bid, "dauer_s": 3600, "sekunden_ein": None,
+                                      "sekunden_strom": None,
                                       "leistung_w": None, "leistung_w_max": None,
                                       "energie_wh": None if p.get("change") is None else round(float(p["change"]) * 1000, 3),
                                       "zaehlerstand_kwh": p.get("state"), "erreichbar": None, "quelle": "import_statistik"})

@@ -56,9 +56,11 @@ def tag_rechnen(v: Connection, r: TagRahmen, tag: date) -> tuple[int, int]:
     von, bis = _grenzen(tag, r.zone)
     gm, bm, wm = s.geraet_minute, s.bereich_minute, s.wetter_minute
     je_geraet: dict[str, list[GeraetZeile]] = defaultdict(list)
-    for z in v.execute(select(gm.c.geraet_id, gm.c.zeit, gm.c.dauer_s, gm.c.sekunden_ein, gm.c.leistung_w_max, gm.c.energie_wh)
+    for z in v.execute(select(gm.c.geraet_id, gm.c.zeit, gm.c.dauer_s, gm.c.sekunden_ein, gm.c.leistung_w_max, gm.c.energie_wh,
+                              gm.c.sekunden_strom)
                        .where(gm.c.baustelle_id == r.baustelle_id, gm.c.zeit >= von, gm.c.zeit < bis).order_by(gm.c.zeit)):
-        je_geraet[z.geraet_id].append(GeraetZeile(_utc(z.zeit), z.dauer_s, z.sekunden_ein, z.leistung_w_max, z.energie_wh))
+        je_geraet[z.geraet_id].append(GeraetZeile(_utc(z.zeit), z.dauer_s, z.sekunden_ein, z.leistung_w_max, z.energie_wh,
+                                                  z.sekunden_strom))
     je_bereich: dict[str, list[BereichZeile]] = defaultdict(list)
     for z in v.execute(select(bm.c.bereich_id, bm.c.zeit, bm.c.dauer_s, bm.c.temperatur)
                        .where(bm.c.baustelle_id == r.baustelle_id, bm.c.zeit >= von, bm.c.zeit < bis).order_by(bm.c.zeit)):
@@ -130,8 +132,8 @@ async def async_tage_rechnen(db: Datenbank, st: Steuerung, tage: list[date]) -> 
     return erledigt or 0
 
 
-async def async_fehlende_tage(db: Datenbank, st: Steuerung) -> int:
-    """Nach dem Start: alle Tage seit dem frühesten Minutenwert ohne Tagessumme, dazu heute."""
+async def async_fehlende_tage(db: Datenbank, st: Steuerung, *, alle: bool = False) -> int:
+    """Nach dem Start: alle Tage seit dem frühesten Minutenwert ohne Tagessumme (mit `alle` jeden Tag), dazu heute."""
     bid = st.entry.entry_id
     zone = dt_util.get_default_time_zone()
     erste = await db.async_ausfuehren(lambda v: v.execute(
@@ -144,7 +146,7 @@ async def async_fehlende_tage(db: Datenbank, st: Steuerung) -> int:
         select(s.tag_bereich.c.datum).where(s.tag_bereich.c.baustelle_id == bid, s.tag_bereich.c.strom_min.is_not(None)).distinct())]) or [])
     tag, fehlen = dt_util.as_local(_utc(erste)).astimezone(zone).date(), []
     while tag <= heute:
-        if tag not in vorhanden or tag == heute:
+        if alle or tag not in vorhanden or tag == heute:
             fehlen.append(tag)
         tag += timedelta(days=1)
     for i in range(0, len(fehlen), 14):   # in Stücken, damit die Datenbank zwischendurch frei ist

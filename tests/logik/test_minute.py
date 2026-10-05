@@ -103,3 +103,17 @@ def test_nachspielen_bereich_mit_grund_und_teilminuten():
     assert minuten[0][1].temperatur == pytest.approx((18 * 10 + 20 * 20) / 30, abs=0.01)
     assert [g for _, _, g in minuten] == ["heizgrenze", "arbeitszeit", "arbeitszeit"]
     assert minuten[0][1].tuer_offen_s is None
+
+
+def test_sekunden_strom_eigener_thermostat():
+    """BSM-014: Relais an, der Heizkörper zieht aber nur zeitweise (eigener Thermostat) – nur diese Zeit zählt."""
+    g = GeraetSammler(T0, True, 0.0, None, mit_zaehler=False, zieht_w=50)
+    g.leistung(s(10), 1800.0)
+    g.leistung(s(40), 0.0)
+    m = g.abschliessen(s(60))
+    assert m.sekunden_ein == 60 and m.sekunden_strom == 30
+    g.schalter(s(70), False)                 # aus: zählt nicht, auch wenn die Leistung noch nicht 0 meldet
+    g.leistung(s(65), 1800.0)
+    assert g.abschliessen(s(120)).sekunden_strom <= 10
+    ohne = GeraetSammler(T0, True, None, None, mit_zaehler=False).abschliessen(s(60))
+    assert ohne.sekunden_strom == 60         # ohne Messung: wie eingeschaltet

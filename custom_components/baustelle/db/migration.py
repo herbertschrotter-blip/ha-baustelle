@@ -45,7 +45,13 @@ def _schritt_3(verbindung: Connection) -> None:
             verbindung.execute(text(f'ALTER TABLE "{tabelle}" ADD COLUMN strom_min FLOAT'))
 
 
-SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3}
+def _schritt_4(verbindung: Connection) -> None:
+    """Minuten bekommen die Sekunden mit Leistung über „zieht Strom“ (sekunden_strom) – die Übernahme füllt sie nach."""
+    if "sekunden_strom" not in {c["name"] for c in inspect(verbindung).get_columns("geraet_minute")}:
+        verbindung.execute(text('ALTER TABLE "geraet_minute" ADD COLUMN sekunden_strom INTEGER'))
+
+
+SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3, 4: _schritt_4}
 
 
 def stand(verbindung: Connection) -> int:

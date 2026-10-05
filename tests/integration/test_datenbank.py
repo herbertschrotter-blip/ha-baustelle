@@ -145,6 +145,7 @@ async def test_minutenwerte(hass: HomeAssistant, baustelle, freezer) -> None:
     erste, zweite = zeilen
     assert erste["sekunden_ein"] == 0 and erste["dauer_s"] == 60 and erste["erreichbar"] == 1
     assert zweite["sekunden_ein"] == 60 and zweite["leistung_w"] == pytest.approx(2000.0)
+    assert erste["sekunden_strom"] == 0 and zweite["sekunden_strom"] == 60   # Aufbau 4: zieht mehr als 50 W
     assert zweite["energie_wh"] == pytest.approx(2000 / 60, abs=0.01)   # ohne Energiezähler: aus der Leistung
     c1 = [r for r in _zeilen(hass, "bereich_minute") if r["bereich_id"] == C1]
     assert c1[0]["temperatur"] == pytest.approx(19.0) and c1[1]["temperatur"] == pytest.approx(20.0)
@@ -223,6 +224,7 @@ async def test_migration_von_aufbau_1(hass: HomeAssistant, freezer, shellys, nac
     assert pfad.with_name(f"baustelle.db.vor-{SCHEMA_VERSION}").exists()
     spalten = {z[1] for z in sqlite3.connect(pfad).execute("PRAGMA table_info(tag_bereich)")}
     assert "strom_min" in spalten   # Aufbau 3
+    assert "sekunden_strom" in {z[1] for z in sqlite3.connect(pfad).execute("PRAGMA table_info(geraet_minute)")}   # Aufbau 4
     assert any(r["id"] == "x" for r in _zeilen(hass, "instanz"))
     verbindung = sqlite3.connect(pfad)
     typen = {z[1]: z[2] for z in verbindung.execute("PRAGMA table_info(einstellung)")}

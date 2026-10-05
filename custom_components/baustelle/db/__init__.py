@@ -132,8 +132,8 @@ def uebernahme_planen(hass: HomeAssistant, st: Steuerung, bis: datetime) -> CALL
     from .uebernahme import async_uebernehmen   # noqa: PLC0415 – erst bei Bedarf (zieht den Recorder nach)
 
     async def los(_hass: HomeAssistant) -> None:
-        await async_uebernehmen(hass, db, st, bis)
+        neu = await async_uebernehmen(hass, db, st, bis)
         from .tage import async_fehlende_tage   # noqa: PLC0415
-        await async_fehlende_tage(db, st)   # Tagessummen für alle Tage, die noch fehlen (BSM-009)
+        await async_fehlende_tage(db, st, alle=neu is not None)   # Tagessummen (BSM-009); nach neuer Übernahme alle Tage
 
     return async_at_started(hass, los)

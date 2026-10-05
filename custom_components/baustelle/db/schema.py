@@ -26,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Dialect
 
-SCHEMA_VERSION = 3   # 2: JSON in SQLite als Text (BSM-007); 3: Tagessummen mit „tatsächlich geheizt“ (strom_min, BSM-014)
+SCHEMA_VERSION = 4   # 2: JSON als Text (BSM-007); 3: Tagessummen mit strom_min; 4: Minuten mit sekunden_strom (BSM-014)
 
 metadata = MetaData()
 
@@ -209,6 +209,7 @@ geraet_minute = Table(
     Column("baustelle_id", String(ID), nullable=False),
     Column("dauer_s", Integer, nullable=False, default=60),
     Column("sekunden_ein", Integer),
+    Column("sekunden_strom", Integer),   # Aufbau 4: davon Leistung über „zieht Strom“ (AN-0011)
     Column("leistung_w", Float),
     Column("leistung_w_max", Float),
     Column("energie_wh", Float),

@@ -91,24 +91,36 @@ class GeraetMinute:
     energie_wh: float | None
     zaehlerstand_kwh: float | None
     erreichbar: bool
+    sekunden_strom: int = 0   # eingeschaltet und Leistung über `zieht_w` (ohne Messung: wie eingeschaltet), AN-0011
 
 
 class GeraetSammler:
     """Schalter, Leistung und Energiezähler eines Shelly."""
 
-    def __init__(self, t: datetime, an: bool | None, leistung: float | None, stand: float | None, *, mit_zaehler: bool) -> None:
+    def __init__(self, t: datetime, an: bool | None, leistung: float | None, stand: float | None, *, mit_zaehler: bool,
+                 zieht_w: float = 50.0) -> None:
         self._start = t
         self._an = Zeitanteil(t, an)
         self._leistung = Zeitmittel(t, leistung)
+        self._zieht_w = zieht_w
+        self._an_jetzt, self._w_jetzt = an, leistung
+        self._strom = Zeitanteil(t, self._zieht())
         self._mit_zaehler = mit_zaehler
         self._stand = stand
         self._stand_alt, self._stand_alt_zeit = stand, (t if stand is not None else None)
 
+    def _zieht(self) -> bool:
+        return bool(self._an_jetzt) and (self._w_jetzt is None or self._w_jetzt > self._zieht_w)
+
     def schalter(self, t: datetime, an: bool | None) -> None:
         self._an.setzen(t, an)
+        self._an_jetzt = an
+        self._strom.setzen(t, self._zieht())
 
     def leistung(self, t: datetime, watt: float | None) -> None:
         self._leistung.setzen(t, watt)
+        self._w_jetzt = watt
+        self._strom.setzen(t, self._zieht())
 
     def zaehler(self, _t: datetime, kwh: float | None) -> None:
         if kwh is not None:
@@ -116,6 +128,7 @@ class GeraetSammler:
 
     def abschliessen(self, ende: datetime) -> GeraetMinute:
         ein, unbekannt = self._an.abschliessen(ende)
+        strom, _ = self._strom.abschliessen(ende)
         mittel, hoechst, wattsekunden = self._leistung.abschliessen(ende)
         energie: float | None
         if self._mit_zaehler:
@@ -133,7 +146,7 @@ class GeraetSammler:
         dauer = int(round((ende - self._start).total_seconds()))
         self._start = ende
         return GeraetMinute(dauer, int(round(ein)), None if mittel is None else round(mittel, 1),
-                            hoechst, None if energie is None else round(energie, 3), self._stand, not unbekannt)
+                            hoechst, None if energie is None else round(energie, 3), self._stand, not unbekannt, int(round(strom)))
 
 
 @dataclass(frozen=True)
@@ -205,12 +218,12 @@ def _minutengrenzen(start: datetime, ende: datetime) -> list[datetime]:
     return grenzen
 
 
-def nachspielen_geraet(v: GeraetVerlauf, start: datetime, ende: datetime) -> list[tuple[datetime, GeraetMinute]]:
+def nachspielen_geraet(v: GeraetVerlauf, start: datetime, ende: datetime, zieht_w: float = 50.0) -> list[tuple[datetime, GeraetMinute]]:
     """Verlauf eines Geräts als Minuten (Beginn, Werte) von `start` bis `ende` – wie beim Mitschreiben."""
     if not (v.schalter or v.leistung or v.zaehler):
         return []
     s = GeraetSammler(start, _stand_bei(v.schalter, start), _stand_bei(v.leistung, start), _stand_bei(v.zaehler, start),
-                      mit_zaehler=v.mit_zaehler)
+                      mit_zaehler=v.mit_zaehler, zieht_w=zieht_w)
     ereignisse = sorted([(t, 0, w) for t, w in v.schalter if start < t < ende] + [(t, 1, w) for t, w in v.leistung if start < t < ende]
                         + [(t, 2, w) for t, w in v.zaehler if start < t < ende], key=lambda e: (e[0], e[1]))
     ergebnis, i, beginn = [], 0, start

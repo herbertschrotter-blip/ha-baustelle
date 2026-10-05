@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.59",
+    "datum": "2026-10-05",
+    "punkte": [
+      "„Tatsächlich geheizt“ in der eigenen Datenbank genau wie in der Integration (BSM-014): Je Minute zählt sie jetzt die Sekunden, in denen der Heizkörper mehr als „zieht Strom“ (50 W) zog, statt die ganze eingeschaltete Minute. Bei Konvektoren mit eigenem Thermostat lag die Datenbank vorher bis zu 0,4 h am Tag zu hoch. Datenbank Aufbau 4; die Übernahme spielt den Verlauf dafür einmal neu nach und rechnet alle Tage neu."
+    ]
+  },
+  {
     "version": "0.8.58",
     "datum": "2026-10-05",
     "punkte": [

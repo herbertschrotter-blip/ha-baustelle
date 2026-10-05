@@ -65,10 +65,11 @@ class Mitschreiber:
     def start(self) -> None:
         jetzt = self.start_zeit = dt_util.utcnow()
         get = self.hass.states.get
+        zieht = float(self.st.e.get("heizung", {}).get("zieht_strom_w") or 50)
         for gid, g in self.st.geraete.items():
             self._geraete[gid] = GeraetSammler(
                 jetzt, _an(get(g.schalter)), _zahl(get(g.leistung)) if g.leistung else None,
-                _zahl(get(g.energie)) if g.energie else None, mit_zaehler=bool(g.energie))
+                _zahl(get(g.energie)) if g.energie else None, mit_zaehler=bool(g.energie), zieht_w=zieht)
             self._merken(g.schalter, "schalter", gid)
             if g.leistung:
                 self._merken(g.leistung, "leistung", gid)
@@ -168,7 +169,8 @@ class Mitschreiber:
                 continue
             dauern.append(m.dauer_s)
             geraete.append({"geraet_id": gid, "zeit": ende - _sek(m.dauer_s), "baustelle_id": self.bid,
-                            "dauer_s": m.dauer_s, "sekunden_ein": m.sekunden_ein, "leistung_w": m.leistung_w,
+                            "dauer_s": m.dauer_s, "sekunden_ein": m.sekunden_ein, "sekunden_strom": m.sekunden_strom,
+                            "leistung_w": m.leistung_w,
                             "leistung_w_max": m.leistung_w_max, "energie_wh": m.energie_wh,
                             "zaehlerstand_kwh": m.zaehlerstand_kwh, "erreichbar": m.erreichbar, "quelle": "ha"})
         d = self.st.daten

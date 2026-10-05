@@ -49,3 +49,12 @@ def test_bereich_tag():
 def test_bereich_ohne_heizen_und_ohne_fuehler():
     t = bereich_tag({"hk": [g(0, 0, 0, 0)]}, {"hk"}, [], {m(0): 3.0}, 50)
     assert not t.heiztag and t.gradh == 0 and t.temp_mittel is None and t.aussen_mittel == 3.0
+
+
+def test_tatsaechlich_geheizt_aus_sekunden_strom():
+    zeilen = [GeraetZeile(m(0), 60, 60, 1800, 15, sekunden_strom=30), GeraetZeile(m(1), 60, 60, 1800, 15, sekunden_strom=60)]
+    assert geraet_tag(zeilen, 50).strom_min == pytest.approx(1.5)          # gezählt statt genähert (wäre 2,0)
+    alt = [GeraetZeile(m(0), 60, 60, 1800, 15)]                              # ältere Minute ohne sekunden_strom
+    assert geraet_tag(alt, 50).strom_min == pytest.approx(1.0)
+    b = bereich_tag({"hk": zeilen}, {"hk"}, [], {}, 50)
+    assert b.strom_min == pytest.approx(1.5) and b.heizzeit_min == pytest.approx(2.0)

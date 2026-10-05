@@ -4,7 +4,8 @@ Nach denselben Regeln, nach denen die Integration ihre Zähler führt (`funktion
 
 - **Energie** = Summe der Minuten; **Kosten** mit dem Preis, der an dem Tag galt.
 - **Heizzeit** eines Geräts = Zeit eingeschaltet; eines Containers = Zeit, in der irgendein Gerät an war.
-- **Tatsächlich geheizt** (AN-0011): ein Heizkörper zieht mehr als `zieht_w` (ohne Messung: wie geschaltet).
+- **Tatsächlich geheizt** (AN-0011): ein Heizkörper zieht mehr als `zieht_w` (ohne Messung: wie geschaltet) – je
+  Minute gezählt (`sekunden_strom`, Aufbau 4), bei älteren Minuten genähert.
 - **Heiztag**: an dem Tag wurde in einem Container tatsächlich geheizt.
 - **Gradstunden**: (innen − außen) × Zeit, nur wenn innen wärmer (`logik/zaehlen.gradstunden`).
 - **Zyklen**: Einschaltungen – aus den Minuten: jeder Lauf von Minuten mit „an“ ist eine; eine nur teilweise
@@ -30,6 +31,7 @@ class GeraetZeile:
     sekunden_ein: int | None
     leistung_w_max: float | None
     energie_wh: float | None
+    sekunden_strom: int | None = None   # Aufbau 4; fehlt bei älteren Minuten → Näherung über den Höchstwert
 
 
 @dataclass(frozen=True)
@@ -63,15 +65,19 @@ class BereichTag:
         return self.strom_min > 0
 
 
-def _zieht(z: GeraetZeile, zieht_w: float) -> bool:
-    return z.leistung_w_max is None or z.leistung_w_max > zieht_w
+def strom_s(z: GeraetZeile, zieht_w: float) -> int:
+    """Sekunden „tatsächlich geheizt“: gezählt je Minute (sekunden_strom), sonst die eingeschaltete Zeit, wenn die
+    Leistung in der Minute über `zieht_w` lag (Näherung für Minuten vor Aufbau 4)."""
+    if z.sekunden_strom is not None:
+        return z.sekunden_strom
+    return (z.sekunden_ein or 0) if z.leistung_w_max is None or z.leistung_w_max > zieht_w else 0
 
 
 def geraet_tag(zeilen: Sequence[GeraetZeile], zieht_w: float) -> GeraetTag:
     """Ein Gerät, ein Tag (Zeilen zeitlich sortiert)."""
     kwh = sum(z.energie_wh or 0.0 for z in zeilen) / 1000
     ein = sum(z.sekunden_ein or 0 for z in zeilen) / 60
-    strom = sum(z.sekunden_ein or 0 for z in zeilen if _zieht(z, zieht_w)) / 60
+    strom = sum(strom_s(z, zieht_w) for z in zeilen) / 60
     zyklen = 0
     for i, z in enumerate(zeilen):
         if not z.sekunden_ein:
@@ -101,8 +107,8 @@ def bereich_tag(geraete: Mapping[str, Sequence[GeraetZeile]], heizer: set[str], 
         for z in zeilen:
             s = z.sekunden_ein or 0
             heizt[z.zeit] = max(heizt.get(z.zeit, 0), s)   # irgendein Gerät an (Vereinigung je Minute, angenähert)
-            if gid in heizer and _zieht(z, zieht_w):
-                strom[z.zeit] = max(strom.get(z.zeit, 0), s)
+            if gid in heizer:
+                strom[z.zeit] = max(strom.get(z.zeit, 0), strom_s(z, zieht_w))
     aussen_mittel = _gewichtet([(aussen.get(t.zeit), t.dauer_s) for t in temperaturen]) if temperaturen else None
     if aussen_mittel is None and aussen:
         bekannt = [w for w in aussen.values() if w is not None]

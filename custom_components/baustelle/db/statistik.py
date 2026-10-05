@@ -26,7 +26,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, ROLLE_HEIZKOERPER
-from ..logik.tag import GeraetZeile, geraet_tag
+from ..logik.tag import GeraetZeile, strom_s, geraet_tag
 from . import DATA_DB, schema as s
 
 if TYPE_CHECKING:
@@ -100,7 +100,7 @@ def _aus_minuten(v: Connection, ziele: dict[str, Ziel], start: datetime, ende: d
     def geraete_zeilen(bid: str) -> list[Any]:   # Minuten aller Geräte einer Baustelle im Zeitraum (einmal je Baustelle)
         if bid not in zeilen_cache:
             zeilen_cache[bid] = list(v.execute(select(gm.c.geraet_id, gm.c.zeit, gm.c.dauer_s, gm.c.sekunden_ein, gm.c.leistung_w_max,
-                                                      gm.c.energie_wh).where(gm.c.baustelle_id == bid, gm.c.zeit >= start, gm.c.zeit < ende)
+                                                      gm.c.energie_wh, gm.c.sekunden_strom).where(gm.c.baustelle_id == bid, gm.c.zeit >= start, gm.c.zeit < ende)
                                                .order_by(gm.c.zeit)))
         return zeilen_cache[bid]
 
@@ -125,10 +125,12 @@ def _aus_minuten(v: Connection, ziele: dict[str, Ziel], start: datetime, ende: d
                 g = st.geraete.get(r.geraet_id)
                 if g is None or g.bereich != z.wessen:
                     continue
-                if z.art == "strom" and (g.rolle != ROLLE_HEIZKOERPER or (r.leistung_w_max is not None and r.leistung_w_max <= zieht)):
+                if z.art == "strom" and g.rolle != ROLLE_HEIZKOERPER:
                     continue
                 t = _utc(r.zeit)
-                je_minute[t] = max(je_minute.get(t, 0), r.sekunden_ein or 0)   # irgendein Gerät (wie logik/tag)
+                zeile = GeraetZeile(t, r.dauer_s, r.sekunden_ein, r.leistung_w_max, r.energie_wh, r.sekunden_strom)
+                sek = strom_s(zeile, zieht) if z.art == "strom" else (r.sekunden_ein or 0)
+                je_minute[t] = max(je_minute.get(t, 0), sek)   # irgendein Gerät (wie logik/tag)
             for t, sek in je_minute.items():
                 werte[eimer(t)] += sek / 3600
         elif z.art == "zyklen":
