@@ -10,10 +10,14 @@ und beginnt den nächsten Abschnitt mit den aktuellen Werten.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import TypeVar
 
 from .zaehlen import energie_zuwachs
+
+_W = TypeVar("_W")
 
 
 class Zeitmittel:
@@ -160,3 +164,87 @@ class BereichSammler:
         dauer = int(round((ende - self._start).total_seconds()))
         self._start = ende
         return BereichMinute(dauer, None if mittel is None else round(mittel, 2), int(round(offen)) if self._mit_tuer else None)
+
+
+# ---------------------------------------------------------------------- Verlauf nachspielen (BSM-008, Altdaten)
+@dataclass(frozen=True)
+class GeraetVerlauf:
+    schalter: list[tuple[datetime, bool | None]]
+    leistung: list[tuple[datetime, float | None]]
+    zaehler: list[tuple[datetime, float | None]]
+    mit_zaehler: bool
+
+
+@dataclass(frozen=True)
+class BereichVerlauf:
+    temperatur: list[tuple[datetime, float | None]]
+    tuer: list[tuple[datetime, bool | None]] | None
+    grund: list[tuple[datetime, str | None]]
+
+
+def _stand_bei(punkte: Sequence[tuple[datetime, _W]], t: datetime) -> _W | None:
+    """Letzter Wert bis einschließlich `t` (None, wenn es noch keinen gab)."""
+    wert: _W | None = None
+    for zeit, w in punkte:
+        if zeit > t:
+            break
+        wert = w
+    return wert
+
+
+def _minutengrenzen(start: datetime, ende: datetime) -> list[datetime]:
+    erste = start.replace(second=0, microsecond=0)
+    if erste <= start:
+        erste += timedelta(minutes=1)
+    grenzen = []
+    t = erste
+    while t < ende:
+        grenzen.append(t)
+        t += timedelta(minutes=1)
+    grenzen.append(ende)
+    return grenzen
+
+
+def nachspielen_geraet(v: GeraetVerlauf, start: datetime, ende: datetime) -> list[tuple[datetime, GeraetMinute]]:
+    """Verlauf eines Geräts als Minuten (Beginn, Werte) von `start` bis `ende` – wie beim Mitschreiben."""
+    if not (v.schalter or v.leistung or v.zaehler):
+        return []
+    s = GeraetSammler(start, _stand_bei(v.schalter, start), _stand_bei(v.leistung, start), _stand_bei(v.zaehler, start),
+                      mit_zaehler=v.mit_zaehler)
+    ereignisse = sorted([(t, 0, w) for t, w in v.schalter if start < t < ende] + [(t, 1, w) for t, w in v.leistung if start < t < ende]
+                        + [(t, 2, w) for t, w in v.zaehler if start < t < ende], key=lambda e: (e[0], e[1]))
+    ergebnis, i, beginn = [], 0, start
+    for grenze in _minutengrenzen(start, ende):
+        while i < len(ereignisse) and ereignisse[i][0] < grenze:
+            t, art, w = ereignisse[i]
+            if art == 0:
+                s.schalter(t, w)   # type: ignore[arg-type]
+            elif art == 1:
+                s.leistung(t, w)
+            else:
+                s.zaehler(t, w)
+            i += 1
+        ergebnis.append((beginn, s.abschliessen(grenze)))
+        beginn = grenze
+    return ergebnis
+
+
+def nachspielen_bereich(v: BereichVerlauf, start: datetime, ende: datetime) -> list[tuple[datetime, BereichMinute, str | None]]:
+    """Verlauf eines Containers als Minuten (Beginn, Werte, Grund am Ende der Minute)."""
+    if not (v.temperatur or v.tuer or v.grund):
+        return []
+    s = BereichSammler(start, _stand_bei(v.temperatur, start), _stand_bei(v.tuer or [], start), mit_tuer=v.tuer is not None)
+    ereignisse = sorted([(t, 0, w) for t, w in v.temperatur if start < t < ende] + [(t, 1, w) for t, w in (v.tuer or []) if start < t < ende],
+                        key=lambda e: (e[0], e[1]))
+    ergebnis, i, beginn = [], 0, start
+    for grenze in _minutengrenzen(start, ende):
+        while i < len(ereignisse) and ereignisse[i][0] < grenze:
+            t, art, w = ereignisse[i]
+            if art == 0:
+                s.temperatur(t, w)
+            else:
+                s.tuer(t, w)         # type: ignore[arg-type]
+            i += 1
+        ergebnis.append((beginn, s.abschliessen(grenze), _stand_bei(v.grund, grenze)))
+        beginn = grenze
+    return ergebnis

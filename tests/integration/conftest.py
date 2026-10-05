@@ -10,7 +10,7 @@ import pytest
 from homeassistant.config_entries import ConfigSubentryDataWithId
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, get_test_config_dir
 
 from custom_components.baustelle.const import DOMAIN
 
@@ -26,10 +26,11 @@ def eigene_integration(enable_custom_integrations):
 
 
 @pytest.fixture(autouse=True)
-def leere_datenbank(hass: HomeAssistant):
-    """Eigene Datenbank (BSM-006) liegt im gemeinsamen Test-Konfigurationsordner: vor und nach jedem Test entfernen."""
+def leere_datenbank():
+    """Eigene Datenbank (BSM-006) liegt im gemeinsamen Test-Konfigurationsordner: vor und nach jedem Test entfernen.
+    Ohne `hass` als Fixture, damit Tests mit `recorder_mock` den Recorder vor HA einrichten können."""
     def weg() -> None:
-        for datei in Path(hass.config.path("baustelle")).glob("baustelle.db*"):
+        for datei in (Path(get_test_config_dir()) / "baustelle").glob("baustelle.db*"):
             datei.unlink()
     weg()
     yield

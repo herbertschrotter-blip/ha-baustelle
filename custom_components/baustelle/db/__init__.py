@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Connection, delete, insert
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 from homeassistant.helpers import instance_id
+from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 from homeassistant.util.hass_dict import HassKey
 
@@ -69,7 +70,9 @@ def protokoll_merken(hass: HomeAssistant, baustelle_id: str, zeit: datetime, art
     """Protokolleintrag (ohne die Grenze von 1.000 im Store); geschrieben mit der nächsten Minute."""
     if (db := hass.data.get(DATA_DB)) is None:
         return
-    zeile = {"zeit": dt_util.as_utc(zeit), "baustelle_id": baustelle_id, "bereich_id": bereich_id, "art": art, "text": text}
+    # sekundengenau wie im Store – sonst erkennt die Übernahme (BSM-008) den Eintrag nicht als schon vorhanden
+    zeile = {"zeit": dt_util.as_utc(zeit).replace(microsecond=0), "baustelle_id": baustelle_id, "bereich_id": bereich_id,
+             "art": art, "text": text}
     db.schreiber.dazu(lambda v: v.execute(insert(s.protokoll).values(**zeile)))
 
 
@@ -118,3 +121,17 @@ def meldungen_merken(hass: HomeAssistant, liste: list[dict[str, Any]]) -> None:
                 v.execute(insert(tabelle), zeilen)
 
     db.schreiber.dazu(schreiben)
+
+
+# ---------------------------------------------------------------------- Phase 3: Altdaten (BSM-008)
+def uebernahme_planen(hass: HomeAssistant, st: Steuerung, bis: datetime) -> CALLBACK_TYPE | None:
+    """Altdaten der Baustelle nach dem HA-Start im Hintergrund übernehmen (einmal, Merker in der Datenbank)."""
+    db = hass.data.get(DATA_DB)
+    if db is None or not db.bereit:
+        return None
+    from .uebernahme import async_uebernehmen   # noqa: PLC0415 – erst bei Bedarf (zieht den Recorder nach)
+
+    async def los(_hass: HomeAssistant) -> None:
+        await async_uebernehmen(hass, db, st, bis)
+
+    return async_at_started(hass, los)

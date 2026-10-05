@@ -80,3 +80,26 @@ def test_bereich_temperatur_und_tuer():
     assert (m.dauer_s, m.temperatur, m.tuer_offen_s) == (60, 19.0, 10)
     ohne = BereichSammler(T0, None, None, mit_tuer=False).abschliessen(s(60))
     assert ohne.temperatur is None and ohne.tuer_offen_s is None
+
+
+def test_nachspielen_geraet_wie_mitschreiben():
+    """BSM-008: Verlauf aus HA ergibt dieselben Minuten wie das Mitschreiben."""
+    from logik.minute import GeraetVerlauf, nachspielen_geraet
+    v = GeraetVerlauf(schalter=[(s(-600), False), (s(15), True)], leistung=[(s(-600), 0.0), (s(15), 2000.0)],
+                      zaehler=[(s(-600), 10.0), (s(59), 10.025)], mit_zaehler=True)
+    minuten = nachspielen_geraet(v, T0, s(120))
+    assert [b for b, _ in minuten] == [T0, s(60)]
+    erste, zweite = minuten[0][1], minuten[1][1]
+    assert (erste.sekunden_ein, erste.energie_wh, erste.zaehlerstand_kwh) == (45, pytest.approx(25.0), 10.025)
+    assert zweite.sekunden_ein == 60 and zweite.leistung_w == 2000.0
+    assert nachspielen_geraet(GeraetVerlauf([], [], [], False), T0, s(60)) == []
+
+
+def test_nachspielen_bereich_mit_grund_und_teilminuten():
+    from logik.minute import BereichVerlauf, nachspielen_bereich
+    v = BereichVerlauf(temperatur=[(s(-5), 18.0), (s(40), 20.0)], tuer=None, grund=[(s(-5), "heizgrenze"), (s(100), "arbeitszeit")])
+    minuten = nachspielen_bereich(v, s(30), s(150))   # Beginn und Ende mitten in der Minute
+    assert [(b, m.dauer_s) for b, m, _ in minuten] == [(s(30), 30), (s(60), 60), (s(120), 30)]
+    assert minuten[0][1].temperatur == pytest.approx((18 * 10 + 20 * 20) / 30, abs=0.01)
+    assert [g for _, _, g in minuten] == ["heizgrenze", "arbeitszeit", "arbeitszeit"]
+    assert minuten[0][1].tuer_offen_s is None

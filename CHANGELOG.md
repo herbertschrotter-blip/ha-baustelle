@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.55] – 2026-10-05
+
+- Eigene Datenbank, Phase 3 (BSM-008): Nach dem Start übernimmt die Integration einmal die Altdaten jeder Baustelle –
+  die Einstellungen als Ausgangsstand, die Zählerstände, das Protokoll (ohne Doppelte), die Meldungen und den
+  HA-Verlauf seit Baustellenbeginn (höchstens 62 Tage) als Minutenwerte, davor die Stundenwerte der Langzeitstatistik.
+  Vorher sichert sich die Datenbank (`baustelle.db.vor-uebernahme`); HA und der Store werden nur gelesen.
+- Protokolleinträge stehen sekundengenau in der Datenbank wie im Store (sonst entstünden bei der Übernahme Doppelte).
+
 ## [0.8.54] – 2026-10-05
 
 - Eigene Datenbank, Phase 2 (BSM-007): Ab jetzt schreibt die Integration alles mit – je Minute eine Zeile je Gerät

@@ -58,10 +58,11 @@ class Mitschreiber:
         self._zustand_alt: dict[str, str] = {}
         self._lernen_alt: dict[str, str] = {}
         self._abmelden: list[Callable[[], None]] = []
+        self.start_zeit = dt_util.utcnow()
 
     # ------------------------------------------------------------------ Start/Stopp
     def start(self) -> None:
-        jetzt = dt_util.utcnow()
+        jetzt = self.start_zeit = dt_util.utcnow()
         get = self.hass.states.get
         for gid, g in self.st.geraete.items():
             self._geraete[gid] = GeraetSammler(

@@ -11,6 +11,7 @@ from collections.abc import Callable
 from datetime import datetime
 import logging
 from pathlib import Path
+import sqlite3
 import threading
 from typing import Any, TypeVar
 
@@ -94,6 +95,28 @@ class Datenbank:
         assert self.engine is not None
         with self._sperre, self.engine.begin() as verbindung:
             return arbeit(verbindung)
+
+    async def async_kopie(self, endung: str) -> Path | None:
+        """Stimmige Kopie der SQLite-Datei neben ihr (`baustelle.db.<endung>`), z. B. vor der Übernahme der Altdaten."""
+        if self.engine is None:
+            return None
+        ziel = self.pfad.with_name(f"{self.pfad.name}.{endung}")
+        engine = self.engine
+
+        def kopieren() -> None:
+            with self._sperre:
+                roh = engine.raw_connection()
+                try:
+                    kopie = sqlite3.connect(ziel)
+                    try:
+                        roh.driver_connection.backup(kopie)   # type: ignore[union-attr]
+                    finally:
+                        kopie.close()
+                finally:
+                    roh.close()
+
+        await self.hass.async_add_executor_job(kopieren)
+        return ziel
 
     # ------------------------------------------------------------------ Sicherung (backup.py, §3.7)
     async def async_anhalten(self) -> None:

@@ -18,6 +18,7 @@ from custom_components.baustelle.db import DATA_DB, DATEI
 from custom_components.baustelle.db import schema as s
 from custom_components.baustelle.db.migration import migrieren
 from custom_components.baustelle.db.schema import SCHEMA_VERSION
+from custom_components.baustelle.db.uebernahme import UEBERNAHME_VERSION, async_uebernehmen
 
 from .conftest import C1, C2, HK1, HK2, P1, SCHACHT, baustelle_anlegen, eid
 
@@ -96,7 +97,7 @@ async def test_zweiter_start_aendert_nichts(hass: HomeAssistant, baustelle) -> N
             assert len(v.execute(select(s.schema_version)).all()) == SCHEMA_VERSION   # jeder Schritt einmal
     finally:
         engine.dispose()
-    assert not list(Path(hass.config.path("baustelle")).glob("baustelle.db.vor-*"))   # keine Kopie ohne Migration
+    assert not list(Path(hass.config.path("baustelle")).glob("baustelle.db.vor-[0-9]*"))   # keine Migrationskopie ohne Migration
 
 
 async def test_neuere_datenbank_haelt_integration_nicht_an(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
@@ -223,3 +224,25 @@ async def test_migration_von_aufbau_1(hass: HomeAssistant, freezer, shellys, nac
     typen = {z[1]: z[2] for z in verbindung.execute("PRAGMA table_info(einstellung)")}
     verbindung.close()
     assert typen["wert"] == "TEXT"
+
+
+# ---------------------------------------------------------------------- Phase 3: Altdaten (BSM-008)
+async def test_uebernahme_store(hass: HomeAssistant, baustelle, freezer) -> None:
+    """Ohne Recorder: Einstellungen, Zähler, Protokoll aus dem Store; Merker; zweiter Lauf gleich, ohne Doppelte."""
+    await hass.async_block_till_done()
+    db, st = hass.data[DATA_DB], baustelle.runtime_data
+    merker = {r["schluessel"]: json.loads(r["wert"]) for r in _zeilen(hass, "zustand")}
+    assert merker["uebernahme"]["version"] == UEBERNAHME_VERSION and "zaehler" in merker["zaehler_uebernahme"]
+    assert Path(hass.config.path(DATEI) + ".vor-uebernahme").exists()
+    migration = {r["schluessel"]: r["wert"] and json.loads(r["wert"]) for r in _zeilen(hass, "einstellung") if r["quelle"] == "migration"}
+    assert migration["heizung"]["soll"] == st.e["heizung"]["soll"] and "protokoll" not in migration and "zaehler" not in migration
+    st.protokoll("einstellung", None, "Eintrag vor dem zweiten Lauf")   # steht im Store und direkt in der Datenbank
+    await db.schreiber.async_schreiben()
+    protokoll = len(_zeilen(hass, "protokoll"))
+    assert protokoll >= len(st.e["protokoll"]) > 0
+    # schon übernommen → nichts; erzwungen → gleiches Ergebnis, keine doppelten Zeilen
+    assert await async_uebernehmen(hass, db, st, dt_util.utcnow()) is None
+    assert await async_uebernehmen(hass, db, st, dt_util.utcnow(), erzwingen=True) is not None, db.fehler
+    assert len(_zeilen(hass, "protokoll")) == protokoll
+    assert len([r for r in _zeilen(hass, "einstellung") if r["quelle"] == "migration"]) == len(migration)
+
