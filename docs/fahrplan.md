@@ -39,7 +39,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 - [ ] **C1** (BSM-010) Shelly BLU H&T beschaffen (je Container einer, zuerst einer zum Testen) und an die Plugs koppeln (Herbert)
 - [ ] **C2** (BSM-011) Fühler in HA von FRITZ!Smart Control 440 auf BLU H&T umstellen (Einstellungen der Container)
-- [ ] **C3** (BSM-012) Uhrzeit ohne Internet: Router der Baustelle als Zeitserver prüfen und in den Plugs eintragen
+- [x] **C3** (BSM-012) Uhrzeit ohne Internet: Router der Baustelle als Zeitserver prüfen und in den Plugs eintragen – erledigt 05.10.2026 mit FRITZ!Box (Plugs → 192.168.178.1); bei Stromausfall ohne Internet hilft erst eine USV für den Router
 - [ ] **C4** (BSM-013) Notprogramm am Gerät erproben: Skript-Speicher, Felder der BTHome-Sensoren, Ereignis der Taste, KVS-Grenzen
 
 ## Etappe D – Datenbank umstellen

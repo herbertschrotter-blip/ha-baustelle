@@ -410,8 +410,9 @@ Entscheidungen:
   Bei Bedarf: laufende Anforderung zu Ende, danach Frostschutz; Hand: kein Programm; Aus: aus; Frostschutz in jedem
   Modus mit Fühler; Tür offen → Pause.
 - **Staffelung im Notbetrieb: keine Grenze** – jeder Plug heizt nach seinem Programm.
-- **Ohne Uhrzeit** (Strom weg und kein Internet): nur Frostschutz, bis die Zeit wieder da ist. Prüfen: Router der
-  Baustelle als Zeitserver im Plug eintragen (FRITZ!Box/Teltonika, Zeit aus dem Mobilfunknetz).
+- **Ohne Uhrzeit** (Strom weg und kein Internet): nur Frostschutz, bis die Zeit wieder da ist. Seit 05.10.2026 holen
+  die Plugs die Zeit von der FRITZ!Box (192.168.178.1, BSM-012) – hilft, wenn nur die Plugs neu starten; bei Stromausfall
+  der ganzen Baustelle hilft erst eine USV für den Router.
 - **Taste am Plug: Drücken = 1 h heizen** (wie „Bei Bedarf“, mit und ohne HA), nochmal drücken beendet. Ausschalten
   von Hand geht dann nur über die Seite.
 
