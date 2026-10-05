@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.60] – 2026-10-05
+
+- Jeder Messwert der Leistung in der eigenen Datenbank (BSM-014, Schritt 2, Aufbau 5): „Leistung einer Stunde“ und
+  „Je Gerät“ kommen aus der Datenbank – mit jedem Messwert wie bisher, jetzt auch für Tage, die älter sind als 62 Tage.
+  Die Übernahme holt dafür einmal die Messwerte aus dem HA-Verlauf. Die Seite fragt HA nur noch für Kalender und
+  Wetter-Vorhersage direkt.
+
 ## [0.8.59] – 2026-10-05
 
 - „Tatsächlich geheizt“ in der eigenen Datenbank genau wie in der Integration (BSM-014): Je Minute zählt sie jetzt die

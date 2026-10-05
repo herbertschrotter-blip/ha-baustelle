@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.60",
+    "datum": "2026-10-05",
+    "punkte": [
+      "Jeder Messwert der Leistung in der eigenen Datenbank (BSM-014, Schritt 2, Aufbau 5): „Leistung einer Stunde“ und „Je Gerät“ kommen aus der Datenbank – mit jedem Messwert wie bisher, jetzt auch für Tage, die älter sind als 62 Tage. Die Übernahme holt dafür einmal die Messwerte aus dem HA-Verlauf. Die Seite fragt HA nur noch für Kalender und Wetter-Vorhersage direkt."
+    ]
+  },
+  {
     "version": "0.8.59",
     "datum": "2026-10-05",
     "punkte": [

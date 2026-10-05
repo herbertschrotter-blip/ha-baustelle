@@ -51,7 +51,12 @@ def _schritt_4(verbindung: Connection) -> None:
         verbindung.execute(text('ALTER TABLE "geraet_minute" ADD COLUMN sekunden_strom INTEGER'))
 
 
-SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3, 4: _schritt_4}
+def _schritt_5(verbindung: Connection) -> None:
+    """Jeder Messwert der Leistung (Tabelle messwert) – die Übernahme füllt die letzten 62 Tage aus dem HA-Verlauf."""
+    metadata.create_all(verbindung, tables=[metadata.tables["messwert"]], checkfirst=True)
+
+
+SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3, 4: _schritt_4, 5: _schritt_5}
 
 
 def stand(verbindung: Connection) -> int:

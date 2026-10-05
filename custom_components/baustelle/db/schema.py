@@ -26,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Dialect
 
-SCHEMA_VERSION = 4   # 2: JSON als Text (BSM-007); 3: Tagessummen mit strom_min; 4: Minuten mit sekunden_strom (BSM-014)
+SCHEMA_VERSION = 5   # 2: JSON als Text (BSM-007); 3: strom_min; 4: sekunden_strom; 5: jeder Messwert der Leistung (BSM-014)
 
 metadata = MetaData()
 
@@ -242,6 +242,17 @@ wetter_minute = Table(
     Column("regen_mm", Float),
     Column("hoechst_heute", Float),
     Column("quelle", String(20), nullable=False),
+)
+
+messwert = Table(   # Aufbau 5 (Herbert 05.10.2026): jeder gemeldete Wert der Leistung, für immer
+    "messwert", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("geraet_id", String(ID), nullable=False),
+    _zeit("zeit", nullable=False),                       # sekundengenau (last_updated in HA)
+    Column("baustelle_id", String(ID), nullable=False),
+    Column("leistung_w", Float),                         # leer = nicht erreichbar/unbekannt
+    Column("quelle", String(20), nullable=False),        # ha | import_verlauf
+    Index("ix_messwert_geraet_zeit", "geraet_id", "zeit"),
 )
 
 ereignis = Table(   # §6: ohne Benutzer

@@ -244,7 +244,7 @@ async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
     hass.data[DATA_MELDUNGEN] = Meldungen(hass)
     hass.async_create_task(hass.data[DATA_MELDUNGEN].async_laden(), "baustelle_meldungen_laden")  # lesbare Kopie beim Start
     for befehl in (ws_struktur, ws_setzen, ws_liste, ws_aktion, ws_bericht, ws_protokoll, ws_meldungen, ws_meldung,
-                   ws_auswertung, ws_abrechnung, ws_ohne, ws_statistik):
+                   ws_auswertung, ws_abrechnung, ws_ohne, ws_statistik, ws_verlauf):
         websocket_api.async_register_command(hass, befehl)
 
 
@@ -876,6 +876,28 @@ async def ws_statistik(hass: HomeAssistant, connection: websocket_api.ActiveConn
         return
     arten = set(msg.get("types") or ["change", "mean", "state"])
     connection.send_result(msg["id"], await auswertung.async_statistik(hass, msg["statistic_ids"], start, ende, msg["period"], arten))
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "baustelle/verlauf",
+    vol.Required("start_time"): str,
+    vol.Optional("end_time"): vol.Any(None, str),
+    vol.Required("entity_ids"): [str],
+    vol.Optional("minimal_response"): bool,
+    vol.Optional("no_attributes"): bool,
+    vol.Optional("significant_changes_only"): bool,
+    vol.Optional("entry_id"): vol.Any(None, str),
+})
+@websocket_api.async_response
+async def ws_verlauf(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Wie `history/history_during_period` (minimal), aber aus der eigenen Datenbank (BSM-014); Rest aus dem HA-Verlauf."""
+    from .db.verlauf import async_verlauf  # noqa: PLC0415
+    start = dt_util.parse_datetime(msg["start_time"])
+    ende = dt_util.parse_datetime(msg["end_time"]) if msg.get("end_time") else dt_util.utcnow()
+    if start is None or ende is None:
+        _fehler(connection, msg, "start_time/end_time: ISO-Zeit erwartet")
+        return
+    connection.send_result(msg["id"], await async_verlauf(hass, msg["entity_ids"], start, ende))
 
 
 @websocket_api.websocket_command({vol.Required("type"): "baustelle/meldungen", vol.Optional("entry_id"): vol.Any(None, str)})

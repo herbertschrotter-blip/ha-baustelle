@@ -357,3 +357,8 @@ in Sekunden – aus der eigenen Datenbank: die eigenen Sensoren (`<bid>_energie`
 Fühler. Anders als HA mit der laufenden Stunde bzw. dem laufenden Tag; für diese IDs ist `5minute` leer. Was die
 Datenbank nicht kennt (`<entry>_energie_ohne_automatik`, `<entry>_ersparnis`) kommt aus der HA-Statistik. Einstellung
 `auswertung_quelle` (`baustelle/setzen`, `datenbank`|`statistik`) schaltet eine Baustelle auf die HA-Statistik zurück.
+
+`baustelle/verlauf` (0.8.60; `start_time`, `end_time`, `entity_ids`, `entry_id`) antwortet wie
+`history/history_during_period` mit `minimal_response` – `{entity_id: [{s, lu}]}`, erster Eintrag = Zustand zu Beginn –
+aus der eigenen Datenbank: Leistungssensoren der Geräte aus jedem gespeicherten Messwert (`messwert`), Schalter ohne
+Leistungsmessung aus den Minuten; andere Entitäten aus dem HA-Verlauf.

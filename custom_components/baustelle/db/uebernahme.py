@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from .verbindung import Datenbank
 
 _LOGGER = logging.getLogger(__name__)
-UEBERNAHME_VERSION = 3   # 2: Meldungen, Wetter aus den eigenen Sensoren; 3: sekunden_strom (läuft jeweils einmal neu)
+UEBERNAHME_VERSION = 4   # 2: Meldungen, Wetter; 3: sekunden_strom; 4: jeder Messwert der Leistung (läuft jeweils einmal neu)
 VERLAUF_TAGE = 62
 NICHT_IN_EINSTELLUNGEN = {"protokoll", "meldungen", "laufzeit", "zaehler"}
 
@@ -83,6 +83,10 @@ async def _statistik(hass: HomeAssistant, ids: list[str], start: datetime, ende:
     return {k: [dict(p) for p in v] for k, v in roh.items()}
 
 
+def _utc_db(t: datetime) -> datetime:
+    return t if t.tzinfo else t.replace(tzinfo=dt_util.UTC)
+
+
 def _zeit(wert: Any) -> datetime:
     if isinstance(wert, (int, float)):
         return dt_util.utc_from_timestamp(wert)
@@ -99,11 +103,15 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
     if merker and not erzwingen and int(merker.get("version", 0)) >= UEBERNAHME_VERSION:
         return None
     await db.async_kopie("vor-uebernahme")
+    # Messwerte bis zum ersten mitgeschriebenen Messwert (vor 0.8.60 schrieb niemand Messwerte mit)
+    erster_mw = await db.async_ausfuehren(lambda v: v.execute(select(func.min(s.messwert.c.zeit)).where(
+        s.messwert.c.baustelle_id == bid, s.messwert.c.quelle == "ha")).scalar())
+    bis_messwert = min(bis, _utc_db(erster_mw)) if isinstance(erster_mw, datetime) else bis
     # nur bis zur ersten mitgeschriebenen Minute (0.8.54 schrieb schon vor dem Neustart mit, der die Übernahme bringt)
     erste = await db.async_ausfuehren(lambda v: v.execute(select(func.min(s.geraet_minute.c.zeit)).where(
         s.geraet_minute.c.baustelle_id == bid, s.geraet_minute.c.quelle == "ha")).scalar())
     if isinstance(erste, datetime):
-        bis = min(bis, erste if erste.tzinfo else erste.replace(tzinfo=dt_util.UTC))
+        bis = min(bis, _utc_db(erste))
 
     from ..auswertung import beginn_der_baustelle   # noqa: PLC0415 – auswertung → steuerung → db (Kreis beim Import)
     beginn, _auto = beginn_der_baustelle(st.entry)
@@ -134,8 +142,11 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
                      "regen": [x for x in (eigen["regen"], o.get(CONF_REGEN_SENSOR)) if x],
                      "tageshoechst": [x for x in (eigen["tageshoechst"],) if x]}
     wetter_ids = sorted({x for liste in wetter_quelle.values() for x in liste})
-    verlauf = await _verlauf(hass, sorted(set(ids + wetter_ids)), start_verlauf, bis) if start_verlauf < bis else {}
+    verlauf = await _verlauf(hass, sorted(set(ids + wetter_ids)), start_verlauf, max(bis, bis_messwert)) if start_verlauf < max(bis, bis_messwert) else {}
 
+    messwerte = [{"geraet_id": gid, "zeit": t, "baustelle_id": bid, "leistung_w": w, "quelle": "import_verlauf"}
+                 for gid, g in st.geraete.items() if g.leistung for t, w in _zahlen(verlauf.get(g.leistung, []))
+                 if start_verlauf <= t < bis_messwert]
     geraet_zeilen: list[dict[str, Any]] = []
     zieht = float(st.e.get("heizung", {}).get("zieht_strom_w") or 50)
     for gid, g in st.geraete.items():
@@ -198,12 +209,14 @@ async def async_uebernehmen(hass: HomeAssistant, db: Datenbank, st: Steuerung, b
     zaehler = dict(st.zaehler)
     import_quellen = ("import_verlauf", "import_statistik")
     zahlen = {"geraet_minute": len(geraet_zeilen), "bereich_minute": len(bereich_zeilen), "wetter_minute": len(wetter_zeilen),
-              "einstellung": len(einstellungen), "protokoll": len(protokoll)}
+              "einstellung": len(einstellungen), "protokoll": len(protokoll), "messwert": len(messwerte)}
 
     def schreiben(v: Connection) -> bool:
         for tabelle, schl in ((s.geraet_minute, "baustelle_id"), (s.bereich_minute, "baustelle_id"), (s.wetter_minute, "baustelle_id")):
             v.execute(delete(tabelle).where(tabelle.c[schl] == bid, tabelle.c.quelle.in_(import_quellen)))
-        for tabelle, zeilen in ((s.geraet_minute, geraet_zeilen), (s.bereich_minute, bereich_zeilen), (s.wetter_minute, wetter_zeilen)):
+        v.execute(delete(s.messwert).where(s.messwert.c.baustelle_id == bid, s.messwert.c.quelle == "import_verlauf"))
+        for tabelle, zeilen in ((s.geraet_minute, geraet_zeilen), (s.bereich_minute, bereich_zeilen), (s.wetter_minute, wetter_zeilen),
+                                (s.messwert, messwerte)):
             for i in range(0, len(zeilen), 5000):
                 v.execute(insert(tabelle), zeilen[i:i + 5000])
         v.execute(delete(s.einstellung).where(s.einstellung.c.baustelle_id == bid, s.einstellung.c.quelle == "migration"))

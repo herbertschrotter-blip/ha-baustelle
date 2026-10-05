@@ -36,6 +36,8 @@ async def test_uebernahme_verlauf_aus_dem_recorder(recorder_mock, hass: HomeAssi
     assert sum(r["sekunden_ein"] for r in hk1) == pytest.approx(300, abs=2)
     assert max(r["leistung_w_max"] or 0 for r in hk1) == pytest.approx(1500)
     assert sum(r["energie_wh"] or 0 for r in hk1) == pytest.approx(1500 * 5 / 60, abs=1)
+    mw = [r for r in _zeilen(hass, "messwert") if r["geraet_id"] == HK1 and r["quelle"] == "import_verlauf"]
+    assert [r["leistung_w"] for r in mw][-2:] == [1500.0, 0.0]          # jeder Messwert aus dem HA-Verlauf (Aufbau 5)
     wetter = [r for r in _zeilen(hass, "wetter_minute") if r["quelle"] == "import_verlauf"]
     assert wetter and all(r["aussen_temp"] == pytest.approx(4.5) for r in wetter if r["aussen_temp"] is not None)
 

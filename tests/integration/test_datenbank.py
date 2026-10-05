@@ -329,3 +329,25 @@ async def test_statistik_aus_der_datenbank(hass: HomeAssistant, baustelle, freez
     # Rückweg: auswertung_quelle = statistik → nicht aus der Datenbank
     st.einstellung_setzen(("auswertung_quelle",), "statistik")
     assert e_c1 not in await frage("hour", [e_c1])
+
+
+async def test_verlauf_jeder_messwert(hass: HomeAssistant, baustelle, freezer, hass_ws_client) -> None:
+    """BSM-014 Schritt 2: jeder Wert der Leistung in der Datenbank; baustelle/verlauf antwortet wie history (minimal)."""
+    await hass.async_block_till_done()
+    werte = ["1500", "1800", "0", "1750"]
+    for w in werte:
+        hass.states.async_set("sensor.hk1_power", w)
+        freezer.tick(timedelta(seconds=7))
+    hass.states.async_set("switch.hk1", "on")
+    await _minute(hass, freezer, 2)
+    mw = [r for r in _zeilen(hass, "messwert") if r["geraet_id"] == HK1]
+    assert [r["leistung_w"] for r in mw] == [1500.0, 1800.0, 0.0, 1750.0]
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "baustelle/verlauf", "start_time": "2026-09-29T16:00:00+02:00",
+                        "end_time": "2026-09-29T18:00:00+02:00", "entity_ids": ["sensor.hk1_power", "switch.hk1"],
+                        "minimal_response": True, "no_attributes": True, "significant_changes_only": False, "entry_id": baustelle.entry_id})
+    antwort = await ws.receive_json()
+    assert antwort["success"], antwort
+    leistung = antwort["result"]["sensor.hk1_power"]
+    assert [p["s"] for p in leistung] == werte and all(isinstance(p["lu"], float) for p in leistung)
+    assert [p["s"] for p in antwort["result"]["switch.hk1"]][-1] == "on"     # Schalter aus den Minuten

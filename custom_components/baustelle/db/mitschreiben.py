@@ -109,6 +109,7 @@ class Mitschreiber:
                 self._schaltung(wessen, alt, neu, t)
             elif art == "leistung" and (g := self._geraete.get(wessen)):
                 g.leistung(t, _zahl(neu))
+                self._messwert(wessen, t, _zahl(neu))
             elif art == "energie" and (g := self._geraete.get(wessen)):
                 g.zaehler(t, _zahl(neu))
             elif art == "fuehler" and (b := self._bereiche.get(wessen)):
@@ -117,6 +118,11 @@ class Mitschreiber:
                 b.tuer(t, _an(neu))
                 if _an(neu) != _an(alt):
                     self.ereignis(t, "tuer", {"offen": _an(neu)}, "automatik", bereich_id=wessen)
+
+    def _messwert(self, gid: str, t: datetime, watt: float | None) -> None:
+        """Jeder gemeldete Wert der Leistung (Aufbau 5) – für „Leistung einer Stunde“ auch nach 62 Tagen."""
+        zeile = {"geraet_id": gid, "zeit": t, "baustelle_id": self.bid, "leistung_w": watt, "quelle": "ha"}
+        self.db.schreiber.dazu(lambda v: v.execute(insert(s.messwert).values(**zeile)))
 
     def _schaltung(self, gid: str, alt: State | None, neu: State | None, t: datetime) -> None:
         vorher, jetzt = _an(alt), _an(neu)
