@@ -34,7 +34,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from math import ceil
-from typing import Any
+from typing import Any, overload
 
 ZYKLUS_MIN = 10
 MIN_EIN_MIN = 2                # kürzere Pulse lohnen nicht: Anteil unter 20 % → aus, über 80 % → ganz ein
@@ -166,6 +166,10 @@ def neuer_stand() -> dict[str, Any]:
             "verlauf": [], "ruhe_bis": None, "offen": None}
 
 
+@overload
+def _zeit(text: str) -> datetime: ...
+@overload
+def _zeit(text: None) -> None: ...
 def _zeit(text: str | None) -> datetime | None:
     return datetime.fromisoformat(text) if text else None
 

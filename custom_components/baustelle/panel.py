@@ -407,8 +407,9 @@ def _liste_aendern(st: Any, liste: str, aktion: str, eintrag: dict[str, Any]) ->
         if aktion == "loeschen":
             # FE-0012: mit von/bis/art nur dieses Zeitfenster, sonst alle des Tages
             if eintrag.get("art"):
-                weg = lambda a: (a["datum"] == datum and a["art"] == eintrag["art"]   # noqa: E731
-                                 and a.get("von") == eintrag.get("von") and a.get("bis") == eintrag.get("bis"))
+                def weg(a: dict[str, Any]) -> bool:
+                    return bool(a["datum"] == datum and a["art"] == eintrag["art"]
+                                and a.get("von") == eintrag.get("von") and a.get("bis") == eintrag.get("bis"))
                 e["ausnahmen"] = [a for a in e["ausnahmen"] if not weg(a)]
                 was = "frei" if eintrag["art"] == "frei" else f"{eintrag.get('von')}–{eintrag.get('bis')}"
                 st.protokoll("einstellung", None, f"Ausnahme am {_datum(datum)} ({was}) gelöscht")

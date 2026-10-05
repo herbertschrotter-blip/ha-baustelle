@@ -388,7 +388,7 @@ class Heizung(Funktion):
             self._geschaetzt[bid] = bool(fest[3]) if len(fest) > 3 else False
         else:
             stand = self.lern_staende.get(bid) or {}
-            ein = dict(innen=st.temperatur(info.fuehler), soll=self.soll_temperatur(bid), aussen=st.daten.wetter.aussen)
+            ein: dict[str, Any] = dict(innen=st.temperatur(info.fuehler), soll=self.soll_temperatur(bid), aussen=st.daten.wetter.aussen)
             alle = len(self.heizer_von(bid)) or 1
             if self.stufen_an(bid):   # AN-0006: reicht der Hauptheizkörper allein bis „Soll erreicht“? Sonst beide
                 auf1, aufa = lernen.aufheiz_min(stand, **ein, anzahl=1), lernen.aufheiz_min(stand, **ein, anzahl=alle)
@@ -525,7 +525,7 @@ class Heizung(Funktion):
             return wert
         z = zuletzt.get(bid)
         halten = float(self.st.e["heizung"].get("fuehler_halten_min", FUEHLER_HALTEN_MIN))
-        return letzter_wert(None, (zeit(z[0]), float(z[1])) if z and zeit(z[0]) else None, jetzt, halten)
+        return letzter_wert(None, (t, float(z[1])) if z and (t := zeit(z[0])) else None, jetzt, halten)
 
     # ------------------------------------------------------------------ Zusatz-Heizkörper (AN-0006, logik/stufen)
     def heizer_von(self, bid: str) -> list[GeraetInfo]:
@@ -597,7 +597,8 @@ class Heizung(Funktion):
     # ------------------------------------------------------------------ Lernende Regelung (0.8, logik/lernen)
     @property
     def lern_staende(self) -> dict[str, Any]:
-        return self.st.lz.setdefault("lernen", {})
+        staende: dict[str, Any] = self.st.lz.setdefault("lernen", {})
+        return staende
 
     def _lern_art(self, bid: str) -> str:
         """„oel“, wenn ein Ölradiator heizt (sonst: wenn einer da ist), sonst „konvektor“."""
@@ -612,7 +613,7 @@ class Heizung(Funktion):
             self.tpi_jetzt.pop(info.id, None)
             return None
         stand = {**lernen.neuer_stand(), **self.lern_staende.get(info.id, {})}
-        log = [(zeit(a), zeit(b)) for a, b in stand["ein"] if zeit(a) is not None]
+        log = [(ta, zeit(b)) for a, b in stand["ein"] if (ta := zeit(a)) is not None]
         kl = lernen.klasse(lernen.ein_minuten(log, jetzt))
         nachlauf = lernen.nachlauf_erwartet(stand["nachlauf"], self._lern_art(info.id), kl, lernen.band(wetter.aussen))
         # je Container um 3 min versetzt, damit nicht alle zur selben Minute einschalten
@@ -657,7 +658,7 @@ class Heizung(Funktion):
     def _tuer_offen(self, e: Mapping[str, Any]) -> bool:
         """Türkontakt des Containers offen (WU-0009: schützt das Lernen)."""
         tuer = e.get("tuer")
-        return bool(tuer) and (z := self.st.hass.states.get(tuer)) is not None and z.state == STATE_ON
+        return bool(tuer) and (z := self.st.hass.states.get(str(tuer))) is not None and z.state == STATE_ON
 
     def lern_anzeige(self, bid: str) -> dict[str, Any] | None:
         """Lernstand für die Seite (api: laufzeit.container.<id>.lernen); None ohne Fühler."""

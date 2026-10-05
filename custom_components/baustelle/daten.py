@@ -259,12 +259,13 @@ def _geraete_links(hass: HomeAssistant, st: Steuerung, entry: ConfigEntry) -> di
     for eid in sorted(e for e in ents if e):
         eintrag = ereg.async_get(eid)
         geraet = dreg.async_get(eintrag.device_id) if eintrag is not None and eintrag.device_id else None
-        if geraet is None:
+        if not isinstance(geraet, dr.DeviceEntry):
             links[eid] = {"web": None, "ha": None, "geraet": None, "hersteller": None, "modell": None, "batterie": None, "signal": None}
             continue
         url = str(geraet.configuration_url or "")
         am_geraet = er.async_entries_for_device(ereg, geraet.id)
-        klasse = lambda x: x.device_class or x.original_device_class   # noqa: E731
+        def klasse(x: er.RegistryEntry) -> str | None:
+            return x.device_class or x.original_device_class
         batterie = next((x.entity_id for x in am_geraet if klasse(x) == "battery" and x.entity_id.startswith("sensor.")), None)
         # AN-0009: Funk-/WLAN-Signal am selben Gerät (dBm), auch wenn HA ihn standardmäßig ausgeblendet hat
         signal = next((x.entity_id for x in am_geraet if klasse(x) == "signal_strength" and x.entity_id.startswith("sensor.")), None)

@@ -363,9 +363,10 @@ def tagesplan(
         return None
     alle = tuple(ausnahmen_am(ausnahmen, tag))
     gruende: list[str] = [PlanGrund.AUSNAHME] if ausnahme is not None else []
-    gelernt = warm is not None and warm.aufheiz_min is not None
-    if gelernt:
-        vor = a - min(warm.vor_min + warm.aufheiz_min, max(warm.max_min, warm.vor_min))
+    aufheiz = warm.aufheiz_min if warm is not None else None
+    gelernt = aufheiz is not None
+    if warm is not None and aufheiz is not None:
+        vor = a - min(warm.vor_min + aufheiz, max(warm.max_min, warm.vor_min))
         gruende.append(PlanGrund.GELERNT)
     else:
         vor = a - regeln.vorheizen_min
@@ -380,7 +381,7 @@ def tagesplan(
     if trocknen and wetter.regen_heute_mm is not None and wetter.regen_heute_mm >= regeln.trocknen_ab_mm:
         laenger = regeln.trocknen_laenger_min
         gruende.append(PlanGrund.TROCKNEN)
-    nach = b + (warm.nach_min if gelernt else regeln.nachheizen_min)
+    nach = b + (warm.nach_min if warm is not None and gelernt else regeln.nachheizen_min)
     return Plan(
         start=max(0, vor - extra),
         vor=max(0, vor),

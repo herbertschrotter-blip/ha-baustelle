@@ -461,7 +461,7 @@ def ohne_kw(
         if gid in inaktiv:
             continue
         eigen = mittel_w.get(gid)
-        wert = typ_mittel.get(typ) if basis == "typ" or not ist_zahl(eigen) else float(eigen)   # type: ignore[arg-type]
+        wert = typ_mittel.get(typ) if basis == "typ" or not ist_zahl(eigen) else float(eigen)
         if wert is not None:
             kw[gid] = round(wert / 1000, 3)
     return kw
@@ -754,7 +754,7 @@ def rangliste(container: Iterable[Mapping[str, Any]], preis: float) -> list[dict
 
 
 def erkenntnisse(
-    rang: list[Mapping[str, Any]], *, ohne: Mapping[str, float] | None, gerade: Mapping[str, Any] | None,
+    rang: Sequence[Mapping[str, Any]], *, ohne: Mapping[str, float] | None, gerade: Mapping[str, Any] | None,
     veraenderung_kwh: int | None, typ_weniger: float | None,
 ) -> list[dict[str, Any]]:
     """Was fällt auf – höchstens `ERKENNTNISSE_MAX`, in dieser Reihenfolge: gespart gegenüber Dauerbetrieb, größter

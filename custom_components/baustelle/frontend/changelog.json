@@ -1,6 +1,13 @@
 [
   {
     "version": "0.8.49",
+    "datum": "2026-10-05",
+    "punkte": [
+      "Temperatur-Rad im Container mittig (WU-0018): Es stand links über den breiteren Knöpfen „zu kalt / passt / zu warm“."
+    ]
+  },
+  {
+    "version": "0.8.49",
     "datum": "2026-10-04",
     "punkte": [
       "Berechtigungen (Bauplan §8): Lesen dürfen alle HA-Benutzer, ändern nur Admins. Die Integration weist Einstellungen, Listen, Aktionen und Statusänderungen von Meldungen anderer Benutzer ab. Vor Ort geht es auch ohne Admin: jetzt heizen („Bei Bedarf“, alle jetzt heizen, schnell aufheizen), Gefühl zu kalt/zu warm, Warnung stumm schalten; melden darf jeder.",

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.49] – 2026-10-05
+
+- Temperatur-Rad im Container mittig (WU-0018): Es stand links über den breiteren Knöpfen „zu kalt / passt / zu warm“.
+
 ## [0.8.49] – 2026-10-04
 
 - Berechtigungen (Bauplan §8): Lesen dürfen alle HA-Benutzer, ändern nur Admins. Die Integration weist Einstellungen,

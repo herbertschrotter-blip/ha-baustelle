@@ -378,7 +378,7 @@ class Nachrichten:
         bereiche = Heizung.von(self.st).bereiche()
         ein = await self._async_je_tag({b.id: f"{b.id}_heizzeit" for b in bereiche}, von, bis)
         strom = await self._async_je_tag({b.id: f"{b.id}_heizzeit_strom" for b in bereiche}, von, bis)
-        return {bid: dict(werte) for bid, werte in auswertung_logik.heizzeit_geheizt(
+        return {bid: {t: w for t, w in werte if w is not None} for bid, werte in auswertung_logik.heizzeit_geheizt(
             {b: w.items() for b, w in ein.items()}, {b: w.items() for b, w in strom.items()}).items()}
 
     async def _async_je_tag(self, schluessel: dict[str, str], von: date, bis: date) -> dict[str, dict[date, float]]:

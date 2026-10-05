@@ -185,7 +185,7 @@ class HandEnde(StrEnum):
 
 
 def hand_ende(
-    *, grund: SollGrund, phase_vorher: bool, phase: bool, an: bool, temperatur: float | None, soll: float,
+    *, grund: SollGrund | str, phase_vorher: bool, phase: bool, an: bool, temperatur: float | None, soll: float,
     minuten: float | None, max_minuten: float, lassen: bool = False, nachfrist_min: float = HAND_NACHFRIST_MIN,
 ) -> HandEnde | None:
     """Endet der Handbetrieb eines Heizkörpers jetzt? (FE-0004, Herbert 30.09.2026)
