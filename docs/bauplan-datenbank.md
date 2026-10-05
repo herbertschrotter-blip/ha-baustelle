@@ -43,7 +43,7 @@ Nachteile und Antwort darauf:
 | HA-Werkzeuge sehen die Datenbank nicht | Sensoren bleiben; Verlauf und Auswertung zeigt die Seite aus der Datenbank |
 | PostgreSQL nicht erreichbar | Puffer auf der Platte, Nachschreiben (Phase 8) |
 | Großer Umbau auf main | erst nur mitschreiben, Abgleich mit den alten Zählern, dann lesen umstellen, zuletzt Store ablösen; je Phase ein Rückweg (§4) |
-| Datenschutz (Minutenwerte, Tür, Taste, Benutzer → Anwesenheit/Arbeitszeit) | **vor dem Firmeneinsatz klären** (DSGVO, Betriebsrat § 96 ArbVG); Benutzer abschaltbar speichern (§6) |
+| Datenschutz (Minutenwerte, Tür, Taste, Benutzer → Anwesenheit/Arbeitszeit) | entschieden (§6): Benutzer nur bei Einstellungen, bis Baustellenende + 1 Jahr; Bedienung vor Ort ohne Person; vor dem Firmeneinsatz mit Betriebsrat bestätigen |
 
 ## 2. Aufbau der Datenbank (Schema 1)
 
@@ -88,7 +88,7 @@ Start dasselbe Wörterbuch `e` wie heute aus dem Store – `steuerung.py` und di
 | `geraet_minute` | Gerät × Minute | `zeit` (Minutenbeginn), `baustelle_id`, `geraet_id`, `dauer_s` (60; 3600 bei übernommenen Stundenwerten), `sekunden_ein`, `leistung_w` (Ø), `leistung_w_max`, `energie_wh` (Zuwachs), `zaehlerstand_kwh`, `erreichbar`, `quelle` (ha/notprogramm/import_verlauf/import_statistik) | (`geraet_id`, `zeit`) |
 | `bereich_minute` | Container × Minute | `zeit`, `baustelle_id`, `bereich_id`, `dauer_s`, `temperatur`, `feuchte`, `soll`, `tuer_offen_s`, `zustand`, `grund`, `quelle` | (`bereich_id`, `zeit`) |
 | `wetter_minute` | Baustelle × Minute | `zeit`, `baustelle_id`, `dauer_s`, `aussen_temp`, `regen_mm`, `hoechst_heute`, `quelle` | (`baustelle_id`, `zeit`) |
-| `ereignis` | jede Schaltung/Änderung | `id`, `zeit` (sekundengenau), `baustelle_id`, `bereich_id`, `geraet_id`, `art` (schalten/tuer/hand/bedarf/boost/notbetrieb/erreichbar), `wert`, `quelle` (automatik/hand/seite/taste/notprogramm), `grund`, `benutzer` | `id`; Index (`baustelle_id`, `zeit`) |
+| `ereignis` | jede Schaltung/Änderung | `id`, `zeit` (sekundengenau), `baustelle_id`, `bereich_id`, `geraet_id`, `art` (schalten/tuer/hand/bedarf/boost/notbetrieb/erreichbar), `wert`, `quelle` (automatik/hand/seite/taste/notprogramm), `grund` – **ohne Benutzer** (§6) | `id`; Index (`baustelle_id`, `zeit`) |
 
 `dauer_s` macht übernommene Stundenwerte und Minutenwerte in derselben Tabelle auswertbar (Summen über `energie_wh`,
 `sekunden_ein`; Mittel gewichtet mit `dauer_s`). Das Bilden der Minutenwerte aus den Zuständen (Sekunden ein, Ø
@@ -199,8 +199,15 @@ Reihenfolge der Abhängigkeiten: 0 → 1 → 2 → 3 → 4 → 5 → 6; 7 brauch
 
 ## 6. Offen vor bzw. während des Baus
 
-- **Datenschutz** vor dem Firmeneinsatz: Speichern des Benutzers bei Einstellungen und Ereignissen (Option, Standard
-  an für Einstellungen, aus für Ereignisse?), Zustimmung Betriebsrat, Auskunft/Löschung je Person.
+- **Datenschutz – entschieden (Herbert, 05.10.2026, BSM-005):**
+  - **Einstellungen mit Benutzer:** `einstellung.benutzer` = HA-Benutzer bei `setzen`, `liste` und den Aktionen nur für
+    Admins, die etwas dauerhaft ändern (`automatik`, `lern_reset`, `zuruecksetzen`, `energie_korrektur`, `aktiv`).
+  - **Bedienung vor Ort ohne Person:** `ereignis` hat **keine** Spalte `benutzer`; gespeichert werden Zeit, Container,
+    Aktion und Quelle (seite/taste/automatik/notprogramm) – kein Rückschluss auf die Anwesenheit einzelner Personen.
+  - **Aufbewahren:** der Benutzer an Einstellungen bleibt bis **Baustellenende + 1 Jahr**, danach wird er entfernt
+    (anonymisiert, nächtlich); die Änderung selbst bleibt für immer.
+  - Vor dem Einsatz in der Firma mit Betriebsrat/Datenschutz bestätigen (BSM-026); Auskunft je Person = Abfrage auf
+    `einstellung.benutzer`.
 - **Server für PostgreSQL** in der Firma (Betrieb, Sicherung, Zugänge) – Phase 8.
 - **Performance auf dem Pi:** Auswertung über Jahre nur über `tag_*`; Messung mit einem Jahr synthetischer Minutenwerte
   (Test), Ziel < 1 s je Abfrage.
