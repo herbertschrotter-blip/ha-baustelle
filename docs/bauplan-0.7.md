@@ -416,6 +416,15 @@ Entscheidungen:
 - **Taste am Plug: Drücken = 1 h heizen** (wie „Bei Bedarf“, mit und ohne HA), nochmal drücken beendet. Ausschalten
   von Hand geht dann nur über die Seite.
 
+- **Sensoren im Notbetrieb** (Herbert, 05.10.2026): Das Skript nimmt nur Sensoren, die am Plug selbst gekoppelt sind,
+  und davon genau die Messwerte, deren Nummer HA ins Programm schreibt. HA findet sie über die Bluetooth-Adresse des
+  Fühlers bzw. Türsensors, der dem Container in der Integration zugeordnet ist (nie „irgendein“ gekoppelter Sensor).
+  **Die Integration hält die Kopplungen selbst in Ordnung:** fehlende Fühler/Tür des Containers am Plug koppeln,
+  fremde entfernen, Namen nach Herberts Schema (`NNN_C_TEMP_<Kürzel>_Temperatur` …), jede Änderung im Protokoll;
+  ohne frischen Wert Warnung „Notprogramm <Plug>: Fühler fehlt – im Notbetrieb nur Zeitplan“. Ein Sensor darf an
+  mehreren Plugs eines Containers gekoppelt sein (Poliercontainer: beide Plugs). `BTHome.AddDevice` arbeitet
+  verzögert – nachsehen statt auf die Antwort warten.
+
 Offen vor dem Bau: Übertragung (Shelly-RPC über HTTP: KVS, Script.PutCode; Gerätepasswort als `!secret`), Skript im Repo
 mit Simulationstest in Node, Anzeige „Notbetrieb“ im Protokoll und auf der Seite.
 
