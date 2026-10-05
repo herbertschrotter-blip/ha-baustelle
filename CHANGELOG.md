@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.52] – 2026-10-05
+
+- Langer Ausfall zählt (BSM-003): War ein Shelly oder HA länger weg (z. B. 3 Tage) und lief die Heizung in der Zeit
+  weiter, verwarf die Integration den ganzen Zuwachs des Zählerstands, sobald er über 50 kWh lag – Energie und Kosten
+  fehlten. Jetzt gilt nach einer Lücke als Grenze, was ein Plug in der Zeit höchstens schalten kann (3,68 kW je Stunde
+  der Lücke, mit Reserve); unmögliche Sprünge (falscher Sensor) werden weiter verworfen. Der Verbrauch der Lücke zählt
+  noch zum Tag der Rückkehr (Verteilung auf die Stunden kommt mit der eigenen Datenbank).
+
 ## [0.8.51] – 2026-10-05
 
 - Am PC fehlte die Gestaltung mehrerer Teile (FE-0022): Ein Block für schmale Bildschirme war nicht geschlossen; das

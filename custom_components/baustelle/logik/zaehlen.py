@@ -6,6 +6,10 @@ from datetime import date, timedelta
 
 # Sprung eines Zählerstands, den wir nicht glauben (z. B. falscher Sensor gewählt), in kWh
 MAX_SPRUNG_KWH = 50.0
+# BSM-003: nach einer Lücke (Ausfall von HA, VPN oder Shelly) höchstens so viel je Stunde der Lücke – mehr kann ein
+# Shelly Plug S nicht schalten (16 A · 230 V), mit Reserve
+MAX_KW_GERAET = 3.68
+SPRUNG_RESERVE = 1.1
 # Gewicht eines neuen Messwerts im gleitenden Mittel der Leistung im Betrieb
 MITTEL_GEWICHT = 0.05
 # ab dieser Leistung gilt ein Heizgerät als „heizt gerade“ (W)
@@ -16,19 +20,30 @@ BETRIEB_AB_W = 5.0
 RUECKSPRUNG_KWH = 0.1
 
 
-def energie_zuwachs(alt: float | None, neu: float | None) -> float:
-    """Zuwachs zwischen zwei Ständen eines Energiezählers (kWh).
+def sprung_grenze(stunden: float | None) -> float:
+    """Größter glaubwürdiger Zuwachs (kWh) zwischen zwei Ständen, die `stunden` auseinander liegen (None = unbekannt).
+
+    Grundsätzlich `MAX_SPRUNG_KWH`; nach einer längeren Lücke so viel, wie ein Shelly in der Zeit höchstens schalten
+    kann (BSM-003: vorher fehlte nach einem Ausfall von mehr als ≈ 25 h Heizen der ganze Verbrauch).
+    """
+    if stunden is None or stunden <= 0:
+        return MAX_SPRUNG_KWH
+    return max(MAX_SPRUNG_KWH, stunden * MAX_KW_GERAET * SPRUNG_RESERVE)
+
+
+def energie_zuwachs(alt: float | None, neu: float | None, stunden: float | None = None) -> float:
+    """Zuwachs zwischen zwei Ständen eines Energiezählers (kWh); `stunden` = Zeit seit dem letzten Stand.
 
     Zählt der Shelly neu (Stand deutlich kleiner als vorher), gilt der neue Stand als Zuwachs. Ein Rücksprung um
     höchstens `RUECKSPRUNG_KWH` ist Rauschen und zählt nichts (FE-0016: vorher wurde dann der ganze Stand noch einmal
-    gezählt). Unglaubwürdige Sprünge und fehlende Werte zählen nicht.
+    gezählt). Unglaubwürdige Sprünge (über `sprung_grenze`) und fehlende Werte zählen nicht.
     """
     if alt is None or neu is None:
         return 0.0
     if neu < alt and alt - neu <= RUECKSPRUNG_KWH:
         return 0.0
     zuwachs = neu - alt if neu >= alt else neu
-    return zuwachs if 0.0 <= zuwachs <= MAX_SPRUNG_KWH else 0.0
+    return zuwachs if 0.0 <= zuwachs <= sprung_grenze(stunden) else 0.0
 
 
 def zaehlerstand(alt: float | None, neu: float) -> float:

@@ -199,3 +199,22 @@ async def test_zaehler_werden_trotz_dauernder_messwerte_gespeichert(
     # spätestens nach ZAEHLER_SPEICHERN_S (+ ein Messintervall) liegt ein neuerer Stand in der Datei
     assert gespeichert["stand:h1"] >= stand - (ZAEHLER_SPEICHERN_S + 10) / 10 * 0.1 - 1e-9
     assert gespeichert["energie"] > 0
+
+
+async def test_langer_ausfall_zaehlt(hass: HomeAssistant, baustelle, freezer) -> None:
+    """BSM-003: Shelly 3 Tage nicht erreichbar, danach 60 kWh mehr – zählt (vorher über 50 kWh verworfen)."""
+    st = baustelle.runtime_data
+    hass.states.async_set("sensor.hk1_energy", "10.5")
+    await hass.async_block_till_done()
+    vorher = st.zaehler["energie"]
+    hass.states.async_set("sensor.hk1_energy", "unavailable")
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(hours=72))
+    hass.states.async_set("sensor.hk1_energy", "70.5")
+    await hass.async_block_till_done()
+    assert st.zaehler["energie"] == pytest.approx(vorher + 60.0)
+    assert st.zaehler["stand:h1:zeit"] > 0   # Zeit des letzten Stands, wie der Stand nicht in der Struktur
+    # gleich danach ein unmöglicher Sprung (falscher Sensor): verworfen
+    hass.states.async_set("sensor.hk1_energy", "170.5")
+    await hass.async_block_till_done()
+    assert st.zaehler["energie"] == pytest.approx(vorher + 60.0)

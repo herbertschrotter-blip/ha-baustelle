@@ -1206,10 +1206,13 @@ class Steuerung:
         """Neuer Stand des Energiezählers eines Shelly; der letzte Stand ist gespeichert (übersteht Neustarts)."""
         if stand is None:
             return
-        key = f"stand:{g.id}"
-        alt = self.zaehler.get(key)
+        key, zeit_key = f"stand:{g.id}", f"stand:{g.id}:zeit"
+        alt, vorher = self.zaehler.get(key), self.zaehler.get(zeit_key)
+        jetzt = dt_util.now().timestamp()
+        stunden = (jetzt - vorher) / 3600 if vorher is not None else None   # BSM-003: Lücke seit dem letzten Stand
         self.zaehler[key] = zaehlerstand(alt, stand)   # FE-0016: Rauschen verschiebt den Stand nicht
-        self._energie_buchen(g, energie_zuwachs(alt, stand))
+        self.zaehler[zeit_key] = jetzt
+        self._energie_buchen(g, energie_zuwachs(alt, stand, stunden))
         self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
 
     def _zeiten_zaehlen(self, jetzt: datetime) -> None:

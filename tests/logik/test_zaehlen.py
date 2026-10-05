@@ -7,6 +7,7 @@ from logik.zaehlen import (
     mittel,
     rate,
     energie_zuwachs,
+    sprung_grenze,
     hochrechnung,
     leistung_integriert,
     mittel_im_betrieb,
@@ -74,3 +75,20 @@ def test_ruecksprung_ist_rauschen_kein_neustart():
     assert energie_zuwachs(14.48, 0.0) == 0.0 and zaehlerstand(14.48, 0.0) == 0.0     # echter Neustart
     assert energie_zuwachs(14.48, 0.3) == pytest.approx(0.3)
     assert zaehlerstand(None, 5.0) == 5.0
+
+
+def test_luecke_nach_ausfall():
+    """BSM-003: nach einem langen Ausfall zählt der ganze Verbrauch, ein unmöglicher Sprung weiter nicht."""
+    assert sprung_grenze(None) == 50.0 and sprung_grenze(0.0) == 50.0 and sprung_grenze(2.0) == 50.0
+    assert sprung_grenze(72.0) == pytest.approx(72 * 3.68 * 1.1)
+    # 3 Tage Ausfall, 2-kW-Heizkörper 10 h je Tag: 60 kWh – vorher verworfen, jetzt gezählt
+    assert energie_zuwachs(100.0, 160.0) == 0.0
+    assert energie_zuwachs(100.0, 160.0, stunden=72.0) == pytest.approx(60.0)
+    # mehr, als ein Plug in der Zeit schalten kann (falscher Sensor) – weiter verworfen
+    assert energie_zuwachs(100.0, 400.0, stunden=72.0) == 0.0
+    # kurze Lücke: alte Grenze bleibt
+    assert energie_zuwachs(100.0, 160.0, stunden=1.0) == 0.0
+    # Neustart des Shelly während des Ausfalls: neuer Stand ist der Zuwachs
+    assert energie_zuwachs(100.0, 55.0, stunden=72.0) == pytest.approx(55.0)
+    # Rauschen bleibt Rauschen
+    assert energie_zuwachs(32.688155, 32.687104, stunden=72.0) == 0.0
