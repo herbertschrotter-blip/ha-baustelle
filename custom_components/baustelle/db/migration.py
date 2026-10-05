@@ -10,11 +10,11 @@ from collections.abc import Callable
 from pathlib import Path
 import shutil
 
-from sqlalchemy import Connection, Engine, func, inspect, insert, select
+from sqlalchemy import Connection, Engine, func, inspect, insert, select, text
 
 from homeassistant.util import dt as dt_util
 
-from .schema import SCHEMA_VERSION, metadata, schema_version
+from .schema import JSON_TABELLEN, SCHEMA_VERSION, metadata, schema_version
 
 
 class DatenbankNeuer(Exception):
@@ -25,7 +25,19 @@ def _schritt_1(verbindung: Connection) -> None:
     metadata.create_all(verbindung, checkfirst=True)
 
 
-SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1}
+def _schritt_2(verbindung: Connection) -> None:
+    """JSON-Spalten in SQLite als Text neu anlegen. Die Tabellen sind bis dahin leer (gefüllt erst ab Phase 2, die mit
+    diesem Schritt kommt); stehen doch Zeilen drin, wird abgebrochen statt Daten zu verlieren."""
+    if verbindung.dialect.name != "sqlite":
+        return
+    for name in JSON_TABELLEN:
+        if verbindung.execute(text(f'SELECT COUNT(*) FROM "{name}"')).scalar():   # noqa: S608 – feste Namen
+            raise RuntimeError(f"Tabelle {name} ist nicht leer – Aufbau 2 bitte von Hand nachziehen")
+        verbindung.execute(text(f'DROP TABLE "{name}"'))
+    metadata.create_all(verbindung, tables=[metadata.tables[n] for n in JSON_TABELLEN])
+
+
+SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2}
 
 
 def stand(verbindung: Connection) -> int:

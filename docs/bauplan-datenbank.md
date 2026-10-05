@@ -45,7 +45,14 @@ Nachteile und Antwort darauf:
 | Großer Umbau auf main | erst nur mitschreiben, Abgleich mit den alten Zählern, dann lesen umstellen, zuletzt Store ablösen; je Phase ein Rückweg (§4) |
 | Datenschutz (Minutenwerte, Tür, Taste, Benutzer → Anwesenheit/Arbeitszeit) | entschieden (§6): Benutzer nur bei Einstellungen, bis Baustellenende + 1 Jahr; Bedienung vor Ort ohne Person; vor dem Firmeneinsatz mit Betriebsrat bestätigen |
 
-## 2. Aufbau der Datenbank (Schema 1)
+## 2. Aufbau der Datenbank (Schema 1, seit 0.8.54 Aufbau 2)
+
+Aufbau 2 (BSM-007): Spalten mit JSON (`wert`, `werte`, `seite`) sind in SQLite Text (`TextJSON`) – eine Spalte vom
+Typ „JSON“ hat in SQLite Zahl-Affinität, ein einzelner Wert wie `21.5` käme als Zahl zurück. PostgreSQL bleibt bei JSON.
+Mitgeschrieben wird je Baustelle von `db/mitschreiben.py`: Minutenzeilen zum Minutenwechsel (die erste und letzte nach
+einem Laden ist kürzer, `dauer_s`), Schaltungen mit Quelle `automatik` (eigener Befehl), `ha` (in HA geschaltet),
+`hand` (am Gerät), Tür und Erreichbarkeit als Ereignis, Laufzeit (`zustand`, je Schlüssel der obersten Ebene, nur bei
+Änderung), Gelerntes stündlich.
 
 Alle Zeiten in UTC (`TIMESTAMP WITH TIME ZONE` bzw. ISO in SQLite), Tage als `DATE` in der Zeitzone der Baustelle.
 IDs der Baustellen, Container und Geräte = IDs von HA (`entry_id`, `subentry_id`), damit nichts umgeschlüsselt wird.
@@ -177,7 +184,7 @@ beobachten. Jede Phase hat einen Rückweg.
 |---|---|---|---|---|
 | **0** | Fix 50-kWh-Grenze bei Lücken (`logik/zaehlen.py`, mit Test) | lange Ausfälle zählen richtig | – | PATCH |
 | **1** | Grundgerüst: `db/` (Schema 1, Verbindung, Migration, Schreiber), `backup.py`, Diagnose-Sensor; Datenbank wird angelegt, Stammdaten gespiegelt (beim Laden und nach Änderungen auf der Seite) – **erledigt 0.8.53 (BSM-006)** | nichts | Vorversion einspielen; Fehler der Datenbank halten die Steuerung nie an (statt eigener Option) | PATCH |
-| **2** | **Mitschreiben:** Einstellungen (jede Änderung mit Benutzer), Laufzeit, Ereignisse, Protokoll, Meldungen, Minutenwerte (`logik/minute.py`) – nur schreiben, gelesen wird weiter aus Store/Statistik | nichts | Option aus; Datei löschen | PATCH |
+| **2** | **Mitschreiben:** Einstellungen (jede Änderung mit Benutzer), Laufzeit, Ereignisse, Protokoll, Meldungen, Minutenwerte (`logik/minute.py`) – nur schreiben, gelesen wird weiter aus Store/Statistik – **erledigt 0.8.54 (BSM-007)**, dazu Aufbau 2 (JSON in SQLite als Text) | nichts | Vorversion einspielen; Datei löschen | PATCH |
 | **3** | **Übernahme Altdaten:** Store (Einstellungen als erste Zeilen `quelle=migration`, Zähler, Laufzeit, Protokoll, Meldungen), HA-Verlauf 62 Tage → Minuten, Langzeitstatistik davor → Stundenzeilen (`dauer_s=3600`); einmal, wiederholbar | nichts | Übernahme neu laufen lassen | PATCH |
 | **4** | **Tagessummen + Abgleich:** `logik/tag.py`, `tag_*` nachts und laufend; Abgleich-Bericht alte Zähler ↔ Datenbank je Tag/Container/Firma (Diagnose und Test), Abweichungen klären | nichts | – | PATCH |
 | **5** | **Lesen umstellen:** Auswertung, Abrechnung, Bericht, CSV, Zähler-Sensoren aus der Datenbank; `baustelle/verlauf` und Seite ohne direkte HA-Abfragen; Mockup/Panel-Test | gleiche Zahlen, Verlauf älter als 62 Tage sichtbar | Schalter „Auswertung aus Statistik“ eine Version lang | PATCH |

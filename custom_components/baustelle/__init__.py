@@ -15,7 +15,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er, 
 
 from .const import ALTE_PLATTFORMEN, CONF_REGEN_SENSOR, CONF_TEMP_SENSOR, CONF_WETTER, DOMAIN, PLATFORMS
 from .daten import struktur
-from .db import async_datenbank_starten, async_entfernen as async_db_entfernen, async_spiegeln
+from .db import async_datenbank_starten, async_entfernen as async_db_entfernen, async_spiegeln, mitschreiber_starten
 from .einstellungen import STATUS_TEXT, TICKET_STATUS, Einstellungen
 from .entity import HERSTELLER, MODELL
 from .panel import DATA_MELDUNGEN, async_panel_anmelden
@@ -78,6 +78,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) ->
     _verwaiste_geraete_entfernen(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     hass.async_create_task(async_spiegeln(hass, struktur(hass, entry)), "baustelle_datenbank_spiegeln")   # Stammdaten
+    if (mitschreiber := mitschreiber_starten(hass, steuerung)) is not None:   # je Minute, Ereignisse (BSM-007)
+        entry.async_on_unload(mitschreiber.async_stop)
     # Optionen und Subentries (Bereiche, Geräte) geändert → neu laden (Muster der Kern-Helfer)
     entry.async_on_unload(entry.add_update_listener(_neu_laden))
     return True

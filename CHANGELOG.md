@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.54] – 2026-10-05
+
+- Eigene Datenbank, Phase 2 (BSM-007): Ab jetzt schreibt die Integration alles mit – je Minute eine Zeile je Gerät
+  (Sekunden ein, Ø und höchste Leistung, Energie, Zählerstand, erreichbar), je Container (Temperatur, Soll, Tür offen,
+  Zustand, Grund) und fürs Wetter; jede Schaltung sekundengenau mit Quelle (Automatik, in HA, am Gerät), Tür und
+  Erreichbarkeit; das Protokoll ohne die Grenze von 1.000; Meldungen mit Verlauf; die Laufzeit und das Gelernte.
+  Einstellungen und Admin-Aktionen mit Benutzer, Bedienung vor Ort (jetzt heizen, Boost, Gefühl, Warnung stumm) ohne
+  Person (Datenschutz BSM-005). Gelesen wird noch aus dem Bisherigen – an der Seite ändert sich nichts.
+- Datenbank Aufbau 2: Werte als JSON-Text (SQLite speicherte einzelne Zahlen sonst als Zahl); die Datei wird beim Start
+  umgestellt, eine Kopie `baustelle.db.vor-2` bleibt liegen.
+
 ## [0.8.53] – 2026-10-05
 
 - Eigene Datenbank, Phase 1 (BSM-006, `docs/bauplan-datenbank.md`): Die Integration legt `/config/baustelle/baustelle.db`

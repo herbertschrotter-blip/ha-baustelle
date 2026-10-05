@@ -1,12 +1,17 @@
 """Eigene Datenbank, Phase 1 (docs/bauplan-datenbank.md, BSM-006): anlegen, Stammdaten spiegeln, Sicherung, Fehler."""
 
+from datetime import timedelta
+import json
 from pathlib import Path
 import sqlite3
+
+import pytest
 
 from sqlalchemy import create_engine, insert, select
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.baustelle import backup
 from custom_components.baustelle.db import DATA_DB, DATEI
@@ -31,7 +36,7 @@ async def test_angelegt_und_stammdaten(hass: HomeAssistant, baustelle) -> None:
     db = hass.data[DATA_DB]
     assert db.bereit and db.version == SCHEMA_VERSION and db.fehler is None
     assert Path(hass.config.path(DATEI)).exists()
-    assert [r["version"] for r in _zeilen(hass, "schema_version")] == [SCHEMA_VERSION]
+    assert [r["version"] for r in _zeilen(hass, "schema_version")] == list(range(1, SCHEMA_VERSION + 1))
     assert len(_zeilen(hass, "instanz")) == 1
     (b,) = _zeilen(hass, "baustelle")
     assert b["id"] == baustelle.entry_id and b["titel"] == "B1" and b["status"] == "aktiv" and b["entfernt"] is None
@@ -88,7 +93,7 @@ async def test_zweiter_start_aendert_nichts(hass: HomeAssistant, baustelle) -> N
     try:
         assert migrieren(engine, Path(hass.config.path(DATEI))) == SCHEMA_VERSION
         with engine.connect() as v:
-            assert len(v.execute(select(s.schema_version)).all()) == 1
+            assert len(v.execute(select(s.schema_version)).all()) == SCHEMA_VERSION   # jeder Schritt einmal
     finally:
         engine.dispose()
     assert not list(Path(hass.config.path("baustelle")).glob("baustelle.db.vor-*"))   # keine Kopie ohne Migration
@@ -112,3 +117,109 @@ async def test_neuere_datenbank_haelt_integration_nicht_an(hass: HomeAssistant, 
     zustand = hass.states.get(eid(hass, "sensor", f"{entry.entry_id}_datenbank"))
     assert zustand.attributes["zustand"] == "fehler"
     assert [r["version"] for r in _zeilen(hass, "schema_version")] == [99]   # unverändert
+
+
+# ---------------------------------------------------------------------- Phase 2: mitschreiben (BSM-007)
+async def _minute(hass: HomeAssistant, freezer, n: int = 1) -> None:
+    for _ in range(n):
+        freezer.tick(timedelta(minutes=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+
+
+async def test_minutenwerte(hass: HomeAssistant, baustelle, freezer) -> None:
+    await hass.async_block_till_done()
+    await _minute(hass, freezer)   # erste (ganze) Minute ab 16:50:00
+    hass.states.async_set("switch.hk1", "on")
+    hass.states.async_set("sensor.hk1_power", "2000")
+    freezer.tick(timedelta(seconds=30))
+    hass.states.async_set("sensor.temp_c1", "21.0")
+    freezer.tick(timedelta(seconds=30))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    zeilen = [r for r in _zeilen(hass, "geraet_minute") if r["geraet_id"] == HK1]
+    assert len(zeilen) == 2
+    erste, zweite = zeilen
+    assert erste["sekunden_ein"] == 0 and erste["dauer_s"] == 60 and erste["erreichbar"] == 1
+    assert zweite["sekunden_ein"] == 60 and zweite["leistung_w"] == pytest.approx(2000.0)
+    assert zweite["energie_wh"] == pytest.approx(2000 / 60, abs=0.01)   # ohne Energiezähler: aus der Leistung
+    c1 = [r for r in _zeilen(hass, "bereich_minute") if r["bereich_id"] == C1]
+    assert c1[0]["temperatur"] == pytest.approx(19.0) and c1[1]["temperatur"] == pytest.approx(20.0)
+    assert c1[1]["soll"] is not None and c1[1]["zustand"]
+    assert len(_zeilen(hass, "wetter_minute")) == 2 and _zeilen(hass, "wetter_minute")[0]["aussen_temp"] == pytest.approx(4.5)
+
+
+async def test_schalten_als_ereignis_mit_quelle(hass: HomeAssistant, baustelle, freezer) -> None:
+    await hass.async_block_till_done()
+    hass.states.async_set("switch.hk1", "on")                              # am Gerät (ohne Benutzer)
+    hass.states.async_set("switch.hk2", "unavailable")                     # nicht erreichbar
+    await hass.async_block_till_done()
+    await _minute(hass, freezer)
+    e = [(r["geraet_id"], r["art"], r["quelle"], json.loads(r["wert"])) for r in _zeilen(hass, "ereignis")]
+    assert (HK1, "schalten", "hand", {"an": True}) in e
+    assert (HK2, "erreichbar", "automatik", {"erreichbar": False}) in e
+    assert "benutzer" not in _zeilen(hass, "ereignis")[0].keys()          # §6: ohne Person
+
+
+async def test_seite_einstellung_mit_benutzer_vor_ort_ohne(hass: HomeAssistant, baustelle, freezer, hass_ws_client, hass_admin_user) -> None:
+    await hass.async_block_till_done()
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "baustelle/setzen", "entry_id": baustelle.entry_id, "pfad": ["heizung", "soll"], "wert": 21.5})
+    assert (await ws.receive_json())["success"]
+    await ws.send_json({"id": 2, "type": "baustelle/aktion", "entry_id": baustelle.entry_id, "aktion": "bedarf", "bereich": C2, "minuten": 60})
+    assert (await ws.receive_json())["success"]
+    await ws.send_json({"id": 3, "type": "baustelle/aktion", "entry_id": baustelle.entry_id, "aktion": "lern_reset", "bereich": C1})
+    assert (await ws.receive_json())["success"]
+    await _minute(hass, freezer)
+    einst = {r["schluessel"]: r for r in _zeilen(hass, "einstellung")}
+    assert json.loads(einst["heizung.soll"]["wert"]) == 21.5 and isinstance(einst["heizung.soll"]["wert"], str) and einst["heizung.soll"]["benutzer"] == hass_admin_user.name
+    assert einst["aktion.lern_reset"]["benutzer"] == hass_admin_user.name and einst["aktion.lern_reset"]["bereich_id"] == C1
+    bedarf = [r for r in _zeilen(hass, "ereignis") if r["art"] == "bedarf"]
+    assert len(bedarf) == 1 and bedarf[0]["quelle"] == "seite" and bedarf[0]["bereich_id"] == C2
+    assert "aktion.bedarf" not in einst                                     # vor Ort: kein Benutzer gespeichert
+    assert any("heizt bis" in r["text"] for r in _zeilen(hass, "protokoll"))   # Protokoll ohne Grenze
+    zustand = {r["schluessel"]: json.loads(r["wert"]) for r in _zeilen(hass, "zustand")}
+    assert C2 in zustand["bedarf_bis"]                                       # Laufzeit
+
+
+async def test_meldungen_in_der_datenbank(hass: HomeAssistant, baustelle, freezer, hass_ws_client) -> None:
+    await hass.async_block_till_done()
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "baustelle/meldung", "aktion": "neu", "meldung": {"art": "wunsch", "text": "Datenbank"}})
+    antwort = await ws.receive_json()
+    assert antwort["success"]
+    await ws.send_json({"id": 2, "type": "baustelle/meldung", "aktion": "status", "meldung_id": antwort["result"]["id"], "status": "angenommen"})
+    assert (await ws.receive_json())["success"]
+    await _minute(hass, freezer)
+    (m,) = _zeilen(hass, "meldung")
+    assert (m["ticket"], m["art"], m["status"], m["text"]) == ("WU-0001", "wunsch", "angenommen", "Datenbank")
+    assert [r["status"] for r in _zeilen(hass, "meldung_verlauf")] == ["angenommen"]
+
+
+async def test_migration_von_aufbau_1(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    """Aufbau 1 (wie auf dem Pi seit 0.8.53): Kopie bleibt, JSON-Spalten werden als Text neu angelegt, Stammdaten bleiben."""
+    from sqlalchemy import JSON, MetaData, Table   # noqa: PLC0415
+    pfad = Path(hass.config.path(DATEI))
+    pfad.parent.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(f"sqlite:///{pfad}")
+    alt = MetaData()
+    for t in s.metadata.sorted_tables:   # Aufbau 1: dieselben Tabellen, JSON-Spalten mit Typ JSON
+        Table(t.name, alt, *[c._copy() if t.name not in s.JSON_TABELLEN or c.name not in ("wert", "werte", "seite")
+                             else type(c)(c.name, JSON) for c in t.columns])
+    alt.create_all(engine)
+    with engine.begin() as v:
+        v.execute(insert(s.schema_version).values(version=1, angewendet=dt_util.utcnow()))
+        v.execute(insert(s.instanz).values(id="x", name="alt", angelegt=dt_util.utcnow()))
+    engine.dispose()
+    entry = await baustelle_anlegen(hass, freezer)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    db = hass.data[DATA_DB]
+    assert db.bereit and db.version == 2, db.fehler
+    assert [r["version"] for r in _zeilen(hass, "schema_version")] == [1, 2]
+    assert pfad.with_name("baustelle.db.vor-2").exists()
+    assert any(r["id"] == "x" for r in _zeilen(hass, "instanz"))
+    verbindung = sqlite3.connect(pfad)
+    typen = {z[1]: z[2] for z in verbindung.execute("PRAGMA table_info(einstellung)")}
+    verbindung.close()
+    assert typen["wert"] == "TEXT"

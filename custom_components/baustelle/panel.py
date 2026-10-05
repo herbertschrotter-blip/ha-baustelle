@@ -22,13 +22,13 @@ from homeassistant.util import dt as dt_util
 from . import auswertung
 from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
-from .db import async_spiegeln
+from .db import async_spiegeln, einstellung_merken, ereignis_merken
 from .einstellungen import ART_TEXT, EIGEN, TICKET_OFFEN, TICKET_STATUS, Meldungen
 from .funktionen.heizung import Heizung
 from .logik import preise as preise_logik
 from .logik.arbeitszeit import arbeitszeit_loeschen, arbeitszeiten_speichern
 from .logik.auswertung import ARTEN
-from .logik.rechte import darf, rechte
+from .logik.rechte import AKTIONEN_ALLE, darf, rechte
 from .logik.warnungen import Art
 
 if TYPE_CHECKING:
@@ -263,6 +263,20 @@ def _darf(connection: websocket_api.ActiveConnection, msg: dict[str, Any], befeh
     return False
 
 
+def _benutzer(connection: websocket_api.ActiveConnection) -> str | None:
+    return connection.user.name if connection.user else None
+
+
+def _aktion_merken(hass: HomeAssistant, connection: websocket_api.ActiveConnection, st: Steuerung, msg: dict[str, Any]) -> None:
+    """Eigene Datenbank (BSM-007, §6): Bedienung vor Ort als Ereignis ohne Person, alles andere als Einstellung mit Benutzer."""
+    felder = {k: msg[k] for k in ("bereich", "geraet", "minuten", "bis", "boost", "an", "key", "art", "wert", "d", "kwh", "eur") if k in msg}
+    if msg["aktion"] in AKTIONEN_ALLE:
+        ereignis_merken(hass, st.entry.entry_id, msg["aktion"], felder, "seite", bereich_id=msg.get("bereich"), geraet_id=msg.get("geraet"))
+    else:
+        einstellung_merken(hass, st.entry.entry_id, f"aktion.{msg['aktion']}", felder, _benutzer(connection),
+                           bereich_id=msg.get("bereich"), geraet_id=msg.get("geraet"))
+
+
 def _fehler(connection: websocket_api.ActiveConnection, msg: dict[str, Any], text: str) -> None:
     connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, text)
 
@@ -356,6 +370,8 @@ def ws_setzen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
         st.auswerten()
     else:
         st.einstellung_setzen(pfad, wert)
+    einstellung_merken(hass, st.entry.entry_id, ".".join(pfad), wert, _benutzer(connection),   # BSM-007: mit Benutzer
+                       bereich_id=pfad[1] if pfad[0] == "bereiche" else None, geraet_id=pfad[1] if pfad[0] == "geraete" else None)
     hass.async_create_task(async_spiegeln(hass, struktur(hass, st.entry)), "baustelle_datenbank_spiegeln")
     connection.send_result(msg["id"], {"ok": True})
 
@@ -550,6 +566,8 @@ def ws_liste(hass: HomeAssistant, connection: websocket_api.ActiveConnection, ms
         return
     st.einstellungen.speichern()
     st.auswerten()
+    einstellung_merken(hass, st.entry.entry_id, f"liste.{msg['liste']}", {"aktion": msg["aktion"], "eintrag": msg["eintrag"]},
+                       _benutzer(connection))   # BSM-007: mit Benutzer
     hass.async_create_task(async_spiegeln(hass, struktur(hass, st.entry)), "baustelle_datenbank_spiegeln")
     connection.send_result(msg["id"], ergebnis)
 
@@ -632,6 +650,7 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
             connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Gerät nicht gefunden")
             return
         st.geraet_aktiv_setzen(g, bool(msg["an"]))
+        _aktion_merken(hass, connection, st, msg)
         connection.send_result(msg["id"], {"ok": True})
         return
     elif aktion in ("schalten", "automatik"):
@@ -713,6 +732,7 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
                           ("fuehler_zuletzt", {})):
             lz[key] = leer
         st.protokoll("einstellung", None, "Alle Zähler und alles Gelernte zurückgesetzt")
+        _aktion_merken(hass, connection, st, msg)
         connection.send_result(msg["id"], {"ok": True})
         hass.config_entries.async_schedule_reload(st.entry.entry_id)
         return
@@ -722,6 +742,7 @@ async def ws_aktion(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         return
     st.einstellungen.speichern()
     st.auswerten()
+    _aktion_merken(hass, connection, st, msg)
     connection.send_result(msg["id"], {"ok": True})
 
 

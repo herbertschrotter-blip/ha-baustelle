@@ -23,6 +23,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.file import write_utf8_file
 
 from .const import DOMAIN
+from .db import meldungen_merken
 from .logik.arbeitszeit import arbeitszeiten_bereinigen, erste_arbeitszeit
 from .logik.warnungen import Art
 
@@ -362,4 +363,5 @@ class Meldungen:
 
     def speichern(self) -> None:
         self._store.async_delay_save(lambda: {"meldungen": self.liste, "nummern": self.nummern}, SPEICHER_VERZOEGERUNG_S)
+        meldungen_merken(self._hass, copy.deepcopy(self.liste))   # eigene Datenbank (BSM-007)
         self._hass.async_create_task(self.async_exportieren(), "baustelle_meldungen_exportieren")

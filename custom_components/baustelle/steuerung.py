@@ -80,6 +80,7 @@ from .funktionen.basis import (
 from .logik import regelung as regel_logik, staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import Arbeitszeit, Ausnahme, WetterTag
 from .logik import preise as preise_logik
+from .db import protokoll_merken
 from .logik.zaehlen import energie_zuwachs, leistung_integriert, zaehlerstand
 from . import texte
 from .texte import GRUND_TEXT
@@ -228,6 +229,11 @@ class Steuerung:
         return self.einstellungen.daten
 
     @property
+    def eigene_kontexte(self) -> deque[str]:
+        """Kontexte der eigenen Schaltbefehle (Quelle „automatik“ beim Mitschreiben, BSM-007)."""
+        return self._eigene_kontexte
+
+    @property
     def lz(self) -> dict[str, Any]:
         """Laufzeitdaten im Store (der Funktionen, Warnungen, Wetter je Tag)."""
         laufzeit: dict[str, Any] = self.einstellungen.daten["laufzeit"]
@@ -342,9 +348,10 @@ class Steuerung:
     # ------------------------------------------------------------------ Protokoll
     @callback
     def protokoll(self, art: str, bereich: str | None, text: str, zeit: datetime | None = None) -> None:
-        """Eintrag ins dauerhafte Protokoll (neueste zuerst, max. 1000) und ins HA-Logbuch."""
+        """Eintrag ins dauerhafte Protokoll (neueste zuerst, max. 1000), in die eigene Datenbank und ins HA-Logbuch."""
         zeit = zeit or dt_util.now()
         self.einstellungen.protokoll([zeit.isoformat(timespec="seconds"), art, bereich, text])
+        protokoll_merken(self.hass, self.entry.entry_id, zeit, art, bereich, text)   # BSM-007
         self.hass.bus.async_fire(
             EVENT_PROTOKOLL,
             {

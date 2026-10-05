@@ -6,6 +6,7 @@ Zeiten in UTC (`DateTime(timezone=True)`), Tage als `Date` in der Zeitzone der B
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from sqlalchemy import (
@@ -21,13 +22,32 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    TypeDecorator,
 )
+from sqlalchemy.engine import Dialect
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2   # 2: JSON in SQLite als Text (Aufbau 1 speicherte einzelne Zahlen als Zahl, BSM-007)
 
 metadata = MetaData()
 
 ID = 64   # Länge der IDs (entry_id, subentry_id, eigene IDs)
+
+
+class TextJSON(TypeDecorator[Any]):
+    """JSON als Text: SQLite gibt einer Spalte vom Typ „JSON“ Zahl-Affinität – `21.5` käme als Zahl zurück."""
+
+    impl = Text
+    cache_ok = True
+
+    def process_bind_param(self, value: Any, dialect: Dialect) -> str | None:
+        return None if value is None else json.dumps(value, ensure_ascii=False)
+
+    def process_result_value(self, value: Any, dialect: Dialect) -> Any:
+        return None if value is None else json.loads(value)
+
+
+JSONWERT = JSON().with_variant(TextJSON(), "sqlite")   # PostgreSQL: echtes JSON
+JSON_TABELLEN = ("einstellung", "zustand", "lernen", "ereignis", "meldung")
 
 
 def _zeit(name: str, **kw: Any) -> Column[Any]:
@@ -158,7 +178,7 @@ einstellung = Table(
     Column("bereich_id", String(ID)),
     Column("geraet_id", String(ID)),
     Column("schluessel", String(200), nullable=False),
-    Column("wert", JSON),
+    Column("wert", JSONWERT),
     _zeit("ab", nullable=False),
     Column("benutzer", String(200)),                     # §6: bis Baustellenende + 1 Jahr, dann anonymisiert
     Column("quelle", String(20), nullable=False),        # seite | import | migration
@@ -169,7 +189,7 @@ zustand = Table(
     "zustand", metadata,
     Column("baustelle_id", String(ID), primary_key=True),
     Column("schluessel", String(200), primary_key=True),
-    Column("wert", JSON),
+    Column("wert", JSONWERT),
     _zeit("geaendert", nullable=False),
 )
 
@@ -178,7 +198,7 @@ lernen = Table(
     Column("baustelle_id", String(ID), nullable=False),
     Column("bereich_id", String(ID), primary_key=True),
     Column("datum", Date, primary_key=True),
-    Column("werte", JSON),
+    Column("werte", JSONWERT),
 )
 
 # ---------------------------------------------------------------------- 2.3 Messwerte (je Minute, für immer)
@@ -231,7 +251,7 @@ ereignis = Table(   # §6: ohne Benutzer
     Column("bereich_id", String(ID)),
     Column("geraet_id", String(ID)),
     Column("art", String(30), nullable=False),           # schalten | tuer | hand | bedarf | boost | notbetrieb | erreichbar
-    Column("wert", JSON),
+    Column("wert", JSONWERT),
     Column("quelle", String(20), nullable=False),        # automatik | hand | seite | taste | notprogramm
     Column("grund", String(60)),
     Index("ix_ereignis_zeit", "baustelle_id", "zeit"),
@@ -292,7 +312,7 @@ meldung = Table(
     Column("text", Text),
     Column("kontext", Text),
     Column("geraet", String(40)),
-    Column("seite", JSON),
+    Column("seite", JSONWERT),
     Column("version", String(20)),
     Column("baustelle_id", String(ID)),
     _zeit("zeit", nullable=False),
