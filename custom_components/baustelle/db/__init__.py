@@ -133,5 +133,7 @@ def uebernahme_planen(hass: HomeAssistant, st: Steuerung, bis: datetime) -> CALL
 
     async def los(_hass: HomeAssistant) -> None:
         await async_uebernehmen(hass, db, st, bis)
+        from .tage import async_fehlende_tage   # noqa: PLC0415
+        await async_fehlende_tage(db, st)   # Tagessummen für alle Tage, die noch fehlen (BSM-009)
 
     return async_at_started(hass, los)

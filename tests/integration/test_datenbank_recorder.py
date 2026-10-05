@@ -67,3 +67,20 @@ async def test_uebernahme_nur_bis_zum_mitschreiben(recorder_mock, hass: HomeAssi
     assert len(zeiten) == len(set(zeiten))   # keine Minute doppelt
     importiert = [r for r in zeilen if r["quelle"] == "import_verlauf"]
     assert importiert and max(r["zeit"] for r in importiert) < min(r["zeit"] for r in ha)
+
+
+async def test_fehlende_tage_nach_der_uebernahme(recorder_mock, hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
+    """Nach der Übernahme stehen die Tagessummen auch für die übernommenen Tage da (BSM-009)."""
+    from pytest_homeassistant_custom_component.components.recorder.common import async_wait_recording_done  # noqa: PLC0415
+    entry = await baustelle_anlegen(hass, freezer, zeit="2026-09-28 22:30:00+02:00")
+    hass.states.async_set("switch.hk1", "on")
+    hass.states.async_set("sensor.hk1_power", "1000")
+    freezer.tick(timedelta(hours=2))                  # über Mitternacht: zwei Tage
+    await async_wait_recording_done(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await async_wait_recording_done(hass)
+    await hass.async_block_till_done()
+    tage = {(r["geraet_id"], r["datum"]): r for r in _zeilen(hass, "tag_geraet")}
+    assert tage[(HK1, "2026-09-28")]["heizzeit_min"] == pytest.approx(90, abs=1)
+    assert tage[(HK1, "2026-09-29")]["heizzeit_min"] == pytest.approx(30, abs=1)

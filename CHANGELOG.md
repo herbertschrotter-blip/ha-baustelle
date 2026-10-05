@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.57] – 2026-10-05
+
+- Eigene Datenbank, Phase 4 (BSM-009): Tagessummen je Gerät und Container (kWh, € zum Preis des Tages, Firma,
+  Heizzeit, tatsächlich geheizt, Heiztag, Zyklen, Gradstunden, Temperaturen) – für heute alle 15 Minuten, kurz nach
+  Mitternacht auch für gestern, nach dem Start für alle fehlenden Tage. Der Diagnose-Download zeigt den Abgleich der
+  Tages-kWh je Container mit der HA-Langzeitstatistik der letzten 14 Tage. An der Seite ändert sich noch nichts.
+
 ## [0.8.56] – 2026-10-05
 
 - Übernahme der Altdaten (BSM-008) ergänzt: auch die Meldungen, und das Wetter aus den eigenen Sensoren der Integration

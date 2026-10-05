@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from .verbindung import Datenbank
 
 LERNEN_JEDE_MINUTE = 0   # stündlich (Minute 0) das Gelernte je Container und Tag
+TAGE_JEDE_MINUTEN = 15   # Tagessummen von heute alle 15 Minuten neu (BSM-009)
 
 
 def _zahl(zustand: State | None) -> float | None:
@@ -144,7 +145,18 @@ class Mitschreiber:
     def _minute(self, _jetzt: datetime) -> None:
         jetzt = dt_util.utcnow().replace(second=0, microsecond=0)
         self._abschliessen(jetzt, stunde=jetzt.minute == LERNEN_JEDE_MINUTE)
-        self.hass.async_create_task(self.db.schreiber.async_schreiben(), "baustelle_datenbank_minute")
+        self.hass.async_create_task(self._async_schreiben_und_tage(dt_util.as_local(jetzt)), "baustelle_datenbank_minute")
+
+    async def _async_schreiben_und_tage(self, lokal: datetime) -> None:
+        """Minute schreiben; Tagessummen (BSM-009) für heute alle 15 Minuten, um 00:05 auch für gestern."""
+        await self.db.schreiber.async_schreiben()
+        if lokal.minute % TAGE_JEDE_MINUTEN:
+            return
+        from .tage import async_tage_rechnen   # noqa: PLC0415
+        tage = [lokal.date()]
+        if lokal.hour == 0 and lokal.minute <= TAGE_JEDE_MINUTEN:
+            tage.insert(0, lokal.date() - timedelta(days=1))
+        await async_tage_rechnen(self.db, self.st, tage)
 
     def _abschliessen(self, ende: datetime, *, stunde: bool) -> None:
         geraete: list[dict[str, Any]] = []

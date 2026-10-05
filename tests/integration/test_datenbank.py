@@ -260,3 +260,24 @@ async def test_uebernahme_meldungen(hass: HomeAssistant, baustelle, hass_ws_clie
     assert ergebnis is not None and ergebnis["meldung"] == 1
     assert [r["text"] for r in _zeilen(hass, "meldung")] == ["alt"]
 
+
+
+# ---------------------------------------------------------------------- Phase 4: Tagessummen (BSM-009)
+async def test_tagessummen_viertelstuendlich(hass: HomeAssistant, baustelle, freezer, hass_ws_client) -> None:
+    await hass.async_block_till_done()
+    st = baustelle.runtime_data
+    await _minute(hass, freezer)                      # 16:51
+    hass.states.async_set("switch.hk1", "on")
+    hass.states.async_set("sensor.hk1_power", "2000")
+    await _minute(hass, freezer, 9)                   # bis 17:00 – Viertelstunde → Tagessummen
+    zeilen = {r["geraet_id"]: r for r in _zeilen(hass, "tag_geraet")}
+    hk1 = zeilen[HK1]
+    assert hk1["datum"] == "2026-09-29" and hk1["heizzeit_min"] == pytest.approx(9.0) and hk1["zyklen"] == 1
+    assert hk1["kwh"] == pytest.approx(2 * 9 / 60, abs=0.01) and hk1["eur"] == pytest.approx(hk1["kwh"] * st.preis_am(dt_util.now().date()), abs=1e-4)
+    c1 = {r["bereich_id"]: r for r in _zeilen(hass, "tag_bereich")}[C1]
+    assert c1["heizzeit_min"] == pytest.approx(9.0) and c1["heiztag"] == 1 and c1["firma_id"] == "eigen"
+    assert c1["temp_mittel"] == pytest.approx(19.0) and c1["gradh"] > 0
+    # Diagnose enthält den Abgleich mit der HA-Statistik (ohne Recorder: nur die Datenbank-Seite)
+    from custom_components.baustelle.diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
+    diag = await async_get_config_entry_diagnostics(hass, baustelle)
+    assert any(z["bereich"] == "Container 1" and z["datenbank_kwh"] for z in diag["datenbank"]["abgleich"])

@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.57",
+    "datum": "2026-10-05",
+    "punkte": [
+      "Eigene Datenbank, Phase 4 (BSM-009): Tagessummen je Gerät und Container (kWh, € zum Preis des Tages, Firma, Heizzeit, tatsächlich geheizt, Heiztag, Zyklen, Gradstunden, Temperaturen) – für heute alle 15 Minuten, kurz nach Mitternacht auch für gestern, nach dem Start für alle fehlenden Tage. Der Diagnose-Download zeigt den Abgleich der Tages-kWh je Container mit der HA-Langzeitstatistik der letzten 14 Tage. An der Seite ändert sich noch nichts."
+    ]
+  },
+  {
     "version": "0.8.56",
     "datum": "2026-10-05",
     "punkte": [
