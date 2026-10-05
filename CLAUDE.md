@@ -73,8 +73,8 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Entscheidungs-Ort: none
 
 ### Tracker
-- Provider: none
-- Config: none
+- Provider: clickup
+- Config: ref:CLAUDE.md#Tracker-Profil
 
 ### Ticket
 - Config: ref:CLAUDE.md#Ticket-Profil
@@ -91,6 +91,16 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 ### Modul
 - Manifest: none
 - Grundsatzregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
+
+## Tracker-Profil
+
+- Projekt: bsm
+- Skill-Repo: /config/projekte/claude-skills-bpm (auf dem HA-Pi)
+- Projekt-Config: projects/bsm/
+- ClickUp: Space Smart Home 1200660000001609, Liste BSM Baustrommanager 1200660000007163
+- Nummernschema: BSM-NNN | KÜRZEL | Schritt Kurztitel, Etappe als Tag etappe-a … etappe-h (Fahrplan `docs/fahrplan.md`)
+- Nächste freie Nummer: BSM-030
+- Melden-Tickets (FE-/WU-/AN-NNNN) laufen nicht über ClickUp, sondern über das Ticket-Profil
 
 ## Ticket-Profil
 
