@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.76",
+    "datum": "2026-10-06",
+    "punkte": [
+      "Umbau der Seite, ohne sichtbare Änderung (BSM-022.04, Stufe 1a): Wettersymbole, Container-Grafik und Icons sowie die Hilfen für Zahlen, Datum und kleine Bausteine liegen jetzt in eigenen Dateien (`frontend/src/symbole.js`, `hilfen.js`). Die Seite zeigt und sendet genau dasselbe wie vorher."
+    ]
+  },
+  {
     "version": "0.8.75",
     "datum": "2026-10-06",
     "punkte": [

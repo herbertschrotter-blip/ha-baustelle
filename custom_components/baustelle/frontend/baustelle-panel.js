@@ -1,6 +1,107 @@
 // Seite „Baustelle“ – gebaut mit esbuild aus custom_components/baustelle/frontend/src (nicht von Hand ändern, BSM-022)
 
-// src/alt.js
+// src/hilfen.js
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+var zahl = (x) => x !== null && x !== void 0 && x !== "" && Number.isFinite(Number(x));
+var de = (x, d = 1) => {
+  if (!zahl(x)) return "–";
+  const n = Number(x);
+  return (Math.abs(n) < 0.5 * 10 ** -d ? 0 : n).toLocaleString("de-AT", { minimumFractionDigits: d, maximumFractionDigits: d });
+};
+var TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+var minu = (t) => {
+  if (!t) return 0;
+  const [h, m] = String(t).split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+var uhr = (m) => {
+  m = Math.max(0, Math.round(zahl(m) ? m : 0));
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+};
+var datum = (iso) => iso ? String(iso).slice(0, 10).split("-").reverse().join(".") : "–";
+var tageZwischen = (a, b) => Math.round((Date.parse(b + "T12:00:00Z") - Date.parse(a + "T12:00:00Z")) / 864e5);
+var kwNr = (iso) => {
+  const t = /* @__PURE__ */ new Date(iso + "T12:00:00Z"), w = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - w + 3);
+  const j = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((t - j) / 864e5 - 3 + (j.getUTCDay() + 6) % 7) / 7);
+};
+function zrVersatz(z, iso, h, mo) {
+  if (z === "Tag") return tageZwischen(iso, h);
+  if (z === "Woche") {
+    const w = ((/* @__PURE__ */ new Date(iso + "T12:00:00Z")).getUTCDay() + 6) % 7;
+    return tageZwischen(plusTage(iso, -w), mo) / 7;
+  }
+  if (z === "Monat") return (+h.slice(0, 4) - +iso.slice(0, 4)) * 12 + +h.slice(5, 7) - +iso.slice(5, 7);
+  return +h.slice(0, 4) - +iso.slice(0, 4);
+}
+function zrInfo(z, v, h, mo) {
+  if (z === "Tag") {
+    const t = plusTage(h, -v);
+    return { text: v === 0 ? "Heute" : v === 1 ? "Gestern" : `${wtag(t)} ${datum(t)}`, unter: v < 2 ? `${wtag(t)} ${datum(t)}` : "", iso: t };
+  }
+  if (z === "Woche") {
+    const m = plusTage(mo, -7 * v), so = plusTage(m, 6);
+    return { text: v === 0 ? "Diese Woche" : v === 1 ? "Vorwoche" : `KW ${kwNr(m)}`, unter: `KW ${kwNr(m)} · ${datum(m).slice(0, 6)}–${datum(so)}`, iso: m };
+  }
+  if (z === "Monat") {
+    let m = +h.slice(5, 7) - 1 - v, j2 = +h.slice(0, 4);
+    while (m < 0) {
+      m += 12;
+      j2--;
+    }
+    return { text: `${MONATE_LANG[m]} ${j2}`, unter: v === 0 ? "aktueller Monat" : "", iso: `${j2}-${String(m + 1).padStart(2, "0")}-01` };
+  }
+  const j = +h.slice(0, 4) - v;
+  return { text: String(j), unter: v === 0 ? "aktuelles Jahr" : "", iso: `${j}-01-01` };
+}
+var plusTage = (iso, n) => {
+  const d = /* @__PURE__ */ new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+var terminAm = (t, iso) => {
+  const d = tageZwischen(t.datum, iso);
+  return t.wieder === "einmal" ? d === 0 : d >= 0 && d % (t.wieder === "2wochen" ? 14 : 7) === 0;
+};
+var naechsterTermin = (t, ab) => {
+  for (let k = 0; k < 28; k++) {
+    const iso = plusTage(ab, k);
+    if (terminAm(t, iso)) return iso;
+  }
+  return null;
+};
+var kurzDatum = (iso) => iso ? String(iso).slice(0, 10).split("-").reverse().slice(0, 2).join(".") + "." : "–";
+var wtag = (iso) => iso ? ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][(/* @__PURE__ */ new Date(String(iso).slice(0, 10) + "T12:00:00Z")).getUTCDay()] : "–";
+var dauer = (a, b) => {
+  const m = minu(b) - minu(a);
+  return `${Math.floor(m / 60)} h${m % 60 ? " " + String(m % 60).padStart(2, "0") : ""}`;
+};
+var stdMin = (h) => {
+  if (!zahl(h)) return "–";
+  const m = Math.round(h * 60);
+  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+};
+var MONATE = ["Jän", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+var MONATE_LANG = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+var summe = (a) => (a || []).reduce((x, v) => x + (zahl(v) ? Number(v) : 0), 0);
+var addieren = (arr) => arr.length ? arr.reduce((a, w) => a.map((v, i) => v + (w[i] || 0))) : [];
+var erkl = (an, text) => an ? `<div class="erkl">ⓘ ${text}</div>` : "";
+var knopf2 = (t, act, text) => `<button class="knopf leise-k" data-act="${act}" data-t="${esc(text)}">${t}</button>`;
+var schalter = (on, act, extra = "") => `<button class="sw ${on ? "on" : ""}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
+var verNeuer = (a, b) => {
+  const x = String(a || "").split(".").map(Number), y = String(b || "").split(".").map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] || 0) - (y[i] || 0);
+    if (Number.isNaN(d)) return false;
+    if (d) return d > 0;
+  }
+  return false;
+};
+
+// src/symbole.js
 var R_DEFS = `<defs>
   <filter id="wrFluff" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="4" result="n"/>
     <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation=".45"/></filter>
@@ -174,6 +275,18 @@ function bcSchacht(laeuft) {
     <path d="M85 76V10h32" fill="none" stroke="#90a4ae" stroke-width="5"/><path class="${laeuft ? "bc-fluss" : ""}" d="M85 76V10h32" fill="none" stroke="#64b5f6" stroke-width="2.4"/>
   </svg>`;
 }
+var ICON_MELDEN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 8v3.5M12 13.6v.2"/></svg>';
+var ICON_COG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>';
+var IC_MINUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+var IC_PLUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+var IC_POWER = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M7.3 7.2a7 7 0 1 0 9.4 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+var sigStufe = (db) => db >= -55 ? 4 : db >= -67 ? 3 : db >= -75 ? 2 : db >= -85 ? 1 : 0;
+var sigHtml = (db) => {
+  const n4 = sigStufe(db);
+  return `<span class="ger-sig s${n4}" title="Signal ${de(db, 0)} dBm" aria-label="Signal ${n4} von 4">${[1, 2, 3, 4].map((k) => `<i class="${k <= n4 ? "an" : ""}"></i>`).join("")}</span>`;
+};
+
+// src/alt.js
 var NUR_ANSEHEN = "Nur ansehen – ändern dürfen nur Admins";
 var NUR_LESEN_SPERRE = [
   '.sw:not([data-act="ml-stand"]):not([data-act="bedarf-boost"]):not([data-act="kk-dia-w"]):not([data-act="aw-an"])',
@@ -1215,98 +1328,10 @@ var Himmel = class _Himmel {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 };
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-}
-var zahl = (x) => x !== null && x !== void 0 && x !== "" && Number.isFinite(Number(x));
-var de = (x, d = 1) => {
-  if (!zahl(x)) return "–";
-  const n = Number(x);
-  return (Math.abs(n) < 0.5 * 10 ** -d ? 0 : n).toLocaleString("de-AT", { minimumFractionDigits: d, maximumFractionDigits: d });
-};
 var FARBE = { bereit: "#8e8e93", heizt: "#ff9f0a", trocknen: "#ff9f0a", aus: "#8e8e93", frost: "#64d2ff", offline: "#ff453a", laeuft: "#0a84ff", pause: "#bf5af2" };
-var TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 var TICKET_STATUS = { neu: "neu", angenommen: "angenommen", in_arbeit: "in Arbeit", geloest: "gelöst", geschlossen: "geschlossen", verworfen: "verworfen", offen: "neu", erledigt: "geschlossen" };
-var ICON_MELDEN = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 8v3.5M12 13.6v.2"/></svg>';
-var minu = (t) => {
-  if (!t) return 0;
-  const [h, m] = String(t).split(":").map(Number);
-  return (h || 0) * 60 + (m || 0);
-};
-var uhr = (m) => {
-  m = Math.max(0, Math.round(zahl(m) ? m : 0));
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-};
-var datum = (iso) => iso ? String(iso).slice(0, 10).split("-").reverse().join(".") : "–";
 var WIEDER = { einmal: "einmalig", woche: "jede Woche", "2wochen": "alle 2 Wochen" };
-var tageZwischen = (a, b) => Math.round((Date.parse(b + "T12:00:00Z") - Date.parse(a + "T12:00:00Z")) / 864e5);
-var kwNr = (iso) => {
-  const t = /* @__PURE__ */ new Date(iso + "T12:00:00Z"), w = (t.getUTCDay() + 6) % 7;
-  t.setUTCDate(t.getUTCDate() - w + 3);
-  const j = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
-  return 1 + Math.round(((t - j) / 864e5 - 3 + (j.getUTCDay() + 6) % 7) / 7);
-};
-function zrVersatz(z, iso, h, mo) {
-  if (z === "Tag") return tageZwischen(iso, h);
-  if (z === "Woche") {
-    const w = ((/* @__PURE__ */ new Date(iso + "T12:00:00Z")).getUTCDay() + 6) % 7;
-    return tageZwischen(plusTage(iso, -w), mo) / 7;
-  }
-  if (z === "Monat") return (+h.slice(0, 4) - +iso.slice(0, 4)) * 12 + +h.slice(5, 7) - +iso.slice(5, 7);
-  return +h.slice(0, 4) - +iso.slice(0, 4);
-}
-function zrInfo(z, v, h, mo) {
-  if (z === "Tag") {
-    const t = plusTage(h, -v);
-    return { text: v === 0 ? "Heute" : v === 1 ? "Gestern" : `${wtag(t)} ${datum(t)}`, unter: v < 2 ? `${wtag(t)} ${datum(t)}` : "", iso: t };
-  }
-  if (z === "Woche") {
-    const m = plusTage(mo, -7 * v), so = plusTage(m, 6);
-    return { text: v === 0 ? "Diese Woche" : v === 1 ? "Vorwoche" : `KW ${kwNr(m)}`, unter: `KW ${kwNr(m)} · ${datum(m).slice(0, 6)}–${datum(so)}`, iso: m };
-  }
-  if (z === "Monat") {
-    let m = +h.slice(5, 7) - 1 - v, j2 = +h.slice(0, 4);
-    while (m < 0) {
-      m += 12;
-      j2--;
-    }
-    return { text: `${MONATE_LANG[m]} ${j2}`, unter: v === 0 ? "aktueller Monat" : "", iso: `${j2}-${String(m + 1).padStart(2, "0")}-01` };
-  }
-  const j = +h.slice(0, 4) - v;
-  return { text: String(j), unter: v === 0 ? "aktuelles Jahr" : "", iso: `${j}-01-01` };
-}
-var plusTage = (iso, n) => {
-  const d = /* @__PURE__ */ new Date(iso + "T12:00:00Z");
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-};
-var terminAm = (t, iso) => {
-  const d = tageZwischen(t.datum, iso);
-  return t.wieder === "einmal" ? d === 0 : d >= 0 && d % (t.wieder === "2wochen" ? 14 : 7) === 0;
-};
-var naechsterTermin = (t, ab) => {
-  for (let k = 0; k < 28; k++) {
-    const iso = plusTage(ab, k);
-    if (terminAm(t, iso)) return iso;
-  }
-  return null;
-};
 var AUSNAHME = { arbeit: "zusätzlich arbeiten", zeiten: "andere Zeiten", frei: "frei" };
-var kurzDatum = (iso) => iso ? String(iso).slice(0, 10).split("-").reverse().slice(0, 2).join(".") + "." : "–";
-var wtag = (iso) => iso ? ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][(/* @__PURE__ */ new Date(String(iso).slice(0, 10) + "T12:00:00Z")).getUTCDay()] : "–";
-var dauer = (a, b) => {
-  const m = minu(b) - minu(a);
-  return `${Math.floor(m / 60)} h${m % 60 ? " " + String(m % 60).padStart(2, "0") : ""}`;
-};
-var stdMin = (h) => {
-  if (!zahl(h)) return "–";
-  const m = Math.round(h * 60);
-  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
-};
-var MONATE = ["Jän", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-var MONATE_LANG = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
-var summe = (a) => (a || []).reduce((x, v) => x + (zahl(v) ? Number(v) : 0), 0);
-var addieren = (arr) => arr.length ? arr.reduce((a, w) => a.map((v, i) => v + (w[i] || 0))) : [];
 var LAEDT = '<div class="leer">Lädt …</div>';
 var HEIZER = (g) => ["heizung", "heizkoerper"].includes(g.rolle);
 var TYP_TEXT = (g) => g.rolle === "pumpe" ? "Pumpe" : HEIZER(g) ? g.typ === "konvektor" ? "Konvektor" : "Ölradiator" : ["trockner", "bautrockner"].includes(g.rolle) ? "Bautrockner" : "Steckdose";
@@ -1436,7 +1461,6 @@ var MODUS_TEXT = {
   aus: "alles aus, Frostschutz bleibt"
 };
 var FREI_TEXT = { frost: "nur Frostschutz", absenk: "abgesenkt", aus: "alles aus" };
-var erkl = (an, text) => an ? `<div class="erkl">ⓘ ${text}</div>` : "";
 var STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, "0"));
 var HZ_TEILE = [
   ["heute", "Heute", "🕖", "Heute"],
@@ -1521,9 +1545,6 @@ var TEXT_MOCKUP = (b) => b.boost ? "⚡ schnell aufheizen" : {
   bereit: "bei Bedarf · nur Frostschutz"
 }[b.z] || "";
 var TEXT = (b) => b.text || TEXT_MOCKUP(b);
-var knopf2 = (t, act, text) => `<button class="knopf leise-k" data-act="${act}" data-t="${esc(text)}">${t}</button>`;
-var ICON_COG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>';
-var schalter = (on, act, extra = "") => `<button class="sw ${on ? "on" : ""}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
 var CHARTS = {};
 function linie(id, reihen, einheit, vb = null) {
   const W = 320, H = 160, L = 28, R = vb ? 30 : 8, T = 16, U = 22;
@@ -1675,9 +1696,6 @@ function einblendungen(s) {
   };
   return s;
 }
-var IC_MINUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-var IC_PLUS = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-var IC_POWER = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M7.3 7.2a7 7 0 1 0 9.4 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 var AW_BAUSTEINE = {
   betrag: ["Kosten groß", "Betrag des Zeitraums, Vergleich, Gespart, Hochrechnung"],
   kennzahlen: ["Kennzahlen", "kWh, Kosten, Heizzeit, Pumpzeit mit Vergleich"],
@@ -1763,11 +1781,6 @@ var KK_GROESSE = [["S", "Klein", "1×1"], ["M", "Mittel", "2×1"], ["L", "Groß"
 var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
-var sigStufe = (db) => db >= -55 ? 4 : db >= -67 ? 3 : db >= -75 ? 2 : db >= -85 ? 1 : 0;
-var sigHtml = (db) => {
-  const n4 = sigStufe(db);
-  return `<span class="ger-sig s${n4}" title="Signal ${de(db, 0)} dBm" aria-label="Signal ${n4} von 4">${[1, 2, 3, 4].map((k) => `<i class="${k <= n4 ? "an" : ""}"></i>`).join("")}</span>`;
-};
 function funke(v, farbe = "var(--s1)") {
   if (!v) return "";
   v = v.map((x) => zahl(x) ? Number(x) : null);
@@ -1783,16 +1796,7 @@ var kkBalken = (zeilen, n = 99) => {
   return zeilen.slice(0, n).map(([name, v, txt, farbe]) => `<div class="kk-balken"><span>${esc(name)}</span><i style="width:${Math.max(2, (v || 0) / max * 100)}%;background:${farbe || "var(--s1)"}"></i><em>${txt}</em></div>`).join("");
 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.75";
-var verNeuer = (a, b) => {
-  const x = String(a || "").split(".").map(Number), y = String(b || "").split(".").map(Number);
-  for (let i = 0; i < Math.max(x.length, y.length); i++) {
-    const d = (x[i] || 0) - (y[i] || 0);
-    if (Number.isNaN(d)) return false;
-    if (d) return d > 0;
-  }
-  return false;
-};
+var SEITE_VERSION = "0.8.76";
 var LOKAL_FMT = {};
 var BaustellePanel = class extends HTMLElement {
   constructor() {

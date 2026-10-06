@@ -40,7 +40,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **0a** | esbuild, Versionskette, Modul-Mockup, Auslieferungsfilter (§4) | nichts | Grundprüfung ohne Browser-Test; zwei Builds bytegleich; veraltetes Bundle wird erkannt; Mockup startet; Auslieferungsprobe ohne Quellen/npm-Dateien | R auf 0.8.73 |
 | ☑ | **0b.1** | Panel-Test auf happy-dom (gebaute Datei laden, echte DOM-Ereignisse); Browser-Bestandsaufnahme B1–B7 (§6) | nichts | alle bisherigen Testfälle übertragen; Ausgangsprotokoll; bekannte Fehler einzeln benannt | Teständerung zurück |
 | ☑ | **0b.2** | Listener-Lecks beheben; Wetter-Abos nach dem Wiedereinhängen (Befund 0b.1) | nichts | B7 nach 20 Ein-/Aushängezyklen grün | R |
-| ☐ | **1a** | Hilfen und Symbole auslagern | nichts | Grundprüfung; gleiche Ausgabe/Befehle | R |
+| ☑ | **1a** | Hilfen und Symbole auslagern | nichts | Grundprüfung; gleiche Ausgabe/Befehle | R |
 | ☐ | **1b** | Himmel und Diagramm-Funktionen auslagern | nichts | Canvas bleibt bei Updates; SVG/WebGL/CSS-Rückfall | R |
 | ☐ | **1c** | Datenadapter und Aufrufe auslagern | nichts | gleiche API-Nutzdaten, Rechte, Fachwerte/CSV | R |
 | ☐ | **2a.1** | dauerhafte DOM-Bereiche; „Über“ mit Lit (`render(template, container)`), Klasse bleibt HTMLElement | nichts | 20 Navigationen; Lit-Bereich wird vom Alt-Renderer nicht zerstört | R auf 1c |
@@ -55,6 +55,9 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☐ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
 | ☐ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
 | ☐ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
+
+**Gleiche Ausgabe** (1a–1c): `node tests/panel/schnappschuss.js <bundle> vorher.json` vor dem Umbau, danach erneut und
+`--vergleich vorher.json nachher.json` – HTML jeder Ansicht/Einblendung und die WS-Befehle müssen gleich sein.
 
 Vor 3a eine **Inventarliste** aus `v_*`, `sheet()` und Ereignisfällen mit Zielstufe je Zeile; ansichtsbezogene Dialoge und
 Diagramme ziehen mit ihrer Ansicht um. Gemeinsame Vorlagen bleiben im vorhandenen Shadow Root (Modul ≠ Custom Element).
@@ -149,6 +152,10 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   GitHub (im Container auf dem Pi kein WebGL).
 - **0b.2, 06.10.2026 (0.8.75):** window-Listener nur solange eingehängt (`_fensterAn`/`_fensterAus`), Wetter-Abos beim
   Wiedereinhängen neu; B7 grün (dasselbe und 20 neue Elemente), aus `BEKANNT` gestrichen.
+- **1a, 06.10.2026 (0.8.76):** `src/hilfen.js` (Formatieren, Datum/Zeit, `esc`, `schalter`/`knopf2`/`erkl`,
+  `verNeuer`) und `src/symbole.js` (Wettersymbole, Container-/Schacht-Grafik, Icons, WLAN-Striche) aus `alt.js`
+  (4.912 → 4.696 Zeilen). Gleiche Ausgabe/Befehle belegt mit `tests/panel/schnappschuss.js` (57 Schritte mit fester Uhr,
+  HTML und WS-Befehle vor/nach bytegleich).
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner
   ohne Netzzugriff durch npm, `@esbuild/linux-arm64` enthalten, kleiner Build grün; package-lock.json sha256
   `1696ce4356818f04…`, Node v22.23.2, npm 10.9.1, linux/arm64. Neu vorbereiten bei anderem Lockfile, Node/npm,

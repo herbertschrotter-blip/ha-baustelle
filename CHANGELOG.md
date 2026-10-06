@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.76] – 2026-10-06
+
+- Umbau der Seite, ohne sichtbare Änderung (BSM-022.04, Stufe 1a): Wettersymbole, Container-Grafik und Icons sowie die
+  Hilfen für Zahlen, Datum und kleine Bausteine liegen jetzt in eigenen Dateien (`frontend/src/symbole.js`, `hilfen.js`).
+  Die Seite zeigt und sendet genau dasselbe wie vorher.
+
 ## [0.8.75] – 2026-10-06
 
 - Seite aufgeräumt beim Verlassen (BSM-022.03): Die Seite meldet ihre Listener am Browserfenster (Einfügen eines
