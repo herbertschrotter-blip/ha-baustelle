@@ -90,4 +90,4 @@ nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 - [ ] **I8** (BSM-031.08) Status statt „inaktiv“
 - [ ] **I9** (BSM-031.09) Bestand umstellen (POL → FOR, MAN → CRW)
 - [ ] **I10** (BSM-031.10) Aufkleber mit Name und QR-Code (später)
-- [ ] **I11** (BSM-032) Container-Symbol anpassbar: Doppelcontainer, Türen 1–2 und Fenster 1–4 mit Lage, Farbe; echter Zustand (Tür offen/zu, Fenster gekippt, Licht an/aus)
+- [x] **I11** (BSM-032) Container-Symbol anpassbar: Doppelcontainer, Türen 1–2 und Fenster 1–4 mit Lage, Farbe; echter Zustand (Tür offen/zu, Fenster gekippt, Licht an/aus) – erledigt 0.8.68, eingespielt 06.10.2026
