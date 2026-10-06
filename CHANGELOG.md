@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.72] – 2026-10-06
+
+- Taste am Plug (BSM-018), nach dem Test vor Ort: Die vom Relais getrennte Taste meldet beim Plug S Gen3 gar nichts.
+  Die Taste bleibt deshalb am Relais; das Skript (Version 5) erkennt den Tastendruck am Umschalten mit der Quelle
+  „Taste“, meldet ihn an Home Assistant und heizt ohne HA selbst 1 h. Home Assistant setzt „1 h heizen“ und hebt den
+  Handbetrieb auf, den das Umschalten ausgelöst hätte – die Automatik übernimmt das Relais. Eine schon getrennte Taste
+  wird wieder ans Relais gelegt.
+
 ## [0.8.71] – 2026-10-06
 
 - Taste am Plug = 1 h heizen (BSM-018, vorbereitet): neuer Schalter unter Einstellungen › Notprogramm (startet aus).

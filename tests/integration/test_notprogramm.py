@@ -13,7 +13,9 @@ from yarl import URL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from datetime import timedelta
+
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker, AiohttpClientMockResponse
 
 from custom_components.baustelle import notprogramm as np_modul
@@ -437,7 +439,7 @@ async def test_stundenbuch_nach_ha_aus(hass: HomeAssistant, anlage) -> None:
 
 
 async def test_taste_am_plug(hass: HomeAssistant, anlage) -> None:
-    """BSM-018: Taste vom Relais trennen, Event-Entität einschalten, Drücken = 1 h heizen, nochmal = beenden."""
+    """BSM-018: Taste bleibt am Relais, Event-Entität einschalten, Drücken = 1 h heizen (Hand weg), nochmal = beenden."""
     entry, np, plugs = anlage
     st, reg = entry.runtime_data, er.async_get(hass)
     st.e["heizung"]["notprogramm"] = True
@@ -445,15 +447,22 @@ async def test_taste_am_plug(hass: HomeAssistant, anlage) -> None:
     assert plugs["plug1"].in_mode == "momentary"                          # Taste aus: nichts geändert
     assert reg.async_get("event.plug1_baustelle").disabled_by is not None
     st.e["heizung"]["taste"] = True
+    plugs["plug2"].in_mode = "detached"                                   # wie nach 0.8.71: getrennt
     await np.async_runde()
-    assert plugs["plug1"].in_mode == "detached" and plugs["plug2"].in_mode == "detached"
+    assert plugs["plug1"].in_mode == "momentary" and plugs["plug2"].in_mode == "momentary"   # Taste bleibt am Relais
     assert reg.async_get("event.plug1_baustelle").disabled_by is None    # eingeschaltet
+    hk1 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk1")
+    st.lz["hand"][hk1] = dt_util.now().isoformat()                         # das Umschalten durch die Taste = Hand
 
     hass.states.async_set("event.plug1_baustelle", "unknown", {"event_types": ["baustelle_taste"]})
     hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:51:00+00:00", {"event_type": "baustelle_taste"})
     await hass.async_block_till_done()
-    assert "sub_c1" in st.lz["taste_bis"]
+    assert "sub_c1" in st.lz["taste_bis"] and hk1 not in st.lz["hand"]
     assert any("Taste am Plug Heizkörper 1: 1 h heizen bis" in e[3] for e in st.einstellungen.daten["protokoll"])
+    st.lz["hand"][hk1] = (dt_util.now() + timedelta(seconds=1)).isoformat()   # HA erkennt das Umschalten erst danach
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=6))
+    await hass.async_block_till_done()
+    assert hk1 not in st.lz["hand"]                                       # auch dann aufgehoben
     hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:52:00+00:00", {"event_type": "baustelle_taste"})
     await hass.async_block_till_done()
     assert "sub_c1" not in st.lz["taste_bis"]                            # nochmal drücken beendet
@@ -463,7 +472,8 @@ async def test_taste_am_plug(hass: HomeAssistant, anlage) -> None:
 
     st.e["heizung"]["taste"] = False
     await np.async_runde()
-    assert plugs["plug1"].in_mode == "momentary"                          # Taste schaltet wieder das Relais
     hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:54:00+00:00", {"event_type": "baustelle_taste"})
     await hass.async_block_till_done()
     assert "sub_c1" not in st.lz["taste_bis"]                            # Taste aus: Drücken wirkt nicht
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=6))   # verzögerte Hand-Prüfung ablaufen lassen
+    await hass.async_block_till_done()

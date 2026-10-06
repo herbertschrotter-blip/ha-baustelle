@@ -12,10 +12,12 @@ Die Kopplungen hält die Integration selbst in Ordnung (BSM-030): BLU-Fühler un
 Plug des Containers), fremde Kopplungen entfernen, Namen nach Herberts Schema (Gerätename in HA + `_Temperatur` …);
 jede Änderung im Protokoll. Andere Komponenten (Skripte, Schalter) fasst sie nicht an.
 
-Taste am Plug (BSM-018, `heizung.taste`, startet aus, braucht das Notprogramm): die Integration trennt die Taste vom
-Relais (`PLUGS_UI` `in_mode: detached`), schaltet die Event-Entität des Skripts ein (Shelly-Integration) und setzt bei
-„baustelle_taste“ für den Container 1 h heizen bzw. beendet es (`laufzeit.taste_bis`, Regel in logik/regelung). Ohne HA
-heizt das Skript selbst 1 h. Taste aus oder Notprogramm aus: Taste schaltet wieder das Relais (`momentary`).
+Taste am Plug (BSM-018, `heizung.taste`, startet aus, braucht das Notprogramm): Die Taste bleibt am Relais (`PLUGS_UI`
+`in_mode: momentary`, ab Werk; am Gerät geprüft 06.10.2026: „detached“ legt die Taste beim Plug S Gen3 still). Das
+Skript erkennt das Umschalten mit der Quelle „button“ und meldet „baustelle_taste“; die Integration schaltet die
+Event-Entität des Skripts ein (Shelly-Integration) und setzt für den Container 1 h heizen bzw. beendet es
+(`laufzeit.taste_bis`, Regel in logik/regelung); den Handbetrieb, den das Umschalten ausgelöst hat, hebt sie auf. Ohne HA
+heizt das Skript selbst 1 h.
 
 Startet ausgeschaltet (`heizung.notprogramm`): Erst wenn Herbert es einschaltet, spielt die Integration etwas in die
 Plugs. Ausschalten hält das Skript an und nimmt den Autostart weg – sonst übernähme es 15 min später.
@@ -67,6 +69,7 @@ OHNE_ANTWORT_S = 3
 OBJ_TEMPERATUR, OBJ_FENSTER = 69, 45
 TASTE_MIN = 60                 # Taste am Plug: so lange heizen (wie TASTE_S im Skript)
 TASTE_EREIGNIS = "baustelle_taste"
+HAND_NACH_TASTE_S = 5
 OHNE_UHRZEIT = 1_000_000_000   # „Notbetrieb seit“ kleiner: begann ohne Uhrzeit (das Skript meldet dann 1)
 
 
@@ -182,6 +185,7 @@ class Notprogramm:
         self.geprueft: datetime | None = None
         self._tasten: dict[str, str] = {}        # Event-Entität des Skripts → Gerät (BSM-018)
         self._tasten_abmelden: CALLBACK_TYPE | None = None
+        self._hand_timer: CALLBACK_TYPE | None = None
 
     @callback
     def async_start(self) -> CALLBACK_TYPE:
@@ -194,6 +198,8 @@ class Notprogramm:
                 f()
             if self._tasten_abmelden is not None:
                 self._tasten_abmelden()
+            if self._hand_timer is not None:
+                self._hand_timer()
         return stop
 
     @property
@@ -367,7 +373,7 @@ class Notprogramm:
             if s.get("name") == SKRIPT_NAME and (s.get("running") or s.get("enable")):
                 await plug.rpc("Script.Stop", {"id": s["id"]})
                 await plug.rpc("Script.SetConfig", {"id": s["id"], "config": {"enable": False}})
-                await self._async_taste_modus(plug, False)   # Taste schaltet wieder das Relais
+                await self._async_taste_modus(plug)
         stand.geprueft_aus, stand.geschrieben = True, None
 
     # ------------------------------------------------------------------ eine Runde je Plug
@@ -384,7 +390,7 @@ class Notprogramm:
             stand.geschrieben = None
             antwort = await plug.hb(skript_id)
         await self._async_kopplungen(g, plug)
-        await self._async_taste_modus(plug, self.taste)
+        await self._async_taste_modus(plug)
         self._taste_entitaet(g, skript_id)
         _, sensoren = await self._gekoppelt(plug)
         messwerte = {k: nr for k, (nr, _) in sensoren.items()}
@@ -458,16 +464,14 @@ class Notprogramm:
                           "der Plug hat ohne Home Assistant nach dem Notprogramm geheizt")
 
     # ------------------------------------------------------------------ Taste am Plug (BSM-018)
-    async def _async_taste_modus(self, plug: Plug, getrennt: bool) -> None:
-        """Taste vom Relais trennen (`detached`) bzw. wieder schalten lassen (`momentary`); Plugs ohne PLUGS_UI: nichts."""
+    async def _async_taste_modus(self, plug: Plug) -> None:
+        """Taste am Relais lassen: eine früher getrennte Taste (`detached`, 0.8.71) wieder auf `momentary`."""
         try:
             cfg = await plug.rpc("PLUGS_UI.GetConfig")
         except PlugFehler:
-            return
-        ist = ((cfg or {}).get("controls") or {}).get("switch:0", {}).get("in_mode")
-        soll = "detached" if getrennt else "momentary"
-        if ist is not None and ist != soll:
-            await plug.rpc("PLUGS_UI.SetConfig", {"config": {"controls": {"switch:0": {"in_mode": soll}}}})
+            return   # Plug ohne PLUGS_UI
+        if ((cfg or {}).get("controls") or {}).get("switch:0", {}).get("in_mode") == "detached":
+            await plug.rpc("PLUGS_UI.SetConfig", {"config": {"controls": {"switch:0": {"in_mode": "momentary"}}}})
 
     def _taste_entitaet(self, g: GeraetInfo, skript_id: int) -> None:
         """Event-Entität des Skripts am Plug finden (Shelly-Integration) und, wenn die Taste an ist, einschalten."""
@@ -503,6 +507,8 @@ class Notprogramm:
         """1 h heizen im Container des Plugs; läuft es schon, beenden (Herbert 05.10.2026)."""
         st, bid, jetzt = self.st, g.bereich, dt_util.now()
         lz = st.lz.setdefault("taste_bis", {})
+        for h in st.geraete_in(bid):   # das Umschalten durch die Taste hat Handbetrieb ausgelöst – die Regelung übernimmt
+            st.lz["hand"].pop(h.id, None)
         if cast("Heizung", st.funktion("heizung")).bis("taste_bis", bid, jetzt) is not None:
             lz.pop(bid, None)
             st.protokoll("schalten", bid, f"Taste am Plug {g.name}: 1 h heizen beendet")
@@ -512,6 +518,26 @@ class Notprogramm:
             st.protokoll("schalten", bid, f"Taste am Plug {g.name}: 1 h heizen bis {ende:%H:%M}")
         st.einstellungen.speichern()
         st.auswerten()
+        # meldet HA das Umschalten erst nach dem Tastenereignis, entsteht der Handbetrieb danach – dann nochmal aufheben
+        @callback
+        def nachher(_: datetime) -> None:
+            self._hand_timer = None
+            self._hand_nach_taste(bid, jetzt)
+        if self._hand_timer is not None:
+            self._hand_timer()
+        self._hand_timer = async_call_later(self.hass, HAND_NACH_TASTE_S, nachher)
+
+    @callback
+    def _hand_nach_taste(self, bid: str, druck: datetime) -> None:
+        geaendert = False
+        for h in self.st.geraete_in(bid):
+            seit = dt_util.parse_datetime(str(self.st.lz["hand"].get(h.id) or ""))
+            if seit is not None and abs((seit - druck).total_seconds()) <= 2 * HAND_NACH_TASTE_S:
+                self.st.lz["hand"].pop(h.id, None)
+                geaendert = True
+        if geaendert:
+            self.st.einstellungen.speichern()
+            self.st.auswerten()
 
     # ------------------------------------------------------------------ Programm
     def werte(self, g: GeraetInfo, temp_nr: int | None, tuer_nr: int | None, jetzt: datetime | None = None) -> dict[str, str]:

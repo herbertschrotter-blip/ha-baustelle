@@ -15,7 +15,7 @@ const T0 = 1791158400;   // 05.10.2026 00:00 UTC (durch 6 h teilbar)
 function plug({ kvs = {}, uhr = T0, sensoren = {} } = {}) {
   const p = {
     kvs: { ...kvs }, uhr, sensoren, relais: false, wh: 1000, offen: 0, maxOffen: 0, timer: [], endpunkte: {},
-    handler: [], ereignisse: [], warteschlange: [], schaltungen: [], fehler: [],
+    handler: [], status: [], ereignisse: [], warteschlange: [], schaltungen: [], fehler: [],
   };
   function pruefeKvs() {
     const k = Object.keys(p.kvs);
@@ -49,6 +49,7 @@ function plug({ kvs = {}, uhr = T0, sensoren = {} } = {}) {
       p.fehler.push(`unbekannter Status ${name}`); return null;
     },
     addEventHandler(f) { p.handler.push(f); },
+    addStatusHandler(f) { p.status.push(f); },
     emitEvent(name, daten) { p.ereignisse.push([name, daten]); },
   };
   const Timer = { set(ms, wiederholen, f) { p.timer.push({ ms, wiederholen, f, naechst: ms }); if (p.timer.length > 5) p.fehler.push('mehr als 5 Timer'); return p.timer.length; } };
@@ -73,7 +74,9 @@ function plug({ kvs = {}, uhr = T0, sensoren = {} } = {}) {
     return JSON.parse(res.body);
   };
   p.sensorTaste = () => { for (const f of p.handler) f({ component: 'bthomedevice:201', id: 201, info: { component: 'bthomedevice:201', id: 201, event: 'single_push', ts: p.uhr } }); p.abarbeiten(); };
-  p.taste = () => { for (const f of p.handler) f({ component: 'switch:0', id: 0, info: { component: 'switch:0', id: 0, event: 'single_push', ts: p.uhr } }); p.abarbeiten(); };
+  // Taste am Relais (momentary): der Plug schaltet um und meldet die Quelle „button“ (am Gerät geprüft 06.10.2026)
+  p.taste = () => { p.relais = !p.relais; for (const f of p.status) f({ component: 'switch:0', id: 0, delta: { id: 0, output: p.relais, source: 'button' } }); p.abarbeiten(); };
+  p.haSchaltet = an => { p.relais = an; for (const f of p.status) f({ component: 'switch:0', id: 0, delta: { id: 0, output: an, source: 'WS_in' } }); p.abarbeiten(); };
   p.abarbeiten();
   return p;
 }
@@ -98,7 +101,7 @@ function mitFuehler(wert) { return (p) => fuehler(p, 202, typeof wert === 'funct
 fall('Programm wird beim Start mit einem Aufruf geladen', () => {
   const p = plug({ kvs: { ...GRUND, bs_p1: fenster([30, 42, 21]), anderes: 'x' } });
   const a = p.hb();
-  gleich([a.v, a.programm, a.fenster], [4, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
+  gleich([a.v, a.programm, a.fenster], [5, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
   gleich(p.maxOffen, 1, 'gleichzeitige Aufrufe beim Laden');
   return p;
 });
@@ -250,6 +253,14 @@ fall('Taste mit HA: nur melden; ohne HA: 1 h heizen, zweites Drücken beendet', 
   gleich(p.relais, false, 'nach einer Stunde aus');
   p.taste(); p.taste();
   gleich(p.relais, false, 'ein und gleich wieder aus');
+  return p;
+});
+
+fall('Schalten durch HA zählt nicht als Taste', () => {
+  const p = plug({ kvs: GRUND, uhr: T0 + 10 * 3600 });
+  p.hb(); p.haSchaltet(true); p.haSchaltet(false);
+  gleich(p.ereignisse, [], 'kein Tastenereignis');
+  gleich(p.hb().taste, 0, 'Taste nicht gesetzt');
   return p;
 });
 

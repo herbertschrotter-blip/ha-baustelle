@@ -467,12 +467,14 @@ Entscheidungen:
   „Notbetrieb … nachgetragen: … h, … kWh“ ins Protokoll. Begann der Notbetrieb ohne Uhrzeit (Skript meldet 1), gibt es
   kein Stundenbuch: Protokoll „ohne Uhrzeit – Verbrauch als Summe bei der Rückkehr“.
 
-- **Taste vorbereitet (BSM-018, 0.8.71):** Einstellung `heizung.taste` (startet aus, braucht das Notprogramm). Die
-  Integration trennt die Taste vom Relais (`PLUGS_UI.controls.switch:0.in_mode = detached`; aus bzw. Notprogramm aus →
-  `momentary`), schaltet die Event-Entität des Skripts (Shelly-Integration, `event.<plug>_baustelle`) ein und setzt bei
-  „baustelle_taste“ `laufzeit.taste_bis` (1 h bzw. beenden). Regel `taste` in logik/regelung: nach Frostschutz, Tür und
-  Hand, vor Boost, Modus, frei, Heizgrenze und Plan; mit Fühler bis zum Soll. **Offen:** am Gerät prüfen, welches
-  Ereignis die getrennte Taste meldet (das Skript nimmt jedes `single_push`, das nicht von Bluetooth kommt).
+- **Taste gebaut (BSM-018, 0.8.71/0.8.72):** Einstellung `heizung.taste` (startet aus, braucht das Notprogramm). Am
+  Gerät geprüft (06.10.2026, Plug 004-01): Mit `PLUGS_UI.controls.switch:0.in_mode = detached` meldet der Plug S Gen3
+  **nichts** – die Taste ist still. Mit `momentary` (ab Werk) schaltet sie um und der Plug meldet `switch:0` mit
+  `source: "button"` (HA: `WS_in`). Darum bleibt die Taste am Relais; Skript v5 erkennt die Quelle „button“
+  (`Shelly.addStatusHandler`), meldet „baustelle_taste“ und heizt ohne HA selbst. Die Integration schaltet die
+  Event-Entität des Skripts (`event.<plug>_baustelle`) ein, setzt `laufzeit.taste_bis` (1 h bzw. beenden) und hebt den
+  Handbetrieb auf, den das Umschalten ausgelöst hat (auch 5 s danach, falls HA das Umschalten später meldet). Regel
+  `taste` in logik/regelung: nach Frostschutz, Tür und Hand, vor Boost, Modus, frei, Heizgrenze und Plan.
 
 Offen: Gerätepasswort als `!secret`, falls je eins gesetzt wird.
 
