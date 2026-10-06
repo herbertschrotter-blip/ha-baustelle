@@ -45,7 +45,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **1c** | Datenadapter und Aufrufe auslagern | nichts | gleiche API-Nutzdaten, Rechte, Fachwerte/CSV | R |
 | ☑ | **2a.1** | dauerhafte DOM-Bereiche; „Über“ mit Lit (`render(template, container)`), Klasse bleibt HTMLElement | nichts | 20 Navigationen; Lit-Bereich wird vom Alt-Renderer nicht zerstört | R auf 1c |
 | ☑ | **2a.2** | Melde-Dialog samt Entwurf auf Lit | nichts | Tippen während Updates; Bild/Einfügen/Abbrechen/Senden | R auf 2a.1/1c |
-| ☐ | **Entscheidung** | Pilot bewerten (§5) | Ja/Nein-Bogen | 5 × Ja und Restaufwand akzeptiert | bei Nein: 1c behalten |
+| ☑ | **Entscheidung** | Pilot bewerten (§5) | Ja/Nein-Bogen | 5 × Ja und Restaufwand akzeptiert | bei Nein: 1c behalten |
 | ☐ | **2b** | Klasse auf LitElement; Zustand (`s` reaktiv, `neuZeichnen()` → `requestUpdate()`, neue Objektreferenzen), Laden aus Vorlagen heraus, Timer/Abos | nichts | `hass` vor/nach Einhängen; 20 Wiederanschlüsse ohne Mehrfachaufrufe; Menü, Theme, schmal/breit | R auf Pilot |
 | ☐ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
 | ☐ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
@@ -137,6 +137,8 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
 - 06.10.2026 Herbert: esbuild; Lit als Ziel, aber zuerst bis zum Piloten (2a), dann Entscheidung nach §5.
 - 06.10.2026 Herbert: Browser-Tests lokal (Chromium 136 auf dem Pi, headless geprüft) und auf GitHub; Abnahme S23 Ultra
   (HA-App) und Microsoft Edge; Pilot-Grenzen und Budget 120 s angenommen.
+- 06.10.2026 Herbert nach dem Piloten (0.8.80, S23 und Edge geprüft): „passt so. weiter mit ganzer seite“ – fünfmal Ja
+  (`docs/lit-entscheidung.md`), weiter mit 2b–5.
 - BSM-024 („Umstieg auf Lit planen“) ist mit diesem Plan erledigt und geht in BSM-022 auf.
 - Review: `docs/chatgpt-reviews/CGR-2026-10-06-seite-lit/` (r1: Weg korrigiert, r2: konkreter Stufenplan).
 
