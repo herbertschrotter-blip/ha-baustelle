@@ -1,4 +1,5 @@
-// Seite „Baustelle“ (0.7.0) in Node rendern – ohne Browser, ohne WebGL (CSS-Rückfall).
+// Seite „Baustelle“ in Node rendern – im DOM von happy-dom (tests/panel/umgebung.js, BSM-022), ohne WebGL (CSS-Rückfall);
+// Klicks und Eingaben sind echte DOM-Ereignisse. Bedienung im echten Browser: tests/panel/browser/pruefen.mjs.
 // Rendert alle Ansichten und Einblendungen, löst die Aktionen aus und prüft die Aufrufe an die Integration
 // (docs/api-0.7.md) sowie: kein undefined/NaN/[object im HTML, gültige SVGs.
 // Aufruf: node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
@@ -7,6 +8,7 @@
 //   läuft er zusätzlich dagegen – dort allgemein: jede Baustelle, jeder Container, jede Einblendung und Aktion.
 //   BAUSTELLE_AUFRUFE=<datei>: alle gesendeten WebSocket-Befehle als JSON dorthin schreiben (test_abgleich.py schickt sie
 //   danach an die echte Integration).
+//   BAUSTELLE_KLICKS=<datei>: Klicks, die kein Element der Ansicht trafen (Ersatzknopf), je data-act als JSON.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -34,35 +36,14 @@ const REFERENZ = STRUKTUR.some(b => b.baustelle && b.baustelle.entry_id === 'dob
 const zustaendeDatei = Array.isArray(strukturEingabe) ? strukturDatei.replace(/\.json$/, '.zustaende.json') : '';
 const ZUSTAENDE = !REFERENZ && zustaendeDatei && fs.existsSync(zustaendeDatei) ? JSON.parse(fs.readFileSync(zustaendeDatei, 'utf8')) : null;
 
-/* ---------- minimales DOM (wie mockups/quelle/vorschau/pruefen.cjs) ---------- */
-const klassen = () => { const s = new Set(); return { add: k => s.add(k), remove: k => s.delete(k), toggle: (k, an) => ((an ?? !s.has(k)) ? s.add(k) : s.delete(k)), contains: k => s.has(k), liste: s }; };
-const element = (name = 'div') => ({ tagName: name.toUpperCase(), dataset: {}, style: { setProperty(k, v) { this[k] = v; } }, classList: klassen(), innerHTML: '', textContent: '', scrollTop: 0, offsetWidth: 100, offsetHeight: 30, clientWidth: 390, clientHeight: 844,
-  kinder: {}, querySelector(s) { return this.kinder[s] ||= element(); }, querySelectorAll() { return []; }, insertBefore() {}, appendChild() {}, addEventListener() {},
-  getBoundingClientRect: () => ({ left: 0, top: 0, width: 390, height: 844 }) });
-const downloads = [], events = [];
-class HTMLElement {
-  constructor() { this.dataset = {}; }
-  attachShadow() {
-    const teile = {}, handler = {};
-    this.shadowRoot = { set innerHTML(v) { this._html = v; }, get innerHTML() { return this._html; }, activeElement: null, teile, handler,
-      querySelector: s => teile[s] ||= element(), querySelectorAll: () => [], addEventListener: (t, f) => { handler[t] = f; } };
-    return this.shadowRoot;
-  }
-  dispatchEvent(e) { events.push(e.type); return true; }
-}
-global.HTMLElement = HTMLElement;
-const registry = {};
-global.customElements = { define: (n, c) => { registry[n] = c; }, get: n => registry[n] };
-global.localStorage = { getItem: () => null, setItem() {} };
-global.document = { createElement: n => { const e = element(n); e.click = () => downloads.push(e.download); return e; } };
-global.setInterval = () => 1; global.clearInterval = () => {};
-Object.defineProperty(global, 'navigator', { value: { clipboard: { writeText: t => { downloads.push('clipboard:' + t.length); return Promise.resolve(); } } }, configurable: true });
+/* ---------- DOM: happy-dom (tests/panel/umgebung.js, BSM-022 0b.1) ---------- */
+const umgebung = require('./umgebung.js');
+const { downloads, events, layout } = umgebung.einrichten();
 global.fetch = async url => ({ ok: true, json: async () => (String(url).includes('changelog.json')
   ? [{ version: '0.7.0', datum: '2026-10-01', punkte: ['Glas-Oberfläche mit Himmel nach Tageszeit und Wetter', 'Staffelung der Heizungen je Stromanschluss'] },
      { version: '0.6.3', datum: '2026-09-29', punkte: ['Wettersymbole'] }] : null) });
 console.warn = () => {};
-eval(fs.readFileSync(datei, 'utf8'));
-const P = registry['baustelle-panel'];
+const P = umgebung.seiteLaden(datei);
 const schluesselFehlt = [];
 if (P) { const eid = P.prototype.eid; P.prototype.eid = function (d, besitzer, key) { const r = eid.call(this, d, besitzer, key); if (!r && d && d.ent) schluesselFehlt.push(`${besitzer}_${key}`); return r; }; }
 if (!P) { console.error('baustelle-panel wurde nicht registriert'); process.exit(1); }
@@ -97,7 +78,6 @@ function svgPruefen(html, wo) {
   }
 }
 let panel, ui;
-const html = () => ui.innerHTML + panel.shadowRoot.teile['.ui'].innerHTML.slice(0, 0);
 function pruefe(wo, { laedtErlaubt = false } = {}) {
   const h = ui.innerHTML;
   const m = h.match(/.{50}(undefined|NaN|\[object|Infinity|>null<).{25}/s);
@@ -113,16 +93,18 @@ function pruefe(wo, { laedtErlaubt = false } = {}) {
   return h;
 }
 const MONATE_LANG_T = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-const klick = async (ds, n) => { panel.klick({ target: { closest: () => ({ dataset: ds }) } }); await ruhe(n); };
-const eingabe = (ds, value) => panel.eingabe({ target: { dataset: ds, value } });
+let ereignis;   // echte Ereignisse in der Seite (umgebung.helfer)
+const klick = async (ds, n) => { ereignis.klick(ds); await ruhe(n); };
+const eingabe = (ds, value) => ereignis.feld(ds, value, 'input');
 const erwarte = (text, bedingung) => { if (!bedingung) fehler.push('erwartet: ' + text); };
 const letzte = typ => aufrufe.filter(a => a.type === typ);
 const neu = () => { aufrufe.length = 0; api.length = 0; };
 const hov = wo => { let t = ''; const alt = panel.tip; panel.tip = (e, h) => { t = h || ''; };
-  for (const k of [...ui.innerHTML.matchAll(/data-chart="([^"]+)"/g)].map(m => m[1])) for (const x of [40, 150, 300]) {
-    const svg = { dataset: { chart: k }, getBoundingClientRect: () => ({ left: 0, top: 0, width: 320 }), querySelector: () => ({}), querySelectorAll: () => [] };
-    panel.hover({ target: { closest: s => s === 'svg.chart' ? svg : s === '.bar' ? { dataset: { i: '2' } } : null }, clientX: x, clientY: 60 });
-    if (/NaN|undefined/.test(t)) fehler.push(`${wo}: Hover ${k} ${t}`); }
+  for (const svg of panel.shadowRoot.querySelectorAll('svg.chart[data-chart]')) {   // echtes pointermove (happy-dom hat kein Layout: Breite vorgeben)
+    svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 320, height: 120, right: 320, bottom: 120, x: 0, y: 0 });
+    const ziel = svg.querySelectorAll('.bar')[2] || svg;
+    for (const x of [40, 150, 300]) { ziel.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, composed: true, clientX: x, clientY: 60 }));
+      if (/NaN|undefined/.test(t)) fehler.push(`${wo}: Hover ${svg.dataset.chart} ${t}`); } }
   panel.tip = alt; };
 
 /* ---------- allgemeine Prüfung gegen die echte Antwort der Integration (struktur-echt.json) ---------- */
@@ -362,8 +344,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
 (async () => {
   /* Laden und Fehler der Integration */
   strukturHaengt = true;
-  panel = new P(); panel.panel = { config: { version: '0.7.0' } }; panel.narrow = true; panel.hass = hass; panel.connectedCallback();
-  ui = panel.shadowRoot.teile['.ui'];
+  panel = document.createElement('baustelle-panel'); panel.panel = { config: { version: '0.7.0' } }; panel.narrow = true; panel.hass = hass;
+  const sende = panel.dispatchEvent.bind(panel); panel.dispatchEvent = e => { events.push(e.type); return sende(e); };
+  document.body.appendChild(panel);   // connectedCallback wie in HA
+  const uiEcht = panel.shadowRoot.querySelector('.ui'); ereignis = umgebung.helfer(panel);
+  // Prüfungen lesen das serialisierte DOM; der Serialisierer schreibt U+00A0 (Tausenderpunkt) als &nbsp; – zurück wandeln
+  ui = { get innerHTML() { return uiEcht.innerHTML.replace(/&nbsp;/g, '\u00a0'); }, get classList() { return uiEcht.classList; } };
   await ruhe();
   erwarte('„Lädt …“ solange die Struktur fehlt', /Lädt …/.test(ui.innerHTML));
   pruefe('lädt', { laedtErlaubt: true });
@@ -386,7 +372,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('WU-0001: Sonne morgens links, mittags oben Mitte, abends rechts',
     morgens.uSonnePos[0] < .3 && Math.abs(mittags.uSonnePos[0] - .5) < .02 && mittags.uSonnePos[1] < morgens.uSonnePos[1] && abends.uSonnePos[0] > .7);
   erwarte('WU-0001: nachts wandert der Mond (4 h nach Untergang von 10 h Nacht → 40 %)', Math.abs(nachts.uMondPos[0] - (.08 + .84 * .4)) < .02);
-  erwarte('WU-0001: CSS-Rückfall folgt der Sonne', panel.bg.style['--sonne-x'] === (nachts.uSonnePos[0] * 100).toFixed(1) + '%');
+  erwarte('WU-0001: CSS-Rückfall folgt der Sonne', panel.bg.style.getPropertyValue('--sonne-x') === (nachts.uSonnePos[0] * 100).toFixed(1) + '%');
   const echtJetzt = Date.now;
   Date.now = () => Date.parse('2026-08-28T04:13:00Z'); const mVoll = await bahn('below_horizon', 6, 20);      // Mondfinsternis = Vollmond
   Date.now = () => Date.parse('2026-08-12T17:46:00Z'); const mNeu = await bahn('below_horizon', 6, 20);       // Sonnenfinsternis = Neumond
@@ -977,16 +963,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       && ui.innerHTML.includes(`${String(Math.max(0, jetztH - 2)).padStart(2, '0')}:00–`));
     panel.aenderung({ target: { dataset: { lh: '' }, value: '23' } }); await ruhe(30);
     erwarte('WU-0011: künftige Stunden heute nicht wählbar', jetztH === 23 || ui.innerHTML.includes(`>${String(jetztH).padStart(2, '0')}:00–`));
-    { // WU-0012: Regler loslassen tauscht nur Kopf und Datenteil (die Seite wird nicht neu gezeichnet)
-      const teile = panel.shadowRoot.teile, alt = { d: teile['.lh-daten'], w: teile['.lh-wert'] }, erz = global.document.createElement;
-      teile['.lh-daten'] = { isConnected: true, innerHTML: 'ALT' }; teile['.lh-wert'] = { textContent: 'ALT' };
-      global.document.createElement = () => { const e = { set innerHTML(h) { this._h = h; }, querySelector: sel => {
-        const m = sel === '.lh-daten' ? this_h(e._h).match(/<div class="lh-daten">([\s\S]*)<\/div>$/) : this_h(e._h).match(/<span class="leise lh-wert">([^<]*)</);
-        return m ? (sel === '.lh-daten' ? { innerHTML: m[1] } : { textContent: m[1] }) : null; } }; return e; };
-      const this_h = h => h || '';
-      ui.innerHTML = 'SEITE'; panel.aenderung({ target: { dataset: { lh: '' }, value: '0' } }); await ruhe(30);
-      erwarte('WU-0012: nur der Datenteil wird getauscht', ui.innerHTML === 'SEITE' && teile['.lh-daten'].innerHTML !== 'ALT' && teile['.lh-wert'].textContent === '00:00–01:00');
-      global.document.createElement = erz; teile['.lh-daten'] = alt.d; teile['.lh-wert'] = alt.w; panel.render(); await ruhe(); }
+    { // WU-0012: Regler loslassen tauscht nur Kopf und Datenteil (die Seite wird nicht neu gezeichnet) – echte Knoten
+      const daten = panel.shadowRoot.querySelector('.lh-daten'), wert = panel.shadowRoot.querySelector('.lh-wert'), regler = panel.shadowRoot.querySelector('input[data-lh]');
+      daten.innerHTML = 'ALT'; wert.textContent = 'ALT'; ereignis.feld({ lh: '' }, '0', 'change'); await ruhe(30);
+      erwarte('WU-0012: nur der Datenteil wird getauscht', daten.isConnected && regler && regler.isConnected && daten.innerHTML !== 'ALT'
+        && panel.shadowRoot.querySelector('.lh-wert') === wert && wert.textContent === '00:00–01:00');
+      panel.render(); await ruhe(); }
     neu(); await klick({ act: 'lh-art', v: 'tag' }, 30); pruefe('Leistung ganzer Tag');
     const tagAuf = alleAufrufe.filter(m => m.type === 'baustelle/verlauf' && (m.entity_ids || []).some(e => e.includes('leistung') || e.includes('power'))).at(-1);
     erwarte('WU-0011: ganzer Tag 0–24 Uhr (eine Abfrage für den Tag)', ui.innerHTML.includes('ganzer Tag') && !ui.innerHTML.includes('data-lh') && tagAuf && panel.lokal(Date.parse(tagAuf.start_time), panel.z.zone).slice(11, 16) === '00:00');
@@ -1070,10 +1052,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   { const gruppe = async g => { await klick({ act: 'ev-gruppe', v: g }, 20); pruefe(`Einstellungen ${g}`); return ui.innerHTML; };
     /* FE-0013: Chip-Leiste behält ihre Position; die gewählte Kategorie rückt nur in die Mitte, wenn sie außerhalb liegt */
     { const leiste = panel.root.querySelector('.ev-chips'), chip = leiste.querySelector('.chip.amber');
-      Object.assign(leiste, { scrollLeft: 200, clientWidth: 300 }); Object.assign(chip, { offsetLeft: 250, offsetWidth: 80 });
-      await klick({ act: 'ev-gruppe', v: 'strom' }, 10); erwarte('FE-0013: Position bleibt (' + leiste.scrollLeft + ')', leiste.scrollLeft === 200);
-      Object.assign(chip, { offsetLeft: 700, offsetWidth: 80 }); await klick({ act: 'ev-gruppe', v: 'ueber' }, 10);
-      erwarte('FE-0013: gewählte Kategorie mittig (' + leiste.scrollLeft + ')', leiste.scrollLeft === 700 - (300 - 80) / 2); }
+      let links = 250; const neuLeiste = () => panel.root.querySelector('.ev-chips');   // nach dem Neuzeichnen ist die Leiste ein neuer Knoten
+      layout.setzen((el, n) => el.classList.contains('ev-chips') && n === 'clientWidth' ? 300 : el.matches('.chip.amber') ? ({ offsetLeft: links, offsetWidth: 80 })[n] : undefined);
+      leiste.scrollLeft = 200; void chip;
+      await klick({ act: 'ev-gruppe', v: 'strom' }, 10); erwarte('FE-0013: Position bleibt (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 200);
+      links = 700; await klick({ act: 'ev-gruppe', v: 'ueber' }, 10);
+      erwarte('FE-0013: gewählte Kategorie mittig (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 700 - (300 - 80) / 2); layout.setzen(null); }
     erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
     const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'data-act="auto"', 'data-k="frost_aussen"'],
       notprogramm: ['Notprogramm in den Plugs', 'data-act="np-an"'], container: ['Container und Geräte', 'Je Container'],
@@ -1297,6 +1281,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Master-Mockup aktuell (node mockups/quelle/glas.js)', fs.existsSync(mockup) && fs.readFileSync(mockup, 'utf8').includes(quelle.replace(/<\/script/gi, '<\\/script').trim()));
   if (process.env.BAUSTELLE_AUFRUFE) fs.writeFileSync(process.env.BAUSTELLE_AUFRUFE, JSON.stringify(alleAufrufe, null, 1));
   if (fehler.length) { console.log(fehler.slice(0, 40).join('\n')); console.log(`${fehler.length} Fehler`); process.exit(1); }
+  if (process.env.BAUSTELLE_KLICKS) fs.writeFileSync(process.env.BAUSTELLE_KLICKS, JSON.stringify(ereignis.zahl.fehlend, null, 1));
+  console.log(`Klicks: ${ereignis.zahl.echt} auf Elemente der Seite, ${ereignis.zahl.ersatz} über Ersatzknopf (Element in der Ansicht nicht vorhanden)`);
   console.log(`Panel-Test grün (${REFERENZ ? 'Beispiel wie im Mockup' : 'echte Antwort der Integration'}): alle Ansichten, Einblendungen und Aktionen geprüft (${alleAufrufe.length} WS-Aufrufe).`);
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

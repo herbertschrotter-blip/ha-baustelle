@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "bauen": "node bauen.mjs",
-    "pruefen": "node bauen.mjs --pruefen"
+    "pruefen": "node bauen.mjs --pruefen",
+    "test:browser": "node ../../../tests/panel/browser/pruefen.mjs"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "happy-dom": "20.14.5",
+    "puppeteer-core": "24.8.2"
   }
 }

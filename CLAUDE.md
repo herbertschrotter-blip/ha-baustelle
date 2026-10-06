@@ -49,6 +49,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - panel: node --check custom_components/baustelle/frontend/baustelle-panel.js; node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json [custom_components/baustelle/frontend/**; tests/panel/**]
 - notprogramm: node --check custom_components/baustelle/shelly/notprogramm.js; node tests/shelly/test_notprogramm.js custom_components/baustelle/shelly/notprogramm.js [custom_components/baustelle/shelly/**; tests/shelly/**]
 - seite-gebaut: python3 tools/changelog.py --pruefen; node custom_components/baustelle/frontend/bauen.mjs --pruefen; node mockups/quelle/glas.js --pruefen [CHANGELOG.md; custom_components/baustelle/frontend/**; custom_components/baustelle/manifest.json; mockups/**; tests/panel/**]
+- browser: node tests/panel/browser/pruefen.mjs [custom_components/baustelle/frontend/**; mockups/**; tests/panel/**]
 
 ### Commit
 - Format: [vX.Y.Z] Modul, Typ: Kurztitel
@@ -56,7 +57,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Versionsquelle: changelog:CHANGELOG.md
 - Versionsregel: MINOR nur für eine wirklich neue Funktion, die es vorher nicht gab; Verbesserungen, Korrekturen und Umbauten (auch neue Gestaltung bestehender Seiten, z. B. neue Übersicht) sind PATCH – im Zweifel PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit (Herbert, 29.09.2026)
 - Push-Policy: user-only
-- Pre-Commit-Checks: seite-gebaut; logik; integration; panel; notprogramm
+- Pre-Commit-Checks: seite-gebaut; logik; integration; panel; notprogramm; browser
 - Doku-Check: none
 
 ### Code
@@ -64,7 +65,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Pflichtkontext: CLAUDE.md; README.md; mockups/README.md
 - Aufgabenquelle: none
 - Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
-- Tests: seite-gebaut; logik; integration; panel; notprogramm
+- Tests: seite-gebaut; logik; integration; panel; notprogramm; browser
 - Auslieferung: ref:README.md#Auslieferung
 - Mockup-Policy: none
 - Befund-Ort: none

@@ -166,9 +166,15 @@ uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
   python -m pytest -q -p no:cacheprovider tests/integration
 node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js \
   custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
+node tests/shelly/test_notprogramm.js custom_components/baustelle/shelly/notprogramm.js
+node tests/panel/browser/pruefen.mjs
 uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
   --with pytest-homeassistant-custom-component --with mypy mypy --strict custom_components/baustelle
 ```
+
+Panel- und Browser-Test brauchen einmalig `npm --prefix custom_components/baustelle/frontend ci` (happy-dom,
+puppeteer-core). Der Panel-Test läuft im DOM von happy-dom (`tests/panel/umgebung.js`); der Browser-Test bedient das
+Master-Mockup in Chromium 136 (B1–B7, Ausgangsprotokoll `docs/lit-ausgangsprotokoll.md`), ohne Verbindung zu HA.
 
 Qualitätsskala von Home Assistant: `custom_components/baustelle/quality_scale.yaml` (jede Regel mit Stand und Grund).
 Auf GitHub prüfen `.github/workflows/tests.yml` und `validate.yml` (hassfest, HACS, mypy; Versionen fest angeheftet).

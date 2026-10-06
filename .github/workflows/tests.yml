@@ -10,18 +10,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - name: Fachlogik
-        run: uv run --no-project --python 3.12 --with pytest python -m pytest -q -p no:cacheprovider tests/logik
-      - name: Integration gegen Home Assistant
-        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Bauwerkzeug und Test-DOM der Seite (esbuild, happy-dom, puppeteer-core) – vor der Integration, deren Abgleich den Panel-Test startet
       - name: Bauwerkzeug der Seite
         run: npm --prefix custom_components/baustelle/frontend ci --no-audit --no-fund
       - name: Seite gebaut und aktuell (Version, Bundle, Mockup)
         run: python3 tools/changelog.py --pruefen && node custom_components/baustelle/frontend/bauen.mjs --pruefen && node mockups/quelle/glas.js --pruefen
+      - name: Fachlogik
+        run: uv run --no-project --python 3.12 --with pytest python -m pytest -q -p no:cacheprovider tests/logik
+      - name: Integration gegen Home Assistant
+        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration
       - name: Seite (Panel)
         run: node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
       - name: Notprogramm (Shelly)
         run: node --check custom_components/baustelle/shelly/notprogramm.js && node tests/shelly/test_notprogramm.js custom_components/baustelle/shelly/notprogramm.js
+      # Browser-Test: dieselbe Hauptversion wie Chromium auf dem Pi (136), mit WebGL (SwiftShader)
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: 136
+      - name: Seite im Browser (B1–B7)
+        env:
+          CHROME_PFAD: ${{ steps.chrome.outputs.chrome-path }}
+          BAUSTELLE_WEBGL: '1'
+        run: node tests/panel/browser/pruefen.mjs

@@ -84,9 +84,16 @@ const STRUKTUR = ${struktur.trim()};
 for (const b of STRUKTUR) if (b.baustelle && 'version' in b.baustelle) b.baustelle.version = ${JSON.stringify(version)};   // Über: Stand der Seite
 const VEKTOR = ${JSON.stringify(vektor)};
 let welt, B;
+/* Testzugang für den Browser-Test (tests/panel/browser/pruefen.mjs, BSM-022): Befehlsprotokoll, Verzögerung, Hängen,
+   offene Abos, veränderte Statistik – ohne Wirkung auf die Anzeige, solange der Test nichts setzt */
+const TEST = { aufrufe: [], verzoegerung: 0, haengt: false, abos: 0, statistik: null };
 function beispiel() {
   welt = JSON.parse(JSON.stringify(STRUKTUR));
-  B = beispielHass({ STRUKTUR, REFERENZ: true, VEKTOR, WELT: 'struktur-0.7', welt: () => welt });
+  B = beispielHass({ STRUKTUR, REFERENZ: true, VEKTOR, WELT: 'struktur-0.7', welt: () => welt, haengt: () => TEST.haengt,
+    mit: m => TEST.aufrufe.push(JSON.parse(JSON.stringify(m))) });
+  const ws = B.hass.callWS, abo = B.hass.connection.subscribeMessage;
+  B.hass = { ...B.hass, callWS: async m => { if (TEST.verzoegerung) await new Promise(r => setTimeout(r, TEST.verzoegerung)); const r = await ws(m); return m.type === 'baustelle/statistik' && TEST.statistik ? TEST.statistik(m, r) : r; },
+    connection: { ...B.hass.connection, subscribeMessage: (cb, m) => { TEST.abos++; return abo(cb, m).then(ende => () => { TEST.abos--; ende(); }); } } };
 }
 beispiel();
 const P = [];
@@ -117,6 +124,7 @@ uhrEl.oninput = () => { const ziel = _Date.parse(BEISPIEL_TAG + 'T00:00:00+02:00
 wetterEl.onchange = hassNeu;
 document.getElementById('modus').onclick = () => { document.body.classList.toggle('hell'); hassNeu(); };
 document.getElementById('neu').onclick = () => { beispiel(); for (const p of P) p.cache = {}; hassNeu(); for (const p of P) p._laden(); };
+window.baustelleBeispiel = { P, TEST, hassNeu, get B() { return B; }, get welt() { return welt; } };
 hassNeu();   // wie HA: erst hass, dann einhängen
 for (const p of P) document.getElementById(p._ziel).appendChild(p);
 setInterval(hassNeu, 60000);
