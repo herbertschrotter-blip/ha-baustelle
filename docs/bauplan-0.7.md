@@ -467,6 +467,13 @@ Entscheidungen:
   „Notbetrieb … nachgetragen: … h, … kWh“ ins Protokoll. Begann der Notbetrieb ohne Uhrzeit (Skript meldet 1), gibt es
   kein Stundenbuch: Protokoll „ohne Uhrzeit – Verbrauch als Summe bei der Rückkehr“.
 
+- **Taste vorbereitet (BSM-018, 0.8.71):** Einstellung `heizung.taste` (startet aus, braucht das Notprogramm). Die
+  Integration trennt die Taste vom Relais (`PLUGS_UI.controls.switch:0.in_mode = detached`; aus bzw. Notprogramm aus →
+  `momentary`), schaltet die Event-Entität des Skripts (Shelly-Integration, `event.<plug>_baustelle`) ein und setzt bei
+  „baustelle_taste“ `laufzeit.taste_bis` (1 h bzw. beenden). Regel `taste` in logik/regelung: nach Frostschutz, Tür und
+  Hand, vor Boost, Modus, frei, Heizgrenze und Plan; mit Fühler bis zum Soll. **Offen:** am Gerät prüfen, welches
+  Ereignis die getrennte Taste meldet (das Skript nimmt jedes `single_push`, das nicht von Bluetooth kommt).
+
 Offen: Gerätepasswort als `!secret`, falls je eins gesetzt wird.
 
 ## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut

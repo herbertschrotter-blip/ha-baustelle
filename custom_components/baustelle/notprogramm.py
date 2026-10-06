@@ -12,6 +12,11 @@ Die Kopplungen hält die Integration selbst in Ordnung (BSM-030): BLU-Fühler un
 Plug des Containers), fremde Kopplungen entfernen, Namen nach Herberts Schema (Gerätename in HA + `_Temperatur` …);
 jede Änderung im Protokoll. Andere Komponenten (Skripte, Schalter) fasst sie nicht an.
 
+Taste am Plug (BSM-018, `heizung.taste`, startet aus, braucht das Notprogramm): die Integration trennt die Taste vom
+Relais (`PLUGS_UI` `in_mode: detached`), schaltet die Event-Entität des Skripts ein (Shelly-Integration) und setzt bei
+„baustelle_taste“ für den Container 1 h heizen bzw. beendet es (`laufzeit.taste_bis`, Regel in logik/regelung). Ohne HA
+heizt das Skript selbst 1 h. Taste aus oder Notprogramm aus: Taste schaltet wieder das Relais (`momentary`).
+
 Startet ausgeschaltet (`heizung.notprogramm`): Erst wenn Herbert es einschaltet, spielt die Integration etwas in die
 Plugs. Ausschalten hält das Skript an und nimmt den Autostart weg – sonst übernähme es 15 min später.
 Ohne Gerätepasswort (BSM-001 verworfen); ein Plug mit Passwort meldet „Passwort gesetzt“.
@@ -30,10 +35,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 import aiohttp
 
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_call_later, async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, ROLLE_HEIZKOERPER
@@ -59,6 +65,8 @@ WARTEN_S = 2.0        # nach dem Start, bis der Endpunkt `hb` antwortet
 TIMEOUT_S = 10
 OHNE_ANTWORT_S = 3
 OBJ_TEMPERATUR, OBJ_FENSTER = 69, 45
+TASTE_MIN = 60                 # Taste am Plug: so lange heizen (wie TASTE_S im Skript)
+TASTE_EREIGNIS = "baustelle_taste"
 OHNE_UHRZEIT = 1_000_000_000   # „Notbetrieb seit“ kleiner: begann ohne Uhrzeit (das Skript meldet dann 1)
 
 
@@ -172,6 +180,8 @@ class Notprogramm:
         self._sperre = asyncio.Lock()
         self._skript: tuple[int, str] | None = None
         self.geprueft: datetime | None = None
+        self._tasten: dict[str, str] = {}        # Event-Entität des Skripts → Gerät (BSM-018)
+        self._tasten_abmelden: CALLBACK_TYPE | None = None
 
     @callback
     def async_start(self) -> CALLBACK_TYPE:
@@ -182,11 +192,17 @@ class Notprogramm:
         def stop() -> None:
             for f in abmelden:
                 f()
+            if self._tasten_abmelden is not None:
+                self._tasten_abmelden()
         return stop
 
     @property
     def an(self) -> bool:
         return bool(self.st.e["heizung"].get("notprogramm"))
+
+    @property
+    def taste(self) -> bool:
+        return self.an and bool(self.st.e["heizung"].get("taste"))
 
     async def _async_takt(self, _jetzt: datetime | None = None) -> None:
         await self.async_runde()
@@ -213,6 +229,7 @@ class Notprogramm:
                         _LOGGER.info("Notprogramm %s: %s", g.name, err)
                     stand.fehler, stand.fehler_seit = str(err), stand.fehler_seit or dt_util.now()
             self.geprueft = dt_util.now()
+            self._tasten_beobachten()
             # Warnung „Notprogramm nicht bereit“ (logik/warnungen, nach 15 min) – nur, solange es eingeschaltet ist
             self.st.notprogramm_fehler = {gid: (s.fehler_seit, s.fehler or "") for gid, s in self.stand.items()
                                           if self.an and s.fehler_seit is not None}
@@ -350,6 +367,7 @@ class Notprogramm:
             if s.get("name") == SKRIPT_NAME and (s.get("running") or s.get("enable")):
                 await plug.rpc("Script.Stop", {"id": s["id"]})
                 await plug.rpc("Script.SetConfig", {"id": s["id"], "config": {"enable": False}})
+                await self._async_taste_modus(plug, False)   # Taste schaltet wieder das Relais
         stand.geprueft_aus, stand.geschrieben = True, None
 
     # ------------------------------------------------------------------ eine Runde je Plug
@@ -366,6 +384,8 @@ class Notprogramm:
             stand.geschrieben = None
             antwort = await plug.hb(skript_id)
         await self._async_kopplungen(g, plug)
+        await self._async_taste_modus(plug, self.taste)
+        self._taste_entitaet(g, skript_id)
         _, sensoren = await self._gekoppelt(plug)
         messwerte = {k: nr for k, (nr, _) in sensoren.items()}
         info = self.st.bereiche[g.bereich]
@@ -436,6 +456,62 @@ class Notprogramm:
         minuten = max(1, round((bis - von).total_seconds() / 60))
         self.st.protokoll("warnung", g.bereich, f"Notbetrieb {g.name}: {von:%d.%m. %H:%M} bis {bis:%H:%M} ({minuten} min) – "
                           "der Plug hat ohne Home Assistant nach dem Notprogramm geheizt")
+
+    # ------------------------------------------------------------------ Taste am Plug (BSM-018)
+    async def _async_taste_modus(self, plug: Plug, getrennt: bool) -> None:
+        """Taste vom Relais trennen (`detached`) bzw. wieder schalten lassen (`momentary`); Plugs ohne PLUGS_UI: nichts."""
+        try:
+            cfg = await plug.rpc("PLUGS_UI.GetConfig")
+        except PlugFehler:
+            return
+        ist = ((cfg or {}).get("controls") or {}).get("switch:0", {}).get("in_mode")
+        soll = "detached" if getrennt else "momentary"
+        if ist is not None and ist != soll:
+            await plug.rpc("PLUGS_UI.SetConfig", {"config": {"controls": {"switch:0": {"in_mode": soll}}}})
+
+    def _taste_entitaet(self, g: GeraetInfo, skript_id: int) -> None:
+        """Event-Entität des Skripts am Plug finden (Shelly-Integration) und, wenn die Taste an ist, einschalten."""
+        ents = er.async_get(self.hass)
+        eintrag = ents.async_get(g.schalter)
+        if eintrag is None or eintrag.device_id is None:
+            return
+        for e in er.async_entries_for_device(ents, eintrag.device_id, include_disabled_entities=True):
+            if e.domain == "event" and e.platform == "shelly" and str(e.unique_id).endswith(f"-script:{skript_id}"):
+                if self.taste and e.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
+                    ents.async_update_entity(e.entity_id, disabled_by=None)   # HA lädt die Shelly-Integration danach neu
+                self._tasten[e.entity_id] = g.id
+
+    @callback
+    def _tasten_beobachten(self) -> None:
+        if self._tasten_abmelden is not None:
+            self._tasten_abmelden()
+            self._tasten_abmelden = None
+        if self._tasten:
+            self._tasten_abmelden = async_track_state_change_event(self.hass, list(self._tasten), self._taste_gedrueckt)
+
+    @callback
+    def _taste_gedrueckt(self, event: Event[EventStateChangedData]) -> None:
+        neu, alt = event.data["new_state"], event.data["old_state"]
+        if (not self.taste or neu is None or alt is None or neu.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+                or neu.state == alt.state or neu.attributes.get("event_type") != TASTE_EREIGNIS):
+            return
+        if (gid := self._tasten.get(event.data["entity_id"])) is not None and gid in self.st.geraete:
+            self.taste_druecken(self.st.geraete[gid])
+
+    @callback
+    def taste_druecken(self, g: GeraetInfo) -> None:
+        """1 h heizen im Container des Plugs; läuft es schon, beenden (Herbert 05.10.2026)."""
+        st, bid, jetzt = self.st, g.bereich, dt_util.now()
+        lz = st.lz.setdefault("taste_bis", {})
+        if cast("Heizung", st.funktion("heizung")).bis("taste_bis", bid, jetzt) is not None:
+            lz.pop(bid, None)
+            st.protokoll("schalten", bid, f"Taste am Plug {g.name}: 1 h heizen beendet")
+        else:
+            ende = jetzt + timedelta(minutes=TASTE_MIN)
+            lz[bid] = ende.isoformat(timespec="seconds")
+            st.protokoll("schalten", bid, f"Taste am Plug {g.name}: 1 h heizen bis {ende:%H:%M}")
+        st.einstellungen.speichern()
+        st.auswerten()
 
     # ------------------------------------------------------------------ Programm
     def werte(self, g: GeraetInfo, temp_nr: int | None, tuer_nr: int | None, jetzt: datetime | None = None) -> dict[str, str]:

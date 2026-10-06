@@ -38,6 +38,7 @@ class FakePlug:
         self.aufrufe: list[str] = []
         self.erreichbar = True
         self.nb = 0   # „Notbetrieb seit“ (Unix-Sekunden), das das Skript beim nächsten Lebenszeichen meldet
+        self.in_mode = "momentary"   # PLUGS_UI: Taste schaltet das Relais
         self.komponenten = [
             {"key": "bthomedevice:200", "config": {"id": 200, "addr": BT_FUEHLER.lower()}},
             {"key": "bthomesensor:200", "config": {"id": 200, "addr": BT_FUEHLER.lower(), "obj_id": 1}},
@@ -86,6 +87,11 @@ class FakePlug:
                 art = "bthomedevice" if methode.startswith("BTHomeDevice") else "bthomesensor"
                 next(k for k in self.komponenten if k["key"] == f"{art}:{p['id']}")["config"].update(p["config"])
                 return {"restart_required": False}
+            case "PLUGS_UI.GetConfig":
+                return {"leds": {}, "controls": {"switch:0": {"in_mode": self.in_mode}}}
+            case "PLUGS_UI.SetConfig":
+                self.in_mode = p["config"]["controls"]["switch:0"]["in_mode"]
+                return {"restart_required": False}
             case "Shelly.GetComponents":
                 teile = self.komponenten[p.get("offset", 0):][:3]   # wie das Gerät: seitenweise
                 return {"components": teile, "offset": p.get("offset", 0), "total": len(self.komponenten)}
@@ -116,12 +122,16 @@ class FakePlug:
         return AiohttpClientMockResponse(method, url, json=antwort)
 
 
-def _plug_eintragen(hass: HomeAssistant, host: str, schalter: str, mac: str) -> None:
+def _plug_eintragen(hass: HomeAssistant, host: str, schalter: str, mac: str) -> str:
     entry = MockConfigEntry(domain="shelly", data={"host": host, "gen": 3}, unique_id=mac)
     entry.add_to_hass(hass)
     geraet = dr.async_get(hass).async_get_or_create(config_entry_id=entry.entry_id, connections={(dr.CONNECTION_NETWORK_MAC, mac)})
     er.async_get(hass).async_get_or_create("switch", "shelly", f"{mac}-switch:0", suggested_object_id=schalter.split(".")[1],
                                            device_id=geraet.id, config_entry=entry)
+    # Event-Entität des Skripts (legt die Shelly-Integration an, standardmäßig deaktiviert) – unser Skript bekommt id 2
+    er.async_get(hass).async_get_or_create("event", "shelly", f"{mac}-script:2", suggested_object_id=f"{host}_baustelle", device_id=geraet.id,
+                                           config_entry=entry, disabled_by=er.RegistryEntryDisabler.INTEGRATION)
+    return geraet.id
 
 
 @pytest.fixture
@@ -424,3 +434,36 @@ async def test_stundenbuch_nach_ha_aus(hass: HomeAssistant, anlage) -> None:
     temp = await db.async_ausfuehren(lambda v: v.execute(select(s.bereich_minute.c.temperatur, s.bereich_minute.c.tuer_offen_s)
                                                             .where(s.bereich_minute.c.quelle == "notprogramm")).all())
     assert sorted(t.temperatur for t in temp) == [19.0, 19.5] and sum(t.tuer_offen_s for t in temp) == 120
+
+
+async def test_taste_am_plug(hass: HomeAssistant, anlage) -> None:
+    """BSM-018: Taste vom Relais trennen, Event-Entität einschalten, Drücken = 1 h heizen, nochmal = beenden."""
+    entry, np, plugs = anlage
+    st, reg = entry.runtime_data, er.async_get(hass)
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    assert plugs["plug1"].in_mode == "momentary"                          # Taste aus: nichts geändert
+    assert reg.async_get("event.plug1_baustelle").disabled_by is not None
+    st.e["heizung"]["taste"] = True
+    await np.async_runde()
+    assert plugs["plug1"].in_mode == "detached" and plugs["plug2"].in_mode == "detached"
+    assert reg.async_get("event.plug1_baustelle").disabled_by is None    # eingeschaltet
+
+    hass.states.async_set("event.plug1_baustelle", "unknown", {"event_types": ["baustelle_taste"]})
+    hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:51:00+00:00", {"event_type": "baustelle_taste"})
+    await hass.async_block_till_done()
+    assert "sub_c1" in st.lz["taste_bis"]
+    assert any("Taste am Plug Heizkörper 1: 1 h heizen bis" in e[3] for e in st.einstellungen.daten["protokoll"])
+    hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:52:00+00:00", {"event_type": "baustelle_taste"})
+    await hass.async_block_till_done()
+    assert "sub_c1" not in st.lz["taste_bis"]                            # nochmal drücken beendet
+    hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:53:00+00:00", {"event_type": "anderes"})
+    await hass.async_block_till_done()
+    assert "sub_c1" not in st.lz["taste_bis"]                            # andere Ereignisse zählen nicht
+
+    st.e["heizung"]["taste"] = False
+    await np.async_runde()
+    assert plugs["plug1"].in_mode == "momentary"                          # Taste schaltet wieder das Relais
+    hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:54:00+00:00", {"event_type": "baustelle_taste"})
+    await hass.async_block_till_done()
+    assert "sub_c1" not in st.lz["taste_bis"]                            # Taste aus: Drücken wirkt nicht

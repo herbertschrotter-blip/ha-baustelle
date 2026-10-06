@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 
 HEIZ_GRUENDE = {
     SollGrund.FRUEHSTART, SollGrund.VORHEIZEN, SollGrund.ARBEITSZEIT, SollGrund.NACHHEIZEN, SollGrund.TROCKNEN,
-    SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN,
+    SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN, SollGrund.TASTE,
 }
 # lernende Regelung: nur in diesen Gründen regelt der Container selbst (K außen lernen)
 LERN_GRUENDE = {
@@ -259,7 +259,7 @@ class Heizung(Funktion):
         return bis if bis is not None and bis > jetzt else None
 
     def bis(self, art: str, bid: str, jetzt: datetime) -> datetime | None:
-        bis = zeit(self.st.lz[art].get(bid))
+        bis = zeit(self.st.lz.setdefault(art, {}).get(bid))
         return bis if bis is not None and bis > jetzt else None
 
     def aufraeumen(self, jetzt: datetime) -> bool:
@@ -491,6 +491,7 @@ class Heizung(Funktion):
                 laeuft_gerade=any((z := hass.states.get(g.schalter)) is not None and z.state == STATE_ON
                                   for g in st.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER),
                 tuer_vorher=self._tuer_pause.get(bid, False),
+                taste=self.bis("taste_bis", bid, jetzt) is not None,   # BSM-018: Taste am Plug
             )
             soll = soll_container(lage, int(h["tuer_pause_min"]))
             self._lern_grund[bid] = soll.grund
@@ -942,6 +943,9 @@ class Heizung(Funktion):
             zustand, text = "pause", "pausiert · Tür offen"
         elif grund == SollGrund.BOOST and zieht:
             zustand, text = "heizt", "⚡ schnell aufheizen"
+        elif grund == SollGrund.TASTE and heizer_an:   # BSM-018
+            bis = self.bis("taste_bis", bid, jetzt)
+            zustand, text = "heizt", "Taste am Plug" + (f" · bis {bis:%H:%M}" if bis else "")
         elif grund == SollGrund.BEREIT:
             zustand, text = "bereit", "bei Bedarf · nur Frostschutz"
         elif grund == SollGrund.AUS and not heizer_an:

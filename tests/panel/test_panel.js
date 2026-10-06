@@ -1098,7 +1098,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       erwarte('BSM-019: Jetzt prüfen über baustelle/notprogramm_pruefen', aufrufe.some(m => m.type === 'baustelle/notprogramm_pruefen' && m.entry_id === panel.d.entry));
       neu(); const an = panel.d.e.notprogramm; await klick({ act: 'np-an' }, 10);
       erwarte('BSM-019: Schalter über baustelle/setzen', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'heizung.notprogramm' && m.wert === !an));
-      await klick({ act: 'np-an' }, 10); }
+      await klick({ act: 'np-an' }, 10);
+      if (panel.d.e.notprogramm) { neu(); await klick({ act: 'np-taste' }, 10);
+        erwarte('BSM-018: Taste am Plug über baustelle/setzen', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'heizung.taste')); await klick({ act: 'np-taste' }, 10); } }
     await gruppe('dev'); await klick({ act: 'ev-dev', v: 'werkzeuge' }, 20);
     erwarte('WU-0007: Entwicklung › Werkzeuge', ui.innerHTML.includes('Diagnose herunterladen') && !ui.innerHTML.includes('Melden-Knopf in jedem Fenster'));
     await gruppe('meldungen'); neu(); const k0 = panel.d.e.kalt_min; await klick({ act: 'st', k: 'kalt_min', d: '15' }, 10);

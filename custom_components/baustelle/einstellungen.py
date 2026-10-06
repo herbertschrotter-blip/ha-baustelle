@@ -90,6 +90,7 @@ STANDARD: dict[str, Any] = {
         "zieht_strom_w": 50,
         "feiertag_frei": True,
         "notprogramm": False,     # Notprogramm in den Plugs (BSM-017, startet aus wie die Automatik)
+        "taste": False,           # Taste am Plug = 1 h heizen (BSM-018, braucht das Notprogramm; startet aus)
     },
     "staffel": {"an": True, "nutzbar_prozent": 67, "max_gleichzeitig": 5, "min_lauf_min": 10, "min_pause_min": 5,
                 "takt_min": 15},
@@ -99,7 +100,7 @@ STANDARD: dict[str, Any] = {
     "bereiche": {},
     # „frueher“: Nachricht „Noch früher“ – Tag (ISO) → zusätzliche Minuten Frühstart; „regen“: Regen je Tag (mm) für
     # „nach Regen früher“ am Folgetag
-    "laufzeit": {"bedarf_bis": {}, "boost_bis": {}, "jetzt_bis": None, "hand": {}, "frueher": {}, "regen": {},
+    "laufzeit": {"bedarf_bis": {}, "boost_bis": {}, "taste_bis": {}, "jetzt_bis": None, "hand": {}, "frueher": {}, "regen": {},
                  "lernen": {}, "warm_start": {},
                  "aussen_tage": {}, "gefuehl": [], "soll_versch": {}},   # Soll gleitend: Tagesmittel außen, Rückmeldungen, + / −   # lernen: Lernstand je Container (logik/lernen, 0.8)
     "meldungen_einst": {

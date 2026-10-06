@@ -81,6 +81,17 @@ def test_boost():
     assert soll(boost=True, minute=t(20), temperatur=20.0) == Soll(False, SollGrund.AUSSERHALB)
 
 
+def test_taste_am_plug():
+    """BSM-018: Taste = 1 h heizen in jedem Modus (auch aus, frei, über der Heizgrenze, außerhalb) – mit Fühler bis zum Soll."""
+    assert soll(taste=True, minute=t(20)) == Soll(True, SollGrund.TASTE)
+    assert soll(taste=True, frei=True, zu_warm=True, modus="aus") == Soll(True, SollGrund.TASTE)
+    assert soll(taste=True, minute=t(20), temperatur=19.0) == Soll(True, SollGrund.TASTE)
+    assert soll(taste=True, minute=t(20), temperatur=20.5) == Soll(False, SollGrund.TASTE)   # Soll erreicht: Thermostat
+    assert soll(taste=True, auto=False) == Soll(None, SollGrund.HAND)                       # Hand geht vor
+    assert soll(taste=True, temperatur=3.0).grund == SollGrund.FROST                         # Frostschutz geht vor
+    assert soll(taste=True, minute=t(20), tuer_offen_min=5).grund == SollGrund.TUER_OFFEN   # offene Tür pausiert
+
+
 def test_bedarf_aktiv_und_bereit():
     assert soll(bedarf=True, bedarf_aktiv=True, minute=t(20)) == Soll(True, SollGrund.BEDARF)
     assert soll(bedarf=True, bedarf_aktiv=True, frei=True, zu_warm=True) == Soll(True, SollGrund.BEDARF)

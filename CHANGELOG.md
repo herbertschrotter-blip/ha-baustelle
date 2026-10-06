@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.71] – 2026-10-06
+
+- Taste am Plug = 1 h heizen (BSM-018, vorbereitet): neuer Schalter unter Einstellungen › Notprogramm (startet aus).
+  Ist er ein, schaltet die Taste den Heizkörper nicht mehr direkt, sondern heizt den Container 1 h (mit Fühler bis zum
+  Soll) – in jedem Modus, auch an freien Tagen; nochmal drücken beendet. Ohne Home Assistant macht das das Skript im
+  Plug. Im Protokoll „Taste am Plug …: 1 h heizen bis …“, der Container zeigt „Taste am Plug · bis …“. Ob die Taste
+  am Plug das Ereignis wirklich meldet, wird vor Ort geprüft.
+
 ## [0.8.70] – 2026-10-06
 
 - Container-Symbol (Herbert): Türen sitzen fest links, mittig oder rechts an ihrer Wand, mit Abstand zur Kante; mehrere

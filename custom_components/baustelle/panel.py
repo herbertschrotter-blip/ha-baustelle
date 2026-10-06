@@ -86,6 +86,7 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("heizung", "absenk"): vol.All(ZAHL, vol.Range(5, 20)),
     ("heizung", "frost_immer"): cv.boolean,
     ("heizung", "notprogramm"): cv.boolean,
+    ("heizung", "taste"): cv.boolean,   # BSM-018
     ("heizung", "frost_aussen"): vol.Any(None, vol.All(ZAHL, vol.Range(-20, 10))),
     ("heizung", "trocknen_ab_mm"): vol.All(ZAHL, vol.Range(0, 100)),
     ("heizung", "trocknen_laenger_min"): vol.All(GANZ, vol.Range(0, 480)),

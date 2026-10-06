@@ -1185,7 +1185,7 @@ const PFAD = { preis: ['preis'], melden: ['melden_knopf'], feiertag_frei: ['heiz
   dauer_min: ['meldungen_einst', 'dauerlauf_min'], kalt_min: ['meldungen_einst', 'kalt_min'], hand_h: ['meldungen_einst', 'hand_h'], zyklen_h: ['meldungen_einst', 'zyklen_h'],
   // aus 0.6.3 zurück (0.7.8, api §7)
   frost_aus: ['heizung', 'frost_aus'], urlaub: ['heizung', 'frei_modus'], absenk: ['heizung', 'absenk'], offline_min: ['meldungen_einst', 'offline_min'],
-  trocken_w: ['meldungen_einst', 'trocken_unter_w'], erklaer: ['erklaer'], frost_immer: ['heizung', 'frost_immer'], notprogramm: ['heizung', 'notprogramm'] };
+  trocken_w: ['meldungen_einst', 'trocken_unter_w'], erklaer: ['erklaer'], frost_immer: ['heizung', 'frost_immer'], notprogramm: ['heizung', 'notprogramm'], taste: ['heizung', 'taste'] };
 /* Grenzen der Stepper: Untergrenze wie im Mockup, sonst die erlaubten Werte der Integration (panel.py SETZEN) –
    so schickt die Seite nie einen Wert, den die Integration ablehnt */
 const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], min_pause: [0, 120], takt: [5, 240], tuer_pause: [1, 120], tuer_melden: [1, 240],
@@ -1466,7 +1466,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.70';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.71';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1695,7 +1695,7 @@ class BaustellePanel extends HTMLElement {
       dauer_min: v(me.dauerlauf_min, 20), kalt_min: v(me.kalt_min, 60), hand_h: v(me.hand_h, 8), zyklen_h: v(me.zyklen_h, 10), trocken_w: v(me.trocken_unter_w, 30),
       auto: !!e0.automatik,
       frost_aus: v(h.frost_aus, v(h.frost_grenze, 5) + 2), urlaub: FREI_TEXT[h.frei_modus] ? h.frei_modus : 'frost', absenk: v(h.absenk, 10),
-      offline_min: v(me.offline_min, 5), erklaer: e0.erklaer !== false, frost_immer: !!h.frost_immer, notprogramm: !!h.notprogramm };
+      offline_min: v(me.offline_min, 5), erklaer: e0.erklaer !== false, frost_immer: !!h.frost_immer, notprogramm: !!h.notprogramm, taste: !!h.taste };
     for (const [k, art] of Object.entries(ARTEN)) e[k] = ar[art] !== false;
     const anschluesse = (e0.anschluesse || []).map(a => ({ id: a.id, name: a.name || a.id, ampere: v(a.ampere, 16), phasen: v(a.phasen, 3), reserve: v(a.reserve_kw, 0) }));
     const firmen = (e0.firmen && e0.firmen.length ? e0.firmen : [{ id: 'eigen', name: 'Eigene Firma', eigen: true }]).map(f => ({ ...f }));
@@ -3837,6 +3837,7 @@ class BaustellePanel extends HTMLElement {
       <span class="ger-z">${this.npChip(x.np)}${an && x.np.bis ? `<div class="leise">Programm bis ${this.npZeit(x.np.bis)}</div>` : ''}</span><span class="chev">›</span></button>`;
     const html = `<div class="glas-panel liste"><div class="gruppe">Notprogramm in den Plugs</div>
         <div class="zeile"><div><b>Notprogramm</b><div class="leise">Fällt Home Assistant oder das Netz aus, heizen die Plugs nach dem Programm der nächsten 7 Tage weiter – nach 15 min ohne Lebenszeichen</div></div>${schalter(an, 'np-an')}</div>
+        ${an ? `<div class="zeile"><div><b>Taste am Plug = 1 h heizen</b><div class="leise">Drücken heizt den Container 1 h (mit Fühler bis zum Soll), nochmal drücken beendet – auch ohne Home Assistant. Die Taste schaltet den Heizkörper dann nicht mehr direkt ein und aus.</div></div>${schalter(d.e.taste, 'np-taste')}</div>` : ''}
         ${an ? `<button class="zeile" data-act="np-pruefen"><div><span class="blau">${this.s.npPrueft ? '⟳ prüft …' : '⟳ Jetzt prüfen'}</span><div class="leise">Skript, Kopplungen, Programm und Lebenszeichen an allen Plugs – sonst alle 5 min von selbst</div></div><span class="leise">zuletzt ${this.npVor(d.np && d.np.geprueft)}</span></button>` : ''}</div>
       <div class="glas-panel liste"><div class="gruppe">Heizungs-Plugs · ${P.length}</div>${P.map(zeile).join('') || '<div class="leer">Keine Heizkörper an Shelly-Plugs (Gen2 oder neuer)</div>'}</div>
       ${an && fehler ? `<div class="glas-panel liste"><div class="zeile"><div><b class="rot-t">⚠ ${fehler === 1 ? 'Ein Plug nimmt' : `${fehler} Plugs nehmen`} das Programm nicht an</b><div class="leise">Fällt Home Assistant jetzt aus, heizt er nach dem zuletzt geladenen Programm bzw. danach nur Frostschutz. Nach 15 min auch unter Warnungen.</div></div></div></div>` : ''}
@@ -4541,6 +4542,7 @@ class BaustellePanel extends HTMLElement {
       case 'sym-auf': S.sheet = { art: 'aussehen', id: S.cid || (this.b && this.b.id) }; return neu();   // BSM-032
       case 'sym-doppel': case 'sym-farbe': case 'sym-rahmen': case 'sym-wand': case 'sym-lage': case 'sym-weg': case 'sym-neu': case 'sym-standard': return this.symKlick(a, el);
       case 'np-an': return this.setzen(['heizung', 'notprogramm'], !d.e.notprogramm);   // BSM-019
+      case 'np-taste': return this.setzen(['heizung', 'taste'], !d.e.taste);   // BSM-018
       case 'np-plug': S.sheet = { art: 'np-plug', id: el.dataset.id }; return neu();
       case 'np-pruefen': if (S.npPrueft) return; S.npPrueft = true; this.render();
         return this.ws({ type: 'baustelle/notprogramm_pruefen', entry_id: d.entry }, 'Notprogramm geprüft').finally(() => { S.npPrueft = false; this.render(); });

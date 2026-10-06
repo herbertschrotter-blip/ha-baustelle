@@ -1,7 +1,7 @@
 """Soll-Zustand je Container – reine Fachlogik ohne Home-Assistant-Code.
 
 Bauplan 0.7 Abschnitt 2.2. Reihenfolge (fachlich festgelegt):
-Automatik aus → Frostschutz → Tür offen → Container-Automatik aus (Hand) → Boost → Modus „aus“ → Bedarfs-Container →
+Automatik aus → Frostschutz → Tür offen → Container-Automatik aus (Hand) → Taste am Plug (BSM-018) → Boost → Modus „aus“ → Bedarfs-Container →
 frei (Urlaub/Feiertag: nur Frostschutz, absenken oder alles aus) → Heizgrenze → Plan-Fenster (Thermostat bzw. ein) →
 außerhalb.
 
@@ -64,6 +64,7 @@ class SollGrund(StrEnum):
     TUER_OFFEN = "tuer_offen"
     HAND = "hand"
     BOOST = "boost"
+    TASTE = "taste"
     BEDARF = "bedarf"
     BEREIT = "bereit"
     FREI = "frei"
@@ -115,6 +116,7 @@ class LageContainer:
     tuer_vorher: bool = False           # war zuletzt wegen offener Tür pausiert (die Pause hält, bis die Tür zu ist)
     aussen: float | None = None         # Außentemperatur (Frostschutz ohne Fühler)
     frost_aussen: float | None = None   # ohne Fühler: Frostschutz ein unter dieser Außentemperatur (None = aus)
+    taste: bool = False                 # BSM-018: Taste am Plug gedrückt – 1 h heizen (wie Bei Bedarf, in jedem Modus)
 
 
 @dataclass(frozen=True)
@@ -233,6 +235,8 @@ def _ohne_tuer(lage: LageContainer) -> Soll:
         if lage.frost_vorher:
             return Soll(False, SollGrund.HAND)   # Frost vorbei: einmal aus, danach schaltet die Automatik nichts (Szenario-Befund)
         return Soll(None, SollGrund.HAND)
+    if lage.taste:   # BSM-018: wie das Notprogramm im Plug – vor Modus, frei, Heizgrenze und Plan; mit Fühler bis zum Soll
+        return Soll(_heizen(lage), SollGrund.TASTE)
     if lage.boost and (lage.temperatur is None or lage.temperatur < lage.soll):
         return Soll(True, SollGrund.BOOST)
     if lage.modus == "aus":
