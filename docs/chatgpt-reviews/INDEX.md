@@ -8,4 +8,4 @@ Zweite Meinung zu großen Entscheidungen (Skill `chatgpt-review`, Review-Profil 
 
 | Serie | Thema | Gegenstand | Status | Kernergebnis |
 |---|---|---|---|---|
-| [CGR-2026-10-06-seite-lit](CGR-2026-10-06-seite-lit/README.md) | seite-lit | Bauplan Seite zerlegen und auf Lit umstellen (`docs/bauplan-lit.md`, BSM-022/024) | Runde 1 offen | – |
+| [CGR-2026-10-06-seite-lit](CGR-2026-10-06-seite-lit/README.md) | seite-lit | Bauplan Seite zerlegen und auf Lit umstellen (`docs/bauplan-lit.md`, BSM-022/024) | Runde 2 offen | – |

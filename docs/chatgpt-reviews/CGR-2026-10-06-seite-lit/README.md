@@ -6,7 +6,7 @@ Zerlegen, stimmen Stufen und Reihenfolge, was fehlt?
 **Zeitraum:** 2026-10-06
 **Branch:** main
 **Modell:** GPT 6 Astra (mittel)
-**Status:** Runde 1 offen
+**Status:** Runde 2 offen
 
 ---
 
@@ -15,4 +15,9 @@ Zerlegen, stimmen Stufen und Reihenfolge, was fehlt?
 ### Runde 1 — Bauplan prüfen
 - **Artefakte:** [r1/](./r1/)
 - **Fokus:** Lit ja/nein, Stufen 0–5, Tests (happy-dom), Auslieferung als eine Datei, Risiko im laufenden Betrieb
+- **Kernergebnis:** Lit als Ziel ja, aber korrigierter Weg (größere Stufe 0, DOM-Tests vor Lit, kleiner Lit-Pilot in gehaltenem Bereich, Lebenszyklus eigener Schritt, Browser-Tests, messbare Abnahme, Rückweg). Herbert: Browser-Tests lokal + GitHub, Abnahme S23 Ultra + PC; Stufenschnitt → Runde 2
+
+### Runde 2 — Konkreter Stufenplan
+- **Artefakte:** [r2/](./r2/)
+- **Fokus:** abhakbarer Stufenplan, Entscheidungspunkt nach Lit-Pilot, Stufe 0a konkret, Offline-npm, Browser-Test-Werkzeug
 - **Kernergebnis:** –
