@@ -183,6 +183,7 @@ const CSS = `/* Wetter */
 @keyframes fuellen { from { width: 0; } }
 @keyframes blitz { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-6deg); } }
 .bc-licht { filter: drop-shadow(0 0 4px #ffd54f); }   /* BSM-032 */
+.sym-zeile { gap: 10px; } .sym-zeile > div { flex: 1; text-align: left; } .sym-mini { width: 56px; flex: none; } .sym-mini svg { width: 100%; height: auto; display: block; }
 .sym-vorschau { max-width: 320px; margin: 0 auto 10px; } .sym-vorschau svg { width: 100%; height: auto; }
 .sym-farben { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .sym-farbe { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; padding: 0; } .sym-farbe.on { border-color: var(--ink); box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
@@ -1435,7 +1436,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.68';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.69';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -4221,7 +4222,7 @@ class BaustellePanel extends HTMLElement {
             <div class="zeile"><div><span>Warm halten</span><div class="leise">${w.nach_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('nach', w.nach, w.nach_eigen, v => v ? `${v} min länger` : 'bis Ende')}</div>
             ${w.vor_eigen || w.nach_eigen ? '<button class="zeile" data-act="warm-zurueck"><span class="blau">Wie die Baustelle</span></button>' : ''}`; })() : ''}
         ${b.pumpe || !b.groesse ? '' : this.groesseBlock(b, e)}
-        ${b.pumpe ? '' : `<button class="zeile" data-act="sym-auf"><span>🏠 Aussehen</span><span class="leise">${b.symbol && b.symbol.doppel ? 'Doppel' : 'Einzel'} · ${b.symbol ? b.symbol.tueren.length : 1} Tür · ${b.symbol ? b.symbol.fenster.length : 1} Fenster ›</span></button>`}
+        ${b.pumpe ? '' : `<div class="glas-panel liste"><button class="zeile sym-zeile" data-act="sym-auf"><span class="sym-mini">${bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], 'aus', b)}</span><div><b class="blau">🏠 Aussehen</b><div class="leise">${b.symbol && b.symbol.doppel ? 'Doppel' : 'Einzel'} · ${b.symbol ? b.symbol.tueren.length : 1} ${b.symbol && b.symbol.tueren.length === 2 ? 'Türen' : 'Tür'} · ${b.symbol ? b.symbol.fenster.length : 1} Fenster · Farbe, Sensoren</div></div><span class="chev">›</span></button></div>`}
         ${b.pumpe ? '' : `<label class="feld">Temperaturfühler<select data-bfu>${this.optionen(fuehler, e.fuehler, '– keiner –')}</select></label>`}
         ${b.pumpe ? '' : `<label class="feld">Türkontakt<select data-btuer>${this.optionen(tueren, e.tuer, 'keiner')}</select></label>`}
         <label class="feld">Stromanschluss<select data-ban>${d.anschluesse.map(a => `<option value="${esc(a.id)}" ${e.anschluss === a.id ? 'selected' : ''}>${esc(a.name)} · ${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A</option>`).join('')}</select></label>

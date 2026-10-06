@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.69] – 2026-10-06
+
+- Container bearbeiten: „🏠 Aussehen“ ist jetzt als Knopf erkennbar – im Kasten, mit kleinem Bild des Symbols und Pfeil
+  (Herbert: „sieht aus wie normaler Text“).
+
 ## [0.8.68] – 2026-10-06
 
 - Container-Symbol anpassbar (BSM-032): Container bearbeiten › 🏠 Aussehen – Einzel- oder Doppelcontainer, Farbe, Türen
