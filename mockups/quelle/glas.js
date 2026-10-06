@@ -86,10 +86,10 @@ const VEKTOR = ${JSON.stringify(vektor)};
 let welt, B;
 /* Testzugang für den Browser-Test (tests/panel/browser/pruefen.mjs, BSM-022): Befehlsprotokoll, Verzögerung, Hängen,
    offene Abos, veränderte Statistik – ohne Wirkung auf die Anzeige, solange der Test nichts setzt */
-const TEST = { aufrufe: [], verzoegerung: 0, haengt: false, abos: 0, statistik: null };
+const TEST = { aufrufe: [], verzoegerung: 0, haengt: false, fehlt: false, abos: 0, statistik: null };
 function beispiel() {
   welt = JSON.parse(JSON.stringify(STRUKTUR));
-  B = beispielHass({ STRUKTUR, REFERENZ: true, VEKTOR, WELT: 'struktur-0.7', welt: () => welt, haengt: () => TEST.haengt,
+  B = beispielHass({ STRUKTUR, REFERENZ: true, VEKTOR, WELT: 'struktur-0.7', welt: () => welt, haengt: () => TEST.haengt, fehlt: () => TEST.fehlt,
     mit: m => TEST.aufrufe.push(JSON.parse(JSON.stringify(m))) });
   const ws = B.hass.callWS, abo = B.hass.connection.subscribeMessage;
   B.hass = { ...B.hass, callWS: async m => { if (TEST.verzoegerung) await new Promise(r => setTimeout(r, TEST.verzoegerung)); const r = await ws(m); return m.type === 'baustelle/statistik' && TEST.statistik ? TEST.statistik(m, r) : r; },

@@ -47,7 +47,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **2a.2** | Melde-Dialog samt Entwurf auf Lit | nichts | Tippen während Updates; Bild/Einfügen/Abbrechen/Senden | R auf 2a.1/1c |
 | ☑ | **Entscheidung** | Pilot bewerten (§5) | Ja/Nein-Bogen | 5 × Ja und Restaufwand akzeptiert | bei Nein: 1c behalten |
 | ☑ | **2b** | Klasse auf LitElement; Zustand (`s` reaktiv, `neuZeichnen()` → `requestUpdate()`, neue Objektreferenzen), Laden aus Vorlagen heraus, Timer/Abos | nichts | `hass` vor/nach Einhängen; 20 Wiederanschlüsse ohne Mehrfachaufrufe; Menü, Theme, schmal/breit | R auf Pilot |
-| ☐ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
+| ☑ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
 | ☐ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
 | ☐ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
 | ☐ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
@@ -194,6 +194,12 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Nachweis: Schnappschuss gleich bis auf den entfallenen Behälter um „Melden“; Panel-Test grün; Browser-Fall „2b
   LitElement“ (hass vor/nach Einhängen, 20 Wiederanschlüsse ≤ 1 Abfrage je Anschluss, Menü, Theme, schmal/breit);
   Leistung gegen 0.8.80: `render` 65 → 27 ms, Update 115 → 40 ms, Klick gleich.
+- **3a, 06.10.2026 (0.8.82):** Inventarliste `docs/lit-inventar.md` (Ansichten, Einblendungen, Klick-Aktionen je Stufe).
+  `src/ansichten/allgemein.js` (Kopf, Laden/Fehler, Leer) und `src/ansichten/dev.js` (eigene Ansicht; in den
+  Einstellungen als Lit-Bereiche `dev-meldungen`/`dev-werkzeuge`). Klick-Fälle `mfilter`, `m-status`, `m-weg`, `m-md`,
+  `m-json`, `m-bild`, `diagnose` → Methoden; `case 'sheet'` → `einblenden(art, ds)`; `v_leer`/`v_dev` entfernt,
+  `TICKET_STATUS` nach `tabellen.js`. Nachweis: Schnappschuss um Entwicklung erweitert (73 Schritte), inhaltlich gleich;
+  Browser-Fall „3a Laden/Fehler/Leer“ (hängt, Fehler, Erholung, leere Baustelle, „+ Neue Baustelle“).
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

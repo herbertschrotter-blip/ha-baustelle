@@ -341,6 +341,30 @@ await fall('2b LitElement', browser, async (page, erwarte) => {
   erwarte('Theme hell/dunkel folgt hass.themes', r.hell && r.dunkel, JSON.stringify({ hell: r.hell, dunkel: r.dunkel }));
 });
 
+/* Stufe 3a: Laden, Fehler, leere Baustelle, Erholung (Lit-Vorlagen) */
+await fall('3a Laden/Fehler/Leer', browser, async (page, erwarte) => {
+  const r = await page.evaluate(async () => {
+    const BB = window.baustelleBeispiel, da = document.querySelector('#desktop'), warte = ms => new Promise(x => setTimeout(x, ms)), erg = {};
+    const text = el => el.shadowRoot.querySelector('.ui .seite') ? el.shadowRoot.querySelector('.ui .seite').textContent : '';
+    const alt = da.querySelector('baustelle-panel'), hass = alt.hass; alt.remove();
+    BB.TEST.haengt = true;
+    const p = document.createElement('baustelle-panel'); p.panel = alt.panel; p.narrow = false; p.hass = hass; da.appendChild(p); await warte(300);
+    erg.laedt = text(p).includes('Lädt …');
+    BB.TEST.haengt = false; BB.TEST.fehlt = true; await p._laden(); await p.updateComplete; erg.fehler = text(p).includes('Die Integration antwortet nicht');
+    BB.TEST.fehlt = false; await p._laden(); await p.updateComplete; erg.erholt = !!p.d && !text(p).includes('antwortet nicht') && !!p.shadowRoot.querySelector('.ui .seite .glas-kopf');
+    const sicher = BB.welt.splice(0); await p._laden(); await p.updateComplete; erg.leer = text(p).includes('KEINE LAUFENDE BAUSTELLE');
+    const knopf = [...p.shadowRoot.querySelectorAll('.ui .seite button.zeile')].find(b => b.textContent.includes('Neue Baustelle'));
+    if (knopf) { knopf.click(); await p.updateComplete; } erg.neu = p.s.sheet && p.s.sheet.art;
+    p.s.sheet = null; BB.welt.push(...sicher); await p._laden(); await p.updateComplete; erg.zurueck = !!p.d && !text(p).includes('KEINE LAUFENDE');
+    return erg;
+  });
+  erwarte('Struktur hängt: „Lädt …“', r.laedt, JSON.stringify(r));
+  erwarte('Struktur schlägt fehl: Fehlertext', r.fehler);
+  erwarte('Antwort kommt wieder: Seite erholt sich', r.erholt);
+  erwarte('keine laufende Baustelle: Leer-Ansicht, „+ Neue Baustelle“ öffnet den Dialog', r.leer && r.neu === 'baustelle-neu');
+  erwarte('Baustelle wieder da: normale Ansicht', r.zurueck);
+});
+
 /* B7 Lebenszyklus: 20 × entfernen/einhängen – Timer, Abos, window-Listener nehmen nicht zu */
 await fall('B7 Lebenszyklus', browser, async (page, erwarte) => {
   const stand = () => page.evaluate(() => ({ paste: window.__z.listener.paste, ort: window.__z.listener['location-changed'], intervalle: window.__z.intervalle.size, abos: window.baustelleBeispiel.TEST.abos }));

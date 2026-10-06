@@ -52,7 +52,9 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   panel.panel = { config: { version: '0.0.0' } }; panel.narrow = false; panel.hass = hass;
   document.body.appendChild(panel); await ruhe(40);
   const ui = panel.shadowRoot.querySelector('.ui'), e = umgebung.helfer(panel), aus = {};
-  const schritt = async (name, ds) => { const ab = befehle.length; if (ds) e.klick(ds); await ruhe(); aus[name] = { html: ui.innerHTML, befehle: befehle.slice(ab) }; };
+  // ds: data-Attribute (alte Ansichten, data-act) oder CSS-Selektor (Lit-Vorlagen, @click; Text muss in beiden Ständen passen)
+  const klickSel = sel => { const x = panel.shadowRoot.querySelector(sel); if (x) x.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); else aus[`fehlt ${sel}`] = { html: '', befehle: [] }; };
+  const schritt = async (name, ds) => { const ab = befehle.length; if (typeof ds === 'string') klickSel(ds); else if (ds) e.klick(ds); await ruhe(); aus[name] = { html: ui.innerHTML, befehle: befehle.slice(ab) }; };
   await schritt('start');
   for (const v of ['uebersicht', 'heizung', 'pumpen', 'auswertung', 'verlauf', 'einst']) await schritt(`tab ${v}`, { act: 'tab', v });
   await schritt('tab uebersicht 2', { act: 'tab', v: 'uebersicht' });
@@ -62,6 +64,10 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('tab einst 2', { act: 'tab', v: 'einst' });
   for (const g of ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'ueber'])
     await schritt(`einst ${g}`, { act: 'ev-gruppe', v: g });
+  await schritt('einst dev', { act: 'ev-gruppe', v: 'dev' });
+  await schritt('einst dev werkzeuge', { act: 'ev-dev', v: 'werkzeuge' });
+  await schritt('tab dev', { act: 'tab', v: 'dev' });
+  for (const [i, f] of ['offen', 'erledigt', 'alle'].entries()) await schritt(`dev ${f}`, `.seite .seg.klein button:nth-child(${i + 1})`);
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon

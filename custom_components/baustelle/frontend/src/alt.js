@@ -5,7 +5,7 @@
    Bedienung: baustelle/setzen|aktion|liste|protokoll|meldung(en) (api §2) und die HA-Standardwege
    (Subentry-/Options-Dialoge, calendar/event/*, Diagnose). Gerechnet wird in der Integration, nicht hier.
    ========================================================================================= */
-import { ARTEN, AUSNAHME, FARBE, MODI, WIEDER } from './tabellen.js';
+import { ARTEN, AUSNAHME, FARBE, MODI, TICKET_STATUS, WIEDER } from './tabellen.js';
 
 import { Himmel, himmelLauf, partikel, phaseAusSonne } from './himmel.js';
 import { CHARTS, balken, flaeche, funke, kkBalken, linie, linien, streu, stufen } from './diagramme.js';
@@ -20,6 +20,8 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { keyed } from 'lit/directives/keyed.js';
 import { ueberVorlage } from './ueber.js';
 import { MB_MAX, MB_PX, meldenVorlage } from './melden.js';
+import { ladenVorlage, leerVorlage } from './ansichten/allgemein.js';
+import { devVorlage } from './ansichten/dev.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -829,7 +831,6 @@ ${NUR_LESEN_SPERRE.map(x => `.nur-lesen ${x}`).join(', ')} { opacity: .45; filte
 .hz-innen { padding: 4px 0 8px; } .hz-innen + .hz-innen { border-top: 1px solid var(--gridc); padding-top: 12px; }
 `;
 
-const TICKET_STATUS = { neu: 'neu', angenommen: 'angenommen', in_arbeit: 'in Arbeit', geloest: 'gelöst', geschlossen: 'geschlossen', verworfen: 'verworfen', offen: 'neu', erledigt: 'geschlossen' };
 const LAEDT = '<div class="leer">Lädt …</div>';
 
 const TYP_ROLLE = { Ölradiator: ['heizkoerper', 'oelradiator'], Konvektor: ['heizkoerper', 'konvektor'], Bautrockner: ['bautrockner', 'oelradiator'],
@@ -1740,6 +1741,26 @@ class BaustellePanel extends LitElement {
   }
   meldungen() { const r = this._holen('meldungen', () => this._hass.callWS({ type: 'baustelle/meldungen', entry_id: this.d ? this.d.entry : undefined }), 60000); return r === undefined ? null : Array.isArray(r) ? r : (r && r.meldungen) || []; }
   meldungZeit(m) { const l = this.lokal(m.zeit); return l ? `${wtag(l)} ${kurzDatum(l)} ${l.slice(11, 16)}` : '–'; }
+  /* Einblendung öffnen (data-act="sheet" und Lit-Vorlagen); ds wie dataset des Knopfs (id, t, …) */
+  einblenden(art, ds = {}) {
+    const S = this.s, d = this.d, b = this.b, el = { dataset: { s: art, ...ds } }, neu = () => this.neuZeichnen();
+    if (art === 'termin') { S.sheet = { art: 'termin', form: { b: el.dataset.id || S.cid, titel: '', datum: plusTage(this.z.HEUTE, 7), von: '09:00', bis: '10:00', wieder: 'einmal', boost: false } }; return neu(); }
+    if (art === 'urlaub') { S.sheet = { art: 'urlaub', form: { name: '', von: plusTage(this.z.HEUTE, 14), bis: plusTage(this.z.HEUTE, 18) } }; return neu(); }
+    if (art === 'container-neu') { S.sheet = { art, form: { name: '', art: 'Container', fuehler: '', schalter: '', typ: 'Ölradiator' } }; return neu(); }
+    if (art === 'wetterquelle') { const o = d.optionen; S.sheet = { art, form: { wetter: o.wetter || '', temp_sensor: o.temp_sensor || '', regen_sensor: o.regen_sensor || '', urlaub_kalender: o.urlaub_kalender || '', feiertag_kalender: o.feiertag_kalender || '', termine_kalender: d.termineKal || '' } }; return neu(); }
+    if (art === 'bs-loeschen') { S.sheet = { art, id: el.dataset.id }; return neu(); }
+    if (art === 'zeitraum-bs') { S.sheet = { art, form: { beginn: d.beginnAuto ? '' : d.beginn || '', ende: d.ende || '', hp: [...d.hp] } }; return neu(); }
+    if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
+    S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
+  }
+  /* Entwicklung (src/ansichten/dev.js) */
+  meldungStatus(id) { const d = this.d, m = (this.meldungen() || []).find(x => x.id === id); if (!m) return; delete this.cache.meldungen;
+    return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'status', meldung_id: m.id, status: this.meldungOffen(m) ? 'geschlossen' : 'neu' }); }
+  meldungBild(id, i) { this.s.sheet = { art: 'm-bild', id, i }; return this.neuZeichnen(); }
+  meldungWeg(id) { delete this.cache.meldungen; return this.ws({ type: 'baustelle/meldung', entry_id: this.d.entry, aktion: 'loeschen', meldung_id: id }, 'Meldung gelöscht'); }
+  meldungenKopieren() { const md = this.meldungenMarkdown(); if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {}); return this.toast(`${(this.meldungen() || []).length} Meldungen als Markdown kopiert`); }
+  meldungenJson() { this.datei(JSON.stringify(this.meldungen() || [], null, 2), 'baustelle-meldungen.json', 'application/json'); return this.toast('baustelle-meldungen.json'); }
+  diagnoseHerunterladen() { const d = this.d; return this.ws({ type: 'auth/sign_path', path: `/api/diagnostics/config_entry/${d.entry}` }).then(r => { if (r && r.path) { this.herunterladen(r.path, `baustelle-${d.entry}.json`); this.toast('Diagnose wird heruntergeladen (wie in HA unter Geräte & Dienste)'); } }); }
   /* Melde-Dialog (Lit, src/melden.js): senden und schließen */
   meldungSenden() {
     const f = this.s.sheet.form; if (!f.text.trim()) return this.toast('Bitte kurz beschreiben');
@@ -1792,9 +1813,10 @@ class BaustellePanel extends LitElement {
     const tabs = [['uebersicht', 'Übersicht'], ...(this._mitHeizung ? [['heizung', 'Heizung']] : []), ...(this._mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     const aktivTab = S.view === 'container' ? 'uebersicht' : S.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(S.view) ? 'einst' : S.view;
     let seite;
-    if (!this.roh) seite = unsafeHTML(`<div class="glas-panel block">${this.fehler ? `<div class="leer">Die Integration antwortet nicht: ${esc(this.fehler)}</div>` : LAEDT}</div>`);
-    else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(S.view)) seite = unsafeHTML(this.v_leer());
-    else seite = S.view === 'ueber' ? ueberVorlage(this) : unsafeHTML(this['v_' + S.view]());
+    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this) };   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
+    if (!this.roh) seite = ladenVorlage(this.fehler);
+    else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(S.view)) seite = leerVorlage(this);
+    else seite = LIT[S.view] ? LIT[S.view]() : unsafeHTML(this['v_' + S.view]());
     const melden = this.d ? this.d.e.melden : true;
     let sheet = '';
     if (S.sheet && S.sheet.art === 'melden') sheet = meldenVorlage(this, S.sheet.form);
@@ -1821,7 +1843,7 @@ class BaustellePanel extends LitElement {
       if (on && (on.offsetLeft < evc2.scrollLeft || on.offsetLeft + on.offsetWidth > evc2.scrollLeft + evc2.clientWidth)) evc2.scrollLeft = Math.max(0, on.offsetLeft - (evc2.clientWidth - on.offsetWidth) / 2); }
     this._neu = false;
   }
-  /* Dauerhafter Lit-Bereich für „Über“ in den Einstellungen (Gruppe im noch alten v_einst, bis Stufe 3e): Platzhalter
+  /* Dauerhafte Lit-Bereiche in den Einstellungen („Über“, „Entwicklung“ im noch alten v_einst, bis Stufe 3e): Platzhalter
      [data-lit] im HTML-Text, je Platzhalter derselbe Behälter, Lit zeichnet hinein */
   _litEinhaengen() {
     this._litBereich ||= {};
@@ -1829,16 +1851,11 @@ class BaustellePanel extends LitElement {
       const k = platz.dataset.lit, b = this._litBereich[k] ||= Object.assign(document.createElement('div'), { className: 'lit-bereich' });
       platz.replaceWith(b);
     }
-    for (const b of Object.values(this._litBereich)) if (b.isConnected) litRender(ueberVorlage(this, { mitZurueck: false }), b, { host: this });
+    const vorlage = { 'ueber-einst': () => ueberVorlage(this, { mitZurueck: false }), 'dev-meldungen': () => devVorlage(this, { teil: 'meldungen' }), 'dev-werkzeuge': () => devVorlage(this, { teil: 'werkzeuge' }) };
+    for (const [k, b] of Object.entries(this._litBereich)) if (b.isConnected && vorlage[k]) litRender(vorlage[k](), b, { host: this });
   }
   /* Lit-Teile neu zeichnen (Über, Melden) – unveränderte alte Ansichten bleiben dabei stehen */
   litNeu() { this.requestUpdate(); }
-  v_leer() {
-    return `${this.kopf('Baustelle', 'KEINE LAUFENDE BAUSTELLE')}
-      <div class="glas-panel liste"><div class="zeile"><span class="leise">Lege eine Baustelle an – danach kommen Container und Shellys dazu.</span></div>
-        <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>
-        ${this.alle.length ? '<button class="zeile" data-act="tab" data-v="verlauf"><span>Abgeschlossene Baustellen</span><span class="chev">›</span></button>' : ''}</div>`;
-  }
 
   kopf(titel, klein, rechts = '') {
     return `<div class="glas-kopf glas-panel"><div><div class="glas-klein">${klein}</div><div class="glas-titel">${titel}</div></div>${rechts}</div>`;
@@ -3109,26 +3126,6 @@ class BaustellePanel extends LitElement {
         : `<div class="glas-panel block"><div class="leer">${q || f !== 'alle' ? 'Nichts gefunden' : 'Noch keine Einträge'}</div></div>`}`;
   }
 
-  v_dev() {
-    const f = this.s.mfilter || 'offen', alle = this.meldungen(), passt = m => f === 'alle' || (f === 'offen') === this.meldungOffen(m), M = (alle || []).filter(passt);
-    const ART = { fehler: ['Fehler', 'rot-b'], wunsch: ['Wunsch', 'blau-b'], anregung: ['Anregung', 'gruen'] };
-    const anzahl = k => !alle ? '' : k === 'alle' ? alle.length : alle.filter(m => (k === 'offen') === this.meldungOffen(m)).length;
-    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="einst">‹ Einstellungen</button></div>
-      ${this.kopf('Entwicklung', 'NUR FÜR DICH')}
-      <div class="glas-panel block"><div class="block-kopf"><b>Meldungen</b><div class="seg klein">${[['offen', 'offen'], ['erledigt', 'erledigt'], ['alle', 'alle']].map(([k, t]) => `<button data-act="mfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t} ${anzahl(k)}</button>`).join('')}</div></div>
-        ${alle === null ? LAEDT : M.length ? M.map(m => { const letzte = (m.verlauf || []).filter(v => v.notiz || v.version).at(-1);
-          return `<div class="ml ${this.meldungOffen(m) ? 'offen' : 'erledigt'}"><div class="ml-kopf"><span><b class="ml-nr">${esc(m.ticket || '')}</b> <span class="badge ${(ART[m.art] || ART.wunsch)[1]}">${(ART[m.art] || ART.wunsch)[0]}</span> <span class="badge st-${esc(m.status)}">${esc(TICKET_STATUS[m.status] || m.status)}</span></span><span class="leise">${this.meldungZeit(m)} · ${esc(m.geraet || '–')} · v${esc(m.version || '–')}</span></div>
-          <div class="ml-text">${esc(m.text)}</div><div class="leise">📍 ${esc(m.kontext || '–')}</div>
-          ${(m.bilder || []).length ? `<div class="ml-bilder">${m.bilder.map((_, i) => { const u = this.mlBild(m, i); return u ? `<img src="${u}" alt="Bild ${i + 1}" data-act="m-bild" data-id="${esc(m.id)}" data-i="${i}" role="button">` : '<span class="ml-bild-laedt"></span>'; }).join('')}</div>` : ''}
-          ${letzte ? `<div class="leise ml-notiz">↳ ${esc(letzte.von || '')}: ${esc([letzte.version ? 'v' + letzte.version : '', letzte.notiz || ''].filter(Boolean).join(' · '))}</div>` : ''}
-          <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-status" data-id="${esc(m.id)}">${this.meldungOffen(m) ? '✓ Schließen' : '↺ wieder öffnen'}</button><button class="chip glas-panel" data-act="m-weg" data-id="${esc(m.id)}">Löschen</button></div></div>`; }).join('')
-          : '<div class="leer">Keine Meldungen</div>'}
-        <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-md">Als Markdown kopieren</button><button class="chip glas-panel" data-act="m-json">Als JSON herunterladen</button></div>
-        <div class="leise">Jede Meldung ist ein Ticket (FE Fehler, WU Wunsch, AN Anregung). In Claude Code mit „Tickets prüfen“ abarbeiten lassen – ist ein Ticket behoben und eingespielt, setzt Claude es auf erledigt. Passt es nicht, hier wieder öffnen.</div></div>
-      <div class="glas-panel liste"><div class="gruppe">Werkzeuge</div>
-        <button class="zeile" data-act="diagnose"><span>Diagnose herunterladen</span><span class="chev">›</span></button>
-        <div class="zeile"><span>Version</span><span class="leise">${esc(this.version)}${(this.changelog || []).find(c => c.version === this.version) ? ' · ' + (this.changelog.find(c => c.version === this.version).datum || '').slice(0, 7) : ''}</span></div></div>`;
-  }
   v_bsdetail() {
     const x = this.alle.find(y => y.entry === this.s.bs);
     if (!x) return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button></div><div class="glas-panel block"><div class="leer">Baustelle nicht gefunden</div></div>`;
@@ -3303,7 +3300,7 @@ class BaustellePanel extends LitElement {
     const pumpen = d.bereiche.filter(b => b.pumpe), cont = d.bereiche.filter(b => !b.pumpe), geraete = d.bereiche.reduce((a, b) => a + b.geraete.length, 0);
     const mAn = ['m_offline', 'm_trocken', 'm_dauer', 'm_zyklen', 'm_leistung', 'm_frost', 'm_selbst', 'm_kalt', 'm_fuehler', 'm_wetter', 'm_hand'].filter(k => e[k]).length;
     const offen = M === null ? '–' : M.filter(m => this.meldungOffen(m)).length, ohneKopf = h => h.slice(Math.max(0, h.indexOf('<div class="glas-panel')));
-    const dev = (this.s.evDev || 'meldungen') === 'meldungen', devH = ohneKopf(this.v_dev()), devW = devH.indexOf('<div class="glas-panel liste"><div class="gruppe">Werkzeuge');
+    const dev = (this.s.evDev || 'meldungen') === 'meldungen';   // Entwicklung: dauerhafte Lit-Bereiche (src/ansichten/dev.js)
     return [
       { k: 'baustelle', ic: '🏗', t: 'Baustelle', kurz: `${esc(d.titel)} · ${this.bsZeit(d)}`, html: this.einstBlock('Baustelle')
         + liste('Wetter und Kalender', knopf('Wetter', o.wetter ? nm(o.wetter) : 'keins gewählt', 'sheet', wq) + knopf('Außentemperatur', o.temp_sensor ? nm(o.temp_sensor) : 'aus der Vorhersage', 'sheet', wq)
@@ -3332,7 +3329,7 @@ class BaustellePanel extends LitElement {
           + '<button class="zeile" data-act="aw-vorlage" data-v="misch"><span>Auswertung auf Vorschlag zurücksetzen</span><span class="leise">gilt für diesen Browser</span></button>') },
       { k: 'dev', ic: '🛠', t: 'Entwicklung', kurz: `${offen} offene Meldungen · Diagnose`, dev: true,
         html: `<div class="seg ev-dev-reiter">${[['meldungen', 'Meldungen'], ['werkzeuge', 'Werkzeuge']].map(([k, t]) => `<button data-act="ev-dev" data-v="${k}" class="${(dev ? 'meldungen' : 'werkzeuge') === k ? 'on' : ''}">${t}</button>`).join('')}</div>`
-          + (dev ? devH.slice(0, devW) : devH.slice(devW) + liste('Für Tests', '<button class="zeile" data-act="test-meldung"><span class="blau">Test-Nachricht senden</span></button><button class="zeile" data-act="sheet" data-s="nachrichten"><span>Beispiel-Nachrichten</span><span class="chev">›</span></button>')) },
+          + (dev ? '<div data-lit="dev-meldungen"></div>' : '<div data-lit="dev-werkzeuge"></div>' + liste('Für Tests', '<button class="zeile" data-act="test-meldung"><span class="blau">Test-Nachricht senden</span></button><button class="zeile" data-act="sheet" data-s="nachrichten"><span>Beispiel-Nachrichten</span><span class="chev">›</span></button>')) },
       { k: 'ueber', ic: 'ℹ', t: 'Über', kurz: `Version ${esc(this.version)}`, html: '<div data-lit="ueber-einst"></div>' },
     ];
   }
@@ -3865,16 +3862,7 @@ class BaustellePanel extends LitElement {
       case 'w-protokoll': S.verlauf = 'aktiv'; S.pfilter = 'warnung'; return this.gehe('verlauf');
       case 'pfilter': S.pfilter = el.dataset.v; S.pmehr = false; return neu();
       case 'pmehr': S.pmehr = true; return neu();
-      case 'sheet': {
-        const art = el.dataset.s;
-        if (art === 'termin') { S.sheet = { art: 'termin', form: { b: el.dataset.id || S.cid, titel: '', datum: plusTage(this.z.HEUTE, 7), von: '09:00', bis: '10:00', wieder: 'einmal', boost: false } }; return neu(); }
-        if (art === 'urlaub') { S.sheet = { art: 'urlaub', form: { name: '', von: plusTage(this.z.HEUTE, 14), bis: plusTage(this.z.HEUTE, 18) } }; return neu(); }
-        if (art === 'container-neu') { S.sheet = { art, form: { name: '', art: 'Container', fuehler: '', schalter: '', typ: 'Ölradiator' } }; return neu(); }
-        if (art === 'wetterquelle') { const o = d.optionen; S.sheet = { art, form: { wetter: o.wetter || '', temp_sensor: o.temp_sensor || '', regen_sensor: o.regen_sensor || '', urlaub_kalender: o.urlaub_kalender || '', feiertag_kalender: o.feiertag_kalender || '', termine_kalender: d.termineKal || '' } }; return neu(); }
-        if (art === 'bs-loeschen') { S.sheet = { art, id: el.dataset.id }; return neu(); }
-        if (art === 'zeitraum-bs') { S.sheet = { art, form: { beginn: d.beginnAuto ? '' : d.beginn || '', ende: d.ende || '', hp: [...d.hp] } }; return neu(); }
-        if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
-        S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu(); }
+      case 'sheet': return this.einblenden(el.dataset.s, el.dataset);
       case 'wetterquelle-auf': return this.klick({ target: { closest: () => ({ dataset: { act: 'sheet', s: 'wetterquelle' } }) } });
       case 'wa': S.sheet.wa = el.dataset.v; return neu();
       case 'lh-h': S.sheet.h = +el.dataset.v; return neu();   // AN-0005: Stunde der Leistung
@@ -3896,15 +3884,7 @@ class BaustellePanel extends LitElement {
       case 'bereich-einst': S.cid = el.dataset.id; S.sheet = { art: 'bereich' }; return neu();
       case 'zu': S.sheet = null; return neu();
       case 'melden': return this.meldenAuf();
-      case 'm-bild': S.sheet = { art: 'm-bild', id: el.dataset.id, i: +el.dataset.i }; return neu();
-      case 'mfilter': S.mfilter = el.dataset.v; return neu();
-      case 'm-status': { const m = (this.meldungen() || []).find(x => x.id === el.dataset.id); if (!m) return; delete this.cache.meldungen;
-        return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'status', meldung_id: m.id, status: this.meldungOffen(m) ? 'geschlossen' : 'neu' }); }
-      case 'm-weg': delete this.cache.meldungen; return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'loeschen', meldung_id: el.dataset.id }, 'Meldung gelöscht');
-      case 'm-md': { const md = this.meldungenMarkdown(); if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {}); return this.toast(`${(this.meldungen() || []).length} Meldungen als Markdown kopiert`); }
-      case 'm-json': this.datei(JSON.stringify(this.meldungen() || [], null, 2), 'baustelle-meldungen.json', 'application/json'); return this.toast('baustelle-meldungen.json');
       case 'toast': return this.toast(el.dataset.t);
-      case 'diagnose': return this.ws({ type: 'auth/sign_path', path: `/api/diagnostics/config_entry/${d.entry}` }).then(r => { if (r && r.path) { this.herunterladen(r.path, `baustelle-${d.entry}.json`); this.toast('Diagnose wird heruntergeladen (wie in HA unter Geräte & Dienste)'); } });
       case 'auto': return this.setzen(['automatik'], !d.e.auto, !d.e.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
       case 'bedarf-auf': S.sheet = { art: 'bedarf', cid: el.dataset.id, boost: false }; return neu();
       case 'bedarf-an': { const x = d.bereiche.find(y => y.id === el.dataset.id), v = el.dataset.v, boost = !!(S.sheet && S.sheet.art === 'bedarf' && S.sheet.boost);

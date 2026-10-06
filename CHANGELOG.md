@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.82] – 2026-10-06
+
+- Seite auf Lit umgestellt, Teil 2 (BSM-022.11, Stufe 3a): „Lädt …“, Fehlermeldung, „Keine laufende Baustelle“ und die
+  Entwicklung (Meldungen, Werkzeuge – auch als Gruppe in den Einstellungen) werden mit Lit gezeichnet. Aussehen und
+  Bedienung bleiben gleich.
+
 ## [0.8.81] – 2026-10-06
 
 - Seite auf Lit umgestellt, Teil 1 (BSM-022.10, Stufe 2b): Der Rahmen der Seite (Scrollbereich, Seitenleiste, Dialoge)

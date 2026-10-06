@@ -100,6 +100,8 @@ const klick = async (ds, n) => { if (typeof ds === 'string') { const e = litEl(d
   else ereignis.klick(ds); await ruhe(n); };
 const eingabe = (ds, value) => { if (typeof ds !== 'string') return ereignis.feld(ds, value, 'input');
   const e = litEl(ds); if (!e) return erwarte(`Feld ${ds}`, false); e.value = value; e.dispatchEvent(new Event('input', { bubbles: true, composed: true })); };
+// Entwicklung (Lit, BSM-022 3a): Knöpfe je Meldung über data-meldung
+const DEV = { status: id => `.ml[data-meldung="${id}"] .ml-status`, weg: id => `.ml[data-meldung="${id}"] .ml-weg`, bild: id => `.ml[data-meldung="${id}"] .ml-bilder img`, md: '.dev-md', json: '.dev-json', diagnose: '.dev-diagnose' };
 const ML = { fehler: '.sheet .seg button:nth-child(1)', text: '.sheet textarea[name="ml-text"]', senden: '.sheet .ml-senden', bildWeg: '.sheet .mb-bild button.x' };
 /* „Über“ ist ein Lit-Bereich (BSM-022 2a.1): Verlauf-Eintrag über den echten Knopf aufklappen (kein data-act) */
 const clAuf = async i => { const b = panel.shadowRoot.querySelectorAll('button.cl-v')[i]; if (!b) return erwarte(`Verlauf-Eintrag ${i} in „Über“`, false);
@@ -176,7 +178,7 @@ async function allgemein() {
     for (const f of ['alle', 'warnung', 'schalten', 'wetter', 'nachricht']) { await klick({ act: 'pfilter', v: f }, 20); pruefe(`${bid} protokoll ${f}`); }
     await klick({ act: 'pfilter', v: 'alle' }); await klick({ act: 'pmehr' }, 20); pruefe(`${bid} protokoll mehr`);
     await klick({ act: 'verlauf', v: 'ab' }); pruefe(`${bid} verlauf abgeschlossen`); await klick({ act: 'verlauf', v: 'aktiv' });
-    await klick({ act: 'tab', v: 'dev' }, 20); for (const f of ['offen', 'erledigt', 'alle']) { await klick({ act: 'mfilter', v: f }); pruefe(`${bid} dev ${f}`); }
+    await klick({ act: 'tab', v: 'dev' }, 20); for (const [i, f] of ['offen', 'erledigt', 'alle'].entries()) { await klick(`.seite .seg.klein button:nth-child(${i + 1})`); pruefe(`${bid} dev ${f}`); }
     await klick({ act: 'tab', v: 'ueber' }); await clAuf(1); pruefe(`${bid} über verlauf`);
   }
   for (const bs of fertige) { const id = bs.baustelle.entry_id; await klick({ act: 'bs-oeffnen', id }, 40); pruefe(`bsdetail ${id}`); hov(`bsdetail ${id}`);
@@ -271,9 +273,9 @@ async function allgemein() {
   }
   await gesendet('baustelle/meldung', 'Meldung senden', ML.senden, async () => { await klick({ act: 'melden' }); eingabe(ML.text, 'Knopf zu klein'); });
   await klick({ act: 'tab', v: 'dev' }, 20);
-  const m1 = await gesendet('baustelle/meldung', 'Meldung erledigt', { act: 'm-status', id: 'm1' }); erwarte('Meldung mit meldung_id, ohne id', m1 && m1.meldung_id === 'm1' && !('id' in m1));
-  await gesendet('baustelle/meldung', 'Meldung löschen', { act: 'm-weg', id: 'm2' });
-  await gesendet('auth/sign_path', 'Diagnose', { act: 'diagnose' });
+  const m1 = await gesendet('baustelle/meldung', 'Meldung erledigt', DEV.status('m1')); erwarte('Meldung mit meldung_id, ohne id', m1 && m1.meldung_id === 'm1' && !('id' in m1));
+  await gesendet('baustelle/meldung', 'Meldung löschen', DEV.weg('m2'));
+  await gesendet('auth/sign_path', 'Diagnose', DEV.diagnose);
   await klick({ act: 'tab', v: 'verlauf' }); await klick({ act: 'vl-reiter', v: 'prot' }); panel.cache = {}; await gesendet('baustelle/protokoll', 'Protokoll', { act: 'pfilter', v: 'warnung' });
   await klick({ act: 'vl-reiter', v: 'bs' });
   await klick({ act: 'tab', v: 'auswertung' }, 30);
@@ -508,7 +510,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'pfilter', v: 'alle' }); await klick({ act: 'pmehr' }, 20); pruefe(`${bid} protokoll mehr`);
     await klick({ act: 'verlauf', v: 'ab' }); pruefe(`${bid} verlauf abgeschlossen`);
     await klick({ act: 'verlauf', v: 'aktiv' });
-    await klick({ act: 'tab', v: 'dev' }, 20); for (const f of ['offen', 'erledigt', 'alle']) { await klick({ act: 'mfilter', v: f }); pruefe(`${bid} dev ${f}`); }
+    await klick({ act: 'tab', v: 'dev' }, 20); for (const [i, f] of ['offen', 'erledigt', 'alle'].entries()) { await klick(`.seite .seg.klein button:nth-child(${i + 1})`); pruefe(`${bid} dev ${f}`); }
     await klick({ act: 'tab', v: 'ueber' }); await clAuf(1); pruefe(`${bid} über verlauf`);
   }
   for (const bs of ['lieboch', 'wundschuh']) { await klick({ act: 'bs-oeffnen', id: bs }, 40); pruefe(`bsdetail ${bs}`); hov(`bsdetail ${bs}`);
@@ -629,12 +631,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   // Meldungen
   neu(); await klick({ act: 'melden' }); eingabe(ML.text, '  Knopf zu klein  '); await klick(ML.senden);
   erwarte('Meldung senden', (a => a && a.aktion === 'neu' && a.meldung.text === 'Knopf zu klein' && a.meldung.version === '0.7.0' && a.meldung.seite && a.meldung.seite.view && !('stand' in a.meldung))(letzte('baustelle/meldung').at(-1)));
-  await klick({ act: 'tab', v: 'dev' }, 20); neu(); await klick({ act: 'm-status', id: 'm1' });
+  await klick({ act: 'tab', v: 'dev' }, 20); neu(); await klick(DEV.status('m1'));
   erwarte('Meldung schließen (meldung_id, kein id)', (a => a && a.aktion === 'status' && a.meldung_id === 'm1' && a.status === 'geschlossen' && !('id' in a))(letzte('baustelle/meldung').at(-1)));
   erwarte('kein Knopf „An Claude übergeben“ mehr (Tickets holt Claude selbst)', !/m-claude/.test(ui.innerHTML));
-  neu(); await klick({ act: 'm-weg', id: 'm2' }); erwarte('Meldung löschen', (a => a && a.aktion === 'loeschen' && a.meldung_id === 'm2' && !('id' in a))(letzte('baustelle/meldung').at(-1)));
-  await klick({ act: 'm-md' }, 20); await klick({ act: 'm-json' });
-  neu(); await klick({ act: 'diagnose' }, 20); erwarte('Diagnose über auth/sign_path', (a => a && a.path === '/api/diagnostics/config_entry/dobl')(letzte('auth/sign_path').at(-1)) && downloads.some(x => /baustelle-dobl/.test(x)));
+  neu(); await klick(DEV.weg('m2')); erwarte('Meldung löschen', (a => a && a.aktion === 'loeschen' && a.meldung_id === 'm2' && !('id' in a))(letzte('baustelle/meldung').at(-1)));
+  await klick(DEV.md, 20); await klick(DEV.json);
+  neu(); await klick(DEV.diagnose, 20); erwarte('Diagnose über auth/sign_path', (a => a && a.path === '/api/diagnostics/config_entry/dobl')(letzte('auth/sign_path').at(-1)) && downloads.some(x => /baustelle-dobl/.test(x)));
   // Protokoll über baustelle/protokoll
   await klick({ act: 'tab', v: 'verlauf' }); await klick({ act: 'vl-reiter', v: 'prot' }); neu(); panel.cache = {}; await klick({ act: 'pfilter', v: 'warnung' }, 30);
   erwarte('Protokoll gefiltert über baustelle/protokoll', (a => a && a.entry_id === 'dobl' && a.filter === 'alle')(letzte('baustelle/protokoll').at(-1)) && /nicht erreichbar/.test(ui.innerHTML) && !/Vorheizen – alle Container ein/.test(ui.innerHTML));
@@ -807,8 +809,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('WU-0016: Senden mit Bildern', letzte('baustelle/meldung').some(a => a.aktion === 'neu' && a.meldung.bilder && a.meldung.bilder.length === 2));
     meldungen[0].bilder = ['FE-0001-1.jpg']; delete panel.cache.meldungen;
     await klick({ act: 'tab', v: 'einst' }, 10); await klick({ act: 'ev-gruppe', v: 'dev' }, 10); await klick({ act: 'ev-dev', v: 'meldungen' }, 30); await ruhe(20); await panel.neuZeichnen(); pruefe('Meldungen mit Bild');
-    erwarte('WU-0016: Vorschau in der Meldungsliste', ui.innerHTML.includes('data-act="m-bild"'));
-    await klick({ act: 'm-bild', id: meldungen[0].id, i: '0' }, 10); pruefe('Bild groß'); erwarte('WU-0016: Bild groß', ui.innerHTML.includes('class="mb-gross"'));
+    erwarte('WU-0016: Vorschau in der Meldungsliste', !!panel.shadowRoot.querySelector('.ml-bilder img'));
+    await klick(DEV.bild(meldungen[0].id), 10); pruefe('Bild groß'); erwarte('WU-0016: Bild groß', ui.innerHTML.includes('class="mb-gross"'));
     delete meldungen[0].bilder; delete panel.cache.meldungen; await klick({ act: 'zu' }); }
   /* FE-0012: mehrere Zeitfenster je Tag – je Tag eine Karte, eigenes Fenster im Zeitstrahl, ✕ löscht nur ein Fenster */
   { const d = panel.d, altA = d.ausnahmen, iso = new Date(Date.parse(panel.z.HEUTE + 'T12:00:00Z') + 3 * 864e5).toISOString().slice(0, 10), altP = d.plan[iso];

@@ -21,6 +21,7 @@ var ARTEN = {
   m_wetter: "kein_wetter",
   m_hand: "hand_zu_lange"
 };
+var TICKET_STATUS = { neu: "neu", angenommen: "angenommen", in_arbeit: "in Arbeit", geloest: "gelöst", geschlossen: "geschlossen", verworfen: "verworfen", offen: "neu", erledigt: "geschlossen" };
 
 // src/hilfen.js
 function esc(s4) {
@@ -1749,6 +1750,50 @@ function meldenVorlage(p4, f3) {
         <button class="knopf amber ml-senden" @click=${() => p4.meldungSenden()}>Senden</button><button class="knopf leise-k ml-zurueck" @click=${() => p4.meldenZu()}>Abbrechen</button>`;
 }
 
+// src/ansichten/allgemein.js
+var kopfVorlage = (titel, klein, rechts = A) => b2`<div class="glas-kopf glas-panel"><div><div class="glas-klein">${klein}</div><div class="glas-titel">${titel}</div></div>${rechts}</div>`;
+var ladenVorlage = (fehler) => b2`<div class="glas-panel block">${fehler ? b2`<div class="leer">Die Integration antwortet nicht: ${fehler}</div>` : b2`<div class="leer">Lädt …</div>`}</div>`;
+var leerVorlage = (p4) => b2`${kopfVorlage("Baustelle", "KEINE LAUFENDE BAUSTELLE")}
+      <div class="glas-panel liste"><div class="zeile"><span class="leise">Lege eine Baustelle an – danach kommen Container und Shellys dazu.</span></div>
+        <button class="zeile" @click=${() => p4.einblenden("baustelle-neu")}><span class="blau">+ Neue Baustelle</span></button>
+        ${p4.alle.length ? b2`<button class="zeile" @click=${() => p4.gehe("verlauf")}><span>Abgeschlossene Baustellen</span><span class="chev">›</span></button>` : A}</div>`;
+
+// src/ansichten/dev.js
+var ART = { fehler: ["Fehler", "rot-b"], wunsch: ["Wunsch", "blau-b"], anregung: ["Anregung", "gruen"] };
+function meldungVorlage(p4, m3) {
+  const letzte = (m3.verlauf || []).filter((v2) => v2.notiz || v2.version).at(-1), art = ART[m3.art] || ART.wunsch, offen = p4.meldungOffen(m3);
+  return b2`<div class="ml ${offen ? "offen" : "erledigt"}" data-meldung=${m3.id}><div class="ml-kopf"><span><b class="ml-nr">${m3.ticket || ""}</b> <span class="badge ${art[1]}">${art[0]}</span> <span class="badge st-${m3.status}">${TICKET_STATUS[m3.status] || m3.status}</span></span><span class="leise">${p4.meldungZeit(m3)} · ${m3.geraet || "–"} · v${m3.version || "–"}</span></div>
+          <div class="ml-text">${m3.text}</div><div class="leise">📍 ${m3.kontext || "–"}</div>
+          ${(m3.bilder || []).length ? b2`<div class="ml-bilder">${m3.bilder.map((_2, i7) => {
+    const u3 = p4.mlBild(m3, i7);
+    return u3 ? b2`<img src=${u3} alt="Bild ${i7 + 1}" role="button" @click=${() => p4.meldungBild(m3.id, i7)}>` : b2`<span class="ml-bild-laedt"></span>`;
+  })}</div>` : A}
+          ${letzte ? b2`<div class="leise ml-notiz">↳ ${letzte.von || ""}: ${[letzte.version ? "v" + letzte.version : "", letzte.notiz || ""].filter(Boolean).join(" · ")}</div>` : A}
+          <div class="wk-knoepfe"><button class="chip glas-panel ml-status" @click=${() => p4.meldungStatus(m3.id)}>${offen ? "✓ Schließen" : "↺ wieder öffnen"}</button><button class="chip glas-panel ml-weg" @click=${() => p4.meldungWeg(m3.id)}>Löschen</button></div></div>`;
+}
+function devVorlage(p4, { teil = "alle" } = {}) {
+  const f3 = p4.s.mfilter || "offen", alle = p4.meldungen(), passt = (m3) => f3 === "alle" || f3 === "offen" === p4.meldungOffen(m3), M2 = (alle || []).filter(passt);
+  const anzahl = (k2) => !alle ? "" : k2 === "alle" ? alle.length : alle.filter((m3) => k2 === "offen" === p4.meldungOffen(m3)).length;
+  const filter = (k2) => {
+    p4.s.mfilter = k2;
+    p4.neuZeichnen();
+  };
+  const meldungen = b2`<div class="glas-panel block"><div class="block-kopf"><b>Meldungen</b><div class="seg klein">${[["offen", "offen"], ["erledigt", "erledigt"], ["alle", "alle"]].map(([k2, t5]) => b2`<button class=${f3 === k2 ? "on" : ""} @click=${() => filter(k2)}>${t5} ${anzahl(k2)}</button>`)}</div></div>
+        ${alle === null ? b2`<div class="leer">Lädt …</div>` : M2.length ? M2.map((m3) => meldungVorlage(p4, m3)) : b2`<div class="leer">Keine Meldungen</div>`}
+        <div class="wk-knoepfe"><button class="chip glas-panel dev-md" @click=${() => p4.meldungenKopieren()}>Als Markdown kopieren</button><button class="chip glas-panel dev-json" @click=${() => p4.meldungenJson()}>Als JSON herunterladen</button></div>
+        <div class="leise">Jede Meldung ist ein Ticket (FE Fehler, WU Wunsch, AN Anregung). In Claude Code mit „Tickets prüfen“ abarbeiten lassen – ist ein Ticket behoben und eingespielt, setzt Claude es auf erledigt. Passt es nicht, hier wieder öffnen.</div></div>`;
+  const eigen = (p4.changelog || []).find((c4) => c4.version === p4.version);
+  const werkzeuge = b2`<div class="glas-panel liste"><div class="gruppe">Werkzeuge</div>
+        <button class="zeile dev-diagnose" @click=${() => p4.diagnoseHerunterladen()}><span>Diagnose herunterladen</span><span class="chev">›</span></button>
+        <div class="zeile"><span>Version</span><span class="leise">${p4.version}${eigen ? " · " + (eigen.datum || "").slice(0, 7) : ""}</span></div></div>`;
+  if (teil === "meldungen") return meldungen;
+  if (teil === "werkzeuge") return werkzeuge;
+  return b2`<div class="zurueck-zeile"><button class="glas-panel chip" @click=${() => p4.gehe("einst")}>‹ Einstellungen</button></div>
+      ${kopfVorlage("Entwicklung", "NUR FÜR DICH")}
+      ${meldungen}
+      ${werkzeuge}`;
+}
+
 // src/alt.js
 var CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -2555,7 +2600,6 @@ ${NUR_LESEN_SPERRE.map((x2) => `.nur-lesen ${x2}`).join(", ")} { opacity: .45; f
 .hz-mini i { flex: 1; background: var(--amber); opacity: .55; border-radius: 2px 2px 0 0; } .hz-mini i.heute { opacity: 1; }
 .hz-innen { padding: 4px 0 8px; } .hz-innen + .hz-innen { border-top: 1px solid var(--gridc); padding-top: 12px; }
 `;
-var TICKET_STATUS = { neu: "neu", angenommen: "angenommen", in_arbeit: "in Arbeit", geloest: "gelöst", geschlossen: "geschlossen", verworfen: "verworfen", offen: "neu", erledigt: "geschlossen" };
 var LAEDT = '<div class="leer">Lädt …</div>';
 var TYP_ROLLE = {
   Ölradiator: ["heizkoerper", "oelradiator"],
@@ -2853,7 +2897,7 @@ var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.81";
+var SEITE_VERSION = "0.8.82";
 var LIT_SHEETS = ["melden"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS)];
@@ -3983,8 +4027,8 @@ var BaustellePanel = class extends i4 {
     return !["geschlossen", "verworfen", "erledigt"].includes(m3.status);
   }
   meldungenMarkdown() {
-    const ART = { fehler: "Fehler", wunsch: "Wunsch", anregung: "Anregung" };
-    return (this.meldungen() || []).map((m3) => `- [${this.meldungOffen(m3) ? " " : "x"}] **${m3.ticket ? m3.ticket + " " : ""}${ART[m3.art] || m3.art}** (${TICKET_STATUS[m3.status] || m3.status}, ${this.meldungZeit(m3)}, v${m3.version || "–"}, ${m3.geraet || "–"}, ${m3.kontext || "–"}): ${m3.text}`).join("\n");
+    const ART2 = { fehler: "Fehler", wunsch: "Wunsch", anregung: "Anregung" };
+    return (this.meldungen() || []).map((m3) => `- [${this.meldungOffen(m3) ? " " : "x"}] **${m3.ticket ? m3.ticket + " " : ""}${ART2[m3.art] || m3.art}** (${TICKET_STATUS[m3.status] || m3.status}, ${this.meldungZeit(m3)}, v${m3.version || "–"}, ${m3.geraet || "–"}, ${m3.kontext || "–"}): ${m3.text}`).join("\n");
   }
   meldungen() {
     const r5 = this._holen("meldungen", () => this._hass.callWS({ type: "baustelle/meldungen", entry_id: this.d ? this.d.entry : void 0 }), 6e4);
@@ -3993,6 +4037,75 @@ var BaustellePanel = class extends i4 {
   meldungZeit(m3) {
     const l4 = this.lokal(m3.zeit);
     return l4 ? `${wtag(l4)} ${kurzDatum(l4)} ${l4.slice(11, 16)}` : "–";
+  }
+  /* Einblendung öffnen (data-act="sheet" und Lit-Vorlagen); ds wie dataset des Knopfs (id, t, …) */
+  einblenden(art, ds = {}) {
+    const S3 = this.s, d3 = this.d, b3 = this.b, el = { dataset: { s: art, ...ds } }, neu = () => this.neuZeichnen();
+    if (art === "termin") {
+      S3.sheet = { art: "termin", form: { b: el.dataset.id || S3.cid, titel: "", datum: plusTage(this.z.HEUTE, 7), von: "09:00", bis: "10:00", wieder: "einmal", boost: false } };
+      return neu();
+    }
+    if (art === "urlaub") {
+      S3.sheet = { art: "urlaub", form: { name: "", von: plusTage(this.z.HEUTE, 14), bis: plusTage(this.z.HEUTE, 18) } };
+      return neu();
+    }
+    if (art === "container-neu") {
+      S3.sheet = { art, form: { name: "", art: "Container", fuehler: "", schalter: "", typ: "Ölradiator" } };
+      return neu();
+    }
+    if (art === "wetterquelle") {
+      const o6 = d3.optionen;
+      S3.sheet = { art, form: { wetter: o6.wetter || "", temp_sensor: o6.temp_sensor || "", regen_sensor: o6.regen_sensor || "", urlaub_kalender: o6.urlaub_kalender || "", feiertag_kalender: o6.feiertag_kalender || "", termine_kalender: d3.termineKal || "" } };
+      return neu();
+    }
+    if (art === "bs-loeschen") {
+      S3.sheet = { art, id: el.dataset.id };
+      return neu();
+    }
+    if (art === "zeitraum-bs") {
+      S3.sheet = { art, form: { beginn: d3.beginnAuto ? "" : d3.beginn || "", ende: d3.ende || "", hp: [...d3.hp] } };
+      return neu();
+    }
+    if (art === "name" || art === "baustelle-neu") {
+      S3.sheet = { art, form: { name: art === "name" && d3 ? d3.titel : "" } };
+      return neu();
+    }
+    S3.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: "Tag" };
+    return neu();
+  }
+  /* Entwicklung (src/ansichten/dev.js) */
+  meldungStatus(id) {
+    const d3 = this.d, m3 = (this.meldungen() || []).find((x2) => x2.id === id);
+    if (!m3) return;
+    delete this.cache.meldungen;
+    return this.ws({ type: "baustelle/meldung", entry_id: d3.entry, aktion: "status", meldung_id: m3.id, status: this.meldungOffen(m3) ? "geschlossen" : "neu" });
+  }
+  meldungBild(id, i7) {
+    this.s.sheet = { art: "m-bild", id, i: i7 };
+    return this.neuZeichnen();
+  }
+  meldungWeg(id) {
+    delete this.cache.meldungen;
+    return this.ws({ type: "baustelle/meldung", entry_id: this.d.entry, aktion: "loeschen", meldung_id: id }, "Meldung gelöscht");
+  }
+  meldungenKopieren() {
+    const md = this.meldungenMarkdown();
+    if (typeof navigator !== "undefined" && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {
+    });
+    return this.toast(`${(this.meldungen() || []).length} Meldungen als Markdown kopiert`);
+  }
+  meldungenJson() {
+    this.datei(JSON.stringify(this.meldungen() || [], null, 2), "baustelle-meldungen.json", "application/json");
+    return this.toast("baustelle-meldungen.json");
+  }
+  diagnoseHerunterladen() {
+    const d3 = this.d;
+    return this.ws({ type: "auth/sign_path", path: `/api/diagnostics/config_entry/${d3.entry}` }).then((r5) => {
+      if (r5 && r5.path) {
+        this.herunterladen(r5.path, `baustelle-${d3.entry}.json`);
+        this.toast("Diagnose wird heruntergeladen (wie in HA unter Geräte & Dienste)");
+      }
+    });
   }
   /* Melde-Dialog (Lit, src/melden.js): senden und schließen */
   meldungSenden() {
@@ -4068,9 +4181,10 @@ var BaustellePanel = class extends i4 {
     const tabs = [["uebersicht", "Übersicht"], ...this._mitHeizung ? [["heizung", "Heizung"]] : [], ...this._mitPumpen ? [["pumpen", "Pumpen"]] : [], ["auswertung", "Auswertung"], ["verlauf", "Verlauf"], ["einst", "⚙"]];
     const aktivTab = S3.view === "container" ? "uebersicht" : S3.view === "bsdetail" ? "verlauf" : ["ueber", "dev"].includes(S3.view) ? "einst" : S3.view;
     let seite;
-    if (!this.roh) seite = o5(`<div class="glas-panel block">${this.fehler ? `<div class="leer">Die Integration antwortet nicht: ${esc(this.fehler)}</div>` : LAEDT}</div>`);
-    else if (!this.d && !["verlauf", "bsdetail", "ueber"].includes(S3.view)) seite = o5(this.v_leer());
-    else seite = S3.view === "ueber" ? ueberVorlage(this) : o5(this["v_" + S3.view]());
+    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this) };
+    if (!this.roh) seite = ladenVorlage(this.fehler);
+    else if (!this.d && !["verlauf", "bsdetail", "ueber"].includes(S3.view)) seite = leerVorlage(this);
+    else seite = LIT[S3.view] ? LIT[S3.view]() : o5(this["v_" + S3.view]());
     const melden = this.d ? this.d.e.melden : true;
     let sheet = "";
     if (S3.sheet && S3.sheet.art === "melden") sheet = meldenVorlage(this, S3.sheet.form);
@@ -4109,7 +4223,7 @@ var BaustellePanel = class extends i4 {
     }
     this._neu = false;
   }
-  /* Dauerhafter Lit-Bereich für „Über“ in den Einstellungen (Gruppe im noch alten v_einst, bis Stufe 3e): Platzhalter
+  /* Dauerhafte Lit-Bereiche in den Einstellungen („Über“, „Entwicklung“ im noch alten v_einst, bis Stufe 3e): Platzhalter
      [data-lit] im HTML-Text, je Platzhalter derselbe Behälter, Lit zeichnet hinein */
   _litEinhaengen() {
     this._litBereich ||= {};
@@ -4117,17 +4231,12 @@ var BaustellePanel = class extends i4 {
       const k2 = platz.dataset.lit, b3 = this._litBereich[k2] ||= Object.assign(document.createElement("div"), { className: "lit-bereich" });
       platz.replaceWith(b3);
     }
-    for (const b3 of Object.values(this._litBereich)) if (b3.isConnected) D(ueberVorlage(this, { mitZurueck: false }), b3, { host: this });
+    const vorlage = { "ueber-einst": () => ueberVorlage(this, { mitZurueck: false }), "dev-meldungen": () => devVorlage(this, { teil: "meldungen" }), "dev-werkzeuge": () => devVorlage(this, { teil: "werkzeuge" }) };
+    for (const [k2, b3] of Object.entries(this._litBereich)) if (b3.isConnected && vorlage[k2]) D(vorlage[k2](), b3, { host: this });
   }
   /* Lit-Teile neu zeichnen (Über, Melden) – unveränderte alte Ansichten bleiben dabei stehen */
   litNeu() {
     this.requestUpdate();
-  }
-  v_leer() {
-    return `${this.kopf("Baustelle", "KEINE LAUFENDE BAUSTELLE")}
-      <div class="glas-panel liste"><div class="zeile"><span class="leise">Lege eine Baustelle an – danach kommen Container und Shellys dazu.</span></div>
-        <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>
-        ${this.alle.length ? '<button class="zeile" data-act="tab" data-v="verlauf"><span>Abgeschlossene Baustellen</span><span class="chev">›</span></button>' : ""}</div>`;
   }
   kopf(titel, klein, rechts = "") {
     return `<div class="glas-kopf glas-panel"><div><div class="glas-klein">${klein}</div><div class="glas-titel">${titel}</div></div>${rechts}</div>`;
@@ -5834,7 +5943,7 @@ var BaustellePanel = class extends i4 {
   /* Chronik: Protokoll der Baustelle nach Tagen mit Tagessumme (kWh je Tag aus der Integration), Filter und Suche */
   vlChronik() {
     const d3 = this.d, f3 = this.s.pfilter || "alle", q = (this.s.vlSuche || "").toLowerCase().trim(), v2 = this.verlaufDaten(d3), jeTag = v2 && v2.je_tag || {};
-    const ART = { warnung: ["⚠", "var(--rot)"], ok: ["✓", "#30d158"], schalten: ["⏻", "var(--amber)"], wetter: ["☁", "var(--blau)"], nachricht: ["✉", "var(--ink2)"], einstellung: ["⚙", "var(--ink2)"] };
+    const ART2 = { warnung: ["⚠", "var(--rot)"], ok: ["✓", "#30d158"], schalten: ["⏻", "var(--amber)"], wetter: ["☁", "var(--blau)"], nachricht: ["✉", "var(--ink2)"], einstellung: ["⚙", "var(--ink2)"] };
     let quelle = d3.protokoll;
     if (d3.geladen) {
       const rr = this._holen("p:" + d3.entry, () => this._hass.callWS({ type: "baustelle/protokoll", entry_id: d3.entry, filter: "alle", vor: null, limit: 200 }), 6e4);
@@ -5853,34 +5962,10 @@ var BaustellePanel = class extends i4 {
       const kwh = t5.iso ? jeTag[t5.iso] : null;
       return `<div class="glas-panel vl-tag"><div class="vl-tag-kopf"><b>${esc(t5.tag)}</b><span class="leise">${zahl(kwh) ? `${de(kwh, 1)} kWh · ${de(kwh * d3.e.preis, 2)} € · ` : ""}${t5.e.length} ${t5.e.length === 1 ? "Eintrag" : "Einträge"}</span></div>
           ${t5.e.map((e6) => {
-        const [ic, farbe] = ART[e6[2]] || ["•", "var(--ink2)"];
+        const [ic, farbe] = ART2[e6[2]] || ["•", "var(--ink2)"];
         return `<div class="vl-ereignis"><span class="zeit">${e6[1]}</span><span class="vl-punkt" style="background:${farbe}">${ic}</span><div>${e6[3] ? `<b>${esc(this.bName(e6[3]))}</b> ` : ""}<span class="leise">${esc(e6[4])}</span></div></div>`;
       }).join("")}</div>`;
     }).join("") : `<div class="glas-panel block"><div class="leer">${q || f3 !== "alle" ? "Nichts gefunden" : "Noch keine Einträge"}</div></div>`}`;
-  }
-  v_dev() {
-    const f3 = this.s.mfilter || "offen", alle = this.meldungen(), passt = (m3) => f3 === "alle" || f3 === "offen" === this.meldungOffen(m3), M2 = (alle || []).filter(passt);
-    const ART = { fehler: ["Fehler", "rot-b"], wunsch: ["Wunsch", "blau-b"], anregung: ["Anregung", "gruen"] };
-    const anzahl = (k2) => !alle ? "" : k2 === "alle" ? alle.length : alle.filter((m3) => k2 === "offen" === this.meldungOffen(m3)).length;
-    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="einst">‹ Einstellungen</button></div>
-      ${this.kopf("Entwicklung", "NUR FÜR DICH")}
-      <div class="glas-panel block"><div class="block-kopf"><b>Meldungen</b><div class="seg klein">${[["offen", "offen"], ["erledigt", "erledigt"], ["alle", "alle"]].map(([k2, t5]) => `<button data-act="mfilter" data-v="${k2}" class="${f3 === k2 ? "on" : ""}">${t5} ${anzahl(k2)}</button>`).join("")}</div></div>
-        ${alle === null ? LAEDT : M2.length ? M2.map((m3) => {
-      const letzte = (m3.verlauf || []).filter((v2) => v2.notiz || v2.version).at(-1);
-      return `<div class="ml ${this.meldungOffen(m3) ? "offen" : "erledigt"}"><div class="ml-kopf"><span><b class="ml-nr">${esc(m3.ticket || "")}</b> <span class="badge ${(ART[m3.art] || ART.wunsch)[1]}">${(ART[m3.art] || ART.wunsch)[0]}</span> <span class="badge st-${esc(m3.status)}">${esc(TICKET_STATUS[m3.status] || m3.status)}</span></span><span class="leise">${this.meldungZeit(m3)} · ${esc(m3.geraet || "–")} · v${esc(m3.version || "–")}</span></div>
-          <div class="ml-text">${esc(m3.text)}</div><div class="leise">📍 ${esc(m3.kontext || "–")}</div>
-          ${(m3.bilder || []).length ? `<div class="ml-bilder">${m3.bilder.map((_2, i7) => {
-        const u3 = this.mlBild(m3, i7);
-        return u3 ? `<img src="${u3}" alt="Bild ${i7 + 1}" data-act="m-bild" data-id="${esc(m3.id)}" data-i="${i7}" role="button">` : '<span class="ml-bild-laedt"></span>';
-      }).join("")}</div>` : ""}
-          ${letzte ? `<div class="leise ml-notiz">↳ ${esc(letzte.von || "")}: ${esc([letzte.version ? "v" + letzte.version : "", letzte.notiz || ""].filter(Boolean).join(" · "))}</div>` : ""}
-          <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-status" data-id="${esc(m3.id)}">${this.meldungOffen(m3) ? "✓ Schließen" : "↺ wieder öffnen"}</button><button class="chip glas-panel" data-act="m-weg" data-id="${esc(m3.id)}">Löschen</button></div></div>`;
-    }).join("") : '<div class="leer">Keine Meldungen</div>'}
-        <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-md">Als Markdown kopieren</button><button class="chip glas-panel" data-act="m-json">Als JSON herunterladen</button></div>
-        <div class="leise">Jede Meldung ist ein Ticket (FE Fehler, WU Wunsch, AN Anregung). In Claude Code mit „Tickets prüfen“ abarbeiten lassen – ist ein Ticket behoben und eingespielt, setzt Claude es auf erledigt. Passt es nicht, hier wieder öffnen.</div></div>
-      <div class="glas-panel liste"><div class="gruppe">Werkzeuge</div>
-        <button class="zeile" data-act="diagnose"><span>Diagnose herunterladen</span><span class="chev">›</span></button>
-        <div class="zeile"><span>Version</span><span class="leise">${esc(this.version)}${(this.changelog || []).find((c4) => c4.version === this.version) ? " · " + (this.changelog.find((c4) => c4.version === this.version).datum || "").slice(0, 7) : ""}</span></div></div>`;
   }
   v_bsdetail() {
     const x2 = this.alle.find((y3) => y3.entry === this.s.bs);
@@ -5890,7 +5975,7 @@ var BaustellePanel = class extends i4 {
       return { name: r5.name, v: r5.v, kwh: r5.kwh, eur: r5.eur, anteil: r5.anteil, farbe: BEREICH_FARBEN[(b3 && zahl(b3.f) ? b3.f : i7) % BEREICH_FARBEN.length] };
     }) };
     const prot = !x2.geladen ? [] : this._holen(`bp:${x2.entry}`, () => this._hass.callWS({ type: "baustelle/protokoll", entry_id: x2.entry, filter: "alle", vor: null, limit: 5 }), 3e5);
-    const ART = { einstellung: "⚙", warnung: "⚠", ok: "✓", schalten: "⏻", wetter: "☁", nachricht: "✉" };
+    const ART2 = { einstellung: "⚙", warnung: "⚠", ok: "✓", schalten: "⏻", wetter: "☁", nachricht: "✉" };
     const eintraege = prot === void 0 ? null : (Array.isArray(prot) ? prot : prot && prot.eintraege || []).slice(0, 5);
     return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button><button class="glas-panel chip" data-act="csv">⇩ CSV</button></div>
       ${this.kopf(esc(x2.titel), x2.aktiv ? "LAUFEND" : "ABGESCHLOSSEN · NUR ANSEHEN")}
@@ -5902,12 +5987,12 @@ var BaustellePanel = class extends i4 {
       <div class="glas-panel block"><div class="block-kopf"><b>Protokoll</b><span class="leise">Auszug</span></div>
         ${eintraege === null ? LAEDT : eintraege.length ? eintraege.map((p4) => {
       const l4 = this.lokal(p4[0], x2.z.zone);
-      return `<div class="zeile ereignis"><span class="zeit">${kurzDatum(l4)}</span><span class="p-ic">${ART[p4[1]] || "•"}</span><div><span>${p4[2] ? `${esc((x2.bereiche.find((b3) => b3.id === p4[2]) || { name: p4[2] }).name)}: ` : ""}${esc(p4[3])}</span></div></div>`;
+      return `<div class="zeile ereignis"><span class="zeit">${kurzDatum(l4)}</span><span class="p-ic">${ART2[p4[1]] || "•"}</span><div><span>${p4[2] ? `${esc((x2.bereiche.find((b3) => b3.id === p4[2]) || { name: p4[2] }).name)}: ` : ""}${esc(p4[3])}</span></div></div>`;
     }).join("") : '<div class="leer">Keine Einträge</div>'}</div>
       ${x2.aktiv ? "" : knopf2("Wieder aktiv setzen", "bs-aktiv", x2.entry)}`;
   }
   protokoll() {
-    const f3 = this.s.pfilter || "alle", ART = { warnung: ["⚠", "var(--rot)"], ok: ["✓", "#30d158"], schalten: ["⏻", "var(--amber)"], wetter: ["☁", "var(--blau)"], nachricht: ["✉", "var(--ink2)"], einstellung: ["⚙", "var(--ink2)"] };
+    const f3 = this.s.pfilter || "alle", ART2 = { warnung: ["⚠", "var(--rot)"], ok: ["✓", "#30d158"], schalten: ["⏻", "var(--amber)"], wetter: ["☁", "var(--blau)"], nachricht: ["✉", "var(--ink2)"], einstellung: ["⚙", "var(--ink2)"] };
     const passt = (e6) => f3 === "alle" || e6[2] === f3 || f3 === "warnung" && e6[2] === "ok" || f3 === "schalten" && e6[2] === "einstellung";
     let quelle = this.d.protokoll;
     if ((f3 !== "alle" || this.s.pmehr) && this.d.geladen) {
@@ -5923,7 +6008,7 @@ var BaustellePanel = class extends i4 {
     let tag = "";
     return `<div class="glas-panel block">${kopf}
       ${liste.length ? liste.map((e6) => {
-      const [ic, farbe] = ART[e6[2]] || ["•", "var(--ink2)"], kopfT = e6[0] !== tag ? `<div class="p-tag">${tag = e6[0]}</div>` : "";
+      const [ic, farbe] = ART2[e6[2]] || ["•", "var(--ink2)"], kopfT = e6[0] !== tag ? `<div class="p-tag">${tag = e6[0]}</div>` : "";
       return `${kopfT}<div class="zeile ereignis"><span class="zeit">${e6[1]}</span><span class="p-ic" style="color:${farbe}">${ic}</span><div>${e6[3] ? `<b>${esc(this.bName(e6[3]))}</b> ` : ""}<span class="${e6[3] ? "leise" : ""}">${esc(e6[4])}</span></div></div>`;
     }).join("") : '<div class="leer">Keine Einträge</div>'}
       ${mehr ? '<button class="zeile" data-act="pmehr"><span class="blau">Ältere Einträge laden</span></button>' : ""}</div>`;
@@ -6132,7 +6217,7 @@ var BaustellePanel = class extends i4 {
     const pumpen = d3.bereiche.filter((b3) => b3.pumpe), cont = d3.bereiche.filter((b3) => !b3.pumpe), geraete = d3.bereiche.reduce((a3, b3) => a3 + b3.geraete.length, 0);
     const mAn = ["m_offline", "m_trocken", "m_dauer", "m_zyklen", "m_leistung", "m_frost", "m_selbst", "m_kalt", "m_fuehler", "m_wetter", "m_hand"].filter((k2) => e6[k2]).length;
     const offen = M2 === null ? "–" : M2.filter((m3) => this.meldungOffen(m3)).length, ohneKopf = (h3) => h3.slice(Math.max(0, h3.indexOf('<div class="glas-panel')));
-    const dev = (this.s.evDev || "meldungen") === "meldungen", devH = ohneKopf(this.v_dev()), devW = devH.indexOf('<div class="glas-panel liste"><div class="gruppe">Werkzeuge');
+    const dev = (this.s.evDev || "meldungen") === "meldungen";
     return [
       { k: "baustelle", ic: "🏗", t: "Baustelle", kurz: `${esc(d3.titel)} · ${this.bsZeit(d3)}`, html: this.einstBlock("Baustelle") + liste("Wetter und Kalender", knopf("Wetter", o6.wetter ? nm(o6.wetter) : "keins gewählt", "sheet", wq) + knopf("Außentemperatur", o6.temp_sensor ? nm(o6.temp_sensor) : "aus der Vorhersage", "sheet", wq) + knopf("Regenmenge", o6.regen_sensor ? nm(o6.regen_sensor) : "aus der Vorhersage", "sheet", wq) + knopf("Urlaub", o6.urlaub_kalender ? `Kalender „${nm(o6.urlaub_kalender)}“` : "kein Kalender", "sheet", wq) + knopf("Feiertage", o6.feiertag_kalender ? nm(o6.feiertag_kalender) : "kein Kalender", "sheet", wq) + knopf("Termine (Bei Bedarf)", tk ? nm(tk) : "kein Kalender", "sheet", wq)) },
       {
@@ -6178,7 +6263,7 @@ var BaustellePanel = class extends i4 {
         t: "Entwicklung",
         kurz: `${offen} offene Meldungen · Diagnose`,
         dev: true,
-        html: `<div class="seg ev-dev-reiter">${[["meldungen", "Meldungen"], ["werkzeuge", "Werkzeuge"]].map(([k2, t5]) => `<button data-act="ev-dev" data-v="${k2}" class="${(dev ? "meldungen" : "werkzeuge") === k2 ? "on" : ""}">${t5}</button>`).join("")}</div>` + (dev ? devH.slice(0, devW) : devH.slice(devW) + liste("Für Tests", '<button class="zeile" data-act="test-meldung"><span class="blau">Test-Nachricht senden</span></button><button class="zeile" data-act="sheet" data-s="nachrichten"><span>Beispiel-Nachrichten</span><span class="chev">›</span></button>'))
+        html: `<div class="seg ev-dev-reiter">${[["meldungen", "Meldungen"], ["werkzeuge", "Werkzeuge"]].map(([k2, t5]) => `<button data-act="ev-dev" data-v="${k2}" class="${(dev ? "meldungen" : "werkzeuge") === k2 ? "on" : ""}">${t5}</button>`).join("")}</div>` + (dev ? '<div data-lit="dev-meldungen"></div>' : '<div data-lit="dev-werkzeuge"></div>' + liste("Für Tests", '<button class="zeile" data-act="test-meldung"><span class="blau">Test-Nachricht senden</span></button><button class="zeile" data-act="sheet" data-s="nachrichten"><span>Beispiel-Nachrichten</span><span class="chev">›</span></button>'))
       },
       { k: "ueber", ic: "ℹ", t: "Über", kurz: `Version ${esc(this.version)}`, html: '<div data-lit="ueber-einst"></div>' }
     ];
@@ -6836,40 +6921,8 @@ var BaustellePanel = class extends i4 {
       case "pmehr":
         S3.pmehr = true;
         return neu();
-      case "sheet": {
-        const art = el.dataset.s;
-        if (art === "termin") {
-          S3.sheet = { art: "termin", form: { b: el.dataset.id || S3.cid, titel: "", datum: plusTage(this.z.HEUTE, 7), von: "09:00", bis: "10:00", wieder: "einmal", boost: false } };
-          return neu();
-        }
-        if (art === "urlaub") {
-          S3.sheet = { art: "urlaub", form: { name: "", von: plusTage(this.z.HEUTE, 14), bis: plusTage(this.z.HEUTE, 18) } };
-          return neu();
-        }
-        if (art === "container-neu") {
-          S3.sheet = { art, form: { name: "", art: "Container", fuehler: "", schalter: "", typ: "Ölradiator" } };
-          return neu();
-        }
-        if (art === "wetterquelle") {
-          const o6 = d3.optionen;
-          S3.sheet = { art, form: { wetter: o6.wetter || "", temp_sensor: o6.temp_sensor || "", regen_sensor: o6.regen_sensor || "", urlaub_kalender: o6.urlaub_kalender || "", feiertag_kalender: o6.feiertag_kalender || "", termine_kalender: d3.termineKal || "" } };
-          return neu();
-        }
-        if (art === "bs-loeschen") {
-          S3.sheet = { art, id: el.dataset.id };
-          return neu();
-        }
-        if (art === "zeitraum-bs") {
-          S3.sheet = { art, form: { beginn: d3.beginnAuto ? "" : d3.beginn || "", ende: d3.ende || "", hp: [...d3.hp] } };
-          return neu();
-        }
-        if (art === "name" || art === "baustelle-neu") {
-          S3.sheet = { art, form: { name: art === "name" && d3 ? d3.titel : "" } };
-          return neu();
-        }
-        S3.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: "Tag" };
-        return neu();
-      }
+      case "sheet":
+        return this.einblenden(el.dataset.s, el.dataset);
       case "wetterquelle-auf":
         return this.klick({ target: { closest: () => ({ dataset: { act: "sheet", s: "wetterquelle" } }) } });
       case "wa":
@@ -6956,39 +7009,8 @@ var BaustellePanel = class extends i4 {
         return neu();
       case "melden":
         return this.meldenAuf();
-      case "m-bild":
-        S3.sheet = { art: "m-bild", id: el.dataset.id, i: +el.dataset.i };
-        return neu();
-      case "mfilter":
-        S3.mfilter = el.dataset.v;
-        return neu();
-      case "m-status": {
-        const m3 = (this.meldungen() || []).find((x2) => x2.id === el.dataset.id);
-        if (!m3) return;
-        delete this.cache.meldungen;
-        return this.ws({ type: "baustelle/meldung", entry_id: d3.entry, aktion: "status", meldung_id: m3.id, status: this.meldungOffen(m3) ? "geschlossen" : "neu" });
-      }
-      case "m-weg":
-        delete this.cache.meldungen;
-        return this.ws({ type: "baustelle/meldung", entry_id: d3.entry, aktion: "loeschen", meldung_id: el.dataset.id }, "Meldung gelöscht");
-      case "m-md": {
-        const md = this.meldungenMarkdown();
-        if (typeof navigator !== "undefined" && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {
-        });
-        return this.toast(`${(this.meldungen() || []).length} Meldungen als Markdown kopiert`);
-      }
-      case "m-json":
-        this.datei(JSON.stringify(this.meldungen() || [], null, 2), "baustelle-meldungen.json", "application/json");
-        return this.toast("baustelle-meldungen.json");
       case "toast":
         return this.toast(el.dataset.t);
-      case "diagnose":
-        return this.ws({ type: "auth/sign_path", path: `/api/diagnostics/config_entry/${d3.entry}` }).then((r5) => {
-          if (r5 && r5.path) {
-            this.herunterladen(r5.path, `baustelle-${d3.entry}.json`);
-            this.toast("Diagnose wird heruntergeladen (wie in HA unter Geräte & Dienste)");
-          }
-        });
       case "auto":
         return this.setzen(["automatik"], !d3.e.auto, !d3.e.auto ? "Automatik ein" : "Automatik aus – Geräte bleiben, wie sie sind");
       case "bedarf-auf":
