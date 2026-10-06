@@ -38,12 +38,12 @@ async def test_symbol_setzen_und_zustand(hass: HomeAssistant, baustelle, hass_ws
     hass.states.async_set("switch.licht_c1", "on")
     st.einstellungen.bereich(C1)["tuer"] = "binary_sensor.tuer_c1"
 
-    r = await setzen({"doppel": True, "farbe": "#1baf7a", "tueren": [{"wand": "front", "pos": 0.15}],
+    r = await setzen({"doppel": True, "farbe": "#1baf7a", "rahmen": "#c62828", "tueren": [{"wand": "front", "pos": 0.15}],
                       "fenster": [{"wand": "front", "pos": 0.5, "sensor": "binary_sensor.fenster_c1"}, {"wand": "seite", "pos": 0.67}],
                       "licht": "switch.licht_c1"})
     assert r["success"], r
     s = laufzeit(st)["container"][C1]["symbol"]
-    assert s["eigen"] and s["doppel"] and s["farbe"] == "#1baf7a" and s["licht_an"] is True
+    assert s["eigen"] and s["doppel"] and s["farbe"] == "#1baf7a" and s["rahmen"] == "#c62828" and s["licht_an"] is True
     assert s["tueren"][0]["offen"] is True and s["tueren"][0]["sensor"] is None and s["tueren"][0]["sensor_aktiv"] == "binary_sensor.tuer_c1"
     assert [f["zustand"] for f in s["fenster"]] == ["gekippt", "zu"]
     hass.states.async_set("sensor.fenster_c1_drehung", "1", {"unit_of_measurement": "°"})

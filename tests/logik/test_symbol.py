@@ -14,16 +14,22 @@ def test_bereinigen() -> None:
     assert bereinigen(None) is None
     s = bereinigen({"doppel": 1, "farbe": "#3987E5", "tueren": [{"wand": "seite", "pos": 0.52, "sensor": "binary_sensor.tuer"}],
                     "fenster": [{"wand": "front", "pos": 0.1}, {"wand": "front", "pos": 0.9, "sensor": ""}], "licht": "switch.licht"})
-    assert s == {"doppel": True, "farbe": "#3987E5", "tueren": [{"wand": "seite", "pos": 0.5, "sensor": "binary_sensor.tuer"}],
+    assert s == {"doppel": True, "farbe": "#3987E5", "rahmen": None, "tueren": [{"wand": "seite", "pos": 0.5, "sensor": "binary_sensor.tuer"}],
                  "fenster": [{"wand": "front", "pos": 0.15, "sensor": None}, {"wand": "front", "pos": 0.85, "sensor": None}], "licht": "switch.licht"}
     for falsch in [{"tueren": [], "fenster": [{"wand": "front"}]},                                          # keine Tür
                    {"tueren": [{"wand": "front"}] * 3, "fenster": [{"wand": "front"}]},                     # 3 Türen
                    {"tueren": [{"wand": "front"}], "fenster": [{"wand": "front"}] * 5},                     # 5 Fenster
                    {"tueren": [{"wand": "hinten"}], "fenster": [{"wand": "front"}]},                        # Wand unsichtbar
                    {"tueren": [{"wand": "front"}], "fenster": [{"wand": "front"}], "farbe": "blau"},
+                   {"tueren": [{"wand": "front"}], "fenster": [{"wand": "front"}], "rahmen": "rot"},
                    {"tueren": [{"wand": "front", "sensor": "kein_entity"}], "fenster": [{"wand": "front"}]}, "x"]:
         with pytest.raises(ValueError):
             bereinigen(falsch)
+
+
+def test_rahmen() -> None:
+    s = bereinigen({"tueren": [{"wand": "front"}], "fenster": [{"wand": "front"}], "rahmen": "#c62828"})
+    assert s["rahmen"] == "#c62828" and standard()["rahmen"] is None
 
 
 def test_fenster_zustand() -> None:

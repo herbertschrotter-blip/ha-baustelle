@@ -693,7 +693,8 @@
        }
       ],
       "licht": null,
-      "licht_an": false
+      "licht_an": false,
+      "rahmen": "#37474f"
      }
     },
     "mannschaft": {
@@ -767,7 +768,8 @@
        }
       ],
       "licht": "switch.licht_mannschaft",
-      "licht_an": true
+      "licht_an": true,
+      "rahmen": null
      }
     },
     "magazin": {
@@ -826,7 +828,8 @@
        }
       ],
       "licht": null,
-      "licht_an": false
+      "licht_an": false,
+      "rahmen": null
      }
     },
     "sanitaer": {
@@ -882,7 +885,8 @@
        }
       ],
       "licht": null,
-      "licht_an": false
+      "licht_an": false,
+      "rahmen": null
      }
     },
     "lager": {
@@ -938,7 +942,8 @@
        }
       ],
       "licht": null,
-      "licht_an": false
+      "licht_an": false,
+      "rahmen": null
      }
     },
     "besprechung": {
@@ -994,7 +999,8 @@
        }
       ],
       "licht": null,
-      "licht_an": false
+      "licht_an": false,
+      "rahmen": null
      }
     },
     "schacht": {

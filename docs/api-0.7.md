@@ -258,7 +258,7 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus), `heizung.notprogramm` (0.8.63, BSM-017:
   Notprogramm in den Plugs – Skript und Programm einspielen, Lebenszeichen alle 5 min; Standard aus, Ausschalten hält
   das Skript an; Stand je Plug in der Diagnose unter `notprogramm`, Bauplan 0.7 §9).
-- Container-Symbol (0.8.68, BSM-032): `baustelle/setzen` `bereiche.<id>.symbol` = `{doppel, farbe: "#rrggbb"|null,
+- Container-Symbol (0.8.68, BSM-032; Rahmen 0.8.70): `baustelle/setzen` `bereiche.<id>.symbol` = `{doppel, farbe: "#rrggbb"|null, rahmen: "#rrggbb"|null,
   tueren: [{wand: "front"|"seite", pos, sensor}] (1–2), fenster: [{wand, pos, sensor}] (1–4), licht: entity_id|null}` oder
   `null` (Standard: eine Tür links, ein Fenster); `pos` wird auf 0,15/0,33/0,5/0,67/0,85 gerundet (logik/symbol).
   `laufzeit.container.<id>.symbol` = dasselbe mit Zustand: `eigen`, je Tür `offen` und `sensor_aktiv` (Tür 1 ohne Sensor:

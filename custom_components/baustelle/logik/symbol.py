@@ -1,8 +1,10 @@
 """Container-Symbol: Aussehen je Container und Zustand aus den Sensoren – reine Fachlogik (BSM-032, Herbert 05./06.10.2026).
 
 Aussehen (`einstellungen.bereiche.<id>.symbol`, Mockup `mockups/container-symbol.html`): Einzel- oder Doppelcontainer,
-Farbe, Türen 1–2 und Fenster 1–4 je an Front oder Seite (im Symbol sichtbar sind nur diese beiden Wände) in fünf Lagen,
-je mit Sensor; dazu eine Licht-Quelle. Ohne Einstellung: eine Tür links und ein Fenster an der Front.
+Farbe, Stahlrahmen in eigener Farbe (oder keiner), Türen 1–2 und Fenster 1–4 je an Front oder Seite (im Symbol sichtbar
+sind nur diese beiden Wände), je mit Sensor; dazu eine Licht-Quelle. Ohne Einstellung: eine Tür links und ein Fenster.
+Lage: Türen sitzen links, mittig oder rechts an ihrer Wand (0,15 / 0,5 / 0,85); mehrere Fenster verteilt die Seite
+gleichmäßig auf den Platz daneben, ihre Lage bestimmt nur die Reihenfolge (Herbert 06.10.2026).
 
 Zustand (die Seite zeichnet nur):
 - Tür offen = Kontakt meldet offen; Tür 1 ohne eigenen Sensor nimmt den Türkontakt des Containers.
@@ -23,7 +25,7 @@ LICHT_AB_LUX = 50.0
 
 
 def standard() -> dict[str, Any]:
-    return {"doppel": False, "farbe": None, "tueren": [{"wand": "front", "pos": 0.15, "sensor": None}],
+    return {"doppel": False, "farbe": None, "rahmen": None, "tueren": [{"wand": "front", "pos": 0.15, "sensor": None}],
             "fenster": [{"wand": "front", "pos": 0.67, "sensor": None}], "licht": None}
 
 
@@ -37,6 +39,14 @@ def _element(x: Any) -> dict[str, Any]:
     return {"wand": x["wand"], "pos": pos, "sensor": sensor}
 
 
+def _farbe(x: Any) -> str | None:
+    if not x:
+        return None
+    if not (isinstance(x, str) and len(x) == 7 and x.startswith("#") and all(c in "0123456789abcdefABCDEF" for c in x[1:])):
+        raise ValueError("Farbe als #rrggbb")
+    return x
+
+
 def bereinigen(wert: Any) -> dict[str, Any] | None:
     """Prüfen und vereinheitlichen; None = Standard. Wirft ValueError bei Unsinn."""
     if wert is None:
@@ -46,14 +56,11 @@ def bereinigen(wert: Any) -> dict[str, Any] | None:
     tueren, fenster = wert.get("tueren") or [], wert.get("fenster") or []
     if not 1 <= len(tueren) <= MAX_TUEREN or not 1 <= len(fenster) <= MAX_FENSTER:
         raise ValueError(f"1–{MAX_TUEREN} Türen und 1–{MAX_FENSTER} Fenster")
-    farbe = wert.get("farbe") or None
-    if farbe is not None and not (isinstance(farbe, str) and len(farbe) == 7 and farbe.startswith("#")
-                                  and all(c in "0123456789abcdefABCDEF" for c in farbe[1:])):
-        raise ValueError("Farbe als #rrggbb")
+    farbe, rahmen = _farbe(wert.get("farbe")), _farbe(wert.get("rahmen"))
     licht = wert.get("licht") or None
     if licht is not None and not (isinstance(licht, str) and "." in licht):
         raise ValueError("Licht muss eine Entität sein")
-    return {"doppel": bool(wert.get("doppel")), "farbe": farbe, "tueren": [_element(x) for x in tueren],
+    return {"doppel": bool(wert.get("doppel")), "farbe": farbe, "rahmen": rahmen, "tueren": [_element(x) for x in tueren],
             "fenster": [_element(x) for x in fenster], "licht": licht}
 
 

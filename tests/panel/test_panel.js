@@ -333,6 +333,7 @@ async function allgemein() {
     erwarte('BSM-032: Dialog Aussehen mit Vorschau', ui.innerHTML.includes('class="sym-vorschau"') && ui.innerHTML.includes('data-act="sym-doppel"') && ui.innerHTML.includes('data-sym="licht"'));
     neu(); const dop = !!(y.symbol && y.symbol.doppel); await klick({ act: 'sym-doppel' }, 10);
     erwarte('BSM-032: Doppel über baustelle/setzen', sy() && sy().wert.doppel === !dop);
+    neu(); await klick({ act: 'sym-rahmen', v: '#c62828' }, 10); erwarte('BSM-032: Rahmenfarbe', sy() && sy().wert.rahmen === '#c62828' && ui.innerHTML.includes('data-act="sym-rahmen"'));
     neu(); await klick({ act: 'sym-neu', art: 'fenster' }, 10); erwarte('BSM-032: Fenster dazu', sy() && sy().wert.fenster.length >= 2);
     neu(); await klick({ act: 'sym-lage', art: 'tueren', i: '0', v: '0.85' }, 10); erwarte('BSM-032: Lage der Tür', sy() && sy().wert.tueren[0].pos === 0.85);
     neu(); panel.aenderung({ target: { dataset: { sym: 'licht' }, value: 'switch.licht' } }); await ruhe(10); erwarte('BSM-032: Licht-Quelle', sy() && sy().wert.licht === 'switch.licht');

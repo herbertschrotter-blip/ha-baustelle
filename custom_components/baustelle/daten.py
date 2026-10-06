@@ -149,7 +149,7 @@ def _symbol(st: Steuerung, bid: str) -> dict[str, Any]:
                for f in cfg["fenster"]]
     licht = cfg.get("licht")
     s = hass.states.get(licht) if licht else None
-    return {"eigen": eigen is not None, "doppel": cfg["doppel"], "farbe": cfg["farbe"], "tueren": tueren, "fenster": fenster,
+    return {"eigen": eigen is not None, "doppel": cfg["doppel"], "farbe": cfg["farbe"], "rahmen": cfg.get("rahmen"), "tueren": tueren, "fenster": fenster,
             "licht": licht, "licht_an": bool(s is not None and symbol_logik.licht_an(s.state, _zahl(hass, licht)))}
 
 

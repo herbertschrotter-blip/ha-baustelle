@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.69",
+   "version": "0.8.70",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -642,6 +642,7 @@
       "eigen": false,
       "doppel": false,
       "farbe": null,
+      "rahmen": null,
       "tueren": [
        {
         "wand": "front",
@@ -732,6 +733,7 @@
       "eigen": false,
       "doppel": false,
       "farbe": null,
+      "rahmen": null,
       "tueren": [
        {
         "wand": "front",
@@ -838,6 +840,7 @@
       "eigen": false,
       "doppel": false,
       "farbe": null,
+      "rahmen": null,
       "tueren": [
        {
         "wand": "front",
@@ -2088,7 +2091,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.69",
+   "version": "0.8.70",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -2361,6 +2364,7 @@
       "eigen": false,
       "doppel": false,
       "farbe": null,
+      "rahmen": null,
       "tueren": [
        {
         "wand": "front",

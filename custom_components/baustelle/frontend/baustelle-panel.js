@@ -69,7 +69,7 @@ const BEREICH_FARBEN = ['#3987e5', '#eb6834', '#1baf7a', '#c98500', '#d55181', '
 /* Container-Symbol (BSM-032, Mockup container-symbol.html): Einzel/Doppel, Türen 1–2 und Fenster 1–4 an Front oder Seite,
    Farbe; Zustand fertig von der Integration (laufzeit.container.<id>.symbol): Tür offen (Version A), Fenster gekippt (A)
    bzw. offen (B), Licht an (A). Ohne Symbol: eine Tür links, ein Fenster. */
-const SYMBOL_STANDARD = { doppel: false, farbe: null, tueren: [{ wand: 'front', pos: .15 }], fenster: [{ wand: 'front', pos: .67 }], licht_an: false };
+const SYMBOL_STANDARD = { doppel: false, farbe: null, rahmen: null, tueren: [{ wand: 'front', pos: .15 }], fenster: [{ wand: 'front', pos: .67 }], licht_an: false };
 function bcContainer(f, zustand, b) {
   const s = (b && b.symbol) || SYMBOL_STANDARD, farbe = s.farbe || f, dop = !!s.doppel;
   const heizt = ['heizt', 'trocknen', 'frost'].includes(zustand), off = zustand === 'offline', licht = !!s.licht_an;
@@ -77,15 +77,33 @@ function bcContainer(f, zustand, b) {
   const dunkler = `color-mix(in srgb, ${farbe} 70%, #000)`, heller = `color-mix(in srgb, ${farbe} 75%, #fff)`;
   const SL = dop ? 80 : 50, sdy = SL * -18 / 50, dy = dop ? 11 : 0, W = dop ? 200 : 170, H = dop ? 131 : 120;   // Doppel: Front 6 m, Seite knapp 5 m
   const wand = w => w === 'seite' ? { x0: 106, y0: 50, L: SL, n: -18 / 50 } : { x0: 22, y0: 30, L: 84, n: 20 / 84 };
-  const ort = (w, t, bb) => { const g = wand(w), x = g.x0 + t * g.L - bb / 2; return { x, y: g.y0 + (x - g.x0) * g.n, n: g.n }; };
   const para = (x, y, bb, d, h, attr) => `<path d="M${x} ${y}l${bb} ${d}v${h}l${-bb} ${-d}z" ${attr}/>`;
-  const alle = [...(s.tueren || []), ...(s.fenster || [])];
-  const breite = (el, voll) => {   // schmaler, wenn ein Nachbar an derselben Wand zu nah ist (z. B. 4 Fenster an der Front)
-    const L = wand(el.wand).L, abst = alle.filter(o => o !== el && o.wand === el.wand).map(o => Math.abs(o.pos - el.pos) * L);
-    return Math.max(8, Math.min(voll, ...abst.map(a => a - 5)));   // 5 = Rahmen beider Nachbarn und etwas Luft
-  };
+  // Aufteilung je Wand (Herbert 06.10.2026): fester Rand; Türen sitzen fest links, mittig oder rechts; Fenster teilen
+  // sich gleichmäßig den Platz daneben (in der Reihenfolge ihrer Lage, alle gleich breit), ein einzelnes an seiner Lage
+  const RAND = 8, TB = 14, FB = 20, LUFT = 5, platz = new Map();
+  for (const w of ['front', 'seite']) {
+    const L = wand(w).L, an = el => (el.wand === 'seite' ? 'seite' : 'front') === w;
+    const tl = (s.tueren || []).filter(an).sort((a, b) => a.pos - b.pos), fl = (s.fenster || []).filter(an).sort((a, b) => a.pos - b.pos);
+    const belegt = [];
+    for (const t of tl) {   // links | Mitte | rechts; zwei an derselben Stelle rücken nebeneinander
+      let c = t.pos < .4 ? RAND + TB / 2 : t.pos > .6 ? L - RAND - TB / 2 : L / 2;
+      while (belegt.some(([v, b]) => c > v - TB / 2 - LUFT && c < b + TB / 2 + LUFT)) c += (t.pos > .6 ? -1 : 1) * (TB + LUFT);
+      platz.set(t, { c, bb: TB }); belegt.push([c - TB / 2, c + TB / 2]);
+    }
+    let frei = [[RAND, L - RAND]];   // freie Strecken neben den Türen
+    for (const [v, b] of belegt) frei = frei.flatMap(([x, y]) => b + LUFT <= x || v - LUFT >= y ? [[x, y]] : [[x, v - LUFT], [b + LUFT, y]]).filter(([x, y]) => y - x >= 10);
+    if (!fl.length || !frei.length) continue;
+    if (fl.length === 1 && !tl.length) { const bb = FB; platz.set(fl[0], { c: RAND + bb / 2 + Math.max(0, Math.min(1, (fl[0].pos - .15) / .7)) * (L - 2 * RAND - bb), bb }); continue; }
+    const ges = frei.reduce((a, [x, y]) => a + y - x, 0), anz = frei.map(([x, y]) => fl.length * (y - x) / ges);
+    const n = anz.map(Math.floor); let rest = fl.length - n.reduce((a, b) => a + b, 0);
+    anz.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (rest > 0) { n[i]++; rest--; } });
+    let k = 0;
+    frei.forEach(([x, y], i) => { const slot = (y - x) / (n[i] || 1);
+      for (let j = 0; j < n[i]; j++) platz.set(fl[k++], { c: x + slot * (j + .5), bb: Math.max(8, Math.min(FB, slot - LUFT)) }); });
+  }
+  const lage = el => { const p0 = platz.get(el), g = wand(el.wand), x = g.x0 + p0.c - p0.bb / 2; return { x, y: g.y0 + (x - g.x0) * g.n, n: g.n, bb: p0.bb }; };
   const fenster = fe => {
-    const bb = breite(fe, 17), h = 15, a = ort(fe.wand, fe.pos, bb), x = a.x, y = a.y + 11, d = bb * a.n, zst = fe.zustand || 'zu';
+    const a = lage(fe), bb = a.bb, h = 21, x = a.x, y = a.y + 17, d = bb * a.n, zst = fe.zustand || 'zu';   // Fenster in halber Höhe
     let r = para(x - 1.6, y - 1.6, bb + 3.2, d, h + 3.2, 'fill="var(--rahmen)"');
     if (zst === 'offen') return r + para(x, y, bb, d, h, `fill="${licht ? `color-mix(in srgb, ${LICHT} 55%, #000)` : DUNKEL}"`)
       + para(x - 9, y + 2, 9, d * .2 - 2, h, 'fill="var(--fenster)" stroke="var(--rahmen)" stroke-width="1.4" opacity=".95"');   // Flügel nach außen
@@ -96,7 +114,7 @@ function bcContainer(f, zustand, b) {
     return `<g>${r}</g>`;
   };
   const tuer = t => {
-    const bb = breite(t, 14), h = 44, a = ort(t.wand, t.pos, bb), x = a.x, y = a.y + 9, d = bb * a.n;
+    const a = lage(t), bb = a.bb, h = 46, x = a.x, y = a.y + 9, d = bb * a.n;   // bis knapp über den Boden
     if (t.offen) return para(x, y, bb, d, h, `fill="${licht ? `color-mix(in srgb, ${LICHT} 60%, #000)` : DUNKEL}" stroke="var(--rahmen)" stroke-width="1.2"`)
       + `<path d="M${x} ${y}l-7 ${5 - d * .2}v${h}l7 -5z" fill="${dunkler}" stroke="var(--rahmen)" stroke-width="1.2"/>`;   // Türblatt nach außen
     return para(x, y, bb, d, h, `fill="${dunkler}" stroke="var(--rahmen)" stroke-width="1.2"`)
@@ -106,6 +124,18 @@ function bcContainer(f, zustand, b) {
   const rippen = (w, k) => { const g = wand(w), n = Math.round(g.L / (w === 'front' ? 10.5 : 9)); let r = '';
     for (let j = 1; j < n; j++) { const x = g.x0 + j * g.L / n; r += `<path d="M${x} ${g.y0 + (x - g.x0) * g.n + 1}v58" stroke="rgba(0,0,0,${k})" stroke-width="1.4"/>`; } return r; };
   const naht = dop ? `<path d="M${106 + SL / 2} ${50 + sdy / 2}v58" stroke="rgba(0,0,0,.45)" stroke-width="2.2"/><path d="M${22 + SL / 2} ${30 + sdy / 2}l84 20" stroke="rgba(0,0,0,.3)" stroke-width="1.6"/>` : '';
+  // Stahlrahmen in eigener Farbe (Herbert 06.10.2026), etwa maßstäblich: 20 cm ≈ 3 Einheiten Pfosten (Front 84 = 6,05 m),
+  // gut 4 Einheiten Rahmen oben und unten (Höhe 58 ≈ 2,6 m); Seite dunkler wie die Wand, Dachkante heller
+  const rahmen = (() => { const r = s.rahmen; if (!r) return '';
+    const P = 3, R = 4.3, nf = 20 / 84, ns = -18 / 50, rs = `color-mix(in srgb, ${r} 72%, #000)`, rh = `color-mix(in srgb, ${r} 80%, #fff)`;
+    const band = (x, y, l, d, h, f) => `<path d="M${x} ${y}l${l} ${d}v${h}l${-l} ${-d}z" fill="${f}"/>`;
+    const pfosten = (x, y, n, f) => band(x, y, P, P * n, 58, f);
+    return band(22, 30, 84, 20, R, r) + band(22, 88 - R, 84, 20, R, r)                                  // Front oben, unten
+      + band(106, 50, SL, sdy, R, rs) + band(106, 108 - R, SL, sdy, R, rs)                              // Seite oben, unten
+      + pfosten(22, 30, nf, r) + pfosten(106 - P, 50 - P * nf, nf, r) + pfosten(106, 50, ns, rs)         // Front links, Ecke
+      + pfosten(106 + SL - P, 50 + (SL - P) * ns, ns, rs)                                               // Seite rechts
+      + (dop ? pfosten(106 + SL / 2 - P / 2, 50 + (SL / 2 - P / 2) * ns, ns, rs) : '')                // Naht beim Doppel
+      + `<path d="M22 30l${SL} ${sdy} 84 20" fill="none" stroke="${rh}" stroke-width="2.4" stroke-linejoin="round"/>`; })();
   const mx = dop ? 15 : 0, my = sdy / 2 + 9;   // Wellen und Eis über dem Dach
   return `<svg class="bc ${off ? 'offline' : ''}" viewBox="0 0 ${W} ${H}" style="--f:${farbe}"><g transform="translate(0 ${dy})">
     <ellipse cx="${86 + SL / 2 - 25}" cy="104" rx="${70 + SL / 2 - 25}" ry="9" fill="#000" opacity=".22"/>
@@ -113,7 +143,7 @@ function bcContainer(f, zustand, b) {
     <path d="M106 50l${SL} ${sdy}v58l${-SL} ${-sdy}z" fill="${dunkler}"/>${rippen('seite', .18)}
     <path d="M22 30l84 20v58l-84-20z" fill="${farbe}"/>${rippen('front', .14)}
     <path d="M22 30l${SL} ${sdy} 84 20 ${-SL} ${-sdy}z" fill="${heller}"/><path d="M22 30l84 20 ${SL} ${sdy}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
-    ${naht}${(s.tueren || []).map(tuer).join('')}${(s.fenster || []).map(fenster).join('')}
+    ${naht}${rahmen}${(s.tueren || []).map(tuer).join('')}${(s.fenster || []).map(fenster).join('')}
     ${zustand === 'trocknen' ? '<g class="bc-jacke" style="transform-origin:88.5px 42px"><path d="M84 44l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>' : ''}
     ${heizt && zustand !== 'frost' ? [0, 1, 2].map(k => `<path class="bc-waerme" style="animation-delay:${k * .7}s" d="M${62 + k * 18 + mx} ${24 - k + my} q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>`).join('') : ''}
     ${zustand === 'frost' ? [0, 1, 2].map(k => `<g class="bc-eis" style="animation-delay:${k * .6}s" transform="translate(${60 + k * 22 + mx} ${16 - k * 2 + my})" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
@@ -1436,7 +1466,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.69';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.70';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -3747,7 +3777,7 @@ class BaustellePanel extends HTMLElement {
   /* BSM-032: Container-Symbol – Aussehen bearbeiten; die Integration prüft und liefert den Zustand aus den Sensoren */
   symKonfig(b) { const x = this.s.sheet && this.s.sheet.sym; if (x) return x;
     const q = b.symbol || SYMBOL_STANDARD, el = y => ({ wand: y.wand, pos: y.pos, sensor: y.sensor || null });
-    return (this.s.sheet.sym = { doppel: !!q.doppel, farbe: q.farbe || null, tueren: q.tueren.map(el), fenster: q.fenster.map(el), licht: q.licht || null }); }
+    return (this.s.sheet.sym = { doppel: !!q.doppel, farbe: q.farbe || null, rahmen: q.rahmen || null, tueren: q.tueren.map(el), fenster: q.fenster.map(el), licht: q.licht || null }); }
   symSenden(b, c) { this.s.sheet.sym = c; this.render(); return this.setzen(['bereiche', b.id, 'symbol'], c); }
   symKlick(a, el) {
     const b = this.d.bereiche.find(x => x.id === this.s.sheet.id); if (!b) return undefined;
@@ -3755,6 +3785,7 @@ class BaustellePanel extends HTMLElement {
     if (a === 'sym-standard') { this.s.sheet.sym = null; return this.setzen(['bereiche', b.id, 'symbol'], null); }
     if (a === 'sym-doppel') c.doppel = !c.doppel;
     if (a === 'sym-farbe') c.farbe = el.dataset.v;
+    if (a === 'sym-rahmen') c.rahmen = el.dataset.v || null;
     if (a === 'sym-wand') c[art][i].wand = el.dataset.v;
     if (a === 'sym-lage') c[art][i].pos = +el.dataset.v;
     if (a === 'sym-weg' && c[art].length > 1) c[art].splice(i, 1);
@@ -3764,7 +3795,7 @@ class BaustellePanel extends HTMLElement {
   symAenderung(el) {
     const b = this.d.bereiche.find(x => x.id === this.s.sheet.id); if (!b) return undefined;
     const c = JSON.parse(JSON.stringify(this.symKonfig(b))), [k, i] = el.dataset.sym.split(':');
-    if (k === 'farbe') c.farbe = el.value; else if (k === 'licht') c.licht = el.value || null; else c[k][+i].sensor = el.value || null;
+    if (k === 'farbe') c.farbe = el.value; else if (k === 'rahmen') c.rahmen = el.value; else if (k === 'licht') c.licht = el.value || null; else c[k][+i].sensor = el.value || null;
     return this.symSenden(b, c);
   }
   symDialog(s, griff, knopf) {
@@ -3777,15 +3808,16 @@ class BaustellePanel extends HTMLElement {
     const seg = (act, art, i, wert, opts) => `<div class="seg klein">${opts.map(([v, t]) => `<button data-act="${act}" data-art="${art}" data-i="${i}" data-v="${v}" class="${String(wert) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
     const element = (art, x, i, n) => `<div class="zeile"><b>${art === 'tueren' ? '🚪 Tür' : '🪟 Fenster'} ${i + 1}</b>${n > 1 ? `<button class="knopf klein" data-act="sym-weg" data-art="${art}" data-i="${i}" aria-label="entfernen">✕</button>` : ''}</div>
       <div class="zeile unter"><span>Wand</span>${seg('sym-wand', art, i, x.wand, [['front', 'Front'], ['seite', 'Seite']])}</div>
-      <div class="zeile unter"><span>Lage</span>${seg('sym-lage', art, i, x.pos, [[.15, 'links'], [.33, '◧'], [.5, 'Mitte'], [.67, '◨'], [.85, 'rechts']])}</div>
+      <div class="zeile unter"><span>${art === 'tueren' ? 'Sitzt' : 'Lage'}</span>${art === 'tueren' ? seg('sym-lage', art, i, x.pos < .4 ? .15 : x.pos > .6 ? .85 : .5, [[.15, 'links'], [.5, 'Mitte'], [.85, 'rechts']]) : seg('sym-lage', art, i, x.pos, [[.15, 'links'], [.33, '◧'], [.5, 'Mitte'], [.67, '◨'], [.85, 'rechts']])}</div>
       <label class="zeile unter"><span>${art === 'tueren' ? 'Türsensor' : 'Fenstersensor'}</span><select data-sym="${art}:${i}">${this.optionen(kontakte, x.sensor || '', art === 'tueren' && i === 0 ? 'wie Türkontakt des Containers' : 'keiner')}</select></label>`;
     return `${griff}<div class="block-kopf"><h3>🏠 Aussehen · ${esc(b.name)}</h3></div><div class="sym-vorschau">${bcContainer(std, b.z === 'pause' || b.z === 'bereit' ? 'aus' : b.z, { symbol: vorschau })}</div>
       <div class="glas-panel liste"><div class="zeile"><div><b>Doppelcontainer</b><div class="leise">zwei Container nebeneinander – das Symbol wird tiefer</div></div>${schalter(c.doppel, 'sym-doppel')}</div>
-        <div class="zeile"><span>Farbe</span><span class="sym-farben">${['#3987e5', '#eb6834', '#1baf7a', '#c98500', '#d55181', '#199e70', '#7e57c2', '#78909c'].map(fb => `<button data-act="sym-farbe" data-v="${fb}" class="sym-farbe ${(c.farbe || std) === fb ? 'on' : ''}" style="background:${fb}" aria-label="Farbe ${fb}"></button>`).join('')}<input type="color" value="${c.farbe || std}" data-sym="farbe" aria-label="eigene Farbe"></span></div></div>
+        <div class="zeile"><span>Farbe</span><span class="sym-farben">${['#3987e5', '#eb6834', '#1baf7a', '#c98500', '#d55181', '#199e70', '#7e57c2', '#78909c'].map(fb => `<button data-act="sym-farbe" data-v="${fb}" class="sym-farbe ${(c.farbe || std) === fb ? 'on' : ''}" style="background:${fb}" aria-label="Farbe ${fb}"></button>`).join('')}<input type="color" value="${c.farbe || std}" data-sym="farbe" aria-label="eigene Farbe"></span></div>
+        <div class="zeile"><div><span>Rahmen</span><div class="leise">Stahlrahmen an Ecken, oben und unten (20 cm)</div></div><span class="sym-farben"><button data-act="sym-rahmen" data-v="" class="knopf klein ${c.rahmen ? '' : 'on'}">kein</button>${['#c62828', '#37474f', '#eceff1', '#1565c0', '#f9a825', '#2e7d32'].map(fb => `<button data-act="sym-rahmen" data-v="${fb}" class="sym-farbe ${c.rahmen === fb ? 'on' : ''}" style="background:${fb}" aria-label="Rahmen ${fb}"></button>`).join('')}<input type="color" value="${c.rahmen || '#37474f'}" data-sym="rahmen" aria-label="eigene Rahmenfarbe"></span></div></div>
       <div class="glas-panel liste"><div class="gruppe">Türen · ${c.tueren.length} von 2</div>${c.tueren.map((x, i) => element('tueren', x, i, c.tueren.length)).join('')}${c.tueren.length < 2 ? '<button class="zeile" data-act="sym-neu" data-art="tueren"><span class="blau">+ Tür</span></button>' : ''}</div>
       <div class="glas-panel liste"><div class="gruppe">Fenster · ${c.fenster.length} von 4</div>${c.fenster.map((x, i) => element('fenster', x, i, c.fenster.length)).join('')}${c.fenster.length < 4 ? '<button class="zeile" data-act="sym-neu" data-art="fenster"><span class="blau">+ Fenster</span></button>' : ''}</div>
       <div class="glas-panel liste"><div class="gruppe">Licht im Symbol</div><label class="zeile"><div><span>Licht kommt von</span><div class="leise">Fenster leuchten, wenn im Container Licht brennt</div></div><select data-sym="licht">${this.optionen(lichter, c.licht || '', 'keins')}</select></label></div>
-      <div class="leise p-fuss">Tür offen/zu, Fenster offen/gekippt/zu und Licht kommen von den zugeordneten Sensoren; ohne Sensor bleibt das Element zu bzw. dunkel.</div>
+      <div class="leise p-fuss">Türen sitzen links, mittig oder rechts an ihrer Wand; mehrere Fenster verteilen sich gleichmäßig auf den Platz daneben. Tür offen/zu, Fenster offen/gekippt/zu und Licht kommen von den zugeordneten Sensoren; ohne Sensor bleibt das Element zu bzw. dunkel.</div>
       ${b.symbol && b.symbol.eigen ? '<button class="knopf" data-act="sym-standard">Standard (eine Tür, ein Fenster)</button>' : ''}${knopf('Fertig')}`;
   }
   /* BSM-019: Notprogramm in den Plugs – Zustand je Heizkörper-Plug kommt fertig von der Integration (laufzeit.geraete.<id>.notprogramm) */
@@ -4507,7 +4539,7 @@ class BaustellePanel extends HTMLElement {
       case 'p-chart': S.pchart = el.dataset.v; return neu();
       case 'tv': S.tv = el.dataset.v; return neu();
       case 'sym-auf': S.sheet = { art: 'aussehen', id: S.cid || (this.b && this.b.id) }; return neu();   // BSM-032
-      case 'sym-doppel': case 'sym-farbe': case 'sym-wand': case 'sym-lage': case 'sym-weg': case 'sym-neu': case 'sym-standard': return this.symKlick(a, el);
+      case 'sym-doppel': case 'sym-farbe': case 'sym-rahmen': case 'sym-wand': case 'sym-lage': case 'sym-weg': case 'sym-neu': case 'sym-standard': return this.symKlick(a, el);
       case 'np-an': return this.setzen(['heizung', 'notprogramm'], !d.e.notprogramm);   // BSM-019
       case 'np-plug': S.sheet = { art: 'np-plug', id: el.dataset.id }; return neu();
       case 'np-pruefen': if (S.npPrueft) return; S.npPrueft = true; this.render();
