@@ -37,7 +37,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 
 | ☐ | Stufe | Inhalt (je eigene Lieferung) | Herbert sieht | Prüfung / Abnahme | Rückweg |
 |---|---|---|---|---|---|
-| ☐ | **0a** | esbuild, Versionskette, Modul-Mockup, Auslieferungsfilter (§4) | nichts | Grundprüfung ohne Browser-Test; zwei Builds bytegleich; veraltetes Bundle wird erkannt; Mockup startet; Auslieferungsprobe ohne Quellen/npm-Dateien | R auf 0.8.73 |
+| ☑ | **0a** | esbuild, Versionskette, Modul-Mockup, Auslieferungsfilter (§4) | nichts | Grundprüfung ohne Browser-Test; zwei Builds bytegleich; veraltetes Bundle wird erkannt; Mockup startet; Auslieferungsprobe ohne Quellen/npm-Dateien | R auf 0.8.73 |
 | ☐ | **0b.1** | Panel-Test auf happy-dom (gebaute Datei laden, echte DOM-Ereignisse); Browser-Bestandsaufnahme B1–B7 (§6) | nichts | alle bisherigen Testfälle übertragen; Ausgangsprotokoll; bekannte Fehler einzeln benannt | Teständerung zurück |
 | ☐ | **0b.2** | Listener-Lecks beheben | nichts | B7 nach 20 Ein-/Aushängezyklen grün | R |
 | ☐ | **1a** | Hilfen und Symbole auslagern | nichts | Grundprüfung; gleiche Ausgabe/Befehle | R |
@@ -136,3 +136,14 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   (HA-App) und Microsoft Edge; Pilot-Grenzen und Budget 120 s angenommen.
 - BSM-024 („Umstieg auf Lit planen“) ist mit diesem Plan erledigt und geht in BSM-022 auf.
 - Review: `docs/chatgpt-reviews/CGR-2026-10-06-seite-lit/` (r1: Weg korrigiert, r2: konkreter Stufenplan).
+
+## 9. Nachweise
+
+- **0a, 06.10.2026 (0.8.74):** zwei Builds bytegleich (563 KB roh); `bauen.mjs --pruefen` erkennt ein veraltetes Bundle,
+  `changelog.py --pruefen` veraltete version.json/manifest.json; Mockup lädt die Seite als Modul und startet in Chromium
+  136 headless ohne Fehler (Handy und Desktop gezeichnet); Auslieferungsprobe in einem temporären Ziel: nur
+  `baustelle-panel.js` und `changelog.json` aus `frontend/`, früher ausgelieferte Quellen und leere Ordner entfernt.
+- **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner
+  ohne Netzzugriff durch npm, `@esbuild/linux-arm64` enthalten, kleiner Build grün; package-lock.json sha256
+  `1696ce4356818f04…`, Node v22.23.2, npm 10.9.1, linux/arm64. Neu vorbereiten bei anderem Lockfile, Node/npm,
+  Plattform oder Cache-Verlust.

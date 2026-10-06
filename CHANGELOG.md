@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.74] – 2026-10-06
+
+- Die Seite wird jetzt gebaut (BSM-022, Stufe 0a des Umbaus auf Lit): Die Quelle liegt in `frontend/src`, esbuild baut
+  daraus `baustelle-panel.js`; die Version kommt aus dem Changelog. Beim Einspielen werden nur die fertige Seite und der
+  Verlauf ausgeliefert, Quellen und Bauwerkzeuge nicht. Die Seite sieht aus und arbeitet wie bisher.
+
 ## [0.8.73] – 2026-10-06
 
 - Ausfall-Probe (BSM-021): In den Einzelheiten eines Heizungs-Plugs (Einstellungen › Notprogramm) lässt sich eine Probe

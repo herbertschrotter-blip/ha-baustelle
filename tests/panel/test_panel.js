@@ -134,7 +134,7 @@ const hov = wo => { let t = ''; const alt = panel.tip; panel.tip = (e, h) => { t
   erwarte(`kein Flackern beim Neuzeichnen – ohne .still-Regel: ${fehlt.join(', ')}`, einmal.length > 3 && !fehlt.length); }
 /* FE-0022: Abschnitte des CSS (Kommentar am Zeilenanfang) liegen auf oberster Ebene – nicht versehentlich in einem
    @media-Block, sonst gelten sie nur am Handy (Kacheln, Staffel-Rangliste, Soll gleitend … fehlten am PC) */
-{ const quelle = fs.readFileSync(datei, 'utf8'), css = (quelle.match(/const GLAS_CSS = `([\s\S]*?)\n`;/) || [, ''])[1];
+{ const quelle = fs.readFileSync(datei, 'utf8'), css = (quelle.match(/(?:const|var) GLAS_CSS = `([\s\S]*?)\n`;/) || [, ''])[1];
   let tiefe = 0; const drin = [];
   for (const zeile of css.split('\n')) {
     if (zeile.startsWith('/*') && tiefe > 0) drin.push(zeile.slice(0, 50));
@@ -680,8 +680,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   neu(); await klick({ act: 'bs-aktiv', t: 'lieboch' }, 30);
   erwarte('Wieder aktiv setzen', api.some(a => a[1] === 'config/config_entries/options/flow' && a[2].handler === 'lieboch') && api.some(a => /options\/flow\/F/.test(a[1]) && a[2].status === 'aktiv' && !('ende' in a[2])));
   /* Versions-Hinweis: HA oder die Datei auf der Platte ist neuer als die geladene Seite */
-  { const eigen = (fs.readFileSync(datei, 'utf8').match(/const SEITE_VERSION = '([^']+)'/) || [])[1];
+  { const eigen = (fs.readFileSync(datei, 'utf8').match(/SEITE_VERSION = ["']([^"']+)["']/) || [])[1];   // BSM-022: esbuild setzt sie ein
+    const versionJson = path.join(path.dirname(path.resolve(datei)), 'version.json');
     erwarte('SEITE_VERSION gesetzt', /^\d+\.\d+\.\d+$/.test(eigen || ''));
+    if (fs.existsSync(versionJson)) erwarte('SEITE_VERSION wie version.json', JSON.parse(fs.readFileSync(versionJson, 'utf8')).version === eigen);
     const holen = global.fetch, geholt = []; let platte = eigen, neu_geladen = false;
     global.fetch = async (url, opt) => { geholt.push([String(url), opt && opt.cache]); return String(url).includes('changelog.json') ? { ok: true, json: async () => [{ version: platte }] } : { ok: true, json: async () => null }; };
     const [ma, mi, pa] = eigen.split('.').map(Number), roh0 = panel.roh[0].version;
@@ -1275,7 +1277,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
 
   /* Ergebnis */
   const quelle = fs.readFileSync(datei, 'utf8');
-  erwarte('Glas-CSS, Wettersymbole, Container-Grafiken und Himmel eingebaut', ['--s1:', '.glas-panel', 'function wetterIcon', 'function bcContainer', 'function bcSchacht', 'HIMMEL_FS', 'class Himmel'].every(x => quelle.includes(x)));
+  erwarte('Glas-CSS, Wettersymbole, Container-Grafiken und Himmel eingebaut', ['--s1:', '.glas-panel', 'function wetterIcon', 'function bcContainer', 'function bcSchacht', 'HIMMEL_FS'].every(x => quelle.includes(x)) && /class _?Himmel\b/.test(quelle));   // esbuild: var Himmel = class _Himmel
   erwarte('keine Vorführ-Leiste', !/id="modus"|id="phase"|id="wetter"/.test(quelle));
   // Fachlogik nur in der Integration (Bauplan Module, Phase 3): die früheren Rechnungen der Seite gibt es nicht mehr
   const entfernt = ['abrechnungDaten', 'firmaAm', 'firmaVon', 'bucketMs', 'heizperiodeEnde', 'typVergleich', 'verlaufWerte', 'kennzahlen', 'monateJeContainer', 'tageswerte', 'jeGeraet']

@@ -17,6 +17,9 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
   Heiztage, Auswertung und CSV kommen von der Integration (`baustelle/struktur`, `baustelle/auswertung`,
   `baustelle/abrechnung`), auch € und %, wo die Integration sie liefert; die Seite zeigt nur an (Bauplan
   `docs/bauplan-module.md`, Ausnahmen nur wie dort in §5 begründet).
+- **Die Seite wird gebaut** (BSM-022, `docs/bauplan-lit.md`): Quelle `frontend/src/`, nie `baustelle-panel.js` von Hand
+  ändern. Nach jeder Änderung an Seite oder CHANGELOG: `python3 tools/changelog.py` → `node
+  custom_components/baustelle/frontend/bauen.mjs` → `node mockups/quelle/glas.js` (einmalig `npm ci` im Frontend-Ordner).
 - **Master-Mockup `mockups/glas.html` = die echte Seite mit Beispieldaten** (`node mockups/quelle/glas.js`, der Panel-Test
   prüft, dass es aktuell ist). Vorschläge zu Tickets als eigene Variantendatei daneben (`mockups/README.md`).
 - **Neue Funktion = neues Modul in `funktionen/`** nach der Schnittstelle in `funktionen/basis.py`, eingetragen in
@@ -45,6 +48,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - integration: uv run --no-project --python 3.14 --index-strategy unsafe-best-match --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration [custom_components/**; tests/integration/**]
 - panel: node --check custom_components/baustelle/frontend/baustelle-panel.js; node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json [custom_components/baustelle/frontend/**; tests/panel/**]
 - notprogramm: node --check custom_components/baustelle/shelly/notprogramm.js; node tests/shelly/test_notprogramm.js custom_components/baustelle/shelly/notprogramm.js [custom_components/baustelle/shelly/**; tests/shelly/**]
+- seite-gebaut: python3 tools/changelog.py --pruefen; node custom_components/baustelle/frontend/bauen.mjs --pruefen; node mockups/quelle/glas.js --pruefen [CHANGELOG.md; custom_components/baustelle/frontend/**; custom_components/baustelle/manifest.json; mockups/**; tests/panel/**]
 
 ### Commit
 - Format: [vX.Y.Z] Modul, Typ: Kurztitel
@@ -52,7 +56,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Versionsquelle: changelog:CHANGELOG.md
 - Versionsregel: MINOR nur für eine wirklich neue Funktion, die es vorher nicht gab; Verbesserungen, Korrekturen und Umbauten (auch neue Gestaltung bestehender Seiten, z. B. neue Übersicht) sind PATCH – im Zweifel PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit (Herbert, 29.09.2026)
 - Push-Policy: user-only
-- Pre-Commit-Checks: logik; integration; panel; notprogramm
+- Pre-Commit-Checks: seite-gebaut; logik; integration; panel; notprogramm
 - Doku-Check: none
 
 ### Code
@@ -60,7 +64,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Pflichtkontext: CLAUDE.md; README.md; mockups/README.md
 - Aufgabenquelle: none
 - Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
-- Tests: logik; integration; panel; notprogramm
+- Tests: seite-gebaut; logik; integration; panel; notprogramm
 - Auslieferung: ref:README.md#Auslieferung
 - Mockup-Policy: none
 - Befund-Ort: none

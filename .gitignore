@@ -19,3 +19,6 @@ __pycache__/
 # Werkzeuge für die Mockup-Vorschau (lokal installiert)
 mockups/quelle/vorschau/node_modules/
 mockups/quelle/vorschau/*.png
+
+# Bauwerkzeug der Seite (npm ci in custom_components/baustelle/frontend; package-lock.json ist im Repo)
+custom_components/baustelle/frontend/node_modules/

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Erzeugt custom_components/baustelle/frontend/changelog.json aus CHANGELOG.md (Seite „Über“ › Verlauf).
+"""Leitet aus CHANGELOG.md (einzige Versionsquelle) ab, was Seite und Integration brauchen (BSM-022, bauplan-lit §4):
 
-Gleiche Struktur wie im Mockup-Baukasten (`mockups/quelle/glas.js`): Liste von
-`{"version": "0.6.3", "datum": "2026-09-29", "punkte": ["…", …]}`, neueste zuerst; mehrzeilige Punkte werden zu einer
-Zeile. Setzt außerdem `SEITE_VERSION` in `baustelle-panel.js` auf die neueste Version (Versions-Hinweis der Seite).
-Aufruf: `python3 tools/changelog.py` (mit `--pruefen`: nur prüfen, ob beides aktuell ist).
+- `custom_components/baustelle/frontend/changelog.json` – Verlauf für die Seite „Über“ (gleiche Struktur wie im
+  Mockup-Baukasten: Liste von `{"version", "datum", "punkte"}`, neueste zuerst, mehrzeilige Punkte als eine Zeile),
+- `custom_components/baustelle/frontend/version.json` – `{"version": "…"}`; `frontend/bauen.mjs` setzt sie beim Bauen in
+  die Seite ein (`SEITE_VERSION`, Versions-Hinweis),
+- das Feld `version` in `custom_components/baustelle/manifest.json` (übrige Felder bleiben, wie sie sind).
+
+Danach die Seite bauen: `node custom_components/baustelle/frontend/bauen.mjs`.
+Aufruf: `python3 tools/changelog.py` (mit `--pruefen`: nur prüfen, ob alle drei aktuell sind, nichts schreiben).
 """
 
 from __future__ import annotations
@@ -16,9 +20,11 @@ import sys
 
 REPO = Path(__file__).resolve().parent.parent
 QUELLE = REPO / "CHANGELOG.md"
-ZIEL = REPO / "custom_components" / "baustelle" / "frontend" / "changelog.json"
-SEITE = REPO / "custom_components" / "baustelle" / "frontend" / "baustelle-panel.js"
-SEITE_VERSION = re.compile(r"^const SEITE_VERSION = '[^']*';", re.M)
+FRONTEND = REPO / "custom_components" / "baustelle" / "frontend"
+ZIEL = FRONTEND / "changelog.json"
+VERSION = FRONTEND / "version.json"
+MANIFEST = REPO / "custom_components" / "baustelle" / "manifest.json"
+MANIFEST_VERSION = re.compile(r'("version"\s*:\s*")[^"]*(")')
 KOPF = re.compile(r"\[([^\]]+)\]\s*–\s*(\S+)")
 
 
@@ -39,22 +45,30 @@ def inhalt() -> str:
     return json.dumps(verlauf(QUELLE.read_text(encoding="utf-8")), ensure_ascii=False, indent=2) + "\n"
 
 
-def seite(text: str) -> str:
-    """Text von `baustelle-panel.js` mit `SEITE_VERSION` = neueste Version aus CHANGELOG.md."""
-    version = verlauf(QUELLE.read_text(encoding="utf-8"))[0]["version"]
-    return SEITE_VERSION.sub(lambda _: f"const SEITE_VERSION = '{version}';", text, count=1)
+def neueste() -> str:
+    return verlauf(QUELLE.read_text(encoding="utf-8"))[0]["version"]
+
+
+def version_json() -> str:
+    return json.dumps({"version": neueste()}) + "\n"
+
+
+def manifest(text: str) -> str:
+    """Text von `manifest.json` mit `version` = neueste Version aus CHANGELOG.md."""
+    return MANIFEST_VERSION.sub(lambda m: f"{m.group(1)}{neueste()}{m.group(2)}", text, count=1)
 
 
 def main() -> int:
-    neu = inhalt()
-    js = SEITE.read_text(encoding="utf-8")
+    soll = {ZIEL: inhalt(), VERSION: version_json(), MANIFEST: manifest(MANIFEST.read_text(encoding="utf-8"))}
     if "--pruefen" in sys.argv:
-        aktuell = ZIEL.exists() and ZIEL.read_text(encoding="utf-8") == neu and seite(js) == js
-        print("changelog.json und SEITE_VERSION sind aktuell" if aktuell else "veraltet – tools/changelog.py ausführen")
-        return 0 if aktuell else 1
-    ZIEL.write_text(neu, encoding="utf-8")
-    SEITE.write_text(seite(js), encoding="utf-8")
-    print(f"geschrieben {ZIEL.relative_to(REPO)} ({len(json.loads(neu))} Versionen), SEITE_VERSION {json.loads(neu)[0]['version']}")
+        veraltet = [p.name for p, t in soll.items() if not p.exists() or p.read_text(encoding="utf-8") != t]
+        print("changelog.json, version.json und manifest.json sind aktuell" if not veraltet
+              else f"veraltet: {', '.join(veraltet)} – tools/changelog.py ausführen")
+        return 1 if veraltet else 0
+    for pfad, text in soll.items():
+        pfad.write_text(text, encoding="utf-8")
+    print(f"geschrieben changelog.json ({len(json.loads(soll[ZIEL]))} Versionen), version.json und manifest.json: {neueste()}"
+          " – jetzt node custom_components/baustelle/frontend/bauen.mjs")
     return 0
 
 

@@ -10,7 +10,7 @@ mit dem Beispiel-hass des Panel-Tests (`tests/panel/beispiel-hass.js`, `tests/pa
 Damit ist es immer auf dem Stand der Seite (Herbert 01.10.2026: „Master-Mockup auf den aktuellen Stand, Heizung und
 Auswertung waren noch alt“).
 
-- Bauen: `node mockups/quelle/glas.js` · prüfen: `node mockups/quelle/vorschau/pruefen.cjs` (beide Seiten, alle Ansichten).
+- Bauen: `node mockups/quelle/glas.js` (nach `bauen.mjs`; lädt die Seite wie HA als Modul) · `--pruefen`: nur vergleichen · prüfen: `node mockups/quelle/vorschau/pruefen.cjs` (beide Seiten, alle Ansichten).
 - Der Panel-Test schlägt fehl, wenn `glas.html` nicht die aktuelle Seite enthält – nach jeder Änderung der Seite neu bauen.
 - Vorführ-Leiste: Hell/Dunkel, Uhrzeit (Sonne wie `sun.sun` am Beispieltag 29.09.2026), Wetter, Beispiel neu laden.
 - **Neue Vorschläge** (Varianten zu einem Ticket) kommen als eigene Datei neben `glas.html` und überschreiben dort nur die

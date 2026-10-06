@@ -14,7 +14,7 @@ const vektor = Object.fromEntries(['abrechnung', 'je-geraet', 'typvergleich', 'w
   const f = path.join(repo, 'tests', 'vektoren', `auswertung-${n}.json`);
   return [n, fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')).faelle.filter(x => x.name.startsWith('struktur-0.7 ')).map(x => ({ name: x.name, erwartet: x.erwartet })) : []];   // nur das Beispiel – hält glas.html klein
 }));
-const version = (panel.match(/const SEITE_VERSION = '([^']+)'/) || [])[1] || '?';
+const version = JSON.parse(lies('custom_components/baustelle/frontend/version.json')).version;   // BSM-022: aus tools/changelog.py, nicht aus dem Bundle-Text
 const sicher = t => t.replace(/<\/script/gi, '<\\/script');
 
 const html = `<!DOCTYPE html>
@@ -72,12 +72,14 @@ window.fetch = async (url, o) => String(url).includes('/baustelle_static/changel
   : String(url).startsWith('/baustelle_static/') ? new Response('', { status: 404 }) : _fetch(url, o);
 </script>
 <script>
-${sicher(panel)}
-</script>
-<script>
 ${sicher(beispiel)}
 </script>
-<script>
+<script type="module">
+${sicher(panel)}
+</script>
+<script type="module">
+/* Start wie in HA: erst wenn das Seiten-Modul das Element registriert hat (BSM-022, bauplan-lit §4) */
+await customElements.whenDefined('baustelle-panel');
 const STRUKTUR = ${struktur.trim()};
 for (const b of STRUKTUR) if (b.baustelle && 'version' in b.baustelle) b.baustelle.version = ${JSON.stringify(version)};   // Über: Stand der Seite
 const VEKTOR = ${JSON.stringify(vektor)};
@@ -121,5 +123,12 @@ setInterval(hassNeu, 60000);
 </script>
 </body></html>
 `;
-fs.writeFileSync(path.join(repo, 'mockups', 'glas.html'), html);
+const zielHtml = path.join(repo, 'mockups', 'glas.html');
+if (process.argv.includes('--pruefen')) {   // BSM-022: im Speicher bauen und vergleichen, nichts schreiben
+  const alt = fs.existsSync(zielHtml) ? fs.readFileSync(zielHtml, 'utf8') : '';
+  if (alt !== html) { console.error('mockups/glas.html ist nicht aktuell – node mockups/quelle/glas.js ausführen'); process.exit(1); }
+  console.log(`mockups/glas.html aktuell (Seite ${version})`);
+  process.exit(0);
+}
+fs.writeFileSync(zielHtml, html);
 console.log(`mockups/glas.html gebaut (Seite ${version}, ${Math.round(html.length / 1024)} KB)`);

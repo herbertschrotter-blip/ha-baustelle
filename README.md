@@ -51,8 +51,11 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   nachrichten.py               Handy-Nachrichten mit Knöpfen, Frühstart-Hinweis, Wochen-/Monatsbericht
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät
   einstellungen.py             Einstellungen, Protokoll, Meldungen (Store v2 unter .storage/, in der Sicherung)
-  frontend/baustelle-panel.js  eigene Seite (Web-Component, ohne externe Abhängigkeiten)
-  frontend/changelog.json      Verlauf für „Über“ (tools/changelog.py aus CHANGELOG.md, setzt auch SEITE_VERSION der Seite)
+  frontend/baustelle-panel.js  eigene Seite (Web-Component, gebaut mit esbuild aus frontend/src – nicht von Hand ändern)
+  frontend/src/                Quelle der Seite (wird nicht ausgeliefert)
+  frontend/bauen.mjs           baut die Seite (package.json: esbuild; node_modules nicht im Repo)
+  frontend/changelog.json      Verlauf für „Über“ (tools/changelog.py aus CHANGELOG.md)
+  frontend/version.json        Version für den Bau (tools/changelog.py, setzt auch manifest.json)
   panel.py, daten.py           Seite anmelden, WebSocket-Befehle (docs/api-0.7.md)
   logbook.py                   Protokoll im HA-Logbuch
   translations/, icons.json    Texte de/en, Symbole
@@ -152,9 +155,11 @@ Ohne Wetterstation nimmt die Integration als „Regen“ den für heute vorherge
 
 ## Tests und Qualität
 
-Die drei Prüfungen vor jedem Commit (Skill-Profil in `CLAUDE.md`, wie `.github/workflows/tests.yml`), dazu mypy:
+Die Prüfungen vor jedem Commit (Skill-Profil in `CLAUDE.md`, wie `.github/workflows/tests.yml`), dazu mypy:
 
 ```
+python3 tools/changelog.py --pruefen && node custom_components/baustelle/frontend/bauen.mjs --pruefen \
+  && node mockups/quelle/glas.js --pruefen
 python3 -m pytest -q -p no:cacheprovider tests/logik
 uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
   --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 \
@@ -171,7 +176,11 @@ Symbol: `custom_components/baustelle/brand/icon.png` (+ `icon@2x.png`), gezeichn
 
 ## Auslieferung
 
-1. Änderungen im Repo, Tests grün, committen.
+1. Änderungen im Repo; Seite bauen (einmalig `npm --prefix custom_components/baustelle/frontend ci`, offline mit
+   `--offline --cache /config/projekte/.npm-cache-baustelle`):
+   `python3 tools/changelog.py && node custom_components/baustelle/frontend/bauen.mjs && node mockups/quelle/glas.js`;
+   Tests grün, committen. `deploy.sh` liefert aus `frontend/` nur `baustelle-panel.js` und `changelog.json` aus und
+   entfernt im Ziel, was dort nicht hingehört (Quellen, npm-Dateien).
 2. Herbert spielt ein: `! /config/projekte/ha-baustelle/tools/deploy.sh`
    (kopiert die Integration samt Seite nach `/config/custom_components/baustelle/`).
 3. Konfiguration prüfen, dann **Neustart durch Herbert** (neue oder geänderte Integration braucht immer einen Neustart):

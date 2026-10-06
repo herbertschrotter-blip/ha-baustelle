@@ -5,7 +5,10 @@
 const fs = require('fs'), path = require('path');
 const repo = path.join(__dirname, '..', '..', '..');
 const html = fs.readFileSync(process.argv[2] ? path.resolve(process.argv[2]) : path.join(repo, 'mockups', 'glas.html'), 'utf8');   // anderes Mockup: Pfad als Argument
-const skripte = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1].replace(/<\\\/script/gi, '</script'));
+// klassische und Modul-Skripte der Reihe nach (Module laufen dort ohnehin nach den klassischen); das Warten auf
+// whenDefined entfällt, weil hier alles nacheinander läuft
+const skripte = [...html.matchAll(/<script( type="module")?>([\s\S]*?)<\/script>/g)]
+  .map(m => m[2].replace(/<\\\/script/gi, '</script').replace(/^await customElements\.whenDefined\([^)]*\);$/m, ''));
 const f = [];
 
 const klassen = () => { const s = new Set(); return { add: k => s.add(k), remove: k => s.delete(k), toggle: (k, an) => ((an ?? !s.has(k)) ? s.add(k) : s.delete(k)), contains: k => s.has(k) }; };
@@ -46,6 +49,6 @@ const ruhe = async (n = 30) => { for (let i = 0; i < n; i++) await new Promise(r
     await klick({ act: 'tab', v: 'uebersicht' });
   }
   if (f.length) { console.log(f.slice(0, 30).join('\n')); console.log(`${f.length} Fehler`); process.exit(1); }
-  console.log(`Master-Mockup sauber: echte Seite ${(panelQuelle.match(/SEITE_VERSION = '([^']+)'/) || [])[1]}, Handy und Desktop, alle Ansichten und Container.`);
+  console.log(`Master-Mockup sauber: echte Seite ${JSON.parse(fs.readFileSync(path.join(repo, 'custom_components/baustelle/frontend/version.json'), 'utf8')).version}, Handy und Desktop, alle Ansichten und Container.`);
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

@@ -30,9 +30,11 @@ def test_verlauf_wie_mockup_baukasten() -> None:
 
 
 def test_seite_version_wie_changelog_und_manifest() -> None:
-    """Der Versions-Hinweis der Seite vergleicht `SEITE_VERSION` mit der Version von HA – alle drei gleich."""
+    """Version: CHANGELOG.md → version.json und manifest.json (tools/changelog.py) → gebaute Seite (bauen.mjs, BSM-022)."""
     werkzeug = _werkzeug()
-    js = werkzeug.SEITE.read_text(encoding="utf-8")
-    assert werkzeug.seite(js) == js, "tools/changelog.py ausführen"
+    assert werkzeug.VERSION.read_text(encoding="utf-8") == werkzeug.version_json(), "tools/changelog.py ausführen"
     manifest = json.loads((REPO / "custom_components" / "baustelle" / "manifest.json").read_text(encoding="utf-8"))
-    assert f"const SEITE_VERSION = '{manifest['version']}';" in js, "manifest.json#version zieht mit CHANGELOG.md mit"
+    version = json.loads(werkzeug.VERSION.read_text(encoding="utf-8"))["version"]
+    assert manifest["version"] == version, "manifest.json#version zieht mit CHANGELOG.md mit"
+    js = (REPO / "custom_components" / "baustelle" / "frontend" / "baustelle-panel.js").read_text(encoding="utf-8")
+    assert f'SEITE_VERSION = "{version}";' in js, "Seite neu bauen: node custom_components/baustelle/frontend/bauen.mjs"

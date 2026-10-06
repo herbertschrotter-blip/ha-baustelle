@@ -1,0 +1,13 @@
+{
+  "name": "baustelle-panel",
+  "private": true,
+  "description": "Seite „Baustelle“: Quellen unter src/, gebaut mit esbuild zu baustelle-panel.js (docs/bauplan-lit.md). Nur zum Bauen/Testen, wird nicht ausgeliefert.",
+  "type": "module",
+  "scripts": {
+    "bauen": "node bauen.mjs",
+    "pruefen": "node bauen.mjs --pruefen"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

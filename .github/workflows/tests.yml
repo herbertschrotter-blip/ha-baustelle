@@ -17,6 +17,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Bauwerkzeug der Seite
+        run: npm --prefix custom_components/baustelle/frontend ci --no-audit --no-fund
+      - name: Seite gebaut und aktuell (Version, Bundle, Mockup)
+        run: python3 tools/changelog.py --pruefen && node custom_components/baustelle/frontend/bauen.mjs --pruefen && node mockups/quelle/glas.js --pruefen
       - name: Seite (Panel)
         run: node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
       - name: Notprogramm (Shelly)
