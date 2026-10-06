@@ -59,9 +59,9 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe F – Code aufteilen
 
-- [ ] **F1** (BSM-022) Seite in Module zerlegen (Himmel, Diagramme, je Ansicht) mit Bündler; Master-Mockup und Panel-Test mitziehen
+- [ ] **F1** (BSM-022) Seite zerlegen und schrittweise auf Lit – Bauplan `docs/bauplan-lit.md` (abgenommen 06.10.2026): 0a, 0b.1, 0b.2, 1a, 1b, 1c, 2a.1, 2a.2, dann Entscheidung (5 Ja/Nein) – Unteraufgaben BSM-022.01–.09
 - [ ] **F2** (BSM-023) `steuerung.py` und `funktionen/heizung.py` weiter zerlegen
-- [ ] **F3** (BSM-024) Umstieg der Seite auf Lit-Komponenten planen (Bauplan, noch kein Bau)
+- [x] **F3** (BSM-024) Umstieg der Seite auf Lit-Komponenten planen – erledigt 06.10.2026 (`docs/bauplan-lit.md`, ChatGPT-Review CGR-2026-10-06-seite-lit), geht in F1 auf
 
 ## Etappe G – Stabilisieren
 

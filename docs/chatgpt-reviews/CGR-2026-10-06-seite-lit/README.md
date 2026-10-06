@@ -27,4 +27,4 @@ Zerlegen, stimmen Stufen und Reihenfolge, was fehlt?
 ## Ergebnis
 
 - Bauplan überarbeitet: [docs/bauplan-lit.md](../../bauplan-lit.md) (§8 Entscheidungen)
-- BSM-024 geht in BSM-022 auf
+- BSM-024 erledigt (geht in BSM-022 auf); BSM-022 mit Unteraufgaben BSM-022.01–.09 (Stufen 0a bis Entscheidung)
