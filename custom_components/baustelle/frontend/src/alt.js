@@ -22,6 +22,7 @@ import { ueberVorlage } from './ueber.js';
 import { MB_MAX, MB_PX, meldenVorlage } from './melden.js';
 import { ladenVorlage, leerVorlage } from './ansichten/allgemein.js';
 import { devVorlage } from './ansichten/dev.js';
+import { bsdetailVorlage, verlaufVorlage } from './ansichten/verlauf.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -1753,6 +1754,28 @@ class BaustellePanel extends LitElement {
     if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
     S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
   }
+  /* Verlauf (src/ansichten/verlauf.js): Protokoll der Baustelle (vollständig nachgeladen, sonst aus der Struktur) */
+  protokollQuelle(d) {
+    let quelle = d.protokoll;
+    if (d.geladen) { const rr = this._holen('p:' + d.entry, () => this._hass.callWS({ type: 'baustelle/protokoll', entry_id: d.entry, filter: 'alle', vor: null, limit: 200 }), 60000);
+      if (rr !== undefined) quelle = (Array.isArray(rr) ? rr : (rr && rr.eintraege) || []).map(p => this.protokollZeile(p, this.z)); }
+    return quelle;
+  }
+  /* Protokoll-Auszug einer (abgeschlossenen) Baustelle; nicht geladen: die Integration kennt nur die Struktur */
+  bsProtokoll(x) {
+    const prot = !x.geladen ? [] : this._holen(`bp:${x.entry}`, () => this._hass.callWS({ type: 'baustelle/protokoll', entry_id: x.entry, filter: 'alle', vor: null, limit: 5 }), 300000);
+    return prot === undefined ? null : (Array.isArray(prot) ? prot : (prot && prot.eintraege) || []).slice(0, 5);
+  }
+  /* Baustelle öffnen: laufende → Übersicht dieser Baustelle, abgeschlossene → Detailseite */
+  baustelleOeffnen(id) {
+    const x = this.alle.find(y => y.entry === id); if (!x) return;
+    if (x.aktiv) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); this.s.aw = null; return this.gehe('uebersicht'); }
+    this.s.bs = x.entry; return this.gehe('bsdetail');
+  }
+  baustelleAktiv(id) {
+    const x = this.alle.find(y => y.entry === id); if (!x) return;
+    return this.einrichten(() => this.optionenSpeichern(x, { status: 'aktiv', ende: null }), 'Baustelle wieder aktiv – Automatik bleibt aus, bis du sie einschaltest').then(() => this._laden());
+  }
   /* Entwicklung (src/ansichten/dev.js) */
   meldungStatus(id) { const d = this.d, m = (this.meldungen() || []).find(x => x.id === id); if (!m) return; delete this.cache.meldungen;
     return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'status', meldung_id: m.id, status: this.meldungOffen(m) ? 'geschlossen' : 'neu' }); }
@@ -1813,7 +1836,7 @@ class BaustellePanel extends LitElement {
     const tabs = [['uebersicht', 'Übersicht'], ...(this._mitHeizung ? [['heizung', 'Heizung']] : []), ...(this._mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     const aktivTab = S.view === 'container' ? 'uebersicht' : S.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(S.view) ? 'einst' : S.view;
     let seite;
-    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this) };   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
+    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this), verlauf: () => verlaufVorlage(this), bsdetail: () => bsdetailVorlage(this) };   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
     if (!this.roh) seite = ladenVorlage(this.fehler);
     else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(S.view)) seite = leerVorlage(this);
     else seite = LIT[S.view] ? LIT[S.view]() : unsafeHTML(this['v_' + S.view]());
@@ -3062,13 +3085,6 @@ class BaustellePanel extends LitElement {
       vergleich: v.vergleich || {}, jeMonat: v.je_monat || {}, monate: v.monate_je_container || { labels: [], reihen: [] }, laedt: false };
   }
   /* ============ Verlauf (WU-0006, Mockup glas.html Variante 5 abgenommen): Reiter Baustellen (Karten / Vergleich) und Protokoll ============ */
-  v_verlauf() {
-    const reiter = this.s.vlReiter || 'bs', art = this.s.vlArt || 'karten', prot = reiter === 'prot' && this.d;
-    return `${this.kopf('Verlauf', prot ? esc(this.d.titel).toUpperCase() : 'BAUSTELLEN')}
-      <div class="vl-reiter"><div class="seg glas-panel">${[['bs', 'Baustellen'], ['prot', 'Protokoll']].map(([k, t]) => `<button data-act="vl-reiter" data-v="${k}" class="${reiter === k ? 'on' : ''}" ${k === 'prot' && !this.d ? 'disabled' : ''}>${t}</button>`).join('')}</div>
-        ${prot ? '' : `<div class="seg glas-panel klein">${[['karten', '▦ Karten'], ['tabelle', '☰ Vergleich']].map(([k, t]) => `<button data-act="vl-art" data-v="${k}" class="${art === k ? 'on' : ''}">${t}</button>`).join('')}</div>`}</div>
-      ${prot ? this.vlChronik() : art === 'tabelle' ? this.vlVergleich() : this.vlArchiv()}`;
-  }
   vlMonatsKeys() {
     const heute = (this.d || this.alle[0] || { z: { HEUTE: new Date().toISOString().slice(0, 10) } }).z.HEUTE, j = +heute.slice(0, 4), mo = +heute.slice(5, 7) - 1;
     return [...Array(12)].map((_, k) => { const mm = mo - 11 + k, jj = mm < 0 ? j - 1 : j; return `${jj}-${String(((mm % 12) + 12) % 12 + 1).padStart(2, '0')}`; });
@@ -3077,74 +3093,7 @@ class BaustellePanel extends LitElement {
     const max = Math.max(1, ...werte), bw = w / werte.length;
     return `<svg class="vl-funke" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${werte.map((v, i) => `<rect x="${(i * bw + 1).toFixed(1)}" y="${(h - v / max * h).toFixed(1)}" width="${Math.max(0, bw - 2).toFixed(1)}" height="${(v / max * h).toFixed(1)}" rx="1.5" fill="${farbe}" opacity="${v > .5 ? .9 : .15}"/>`).join('')}</svg>`;
   }
-  /* Archiv: Summe über alle, je Baustelle eine Karte mit Mini-Verlauf der letzten 12 Monate (aktive zuerst) */
-  vlArchiv() {
-    const BS = [...this.alle].sort((a, b) => (b.aktiv - a.aktiv)), K = new Map(BS.map(b => [b.entry, this.kennz(b)])), MONK = this.vlMonatsKeys(), laedt = BS.some(b => K.get(b.entry).laedt);
-    const sum = k => BS.reduce((a, b) => a + (K.get(b.entry)[k] || 0), 0);
-    const zahl0 = (v, n = 0) => zahl(v) ? de(v, n) : '–';
-    return `<div class="glas-panel kennz vier">${[[BS.length, `Baustellen · ${BS.filter(b => b.aktiv).length} aktiv`], [laedt ? '–' : de(sum('kwh'), 0), 'kWh gesamt'], [laedt ? '–' : `${de(sum('eur'), 0)} €`, 'Kosten gesamt'], [laedt ? '–' : `${de(sum('gespart'), 0)} €`, 'gespart']].map(([w, t]) => `<div><b>${w}</b><span>${t}</span></div>`).join('')}</div>
-      ${BS.length ? `<div class="vl-archiv">${BS.map(b => { const k = K.get(b.entry), i = this.alle.indexOf(b), farbe = `var(--s${(i % 6) + 1})`;
-        return `<button class="glas-panel vl-karte ${b.aktiv ? 'aktiv' : ''}" data-act="bs-oeffnen" data-id="${esc(b.entry)}">
-          <div class="bs-kopf"><b>${esc(b.titel)}</b><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></div>
-          <div class="leise">${k.zeit} · ${k.container} Container · ${k.laedt ? '–' : k.heiztage} Heiztage</div>
-          ${this.vlFunke(MONK.map(m => k.jeMonat[m] || 0), farbe)}<div class="vl-monate"><span>${MONATE[+MONK[0].slice(5) - 1]}</span><span>${MONATE[+MONK[11].slice(5) - 1]}</span></div>
-          <div class="vl-zahlen"><div><b>${k.laedt ? '–' : zahl0(k.kwh)}</b><small>kWh</small></div><div><b>${k.laedt ? '–' : `${zahl0(k.eur)} €`}</b><small>Kosten</small></div>
-            <div><b>${k.laedt ? '–' : zahl0(k.vergleich.tag, 1)}</b><small>kWh/Heiztag</small></div><div><b class="gruen-t">${zahl(k.gespart) ? `${de(k.gespart, 0)} €` : '–'}</b><small>gespart</small></div></div>
-          <span class="leise vl-mehr">${b.aktiv ? 'Übersicht ›' : 'ansehen ›'}</span></button>`; }).join('')}</div>` : '<div class="glas-panel block"><div class="leer">Noch keine Baustelle</div></div>'}`;
-  }
-  /* Vergleich: sortierbare Tabelle aller Baustellen (Werte der Integration), darunter die letzten 12 Monate */
-  vlVergleich() {
-    const BS = this.alle, K = new Map(BS.map(b => [b.entry, this.kennz(b)])), sp = this.s.vlSort || 'tag', ab = this.s.vlAb !== false, MONK = this.vlMonatsKeys();
-    const spalten = [['name', 'Baustelle'], ['tag', 'kWh/Heiztag'], ['monat', '€/Monat'], ['kwh', 'kWh'], ['eur', '€'], ['heiztage', 'Heiztage'], ['container', 'Cont.']];
-    const wert = (b, kk) => { const k = K.get(b.entry); return ({ name: b.titel, tag: k.vergleich.tag, monat: k.vergleich.monat, kwh: k.kwh, eur: k.eur, heiztage: k.heiztage, container: k.container })[kk]; };
-    const zeilen = BS.map((b, i) => ({ b, i })).sort((x, y) => { const a = wert(x.b, sp), c = wert(y.b, sp); return (typeof a === 'string' ? String(a).localeCompare(String(c)) : (a ?? -1) - (c ?? -1)) * (ab ? -1 : 1); });
-    const tage = BS.map(b => wert(b, 'tag')).filter(v => zahl(v) && v > 0), bester = tage.length > 1 ? Math.min(...tage) : null;
-    const reihen = BS.map((b, i) => ({ name: b.titel, v: MONK.map(m => K.get(b.entry).jeMonat[m] || 0), farbe: `var(--s${(i % 6) + 1})` })).filter(x => x.v.some(v => v > .5));
-    const laedt = BS.some(b => K.get(b.entry).laedt), f = (v, n = 0) => zahl(v) ? de(v, n) : '–';
-    return `<div class="glas-panel block vl-tabelle"><div class="block-kopf"><b>Alle Baustellen</b><span class="leise">Spalte antippen sortiert · kWh je Heiztag ist am besten vergleichbar</span></div>
-        <div class="vl-tab-kopf">${spalten.map(([k, t]) => `<button data-act="vl-sort" data-v="${k}" class="${sp === k ? 'on' : ''}">${t}${sp === k ? (ab ? ' ▼' : ' ▲') : ''}</button>`).join('')}</div>
-        ${zeilen.map(({ b, i }) => { const k = K.get(b.entry); return `<button class="vl-tab-zeile" data-act="bs-oeffnen" data-id="${esc(b.entry)}"><span class="vl-tab-name"><span><i class="farbpunkt" style="background:var(--s${(i % 6) + 1})"></i>${esc(b.titel)}</span><small>${k.zeit}</small></span>
-          <b class="${bester !== null && k.vergleich.tag === bester ? 'gruen-t' : ''}">${f(k.vergleich.tag, 1)}</b><span>${f(k.vergleich.monat)}</span><span>${f(k.kwh)}</span><span>${f(k.eur)}</span><span>${k.laedt ? '–' : k.heiztage}</span><span>${k.container}</span></button>`; }).join('')}</div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Letzte 12 Monate</b><span class="leise">kWh je Monat, gestapelt nach Baustelle</span></div>
-        <div class="chart-wrap">${laedt ? LAEDT : reihen.length ? flaeche('zwoelf', reihen, MONK.map(m => MONATE[+m.slice(5) - 1]), 'kWh', 2) : '<div class="leer">Noch keine Werte</div>'}</div></div>`;
-  }
-  /* Chronik: Protokoll der Baustelle nach Tagen mit Tagessumme (kWh je Tag aus der Integration), Filter und Suche */
-  vlChronik() {
-    const d = this.d, f = this.s.pfilter || 'alle', q = (this.s.vlSuche || '').toLowerCase().trim(), v = this.verlaufDaten(d), jeTag = (v && v.je_tag) || {};
-    const ART = { warnung: ['⚠', 'var(--rot)'], ok: ['✓', '#30d158'], schalten: ['⏻', 'var(--amber)'], wetter: ['☁', 'var(--blau)'], nachricht: ['✉', 'var(--ink2)'], einstellung: ['⚙', 'var(--ink2)'] };
-    let quelle = d.protokoll;
-    if (d.geladen) { const rr = this._holen('p:' + d.entry, () => this._hass.callWS({ type: 'baustelle/protokoll', entry_id: d.entry, filter: 'alle', vor: null, limit: 200 }), 60000);
-      if (rr !== undefined) quelle = (Array.isArray(rr) ? rr : (rr && rr.eintraege) || []).map(p => this.protokollZeile(p, this.z)); }
-    const passt = e => (f === 'alle' || e[2] === f || (f === 'warnung' && e[2] === 'ok') || (f === 'schalten' && e[2] === 'einstellung'))
-      && (!q || `${e[3] ? this.bName(e[3]) : ''} ${e[4]}`.toLowerCase().includes(q));
-    const tage = []; for (const e of quelle.filter(passt)) { const t = tage.at(-1); if (t && t.tag === e[0]) t.e.push(e); else tage.push({ tag: e[0], iso: e[5], e: [e] }); }
-    return `<div class="glas-panel vl-filter"><input class="vl-suche" placeholder="Suchen (Container, Text) …" value="${esc(this.s.vlSuche || '')}" data-vls>
-        <div class="vb-wer">${[['alle', 'Alle'], ['warnung', '⚠ Warnungen'], ['schalten', '⏻ Schalten'], ['wetter', '☁ Wetter'], ['nachricht', '✉ Nachrichten']].map(([k, t]) => `<button data-act="pfilter" data-v="${k}" class="${f === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
-      ${tage.length ? tage.map(t => { const kwh = t.iso ? jeTag[t.iso] : null;
-        return `<div class="glas-panel vl-tag"><div class="vl-tag-kopf"><b>${esc(t.tag)}</b><span class="leise">${zahl(kwh) ? `${de(kwh, 1)} kWh · ${de(kwh * d.e.preis, 2)} € · ` : ''}${t.e.length} ${t.e.length === 1 ? 'Eintrag' : 'Einträge'}</span></div>
-          ${t.e.map(e => { const [ic, farbe] = ART[e[2]] || ['•', 'var(--ink2)']; return `<div class="vl-ereignis"><span class="zeit">${e[1]}</span><span class="vl-punkt" style="background:${farbe}">${ic}</span><div>${e[3] ? `<b>${esc(this.bName(e[3]))}</b> ` : ''}<span class="leise">${esc(e[4])}</span></div></div>`; }).join('')}</div>`; }).join('')
-        : `<div class="glas-panel block"><div class="leer">${q || f !== 'alle' ? 'Nichts gefunden' : 'Noch keine Einträge'}</div></div>`}`;
-  }
 
-  v_bsdetail() {
-    const x = this.alle.find(y => y.entry === this.s.bs);
-    if (!x) return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button></div><div class="glas-panel block"><div class="leer">Baustelle nicht gefunden</div></div>`;
-    const k = this.kennz(x), m = k.monate && { labels: k.monate.labels, reihen: k.monate.reihen.map((r, i) => { const b = x.bereiche.find(y => y.id === r.bereich);   // Verbrauch je Monat und Container: Integration
-      return { name: r.name, v: r.v, kwh: r.kwh, eur: r.eur, anteil: r.anteil, farbe: BEREICH_FARBEN[(b && zahl(b.f) ? b.f : i) % BEREICH_FARBEN.length] }; }) };
-    const prot = !x.geladen ? [] : this._holen(`bp:${x.entry}`, () => this._hass.callWS({ type: 'baustelle/protokoll', entry_id: x.entry, filter: 'alle', vor: null, limit: 5 }), 300000);   // nicht geladen: die Integration kennt sie nicht
-    const ART = { einstellung: '⚙', warnung: '⚠', ok: '✓', schalten: '⏻', wetter: '☁', nachricht: '✉' };
-    const eintraege = prot === undefined ? null : (Array.isArray(prot) ? prot : (prot && prot.eintraege) || []).slice(0, 5);
-    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button><button class="glas-panel chip" data-act="csv">⇩ CSV</button></div>
-      ${this.kopf(esc(x.titel), x.aktiv ? 'LAUFEND' : 'ABGESCHLOSSEN · NUR ANSEHEN')}
-      <div class="leise vgl">${k.zeit}</div>
-      <div class="glas-panel kennz vier"><div><b>${de(k.kwh, 0)}</b><span>kWh</span></div><div><b>${de(k.eur, 0)} €</b><span>Kosten</span></div><div><b>${k.laedt ? '–' : k.heiztage}</b><span>Heiztage</span></div><div><b>${zahl(k.gespart) ? `${de(k.gespart, 0)} €` : '–'}</b><span>gespart</span></div></div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Verbrauch je Monat</b><span class="leise">gestapelt nach Container</span></div>
-        ${!m ? LAEDT : !m.reihen.length ? '<div class="leer">Keine Container</div>' : `<div class="chart-wrap">${flaeche('bs-' + x.entry, m.reihen, m.labels, 'kWh', 1)}</div>
-        <div class="vb-je">${m.reihen.map(q => `<div><i style="background:${q.farbe}"></i><span class="n">${esc(q.name)}</span><b>${de(q.kwh, 0)} kWh</b><span>${de(q.eur, 0)} €</span><span class="leise">${de(q.anteil, 0)} %</span></div>`).join('')}</div>`}</div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Protokoll</b><span class="leise">Auszug</span></div>
-        ${eintraege === null ? LAEDT : eintraege.length ? eintraege.map(p => { const l = this.lokal(p[0], x.z.zone); return `<div class="zeile ereignis"><span class="zeit">${kurzDatum(l)}</span><span class="p-ic">${ART[p[1]] || '•'}</span><div><span>${p[2] ? `${esc((x.bereiche.find(b => b.id === p[2]) || { name: p[2] }).name)}: ` : ''}${esc(p[3])}</span></div></div>`; }).join('') : '<div class="leer">Keine Einträge</div>'}</div>
-      ${x.aktiv ? '' : knopf2('Wieder aktiv setzen', 'bs-aktiv', x.entry)}`;
-  }
   protokoll() {
     const f = this.s.pfilter || 'alle', ART = { warnung: ['⚠', 'var(--rot)'], ok: ['✓', '#30d158'], schalten: ['⏻', 'var(--amber)'], wetter: ['☁', 'var(--blau)'], nachricht: ['✉', 'var(--ink2)'], einstellung: ['⚙', 'var(--ink2)'] };
     const passt = e => f === 'alle' || e[2] === f || (f === 'warnung' && e[2] === 'ok') || (f === 'schalten' && e[2] === 'einstellung');
@@ -3942,9 +3891,6 @@ class BaustellePanel extends LitElement {
       case 'bsz-speichern': { const f = S.sheet.form; if (f.ende && f.ende < (f.beginn || (d.beginnAuto ? d.beginn : ''))) return this.toast('Bitte Beginn und Ende prüfen');
         S.sheet = null; neu();
         return this.einrichten(() => this.optionenSpeichern(d, { beginn: f.beginn || null, ende: f.ende || null, heizperiode_von: String(f.hp[0]), heizperiode_bis: String(f.hp[1]) }), 'Gespeichert').then(() => this._laden()); }
-      case 'vl-reiter': S.vlReiter = el.dataset.v; return neu();
-      case 'vl-art': S.vlArt = el.dataset.v; return neu();
-      case 'vl-sort': { const v = el.dataset.v; S.vlAb = S.vlSort === v ? !(S.vlAb !== false) : true; S.vlSort = v; return neu(); }
       case 'aw-bearb': S.awBearb = !S.awBearb; S.awLayout = false; return neu();
       case 'aw-layout': S.awLayout = !S.awLayout; S.awBearb = false; return neu();
       case 'aw-an': { const x = this.awAuswahl()[+el.dataset.i]; x.an = !x.an; this.awMerken(); return neu(); }
@@ -4030,9 +3976,7 @@ class BaustellePanel extends LitElement {
         S.sheet = null; neu(); delete this.cache['k:' + d.optionen.urlaub_kalender];
         return this.ws({ type: 'calendar/event/create', entity_id: d.optionen.urlaub_kalender, event: { summary: f.name.trim() || 'Urlaub', dtstart: f.von, dtend: plusTage(f.bis, 1) } }, 'Eingetragen – in der Zeit nur Frostschutz'); }
       case 'vgl': S.vglArt = el.dataset.v; return neu();
-      case 'bs-oeffnen': case 'bs-wahl': { const x = this.alle.find(y => y.entry === el.dataset.id); if (!x) return;
-        if (x.aktiv) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); S.aw = null; return this.gehe('uebersicht'); }
-        S.bs = x.entry; return this.gehe('bsdetail'); }
+      case 'bs-wahl': return this.baustelleOeffnen(el.dataset.id);
       case 'bs-bearbeiten': { const x = this.alle.find(y => y.entry === el.dataset.id); if (!x) return;   // aktiv → „Baustelle bearbeiten“ (AN-0002), abgeschlossen → Detailseite (wieder aktiv setzen)
         if (!x.aktiv) { S.bs = x.entry; return this.gehe('bsdetail'); }
         if (x.entry !== this.bid) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); S.aw = null; }
@@ -4041,8 +3985,6 @@ class BaustellePanel extends LitElement {
         const weg = (d && d.entry === x.entry) || (S.view === 'bsdetail' && S.bs === x.entry); neu();
         return this.einrichten(() => this._hass.callApi('DELETE', `config/config_entries/entry/${x.entry}`), `${x.titel} gelöscht`)
           .then(r => { if (!r) return; this._rohText = null; return this._laden().then(() => { if (weg) this.gehe('uebersicht'); }); }); }
-      case 'bs-aktiv': { const x = this.alle.find(y => y.entry === el.dataset.t); if (!x) return;
-        return this.einrichten(() => this.optionenSpeichern(x, { status: 'aktiv', ende: null }), 'Baustelle wieder aktiv – Automatik bleibt aus, bis du sie einschaltest').then(() => this._laden()); }
       case 'csv': return this.csv(el.dataset.art);
       case 'firma-auf': { const f = el.dataset.id ? this.firma(el.dataset.id) : null;
         S.sheet = { art: 'firma', form: { id: f && f.id, name: (f && f.name) || '', neu: [], container: f ? d.bereiche.filter(x => (x.firma || 'eigen') === f.id).map(x => x.id) : [] } }; return neu(); }
@@ -4177,11 +4119,6 @@ class BaustellePanel extends LitElement {
     if (ds.sp && sh && sh.art === 'preis-neu') { sh[ds.sp] = el.value; return; }   // Strompreis ab …
     if (ds.kk === 'q' && sh && sh.art === 'kk-katalog') {   // WU-0014: Treffer neu, Fokus bleibt im Suchfeld
       sh.q = el.value; sh.k = null; const t = this.shadowRoot && this.shadowRoot.querySelector('.kk-treffer'); if (t) t.innerHTML = this.kkTreffer(sh); return;
-    }
-    if (ds.vls !== undefined) {   // Suche in der Chronik (WU-0006): neu zeichnen, Fokus und Cursor behalten
-      this.s.vlSuche = el.value;
-      this.neuZeichnen().then(() => { const x = this.shadowRoot && this.shadowRoot.querySelector('[data-vls]'); if (x && x.focus) { x.focus(); if (x.setSelectionRange) x.setSelectionRange(el.value.length, el.value.length); } });
-      return;
     }
     if (ds.azn) sh.form[ds.azn] = el.value;
     if (ds.ur) sh.form[ds.ur] = el.value;

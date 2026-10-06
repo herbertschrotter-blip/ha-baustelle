@@ -48,7 +48,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **Entscheidung** | Pilot bewerten (§5) | Ja/Nein-Bogen | 5 × Ja und Restaufwand akzeptiert | bei Nein: 1c behalten |
 | ☑ | **2b** | Klasse auf LitElement; Zustand (`s` reaktiv, `neuZeichnen()` → `requestUpdate()`, neue Objektreferenzen), Laden aus Vorlagen heraus, Timer/Abos | nichts | `hass` vor/nach Einhängen; 20 Wiederanschlüsse ohne Mehrfachaufrufe; Menü, Theme, schmal/breit | R auf Pilot |
 | ☑ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
-| ☐ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
+| ☑ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
 | ☐ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
 | ☐ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
 | ☐ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
@@ -200,6 +200,12 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   `m-json`, `m-bild`, `diagnose` → Methoden; `case 'sheet'` → `einblenden(art, ds)`; `v_leer`/`v_dev` entfernt,
   `TICKET_STATUS` nach `tabellen.js`. Nachweis: Schnappschuss um Entwicklung erweitert (73 Schritte), inhaltlich gleich;
   Browser-Fall „3a Laden/Fehler/Leer“ (hängt, Fehler, Erholung, leere Baustelle, „+ Neue Baustelle“).
+- **3b, 06.10.2026 (0.8.83):** `src/ansichten/verlauf.js` (Archiv, Vergleich, Chronik, Detailseite; Diagramme noch
+  als SVG-Text). Methoden `protokollQuelle`, `bsProtokoll`, `baustelleOeffnen` (auch für `bs-wahl`), `baustelleAktiv`;
+  Klick-Fälle `vl-reiter`, `vl-art`, `vl-sort`, `bs-oeffnen`, `bs-aktiv` entfernt. **Entfallener Sonderfall:** Fokus- und
+  Cursor-Rettung der Chronik-Suche in `eingabe()`. Nachweis: Schnappschuss um Verlauf/Detailseite erweitert (86
+  Schritte), inhaltlich gleich (Suchfeld: Wert als Eigenschaft statt Attribut); Browser-Fall „3b Verlauf“ (Tippen mit
+  Fokus/Cursor, Filter, Sortieren, Detailseite, CSV, zurück).
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

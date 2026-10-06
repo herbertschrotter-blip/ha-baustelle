@@ -102,6 +102,8 @@ const eingabe = (ds, value) => { if (typeof ds !== 'string') return ereignis.fel
   const e = litEl(ds); if (!e) return erwarte(`Feld ${ds}`, false); e.value = value; e.dispatchEvent(new Event('input', { bubbles: true, composed: true })); };
 // Entwicklung (Lit, BSM-022 3a): Knöpfe je Meldung über data-meldung
 const DEV = { status: id => `.ml[data-meldung="${id}"] .ml-status`, weg: id => `.ml[data-meldung="${id}"] .ml-weg`, bild: id => `.ml[data-meldung="${id}"] .ml-bilder img`, md: '.dev-md', json: '.dev-json', diagnose: '.dev-diagnose' };
+// Verlauf (Lit, BSM-022 3b): Merkmale ohne Ereignisweg – Reiter data-vr, Art data-va, Sortierung data-sp, Filter data-pf, Baustelle data-bs
+const bsOeffnen = async (id, n = 40) => { if (!litEl(`[data-bs="${id}"]`)) await klick({ act: 'tab', v: 'verlauf' }, 20); if (!litEl(`[data-bs="${id}"]`)) await klick('[data-vr="bs"]', 20); await klick(`[data-bs="${id}"]`, n); };
 const ML = { fehler: '.sheet .seg button:nth-child(1)', text: '.sheet textarea[name="ml-text"]', senden: '.sheet .ml-senden', bildWeg: '.sheet .mb-bild button.x' };
 /* „Über“ ist ein Lit-Bereich (BSM-022 2a.1): Verlauf-Eintrag über den echten Knopf aufklappen (kein data-act) */
 const clAuf = async i => { const b = panel.shadowRoot.querySelectorAll('button.cl-v')[i]; if (!b) return erwarte(`Verlauf-Eintrag ${i} in „Über“`, false);
@@ -181,7 +183,7 @@ async function allgemein() {
     await klick({ act: 'tab', v: 'dev' }, 20); for (const [i, f] of ['offen', 'erledigt', 'alle'].entries()) { await klick(`.seite .seg.klein button:nth-child(${i + 1})`); pruefe(`${bid} dev ${f}`); }
     await klick({ act: 'tab', v: 'ueber' }); await clAuf(1); pruefe(`${bid} über verlauf`);
   }
-  for (const bs of fertige) { const id = bs.baustelle.entry_id; await klick({ act: 'bs-oeffnen', id }, 40); pruefe(`bsdetail ${id}`); hov(`bsdetail ${id}`);
+  for (const bs of fertige) { const id = bs.baustelle.entry_id; await bsOeffnen(id); pruefe(`bsdetail ${id}`); hov(`bsdetail ${id}`);
     erwarte(`bsdetail ${id} zeigt Kennzahlen`, /ABGESCHLOSSEN/.test(ui.innerHTML) && /Verbrauch je Monat/.test(ui.innerHTML));
     if (bs.zaehler && bs.zaehler.heiztage != null) erwarte(`bsdetail ${id}: Heiztage wie die Integration (${bs.zaehler.heiztage})`, ui.innerHTML.includes(`<b>${bs.zaehler.heiztage}</b><span>Heiztage`)); }
 
@@ -276,8 +278,8 @@ async function allgemein() {
   const m1 = await gesendet('baustelle/meldung', 'Meldung erledigt', DEV.status('m1')); erwarte('Meldung mit meldung_id, ohne id', m1 && m1.meldung_id === 'm1' && !('id' in m1));
   await gesendet('baustelle/meldung', 'Meldung löschen', DEV.weg('m2'));
   await gesendet('auth/sign_path', 'Diagnose', DEV.diagnose);
-  await klick({ act: 'tab', v: 'verlauf' }); await klick({ act: 'vl-reiter', v: 'prot' }); panel.cache = {}; await gesendet('baustelle/protokoll', 'Protokoll', { act: 'pfilter', v: 'warnung' });
-  await klick({ act: 'vl-reiter', v: 'bs' });
+  await klick({ act: 'tab', v: 'verlauf' }); await klick('[data-vr=\"prot\"]'); panel.cache = {}; await gesendet('baustelle/protokoll', 'Protokoll', '.vl-filter [data-pf="warnung"]');
+  await klick('[data-vr=\"bs\"]');
   await klick({ act: 'tab', v: 'auswertung' }, 30);
   const csvF = panel.csv('firma'), csvV = panel.csv();
   erwarte('CSV Abrechnung', csvF && csvF.length > 1 && !csvF.join().includes('NaN') && !csvF.join().includes('undefined'));
@@ -513,7 +515,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'tab', v: 'dev' }, 20); for (const [i, f] of ['offen', 'erledigt', 'alle'].entries()) { await klick(`.seite .seg.klein button:nth-child(${i + 1})`); pruefe(`${bid} dev ${f}`); }
     await klick({ act: 'tab', v: 'ueber' }); await clAuf(1); pruefe(`${bid} über verlauf`);
   }
-  for (const bs of ['lieboch', 'wundschuh']) { await klick({ act: 'bs-oeffnen', id: bs }, 40); pruefe(`bsdetail ${bs}`); hov(`bsdetail ${bs}`);
+  for (const bs of ['lieboch', 'wundschuh']) { await bsOeffnen(bs); pruefe(`bsdetail ${bs}`); hov(`bsdetail ${bs}`);
     erwarte(`bsdetail ${bs} zeigt Kennzahlen`, /ABGESCHLOSSEN/.test(ui.innerHTML) && /Verbrauch je Monat/.test(ui.innerHTML)); }
   const csvBs = panel.csv(); erwarte('CSV der abgeschlossenen Baustelle', csvBs && csvBs.length > 3 && csvBs[0].startsWith('Monat;'));
 
@@ -638,7 +640,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick(DEV.md, 20); await klick(DEV.json);
   neu(); await klick(DEV.diagnose, 20); erwarte('Diagnose über auth/sign_path', (a => a && a.path === '/api/diagnostics/config_entry/dobl')(letzte('auth/sign_path').at(-1)) && downloads.some(x => /baustelle-dobl/.test(x)));
   // Protokoll über baustelle/protokoll
-  await klick({ act: 'tab', v: 'verlauf' }); await klick({ act: 'vl-reiter', v: 'prot' }); neu(); panel.cache = {}; await klick({ act: 'pfilter', v: 'warnung' }, 30);
+  await klick({ act: 'tab', v: 'verlauf' }); await klick('[data-vr=\"prot\"]'); neu(); panel.cache = {}; await klick('.vl-filter [data-pf="warnung"]', 30);
   erwarte('Protokoll gefiltert über baustelle/protokoll', (a => a && a.entry_id === 'dobl' && a.filter === 'alle')(letzte('baustelle/protokoll').at(-1)) && /nicht erreichbar/.test(ui.innerHTML) && !/Vorheizen – alle Container ein/.test(ui.innerHTML));
   // CSV
   await klick({ act: 'tab', v: 'auswertung' }, 30);
@@ -676,7 +678,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Neue Baustelle über den Config-Dialog', api.some(a => a[1] === 'config/config_entries/flow' && a[2].handler === 'baustelle') && api.some(a => /config_entries\/flow\/F/.test(a[1]) && a[2].name === 'Wohnbau Kalsdorf') && api.some(a => a[0] === 'DELETE'));
   neu(); await klick({ act: 'sheet', s: 'abschliessen' }); await klick({ act: 'abschliessen' }, 30);
   erwarte('Abschließen über den Options-Dialog', api.some(a => /options\/flow\/F/.test(a[1]) && a[2].status === 'abgeschlossen'));
-  neu(); await klick({ act: 'bs-aktiv', t: 'lieboch' }, 30);
+  await bsOeffnen('lieboch'); neu(); await klick('.bs-aktiv', 30);
   erwarte('Wieder aktiv setzen', api.some(a => a[1] === 'config/config_entries/options/flow' && a[2].handler === 'lieboch') && api.some(a => /options\/flow\/F/.test(a[1]) && a[2].status === 'aktiv' && !('ende' in a[2])));
   /* Versions-Hinweis: HA oder die Datei auf der Platte ist neuer als die geladene Seite */
   { const eigen = (fs.readFileSync(datei, 'utf8').match(/SEITE_VERSION = ["']([^"']+)["']/) || [])[1];   // BSM-022: esbuild setzt sie ein
@@ -1186,20 +1188,20 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const A = fall('abrechnung', 'dobl diese Monat');
     erwarte('CSV Abrechnung = CSV der Integration', JSON.stringify(panel.csv('firma')) === JSON.stringify(A.csv_firma));
     erwarte('CSV Verbrauch = CSV der Integration', JSON.stringify(panel.csv()) === JSON.stringify(A.csv_verbrauch));
-    await klick({ act: 'tab', v: 'verlauf' }, 40); await klick({ act: 'vl-reiter', v: 'bs' }); await klick({ act: 'vl-art', v: 'karten' }, 20); const vl = ui.innerHTML, K = fall('kennzahlen', 'dobl');
+    await klick({ act: 'tab', v: 'verlauf' }, 40); await klick('[data-vr=\"bs\"]'); await klick('[data-va=\"karten\"]', 20); const vl = ui.innerHTML, K = fall('kennzahlen', 'dobl');
     erwarte('Verlauf über baustelle/auswertung (teil verlauf) je Baustelle', ['dobl', 'kalsdorf', 'lieboch', 'wundschuh'].every(e => alleAufrufe.some(a => a.type === 'baustelle/auswertung' && a.entry_id === e && a.teil === 'verlauf')));
     erwarte('Verlauf: Kennzahlen und Vergleich der Integration', vl.includes(`<b>${deT(K.kwh, 0)}</b><small>kWh</small>`) && vl.includes(`<b>${deT(K.eur, 0)} €</b>`) && vl.includes(`<b>${deT(K.vergleich.tag, 1)}</b><small>kWh/Heiztag`));
     /* WU-0006: Vergleich als sortierbare Tabelle, Chronik mit Tagessumme und Suche */
-    await klick({ act: 'vl-art', v: 'tabelle' }, 20); pruefe('Verlauf Vergleich');
+    await klick('[data-va=\"tabelle\"]', 20); pruefe('Verlauf Vergleich');
     erwarte('WU-0006: Vergleich mit allen Baustellen und 12 Monaten', (ui.innerHTML.match(/class="vl-tab-zeile"/g) || []).length === 4 && ui.innerHTML.includes('data-chart="zwoelf"'));
-    for (const k of ['name', 'kwh', 'eur', 'heiztage', 'container', 'monat', 'tag']) { await klick({ act: 'vl-sort', v: k }); pruefe(`Verlauf sortiert ${k}`); }
-    await klick({ act: 'vl-art', v: 'karten' });
+    for (const k of ['name', 'kwh', 'eur', 'heiztage', 'container', 'monat', 'tag']) { await klick(`[data-sp="${k}"]`); pruefe(`Verlauf sortiert ${k}`); }
+    await klick('[data-va=\"karten\"]');
     panel.cache[`v:dobl:${panel.d.z.HEUTE}`] = { daten: { ...(panel.verlaufDaten(panel.d) || {}), je_tag: { [panel.d.z.HEUTE]: 12.5 } }, zeit: Date.now(), laeuft: false };
-    await klick({ act: 'vl-reiter', v: 'prot' }, 20); pruefe('Verlauf Chronik');
+    await klick('[data-vr=\"prot\"]', 20); pruefe('Verlauf Chronik');
     erwarte('WU-0006: Chronik mit Tagessumme', /12,5 kWh · /.test(ui.innerHTML) && ui.innerHTML.includes('vl-tag-kopf'));
-    eingabe({ vls: '' }, 'zzzz-nichts'); await ruhe(); erwarte('WU-0006: Suche', /Nichts gefunden/.test(ui.innerHTML));
-    panel.eingabe({ target: { dataset: { vls: '' }, value: '' } }); await klick({ act: 'vl-reiter', v: 'bs' });
-    await klick({ act: 'bs-oeffnen', id: 'lieboch' }, 40); const bd = ui.innerHTML, L = fall('kennzahlen', 'lieboch'), M = fall('monate', 'lieboch');
+    eingabe('.vl-suche', 'zzzz-nichts'); await ruhe(); erwarte('WU-0006: Suche', /Nichts gefunden/.test(ui.innerHTML));
+    eingabe('.vl-suche', ''); await ruhe(); await klick('[data-vr=\"bs\"]');
+    await bsOeffnen('lieboch'); const bd = ui.innerHTML, L = fall('kennzahlen', 'lieboch'), M = fall('monate', 'lieboch');
     erwarte('Detailseite: Kennzahlen und Verbrauch je Monat der Integration', bd.includes(`<b>${deT(L.kwh, 0)}</b><span>kWh`) && M.reihen.every(r => bd.includes(`<span class="n">${esc(r.name)}</span>`)));
     erwarte('Detailseite: CSV der Integration', JSON.stringify(panel.csv()) === JSON.stringify(M.csv));
     await klick({ act: 'tab', v: 'auswertung' }, 30); }

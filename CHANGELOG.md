@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.83] – 2026-10-06
+
+- Seite auf Lit umgestellt, Teil 3 (BSM-022.12, Stufe 3b): Verlauf (Karten, Vergleich, Protokoll mit Suche) und die
+  Detailseite einer abgeschlossenen Baustelle werden mit Lit gezeichnet. Beim Suchen im Protokoll bleiben Fokus und
+  Cursor von selbst stehen. Aussehen und Bedienung bleiben gleich.
+
 ## [0.8.82] – 2026-10-06
 
 - Seite auf Lit umgestellt, Teil 2 (BSM-022.11, Stufe 3a): „Lädt …“, Fehlermeldung, „Keine laufende Baustelle“ und die

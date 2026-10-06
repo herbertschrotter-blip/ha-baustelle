@@ -64,6 +64,21 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('tab einst 2', { act: 'tab', v: 'einst' });
   for (const g of ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'ueber'])
     await schritt(`einst ${g}`, { act: 'ev-gruppe', v: g });
+  // Verlauf und Detailseite (Stufe 3b) – Selektoren über die Struktur, damit alter und neuer Stand gleich getroffen werden
+  const tippen = async (name, sel, text) => { const x = panel.shadowRoot.querySelector(sel); const ab = befehle.length; if (x) { x.value = text; x.dispatchEvent(new Event('input', { bubbles: true, composed: true })); } await ruhe(); aus[name] = { html: ui.innerHTML, befehle: befehle.slice(ab) }; };
+  await schritt('verlauf', { act: 'tab', v: 'verlauf' });
+  await schritt('verlauf vergleich', '.vl-reiter .seg.klein button:nth-child(2)');
+  await schritt('verlauf sortieren', '.vl-tab-kopf button:nth-child(4)');
+  await schritt('verlauf sortieren 2', '.vl-tab-kopf button:nth-child(4)');
+  await schritt('verlauf karten', '.vl-reiter .seg.klein button:nth-child(1)');
+  await schritt('verlauf protokoll', '.vl-reiter .seg:not(.klein) button:nth-child(2)');
+  await schritt('protokoll warnungen', '.vl-filter .vb-wer button:nth-child(2)');
+  await schritt('protokoll alle', '.vl-filter .vb-wer button:nth-child(1)');
+  await tippen('protokoll suche', '.vl-suche', 'zzzz-nichts');
+  await tippen('protokoll suche leer', '.vl-suche', '');
+  await schritt('verlauf baustellen', '.vl-reiter .seg:not(.klein) button:nth-child(1)');
+  await schritt('bsdetail', '.vl-karte:not(.aktiv)');
+  await schritt('bsdetail zurück', '.zurueck-zeile button:nth-child(1)');
   await schritt('einst dev', { act: 'ev-gruppe', v: 'dev' });
   await schritt('einst dev werkzeuge', { act: 'ev-dev', v: 'werkzeuge' });
   await schritt('tab dev', { act: 'tab', v: 'dev' });

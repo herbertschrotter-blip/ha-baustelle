@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.83",
+    "datum": "2026-10-06",
+    "punkte": [
+      "Seite auf Lit umgestellt, Teil 3 (BSM-022.12, Stufe 3b): Verlauf (Karten, Vergleich, Protokoll mit Suche) und die Detailseite einer abgeschlossenen Baustelle werden mit Lit gezeichnet. Beim Suchen im Protokoll bleiben Fokus und Cursor von selbst stehen. Aussehen und Bedienung bleiben gleich."
+    ]
+  },
+  {
     "version": "0.8.82",
     "datum": "2026-10-06",
     "punkte": [

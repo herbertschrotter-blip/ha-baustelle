@@ -365,6 +365,35 @@ await fall('3a Laden/Fehler/Leer', browser, async (page, erwarte) => {
   erwarte('Baustelle wieder da: normale Ansicht', r.zurueck);
 });
 
+/* Stufe 3b: Verlauf – Suche ohne Fokus-Rettung (Tippen, Treffer neu), Filter, Vergleich sortieren, abgeschlossene
+   Baustelle öffnen, CSV, zurück */
+await fall('3b Verlauf', browser, async (page, erwarte) => {
+  await klick(page, `${D} >>> nav [data-act="tab"][data-v="verlauf"]`);
+  await klick(page, `${D} >>> [data-vr="prot"]`);
+  const suche = `${D} >>> .vl-suche`;
+  await klick(page, suche); await page.keyboard.type('zzzz');
+  const r = await panel(page, D, () => ({ fokus: sr.activeElement === sr.querySelector('.vl-suche'), wert: sr.querySelector('.vl-suche').value, nichts: sr.querySelector('.ui .seite').textContent.includes('Nichts gefunden'), cursor: sr.querySelector('.vl-suche').selectionStart }));
+  erwarte('Suche: Fokus und Cursor bleiben beim Tippen, Treffer neu', r.fokus && r.wert === 'zzzz' && r.cursor === 4 && r.nichts, JSON.stringify(r));
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
+  await klick(page, `${D} >>> .vl-filter [data-pf="warnung"]`);
+  const f = await panel(page, D, () => ({ an: sr.querySelector('.vl-filter [data-pf="warnung"]').classList.contains('on'), filter: p.s.pfilter }));
+  erwarte('Filter Warnungen', f.an && f.filter === 'warnung', JSON.stringify(f));
+  await klick(page, `${D} >>> [data-vr="bs"]`); await klick(page, `${D} >>> [data-va="tabelle"]`);
+  await klick(page, `${D} >>> [data-sp="kwh"]`);
+  const sortiert = await panel(page, D, () => ({ an: sr.querySelector('[data-sp="kwh"]').classList.contains('on'), zeilen: sr.querySelectorAll('.vl-tab-zeile').length }));
+  erwarte('Vergleich nach kWh sortiert', sortiert.an && sortiert.zeilen > 1, JSON.stringify(sortiert));
+  await klick(page, `${D} >>> [data-va="karten"]`);
+  await klick(page, `${D} >>> .vl-karte:not(.aktiv)`);
+  const det = await panel(page, D, () => { const geschrieben = []; p.datei = (inhalt, name) => geschrieben.push([name, inhalt.length]); window.__csv = geschrieben;
+    return { view: p.s.view, titel: (sr.querySelector('.ui .seite .glas-titel') || {}).textContent }; });
+  erwarte('abgeschlossene Baustelle öffnet die Detailseite', det.view === 'bsdetail' && !!det.titel, JSON.stringify(det));
+  await klick(page, `${D} >>> .bs-csv`);
+  const csv = await page.evaluate(() => window.__csv);
+  erwarte('CSV der Baustelle wird erzeugt', csv.length === 1 && /\.csv$/.test(csv[0][0]) && csv[0][1] > 50, JSON.stringify(csv));
+  await klick(page, `${D} >>> .zurueck-zeile button`);
+  erwarte('zurück in den Verlauf', await panel(page, D, () => p.s.view) === 'verlauf');
+});
+
 /* B7 Lebenszyklus: 20 × entfernen/einhängen – Timer, Abos, window-Listener nehmen nicht zu */
 await fall('B7 Lebenszyklus', browser, async (page, erwarte) => {
   const stand = () => page.evaluate(() => ({ paste: window.__z.listener.paste, ort: window.__z.listener['location-changed'], intervalle: window.__z.intervalle.size, abos: window.baustelleBeispiel.TEST.abos }));

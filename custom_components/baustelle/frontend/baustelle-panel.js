@@ -112,7 +112,6 @@ var MONATE_LANG = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli"
 var summe = (a3) => (a3 || []).reduce((x2, v2) => x2 + (zahl(v2) ? Number(v2) : 0), 0);
 var addieren = (arr) => arr.length ? arr.reduce((a3, w2) => a3.map((v2, i7) => v2 + (w2[i7] || 0))) : [];
 var erkl = (an, text) => an ? `<div class="erkl">ⓘ ${text}</div>` : "";
-var knopf2 = (t5, act, text) => `<button class="knopf leise-k" data-act="${act}" data-t="${esc(text)}">${t5}</button>`;
 var schalter = (on, act, extra = "") => `<button class="sw ${on ? "on" : ""}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
 var verNeuer = (a3, b3) => {
   const x2 = String(a3 || "").split(".").map(Number), y3 = String(b3 || "").split(".").map(Number);
@@ -447,7 +446,7 @@ function streu(id, pkt, k2, d0) {
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H2}">${raster}${achse}<text x="${W - R2}" y="${H2 - 8}" class="ax" text-anchor="end" dx="0" opacity="0">.</text>${trend}${punkte}<g class="hover"></g></svg>
     <div class="legende"><span><i style="background:var(--s1)"></i>ein Heiztag</span><span><i style="background:var(--s2)"></i>Trend</span><span class="leise">x: Tagesmittel außen · y: kWh</span></div>`;
 }
-function flaeche(id, reihen, labels, einheit, jedes, vergleich = null) {
+function flaeche(id, reihen, labels, einheit, jedes, vergleich2 = null) {
   const W = 320, H2 = 160, L2 = 30, R2 = 8, T2 = 10, U = 22, n4 = labels.length, viele = reihen.length > 1;
   reihen = reihen.map((r5) => ({ ...r5, v: labels.map((_2, i7) => zahl(r5.v[i7]) ? Number(r5.v[i7]) : 0) }));
   let unten = Array(n4).fill(0);
@@ -456,7 +455,7 @@ function flaeche(id, reihen, labels, einheit, jedes, vergleich = null) {
     unten = o6;
     return { ...r5, u: u3, o: o6 };
   });
-  const vv = vergleich ? labels.map((_2, i7) => zahl(vergleich.v[i7]) ? Number(vergleich.v[i7]) : 0) : null;
+  const vv = vergleich2 ? labels.map((_2, i7) => zahl(vergleich2.v[i7]) ? Number(vergleich2.v[i7]) : 0) : null;
   const hi0 = Math.max(...unten, ...vv || [], 0) * 1.1 || 1;
   const stufe = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1e3, 2e3, 5e3].find((st) => hi0 / st <= 5) || 1e4, hi = Math.ceil(hi0 / stufe) * stufe;
   const x2 = (i7) => L2 + i7 / Math.max(1, n4 - 1) * (W - L2 - R2), y3 = (v2) => T2 + (1 - v2 / hi) * (H2 - T2 - U);
@@ -470,9 +469,9 @@ function flaeche(id, reihen, labels, einheit, jedes, vergleich = null) {
   const kanten = lagen.map((r5) => `<path class="fl-linie" d="${linieD(r5.o)}" fill="none" stroke="${viele ? "var(--trenn)" : r5.farbe}" stroke-width="${viele ? 1.5 : 2}" stroke-linejoin="round"/>`).join("");
   const oben = viele ? `<path d="${linieD(unten)}" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>` : "";
   const vglSvg = vv ? `<path d="${linieD(vv)}" fill="none" stroke="var(--ink2)" stroke-width="1.6" stroke-dasharray="5 4" stroke-linejoin="round"/>` : "";
-  CHARTS[id] = { art: "flaeche", x0: L2, x1: W - R2, W, n: n4, reihen: lagen, labels, einheit, y: y3, vergleich: vv, vglName: vergleich && vergleich.name };
+  CHARTS[id] = { art: "flaeche", x0: L2, x1: W - R2, W, n: n4, reihen: lagen, labels, einheit, y: y3, vergleich: vv, vglName: vergleich2 && vergleich2.name };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H2}"><defs>${defs}</defs>${raster}${achse}${flaechen}${kanten}${oben}${vglSvg}<g class="hover"></g></svg>
-    ${viele || vv ? `<div class="legende">${[...lagen].reverse().map((r5) => `<span><i style="background:${r5.farbe}"></i>${esc(r5.name)}</span>`).join("")}${vv ? `<span><i class="gestr"></i>${esc(vergleich.name)}</span>` : ""}</div>` : ""}`;
+    ${viele || vv ? `<div class="legende">${[...lagen].reverse().map((r5) => `<span><i style="background:${r5.farbe}"></i>${esc(r5.name)}</span>`).join("")}${vv ? `<span><i class="gestr"></i>${esc(vergleich2.name)}</span>` : ""}</div>` : ""}`;
 }
 function funke(v2, farbe = "var(--s1)") {
   if (!v2) return "";
@@ -1794,6 +1793,118 @@ function devVorlage(p4, { teil = "alle" } = {}) {
       ${werkzeuge}`;
 }
 
+// src/ansichten/verlauf.js
+var LAEDT = b2`<div class="leer">Lädt …</div>`;
+function archiv(p4) {
+  const BS = [...p4.alle].sort((a3, b3) => b3.aktiv - a3.aktiv), K = new Map(BS.map((b3) => [b3.entry, p4.kennz(b3)])), MONK = p4.vlMonatsKeys(), laedt = BS.some((b3) => K.get(b3.entry).laedt);
+  const sum = (k2) => BS.reduce((a3, b3) => a3 + (K.get(b3.entry)[k2] || 0), 0);
+  const zahl0 = (v2, n4 = 0) => zahl(v2) ? de(v2, n4) : "–";
+  return b2`<div class="glas-panel kennz vier">${[[BS.length, `Baustellen · ${BS.filter((b3) => b3.aktiv).length} aktiv`], [laedt ? "–" : de(sum("kwh"), 0), "kWh gesamt"], [laedt ? "–" : `${de(sum("eur"), 0)} €`, "Kosten gesamt"], [laedt ? "–" : `${de(sum("gespart"), 0)} €`, "gespart"]].map(([w2, t5]) => b2`<div><b>${w2}</b><span>${t5}</span></div>`)}</div>
+      ${BS.length ? b2`<div class="vl-archiv">${BS.map((b3) => {
+    const k2 = K.get(b3.entry), i7 = p4.alle.indexOf(b3), farbe = `var(--s${i7 % 6 + 1})`;
+    return b2`<button class="glas-panel vl-karte ${b3.aktiv ? "aktiv" : ""}" data-bs=${b3.entry} @click=${() => p4.baustelleOeffnen(b3.entry)}>
+          <div class="bs-kopf"><b>${b3.titel}</b><span class="badge ${b3.aktiv ? "gruen" : ""}">${b3.aktiv ? "aktiv" : "abgeschlossen"}</span></div>
+          <div class="leise">${k2.zeit} · ${k2.container} Container · ${k2.laedt ? "–" : k2.heiztage} Heiztage</div>
+          ${o5(p4.vlFunke(MONK.map((m3) => k2.jeMonat[m3] || 0), farbe))}<div class="vl-monate"><span>${MONATE[+MONK[0].slice(5) - 1]}</span><span>${MONATE[+MONK[11].slice(5) - 1]}</span></div>
+          <div class="vl-zahlen"><div><b>${k2.laedt ? "–" : zahl0(k2.kwh)}</b><small>kWh</small></div><div><b>${k2.laedt ? "–" : `${zahl0(k2.eur)} €`}</b><small>Kosten</small></div>
+            <div><b>${k2.laedt ? "–" : zahl0(k2.vergleich.tag, 1)}</b><small>kWh/Heiztag</small></div><div><b class="gruen-t">${zahl(k2.gespart) ? `${de(k2.gespart, 0)} €` : "–"}</b><small>gespart</small></div></div>
+          <span class="leise vl-mehr">${b3.aktiv ? "Übersicht ›" : "ansehen ›"}</span></button>`;
+  })}</div>` : b2`<div class="glas-panel block"><div class="leer">Noch keine Baustelle</div></div>`}`;
+}
+function vergleich(p4) {
+  const BS = p4.alle, K = new Map(BS.map((b3) => [b3.entry, p4.kennz(b3)])), sp = p4.s.vlSort || "tag", ab = p4.s.vlAb !== false, MONK = p4.vlMonatsKeys();
+  const spalten = [["name", "Baustelle"], ["tag", "kWh/Heiztag"], ["monat", "€/Monat"], ["kwh", "kWh"], ["eur", "€"], ["heiztage", "Heiztage"], ["container", "Cont."]];
+  const wert = (b3, kk) => {
+    const k2 = K.get(b3.entry);
+    return { name: b3.titel, tag: k2.vergleich.tag, monat: k2.vergleich.monat, kwh: k2.kwh, eur: k2.eur, heiztage: k2.heiztage, container: k2.container }[kk];
+  };
+  const zeilen = BS.map((b3, i7) => ({ b: b3, i: i7 })).sort((x2, y3) => {
+    const a3 = wert(x2.b, sp), c4 = wert(y3.b, sp);
+    return (typeof a3 === "string" ? String(a3).localeCompare(String(c4)) : (a3 ?? -1) - (c4 ?? -1)) * (ab ? -1 : 1);
+  });
+  const tage = BS.map((b3) => wert(b3, "tag")).filter((v2) => zahl(v2) && v2 > 0), bester = tage.length > 1 ? Math.min(...tage) : null;
+  const reihen = BS.map((b3, i7) => ({ name: b3.titel, v: MONK.map((m3) => K.get(b3.entry).jeMonat[m3] || 0), farbe: `var(--s${i7 % 6 + 1})` })).filter((x2) => x2.v.some((v2) => v2 > 0.5));
+  const laedt = BS.some((b3) => K.get(b3.entry).laedt), f3 = (v2, n4 = 0) => zahl(v2) ? de(v2, n4) : "–";
+  const sortiere = (k2) => {
+    p4.s.vlAb = p4.s.vlSort === k2 ? !(p4.s.vlAb !== false) : true;
+    p4.s.vlSort = k2;
+    p4.neuZeichnen();
+  };
+  return b2`<div class="glas-panel block vl-tabelle"><div class="block-kopf"><b>Alle Baustellen</b><span class="leise">Spalte antippen sortiert · kWh je Heiztag ist am besten vergleichbar</span></div>
+        <div class="vl-tab-kopf">${spalten.map(([k2, t5]) => b2`<button class=${sp === k2 ? "on" : ""} data-sp=${k2} @click=${() => sortiere(k2)}>${t5}${sp === k2 ? ab ? " ▼" : " ▲" : ""}</button>`)}</div>
+        ${zeilen.map(({ b: b3, i: i7 }) => {
+    const k2 = K.get(b3.entry);
+    return b2`<button class="vl-tab-zeile" data-bs=${b3.entry} @click=${() => p4.baustelleOeffnen(b3.entry)}><span class="vl-tab-name"><span><i class="farbpunkt" style="background:var(--s${i7 % 6 + 1})"></i>${b3.titel}</span><small>${k2.zeit}</small></span>
+          <b class=${bester !== null && k2.vergleich.tag === bester ? "gruen-t" : ""}>${f3(k2.vergleich.tag, 1)}</b><span>${f3(k2.vergleich.monat)}</span><span>${f3(k2.kwh)}</span><span>${f3(k2.eur)}</span><span>${k2.laedt ? "–" : k2.heiztage}</span><span>${k2.container}</span></button>`;
+  })}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Letzte 12 Monate</b><span class="leise">kWh je Monat, gestapelt nach Baustelle</span></div>
+        <div class="chart-wrap">${laedt ? LAEDT : reihen.length ? o5(flaeche("zwoelf", reihen, MONK.map((m3) => MONATE[+m3.slice(5) - 1]), "kWh", 2)) : b2`<div class="leer">Noch keine Werte</div>`}</div></div>`;
+}
+function chronik(p4) {
+  const d3 = p4.d, f3 = p4.s.pfilter || "alle", q = (p4.s.vlSuche || "").toLowerCase().trim(), v2 = p4.verlaufDaten(d3), jeTag = v2 && v2.je_tag || {};
+  const ART2 = { warnung: ["⚠", "var(--rot)"], ok: ["✓", "#30d158"], schalten: ["⏻", "var(--amber)"], wetter: ["☁", "var(--blau)"], nachricht: ["✉", "var(--ink2)"], einstellung: ["⚙", "var(--ink2)"] };
+  const quelle = p4.protokollQuelle(d3);
+  const passt = (e6) => (f3 === "alle" || e6[2] === f3 || f3 === "warnung" && e6[2] === "ok" || f3 === "schalten" && e6[2] === "einstellung") && (!q || `${e6[3] ? p4.bName(e6[3]) : ""} ${e6[4]}`.toLowerCase().includes(q));
+  const tage = [];
+  for (const e6 of quelle.filter(passt)) {
+    const t5 = tage.at(-1);
+    if (t5 && t5.tag === e6[0]) t5.e.push(e6);
+    else tage.push({ tag: e6[0], iso: e6[5], e: [e6] });
+  }
+  const filter = (k2) => {
+    p4.s.pfilter = k2;
+    p4.s.pmehr = false;
+    p4.neuZeichnen();
+  };
+  return b2`<div class="glas-panel vl-filter"><input class="vl-suche" placeholder="Suchen (Container, Text) …" .value=${p4.s.vlSuche || ""} @input=${(e6) => {
+    p4.s.vlSuche = e6.target.value;
+    p4.neuZeichnen();
+  }}>
+        <div class="vb-wer">${[["alle", "Alle"], ["warnung", "⚠ Warnungen"], ["schalten", "⏻ Schalten"], ["wetter", "☁ Wetter"], ["nachricht", "✉ Nachrichten"]].map(([k2, t5]) => b2`<button class=${f3 === k2 ? "on" : ""} data-pf=${k2} @click=${() => filter(k2)}>${t5}</button>`)}</div></div>
+      ${tage.length ? tage.map((t5) => {
+    const kwh = t5.iso ? jeTag[t5.iso] : null;
+    return b2`<div class="glas-panel vl-tag"><div class="vl-tag-kopf"><b>${t5.tag}</b><span class="leise">${zahl(kwh) ? `${de(kwh, 1)} kWh · ${de(kwh * d3.e.preis, 2)} € · ` : ""}${t5.e.length} ${t5.e.length === 1 ? "Eintrag" : "Einträge"}</span></div>
+          ${t5.e.map((e6) => {
+      const [ic, farbe] = ART2[e6[2]] || ["•", "var(--ink2)"];
+      return b2`<div class="vl-ereignis"><span class="zeit">${e6[1]}</span><span class="vl-punkt" style="background:${farbe}">${ic}</span><div>${e6[3] ? b2`<b>${p4.bName(e6[3])}</b> ` : A}<span class="leise">${e6[4]}</span></div></div>`;
+    })}</div>`;
+  }) : b2`<div class="glas-panel block"><div class="leer">${q || f3 !== "alle" ? "Nichts gefunden" : "Noch keine Einträge"}</div></div>`}`;
+}
+function verlaufVorlage(p4) {
+  const reiter = p4.s.vlReiter || "bs", art = p4.s.vlArt || "karten", prot = reiter === "prot" && p4.d;
+  const setze = (k2, v2) => {
+    p4.s[k2] = v2;
+    p4.neuZeichnen();
+  };
+  return b2`${kopfVorlage("Verlauf", prot ? p4.d.titel.toUpperCase() : "BAUSTELLEN")}
+      <div class="vl-reiter"><div class="seg glas-panel">${[["bs", "Baustellen"], ["prot", "Protokoll"]].map(([k2, t5]) => b2`<button class=${reiter === k2 ? "on" : ""} data-vr=${k2} ?disabled=${k2 === "prot" && !p4.d} @click=${() => setze("vlReiter", k2)}>${t5}</button>`)}</div>
+        ${prot ? A : b2`<div class="seg glas-panel klein">${[["karten", "▦ Karten"], ["tabelle", "☰ Vergleich"]].map(([k2, t5]) => b2`<button class=${art === k2 ? "on" : ""} data-va=${k2} @click=${() => setze("vlArt", k2)}>${t5}</button>`)}</div>`}</div>
+      ${prot ? chronik(p4) : art === "tabelle" ? vergleich(p4) : archiv(p4)}`;
+}
+function bsdetailVorlage(p4) {
+  const x2 = p4.alle.find((y3) => y3.entry === p4.s.bs), zurueck = b2`<button class="glas-panel chip" @click=${() => p4.gehe("verlauf")}>‹ Verlauf</button>`;
+  if (!x2) return b2`<div class="zurueck-zeile">${zurueck}</div><div class="glas-panel block"><div class="leer">Baustelle nicht gefunden</div></div>`;
+  const k2 = p4.kennz(x2), m3 = k2.monate && { labels: k2.monate.labels, reihen: k2.monate.reihen.map((r5, i7) => {
+    const b3 = x2.bereiche.find((y3) => y3.id === r5.bereich);
+    return { name: r5.name, v: r5.v, kwh: r5.kwh, eur: r5.eur, anteil: r5.anteil, farbe: BEREICH_FARBEN[(b3 && zahl(b3.f) ? b3.f : i7) % BEREICH_FARBEN.length] };
+  }) };
+  const eintraege = p4.bsProtokoll(x2);
+  const ART2 = { einstellung: "⚙", warnung: "⚠", ok: "✓", schalten: "⏻", wetter: "☁", nachricht: "✉" };
+  return b2`<div class="zurueck-zeile">${zurueck}<button class="glas-panel chip bs-csv" @click=${() => p4.csv()}>⇩ CSV</button></div>
+      ${kopfVorlage(x2.titel, x2.aktiv ? "LAUFEND" : "ABGESCHLOSSEN · NUR ANSEHEN")}
+      <div class="leise vgl">${k2.zeit}</div>
+      <div class="glas-panel kennz vier"><div><b>${de(k2.kwh, 0)}</b><span>kWh</span></div><div><b>${de(k2.eur, 0)} €</b><span>Kosten</span></div><div><b>${k2.laedt ? "–" : k2.heiztage}</b><span>Heiztage</span></div><div><b>${zahl(k2.gespart) ? `${de(k2.gespart, 0)} €` : "–"}</b><span>gespart</span></div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Verbrauch je Monat</b><span class="leise">gestapelt nach Container</span></div>
+        ${!m3 ? LAEDT : !m3.reihen.length ? b2`<div class="leer">Keine Container</div>` : b2`<div class="chart-wrap">${o5(flaeche("bs-" + x2.entry, m3.reihen, m3.labels, "kWh", 1))}</div>
+        <div class="vb-je">${m3.reihen.map((q) => b2`<div><i style="background:${q.farbe}"></i><span class="n">${q.name}</span><b>${de(q.kwh, 0)} kWh</b><span>${de(q.eur, 0)} €</span><span class="leise">${de(q.anteil, 0)} %</span></div>`)}</div>`}</div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Protokoll</b><span class="leise">Auszug</span></div>
+        ${eintraege === null ? LAEDT : eintraege.length ? eintraege.map((e6) => {
+    const l4 = p4.lokal(e6[0], x2.z.zone);
+    return b2`<div class="zeile ereignis"><span class="zeit">${kurzDatum(l4)}</span><span class="p-ic">${ART2[e6[1]] || "•"}</span><div><span>${e6[2] ? `${(x2.bereiche.find((b3) => b3.id === e6[2]) || { name: e6[2] }).name}: ` : ""}${e6[3]}</span></div></div>`;
+  }) : b2`<div class="leer">Keine Einträge</div>`}</div>
+      ${x2.aktiv ? A : b2`<button class="knopf leise-k bs-aktiv" @click=${() => p4.baustelleAktiv(x2.entry)}>Wieder aktiv setzen</button>`}`;
+}
+
 // src/alt.js
 var CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -2600,7 +2711,7 @@ ${NUR_LESEN_SPERRE.map((x2) => `.nur-lesen ${x2}`).join(", ")} { opacity: .45; f
 .hz-mini i { flex: 1; background: var(--amber); opacity: .55; border-radius: 2px 2px 0 0; } .hz-mini i.heute { opacity: 1; }
 .hz-innen { padding: 4px 0 8px; } .hz-innen + .hz-innen { border-top: 1px solid var(--gridc); padding-top: 12px; }
 `;
-var LAEDT = '<div class="leer">Lädt …</div>';
+var LAEDT2 = '<div class="leer">Lädt …</div>';
 var TYP_ROLLE = {
   Ölradiator: ["heizkoerper", "oelradiator"],
   Konvektor: ["heizkoerper", "konvektor"],
@@ -2897,7 +3008,7 @@ var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.82";
+var SEITE_VERSION = "0.8.83";
 var LIT_SHEETS = ["melden"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS)];
@@ -3553,7 +3664,7 @@ var BaustellePanel = class extends i4 {
         <div class="lh-skala">${[0, 6, 12, 18, 23].map((k2) => `<span style="left:${(k2 / 23 * 100).toFixed(1)}%">${k2 === 23 ? "23" : hh(k2)}</span>`).join("")}</div></div>`;
     let inhalt;
     if (!ids.length) inhalt = '<div class="leer">Kein Leistungssensor an den Geräten</div>';
-    else if (roh === void 0) inhalt = this._lhLetzt ? `<div class="lh-laedt">${this._lhLetzt}</div>` : LAEDT;
+    else if (roh === void 0) inhalt = this._lhLetzt ? `<div class="lh-laedt">${this._lhLetzt}</div>` : LAEDT2;
     else {
       const ausschnitt = (alle) => {
         const vorher = alle.filter((p4) => p4[0] <= von).at(-1), drin = alle.filter((p4) => p4[0] > von && p4[0] < bis);
@@ -3617,14 +3728,14 @@ var BaustellePanel = class extends i4 {
       "h",
       z2 === "Tag" ? 6 : z2 === "Monat" ? 7 : z2 === "Woche" ? 1 : 3,
       { name: "eingeschaltet", v: r5 }
-    ) : LAEDT}</div>
+    ) : LAEDT2}</div>
       <div class="leise">Eingeschaltet = der Shelly ist an. Tatsächlich geheizt = es fließt Strom (über ${this.d.e.zieht_w} W) – schaltet der Thermostat am Heizkörper ab, ist der Shelly an, geheizt wird aber nicht. Ohne Leistungssensor gilt die Schaltzeit. „Tatsächlich geheizt“ wird ab 0.8.29 gezählt.</div>`;
     return `<div class="block-kopf"><h3>${b3.pumpe ? "Pumpzeit" : "Heizzeit"} · ${esc(b3.name)}</h3><span class="leise">${this.zrText(z2, v2)}</span></div>
       <div class="seg">${["Tag", "Woche", "Monat", "Jahr"].map((x2) => `<button data-act="vb-zeitraum" data-ziel="sheet" data-v="${x2}" class="${x2 === z2 ? "on" : ""}">${x2}</button>`).join("")}</div>
       ${this.zrWahl("sheet", z2, this.zrGrenze())}
       <div class="kennz"><div><b>${zahl(su) ? de(su, 1) : "–"}</b><span>Stunden ${b3.pumpe ? "gepumpt" : "geheizt"}</span></div><div><b>${r5 ? de(Math.max(...r5, 0), 1) : "–"}</b><span>h am meisten ${je}</span></div></div>
       <div class="leise">h ${je} · ${this.zrText(z2, v2)}</div>
-      <div class="chart-wrap">${r5 ? balken(`hz-c-${b3.id}-${z2}-${v2}`, r5, zr.labels.map((l4, i7) => z2 === "Tag" ? i7 % 3 ? "" : l4 : z2 === "Monat" ? i7 % 5 ? "" : l4 : l4), "h") : LAEDT}</div>`;
+      <div class="chart-wrap">${r5 ? balken(`hz-c-${b3.id}-${z2}-${v2}`, r5, zr.labels.map((l4, i7) => z2 === "Tag" ? i7 % 3 ? "" : l4 : z2 === "Monat" ? i7 % 5 ? "" : l4 : l4), "h") : LAEDT2}</div>`;
   }
   /* Gemessen: wann zieht ein Gerät Strom (Leistung über „heizt tatsächlich ab“, Standard 50 W) – Verlauf der Leistungssensoren seit Montag */
   messung(d3 = this.d) {
@@ -3859,7 +3970,7 @@ var BaustellePanel = class extends i4 {
     const tagNr = TAGE.indexOf(tag), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), jetzt = minu(this.z.JETZT);
     this.mess = this.messung();
     const kopf = `<div class="block-kopf"><b>Wann welche Heizung heizt</b><div class="seg klein">${[["tag", "Tag"], ["woche", "Woche"]].map(([k2, t5]) => `<button data-act="hz-art" data-v="${k2}" class="${art === k2 ? "on" : ""}">${t5}</button>`).join("")}</div></div>`;
-    if (this.mess === null) return `<div class="glas-panel block">${kopf}${LAEDT}</div>`;
+    if (this.mess === null) return `<div class="glas-panel block">${kopf}${LAEDT2}</div>`;
     let inhalt;
     if (!C2.length) inhalt = '<div class="leer">Keine Container</div>';
     else if (art === "tag") {
@@ -3943,7 +4054,7 @@ var BaustellePanel = class extends i4 {
         ${oa && oa.ergebnis ? `<div class="kennz"><div><b>${de(oa.ohne_kwh, oa.ohne_kwh < 100 ? 1 : 0)}</b><span>kWh ohne Automatik</span></div><div><b>${de(oa.ergebnis.gespart_eur, 2)} €</b><span>gespart</span></div><div><b>${de(oa.ergebnis.prozent, 0)} %</b><span>weniger</span></div></div>` : oa ? '<div class="leise">Noch keine gemessene Leistung der Heizkörper – „ohne Automatik“ folgt nach dem ersten Heizen.</div>' : ""}
         <div class="leise">So rechnet „ohne Automatik“: ${basis === "typ" ? "die Ø-Leistung aller Heizkörper desselben Typs (Ölradiator bzw. Konvektor)" : "jeder Heizkörper mit seiner gemessenen Ø-Leistung im Betrieb (sobald er Strom zieht, ab 5 W)"} rund um die Uhr seit Beginn der Baustelle; gespart = ohne Automatik − tatsächlich verbraucht, mal Strompreis.</div>` : ""}
       <div class="leise">${einheit} ${je}${aus.length > 1 ? " · gestapelt, oberste Kante = Summe" : ""}</div>
-      <div class="chart-wrap">${laedt ? LAEDT : flaeche(
+      <div class="chart-wrap">${laedt ? LAEDT2 : flaeche(
       `vb-${ziel}-${this.s.awScope || ""}-${st.gruppe || ""}-${aus.map((q) => q.id).join("_") || "alle"}-${z2}${eur ? "-eur" : ""}`,
       eur ? reihen.map((r5) => ({ ...r5, v: r5.v.map((x2) => (x2 || 0) * f3) })) : reihen,
       labels,
@@ -3961,7 +4072,7 @@ var BaustellePanel = class extends i4 {
     const lauf = this.s.awScope === "alle" ? this.laufende() : [this.d], p4 = this.d.e.preis, vs = this.zrV("aw"), a3 = this.abDaten(z2, void 0, this.d, vs), zeilen = a3 && (a3.firmen || []);
     const wann = this.zrText(z2, vs);
     return `<div class="glas-panel block"><div class="block-kopf"><b>Abrechnung nach Firma</b><span class="leise">${wann} · ${de(p4, 2)} € je kWh</span></div>
-      ${!zeilen ? LAEDT : !zeilen.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : zeilen.map((f3) => `<div class="ab-firma ${f3.eigen ? "eigen" : ""}"><div class="ab-kopf"><b>${esc(f3.firma)}</b><span><b>${de(f3.eur, 2)} €</b> <span class="leise">${de(f3.kwh, 0)} kWh · ${de(f3.anteil, 0)} %</span></span></div>
+      ${!zeilen ? LAEDT2 : !zeilen.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : zeilen.map((f3) => `<div class="ab-firma ${f3.eigen ? "eigen" : ""}"><div class="ab-kopf"><b>${esc(f3.firma)}</b><span><b>${de(f3.eur, 2)} €</b> <span class="leise">${de(f3.kwh, 0)} kWh · ${de(f3.anteil, 0)} %</span></span></div>
         ${(f3.container || []).map((x2) => `<div class="ab-c"><span>${esc(x2.name)}${lauf.length > 1 ? ` <span class="leise">· ${esc(x2.titel)}</span>` : ""}</span><span class="leise">${de(x2.kwh, 0)} kWh · ${de(x2.eur, 2)} €</span></div>`).join("")}</div>`).join("")}
       <button class="knopf" data-act="csv" data-art="firma">⇩ Abrechnung als CSV</button></div>`;
   }
@@ -4073,6 +4184,41 @@ var BaustellePanel = class extends i4 {
     S3.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: "Tag" };
     return neu();
   }
+  /* Verlauf (src/ansichten/verlauf.js): Protokoll der Baustelle (vollständig nachgeladen, sonst aus der Struktur) */
+  protokollQuelle(d3) {
+    let quelle = d3.protokoll;
+    if (d3.geladen) {
+      const rr = this._holen("p:" + d3.entry, () => this._hass.callWS({ type: "baustelle/protokoll", entry_id: d3.entry, filter: "alle", vor: null, limit: 200 }), 6e4);
+      if (rr !== void 0) quelle = (Array.isArray(rr) ? rr : rr && rr.eintraege || []).map((p4) => this.protokollZeile(p4, this.z));
+    }
+    return quelle;
+  }
+  /* Protokoll-Auszug einer (abgeschlossenen) Baustelle; nicht geladen: die Integration kennt nur die Struktur */
+  bsProtokoll(x2) {
+    const prot = !x2.geladen ? [] : this._holen(`bp:${x2.entry}`, () => this._hass.callWS({ type: "baustelle/protokoll", entry_id: x2.entry, filter: "alle", vor: null, limit: 5 }), 3e5);
+    return prot === void 0 ? null : (Array.isArray(prot) ? prot : prot && prot.eintraege || []).slice(0, 5);
+  }
+  /* Baustelle öffnen: laufende → Übersicht dieser Baustelle, abgeschlossene → Detailseite */
+  baustelleOeffnen(id) {
+    const x2 = this.alle.find((y3) => y3.entry === id);
+    if (!x2) return;
+    if (x2.aktiv) {
+      this.bid = x2.entry;
+      this._merken();
+      this._neuBauen();
+      this._vorhersageAbo();
+      this._stimmung(true);
+      this.s.aw = null;
+      return this.gehe("uebersicht");
+    }
+    this.s.bs = x2.entry;
+    return this.gehe("bsdetail");
+  }
+  baustelleAktiv(id) {
+    const x2 = this.alle.find((y3) => y3.entry === id);
+    if (!x2) return;
+    return this.einrichten(() => this.optionenSpeichern(x2, { status: "aktiv", ende: null }), "Baustelle wieder aktiv – Automatik bleibt aus, bis du sie einschaltest").then(() => this._laden());
+  }
   /* Entwicklung (src/ansichten/dev.js) */
   meldungStatus(id) {
     const d3 = this.d, m3 = (this.meldungen() || []).find((x2) => x2.id === id);
@@ -4181,7 +4327,7 @@ var BaustellePanel = class extends i4 {
     const tabs = [["uebersicht", "Übersicht"], ...this._mitHeizung ? [["heizung", "Heizung"]] : [], ...this._mitPumpen ? [["pumpen", "Pumpen"]] : [], ["auswertung", "Auswertung"], ["verlauf", "Verlauf"], ["einst", "⚙"]];
     const aktivTab = S3.view === "container" ? "uebersicht" : S3.view === "bsdetail" ? "verlauf" : ["ueber", "dev"].includes(S3.view) ? "einst" : S3.view;
     let seite;
-    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this) };
+    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this), verlauf: () => verlaufVorlage(this), bsdetail: () => bsdetailVorlage(this) };
     if (!this.roh) seite = ladenVorlage(this.fehler);
     else if (!this.d && !["verlauf", "bsdetail", "ueber"].includes(S3.view)) seite = leerVorlage(this);
     else seite = LIT[S3.view] ? LIT[S3.view]() : o5(this["v_" + S3.view]());
@@ -4319,7 +4465,7 @@ var BaustellePanel = class extends i4 {
       if (!b3.fuehler) chart = '<div class="leer">Kein Temperaturfühler zugeordnet · <button class="link" data-act="sheet" data-s="bereich">zuordnen</button></div>';
       else {
         const st = this.statistik("Tag", vT);
-        if (!st) chart = LAEDT;
+        if (!st) chart = LAEDT2;
         else {
           const inn = [...st.werte[b3.fuehler] || [], null], aussen = [...st.werte[this.eid(d3, d3.entry, "aussen")] || [], null];
           chart = linie(`t-${b3.id}-${mitVb ? "vb" : ""}`, [{ name: "Innen", v: inn }, { name: "Außen", v: aussen }], "°C", mitVb ? this.verbrauch(d3, b3.id, "Tag", vT) : null);
@@ -4327,10 +4473,10 @@ var BaustellePanel = class extends i4 {
       }
     } else if (c4 === "leistung") {
       const kw = this.verbrauch(d3, b3.id, "Tag", vT);
-      chart = kw ? flaeche("kw-" + b3.id, [{ name: b3.name, farbe: BEREICH_FARBEN[b3.f % BEREICH_FARBEN.length], v: kw }], STUNDEN, "kW", 6) + `<div class="leise">Leistung ${this.zrText("Tag", vT)} in kW, Stundenmittel</div>` : LAEDT;
-    } else if (c4 === "verbrauch") chart = kwhW ? balken("v-" + b3.id, kwhW, TAGE, "kWh") : LAEDT;
-    else if (c4 === "zyklen") chart = zykW ? balken("z-" + b3.id, zykW, TAGE, "Zyklen", 0) : LAEDT;
-    else chart = hW ? balken("h-" + b3.id, hW, TAGE, "h") : LAEDT;
+      chart = kw ? flaeche("kw-" + b3.id, [{ name: b3.name, farbe: BEREICH_FARBEN[b3.f % BEREICH_FARBEN.length], v: kw }], STUNDEN, "kW", 6) + `<div class="leise">Leistung ${this.zrText("Tag", vT)} in kW, Stundenmittel</div>` : LAEDT2;
+    } else if (c4 === "verbrauch") chart = kwhW ? balken("v-" + b3.id, kwhW, TAGE, "kWh") : LAEDT2;
+    else if (c4 === "zyklen") chart = zykW ? balken("z-" + b3.id, zykW, TAGE, "Zyklen", 0) : LAEDT2;
+    else chart = hW ? balken("h-" + b3.id, hW, TAGE, "h") : LAEDT2;
     let kennz;
     if (b3.pumpe) {
       this.mess = this.messung();
@@ -4458,7 +4604,7 @@ var BaustellePanel = class extends i4 {
   /* Tagesdiagramm: Heizzeit als Band, innen/außen, Soll gestrichelt, geheizte Stunden als Balken, Jetzt-Marke */
   cTag(b3, vs = 0) {
     const d3 = this.d, innen = b3.fuehler ? this.reihe(d3, b3.fuehler, "Tag", vs) : [], aussen = this.reihe(d3, this.eid(d3, d3.entry, "aussen"), "Tag", vs), kw = this.verbrauch(d3, b3.id, "Tag", vs);
-    if (!aussen || !kw || !innen) return LAEDT;
+    if (!aussen || !kw || !innen) return LAEDT2;
     const W = 640, H2 = 220, L2 = 34, Rr = 10, T2 = 12, B2 = 44, mitSoll = this.sollAktiv(b3), soll = this.sollVon(b3), farbe = BEREICH_FARBEN[b3.f % BEREICH_FARBEN.length];
     const x2 = (h3) => L2 + (W - L2 - Rr) * h3 / 24, alle = [...innen, ...aussen, ...mitSoll ? [soll] : []].filter(zahl);
     const lo = Math.floor(Math.min(...alle.length ? alle : [15]) - 1), hi = Math.ceil(Math.max(...alle.length ? alle : [25]) + 1), y3 = (v2) => T2 + (H2 - T2 - B2) * (1 - (v2 - lo) / (hi - lo));
@@ -4480,7 +4626,7 @@ var BaustellePanel = class extends i4 {
     const d3 = this.d, heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), kwh7 = this.verbrauch(d3, b3.id, "Woche"), h7 = this.heizStunden(d3, b3, "Woche");
     const c4 = ["heute", "woche", "stunden"].includes(this.s.cvd) ? this.s.cvd : "heute";
     const vT = this.zrV("c-Tag"), vW = this.zrV("c-Woche"), kwhW = vW ? this.verbrauch(d3, b3.id, "Woche", vW) : kwh7, hW = vW ? this.heizStunden(d3, b3, "Woche", vW) : h7;
-    const chart = c4 === "heute" ? this.cTag(b3, vT) : c4 === "woche" ? kwhW ? balken("cw-" + b3.id, kwhW, TAGE, "kWh") : LAEDT : hW ? balken("ch-" + b3.id, hW, TAGE, "h") : LAEDT;
+    const chart = c4 === "heute" ? this.cTag(b3, vT) : c4 === "woche" ? kwhW ? balken("cw-" + b3.id, kwhW, TAGE, "kWh") : LAEDT2 : hW ? balken("ch-" + b3.id, hW, TAGE, "h") : LAEDT2;
     const kwh = kwh7 ? kwh7[heuteNr] : null, h3 = h7 ? h7[heuteNr] : null;
     const kacheln = [["⚡", de(kwVon(b3)), "kW jetzt", "leistung"], ["🔋", zahl(kwh) ? de(kwh) : "–", "kWh heute", "verbrauch"], ["€", zahl(kwh) ? de(kwh * d3.e.preis, 2) : "–", "Kosten heute", 'verbrauch" data-t="eur'], ["⏱", zahl(h3) ? de(h3) : "–", "h Heizzeit", "heizzeit-c"]].map(([i7, v2, t5, s4]) => `<button class="glas-panel c-kachel" data-act="sheet" data-s="${s4}" data-id="${b3.id}"><span>${i7}</span><b>${v2}</b><small>${t5}</small></button>`).join("");
     return { c: c4, chart, kacheln };
@@ -4828,7 +4974,7 @@ var BaustellePanel = class extends i4 {
     const kz = (wert, text, dl) => `<div><b>${wert}</b><span>${text}</span>${dl !== null ? `<em class="${dl > 0 ? "mehr" : "weniger"}">${dl > 0 ? "▲" : "▼"} ${Math.abs(dl)} %</em>` : ""}</div>`;
     const W = A2 ? A2.wetter || {} : null, pkt = W && (W.punkte || []), gerade = W && W.gerade;
     let streuHtml;
-    if (!W) streuHtml = LAEDT;
+    if (!W) streuHtml = LAEDT2;
     else if (!gerade) streuHtml = '<div class="leer">Noch zu wenige Heiztage für einen Vergleich</div>';
     else {
       const { k: k2, d0, null0, eur_je_grad } = gerade;
@@ -4881,7 +5027,7 @@ var BaustellePanel = class extends i4 {
       wetter: `<div class="glas-panel block"><div class="block-kopf"><b>Wetter-Einfluss</b><span class="leise">letzte 30 Heiztage · kWh je Tag gegen Außentemperatur</span></div>
         ${streuHtml}</div>`,
       ohne: `<div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
-        ${!zahl(ohne) || !zahl(kwh) ? ohne === null || kwh === null ? LAEDT : '<div class="leer">Noch keine Werte</div>' : !oa ? '<div class="leer">Noch keine Werte</div>' : `
+        ${!zahl(ohne) || !zahl(kwh) ? ohne === null || kwh === null ? LAEDT2 : '<div class="leer">Noch keine Werte</div>' : !oa ? '<div class="leer">Noch keine Werte</div>' : `
         <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${Math.min(100, kwh / ohne * 100)}%;background:var(--s1)"></i></span><span class="hb-w">${de(S3.eur, 0)} €</span></div>
         <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(oa.ohne_eur, 0)} €</span></div>
         <div class="gespart">gespart <b>${de(oa.gespart_eur, 2)} €</b> · ${de(oa.prozent, 0)} %</div>`}
@@ -4964,18 +5110,18 @@ var BaustellePanel = class extends i4 {
     };
     switch (k2) {
       case "betrag":
-        return laed ? `<div class="glas-panel block">${LAEDT}</div>` : `<div class="glas-panel aw-betrag"><div><small>KOSTEN · ${wann}</small><b>${eur}</b>
+        return laed ? `<div class="glas-panel block">${LAEDT2}</div>` : `<div class="glas-panel aw-betrag"><div><small>KOSTEN · ${wann}</small><b>${eur}</b>
           <span>${zahl(S3.kwh) ? de(S3.kwh, 0) : "–"} kWh ${this.awDelta((S3.veraenderung || {}).kwh)} <span class="leise">zu ${this.awVgl(z2)}</span></span></div>
         <div class="aw-betrag-r"><div><small>GESPART DURCH AUTOMATIK</small><b class="gruen-t">${oa ? `${de(oa.gespart_eur, 0)} €` : "–"}</b></div>
           <div><small>HOCHRECHNUNG HEIZPERIODE</small><b>${h3 && zahl(h3.mit_eur) ? `≈ ${de(h3.mit_eur, 0)} €` : "–"}</b></div></div></div>`;
       case "rangliste":
         if (gr.w <= 2) return `<div class="glas-panel block aw-klein"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">Top 3</span></div>
-          ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch</div>' : rang.slice(0, 3).map((c4, i7) => {
+          ${laed ? LAEDT2 : !rang.length ? '<div class="leer">Noch kein Verbrauch</div>' : rang.slice(0, 3).map((c4, i7) => {
           const hier = d3.bereiche.find((b3) => b3.id === c4.bereich);
           return `<button class="aw-rang aw-rang-z" ${hier ? `data-act="container" data-id="${esc(c4.bereich)}"` : "disabled"}><span><em>${i7 + 1}</em> ${esc(c4.name)}</span><i style="width:${(c4.kwh || 0) / max * 100}%;background:${hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : "var(--ink2)"}"></i><em>${de(c4.kwh, 0)} kWh · ${de(c4.eur, 2)} €</em></button>`;
         }).join("")}</div>`;
         return `<div class="glas-panel block"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">antippen öffnet den Container</span></div>
-        ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : `<div class="aw-tab-kopf"><span></span><span>kWh</span><span>€</span><span>Heizzeit</span><span>kWh/h</span><span>kWh/m²</span><span>jetzt</span></div>
+        ${laed ? LAEDT2 : !rang.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : `<div class="aw-tab-kopf"><span></span><span>kWh</span><span>€</span><span>Heizzeit</span><span>kWh/h</span><span>kWh/m²</span><span>jetzt</span></div>
         ${rang.map((c4, i7) => {
           const hier = d3.bereiche.find((b3) => b3.id === c4.bereich), farbe = hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : "var(--ink2)";
           return `<button class="aw-tab-zeile" ${hier ? `data-act="container" data-id="${esc(c4.bereich)}"` : "disabled"}><span class="aw-tab-name"><span><em>${i7 + 1}</em>${esc(c4.name)}</span>${this.s.awScope === "alle" ? `<small>${esc(c4.baustelle || "")}</small>` : ""}
@@ -4983,7 +5129,7 @@ var BaustellePanel = class extends i4 {
         }).join("")}`}</div>`;
       case "erkenntnisse": {
         const E2 = this.awErkenntnisse(A2, z2);
-        return laed ? `<div class="glas-panel block">${LAEDT}</div>` : !E2.length ? '<div class="glas-panel block"><div class="block-kopf"><b>Was fällt auf</b></div><div class="leer">Noch nichts Auffälliges</div></div>' : `<div class="aw-karten">${E2.map(([i7, t5, x2, kk]) => `<button class="glas-panel aw-karte" data-act="aw-detail" data-k="${kk}"><span>${i7}</span><b>${t5}</b><small>${x2}</small></button>`).join("")}</div>`;
+        return laed ? `<div class="glas-panel block">${LAEDT2}</div>` : !E2.length ? '<div class="glas-panel block"><div class="block-kopf"><b>Was fällt auf</b></div><div class="leer">Noch nichts Auffälliges</div></div>' : `<div class="aw-karten">${E2.map(([i7, t5, x2, kk]) => `<button class="glas-panel aw-karte" data-act="aw-detail" data-k="${kk}"><span>${i7}</span><b>${t5}</b><small>${x2}</small></button>`).join("")}</div>`;
       }
       case "k-kosten":
         return kachel("abrechnung", `<small>KOSTEN · ${wann}</small><b>${eur}</b><span>${zahl(S3.kwh) ? de(S3.kwh, 0) : "–"} kWh ${this.awDelta((S3.veraenderung || {}).kwh)}</span>`);
@@ -5026,7 +5172,7 @@ var BaustellePanel = class extends i4 {
     const st = this.s.aw, Q = this.quellen(st, "aw"), werte = Q.map((q) => ({ q, v: q.v(z2) }));
     const alle = this.s.awScope === "alle", firma = st.gruppe === "firma", kopf = `<div class="aw-dia-kopf"><b>Verbrauch</b>
       <div class="seg klein">${[["teil", alle ? "Baustelle" : "Container"], ["firma", "Firma"]].map(([k2, t5]) => `<button data-act="vb-gruppe" data-ziel="aw" data-v="${k2}" class="${(firma ? "firma" : "teil") === k2 ? "on" : ""}">${t5}</button>`).join("")}</div></div>`;
-    if (werte.some((x2) => !x2.v)) return `<div class="glas-panel aw-dia">${kopf}${LAEDT}</div>`;
+    if (werte.some((x2) => !x2.v)) return `<div class="glas-panel aw-dia">${kopf}${LAEDT2}</div>`;
     const zr = this.zeitraum(z2, st.v || 0), labels = zr.labels, n4 = labels.length, reihen = werte.map(({ q, v: v2 }) => ({ name: q.name, farbe: q.farbe, v: v2 }));
     const summen = labels.map((_2, i7) => reihen.reduce((a3, r5) => a3 + (r5.v[i7] || 0), 0)), ges = summe(summen);
     const W = gr.w * 160, H2 = Math.max(90, gr.h * 110 + (gr.h - 1) * 12 - 78), L2 = 30, R2 = 6, T2 = 6, U = 16, hi = Math.max(...summen, 0) * 1.1 || 1;
@@ -5765,7 +5911,7 @@ var BaustellePanel = class extends i4 {
         <div class="p-schacht"><div class="p-illu">${illu(b3)}</div><div>${b3.geraete.map((g2) => `<div class="zeile geraet"><span class="g-ic ${g2.an ? "an" : ""}">💧</span><div class="g-t"><b>${esc(g2.n)}</b><span class="leise">${!g2.erreichbar ? "offline" : g2.an ? `läuft${zahl(g2.kwJetzt) ? ` · ${de(g2.kwJetzt, 2)} kW` : ""}` : "aus"}</span></div></div>`).join("") || '<div class="leise">Noch keine Pumpe</div>'}
           <div class="leise">heute ${z7 ? z7[heuteNr] : "–"} Zyklen · ${stdMin(h7 ? h7[heuteNr] : null)} gelaufen</div></div></div>
         <div class="seg">${[["pumpzeit", "Pumpzeit"], ["zyklen", "Zyklen"], ["verbrauch", "Verbrauch"]].map(([k2, t5]) => `<button data-act="p-chart" data-v="${k2}" class="${k2 === pc ? "on" : ""}">${t5}</button>`).join("")}</div>
-        <div class="chart-wrap">${r5 ? balken(`p${pc}-${b3.id}`, r5, TAGE, pc === "zyklen" ? "Zyklen" : pc === "verbrauch" ? "kWh" : "h", pc === "zyklen" ? 0 : 1) : LAEDT}</div></div>`;
+        <div class="chart-wrap">${r5 ? balken(`p${pc}-${b3.id}`, r5, TAGE, pc === "zyklen" ? "Zyklen" : pc === "verbrauch" ? "kWh" : "h", pc === "zyklen" ? 0 : 1) : LAEDT2}</div></div>`;
     }).join("")}
       <div class="glas-panel block"><div class="block-kopf"><b>Überwachung</b><span class="leise">wann eine Pumpe gemeldet wird</span></div>
         <div class="zeile"><div><b>Offline</b><div class="leise">Shelly antwortet nicht (Stromausfall?) – melden nach</div></div>${st("offline_min", 1, (v2) => `${de(v2, 0)} min`)}</div>
@@ -5779,7 +5925,7 @@ var BaustellePanel = class extends i4 {
   leistungHeute() {
     const d3 = this.d, Q = d3.bereiche.map((b3) => ({ name: b3.name, farbe: BEREICH_FARBEN[b3.f % BEREICH_FARBEN.length], v: this.verbrauch(d3, b3.id, "Tag") }));
     return `<div class="glas-panel block"><div class="block-kopf"><b>Leistung heute</b><span class="leise">kW je Stunde (Mittel)</span></div>
-      <div class="chart-wrap">${Q.some((q) => !q.v) ? LAEDT : Q.length ? flaeche("kw-heute", Q, STUNDEN, "kW", 6) : '<div class="leer">Noch keine Container</div>'}</div>
+      <div class="chart-wrap">${Q.some((q) => !q.v) ? LAEDT2 : Q.length ? flaeche("kw-heute", Q, STUNDEN, "kW", 6) : '<div class="leer">Noch keine Container</div>'}</div>
       <div class="leise">gestapelt nach Container – oben die ganze Baustelle</div></div>`;
   }
   /* Tagesmittel der Fühler und außen, letzte n Tage */
@@ -5815,7 +5961,7 @@ var BaustellePanel = class extends i4 {
     let inhalt;
     if (tv === "heute") {
       const st = this.statistik("Tag");
-      inhalt = !st ? LAEDT : linien(
+      inhalt = !st ? LAEDT2 : linien(
         "tp-heute",
         [...C2.map((b3) => ({ name: b3.name, farbe: farbe(b3), v: [...st.werte[b3.fuehler] || [], null] })), ...aid ? [{ ...aussen, v: [...st.werte[aid] || [], null] }] : []],
         [...STUNDEN, "24"],
@@ -5824,7 +5970,7 @@ var BaustellePanel = class extends i4 {
       );
     } else {
       const n4 = tv === "7" ? 7 : 30, t5 = this.tempTage(n4);
-      inhalt = !t5 ? LAEDT : linien(
+      inhalt = !t5 ? LAEDT2 : linien(
         `tp-${n4}`,
         [...C2.map((b3) => ({ name: b3.name, farbe: farbe(b3), v: t5.werte[b3.fuehler] || Array(n4).fill(null) })), ...aid ? [{ ...aussen, v: t5.werte[aid] || Array(n4).fill(null) }] : []],
         t5.tage.map(kurzDatum),
@@ -5840,7 +5986,7 @@ var BaustellePanel = class extends i4 {
   /* Je Gerät: Ø kW im Betrieb (Zähler mittel:<gid>), kWh aus dem Zählerstand des Shelly, Stunden ≈ kWh ÷ Ø kW (Pumpen: Pumpzeit) – rechnet die Integration */
   geraeteBlock(z2, A2) {
     const d3 = this.d;
-    if (!A2) return `<div class="glas-panel block"><div class="block-kopf"><b>Je Gerät</b></div>${LAEDT}</div>`;
+    if (!A2) return `<div class="glas-panel block"><div class="block-kopf"><b>Je Gerät</b></div>${LAEDT2}</div>`;
     const zeilen = (A2.je_geraet || []).map((r5) => {
       const b3 = d3.bereiche.find((x2) => x2.id === r5.bereich), g2 = b3 && b3.geraete.find((x2) => x2.id === r5.geraet);
       return g2 ? { ...r5, b: b3, g: g2 } : null;
@@ -5856,7 +6002,7 @@ var BaustellePanel = class extends i4 {
     const max = h3 ? Math.max(h3.bisher_kwh || 0, h3.mit_kwh || 0, h3.ohne_kwh || 0) || 1 : 1;
     const balkenZ = (t5, kwh, eur, farbe) => `<div class="hbar"><span class="hb-n">${t5}</span><span class="hb-spur"><i style="width:${zahl(kwh) ? kwh / max * 100 : 0}%;background:${farbe}"></i></span><span class="hb-w">${zahl(eur) ? `${de(eur, 0)} €` : "–"}</span></div>`;
     return `<div class="glas-panel block"><div class="block-kopf"><b>Hochrechnung Heizperiode</b><span class="leise">${MONATE[von - 1]}–${MONATE[bis - 1]} · ${mon} Monate</span></div>
-      ${!A2 ? LAEDT : !h3 || !zahl(h3.mit_kwh) ? '<div class="leer">Noch zu wenige Tage für eine Hochrechnung</div>' : `${balkenZ("bisher", h3.bisher_kwh, h3.bisher_eur, "var(--s3)")}${balkenZ("mit Automatik", h3.mit_kwh, h3.mit_eur, "var(--s1)")}${balkenZ("ohne (24/7)", h3.ohne_kwh, h3.ohne_eur, "var(--s2)")}
+      ${!A2 ? LAEDT2 : !h3 || !zahl(h3.mit_kwh) ? '<div class="leer">Noch zu wenige Tage für eine Hochrechnung</div>' : `${balkenZ("bisher", h3.bisher_kwh, h3.bisher_eur, "var(--s3)")}${balkenZ("mit Automatik", h3.mit_kwh, h3.mit_eur, "var(--s1)")}${balkenZ("ohne (24/7)", h3.ohne_kwh, h3.ohne_eur, "var(--s2)")}
       <div class="gespart">bis ${hp && hp.bis !== hp.ende ? datum(hp.bis) : `Ende ${MONATE_LANG[bis - 1]}`} rund <b>${de(h3.mit_kwh, 0)} kWh</b> · ${de(h3.mit_eur, 0)} €${zahl(h3.gespart_eur) ? ` – gespart ≈ <b>${de(h3.gespart_eur, 0)} €</b>` : ""}</div>`}
       <div class="leise">aus dem bisherigen Verbrauch je Tag hochgerechnet${d3.ende ? ` – bis zum geplanten Ende ${datum(d3.ende)}, wenn es früher liegt` : ""}. Heizperiode unter Einstellungen › Baustelle.</div>
       ${erkl(d3.e.erklaer, "Die Hochrechnung nimmt den Verbrauch je Tag bisher und rechnet ihn auf die ganze Heizperiode hoch. Endet die Baustelle früher, zählt nur bis zum Ende.")}</div>`;
@@ -5880,13 +6026,6 @@ var BaustellePanel = class extends i4 {
     };
   }
   /* ============ Verlauf (WU-0006, Mockup glas.html Variante 5 abgenommen): Reiter Baustellen (Karten / Vergleich) und Protokoll ============ */
-  v_verlauf() {
-    const reiter = this.s.vlReiter || "bs", art = this.s.vlArt || "karten", prot = reiter === "prot" && this.d;
-    return `${this.kopf("Verlauf", prot ? esc(this.d.titel).toUpperCase() : "BAUSTELLEN")}
-      <div class="vl-reiter"><div class="seg glas-panel">${[["bs", "Baustellen"], ["prot", "Protokoll"]].map(([k2, t5]) => `<button data-act="vl-reiter" data-v="${k2}" class="${reiter === k2 ? "on" : ""}" ${k2 === "prot" && !this.d ? "disabled" : ""}>${t5}</button>`).join("")}</div>
-        ${prot ? "" : `<div class="seg glas-panel klein">${[["karten", "▦ Karten"], ["tabelle", "☰ Vergleich"]].map(([k2, t5]) => `<button data-act="vl-art" data-v="${k2}" class="${art === k2 ? "on" : ""}">${t5}</button>`).join("")}</div>`}</div>
-      ${prot ? this.vlChronik() : art === "tabelle" ? this.vlVergleich() : this.vlArchiv()}`;
-  }
   vlMonatsKeys() {
     const heute = (this.d || this.alle[0] || { z: { HEUTE: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10) } }).z.HEUTE, j2 = +heute.slice(0, 4), mo = +heute.slice(5, 7) - 1;
     return [...Array(12)].map((_2, k2) => {
@@ -5898,99 +6037,6 @@ var BaustellePanel = class extends i4 {
     const max = Math.max(1, ...werte), bw = w2 / werte.length;
     return `<svg class="vl-funke" viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none">${werte.map((v2, i7) => `<rect x="${(i7 * bw + 1).toFixed(1)}" y="${(h3 - v2 / max * h3).toFixed(1)}" width="${Math.max(0, bw - 2).toFixed(1)}" height="${(v2 / max * h3).toFixed(1)}" rx="1.5" fill="${farbe}" opacity="${v2 > 0.5 ? 0.9 : 0.15}"/>`).join("")}</svg>`;
   }
-  /* Archiv: Summe über alle, je Baustelle eine Karte mit Mini-Verlauf der letzten 12 Monate (aktive zuerst) */
-  vlArchiv() {
-    const BS = [...this.alle].sort((a3, b3) => b3.aktiv - a3.aktiv), K = new Map(BS.map((b3) => [b3.entry, this.kennz(b3)])), MONK = this.vlMonatsKeys(), laedt = BS.some((b3) => K.get(b3.entry).laedt);
-    const sum = (k2) => BS.reduce((a3, b3) => a3 + (K.get(b3.entry)[k2] || 0), 0);
-    const zahl0 = (v2, n4 = 0) => zahl(v2) ? de(v2, n4) : "–";
-    return `<div class="glas-panel kennz vier">${[[BS.length, `Baustellen · ${BS.filter((b3) => b3.aktiv).length} aktiv`], [laedt ? "–" : de(sum("kwh"), 0), "kWh gesamt"], [laedt ? "–" : `${de(sum("eur"), 0)} €`, "Kosten gesamt"], [laedt ? "–" : `${de(sum("gespart"), 0)} €`, "gespart"]].map(([w2, t5]) => `<div><b>${w2}</b><span>${t5}</span></div>`).join("")}</div>
-      ${BS.length ? `<div class="vl-archiv">${BS.map((b3) => {
-      const k2 = K.get(b3.entry), i7 = this.alle.indexOf(b3), farbe = `var(--s${i7 % 6 + 1})`;
-      return `<button class="glas-panel vl-karte ${b3.aktiv ? "aktiv" : ""}" data-act="bs-oeffnen" data-id="${esc(b3.entry)}">
-          <div class="bs-kopf"><b>${esc(b3.titel)}</b><span class="badge ${b3.aktiv ? "gruen" : ""}">${b3.aktiv ? "aktiv" : "abgeschlossen"}</span></div>
-          <div class="leise">${k2.zeit} · ${k2.container} Container · ${k2.laedt ? "–" : k2.heiztage} Heiztage</div>
-          ${this.vlFunke(MONK.map((m3) => k2.jeMonat[m3] || 0), farbe)}<div class="vl-monate"><span>${MONATE[+MONK[0].slice(5) - 1]}</span><span>${MONATE[+MONK[11].slice(5) - 1]}</span></div>
-          <div class="vl-zahlen"><div><b>${k2.laedt ? "–" : zahl0(k2.kwh)}</b><small>kWh</small></div><div><b>${k2.laedt ? "–" : `${zahl0(k2.eur)} €`}</b><small>Kosten</small></div>
-            <div><b>${k2.laedt ? "–" : zahl0(k2.vergleich.tag, 1)}</b><small>kWh/Heiztag</small></div><div><b class="gruen-t">${zahl(k2.gespart) ? `${de(k2.gespart, 0)} €` : "–"}</b><small>gespart</small></div></div>
-          <span class="leise vl-mehr">${b3.aktiv ? "Übersicht ›" : "ansehen ›"}</span></button>`;
-    }).join("")}</div>` : '<div class="glas-panel block"><div class="leer">Noch keine Baustelle</div></div>'}`;
-  }
-  /* Vergleich: sortierbare Tabelle aller Baustellen (Werte der Integration), darunter die letzten 12 Monate */
-  vlVergleich() {
-    const BS = this.alle, K = new Map(BS.map((b3) => [b3.entry, this.kennz(b3)])), sp = this.s.vlSort || "tag", ab = this.s.vlAb !== false, MONK = this.vlMonatsKeys();
-    const spalten = [["name", "Baustelle"], ["tag", "kWh/Heiztag"], ["monat", "€/Monat"], ["kwh", "kWh"], ["eur", "€"], ["heiztage", "Heiztage"], ["container", "Cont."]];
-    const wert = (b3, kk) => {
-      const k2 = K.get(b3.entry);
-      return { name: b3.titel, tag: k2.vergleich.tag, monat: k2.vergleich.monat, kwh: k2.kwh, eur: k2.eur, heiztage: k2.heiztage, container: k2.container }[kk];
-    };
-    const zeilen = BS.map((b3, i7) => ({ b: b3, i: i7 })).sort((x2, y3) => {
-      const a3 = wert(x2.b, sp), c4 = wert(y3.b, sp);
-      return (typeof a3 === "string" ? String(a3).localeCompare(String(c4)) : (a3 ?? -1) - (c4 ?? -1)) * (ab ? -1 : 1);
-    });
-    const tage = BS.map((b3) => wert(b3, "tag")).filter((v2) => zahl(v2) && v2 > 0), bester = tage.length > 1 ? Math.min(...tage) : null;
-    const reihen = BS.map((b3, i7) => ({ name: b3.titel, v: MONK.map((m3) => K.get(b3.entry).jeMonat[m3] || 0), farbe: `var(--s${i7 % 6 + 1})` })).filter((x2) => x2.v.some((v2) => v2 > 0.5));
-    const laedt = BS.some((b3) => K.get(b3.entry).laedt), f3 = (v2, n4 = 0) => zahl(v2) ? de(v2, n4) : "–";
-    return `<div class="glas-panel block vl-tabelle"><div class="block-kopf"><b>Alle Baustellen</b><span class="leise">Spalte antippen sortiert · kWh je Heiztag ist am besten vergleichbar</span></div>
-        <div class="vl-tab-kopf">${spalten.map(([k2, t5]) => `<button data-act="vl-sort" data-v="${k2}" class="${sp === k2 ? "on" : ""}">${t5}${sp === k2 ? ab ? " ▼" : " ▲" : ""}</button>`).join("")}</div>
-        ${zeilen.map(({ b: b3, i: i7 }) => {
-      const k2 = K.get(b3.entry);
-      return `<button class="vl-tab-zeile" data-act="bs-oeffnen" data-id="${esc(b3.entry)}"><span class="vl-tab-name"><span><i class="farbpunkt" style="background:var(--s${i7 % 6 + 1})"></i>${esc(b3.titel)}</span><small>${k2.zeit}</small></span>
-          <b class="${bester !== null && k2.vergleich.tag === bester ? "gruen-t" : ""}">${f3(k2.vergleich.tag, 1)}</b><span>${f3(k2.vergleich.monat)}</span><span>${f3(k2.kwh)}</span><span>${f3(k2.eur)}</span><span>${k2.laedt ? "–" : k2.heiztage}</span><span>${k2.container}</span></button>`;
-    }).join("")}</div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Letzte 12 Monate</b><span class="leise">kWh je Monat, gestapelt nach Baustelle</span></div>
-        <div class="chart-wrap">${laedt ? LAEDT : reihen.length ? flaeche("zwoelf", reihen, MONK.map((m3) => MONATE[+m3.slice(5) - 1]), "kWh", 2) : '<div class="leer">Noch keine Werte</div>'}</div></div>`;
-  }
-  /* Chronik: Protokoll der Baustelle nach Tagen mit Tagessumme (kWh je Tag aus der Integration), Filter und Suche */
-  vlChronik() {
-    const d3 = this.d, f3 = this.s.pfilter || "alle", q = (this.s.vlSuche || "").toLowerCase().trim(), v2 = this.verlaufDaten(d3), jeTag = v2 && v2.je_tag || {};
-    const ART2 = { warnung: ["⚠", "var(--rot)"], ok: ["✓", "#30d158"], schalten: ["⏻", "var(--amber)"], wetter: ["☁", "var(--blau)"], nachricht: ["✉", "var(--ink2)"], einstellung: ["⚙", "var(--ink2)"] };
-    let quelle = d3.protokoll;
-    if (d3.geladen) {
-      const rr = this._holen("p:" + d3.entry, () => this._hass.callWS({ type: "baustelle/protokoll", entry_id: d3.entry, filter: "alle", vor: null, limit: 200 }), 6e4);
-      if (rr !== void 0) quelle = (Array.isArray(rr) ? rr : rr && rr.eintraege || []).map((p4) => this.protokollZeile(p4, this.z));
-    }
-    const passt = (e6) => (f3 === "alle" || e6[2] === f3 || f3 === "warnung" && e6[2] === "ok" || f3 === "schalten" && e6[2] === "einstellung") && (!q || `${e6[3] ? this.bName(e6[3]) : ""} ${e6[4]}`.toLowerCase().includes(q));
-    const tage = [];
-    for (const e6 of quelle.filter(passt)) {
-      const t5 = tage.at(-1);
-      if (t5 && t5.tag === e6[0]) t5.e.push(e6);
-      else tage.push({ tag: e6[0], iso: e6[5], e: [e6] });
-    }
-    return `<div class="glas-panel vl-filter"><input class="vl-suche" placeholder="Suchen (Container, Text) …" value="${esc(this.s.vlSuche || "")}" data-vls>
-        <div class="vb-wer">${[["alle", "Alle"], ["warnung", "⚠ Warnungen"], ["schalten", "⏻ Schalten"], ["wetter", "☁ Wetter"], ["nachricht", "✉ Nachrichten"]].map(([k2, t5]) => `<button data-act="pfilter" data-v="${k2}" class="${f3 === k2 ? "on" : ""}">${t5}</button>`).join("")}</div></div>
-      ${tage.length ? tage.map((t5) => {
-      const kwh = t5.iso ? jeTag[t5.iso] : null;
-      return `<div class="glas-panel vl-tag"><div class="vl-tag-kopf"><b>${esc(t5.tag)}</b><span class="leise">${zahl(kwh) ? `${de(kwh, 1)} kWh · ${de(kwh * d3.e.preis, 2)} € · ` : ""}${t5.e.length} ${t5.e.length === 1 ? "Eintrag" : "Einträge"}</span></div>
-          ${t5.e.map((e6) => {
-        const [ic, farbe] = ART2[e6[2]] || ["•", "var(--ink2)"];
-        return `<div class="vl-ereignis"><span class="zeit">${e6[1]}</span><span class="vl-punkt" style="background:${farbe}">${ic}</span><div>${e6[3] ? `<b>${esc(this.bName(e6[3]))}</b> ` : ""}<span class="leise">${esc(e6[4])}</span></div></div>`;
-      }).join("")}</div>`;
-    }).join("") : `<div class="glas-panel block"><div class="leer">${q || f3 !== "alle" ? "Nichts gefunden" : "Noch keine Einträge"}</div></div>`}`;
-  }
-  v_bsdetail() {
-    const x2 = this.alle.find((y3) => y3.entry === this.s.bs);
-    if (!x2) return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button></div><div class="glas-panel block"><div class="leer">Baustelle nicht gefunden</div></div>`;
-    const k2 = this.kennz(x2), m3 = k2.monate && { labels: k2.monate.labels, reihen: k2.monate.reihen.map((r5, i7) => {
-      const b3 = x2.bereiche.find((y3) => y3.id === r5.bereich);
-      return { name: r5.name, v: r5.v, kwh: r5.kwh, eur: r5.eur, anteil: r5.anteil, farbe: BEREICH_FARBEN[(b3 && zahl(b3.f) ? b3.f : i7) % BEREICH_FARBEN.length] };
-    }) };
-    const prot = !x2.geladen ? [] : this._holen(`bp:${x2.entry}`, () => this._hass.callWS({ type: "baustelle/protokoll", entry_id: x2.entry, filter: "alle", vor: null, limit: 5 }), 3e5);
-    const ART2 = { einstellung: "⚙", warnung: "⚠", ok: "✓", schalten: "⏻", wetter: "☁", nachricht: "✉" };
-    const eintraege = prot === void 0 ? null : (Array.isArray(prot) ? prot : prot && prot.eintraege || []).slice(0, 5);
-    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button><button class="glas-panel chip" data-act="csv">⇩ CSV</button></div>
-      ${this.kopf(esc(x2.titel), x2.aktiv ? "LAUFEND" : "ABGESCHLOSSEN · NUR ANSEHEN")}
-      <div class="leise vgl">${k2.zeit}</div>
-      <div class="glas-panel kennz vier"><div><b>${de(k2.kwh, 0)}</b><span>kWh</span></div><div><b>${de(k2.eur, 0)} €</b><span>Kosten</span></div><div><b>${k2.laedt ? "–" : k2.heiztage}</b><span>Heiztage</span></div><div><b>${zahl(k2.gespart) ? `${de(k2.gespart, 0)} €` : "–"}</b><span>gespart</span></div></div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Verbrauch je Monat</b><span class="leise">gestapelt nach Container</span></div>
-        ${!m3 ? LAEDT : !m3.reihen.length ? '<div class="leer">Keine Container</div>' : `<div class="chart-wrap">${flaeche("bs-" + x2.entry, m3.reihen, m3.labels, "kWh", 1)}</div>
-        <div class="vb-je">${m3.reihen.map((q) => `<div><i style="background:${q.farbe}"></i><span class="n">${esc(q.name)}</span><b>${de(q.kwh, 0)} kWh</b><span>${de(q.eur, 0)} €</span><span class="leise">${de(q.anteil, 0)} %</span></div>`).join("")}</div>`}</div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Protokoll</b><span class="leise">Auszug</span></div>
-        ${eintraege === null ? LAEDT : eintraege.length ? eintraege.map((p4) => {
-      const l4 = this.lokal(p4[0], x2.z.zone);
-      return `<div class="zeile ereignis"><span class="zeit">${kurzDatum(l4)}</span><span class="p-ic">${ART2[p4[1]] || "•"}</span><div><span>${p4[2] ? `${esc((x2.bereiche.find((b3) => b3.id === p4[2]) || { name: p4[2] }).name)}: ` : ""}${esc(p4[3])}</span></div></div>`;
-    }).join("") : '<div class="leer">Keine Einträge</div>'}</div>
-      ${x2.aktiv ? "" : knopf2("Wieder aktiv setzen", "bs-aktiv", x2.entry)}`;
-  }
   protokoll() {
     const f3 = this.s.pfilter || "alle", ART2 = { warnung: ["⚠", "var(--rot)"], ok: ["✓", "#30d158"], schalten: ["⏻", "var(--amber)"], wetter: ["☁", "var(--blau)"], nachricht: ["✉", "var(--ink2)"], einstellung: ["⚙", "var(--ink2)"] };
     const passt = (e6) => f3 === "alle" || e6[2] === f3 || f3 === "warnung" && e6[2] === "ok" || f3 === "schalten" && e6[2] === "einstellung";
@@ -6001,7 +6047,7 @@ var BaustellePanel = class extends i4 {
     }
     const kopf = `<div class="block-kopf"><b>Protokoll</b><span class="leise">bleibt mit der Baustelle gespeichert · auch im HA-Logbuch</span></div>
       <div class="vb-wer">${[["alle", "Alle"], ["warnung", "Warnungen"], ["schalten", "Schalten"], ["wetter", "Wetter"], ["nachricht", "Nachrichten"]].map(([k2, t5]) => `<button data-act="pfilter" data-v="${k2}" class="${f3 === k2 ? "on" : ""}">${t5}</button>`).join("")}</div>`;
-    if (quelle === null) return `<div class="glas-panel block">${kopf}${LAEDT}</div>`;
+    if (quelle === null) return `<div class="glas-panel block">${kopf}${LAEDT2}</div>`;
     let liste = quelle.filter(passt);
     const mehr = !this.s.pmehr && (liste.length > 12 || f3 === "alle" && quelle.length >= 20);
     if (mehr) liste = liste.slice(0, 12);
@@ -6385,19 +6431,19 @@ var BaustellePanel = class extends i4 {
       let inhalt;
       if (a3 === "std") {
         const std = (H2 || []).filter((x2) => Date.parse(x2.datetime) > jetzt - 36e5).slice(0, 6);
-        inhalt = H2 === null ? LAEDT : !std.length ? '<div class="leer">Keine stündliche Vorhersage</div>' : `<div class="w-std">${std.map((x2) => `<div><span class="leise">${this.lokal(x2.datetime).slice(11, 13)}:00</span>${wetterIcon(this.nachtWetter(x2.condition, Date.parse(x2.datetime)), 36)}<b>${de(x2.temperature, 0)}°</b>
+        inhalt = H2 === null ? LAEDT2 : !std.length ? '<div class="leer">Keine stündliche Vorhersage</div>' : `<div class="w-std">${std.map((x2) => `<div><span class="leise">${this.lokal(x2.datetime).slice(11, 13)}:00</span>${wetterIcon(this.nachtWetter(x2.condition, Date.parse(x2.datetime)), 36)}<b>${de(x2.temperature, 0)}°</b>
           <span class="w-regen">${zahl(x2.precipitation) && x2.precipitation > 0 ? de(x2.precipitation) + " mm" : "–"}</span><span class="leise">${zahl(x2.precipitation_probability) ? x2.precipitation_probability : 0} %</span></div>`).join("")}</div>`;
       } else if (a3 === "tag") {
         const teile = [["Morgen", 7], ["Mittag", 12], ["Nachmittag", 16], ["Nacht", 22]], jetztH = +d3.z.JETZT.slice(0, 2);
         const tagSt = this.statistik("Tag"), aussen = tagSt && tagSt.werte[this.eid(d3, d3.entry, "aussen")];
         const stunde = (tag, h3) => (H2 || []).find((x2) => this.lokal(x2.datetime).slice(0, 13) === `${tag} ${String(h3).padStart(2, "0")}`);
-        inhalt = H2 === null ? LAEDT : [["Heute", d3.z.HEUTE], ["Morgen", plusTage(d3.z.HEUTE, 1)]].map(([name, tag]) => `<div class="w-tag"><div class="w-tag-n">${name}</div><div class="w-teile">${teile.map(([t5, h3]) => {
+        inhalt = H2 === null ? LAEDT2 : [["Heute", d3.z.HEUTE], ["Morgen", plusTage(d3.z.HEUTE, 1)]].map(([name, tag]) => `<div class="w-tag"><div class="w-tag-n">${name}</div><div class="w-teile">${teile.map(([t5, h3]) => {
           const x2 = stunde(tag, h3), vorbei = tag === d3.z.HEUTE && h3 < jetztH, temp = x2 ? x2.temperature : vorbei && aussen ? aussen[h3] : null;
           return `<div class="${vorbei ? "vorbei" : ""}"><span class="leise">${t5}</span>${wetterIcon(x2 ? this.nachtWetter(x2.condition, Date.parse(x2.datetime)) : ws ? this.nachtWetter(ws.state) : "cloudy", 34)}<b>${zahl(temp) ? de(temp, 0) + "°" : "–"}</b><span class="w-regen">${x2 && zahl(x2.precipitation) && x2.precipitation > 0 ? de(x2.precipitation) + " mm" : "–"}</span></div>`;
         }).join("")}</div></div>`).join("");
       } else {
         const tage = (D2 || []).filter((x2) => this.lokal(x2.datetime).slice(0, 10) > d3.z.HEUTE).slice(0, 3);
-        inhalt = D2 === null ? LAEDT : !tage.length ? '<div class="leer">Keine Tagesvorhersage</div>' : `<div class="w-3">${tage.map((x2) => {
+        inhalt = D2 === null ? LAEDT2 : !tage.length ? '<div class="leer">Keine Tagesvorhersage</div>' : `<div class="w-3">${tage.map((x2) => {
           const t5 = this.lokal(x2.datetime).slice(0, 10);
           return `<div class="w-3z">
           <div class="w-3t"><b>${wtag(t5)}</b><span class="leise">${kurzDatum(t5)}</span></div>${wetterIcon(x2.condition, 40)}
@@ -6528,7 +6574,7 @@ var BaustellePanel = class extends i4 {
     if (s4.art === "bericht") {
       const e6 = d3.e, art = e6.bericht === "monat" ? "monat" : "woche";
       const v2 = !d3.geladen ? null : this._holen(`b:${d3.entry}:${art}:${d3.z.HEUTE}:${e6.bericht_mail}:${e6.bericht_csv}:${e6.mail}`, () => this._hass.callWS({ type: "baustelle/bericht", entry_id: d3.entry, art }), 12e4);
-      if (!v2) return `${griff}<h3>Bericht · Beispiel</h3>${v2 === void 0 ? LAEDT : '<div class="leer">Bericht nicht verfügbar</div>'}${knopf("Schließen", "zu", "leise-k")}`;
+      if (!v2) return `${griff}<h3>Bericht · Beispiel</h3>${v2 === void 0 ? LAEDT2 : '<div class="leer">Bericht nicht verfügbar</div>'}${knopf("Schließen", "zu", "leise-k")}`;
       return `${griff}<h3>Bericht · Beispiel</h3>
         <div class="mail"><div class="mail-kopf"><div><span class="leise">An</span> ${v2.mail_an ? esc(v2.mail_an) : "—"}</div><div><span class="leise">Betreff</span> ${esc(v2.betreff)}</div>
           ${v2.anhang ? `<div class="mail-anhang">📎 ${esc(v2.anhang)}</div>` : ""}</div>
@@ -6572,7 +6618,7 @@ var BaustellePanel = class extends i4 {
     }
     if (s4.art === "m-bild") {
       const m3 = (this.meldungen() || []).find((x2) => x2.id === s4.id), u3 = m3 && this.mlBild(m3, s4.i);
-      return `${griff}<h3>${esc(m3 && m3.ticket || "Meldung")} · Bild ${s4.i + 1}</h3>${u3 ? `<img class="mb-gross" src="${u3}" alt="Bild">` : LAEDT}${knopf("Schließen")}`;
+      return `${griff}<h3>${esc(m3 && m3.ticket || "Meldung")} · Bild ${s4.i + 1}</h3>${u3 ? `<img class="mb-gross" src="${u3}" alt="Bild">` : LAEDT2}${knopf("Schließen")}`;
     }
     if (s4.art === "ausnahme") {
       const f3 = s4.form, az = this.azJetzt, z2 = az && az.tage[wtag(f3.datum)];
@@ -7161,18 +7207,6 @@ var BaustellePanel = class extends i4 {
         neu();
         return this.einrichten(() => this.optionenSpeichern(d3, { beginn: f3.beginn || null, ende: f3.ende || null, heizperiode_von: String(f3.hp[0]), heizperiode_bis: String(f3.hp[1]) }), "Gespeichert").then(() => this._laden());
       }
-      case "vl-reiter":
-        S3.vlReiter = el.dataset.v;
-        return neu();
-      case "vl-art":
-        S3.vlArt = el.dataset.v;
-        return neu();
-      case "vl-sort": {
-        const v2 = el.dataset.v;
-        S3.vlAb = S3.vlSort === v2 ? !(S3.vlAb !== false) : true;
-        S3.vlSort = v2;
-        return neu();
-      }
       case "aw-bearb":
         S3.awBearb = !S3.awBearb;
         S3.awLayout = false;
@@ -7457,22 +7491,8 @@ var BaustellePanel = class extends i4 {
       case "vgl":
         S3.vglArt = el.dataset.v;
         return neu();
-      case "bs-oeffnen":
-      case "bs-wahl": {
-        const x2 = this.alle.find((y3) => y3.entry === el.dataset.id);
-        if (!x2) return;
-        if (x2.aktiv) {
-          this.bid = x2.entry;
-          this._merken();
-          this._neuBauen();
-          this._vorhersageAbo();
-          this._stimmung(true);
-          S3.aw = null;
-          return this.gehe("uebersicht");
-        }
-        S3.bs = x2.entry;
-        return this.gehe("bsdetail");
-      }
+      case "bs-wahl":
+        return this.baustelleOeffnen(el.dataset.id);
       case "bs-bearbeiten": {
         const x2 = this.alle.find((y3) => y3.entry === el.dataset.id);
         if (!x2) return;
@@ -7504,11 +7524,6 @@ var BaustellePanel = class extends i4 {
             if (weg) this.gehe("uebersicht");
           });
         });
-      }
-      case "bs-aktiv": {
-        const x2 = this.alle.find((y3) => y3.entry === el.dataset.t);
-        if (!x2) return;
-        return this.einrichten(() => this.optionenSpeichern(x2, { status: "aktiv", ende: null }), "Baustelle wieder aktiv – Automatik bleibt aus, bis du sie einschaltest").then(() => this._laden());
       }
       case "csv":
         return this.csv(el.dataset.art);
@@ -7826,17 +7841,6 @@ var BaustellePanel = class extends i4 {
       sh.k = null;
       const t5 = this.shadowRoot && this.shadowRoot.querySelector(".kk-treffer");
       if (t5) t5.innerHTML = this.kkTreffer(sh);
-      return;
-    }
-    if (ds.vls !== void 0) {
-      this.s.vlSuche = el.value;
-      this.neuZeichnen().then(() => {
-        const x2 = this.shadowRoot && this.shadowRoot.querySelector("[data-vls]");
-        if (x2 && x2.focus) {
-          x2.focus();
-          if (x2.setSelectionRange) x2.setSelectionRange(el.value.length, el.value.length);
-        }
-      });
       return;
     }
     if (ds.azn) sh.form[ds.azn] = el.value;
