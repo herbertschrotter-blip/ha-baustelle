@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.78] – 2026-10-06
+
+- Umbau der Seite, ohne sichtbare Änderung (BSM-022.06, Stufe 1c): Datenadapter (Antwort der Integration → Anzeige),
+  Zuordnungstabellen, Rechte (Nur ansehen, Vor-Ort-Aktionen) und die Nachrichten an die Integration liegen jetzt in
+  eigenen Dateien (`frontend/src/daten.js`, `tabellen.js`, `rechte.js`, `api.js`). Die Seite zeigt und sendet genau
+  dasselbe wie vorher, auch für Nicht-Admins.
+
 ## [0.8.77] – 2026-10-06
 
 - Umbau der Seite, ohne sichtbare Änderung (BSM-022.05, Stufe 1b): Himmel (WebGL mit CSS-Rückfall, Sonnen- und Mondlauf)

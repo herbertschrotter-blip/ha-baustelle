@@ -5,21 +5,16 @@
    Bedienung: baustelle/setzen|aktion|liste|protokoll|meldung(en) (api §2) und die HA-Standardwege
    (Subentry-/Options-Dialoge, calendar/event/*, Diagnose). Gerechnet wird in der Integration, nicht hier.
    ========================================================================================= */
+import { ARTEN, AUSNAHME, FARBE, MODI, WIEDER } from './tabellen.js';
+
 import { Himmel, himmelLauf, partikel, phaseAusSonne } from './himmel.js';
 import { CHARTS, balken, flaeche, funke, kkBalken, linie, linien, streu, stufen } from './diagramme.js';
 
 import { MONATE, MONATE_LANG, TAGE, addieren, datum, dauer, de, erkl, esc, knopf2, kurzDatum, kwNr, minu, naechsterTermin, plusTage, schalter, stdMin, summe, tageZwischen, uhr, verNeuer, wtag, zahl, zrInfo, zrVersatz } from './hilfen.js';
 import { BEREICH_FARBEN, ICON_COG, ICON_MELDEN, IC_MINUS, IC_PLUS, IC_POWER, SYMBOL_STANDARD, bcContainer, bcSchacht, sigHtml, sigStufe, wetterIcon } from './symbole.js';
-
-/* Bauplan 0.7 §8: Nicht-Admins sehen nur an. Gesperrt wird in der Integration; hier nur ausgegraut, was ändert
-   (Schalter, die nur in der Seite wirken – Melden, Bedarf-Auswahl, Kachel-Katalog, eigene Auswertung –, bleiben frei).
-   Was vor Ort trotzdem geht, liefert die Integration (`rechte.aktionen`); VOR_ORT ordnet die Knöpfe diesen Aktionen zu. */
-const NUR_ANSEHEN = 'Nur ansehen – ändern dürfen nur Admins';
-const NUR_LESEN_SPERRE = ['.sw:not([data-act="ml-stand"]):not([data-act="bedarf-boost"]):not([data-act="kk-dia-w"]):not([data-act="aw-an"])', '[data-act$="-speichern"]', '[data-act$="-weg"]', '[data-act$="-bearbeiten"]', '[data-act="lern-reset"]',
-  '[data-act="abschliessen"]', '[data-act="neu-anlegen"]', '[data-act="wetterquelle-auf"]', 'input[data-k]', 'select[data-jm]',
-  ...['termin', 'urlaub', 'container-neu', 'wetterquelle', 'bs-loeschen', 'zeitraum-bs', 'name', 'baustelle-neu'].map(x => `[data-act="sheet"][data-s="${x}"]`)];
-const VOR_ORT = { 'w-stumm': 'warnung_stumm', 'sg-gefuehl': 'gefuehl', 'bedarf-auf': 'bedarf', 'bedarf-an': 'bedarf', 'bedarf-aus': 'bedarf_aus',
-  boost: 'boost', 'jetzt-an': 'jetzt_heizen', 'jetzt-aus': 'jetzt_heizen' };
+import { bauen, lokal, minSeitAb, protokollZeile, zoneMs } from './daten.js';
+import { NUR_ANSEHEN, NUR_LESEN_SPERRE, darfSenden, gesperrt, rechteVon } from './rechte.js';
+import { fehlerText, flowFehler, nachricht } from './api.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -828,16 +823,9 @@ ${NUR_LESEN_SPERRE.map(x => `.nur-lesen ${x}`).join(', ')} { opacity: .45; filte
 .hz-innen { padding: 4px 0 8px; } .hz-innen + .hz-innen { border-top: 1px solid var(--gridc); padding-top: 12px; }
 `;
 
-const FARBE = { bereit: '#8e8e93', heizt: '#ff9f0a', trocknen: '#ff9f0a', aus: '#8e8e93', frost: '#64d2ff', offline: '#ff453a', laeuft: '#0a84ff', pause: '#bf5af2' };
 const TICKET_STATUS = { neu: 'neu', angenommen: 'angenommen', in_arbeit: 'in Arbeit', geloest: 'gelöst', geschlossen: 'geschlossen', verworfen: 'verworfen', offen: 'neu', erledigt: 'geschlossen' };
-const WIEDER = { einmal: 'einmalig', woche: 'jede Woche', '2wochen': 'alle 2 Wochen' };
-const AUSNAHME = { arbeit: 'zusätzlich arbeiten', zeiten: 'andere Zeiten', frei: 'frei' };
 const LAEDT = '<div class="leer">Lädt …</div>';
 
-/* Zuordnung der Geräte: Rolle und Typ der Integration → Anzeige wie im Mockup */
-const HEIZER = g => ['heizung', 'heizkoerper'].includes(g.rolle);
-const TYP_TEXT = g => g.rolle === 'pumpe' ? 'Pumpe' : HEIZER(g) ? (g.typ === 'konvektor' ? 'Konvektor' : 'Ölradiator')
-  : ['trockner', 'bautrockner'].includes(g.rolle) ? 'Bautrockner' : 'Steckdose';
 const TYP_ROLLE = { Ölradiator: ['heizkoerper', 'oelradiator'], Konvektor: ['heizkoerper', 'konvektor'], Bautrockner: ['bautrockner', 'oelradiator'],
   Steckdose: ['steckdose', 'oelradiator'], Pumpe: ['pumpe', 'oelradiator'] };
 /* Einstellungen: Schlüssel der Seite (wie im Mockup) → Pfad im Store (bauplan §1) */
@@ -861,18 +849,13 @@ const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], m
   vorheizen: [0, 240], nachheizen: [0, 240], soll: [5, 30], gleit_min: [5, 30], gleit_max: [5, 30], gleit_je: [0, 0.5], gleit_bezug: [0, 20], gleit_tage: [1, 7], grenze: [0, 30], frueh_temp: [-15, 20], frueh_min: [0, 240], frost_temp: [0, 15],
   tr_mm: [0, 100], tr_laenger: [0, 480], tr_frueher: [0, 240], boost_min: [5, 480], toleranz: [0.1, 3], hand_nachfrist: [0, 240], fuehler_halten: [0, 120], zieht_w: [5, 500],
   frost_aus: [1, 20], absenk: [5, 20], offline_min: [1, 1440], trocken_w: [5, 5000], dauer_min: [5, 1440], zyklen_h: [2, 200], kalt_min: [15, 1440], hand_h: [1, 240], warm_vor: [0, 240], warm_nach: [0, 240], frost_aussen: [-20, 10], warm_max: [15, 480], stufen_abstand: [0.5, 10], stufen_min: [5, 240], stufen_anstieg: [0, 5], stufen_kalt: [-30, 15] };
-/* Modus je Container (0.7.8): wie im Mockup, Thermostat nur mit Fühler */
-const MODI = [['plan', 'Zeitplan'], ['thermo', 'Thermostat'], ['bedarf', 'Bei Bedarf'], ['hand', 'Hand'], ['aus', 'Aus']];
 const MODUS_TEXT = { plan: 'an in der Heizzeit – der Thermostat am Heizkörper regelt', thermo: 'in der Heizzeit auf das Soll nach dem Fühler',
   bedarf: 'nur per Schalter oder Termin, sonst Frostschutz', hand: 'die Automatik schaltet nicht – Schalter unten', aus: 'alles aus, Frostschutz bleibt' };
-const FREI_TEXT = { frost: 'nur Frostschutz', absenk: 'abgesenkt', aus: 'alles aus' };
 const STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, '0'));
 /* Reiter Heizung als Kacheln: Schlüssel, Titel des bisherigen Blocks, Symbol, Name der Einblendung */
 const HZ_TEILE = [['heute', 'Heute', '🕖', 'Heute'], ['wann', 'Wann welche Heizung heizt', '🔥', 'Wann heizt was'], ['plan', 'Heizplan · diese Woche', '📅', 'Diese Woche'],
   ['az', 'Arbeitszeit', '👷', 'Arbeitszeit'], ['ausn', 'Ausnahmen', '✳️', 'Ausnahmen'], ['regeln', 'So wird geheizt', '⚙️', 'Regeln'],
   ['trocknen', '👕 Kleidung trocknen', '👕', 'Kleidung trocknen'], ['container', 'Je Container', '🏠', 'Container'], ['urlaub', 'Urlaub &amp; Feiertage', '🏖', 'Urlaub & Feiertage']];
-const ARTEN = { m_selbst: 'selbst_ein', m_offline: 'offline', m_trocken: 'trockenlauf', m_dauer: 'dauerlauf', m_zyklen: 'zyklen_oft', m_leistung: 'keine_leistung', m_frost: 'frostgefahr',
-  m_kalt: 'zu_kalt', m_fuehler: 'fuehler_fehlt', m_wetter: 'kein_wetter', m_hand: 'hand_zu_lange' };
 /* Abschnitte der Integration → Klassen der Zeitleiste im Mockup */
 const MB_MAX = 3, MB_PX = 1600;   // WU-0016: Bilder je Meldung, größte Kante
 const ABSCHNITT = { fruehstart: 'extra', vorheizen: 'vor', nachheizen: 'vor', arbeitszeit: 'heiz', trocknen: 'trock', termin: 'termin', fenster: 'eigen' };
@@ -973,7 +956,6 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LOKAL_FMT = {};
 class BaustellePanel extends HTMLElement {
   constructor() {
     super();
@@ -1087,17 +1069,10 @@ class BaustellePanel extends HTMLElement {
     }
     if (this.neueVersion !== vorher) this.render();
   }
-  /* Bauplan 0.7 §8: Rechte des angemeldeten Benutzers aus baustelle/struktur (ohne Angabe: alles wie bisher) */
-  rechte() { const r = (this.roh || [])[0]; return (r && r.rechte) || { aendern: true, aktionen: [] }; }
+  rechte() { return rechteVon(this.roh); }   /* Rechte und Sperren: src/rechte.js */
   nurLesen() { return !this.rechte().aendern; }
-  gesperrt(el) {
-    if (!this.nurLesen() || !el || !el.matches) return false;
-    const a = VOR_ORT[el.dataset && el.dataset.act]; return a ? !this.rechte().aktionen.includes(a) : NUR_LESEN_SPERRE.some(x => el.matches(x));
-  }
-  darfSenden(msg) {   // Meldungen entscheidet die Integration (melden darf jeder, Status nur Admins)
-    if (!this.nurLesen() || msg.type === 'baustelle/meldung') return true;
-    return msg.type === 'baustelle/aktion' && this.rechte().aktionen.includes(msg.aktion);
-  }
+  gesperrt(el) { return gesperrt(el, this.rechte()); }
+  darfSenden(msg) { return darfSenden(msg, this.rechte()); }
   nurLesenHinweis() {
     if (!this.roh || !this.nurLesen()) return '';
     return `<div class="glas-panel neu-version nur-lesen-hinweis"><span>👁 ${NUR_ANSEHEN} <span class="leise">· jetzt heizen, Gefühl und Warnungen stumm gehen trotzdem</span></span></div>`;
@@ -1168,110 +1143,20 @@ class BaustellePanel extends HTMLElement {
   }
   _aboEnde() { for (const a of this.abos) if (a && a.then) a.then(ende => typeof ende === 'function' && ende()).catch(() => {}); this.abos = []; this._aboFuer = null; }
 
-  /* Zeit in der Zone der Baustelle: 'YYYY-MM-DD HH:MM' */
-  lokal(t, zone = this.d && this.d.z.zone) {
-    const ms = typeof t === 'number' ? t : Date.parse(t);
-    if (!Number.isFinite(ms)) return '';
-    const k = zone || '';
-    if (!(k in LOKAL_FMT)) {
-      try { LOKAL_FMT[k] = new Intl.DateTimeFormat('sv-SE', { timeZone: zone || undefined, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); }
-      catch (e) { LOKAL_FMT[k] = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }); }
-    }
-    return LOKAL_FMT[k].format(ms).replace('T', ' ');
-  }
-  /* Mitternacht (oder Uhrzeit) eines Tages in der Zone der Baustelle als Zeitpunkt */
-  zoneMs(tag, zeit = '00:00', zone) {
-    const g = Date.parse(`${tag}T${zeit}:00Z`), l = Date.parse(this.lokal(g, zone).replace(' ', 'T') + ':00Z');
-    return Number.isFinite(l) ? g - (l - g) : g;
-  }
+  lokal(t, zone = this.d && this.d.z.zone) { return lokal(t, zone); }   /* Zeit in der Zone der Baustelle (src/daten.js) */
+  zoneMs(tag, zeit = '00:00', zone = this.d && this.d.z.zone) { return zoneMs(tag, zeit, zone); }
   isoUhr(iso) { return iso ? this.lokal(iso).slice(11, 16) : null; }
   seitText(iso) { if (!iso) return ''; const l = this.lokal(iso); return l.slice(0, 10) === this.z.HEUTE ? `seit ${l.slice(11, 16)}` : `seit ${wtag(l)} ${kurzDatum(l)}`; }
   tagText(l) { const t = l.slice(0, 10); return t === this.z.HEUTE ? 'Heute' : t === plusTage(this.z.HEUTE, -1) ? 'Gestern' : `${wtag(t)} ${kurzDatum(t)}`; }
   minSeit(iso) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((this.jetztMs() - ms) / 60000)) : null; }
   jetztMs() { return this.d ? this.d.z.jetztMs : Date.now(); }
 
-  /* ---- Adapter: baustelle/struktur (docs/api-0.7.md §1) → Modell der Seite (Form wie im Mockup) ---- */
-  bauen(r) {
-    const bs = r.baustelle || {}, lz = r.laufzeit || {}, e0 = r.einstellungen || {}, opt = bs.optionen || {}, zone = bs.zeitzone;
-    const jetztIso = bs.jetzt || new Date().toISOString(), jl = this.lokal(jetztIso, zone) || '';
-    const heute = bs.heute || jl.slice(0, 10) || new Date().toISOString().slice(0, 10);
-    const montag = plusTage(heute, -((new Date(heute + 'T12:00:00Z').getUTCDay() + 6) % 7));
-    const WOCHE_ISO = TAGE.map((_, k) => plusTage(montag, k));
-    const z = { HEUTE: heute, HEUTE_TAG: TAGE[WOCHE_ISO.indexOf(heute)] || 'Mo', JETZT: jl.slice(11, 16) || '00:00', WOCHE_ISO,
-      WOCHE: WOCHE_ISO.map((iso, k) => [TAGE[k], kurzDatum(iso)]), zone, jetztMs: Number.isFinite(Date.parse(jetztIso)) ? Date.parse(jetztIso) : Date.now() };
-    const h = e0.heizung || {}, st = e0.staffel || {}, me = e0.meldungen_einst || {}, ar = me.arten || {}, be = e0.bericht || {};
-    const v = (x, std) => zahl(x) ? Number(x) : std;
-    const namen = s => { const x = this._hass && this._hass.states[`notify.${s}`]; return (x && x.attributes.friendly_name) || String(s).replace(/^mobile_app_/, '').replace(/_/g, ' '); };
-    const e = { preis: v(e0.preis, 0), preise: Array.isArray(e0.preise) ? e0.preise : [], feiertag_frei: h.feiertag_frei !== false, boost_min: v(h.boost_min, 30), soll_art: h.soll_art === 'gleitend' ? 'gleitend' : 'fest', gleit_min: v(h.gleit_min, 21), gleit_max: v(h.gleit_max, 24),
-      gleit_je: v(h.gleit_je, 0.1), gleit_bezug: v(h.gleit_bezug, 12), gleit_tage: v(h.gleit_tage, 3), toleranz: v(h.toleranz, 0.3), hand_nachfrist: v(h.hand_nachfrist_min, 30),
-      fuehler_halten: v(h.fuehler_halten_min, 15), zieht_w: v(h.zieht_strom_w, 50), melden: e0.melden_knopf !== false,
-      staffel: st.an !== false, nutzbar: v(st.nutzbar_prozent, 67), max_gleich: v(st.max_gleichzeitig, 5), min_lauf: v(st.min_lauf_min, 10), min_pause: v(st.min_pause_min, 5), takt: v(st.takt_min, 15),
-      tuer_pause: v(h.tuer_pause_min, 3), tuer_melden: v(h.tuer_melden_min, 10), knoepfe: me.knoepfe !== false,
-      bericht: be.haeufigkeit || 'aus', bericht_handy: be.handy !== false, bericht_mail: !!be.mail, mail: be.mail_an || '', mail_dienst: be.mail_dienst || '', bericht_csv: be.csv !== false,
-      vorheizen: v(h.vorheizen_min, 45), nachheizen: v(h.nachheizen_min, 15), warm_vor: v(h.warm_vor_min, 0), frost_aussen: h.frost_aussen === null ? null : v(h.frost_aussen, -3), warm_nach: v(h.warm_nach_min, 0), warm_max: v(h.warm_max_min, 120), stufen_abstand: v(h.stufen_abstand, 1.5), stufen_min: v(h.stufen_min, 30), stufen_anstieg: v(h.stufen_anstieg, 0.3), stufen_kalt: v(h.stufen_kalt, -5), soll: v(h.soll, 20), grenze: v(h.heizgrenze, 15), basis: h.heizgrenze_basis === 'jetzt' ? 'jetzt' : 'Tageshöchstwert',
-      fruehstart: h.fruehstart !== false, frueh_temp: v(h.fruehstart_unter, 0), frueh_min: v(h.fruehstart_min, 30), frost: h.frost !== false, frost_temp: v(h.frost_grenze, 5),
-      tr_mm: v(h.trocknen_ab_mm, 2), tr_laenger: v(h.trocknen_laenger_min, 45), tr_frueher: v(h.trocknen_frueher_min, 15),
-      empfaenger: (me.empfaenger || opt.empfaenger || []).map(namen).join(', ') || 'keiner gewählt',
-      dauer_min: v(me.dauerlauf_min, 20), kalt_min: v(me.kalt_min, 60), hand_h: v(me.hand_h, 8), zyklen_h: v(me.zyklen_h, 10), trocken_w: v(me.trocken_unter_w, 30),
-      auto: !!e0.automatik,
-      frost_aus: v(h.frost_aus, v(h.frost_grenze, 5) + 2), urlaub: FREI_TEXT[h.frei_modus] ? h.frei_modus : 'frost', absenk: v(h.absenk, 10),
-      offline_min: v(me.offline_min, 5), erklaer: e0.erklaer !== false, frost_immer: !!h.frost_immer, notprogramm: !!h.notprogramm, taste: !!h.taste };
-    for (const [k, art] of Object.entries(ARTEN)) e[k] = ar[art] !== false;
-    const anschluesse = (e0.anschluesse || []).map(a => ({ id: a.id, name: a.name || a.id, ampere: v(a.ampere, 16), phasen: v(a.phasen, 3), reserve: v(a.reserve_kw, 0) }));
-    const firmen = (e0.firmen && e0.firmen.length ? e0.firmen : [{ id: 'eigen', name: 'Eigene Firma', eigen: true }]).map(f => ({ ...f }));
-    const zuordnung = e0.zuordnung || [], jetztMs = z.jetztMs;   // Firma je Container jetzt: Integration (laufzeit.container[bid].firma)
-    const ebAlle = e0.bereiche || {}, cAlle = lz.container || {}, gAlle = lz.geraete || {};
-    const bereiche = (r.bereiche || []).map((b, i) => {
-      const eb = ebAlle[b.id] || {}, c = cAlle[b.id] || {}, pumpe = b.art === 'pumpenschacht';
-      const geraete = (r.geraete || []).filter(g => g.bereich === b.id).map(g => { const x = gAlle[g.id] || {};
-        return { id: g.id, n: g.name || g.id, typ: TYP_TEXT(g), rolle: g.rolle, gtyp: g.typ, heizer: HEIZER(g), kw: v(g.nenn_kw, 0), kwJetzt: x.kw, an: !!x.an,
-          hand: !!x.hand_seit, hand_seit: x.hand_seit || null, warte: x.warte || null, erreichbar: x.erreichbar !== false, schalter: g.schalter, leistung: g.leistung, energie: g.energie,
-          aktiv: x.aktiv !== false, zusatz: !!x.zusatz, np: x.notprogramm || null, nennKwEigen: zahl(g.nenn_kw_eigen) ? Number(g.nenn_kw_eigen) : null, leistungEigen: g.leistung_eigen || null, energieEigen: g.energie_eigen || null }; });
-      let zst = c.zustand in FARBE ? c.zustand : (pumpe ? 'aus' : 'aus');
-      const offline = zst === 'offline' || (geraete.length > 0 && geraete.every(g => !g.erreichbar));
-      if (offline) zst = 'offline';
-      const tuerS = eb.tuer && this._hass && this._hass.states[eb.tuer];
-      const tuer = eb.tuer ? { eid: eb.tuer, sensor: (tuerS && tuerS.attributes.friendly_name) || eb.tuer, offen: c.tuer && c.tuer.offen ? Math.max(1, this.minSeitAb(c.tuer.seit, jetztMs) ?? 1) : 0 } : undefined;
-      return { id: b.id, name: b.name || b.id, f: zahl(b.nr) ? Number(b.nr) : i, art: b.art, pumpe, fuehler: b.fuehler || null, z: zst, grund: c.grund || null,
-        t: zahl(c.temperatur) ? Number(c.temperatur) : null, kw: zahl(c.kw) ? Number(c.kw) : null, text: c.text || '', geraete,
-        auto: eb.auto !== false, trocknen: !!eb.trocknen, stufenAn: !!eb.stufen, stufen: c.stufen || null, sollJ: c.soll || null, bedarfGrad: c.bedarf || null, soll: zahl(eb.soll) ? Number(eb.soll) : undefined, bedarf: !!eb.bedarf, prio: eb.prio || 'normal',
-        anschluss: eb.anschluss || (anschluesse[0] && anschluesse[0].id) || null, firma: c.firma || 'eigen', tuer, offline,
-        bedarfBisIso: c.bedarf_bis || null, bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
-        boost: !!c.boost_bis, boostBis: c.boost_bis || null,
-        modus: pumpe ? null : MODI.some(m => m[0] === c.modus) ? c.modus : eb.bedarf ? 'bedarf' : eb.auto === false ? 'hand' : b.fuehler ? 'thermo' : 'plan',
-        lern: c.lernen || null, groesse: c.groesse || null, symbol: c.symbol || null, warmVor: zahl(eb.warm_vor) ? Number(eb.warm_vor) : null, warmNach: zahl(eb.warm_nach) ? Number(eb.warm_nach) : null };   // lernende Regelung (0.8): Lernstand von der Integration
-    });
-    const plan = {}, frei = {};
-    const freiName = {};
-    for (const [iso, q] of Object.entries(lz.plan_ausnahmen || {})) plan[iso] = q || null;   // FE-0012: Tage mit Ausnahmen (auch später)
-    for (const p of lz.plan_woche || []) { plan[p.datum] = p.plan || null; frei[p.datum] = p.frei || null; if (p.name) freiName[p.datum] = p.name; }
-    const warnungen = (lz.warnungen || []).map(w => ({ id: w.key, key: w.key, art: w.art, stufe: w.stufe === 'stoerung' ? 'stoerung' : 'hinweis', b: w.bereich || null, g: w.geraet || null,
-      titel: w.titel || w.art || '', hilfe: w.hilfe || '', seitIso: w.seit, stumm: !!(w.stumm_bis && Date.parse(w.stumm_bis) > jetztMs) }));
-    const termine = (lz.termine || []).map(t => { const l = this.lokal(t.von, zone), lb = this.lokal(t.bis, zone);
-      return { b: t.bereich, datum: l.slice(0, 10), von: l.slice(11, 16), bis: lb.slice(11, 16), titel: t.titel || '', uid: t.uid, rrule: t.rrule || null,
-        wieder: WIEDER[t.wiederholung] ? t.wiederholung : 'einmal', boost: !!t.boost }; });
-    const tage = e0.arbeitszeiten || [];
-    const arbeitszeiten = tage.map(a => ({ ab: a.ab, name: a.name || '', auto: a.auto === true, tage: Object.fromEntries(TAGE.map((t, k) => { const x = (a.tage || {})[k] ?? (a.tage || {})[String(k)]; return [t, x && x[0] && x[1] ? [x[0], x[1]] : null]; })) }));
-    const aktiv = (bs.status || opt.status || 'aktiv') !== 'abgeschlossen';
-    const zl = r.zaehler || {};
-    const wetterEid = opt.wetter || null;
-    return { r, entry: bs.entry_id, titel: bs.titel || 'Baustelle', aktiv, geladen: bs.geladen !== false, version: bs.version, optionen: opt, ent: r.entitaeten || {}, z, e,
-      funktionen: r.funktionen || ['heizung', 'pumpen'],
-      bereiche, anschluesse, firmen, zuordnung, arbeitszeiten, ausnahmen: (e0.ausnahmen || []).map(a => ({ datum: a.datum, art: a.art in AUSNAHME ? a.art : 'zeiten', von: a.von || '07:00', bis: a.bis || '16:30', notiz: a.notiz || '' })),
-      warnungen, termine, plan, frei, freiName, abschnitte: lz.abschnitte || {}, staffel: lz.staffel || null, sollG: lz.soll_gleitend || null, wetter: lz.wetter || {}, heizgrenze: lz.heizgrenze || {},
-      status: lz.status || (aktiv ? 'bereit' : 'abgeschlossen'), statusText: lz.status_text || '', jetztBis: lz.jetzt_bis ? this.lokal(lz.jetzt_bis, zone).slice(11, 16) : null,
-      np: lz.notprogramm || null, protokoll: (lz.protokoll || []).map(p => this.protokollZeile(p, z)), zaehler: zl, termineKal: e0.termine_kalender || null, wetterEid,
-      beginn: bs.beginn || opt.beginn || null, beginnAuto: bs.beginn_auto === true, ende: opt.ende || null,   // Beginn leer = Tag der Anlage (AN-0002)
-      hp: [Math.min(12, Math.max(1, parseInt(opt.heizperiode_von, 10) || 10)), Math.min(12, Math.max(1, parseInt(opt.heizperiode_bis, 10) || 4))] };
-  }
+  /* Adapter baustelle/struktur → Modell der Seite (src/daten.js) */
+  bauen(r) { return bauen(r, this._hass, this.d && this.d.z.zone); }
   /* Beginn und Ende einer Baustelle als Text; „(angelegt)“ = Beginn automatisch (AN-0002) */
   bsZeit(x) { return `${x.beginn ? datum(x.beginn) : '–'}${x.beginnAuto ? ' (angelegt)' : ''} – ${x.ende ? datum(x.ende) : 'offen'}`; }
-  minSeitAb(iso, jetztMs) { const ms = Date.parse(iso); return Number.isFinite(ms) ? Math.max(0, Math.round((jetztMs - ms) / 60000)) : null; }
-  protokollZeile(p, z) {
-    const l = this.lokal(p[0], z.zone) || '', t = l.slice(0, 10);
-    const tag = t === z.HEUTE ? 'Heute' : t === plusTage(z.HEUTE, -1) ? 'Gestern' : `${wtag(t)} ${kurzDatum(t)}`;
-    return [tag, l.slice(11, 16), p[1] || 'einstellung', p[2] || null, p[3] || '', t];   // t = Tag JJJJ-MM-TT (Chronik, WU-0006)
-  }
+  minSeitAb(iso, jetztMs) { return minSeitAb(iso, jetztMs); }
+  protokollZeile(p, z) { return protokollZeile(p, z, this.d && this.d.z.zone); }
   eid(d, besitzer, key) { return d.ent[`${besitzer}_${key}`] || null; }
   zustand(eid) { const s = eid && this._hass && this._hass.states[eid]; return s && !['unknown', 'unavailable'].includes(s.state) ? s : null; }
   name(eid) { const s = eid && this._hass && this._hass.states[eid]; return (s && s.attributes.friendly_name) || eid || ''; }
@@ -3898,8 +3783,7 @@ class BaustellePanel extends HTMLElement {
       ${knopf('Speichern', s.art === 'name' ? 'name-speichern' : 'baustelle-anlegen', 'amber')}`;
   }
 
-  /* ---- Aufrufe an die Integration (docs/api-0.7.md §2) und an HA ---- */
-  fehlerText(e) { return (e && e.body && e.body.message) || (e && e.message) || (e && e.code) || String(e); }
+  fehlerText(e) { return fehlerText(e); }
   async ws(msg, ok) {
     if (!this.darfSenden(msg)) { this.toast(NUR_ANSEHEN); return null; }
     try { const r = await this._hass.callWS(msg); if (ok) this.toast(ok); return r === undefined ? true : r; }
@@ -3912,10 +3796,10 @@ class BaustellePanel extends HTMLElement {
     const r = this.d && this.d.r;
     this._rohText = null;   // Antwort der Integration immer übernehmen (auch wenn sie den Wert ablehnt)
     if (r) { let o = r.einstellungen ||= {}; for (const k of pfad.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; o[pfad[pfad.length - 1]] = wert; this._neuBauen(); this.render(); }
-    return this.ws({ type: 'baustelle/setzen', entry_id: this.d.entry, pfad, wert }, ok);
+    return this.ws(nachricht.setzen(this.d.entry, pfad, wert), ok);
   }
-  aktion(aktion, felder, ok) { return this.ws({ type: 'baustelle/aktion', entry_id: this.d.entry, aktion, ...felder }, ok); }
-  liste(liste, aktion, eintrag, ok) { return this.ws({ type: 'baustelle/liste', entry_id: this.d.entry, liste, aktion, eintrag }, ok); }
+  aktion(aktion, felder, ok) { return this.ws(nachricht.aktion(this.d.entry, aktion, felder), ok); }
+  liste(liste, aktion, eintrag, ok) { return this.ws(nachricht.liste(this.d.entry, liste, aktion, eintrag), ok); }
   /* Einrichtungs-Dialoge von HA (dieselben wie unter Einstellungen → Geräte & Dienste) */
   async dialog(pfad, start, daten) {
     if (this.nurLesen()) throw new Error(NUR_ANSEHEN);
@@ -3923,7 +3807,7 @@ class BaustellePanel extends HTMLElement {
     if (!form || form.type !== 'form') return form;
     return this._hass.callApi('POST', `${pfad}/${form.flow_id}`, daten);
   }
-  flowFehler(r) { return r && ((r.type === 'form' && r.errors && (r.errors.base || Object.values(r.errors)[0])) || (r.type === 'abort' && !['reconfigure_successful'].includes(r.reason) && r.reason)); }
+  flowFehler(r) { return flowFehler(r); }
   async einrichten(lauf, ok) {
     try { const r = await lauf(); const f = this.flowFehler(r); if (f) { this.toast(`Nicht gespeichert: ${f}`); return null; } if (ok) this.toast(ok); return r || true; }
     catch (e) { this.toast(`Fehler: ${this.fehlerText(e)}`); return null; }

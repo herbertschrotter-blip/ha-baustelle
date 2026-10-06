@@ -62,6 +62,16 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
     await schritt(`einst ${g}`, { act: 'ev-gruppe', v: g });
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
+  // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
+  for (const b of STRUKTUR) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] };
+  panel.cache = {}; await panel._laden(); await schritt('nur-lesen start');
+  await schritt('nur-lesen automatik', { act: 'auto' });
+  await schritt('nur-lesen warnungen', { act: 'sheet', s: 'warnungen' });
+  const w = panel.d.warnungen[0]; if (w) await schritt('nur-lesen warnung stumm', { act: 'w-stumm', id: w.id });
+  await schritt('nur-lesen zu', { act: 'zu' });
+  await schritt('nur-lesen einst', { act: 'tab', v: 'einst' });
+  for (const g of ['heizung', 'container', 'geraete']) await schritt(`nur-lesen einst ${g}`, { act: 'ev-gruppe', v: g });
+  aus.toast = { html: panel.letzterToast || '', befehle: [] };
   fs.writeFileSync(ziel, JSON.stringify(aus));
   console.log(`Schnappschuss: ${Object.keys(aus).length} Schritte, ${befehle.length} Befehle → ${ziel}`);
   process.exit(0);

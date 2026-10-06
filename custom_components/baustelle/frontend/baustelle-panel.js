@@ -1,5 +1,27 @@
 // Seite „Baustelle“ – gebaut mit esbuild aus custom_components/baustelle/frontend/src (nicht von Hand ändern, BSM-022)
 
+// src/tabellen.js
+var FARBE = { bereit: "#8e8e93", heizt: "#ff9f0a", trocknen: "#ff9f0a", aus: "#8e8e93", frost: "#64d2ff", offline: "#ff453a", laeuft: "#0a84ff", pause: "#bf5af2" };
+var WIEDER = { einmal: "einmalig", woche: "jede Woche", "2wochen": "alle 2 Wochen" };
+var AUSNAHME = { arbeit: "zusätzlich arbeiten", zeiten: "andere Zeiten", frei: "frei" };
+var HEIZER = (g) => ["heizung", "heizkoerper"].includes(g.rolle);
+var TYP_TEXT = (g) => g.rolle === "pumpe" ? "Pumpe" : HEIZER(g) ? g.typ === "konvektor" ? "Konvektor" : "Ölradiator" : ["trockner", "bautrockner"].includes(g.rolle) ? "Bautrockner" : "Steckdose";
+var MODI = [["plan", "Zeitplan"], ["thermo", "Thermostat"], ["bedarf", "Bei Bedarf"], ["hand", "Hand"], ["aus", "Aus"]];
+var FREI_TEXT = { frost: "nur Frostschutz", absenk: "abgesenkt", aus: "alles aus" };
+var ARTEN = {
+  m_selbst: "selbst_ein",
+  m_offline: "offline",
+  m_trocken: "trockenlauf",
+  m_dauer: "dauerlauf",
+  m_zyklen: "zyklen_oft",
+  m_leistung: "keine_leistung",
+  m_frost: "frostgefahr",
+  m_kalt: "zu_kalt",
+  m_fuehler: "fuehler_fehlt",
+  m_wetter: "kein_wetter",
+  m_hand: "hand_zu_lange"
+};
+
 // src/hilfen.js
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -651,7 +673,288 @@ var sigHtml = (db) => {
   return `<span class="ger-sig s${n4}" title="Signal ${de(db, 0)} dBm" aria-label="Signal ${n4} von 4">${[1, 2, 3, 4].map((k) => `<i class="${k <= n4 ? "an" : ""}"></i>`).join("")}</span>`;
 };
 
-// src/alt.js
+// src/daten.js
+var LOKAL_FMT = {};
+function lokal(t, zone) {
+  const ms = typeof t === "number" ? t : Date.parse(t);
+  if (!Number.isFinite(ms)) return "";
+  const k = zone || "";
+  if (!(k in LOKAL_FMT)) {
+    try {
+      LOKAL_FMT[k] = new Intl.DateTimeFormat("sv-SE", { timeZone: zone || void 0, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    } catch (e) {
+      LOKAL_FMT[k] = new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    }
+  }
+  return LOKAL_FMT[k].format(ms).replace("T", " ");
+}
+function zoneMs(tag, zeit = "00:00", zone) {
+  const g = Date.parse(`${tag}T${zeit}:00Z`), l = Date.parse(lokal(g, zone).replace(" ", "T") + ":00Z");
+  return Number.isFinite(l) ? g - (l - g) : g;
+}
+function minSeitAb(iso, jetztMs) {
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? Math.max(0, Math.round((jetztMs - ms) / 6e4)) : null;
+}
+function protokollZeile(p, z, ersatzZone) {
+  const l = lokal(p[0], z.zone === void 0 ? ersatzZone : z.zone) || "", t = l.slice(0, 10);
+  const tag = t === z.HEUTE ? "Heute" : t === plusTage(z.HEUTE, -1) ? "Gestern" : `${wtag(t)} ${kurzDatum(t)}`;
+  return [tag, l.slice(11, 16), p[1] || "einstellung", p[2] || null, p[3] || "", t];
+}
+function bauen(r, hass, ersatzZone) {
+  const lokalZ = (t, zone2) => lokal(t, zone2 === void 0 ? ersatzZone : zone2);
+  const bs = r.baustelle || {}, lz = r.laufzeit || {}, e0 = r.einstellungen || {}, opt = bs.optionen || {}, zone = bs.zeitzone;
+  const jetztIso = bs.jetzt || (/* @__PURE__ */ new Date()).toISOString(), jl = lokalZ(jetztIso, zone) || "";
+  const heute = bs.heute || jl.slice(0, 10) || (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const montag = plusTage(heute, -(((/* @__PURE__ */ new Date(heute + "T12:00:00Z")).getUTCDay() + 6) % 7));
+  const WOCHE_ISO = TAGE.map((_, k) => plusTage(montag, k));
+  const z = {
+    HEUTE: heute,
+    HEUTE_TAG: TAGE[WOCHE_ISO.indexOf(heute)] || "Mo",
+    JETZT: jl.slice(11, 16) || "00:00",
+    WOCHE_ISO,
+    WOCHE: WOCHE_ISO.map((iso, k) => [TAGE[k], kurzDatum(iso)]),
+    zone,
+    jetztMs: Number.isFinite(Date.parse(jetztIso)) ? Date.parse(jetztIso) : Date.now()
+  };
+  const h = e0.heizung || {}, st = e0.staffel || {}, me = e0.meldungen_einst || {}, ar = me.arten || {}, be = e0.bericht || {};
+  const v = (x, std) => zahl(x) ? Number(x) : std;
+  const namen = (s) => {
+    const x = hass && hass.states[`notify.${s}`];
+    return x && x.attributes.friendly_name || String(s).replace(/^mobile_app_/, "").replace(/_/g, " ");
+  };
+  const e = {
+    preis: v(e0.preis, 0),
+    preise: Array.isArray(e0.preise) ? e0.preise : [],
+    feiertag_frei: h.feiertag_frei !== false,
+    boost_min: v(h.boost_min, 30),
+    soll_art: h.soll_art === "gleitend" ? "gleitend" : "fest",
+    gleit_min: v(h.gleit_min, 21),
+    gleit_max: v(h.gleit_max, 24),
+    gleit_je: v(h.gleit_je, 0.1),
+    gleit_bezug: v(h.gleit_bezug, 12),
+    gleit_tage: v(h.gleit_tage, 3),
+    toleranz: v(h.toleranz, 0.3),
+    hand_nachfrist: v(h.hand_nachfrist_min, 30),
+    fuehler_halten: v(h.fuehler_halten_min, 15),
+    zieht_w: v(h.zieht_strom_w, 50),
+    melden: e0.melden_knopf !== false,
+    staffel: st.an !== false,
+    nutzbar: v(st.nutzbar_prozent, 67),
+    max_gleich: v(st.max_gleichzeitig, 5),
+    min_lauf: v(st.min_lauf_min, 10),
+    min_pause: v(st.min_pause_min, 5),
+    takt: v(st.takt_min, 15),
+    tuer_pause: v(h.tuer_pause_min, 3),
+    tuer_melden: v(h.tuer_melden_min, 10),
+    knoepfe: me.knoepfe !== false,
+    bericht: be.haeufigkeit || "aus",
+    bericht_handy: be.handy !== false,
+    bericht_mail: !!be.mail,
+    mail: be.mail_an || "",
+    mail_dienst: be.mail_dienst || "",
+    bericht_csv: be.csv !== false,
+    vorheizen: v(h.vorheizen_min, 45),
+    nachheizen: v(h.nachheizen_min, 15),
+    warm_vor: v(h.warm_vor_min, 0),
+    frost_aussen: h.frost_aussen === null ? null : v(h.frost_aussen, -3),
+    warm_nach: v(h.warm_nach_min, 0),
+    warm_max: v(h.warm_max_min, 120),
+    stufen_abstand: v(h.stufen_abstand, 1.5),
+    stufen_min: v(h.stufen_min, 30),
+    stufen_anstieg: v(h.stufen_anstieg, 0.3),
+    stufen_kalt: v(h.stufen_kalt, -5),
+    soll: v(h.soll, 20),
+    grenze: v(h.heizgrenze, 15),
+    basis: h.heizgrenze_basis === "jetzt" ? "jetzt" : "Tageshöchstwert",
+    fruehstart: h.fruehstart !== false,
+    frueh_temp: v(h.fruehstart_unter, 0),
+    frueh_min: v(h.fruehstart_min, 30),
+    frost: h.frost !== false,
+    frost_temp: v(h.frost_grenze, 5),
+    tr_mm: v(h.trocknen_ab_mm, 2),
+    tr_laenger: v(h.trocknen_laenger_min, 45),
+    tr_frueher: v(h.trocknen_frueher_min, 15),
+    empfaenger: (me.empfaenger || opt.empfaenger || []).map(namen).join(", ") || "keiner gewählt",
+    dauer_min: v(me.dauerlauf_min, 20),
+    kalt_min: v(me.kalt_min, 60),
+    hand_h: v(me.hand_h, 8),
+    zyklen_h: v(me.zyklen_h, 10),
+    trocken_w: v(me.trocken_unter_w, 30),
+    auto: !!e0.automatik,
+    frost_aus: v(h.frost_aus, v(h.frost_grenze, 5) + 2),
+    urlaub: FREI_TEXT[h.frei_modus] ? h.frei_modus : "frost",
+    absenk: v(h.absenk, 10),
+    offline_min: v(me.offline_min, 5),
+    erklaer: e0.erklaer !== false,
+    frost_immer: !!h.frost_immer,
+    notprogramm: !!h.notprogramm,
+    taste: !!h.taste
+  };
+  for (const [k, art] of Object.entries(ARTEN)) e[k] = ar[art] !== false;
+  const anschluesse = (e0.anschluesse || []).map((a) => ({ id: a.id, name: a.name || a.id, ampere: v(a.ampere, 16), phasen: v(a.phasen, 3), reserve: v(a.reserve_kw, 0) }));
+  const firmen = (e0.firmen && e0.firmen.length ? e0.firmen : [{ id: "eigen", name: "Eigene Firma", eigen: true }]).map((f) => ({ ...f }));
+  const zuordnung = e0.zuordnung || [], jetztMs = z.jetztMs;
+  const ebAlle = e0.bereiche || {}, cAlle = lz.container || {}, gAlle = lz.geraete || {};
+  const bereiche = (r.bereiche || []).map((b, i) => {
+    const eb = ebAlle[b.id] || {}, c = cAlle[b.id] || {}, pumpe = b.art === "pumpenschacht";
+    const geraete = (r.geraete || []).filter((g) => g.bereich === b.id).map((g) => {
+      const x = gAlle[g.id] || {};
+      return {
+        id: g.id,
+        n: g.name || g.id,
+        typ: TYP_TEXT(g),
+        rolle: g.rolle,
+        gtyp: g.typ,
+        heizer: HEIZER(g),
+        kw: v(g.nenn_kw, 0),
+        kwJetzt: x.kw,
+        an: !!x.an,
+        hand: !!x.hand_seit,
+        hand_seit: x.hand_seit || null,
+        warte: x.warte || null,
+        erreichbar: x.erreichbar !== false,
+        schalter: g.schalter,
+        leistung: g.leistung,
+        energie: g.energie,
+        aktiv: x.aktiv !== false,
+        zusatz: !!x.zusatz,
+        np: x.notprogramm || null,
+        nennKwEigen: zahl(g.nenn_kw_eigen) ? Number(g.nenn_kw_eigen) : null,
+        leistungEigen: g.leistung_eigen || null,
+        energieEigen: g.energie_eigen || null
+      };
+    });
+    let zst = c.zustand in FARBE ? c.zustand : pumpe ? "aus" : "aus";
+    const offline = zst === "offline" || geraete.length > 0 && geraete.every((g) => !g.erreichbar);
+    if (offline) zst = "offline";
+    const tuerS = eb.tuer && hass && hass.states[eb.tuer];
+    const tuer = eb.tuer ? { eid: eb.tuer, sensor: tuerS && tuerS.attributes.friendly_name || eb.tuer, offen: c.tuer && c.tuer.offen ? Math.max(1, minSeitAb(c.tuer.seit, jetztMs) ?? 1) : 0 } : void 0;
+    return {
+      id: b.id,
+      name: b.name || b.id,
+      f: zahl(b.nr) ? Number(b.nr) : i,
+      art: b.art,
+      pumpe,
+      fuehler: b.fuehler || null,
+      z: zst,
+      grund: c.grund || null,
+      t: zahl(c.temperatur) ? Number(c.temperatur) : null,
+      kw: zahl(c.kw) ? Number(c.kw) : null,
+      text: c.text || "",
+      geraete,
+      auto: eb.auto !== false,
+      trocknen: !!eb.trocknen,
+      stufenAn: !!eb.stufen,
+      stufen: c.stufen || null,
+      sollJ: c.soll || null,
+      bedarfGrad: c.bedarf || null,
+      soll: zahl(eb.soll) ? Number(eb.soll) : void 0,
+      bedarf: !!eb.bedarf,
+      prio: eb.prio || "normal",
+      anschluss: eb.anschluss || anschluesse[0] && anschluesse[0].id || null,
+      firma: c.firma || "eigen",
+      tuer,
+      offline,
+      bedarfBisIso: c.bedarf_bis || null,
+      bedarfBis: c.bedarf_bis ? lokalZ(c.bedarf_bis, zone).slice(11, 16) : null,
+      boost: !!c.boost_bis,
+      boostBis: c.boost_bis || null,
+      modus: pumpe ? null : MODI.some((m) => m[0] === c.modus) ? c.modus : eb.bedarf ? "bedarf" : eb.auto === false ? "hand" : b.fuehler ? "thermo" : "plan",
+      lern: c.lernen || null,
+      groesse: c.groesse || null,
+      symbol: c.symbol || null,
+      warmVor: zahl(eb.warm_vor) ? Number(eb.warm_vor) : null,
+      warmNach: zahl(eb.warm_nach) ? Number(eb.warm_nach) : null
+    };
+  });
+  const plan = {}, frei = {};
+  const freiName = {};
+  for (const [iso, q] of Object.entries(lz.plan_ausnahmen || {})) plan[iso] = q || null;
+  for (const p of lz.plan_woche || []) {
+    plan[p.datum] = p.plan || null;
+    frei[p.datum] = p.frei || null;
+    if (p.name) freiName[p.datum] = p.name;
+  }
+  const warnungen = (lz.warnungen || []).map((w) => ({
+    id: w.key,
+    key: w.key,
+    art: w.art,
+    stufe: w.stufe === "stoerung" ? "stoerung" : "hinweis",
+    b: w.bereich || null,
+    g: w.geraet || null,
+    titel: w.titel || w.art || "",
+    hilfe: w.hilfe || "",
+    seitIso: w.seit,
+    stumm: !!(w.stumm_bis && Date.parse(w.stumm_bis) > jetztMs)
+  }));
+  const termine = (lz.termine || []).map((t) => {
+    const l = lokalZ(t.von, zone), lb = lokalZ(t.bis, zone);
+    return {
+      b: t.bereich,
+      datum: l.slice(0, 10),
+      von: l.slice(11, 16),
+      bis: lb.slice(11, 16),
+      titel: t.titel || "",
+      uid: t.uid,
+      rrule: t.rrule || null,
+      wieder: WIEDER[t.wiederholung] ? t.wiederholung : "einmal",
+      boost: !!t.boost
+    };
+  });
+  const tage = e0.arbeitszeiten || [];
+  const arbeitszeiten = tage.map((a) => ({ ab: a.ab, name: a.name || "", auto: a.auto === true, tage: Object.fromEntries(TAGE.map((t, k) => {
+    const x = (a.tage || {})[k] ?? (a.tage || {})[String(k)];
+    return [t, x && x[0] && x[1] ? [x[0], x[1]] : null];
+  })) }));
+  const aktiv = (bs.status || opt.status || "aktiv") !== "abgeschlossen";
+  const zl = r.zaehler || {};
+  const wetterEid = opt.wetter || null;
+  return {
+    r,
+    entry: bs.entry_id,
+    titel: bs.titel || "Baustelle",
+    aktiv,
+    geladen: bs.geladen !== false,
+    version: bs.version,
+    optionen: opt,
+    ent: r.entitaeten || {},
+    z,
+    e,
+    funktionen: r.funktionen || ["heizung", "pumpen"],
+    bereiche,
+    anschluesse,
+    firmen,
+    zuordnung,
+    arbeitszeiten,
+    ausnahmen: (e0.ausnahmen || []).map((a) => ({ datum: a.datum, art: a.art in AUSNAHME ? a.art : "zeiten", von: a.von || "07:00", bis: a.bis || "16:30", notiz: a.notiz || "" })),
+    warnungen,
+    termine,
+    plan,
+    frei,
+    freiName,
+    abschnitte: lz.abschnitte || {},
+    staffel: lz.staffel || null,
+    sollG: lz.soll_gleitend || null,
+    wetter: lz.wetter || {},
+    heizgrenze: lz.heizgrenze || {},
+    status: lz.status || (aktiv ? "bereit" : "abgeschlossen"),
+    statusText: lz.status_text || "",
+    jetztBis: lz.jetzt_bis ? lokalZ(lz.jetzt_bis, zone).slice(11, 16) : null,
+    np: lz.notprogramm || null,
+    protokoll: (lz.protokoll || []).map((p) => protokollZeile(p, z, ersatzZone)),
+    zaehler: zl,
+    termineKal: e0.termine_kalender || null,
+    wetterEid,
+    beginn: bs.beginn || opt.beginn || null,
+    beginnAuto: bs.beginn_auto === true,
+    ende: opt.ende || null,
+    // Beginn leer = Tag der Anlage (AN-0002)
+    hp: [Math.min(12, Math.max(1, parseInt(opt.heizperiode_von, 10) || 10)), Math.min(12, Math.max(1, parseInt(opt.heizperiode_bis, 10) || 4))]
+  };
+}
+
+// src/rechte.js
 var NUR_ANSEHEN = "Nur ansehen – ändern dürfen nur Admins";
 var NUR_LESEN_SPERRE = [
   '.sw:not([data-act="ml-stand"]):not([data-act="bedarf-boost"]):not([data-act="kk-dia-w"]):not([data-act="aw-an"])',
@@ -676,6 +979,34 @@ var VOR_ORT = {
   "jetzt-an": "jetzt_heizen",
   "jetzt-aus": "jetzt_heizen"
 };
+function rechteVon(roh) {
+  const r = (roh || [])[0];
+  return r && r.rechte || { aendern: true, aktionen: [] };
+}
+function gesperrt(el, rechte) {
+  if (!!rechte.aendern || !el || !el.matches) return false;
+  const a = VOR_ORT[el.dataset && el.dataset.act];
+  return a ? !rechte.aktionen.includes(a) : NUR_LESEN_SPERRE.some((x) => el.matches(x));
+}
+function darfSenden(msg, rechte) {
+  if (!!rechte.aendern || msg.type === "baustelle/meldung") return true;
+  return msg.type === "baustelle/aktion" && rechte.aktionen.includes(msg.aktion);
+}
+
+// src/api.js
+var nachricht = {
+  setzen: (entry, pfad, wert) => ({ type: "baustelle/setzen", entry_id: entry, pfad, wert }),
+  aktion: (entry, aktion, felder) => ({ type: "baustelle/aktion", entry_id: entry, aktion, ...felder }),
+  liste: (entry, liste, aktion, eintrag) => ({ type: "baustelle/liste", entry_id: entry, liste, aktion, eintrag })
+};
+function fehlerText(e) {
+  return e && e.body && e.body.message || e && e.message || e && e.code || String(e);
+}
+function flowFehler(r) {
+  return r && (r.type === "form" && r.errors && (r.errors.base || Object.values(r.errors)[0]) || r.type === "abort" && !["reconfigure_successful"].includes(r.reason) && r.reason);
+}
+
+// src/alt.js
 var CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
 .wetter .wjetzt .big { font-size: 34px; line-height: 1.1; }
@@ -1480,13 +1811,8 @@ ${NUR_LESEN_SPERRE.map((x) => `.nur-lesen ${x}`).join(", ")} { opacity: .45; fil
 .hz-mini i { flex: 1; background: var(--amber); opacity: .55; border-radius: 2px 2px 0 0; } .hz-mini i.heute { opacity: 1; }
 .hz-innen { padding: 4px 0 8px; } .hz-innen + .hz-innen { border-top: 1px solid var(--gridc); padding-top: 12px; }
 `;
-var FARBE = { bereit: "#8e8e93", heizt: "#ff9f0a", trocknen: "#ff9f0a", aus: "#8e8e93", frost: "#64d2ff", offline: "#ff453a", laeuft: "#0a84ff", pause: "#bf5af2" };
 var TICKET_STATUS = { neu: "neu", angenommen: "angenommen", in_arbeit: "in Arbeit", geloest: "gelöst", geschlossen: "geschlossen", verworfen: "verworfen", offen: "neu", erledigt: "geschlossen" };
-var WIEDER = { einmal: "einmalig", woche: "jede Woche", "2wochen": "alle 2 Wochen" };
-var AUSNAHME = { arbeit: "zusätzlich arbeiten", zeiten: "andere Zeiten", frei: "frei" };
 var LAEDT = '<div class="leer">Lädt …</div>';
-var HEIZER = (g) => ["heizung", "heizkoerper"].includes(g.rolle);
-var TYP_TEXT = (g) => g.rolle === "pumpe" ? "Pumpe" : HEIZER(g) ? g.typ === "konvektor" ? "Konvektor" : "Ölradiator" : ["trockner", "bautrockner"].includes(g.rolle) ? "Bautrockner" : "Steckdose";
 var TYP_ROLLE = {
   Ölradiator: ["heizkoerper", "oelradiator"],
   Konvektor: ["heizkoerper", "konvektor"],
@@ -1604,7 +1930,6 @@ var GRENZEN = {
   stufen_anstieg: [0, 5],
   stufen_kalt: [-30, 15]
 };
-var MODI = [["plan", "Zeitplan"], ["thermo", "Thermostat"], ["bedarf", "Bei Bedarf"], ["hand", "Hand"], ["aus", "Aus"]];
 var MODUS_TEXT = {
   plan: "an in der Heizzeit – der Thermostat am Heizkörper regelt",
   thermo: "in der Heizzeit auf das Soll nach dem Fühler",
@@ -1612,7 +1937,6 @@ var MODUS_TEXT = {
   hand: "die Automatik schaltet nicht – Schalter unten",
   aus: "alles aus, Frostschutz bleibt"
 };
-var FREI_TEXT = { frost: "nur Frostschutz", absenk: "abgesenkt", aus: "alles aus" };
 var STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, "0"));
 var HZ_TEILE = [
   ["heute", "Heute", "🕖", "Heute"],
@@ -1625,19 +1949,6 @@ var HZ_TEILE = [
   ["container", "Je Container", "🏠", "Container"],
   ["urlaub", "Urlaub &amp; Feiertage", "🏖", "Urlaub & Feiertage"]
 ];
-var ARTEN = {
-  m_selbst: "selbst_ein",
-  m_offline: "offline",
-  m_trocken: "trockenlauf",
-  m_dauer: "dauerlauf",
-  m_zyklen: "zyklen_oft",
-  m_leistung: "keine_leistung",
-  m_frost: "frostgefahr",
-  m_kalt: "zu_kalt",
-  m_fuehler: "fuehler_fehlt",
-  m_wetter: "kein_wetter",
-  m_hand: "hand_zu_lange"
-};
 var MB_MAX = 3;
 var MB_PX = 1600;
 var ABSCHNITT = { fruehstart: "extra", vorheizen: "vor", nachheizen: "vor", arbeitszeit: "heiz", trocknen: "trock", termin: "termin", fenster: "eigen" };
@@ -1800,8 +2111,7 @@ var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.77";
-var LOKAL_FMT = {};
+var SEITE_VERSION = "0.8.78";
 var BaustellePanel = class extends HTMLElement {
   constructor() {
     super();
@@ -1990,22 +2300,18 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     }
     if (this.neueVersion !== vorher) this.render();
   }
-  /* Bauplan 0.7 §8: Rechte des angemeldeten Benutzers aus baustelle/struktur (ohne Angabe: alles wie bisher) */
   rechte() {
-    const r = (this.roh || [])[0];
-    return r && r.rechte || { aendern: true, aktionen: [] };
+    return rechteVon(this.roh);
   }
+  /* Rechte und Sperren: src/rechte.js */
   nurLesen() {
     return !this.rechte().aendern;
   }
   gesperrt(el) {
-    if (!this.nurLesen() || !el || !el.matches) return false;
-    const a = VOR_ORT[el.dataset && el.dataset.act];
-    return a ? !this.rechte().aktionen.includes(a) : NUR_LESEN_SPERRE.some((x) => el.matches(x));
+    return gesperrt(el, this.rechte());
   }
   darfSenden(msg) {
-    if (!this.nurLesen() || msg.type === "baustelle/meldung") return true;
-    return msg.type === "baustelle/aktion" && this.rechte().aktionen.includes(msg.aktion);
+    return darfSenden(msg, this.rechte());
   }
   nurLesenHinweis() {
     if (!this.roh || !this.nurLesen()) return "";
@@ -2109,24 +2415,12 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     this.abos = [];
     this._aboFuer = null;
   }
-  /* Zeit in der Zone der Baustelle: 'YYYY-MM-DD HH:MM' */
   lokal(t, zone = this.d && this.d.z.zone) {
-    const ms = typeof t === "number" ? t : Date.parse(t);
-    if (!Number.isFinite(ms)) return "";
-    const k = zone || "";
-    if (!(k in LOKAL_FMT)) {
-      try {
-        LOKAL_FMT[k] = new Intl.DateTimeFormat("sv-SE", { timeZone: zone || void 0, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-      } catch (e) {
-        LOKAL_FMT[k] = new Intl.DateTimeFormat("sv-SE", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-      }
-    }
-    return LOKAL_FMT[k].format(ms).replace("T", " ");
+    return lokal(t, zone);
   }
-  /* Mitternacht (oder Uhrzeit) eines Tages in der Zone der Baustelle als Zeitpunkt */
-  zoneMs(tag, zeit = "00:00", zone) {
-    const g = Date.parse(`${tag}T${zeit}:00Z`), l = Date.parse(this.lokal(g, zone).replace(" ", "T") + ":00Z");
-    return Number.isFinite(l) ? g - (l - g) : g;
+  /* Zeit in der Zone der Baustelle (src/daten.js) */
+  zoneMs(tag, zeit = "00:00", zone = this.d && this.d.z.zone) {
+    return zoneMs(tag, zeit, zone);
   }
   isoUhr(iso) {
     return iso ? this.lokal(iso).slice(11, 16) : null;
@@ -2147,270 +2441,19 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
   jetztMs() {
     return this.d ? this.d.z.jetztMs : Date.now();
   }
-  /* ---- Adapter: baustelle/struktur (docs/api-0.7.md §1) → Modell der Seite (Form wie im Mockup) ---- */
+  /* Adapter baustelle/struktur → Modell der Seite (src/daten.js) */
   bauen(r) {
-    const bs = r.baustelle || {}, lz = r.laufzeit || {}, e0 = r.einstellungen || {}, opt = bs.optionen || {}, zone = bs.zeitzone;
-    const jetztIso = bs.jetzt || (/* @__PURE__ */ new Date()).toISOString(), jl = this.lokal(jetztIso, zone) || "";
-    const heute = bs.heute || jl.slice(0, 10) || (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-    const montag = plusTage(heute, -(((/* @__PURE__ */ new Date(heute + "T12:00:00Z")).getUTCDay() + 6) % 7));
-    const WOCHE_ISO = TAGE.map((_, k) => plusTage(montag, k));
-    const z = {
-      HEUTE: heute,
-      HEUTE_TAG: TAGE[WOCHE_ISO.indexOf(heute)] || "Mo",
-      JETZT: jl.slice(11, 16) || "00:00",
-      WOCHE_ISO,
-      WOCHE: WOCHE_ISO.map((iso, k) => [TAGE[k], kurzDatum(iso)]),
-      zone,
-      jetztMs: Number.isFinite(Date.parse(jetztIso)) ? Date.parse(jetztIso) : Date.now()
-    };
-    const h = e0.heizung || {}, st = e0.staffel || {}, me = e0.meldungen_einst || {}, ar = me.arten || {}, be = e0.bericht || {};
-    const v = (x, std) => zahl(x) ? Number(x) : std;
-    const namen = (s) => {
-      const x = this._hass && this._hass.states[`notify.${s}`];
-      return x && x.attributes.friendly_name || String(s).replace(/^mobile_app_/, "").replace(/_/g, " ");
-    };
-    const e = {
-      preis: v(e0.preis, 0),
-      preise: Array.isArray(e0.preise) ? e0.preise : [],
-      feiertag_frei: h.feiertag_frei !== false,
-      boost_min: v(h.boost_min, 30),
-      soll_art: h.soll_art === "gleitend" ? "gleitend" : "fest",
-      gleit_min: v(h.gleit_min, 21),
-      gleit_max: v(h.gleit_max, 24),
-      gleit_je: v(h.gleit_je, 0.1),
-      gleit_bezug: v(h.gleit_bezug, 12),
-      gleit_tage: v(h.gleit_tage, 3),
-      toleranz: v(h.toleranz, 0.3),
-      hand_nachfrist: v(h.hand_nachfrist_min, 30),
-      fuehler_halten: v(h.fuehler_halten_min, 15),
-      zieht_w: v(h.zieht_strom_w, 50),
-      melden: e0.melden_knopf !== false,
-      staffel: st.an !== false,
-      nutzbar: v(st.nutzbar_prozent, 67),
-      max_gleich: v(st.max_gleichzeitig, 5),
-      min_lauf: v(st.min_lauf_min, 10),
-      min_pause: v(st.min_pause_min, 5),
-      takt: v(st.takt_min, 15),
-      tuer_pause: v(h.tuer_pause_min, 3),
-      tuer_melden: v(h.tuer_melden_min, 10),
-      knoepfe: me.knoepfe !== false,
-      bericht: be.haeufigkeit || "aus",
-      bericht_handy: be.handy !== false,
-      bericht_mail: !!be.mail,
-      mail: be.mail_an || "",
-      mail_dienst: be.mail_dienst || "",
-      bericht_csv: be.csv !== false,
-      vorheizen: v(h.vorheizen_min, 45),
-      nachheizen: v(h.nachheizen_min, 15),
-      warm_vor: v(h.warm_vor_min, 0),
-      frost_aussen: h.frost_aussen === null ? null : v(h.frost_aussen, -3),
-      warm_nach: v(h.warm_nach_min, 0),
-      warm_max: v(h.warm_max_min, 120),
-      stufen_abstand: v(h.stufen_abstand, 1.5),
-      stufen_min: v(h.stufen_min, 30),
-      stufen_anstieg: v(h.stufen_anstieg, 0.3),
-      stufen_kalt: v(h.stufen_kalt, -5),
-      soll: v(h.soll, 20),
-      grenze: v(h.heizgrenze, 15),
-      basis: h.heizgrenze_basis === "jetzt" ? "jetzt" : "Tageshöchstwert",
-      fruehstart: h.fruehstart !== false,
-      frueh_temp: v(h.fruehstart_unter, 0),
-      frueh_min: v(h.fruehstart_min, 30),
-      frost: h.frost !== false,
-      frost_temp: v(h.frost_grenze, 5),
-      tr_mm: v(h.trocknen_ab_mm, 2),
-      tr_laenger: v(h.trocknen_laenger_min, 45),
-      tr_frueher: v(h.trocknen_frueher_min, 15),
-      empfaenger: (me.empfaenger || opt.empfaenger || []).map(namen).join(", ") || "keiner gewählt",
-      dauer_min: v(me.dauerlauf_min, 20),
-      kalt_min: v(me.kalt_min, 60),
-      hand_h: v(me.hand_h, 8),
-      zyklen_h: v(me.zyklen_h, 10),
-      trocken_w: v(me.trocken_unter_w, 30),
-      auto: !!e0.automatik,
-      frost_aus: v(h.frost_aus, v(h.frost_grenze, 5) + 2),
-      urlaub: FREI_TEXT[h.frei_modus] ? h.frei_modus : "frost",
-      absenk: v(h.absenk, 10),
-      offline_min: v(me.offline_min, 5),
-      erklaer: e0.erklaer !== false,
-      frost_immer: !!h.frost_immer,
-      notprogramm: !!h.notprogramm,
-      taste: !!h.taste
-    };
-    for (const [k, art] of Object.entries(ARTEN)) e[k] = ar[art] !== false;
-    const anschluesse = (e0.anschluesse || []).map((a) => ({ id: a.id, name: a.name || a.id, ampere: v(a.ampere, 16), phasen: v(a.phasen, 3), reserve: v(a.reserve_kw, 0) }));
-    const firmen = (e0.firmen && e0.firmen.length ? e0.firmen : [{ id: "eigen", name: "Eigene Firma", eigen: true }]).map((f) => ({ ...f }));
-    const zuordnung = e0.zuordnung || [], jetztMs = z.jetztMs;
-    const ebAlle = e0.bereiche || {}, cAlle = lz.container || {}, gAlle = lz.geraete || {};
-    const bereiche = (r.bereiche || []).map((b, i) => {
-      const eb = ebAlle[b.id] || {}, c = cAlle[b.id] || {}, pumpe = b.art === "pumpenschacht";
-      const geraete = (r.geraete || []).filter((g) => g.bereich === b.id).map((g) => {
-        const x = gAlle[g.id] || {};
-        return {
-          id: g.id,
-          n: g.name || g.id,
-          typ: TYP_TEXT(g),
-          rolle: g.rolle,
-          gtyp: g.typ,
-          heizer: HEIZER(g),
-          kw: v(g.nenn_kw, 0),
-          kwJetzt: x.kw,
-          an: !!x.an,
-          hand: !!x.hand_seit,
-          hand_seit: x.hand_seit || null,
-          warte: x.warte || null,
-          erreichbar: x.erreichbar !== false,
-          schalter: g.schalter,
-          leistung: g.leistung,
-          energie: g.energie,
-          aktiv: x.aktiv !== false,
-          zusatz: !!x.zusatz,
-          np: x.notprogramm || null,
-          nennKwEigen: zahl(g.nenn_kw_eigen) ? Number(g.nenn_kw_eigen) : null,
-          leistungEigen: g.leistung_eigen || null,
-          energieEigen: g.energie_eigen || null
-        };
-      });
-      let zst = c.zustand in FARBE ? c.zustand : pumpe ? "aus" : "aus";
-      const offline = zst === "offline" || geraete.length > 0 && geraete.every((g) => !g.erreichbar);
-      if (offline) zst = "offline";
-      const tuerS = eb.tuer && this._hass && this._hass.states[eb.tuer];
-      const tuer = eb.tuer ? { eid: eb.tuer, sensor: tuerS && tuerS.attributes.friendly_name || eb.tuer, offen: c.tuer && c.tuer.offen ? Math.max(1, this.minSeitAb(c.tuer.seit, jetztMs) ?? 1) : 0 } : void 0;
-      return {
-        id: b.id,
-        name: b.name || b.id,
-        f: zahl(b.nr) ? Number(b.nr) : i,
-        art: b.art,
-        pumpe,
-        fuehler: b.fuehler || null,
-        z: zst,
-        grund: c.grund || null,
-        t: zahl(c.temperatur) ? Number(c.temperatur) : null,
-        kw: zahl(c.kw) ? Number(c.kw) : null,
-        text: c.text || "",
-        geraete,
-        auto: eb.auto !== false,
-        trocknen: !!eb.trocknen,
-        stufenAn: !!eb.stufen,
-        stufen: c.stufen || null,
-        sollJ: c.soll || null,
-        bedarfGrad: c.bedarf || null,
-        soll: zahl(eb.soll) ? Number(eb.soll) : void 0,
-        bedarf: !!eb.bedarf,
-        prio: eb.prio || "normal",
-        anschluss: eb.anschluss || anschluesse[0] && anschluesse[0].id || null,
-        firma: c.firma || "eigen",
-        tuer,
-        offline,
-        bedarfBisIso: c.bedarf_bis || null,
-        bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
-        boost: !!c.boost_bis,
-        boostBis: c.boost_bis || null,
-        modus: pumpe ? null : MODI.some((m) => m[0] === c.modus) ? c.modus : eb.bedarf ? "bedarf" : eb.auto === false ? "hand" : b.fuehler ? "thermo" : "plan",
-        lern: c.lernen || null,
-        groesse: c.groesse || null,
-        symbol: c.symbol || null,
-        warmVor: zahl(eb.warm_vor) ? Number(eb.warm_vor) : null,
-        warmNach: zahl(eb.warm_nach) ? Number(eb.warm_nach) : null
-      };
-    });
-    const plan = {}, frei = {};
-    const freiName = {};
-    for (const [iso, q] of Object.entries(lz.plan_ausnahmen || {})) plan[iso] = q || null;
-    for (const p of lz.plan_woche || []) {
-      plan[p.datum] = p.plan || null;
-      frei[p.datum] = p.frei || null;
-      if (p.name) freiName[p.datum] = p.name;
-    }
-    const warnungen = (lz.warnungen || []).map((w) => ({
-      id: w.key,
-      key: w.key,
-      art: w.art,
-      stufe: w.stufe === "stoerung" ? "stoerung" : "hinweis",
-      b: w.bereich || null,
-      g: w.geraet || null,
-      titel: w.titel || w.art || "",
-      hilfe: w.hilfe || "",
-      seitIso: w.seit,
-      stumm: !!(w.stumm_bis && Date.parse(w.stumm_bis) > jetztMs)
-    }));
-    const termine = (lz.termine || []).map((t) => {
-      const l = this.lokal(t.von, zone), lb = this.lokal(t.bis, zone);
-      return {
-        b: t.bereich,
-        datum: l.slice(0, 10),
-        von: l.slice(11, 16),
-        bis: lb.slice(11, 16),
-        titel: t.titel || "",
-        uid: t.uid,
-        rrule: t.rrule || null,
-        wieder: WIEDER[t.wiederholung] ? t.wiederholung : "einmal",
-        boost: !!t.boost
-      };
-    });
-    const tage = e0.arbeitszeiten || [];
-    const arbeitszeiten = tage.map((a) => ({ ab: a.ab, name: a.name || "", auto: a.auto === true, tage: Object.fromEntries(TAGE.map((t, k) => {
-      const x = (a.tage || {})[k] ?? (a.tage || {})[String(k)];
-      return [t, x && x[0] && x[1] ? [x[0], x[1]] : null];
-    })) }));
-    const aktiv = (bs.status || opt.status || "aktiv") !== "abgeschlossen";
-    const zl = r.zaehler || {};
-    const wetterEid = opt.wetter || null;
-    return {
-      r,
-      entry: bs.entry_id,
-      titel: bs.titel || "Baustelle",
-      aktiv,
-      geladen: bs.geladen !== false,
-      version: bs.version,
-      optionen: opt,
-      ent: r.entitaeten || {},
-      z,
-      e,
-      funktionen: r.funktionen || ["heizung", "pumpen"],
-      bereiche,
-      anschluesse,
-      firmen,
-      zuordnung,
-      arbeitszeiten,
-      ausnahmen: (e0.ausnahmen || []).map((a) => ({ datum: a.datum, art: a.art in AUSNAHME ? a.art : "zeiten", von: a.von || "07:00", bis: a.bis || "16:30", notiz: a.notiz || "" })),
-      warnungen,
-      termine,
-      plan,
-      frei,
-      freiName,
-      abschnitte: lz.abschnitte || {},
-      staffel: lz.staffel || null,
-      sollG: lz.soll_gleitend || null,
-      wetter: lz.wetter || {},
-      heizgrenze: lz.heizgrenze || {},
-      status: lz.status || (aktiv ? "bereit" : "abgeschlossen"),
-      statusText: lz.status_text || "",
-      jetztBis: lz.jetzt_bis ? this.lokal(lz.jetzt_bis, zone).slice(11, 16) : null,
-      np: lz.notprogramm || null,
-      protokoll: (lz.protokoll || []).map((p) => this.protokollZeile(p, z)),
-      zaehler: zl,
-      termineKal: e0.termine_kalender || null,
-      wetterEid,
-      beginn: bs.beginn || opt.beginn || null,
-      beginnAuto: bs.beginn_auto === true,
-      ende: opt.ende || null,
-      // Beginn leer = Tag der Anlage (AN-0002)
-      hp: [Math.min(12, Math.max(1, parseInt(opt.heizperiode_von, 10) || 10)), Math.min(12, Math.max(1, parseInt(opt.heizperiode_bis, 10) || 4))]
-    };
+    return bauen(r, this._hass, this.d && this.d.z.zone);
   }
   /* Beginn und Ende einer Baustelle als Text; „(angelegt)“ = Beginn automatisch (AN-0002) */
   bsZeit(x) {
     return `${x.beginn ? datum(x.beginn) : "–"}${x.beginnAuto ? " (angelegt)" : ""} – ${x.ende ? datum(x.ende) : "offen"}`;
   }
   minSeitAb(iso, jetztMs) {
-    const ms = Date.parse(iso);
-    return Number.isFinite(ms) ? Math.max(0, Math.round((jetztMs - ms) / 6e4)) : null;
+    return minSeitAb(iso, jetztMs);
   }
   protokollZeile(p, z) {
-    const l = this.lokal(p[0], z.zone) || "", t = l.slice(0, 10);
-    const tag = t === z.HEUTE ? "Heute" : t === plusTage(z.HEUTE, -1) ? "Gestern" : `${wtag(t)} ${kurzDatum(t)}`;
-    return [tag, l.slice(11, 16), p[1] || "einstellung", p[2] || null, p[3] || "", t];
+    return protokollZeile(p, z, this.d && this.d.z.zone);
   }
   eid(d, besitzer, key) {
     return d.ent[`${besitzer}_${key}`] || null;
@@ -5882,9 +5925,8 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       <label class="feld">Name<input value="${esc(s.form ? s.form.name : "")}" placeholder="z. B. Wohnbau Kalsdorf" data-nm="name"></label>
       ${knopf("Speichern", s.art === "name" ? "name-speichern" : "baustelle-anlegen", "amber")}`;
   }
-  /* ---- Aufrufe an die Integration (docs/api-0.7.md §2) und an HA ---- */
   fehlerText(e) {
-    return e && e.body && e.body.message || e && e.message || e && e.code || String(e);
+    return fehlerText(e);
   }
   async ws(msg, ok) {
     if (!this.darfSenden(msg)) {
@@ -5918,13 +5960,13 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       this._neuBauen();
       this.render();
     }
-    return this.ws({ type: "baustelle/setzen", entry_id: this.d.entry, pfad, wert }, ok);
+    return this.ws(nachricht.setzen(this.d.entry, pfad, wert), ok);
   }
   aktion(aktion, felder, ok) {
-    return this.ws({ type: "baustelle/aktion", entry_id: this.d.entry, aktion, ...felder }, ok);
+    return this.ws(nachricht.aktion(this.d.entry, aktion, felder), ok);
   }
   liste(liste, aktion, eintrag, ok) {
-    return this.ws({ type: "baustelle/liste", entry_id: this.d.entry, liste, aktion, eintrag }, ok);
+    return this.ws(nachricht.liste(this.d.entry, liste, aktion, eintrag), ok);
   }
   /* Einrichtungs-Dialoge von HA (dieselben wie unter Einstellungen → Geräte & Dienste) */
   async dialog(pfad, start, daten) {
@@ -5934,7 +5976,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     return this._hass.callApi("POST", `${pfad}/${form.flow_id}`, daten);
   }
   flowFehler(r) {
-    return r && (r.type === "form" && r.errors && (r.errors.base || Object.values(r.errors)[0]) || r.type === "abort" && !["reconfigure_successful"].includes(r.reason) && r.reason);
+    return flowFehler(r);
   }
   async einrichten(lauf, ok) {
     try {

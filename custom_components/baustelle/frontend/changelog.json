@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.78",
+    "datum": "2026-10-06",
+    "punkte": [
+      "Umbau der Seite, ohne sichtbare Änderung (BSM-022.06, Stufe 1c): Datenadapter (Antwort der Integration → Anzeige), Zuordnungstabellen, Rechte (Nur ansehen, Vor-Ort-Aktionen) und die Nachrichten an die Integration liegen jetzt in eigenen Dateien (`frontend/src/daten.js`, `tabellen.js`, `rechte.js`, `api.js`). Die Seite zeigt und sendet genau dasselbe wie vorher, auch für Nicht-Admins."
+    ]
+  },
+  {
     "version": "0.8.77",
     "datum": "2026-10-06",
     "punkte": [
