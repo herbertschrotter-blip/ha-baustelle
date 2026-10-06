@@ -325,6 +325,21 @@ async function allgemein() {
     eingabe({ bm2: '' }, '19.5'); await klick({ act: 'b-speichern' }, 60);
     erwarte('AN-0014: m² frei gespeichert', letzte('baustelle/setzen').some(a => a.pfad[2] === 'groesse_m2' && a.wert === 19.5));
   }
+  {   // BSM-032: Container-Symbol – Aussehen bearbeiten
+    const y = C().find(b => !b.pumpe), sy = () => letzte('baustelle/setzen').filter(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', y.id, 'symbol'])).pop();
+    await klick({ act: 'container', id: y.id }, 20); await klick({ act: 'sheet', s: 'bereich' });
+    erwarte('BSM-032: Aussehen im Bearbeiten-Dialog', ui.innerHTML.includes('data-act="sym-auf"'));
+    await klick({ act: 'sym-auf' }, 10);
+    erwarte('BSM-032: Dialog Aussehen mit Vorschau', ui.innerHTML.includes('class="sym-vorschau"') && ui.innerHTML.includes('data-act="sym-doppel"') && ui.innerHTML.includes('data-sym="licht"'));
+    neu(); const dop = !!(y.symbol && y.symbol.doppel); await klick({ act: 'sym-doppel' }, 10);
+    erwarte('BSM-032: Doppel über baustelle/setzen', sy() && sy().wert.doppel === !dop);
+    neu(); await klick({ act: 'sym-neu', art: 'fenster' }, 10); erwarte('BSM-032: Fenster dazu', sy() && sy().wert.fenster.length >= 2);
+    neu(); await klick({ act: 'sym-lage', art: 'tueren', i: '0', v: '0.85' }, 10); erwarte('BSM-032: Lage der Tür', sy() && sy().wert.tueren[0].pos === 0.85);
+    neu(); panel.aenderung({ target: { dataset: { sym: 'licht' }, value: 'switch.licht' } }); await ruhe(10); erwarte('BSM-032: Licht-Quelle', sy() && sy().wert.licht === 'switch.licht');
+    await klick({ act: 'zu' }, 5);
+    if (REFERENZ) { await klick({ act: 'tab', v: 'uebersicht' }, 20);
+      erwarte('BSM-032: Doppelcontainer, offene Tür und gekipptes Fenster im Symbol', ui.innerHTML.includes('viewBox="0 0 200 131"') && ui.innerHTML.includes('l-7 ') && ui.innerHTML.includes('class="bc-licht"')); }
+  }
   neu(); await klick({ act: 'sheet', s: 'wetterquelle' }); eingabe({ wq: 'termine_kalender' }, d().termineKal || ''); await klick({ act: 'wetterquelle-speichern' }, 40);
   neu(); await klick({ act: 'sheet', s: 'name' }); eingabe({ nm: 'name' }, d().titel); await gesendet('config_entries/update', 'Name', { act: 'name-speichern' });
   await klick({ act: 'sheet', s: 'nachrichten' }); await klick({ act: 'n-knopf', t: 'Bis morgen stumm' }); pruefe('Nachrichten-Knopf');

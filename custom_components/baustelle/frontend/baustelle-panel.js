@@ -66,40 +66,60 @@ function wetterIcon(zustand, groesse = 64) {
 
 /* Baustellen-Illustrationen: Baucontainer (3D, Zustand) und Pumpenschacht – aus dem Entwurf „Baustellenübersicht“. */
 const BEREICH_FARBEN = ['#3987e5', '#eb6834', '#1baf7a', '#c98500', '#d55181', '#199e70'];
-function bcContainer(f, zustand) {
-  const heizt = ['heizt', 'trocknen', 'frost'].includes(zustand), off = zustand === 'offline';
-  const dunkler = `color-mix(in srgb, ${f} 70%, #000)`, heller = `color-mix(in srgb, ${f} 75%, #fff)`;
-  const neig = 20 / 84, obenY = x => 30 + (x - 22) * neig;          // Oberkante der Front bei x
-  const fenster = (x, b = 17, h = 15) => { const y = obenY(x) + 11, d = b * neig;
-    return `<g>
-      <path d="M${x - 1.6} ${y - 1.6}l${b + 3.2} ${d + .8}v${h + 3.2}l${-(b + 3.2)} ${-(d + .8)}z" fill="var(--rahmen)"/>
-      <path d="M${x} ${y}l${b} ${d}v${h}l${-b} ${-d}z" class="${heizt ? 'bc-glut' : ''}" fill="${heizt ? '#ffb74d' : 'var(--fenster)'}"/>
-      <path d="M${x + b / 2} ${y + d / 2}v${h}" stroke="var(--rahmen)" stroke-width="1.4"/>
-      <path d="M${x + 2.5} ${y + 3}l${b * .35} ${d * .35 + 7}" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="${heizt ? .25 : .35}"/>
-      <path d="M${x - 1.6} ${y + h + 1.6}l${b + 3.2} ${d + .8}" stroke="rgba(0,0,0,.35)" stroke-width="1.6"/></g>`; };
-  return `<svg class="bc ${off ? 'offline' : ''}" viewBox="0 0 170 120" style="--f:${f}">
-    <ellipse cx="86" cy="104" rx="70" ry="9" fill="#000" opacity=".22"/>
-    
-    <path d="M22 88l84 20 50-18" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
-    
-    <path d="M106 50l50-18v58l-50 18z" fill="${dunkler}"/>
-    ${[0, 1, 2, 3, 4].map(k => `<path d="M${112 + k * 9} ${47.8 - k * 3.2}v58" stroke="rgba(0,0,0,.18)" stroke-width="1.4"/>`).join('')}
-    
-    <path d="M22 30l84 20v58l-84-20z" fill="${f}"/>
-    ${[0, 1, 2, 3, 4, 5, 6, 7].map(k => `<path d="M${28 + k * 10.5} ${31.4 + k * 2.5}v58" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>`).join('')}
-    
-    <path d="M22 30l50-18 84 20-50 18z" fill="${heller}"/><path d="M22 30l84 20 50-18" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
-    
-    <path d="M${34} ${obenY(34) + 9}l14 ${14 * neig}v${44}l-14 ${-14 * neig}z" fill="${dunkler}" stroke="var(--rahmen)" stroke-width="1.2"/>
-    <path d="M${37} ${obenY(37) + 13}l8 ${8 * neig}v7l-8 ${-8 * neig}z" fill="${heizt ? '#ffcc80' : 'var(--fenster)'}" opacity=".9"/>
-    <circle cx="45.5" cy="${obenY(45.5) + 33}" r="1.2" fill="#e0e0e0"/>
-    ${fenster(56)}${fenster(80)}
-    ${zustand === 'trocknen' ? `<g class="bc-jacke" style="transform-origin:88.5px ${obenY(88) + 12}px"><path d="M84 ${obenY(88) + 14}l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>` : ''}
-    ${heizt && zustand !== 'frost' ? [0, 1, 2].map(k => `<path class="bc-waerme" style="animation-delay:${k * .7}s" d="M${62 + k * 18} ${24 - k * 1} q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>`).join('') : ''}
-    ${zustand === 'frost' ? [0, 1, 2].map(k => `<g class="bc-eis" style="animation-delay:${k * .6}s" transform="translate(${60 + k * 22} ${16 - k * 2})" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
+/* Container-Symbol (BSM-032, Mockup container-symbol.html): Einzel/Doppel, Türen 1–2 und Fenster 1–4 an Front oder Seite,
+   Farbe; Zustand fertig von der Integration (laufzeit.container.<id>.symbol): Tür offen (Version A), Fenster gekippt (A)
+   bzw. offen (B), Licht an (A). Ohne Symbol: eine Tür links, ein Fenster. */
+const SYMBOL_STANDARD = { doppel: false, farbe: null, tueren: [{ wand: 'front', pos: .15 }], fenster: [{ wand: 'front', pos: .67 }], licht_an: false };
+function bcContainer(f, zustand, b) {
+  const s = (b && b.symbol) || SYMBOL_STANDARD, farbe = s.farbe || f, dop = !!s.doppel;
+  const heizt = ['heizt', 'trocknen', 'frost'].includes(zustand), off = zustand === 'offline', licht = !!s.licht_an;
+  const DUNKEL = '#141414', LICHT = '#ffe9a8';
+  const dunkler = `color-mix(in srgb, ${farbe} 70%, #000)`, heller = `color-mix(in srgb, ${farbe} 75%, #fff)`;
+  const SL = dop ? 80 : 50, sdy = SL * -18 / 50, dy = dop ? 11 : 0, W = dop ? 200 : 170, H = dop ? 131 : 120;   // Doppel: Front 6 m, Seite knapp 5 m
+  const wand = w => w === 'seite' ? { x0: 106, y0: 50, L: SL, n: -18 / 50 } : { x0: 22, y0: 30, L: 84, n: 20 / 84 };
+  const ort = (w, t, bb) => { const g = wand(w), x = g.x0 + t * g.L - bb / 2; return { x, y: g.y0 + (x - g.x0) * g.n, n: g.n }; };
+  const para = (x, y, bb, d, h, attr) => `<path d="M${x} ${y}l${bb} ${d}v${h}l${-bb} ${-d}z" ${attr}/>`;
+  const alle = [...(s.tueren || []), ...(s.fenster || [])];
+  const breite = (el, voll) => {   // schmaler, wenn ein Nachbar an derselben Wand zu nah ist (z. B. 4 Fenster an der Front)
+    const L = wand(el.wand).L, abst = alle.filter(o => o !== el && o.wand === el.wand).map(o => Math.abs(o.pos - el.pos) * L);
+    return Math.max(8, Math.min(voll, ...abst.map(a => a - 5)));   // 5 = Rahmen beider Nachbarn und etwas Luft
+  };
+  const fenster = fe => {
+    const bb = breite(fe, 17), h = 15, a = ort(fe.wand, fe.pos, bb), x = a.x, y = a.y + 11, d = bb * a.n, zst = fe.zustand || 'zu';
+    let r = para(x - 1.6, y - 1.6, bb + 3.2, d, h + 3.2, 'fill="var(--rahmen)"');
+    if (zst === 'offen') return r + para(x, y, bb, d, h, `fill="${licht ? `color-mix(in srgb, ${LICHT} 55%, #000)` : DUNKEL}"`)
+      + para(x - 9, y + 2, 9, d * .2 - 2, h, 'fill="var(--fenster)" stroke="var(--rahmen)" stroke-width="1.4" opacity=".95"');   // Flügel nach außen
+    r += para(x, y, bb, d, h, `class="${licht ? 'bc-licht' : heizt ? 'bc-glut' : ''}" fill="${licht ? LICHT : heizt ? '#ffb74d' : 'var(--fenster)'}"`);
+    if (zst === 'gekippt') r += para(x, y, bb, d, 4, `fill="${DUNKEL}" opacity=".8"`) + `<path d="M${x - 1} ${y + 4}l${bb + 2} ${d}" stroke="var(--rahmen)" stroke-width="1.6"/>`;
+    else r += `<path d="M${x + bb / 2} ${y + bb / 2 * a.n}v${h}" stroke="var(--rahmen)" stroke-width="1.4"/>`;
+    if (!licht) r += `<path d="M${x + 2.5} ${y + 3}l${bb * .35} ${d * .35 + 7}" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="${heizt ? .25 : .35}"/>`;
+    return `<g>${r}</g>`;
+  };
+  const tuer = t => {
+    const bb = breite(t, 14), h = 44, a = ort(t.wand, t.pos, bb), x = a.x, y = a.y + 9, d = bb * a.n;
+    if (t.offen) return para(x, y, bb, d, h, `fill="${licht ? `color-mix(in srgb, ${LICHT} 60%, #000)` : DUNKEL}" stroke="var(--rahmen)" stroke-width="1.2"`)
+      + `<path d="M${x} ${y}l-7 ${5 - d * .2}v${h}l7 -5z" fill="${dunkler}" stroke="var(--rahmen)" stroke-width="1.2"/>`;   // Türblatt nach außen
+    return para(x, y, bb, d, h, `fill="${dunkler}" stroke="var(--rahmen)" stroke-width="1.2"`)
+      + `<path d="M${x + 3} ${y + 4 + 3 * a.n}l8 ${8 * a.n}v7l-8 ${-8 * a.n}z" fill="${licht ? LICHT : heizt ? '#ffcc80' : 'var(--fenster)'}" opacity=".9"/>`
+      + `<circle cx="${x + bb - 2.5}" cy="${y + d + 24}" r="1.2" fill="#e0e0e0"/>`;
+  };
+  const rippen = (w, k) => { const g = wand(w), n = Math.round(g.L / (w === 'front' ? 10.5 : 9)); let r = '';
+    for (let j = 1; j < n; j++) { const x = g.x0 + j * g.L / n; r += `<path d="M${x} ${g.y0 + (x - g.x0) * g.n + 1}v58" stroke="rgba(0,0,0,${k})" stroke-width="1.4"/>`; } return r; };
+  const naht = dop ? `<path d="M${106 + SL / 2} ${50 + sdy / 2}v58" stroke="rgba(0,0,0,.45)" stroke-width="2.2"/><path d="M${22 + SL / 2} ${30 + sdy / 2}l84 20" stroke="rgba(0,0,0,.3)" stroke-width="1.6"/>` : '';
+  const mx = dop ? 15 : 0, my = sdy / 2 + 9;   // Wellen und Eis über dem Dach
+  return `<svg class="bc ${off ? 'offline' : ''}" viewBox="0 0 ${W} ${H}" style="--f:${farbe}"><g transform="translate(0 ${dy})">
+    <ellipse cx="${86 + SL / 2 - 25}" cy="104" rx="${70 + SL / 2 - 25}" ry="9" fill="#000" opacity=".22"/>
+    <path d="M22 88l84 20 ${SL} ${sdy}" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M106 50l${SL} ${sdy}v58l${-SL} ${-sdy}z" fill="${dunkler}"/>${rippen('seite', .18)}
+    <path d="M22 30l84 20v58l-84-20z" fill="${farbe}"/>${rippen('front', .14)}
+    <path d="M22 30l${SL} ${sdy} 84 20 ${-SL} ${-sdy}z" fill="${heller}"/><path d="M22 30l84 20 ${SL} ${sdy}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/>
+    ${naht}${(s.tueren || []).map(tuer).join('')}${(s.fenster || []).map(fenster).join('')}
+    ${zustand === 'trocknen' ? '<g class="bc-jacke" style="transform-origin:88.5px 42px"><path d="M84 44l3-2h3l3 2-1.4 3-1.4-.6v6h-5.6v-6l-1.4.6z" fill="#1565c0"/></g>' : ''}
+    ${heizt && zustand !== 'frost' ? [0, 1, 2].map(k => `<path class="bc-waerme" style="animation-delay:${k * .7}s" d="M${62 + k * 18 + mx} ${24 - k + my} q4 -5 0 -10 q-4 -5 0 -10" fill="none" stroke="#ff9800" stroke-width="2.2" stroke-linecap="round"/>`).join('') : ''}
+    ${zustand === 'frost' ? [0, 1, 2].map(k => `<g class="bc-eis" style="animation-delay:${k * .6}s" transform="translate(${60 + k * 22 + mx} ${16 - k * 2 + my})" stroke="#bbdefb" stroke-width="1.6" stroke-linecap="round">
       <line x1="-4" y1="0" x2="4" y2="0"/><line x1="-2" y1="-3.5" x2="2" y2="3.5"/><line x1="-2" y1="3.5" x2="2" y2="-3.5"/></g>`).join('') : ''}
-    ${off ? `<g class="bc-alarm"><circle cx="140" cy="20" r="11" fill="#d03b3b"/><path d="M140 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="140" cy="27" r="1.8" fill="#fff"/></g>` : ''}
-  </svg>`;
+    ${off ? `<g class="bc-alarm"><circle cx="${W - 30}" cy="20" r="11" fill="#d03b3b"/><path d="M${W - 30} 13v9" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="${W - 30}" cy="27" r="1.8" fill="#fff"/></g>` : ''}
+  </g></svg>`;
 }
 
 function bcSchacht(laeuft) {
@@ -162,6 +182,10 @@ const CSS = `/* Wetter */
 @keyframes atmen { 50% { opacity: .55; } }
 @keyframes fuellen { from { width: 0; } }
 @keyframes blitz { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-6deg); } }
+.bc-licht { filter: drop-shadow(0 0 4px #ffd54f); }   /* BSM-032 */
+.sym-vorschau { max-width: 320px; margin: 0 auto 10px; } .sym-vorschau svg { width: 100%; height: auto; }
+.sym-farben { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.sym-farbe { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; padding: 0; } .sym-farbe.on { border-color: var(--ink); box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
 .bc-glut { animation: bc-glut 2.6s ease-in-out infinite; } @keyframes bc-glut { 50% { fill: #ffd180; filter: drop-shadow(0 0 4px #ff9800); } }
 .bc-waerme { animation: bc-waerme 2.1s ease-in infinite; opacity: 0; } @keyframes bc-waerme { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-12px); opacity: 0; } }
 .bc-jacke { animation: bc-jacke 2.4s ease-in-out infinite; } @keyframes bc-jacke { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
@@ -1164,7 +1188,7 @@ const WETTER_TEXT = { sunny: 'Sonnig', 'clear-night': 'Klar', exceptional: 'Unwe
 const AKTIV = z => ['heizt', 'trocknen', 'frost', 'laeuft'].includes(z);
 const kwVon = b => zahl(b.kw) ? Number(b.kw) : b.geraete.reduce((s, g) => s + (g.an ? g.kw : 0), 0);
 const wertHtml = b => b.pumpe ? `${zahl(b.zyklen) ? b.zyklen : '–'}<small> Zyklen</small>` : b.t !== null ? `${de(b.t)}<small>°C</small>` : '–';
-const illu = b => b.pumpe ? bcSchacht(b.z === 'laeuft') : bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], b.z === 'pause' || b.z === 'bereit' ? 'aus' : b.z);
+const illu = b => b.pumpe ? bcSchacht(b.z === 'laeuft') : bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], b.z === 'pause' || b.z === 'bereit' ? 'aus' : b.z, b);
 const TEXT_MOCKUP = b => b.boost ? '⚡ schnell aufheizen' : ({ heizt: b.bedarf && b.bedarfBis ? `heizt bis ${b.bedarfBis}` : b.t === null ? 'an · Thermostat regelt' : 'heizt · Arbeitszeit',
   trocknen: 'Kleidung trocknen', aus: 'aus', frost: 'Frostschutz', offline: 'nicht erreichbar', laeuft: 'Pumpe läuft', pause: 'pausiert · Tür offen', bereit: 'bei Bedarf · nur Frostschutz' })[b.z] || '';
 const TEXT = b => b.text || TEXT_MOCKUP(b);
@@ -1411,7 +1435,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.67';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.68';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -1664,7 +1688,7 @@ class BaustellePanel extends HTMLElement {
         bedarfBisIso: c.bedarf_bis || null, bedarfBis: c.bedarf_bis ? this.lokal(c.bedarf_bis, zone).slice(11, 16) : null,
         boost: !!c.boost_bis, boostBis: c.boost_bis || null,
         modus: pumpe ? null : MODI.some(m => m[0] === c.modus) ? c.modus : eb.bedarf ? 'bedarf' : eb.auto === false ? 'hand' : b.fuehler ? 'thermo' : 'plan',
-        lern: c.lernen || null, groesse: c.groesse || null, warmVor: zahl(eb.warm_vor) ? Number(eb.warm_vor) : null, warmNach: zahl(eb.warm_nach) ? Number(eb.warm_nach) : null };   // lernende Regelung (0.8): Lernstand von der Integration
+        lern: c.lernen || null, groesse: c.groesse || null, symbol: c.symbol || null, warmVor: zahl(eb.warm_vor) ? Number(eb.warm_vor) : null, warmNach: zahl(eb.warm_nach) ? Number(eb.warm_nach) : null };   // lernende Regelung (0.8): Lernstand von der Integration
     });
     const plan = {}, frei = {};
     const freiName = {};
@@ -3719,6 +3743,50 @@ class BaustellePanel extends HTMLElement {
       + '<div class="leise p-fuss">Tippen öffnet die Website des Geräts (z. B. die Shelly-Oberfläche); ohne Website die Geräteseite in Home Assistant.</div>';
     return { html, n, offline };
   }
+  /* BSM-032: Container-Symbol – Aussehen bearbeiten; die Integration prüft und liefert den Zustand aus den Sensoren */
+  symKonfig(b) { const x = this.s.sheet && this.s.sheet.sym; if (x) return x;
+    const q = b.symbol || SYMBOL_STANDARD, el = y => ({ wand: y.wand, pos: y.pos, sensor: y.sensor || null });
+    return (this.s.sheet.sym = { doppel: !!q.doppel, farbe: q.farbe || null, tueren: q.tueren.map(el), fenster: q.fenster.map(el), licht: q.licht || null }); }
+  symSenden(b, c) { this.s.sheet.sym = c; this.render(); return this.setzen(['bereiche', b.id, 'symbol'], c); }
+  symKlick(a, el) {
+    const b = this.d.bereiche.find(x => x.id === this.s.sheet.id); if (!b) return undefined;
+    const c = JSON.parse(JSON.stringify(this.symKonfig(b))), art = el.dataset.art, i = +el.dataset.i;
+    if (a === 'sym-standard') { this.s.sheet.sym = null; return this.setzen(['bereiche', b.id, 'symbol'], null); }
+    if (a === 'sym-doppel') c.doppel = !c.doppel;
+    if (a === 'sym-farbe') c.farbe = el.dataset.v;
+    if (a === 'sym-wand') c[art][i].wand = el.dataset.v;
+    if (a === 'sym-lage') c[art][i].pos = +el.dataset.v;
+    if (a === 'sym-weg' && c[art].length > 1) c[art].splice(i, 1);
+    if (a === 'sym-neu' && c[art].length < (art === 'tueren' ? 2 : 4)) { const frei = [.15, .33, .5, .67, .85].find(v => !c[art].some(y => y.wand === 'front' && y.pos === v)) ?? .5; c[art].push({ wand: 'front', pos: frei, sensor: null }); }
+    return this.symSenden(b, c);
+  }
+  symAenderung(el) {
+    const b = this.d.bereiche.find(x => x.id === this.s.sheet.id); if (!b) return undefined;
+    const c = JSON.parse(JSON.stringify(this.symKonfig(b))), [k, i] = el.dataset.sym.split(':');
+    if (k === 'farbe') c.farbe = el.value; else if (k === 'licht') c.licht = el.value || null; else c[k][+i].sensor = el.value || null;
+    return this.symSenden(b, c);
+  }
+  symDialog(s, griff, knopf) {
+    const b = this.d.bereiche.find(x => x.id === s.id); if (!b) return `${griff}<div class="leer">Container nicht gefunden</div>${knopf('Schließen')}`;
+    const c = this.symKonfig(b), ist = b.symbol || SYMBOL_STANDARD, std = BEREICH_FARBEN[b.f % BEREICH_FARBEN.length];
+    const vorschau = { ...c, licht_an: ist.licht_an, tueren: c.tueren.map((t, i) => ({ ...t, offen: !!(ist.tueren[i] && ist.tueren[i].offen) })),
+      fenster: c.fenster.map((f, i) => ({ ...f, zustand: (ist.fenster[i] && ist.fenster[i].zustand) || 'zu' })) };
+    const kontakte = this.entitaeten(x => x.entity_id.startsWith('binary_sensor.') && ['door', 'window', 'opening', 'garage_door'].includes(x.attributes.device_class));
+    const lichter = this.entitaeten(x => /^(light|switch)\./.test(x.entity_id) || (x.entity_id.startsWith('binary_sensor.') && x.attributes.device_class === 'light') || (x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'illuminance'));
+    const seg = (act, art, i, wert, opts) => `<div class="seg klein">${opts.map(([v, t]) => `<button data-act="${act}" data-art="${art}" data-i="${i}" data-v="${v}" class="${String(wert) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+    const element = (art, x, i, n) => `<div class="zeile"><b>${art === 'tueren' ? '🚪 Tür' : '🪟 Fenster'} ${i + 1}</b>${n > 1 ? `<button class="knopf klein" data-act="sym-weg" data-art="${art}" data-i="${i}" aria-label="entfernen">✕</button>` : ''}</div>
+      <div class="zeile unter"><span>Wand</span>${seg('sym-wand', art, i, x.wand, [['front', 'Front'], ['seite', 'Seite']])}</div>
+      <div class="zeile unter"><span>Lage</span>${seg('sym-lage', art, i, x.pos, [[.15, 'links'], [.33, '◧'], [.5, 'Mitte'], [.67, '◨'], [.85, 'rechts']])}</div>
+      <label class="zeile unter"><span>${art === 'tueren' ? 'Türsensor' : 'Fenstersensor'}</span><select data-sym="${art}:${i}">${this.optionen(kontakte, x.sensor || '', art === 'tueren' && i === 0 ? 'wie Türkontakt des Containers' : 'keiner')}</select></label>`;
+    return `${griff}<div class="block-kopf"><h3>🏠 Aussehen · ${esc(b.name)}</h3></div><div class="sym-vorschau">${bcContainer(std, b.z === 'pause' || b.z === 'bereit' ? 'aus' : b.z, { symbol: vorschau })}</div>
+      <div class="glas-panel liste"><div class="zeile"><div><b>Doppelcontainer</b><div class="leise">zwei Container nebeneinander – das Symbol wird tiefer</div></div>${schalter(c.doppel, 'sym-doppel')}</div>
+        <div class="zeile"><span>Farbe</span><span class="sym-farben">${['#3987e5', '#eb6834', '#1baf7a', '#c98500', '#d55181', '#199e70', '#7e57c2', '#78909c'].map(fb => `<button data-act="sym-farbe" data-v="${fb}" class="sym-farbe ${(c.farbe || std) === fb ? 'on' : ''}" style="background:${fb}" aria-label="Farbe ${fb}"></button>`).join('')}<input type="color" value="${c.farbe || std}" data-sym="farbe" aria-label="eigene Farbe"></span></div></div>
+      <div class="glas-panel liste"><div class="gruppe">Türen · ${c.tueren.length} von 2</div>${c.tueren.map((x, i) => element('tueren', x, i, c.tueren.length)).join('')}${c.tueren.length < 2 ? '<button class="zeile" data-act="sym-neu" data-art="tueren"><span class="blau">+ Tür</span></button>' : ''}</div>
+      <div class="glas-panel liste"><div class="gruppe">Fenster · ${c.fenster.length} von 4</div>${c.fenster.map((x, i) => element('fenster', x, i, c.fenster.length)).join('')}${c.fenster.length < 4 ? '<button class="zeile" data-act="sym-neu" data-art="fenster"><span class="blau">+ Fenster</span></button>' : ''}</div>
+      <div class="glas-panel liste"><div class="gruppe">Licht im Symbol</div><label class="zeile"><div><span>Licht kommt von</span><div class="leise">Fenster leuchten, wenn im Container Licht brennt</div></div><select data-sym="licht">${this.optionen(lichter, c.licht || '', 'keins')}</select></label></div>
+      <div class="leise p-fuss">Tür offen/zu, Fenster offen/gekippt/zu und Licht kommen von den zugeordneten Sensoren; ohne Sensor bleibt das Element zu bzw. dunkel.</div>
+      ${b.symbol && b.symbol.eigen ? '<button class="knopf" data-act="sym-standard">Standard (eine Tür, ein Fenster)</button>' : ''}${knopf('Fertig')}`;
+  }
   /* BSM-019: Notprogramm in den Plugs – Zustand je Heizkörper-Plug kommt fertig von der Integration (laufzeit.geraete.<id>.notprogramm) */
   npPlugs() { return this.d.bereiche.flatMap(b => b.geraete.filter(g => g.np).map(g => ({ b, g, np: g.np }))); }
   npModus(np) { return { thermo: `Thermostat ${zahl(np.soll) ? de(np.soll) + ' °C' : ''}`.trim(), plan: 'Zeitplan', bedarf: 'Bei Bedarf (Termine)', hand: 'Hand – nicht anfassen', aus: 'aus – nur Frostschutz' }[np.modus] || '–'; }
@@ -3893,6 +3961,7 @@ class BaustellePanel extends HTMLElement {
     const griff = '<div class="griff"></div>';
     if (s.art === 'kk-katalog') return this.kkKatalog(s, griff);   // WU-0014
     if (s.art === 'np-plug') return this.npPlug(s, griff, knopf);   // BSM-019
+    if (s.art === 'aussehen') return this.symDialog(s, griff, knopf);   // BSM-032
     if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
     if (s.art === 'leistung') return `${griff}${this.leistungInhalt(s)}${knopf('Schließen')}`;
     if (s.art === 'heizzeit-c') return `${griff}${this.heizzeitInhalt(s)}${knopf('Schließen')}`;
@@ -4152,6 +4221,7 @@ class BaustellePanel extends HTMLElement {
             <div class="zeile"><div><span>Warm halten</span><div class="leise">${w.nach_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('nach', w.nach, w.nach_eigen, v => v ? `${v} min länger` : 'bis Ende')}</div>
             ${w.vor_eigen || w.nach_eigen ? '<button class="zeile" data-act="warm-zurueck"><span class="blau">Wie die Baustelle</span></button>' : ''}`; })() : ''}
         ${b.pumpe || !b.groesse ? '' : this.groesseBlock(b, e)}
+        ${b.pumpe ? '' : `<button class="zeile" data-act="sym-auf"><span>🏠 Aussehen</span><span class="leise">${b.symbol && b.symbol.doppel ? 'Doppel' : 'Einzel'} · ${b.symbol ? b.symbol.tueren.length : 1} Tür · ${b.symbol ? b.symbol.fenster.length : 1} Fenster ›</span></button>`}
         ${b.pumpe ? '' : `<label class="feld">Temperaturfühler<select data-bfu>${this.optionen(fuehler, e.fuehler, '– keiner –')}</select></label>`}
         ${b.pumpe ? '' : `<label class="feld">Türkontakt<select data-btuer>${this.optionen(tueren, e.tuer, 'keiner')}</select></label>`}
         <label class="feld">Stromanschluss<select data-ban>${d.anschluesse.map(a => `<option value="${esc(a.id)}" ${e.anschluss === a.id ? 'selected' : ''}>${esc(a.name)} · ${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A</option>`).join('')}</select></label>
@@ -4435,6 +4505,8 @@ class BaustellePanel extends HTMLElement {
         return this.setzen(['bereiche', x.id, 'modus'], m, `${x.name}: ${(MODI.find(q => q[0] === m) || [m, m])[1]}`); }
       case 'p-chart': S.pchart = el.dataset.v; return neu();
       case 'tv': S.tv = el.dataset.v; return neu();
+      case 'sym-auf': S.sheet = { art: 'aussehen', id: S.cid || (this.b && this.b.id) }; return neu();   // BSM-032
+      case 'sym-doppel': case 'sym-farbe': case 'sym-wand': case 'sym-lage': case 'sym-weg': case 'sym-neu': case 'sym-standard': return this.symKlick(a, el);
       case 'np-an': return this.setzen(['heizung', 'notprogramm'], !d.e.notprogramm);   // BSM-019
       case 'np-plug': S.sheet = { art: 'np-plug', id: el.dataset.id }; return neu();
       case 'np-pruefen': if (S.npPrueft) return; S.npPrueft = true; this.render();
@@ -4718,6 +4790,7 @@ class BaustellePanel extends HTMLElement {
     }
     if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
     if (k === 'mail') return this.setzen(PFAD.mail, String(el.value).trim(), 'Gespeichert');
+    if (el && el.dataset && el.dataset.sym) return this.symAenderung(el);   // BSM-032
     const jm = el && el.dataset && el.dataset.jm;
     if (jm) { const x = this.d.bereiche.find(y => y.id === jm); if (!x || x.modus === el.value) return undefined;
       return this.setzen(['bereiche', jm, 'modus'], el.value, `${x.name}: ${(MODI.find(q => q[0] === el.value) || [el.value, el.value])[1]}`); }

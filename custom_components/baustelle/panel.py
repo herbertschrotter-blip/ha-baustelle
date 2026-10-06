@@ -28,6 +28,7 @@ from .funktionen.heizung import Heizung
 from .logik import preise as preise_logik
 from .logik.arbeitszeit import arbeitszeit_loeschen, arbeitszeiten_speichern
 from .logik.auswertung import ARTEN
+from .logik import symbol as symbol_logik
 from .logik.rechte import AKTIONEN_ALLE, darf, rechte
 from .notprogramm import DATA_NOTPROGRAMM
 from .logik.warnungen import Art
@@ -119,6 +120,13 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("meldungen_einst", "trocken_unter_w"): vol.All(ZAHL, vol.Range(0, 5000)),
     ("meldungen_einst", "offline_min"): vol.All(ZAHL, vol.Range(0, 1440)),
 }
+def _symbol_pruefen(wert: Any) -> Any:
+    try:
+        return symbol_logik.bereinigen(wert)
+    except (ValueError, TypeError) as err:
+        raise vol.Invalid(str(err)) from err
+
+
 SETZEN_BEREICH: dict[str, Any] = {
     "auto": cv.boolean,
     "trocknen": cv.boolean,
@@ -133,6 +141,7 @@ SETZEN_BEREICH: dict[str, Any] = {
     "warm_nach": vol.Any(None, vol.All(GANZ, vol.Range(0, 240))),
     "stufen": cv.boolean,
     "groesse_m2": vol.Any(None, vol.All(ZAHL, vol.Range(4, 200))),   # AN-0014
+    "symbol": _symbol_pruefen,   # BSM-032
 }
 SETZEN_GERAET: dict[str, Any] = {   # AN-0006, Szenarien
     "zusatz": cv.boolean,

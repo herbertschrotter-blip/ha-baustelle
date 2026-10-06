@@ -18,7 +18,7 @@ from .const import (
 from .funktionen import aktive
 from .funktionen.heizung import Heizung
 from .funktionen.pumpen import Pumpen
-from .logik import groesse
+from .logik import groesse, symbol as symbol_logik
 from .logik.abrechnung import EIGEN, firma_von
 from .logik.arbeitszeit import Plan, uhrzeit
 from .logik.warnungen import titel as warn_titel
@@ -122,6 +122,37 @@ def _zahl(hass: HomeAssistant, entity_id: str | None) -> float | None:
         return None
 
 
+def _drehung(hass: HomeAssistant, entity_id: str) -> float | None:
+    """Drehung (°) des Geräts hinter einem Fensterkontakt (BLU Door/Window: Sensor mit Einheit ° am selben Gerät)."""
+    ents = er.async_get(hass)
+    eintrag = ents.async_get(entity_id)
+    if eintrag is None or eintrag.device_id is None:
+        return None
+    for e in er.async_entries_for_device(ents, eintrag.device_id):
+        if e.domain == "sensor" and (s := hass.states.get(e.entity_id)) is not None and s.attributes.get("unit_of_measurement") == "°":
+            return _zahl(hass, e.entity_id)
+    return None
+
+
+def _symbol(st: Steuerung, bid: str) -> dict[str, Any]:
+    """Container-Symbol (BSM-032): Aussehen und Zustand aus den Sensoren, fertig zum Zeichnen (logik/symbol)."""
+    hass, e = st.hass, st.einstellungen.bereich(bid)
+    eigen = e.get("symbol")
+    cfg = eigen or symbol_logik.standard()
+    def an(eid: str | None) -> bool | None:
+        z = hass.states.get(eid) if eid else None
+        return None if z is None or z.state in (STATE_UNAVAILABLE, STATE_UNKNOWN) else z.state == STATE_ON
+
+    tueren = [{**t, "sensor_aktiv": (eid := t["sensor"] or (e.get("tuer") if i == 0 else None)), "offen": bool(an(eid))}
+              for i, t in enumerate(cfg["tueren"])]   # Tür 1 ohne eigenen Sensor: der Türkontakt des Containers
+    fenster = [{**f, "zustand": symbol_logik.fenster_zustand(an(f["sensor"]), _drehung(hass, f["sensor"]) if f["sensor"] else None)}
+               for f in cfg["fenster"]]
+    licht = cfg.get("licht")
+    s = hass.states.get(licht) if licht else None
+    return {"eigen": eigen is not None, "doppel": cfg["doppel"], "farbe": cfg["farbe"], "tueren": tueren, "fenster": fenster,
+            "licht": licht, "licht_an": bool(s is not None and symbol_logik.licht_an(s.state, _zahl(hass, licht)))}
+
+
 def laufzeit(st: Steuerung) -> dict[str, Any]:
     """Laufzeit-Teil der Struktur (api-0.7 §1 `laufzeit`)."""
     hass = st.hass
@@ -153,6 +184,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "bedarf": heizung.bedarf_anzeige(bid) if info.art == ART_CONTAINER else None,   # Bedarf in °C (Staffelung)
             "soll": heizung.soll_anzeige(bid) if info.art == ART_CONTAINER else None,   # Soll jetzt (fest/gleitend)
             "groesse": groesse.anzeige(st.einstellungen.bereich(bid).get("groesse_m2")) if info.art == ART_CONTAINER else None,   # AN-0014
+            "symbol": _symbol(st, bid) if info.art == ART_CONTAINER else None,   # BSM-032
             "firma": firma_von(st.e.get("zuordnung") or [], st.e.get("firmen") or [{"id": EIGEN}], bid, jetzt),
         }
     geraete: dict[str, Any] = {}

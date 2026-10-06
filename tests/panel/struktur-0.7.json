@@ -658,6 +658,42 @@
         "m3": 64.39999999999999
        }
       }
+     },
+     "symbol": {
+      "eigen": true,
+      "doppel": true,
+      "farbe": "#3987e5",
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": "binary_sensor.polier_tuer",
+        "offen": true
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.5,
+        "sensor": null,
+        "zustand": "zu"
+       },
+       {
+        "wand": "front",
+        "pos": 0.85,
+        "sensor": "binary_sensor.polier_fenster",
+        "zustand": "gekippt"
+       },
+       {
+        "wand": "seite",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
      }
     },
     "mannschaft": {
@@ -690,6 +726,48 @@
         "m3": 64.39999999999999
        }
       }
+     },
+     "symbol": {
+      "eigen": true,
+      "doppel": false,
+      "farbe": "#eb6834",
+      "tueren": [
+       {
+        "wand": "seite",
+        "pos": 0.5,
+        "sensor": null,
+        "sensor_aktiv": null,
+        "offen": false
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "zustand": "zu"
+       },
+       {
+        "wand": "front",
+        "pos": 0.33,
+        "sensor": null,
+        "zustand": "zu"
+       },
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       },
+       {
+        "wand": "front",
+        "pos": 0.85,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": "switch.licht_mannschaft",
+      "licht_an": true
      }
     },
     "magazin": {
@@ -725,6 +803,30 @@
         "m3": 64.39999999999999
        }
       }
+     },
+     "symbol": {
+      "eigen": false,
+      "doppel": false,
+      "farbe": null,
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": null,
+        "offen": false
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
      }
     },
     "sanitaer": {
@@ -757,6 +859,30 @@
         "m3": 64.39999999999999
        }
       }
+     },
+     "symbol": {
+      "eigen": false,
+      "doppel": false,
+      "farbe": null,
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": null,
+        "offen": false
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
      }
     },
     "lager": {
@@ -789,6 +915,30 @@
         "m3": 64.39999999999999
        }
       }
+     },
+     "symbol": {
+      "eigen": false,
+      "doppel": false,
+      "farbe": null,
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": null,
+        "offen": false
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
      }
     },
     "besprechung": {
@@ -821,6 +971,30 @@
         "m3": 64.39999999999999
        }
       }
+     },
+     "symbol": {
+      "eigen": false,
+      "doppel": false,
+      "farbe": null,
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": null,
+        "offen": false
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
      }
     },
     "schacht": {
@@ -832,7 +1006,8 @@
      "bedarf_bis": null,
      "boost_bis": null,
      "tuer": null,
-     "firma": "eigen"
+     "firma": "eigen",
+     "symbol": null
     }
    },
    "geraete": {

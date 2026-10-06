@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.67",
+   "version": "0.8.68",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -406,7 +406,8 @@
      "warm_vor": null,
      "warm_nach": null,
      "stufen": false,
-     "groesse_m2": null
+     "groesse_m2": null,
+     "symbol": null
     },
     "mannschaft": {
      "auto": true,
@@ -421,7 +422,8 @@
      "warm_vor": null,
      "warm_nach": null,
      "stufen": false,
-     "groesse_m2": null
+     "groesse_m2": null,
+     "symbol": null
     },
     "magazin": {
      "auto": true,
@@ -436,7 +438,8 @@
      "warm_vor": null,
      "warm_nach": null,
      "stufen": false,
-     "groesse_m2": null
+     "groesse_m2": null,
+     "symbol": null
     },
     "schacht": {
      "auto": true,
@@ -451,7 +454,8 @@
      "warm_vor": null,
      "warm_nach": null,
      "stufen": false,
-     "groesse_m2": null
+     "groesse_m2": null,
+     "symbol": null
     }
    },
    "meldungen_einst": {
@@ -634,6 +638,30 @@
        }
       }
      },
+     "symbol": {
+      "eigen": false,
+      "doppel": false,
+      "farbe": null,
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": null,
+        "offen": false
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
+     },
      "firma": "eigen"
     },
     "mannschaft": {
@@ -699,6 +727,30 @@
         "m3": 64.39999999999999
        }
       }
+     },
+     "symbol": {
+      "eigen": false,
+      "doppel": false,
+      "farbe": null,
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": null,
+        "offen": false
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
      },
      "firma": "eigen"
     },
@@ -782,6 +834,30 @@
        }
       }
      },
+     "symbol": {
+      "eigen": false,
+      "doppel": false,
+      "farbe": null,
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": "binary_sensor.tuer_magazin",
+        "offen": true
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
+     },
      "firma": "huber"
     },
     "schacht": {
@@ -799,6 +875,7 @@
      "bedarf": null,
      "soll": null,
      "groesse": null,
+     "symbol": null,
      "firma": "eigen"
     }
    },
@@ -2011,7 +2088,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.67",
+   "version": "0.8.68",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -2164,7 +2241,8 @@
      "warm_vor": null,
      "warm_nach": null,
      "stufen": false,
-     "groesse_m2": null
+     "groesse_m2": null,
+     "symbol": null
     }
    },
    "meldungen_einst": {
@@ -2278,6 +2356,30 @@
         "m3": 64.39999999999999
        }
       }
+     },
+     "symbol": {
+      "eigen": false,
+      "doppel": false,
+      "farbe": null,
+      "tueren": [
+       {
+        "wand": "front",
+        "pos": 0.15,
+        "sensor": null,
+        "sensor_aktiv": null,
+        "offen": false
+       }
+      ],
+      "fenster": [
+       {
+        "wand": "front",
+        "pos": 0.67,
+        "sensor": null,
+        "zustand": "zu"
+       }
+      ],
+      "licht": null,
+      "licht_an": false
      },
      "firma": "eigen"
     }

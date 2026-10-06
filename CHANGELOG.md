@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.68] – 2026-10-06
+
+- Container-Symbol anpassbar (BSM-032): Container bearbeiten › 🏠 Aussehen – Einzel- oder Doppelcontainer, Farbe, Türen
+  1–2 und Fenster 1–4 an Front oder Seite (fünf Lagen), je mit Sensor, dazu eine Licht-Quelle; Vorschau im Dialog.
+  Ohne Einstellung zeigt das Symbol eine Tür und ein Fenster.
+- Das Symbol zeigt, was die Sensoren melden: Tür offen, Fenster gekippt oder offen (gekippt erkennt die Integration an
+  der Drehung des BLU-Fenstersensors), Licht an (Fenster leuchten). Heizen, Frost und offline wie bisher.
+
 ## [0.8.67] – 2026-10-06
 
 - Notprogramm: Nach einem Ausfall trägt die Integration das Stundenbuch der Plugs in die eigene Datenbank nach (BSM-020).
