@@ -6,7 +6,7 @@ Zerlegen, stimmen Stufen und Reihenfolge, was fehlt?
 **Zeitraum:** 2026-10-06
 **Branch:** main
 **Modell:** GPT 6 Astra (mittel)
-**Status:** Runde 2 offen
+**Status:** Abgeschlossen (06.10.2026)
 
 ---
 
@@ -20,4 +20,11 @@ Zerlegen, stimmen Stufen und Reihenfolge, was fehlt?
 ### Runde 2 — Konkreter Stufenplan
 - **Artefakte:** [r2/](./r2/)
 - **Fokus:** abhakbarer Stufenplan, Entscheidungspunkt nach Lit-Pilot, Stufe 0a konkret, Offline-npm, Browser-Test-Werkzeug
-- **Kernergebnis:** –
+- **Kernergebnis:** Stufenplan 0a–5 mit Grundprüfung und Rückweg je Lieferung; bis Lit-Pilot (2a) bauen, dann fünf
+  Ja/Nein-Felder; Versionskette CHANGELOG → version.json → esbuild define; puppeteer-core gegen Chromium 136, B1–B7,
+  Budget ≤ 120 s. Herbert: übernommen, Grenzen angenommen, PC-Browser Edge.
+
+## Ergebnis
+
+- Bauplan überarbeitet: [docs/bauplan-lit.md](../../bauplan-lit.md) (§8 Entscheidungen)
+- BSM-024 geht in BSM-022 auf

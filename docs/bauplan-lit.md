@@ -1,87 +1,138 @@
-# Bauplan: Seite „Baustelle“ in Module zerlegen und auf Lit umstellen (BSM-022, BSM-024)
+# Bauplan: Seite „Baustelle“ zerlegen und schrittweise auf Lit umstellen (BSM-022, BSM-024)
 
-Stand 06.10.2026 · Entscheidung Herbert: Bündler **esbuild**, Umfang **gleich auf Lit umstellen** (BSM-024 vorgezogen) ·
-Abnahme dieses Plans durch Herbert, dann Bau Stufe für Stufe.
+Stand 06.10.2026 · Entscheidungen Herbert: Bündler **esbuild**; Ziel **Lit**, aber **bis einschließlich Lit-Pilot bauen,
+dann mit fünf Ja/Nein-Feldern entscheiden**; Browser-Tests **lokal (Chromium auf dem Pi) und auf GitHub**; Abnahme auf
+**Samsung S23 Ultra (HA-App) und Microsoft Edge** · Geprüft mit ChatGPT: `docs/chatgpt-reviews/CGR-2026-10-06-seite-lit/`
+(2 Runden).
 
 ## 1. Ausgangslage
 
-`custom_components/baustelle/frontend/baustelle-panel.js`: eine Datei mit ≈ 4.900 Zeilen, ≈ 560 KB. Die Klasse
-`BaustellePanel` (HTMLElement) baut jede Ansicht als Text (`v_uebersicht`, `v_container`, `v_heizung`, `v_auswertung`,
-`v_pumpen`, `v_verlauf`, `v_einst`, `v_ueber`, `v_dev`, `v_bsdetail`, dazu `sheet()` für alle Einblendungen) und setzt
-sie mit `innerHTML` neu. Klicks laufen über `data-act` in einer großen `klick()`-Weiche, Eingaben über `eingabe()` /
-`aenderung()`. Folgen: schwer zu überblicken, jede Änderung riskant, beim Neuzeichnen springen Eingaben und Scroll-Stand
-(„Flackern“), Diagramme werden jedes Mal neu erzeugt.
+`custom_components/baustelle/frontend/baustelle-panel.js`: eine Datei mit ≈ 4.900 Zeilen. `BaustellePanel`
+(HTMLElement) baut Ansichten (`v_uebersicht`, `v_container`, `v_heizung`, `v_auswertung`, `v_pumpen`, `v_verlauf`,
+`v_einst`, `v_ueber`, `v_dev`, `v_bsdetail`) und Einblendungen (`sheet()`) als Text und setzt `.ui` per `innerHTML` neu;
+Klicks über `data-act` in `klick()`. Rahmen und Himmel bleiben schon heute stehen (`_aufbauen`), dazu Sonderfälle:
+`_auffrischen` (kein Neuzeichnen bei fokussiertem Feld), Scroll-Wiederherstellung in `render()`, `_liveNeu`
+(Container-Diagramm/Kennzahlen), `leistungTeil` (Leistungsdialog). **Ziel ist Wartbarkeit** – dieselbe Bedienqualität mit
+weniger Sonderbehandlungen und klaren Zuständigkeiten; schneller muss es nicht werden. Lit garantiert Fokus/Scroll nicht
+von selbst (stabile Struktur, `repeat` mit IDs, Entwurf getrennt von Serverdaten).
 
-Geprüft wird die Seite heute mit `tests/panel/test_panel.js` (Minimal-DOM in Node, liest `innerHTML`-Text) und dem
-Master-Mockup `mockups/glas.html` (echte Seite mit Beispieldaten, `node mockups/quelle/glas.js`).
+Bekannte Fehler: `window`-Listener `paste`/`location-changed` werden in `disconnectedCallback()` nicht entfernt (→ 0b.2).
 
-## 2. Ziel
+## 2. Feste Regeln
 
-1. **Quellen in Teilen** unter `frontend/src/` (je Ansicht, Einblendungen, Diagramme, Himmel, Hilfsfunktionen, Aufrufe an
-   die Integration), **keine Datei über ≈ 800 Zeilen**.
-2. **Lit** (`LitElement`, `html```-Vorlagen): Lit ändert beim Neuzeichnen nur, was sich geändert hat – Eingaben, Fokus,
-   Scroll-Stand und Diagramme bleiben stehen.
-3. **Ausgeliefert wird weiter eine Datei** `frontend/baustelle-panel.js`, gebaut mit **esbuild** (Lit eingebündelt,
-   ≈ 20 KB). Einspielen, Panel-Anmeldung und Master-Mockup bleiben wie sie sind.
-4. **Verhalten und Aussehen gleich**; die Regel „die Seite rechnet nichts Fachliches“ gilt weiter.
+- Fachlogik nur in Python unter `logik/` (mit Test); die Seite zeigt nur an. `daten.js` ordnet zu und formatiert, rechnet
+  nichts nach. Die Alt-Ausnahme Anschlussleistungs-Vorschau (bauplan-module §5) wird nicht erweitert.
+- Ausgeliefert wird **eine JS-Datei** (ESM-Bundle, Lit eingebündelt) plus `changelog.json`; Master-Mockup aus genau diesem
+  Bundle; Backend-Schnittstelle und Daten bleiben unverändert.
+- Jede Produktlieferung ist eine PATCH-Version, einzeln einspielbar; HA-Neustart nur nach Freigabe.
+- **Pro Teilbaum genau ein Renderer und ein Ereignisweg** (kein `@click` zusätzlich über `data-act`).
+- Neue Gestaltung weiter zuerst als Mockup-Variante.
 
-## 3. Aufbau
+## 3. Stufenplan (abhaken)
 
-```
-frontend/
-  package.json, package-lock.json   esbuild, lit, happy-dom (nur zum Bauen/Testen; nicht ausgeliefert)
-  bauen.mjs                         esbuild: src/main.js → baustelle-panel.js (ein Modul, minify aus – lesbar für Fehlersuche)
-  src/
-    main.js                         <baustelle-panel>: hass, Zustand, Laden, Navigation, Rahmen (Reiter, Einblendung)
-    daten.js                        Struktur der Integration → Anzeigedaten (heute `neuBauen`/`d`)
-    aufrufe.js                      callWS, setzen, aktion, Rechte („nur ansehen“)
-    hilfen.js                       de(), Datum/Zeit, esc → entfällt bei Lit weitgehend (Vorlagen maskieren selbst)
-    symbole/                        Container-Symbol, Schacht, Wettersymbole, Icons
-    himmel/                         WebGL-Himmel (unverändert übernommen)
-    diagramme/                      Linie, Balken, Fläche, Streu – je eine kleine Lit-Komponente
-    ansichten/                      uebersicht, container, heizung, auswertung, pumpen, verlauf, einstellungen, ueber, dev
-    einblendungen/                  je Einblendung (Arbeitszeit, Ausnahmen, Termin, Aussehen, Notprogramm-Plug, Melden …)
-    stil.js                         CSS (heute ein Block) – aufgeteilt je Teil als `css```
-```
+**Grundprüfung** = Fachlogik, Integration, Panel (Node), Notprogramm grün + Versions-/Bundle-/Mockup-Aktualität, ab 0b
+zusätzlich Browser-Test lokal und auf GitHub. Jede Lieferung: kurzer Vorher-/Nachher-Nachweis, Liste der umgestellten Teile.
+**Rückweg R** = vorheriges geprüftes Release (Bundle, Manifest, Changelog) über `tools/deploy.sh`, Browser neu laden,
+Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuerst in einem temporären Ziel geprobt.
 
-## 4. Stufen (je Stufe: Prüfläufe grün, eingespielt, Herbert sieht keinen Unterschied)
+| ☐ | Stufe | Inhalt (je eigene Lieferung) | Herbert sieht | Prüfung / Abnahme | Rückweg |
+|---|---|---|---|---|---|
+| ☐ | **0a** | esbuild, Versionskette, Modul-Mockup, Auslieferungsfilter (§4) | nichts | Grundprüfung ohne Browser-Test; zwei Builds bytegleich; veraltetes Bundle wird erkannt; Mockup startet; Auslieferungsprobe ohne Quellen/npm-Dateien | R auf 0.8.73 |
+| ☐ | **0b.1** | Panel-Test auf happy-dom (gebaute Datei laden, echte DOM-Ereignisse); Browser-Bestandsaufnahme B1–B7 (§6) | nichts | alle bisherigen Testfälle übertragen; Ausgangsprotokoll; bekannte Fehler einzeln benannt | Teständerung zurück |
+| ☐ | **0b.2** | Listener-Lecks beheben | nichts | B7 nach 20 Ein-/Aushängezyklen grün | R |
+| ☐ | **1a** | Hilfen und Symbole auslagern | nichts | Grundprüfung; gleiche Ausgabe/Befehle | R |
+| ☐ | **1b** | Himmel und Diagramm-Funktionen auslagern | nichts | Canvas bleibt bei Updates; SVG/WebGL/CSS-Rückfall | R |
+| ☐ | **1c** | Datenadapter und Aufrufe auslagern | nichts | gleiche API-Nutzdaten, Rechte, Fachwerte/CSV | R |
+| ☐ | **2a.1** | dauerhafte DOM-Bereiche; „Über“ mit Lit (`render(template, container)`), Klasse bleibt HTMLElement | nichts | 20 Navigationen; Lit-Bereich wird vom Alt-Renderer nicht zerstört | R auf 1c |
+| ☐ | **2a.2** | Melde-Dialog samt Entwurf auf Lit | nichts | Tippen während Updates; Bild/Einfügen/Abbrechen/Senden | R auf 2a.1/1c |
+| ☐ | **Entscheidung** | Pilot bewerten (§5) | Ja/Nein-Bogen | 5 × Ja und Restaufwand akzeptiert | bei Nein: 1c behalten |
+| ☐ | **2b** | Klasse auf LitElement; Zustand (`s` reaktiv, `neuZeichnen()` → `requestUpdate()`, neue Objektreferenzen), Laden aus Vorlagen heraus, Timer/Abos | nichts | `hass` vor/nach Einhängen; 20 Wiederanschlüsse ohne Mehrfachaufrufe; Menü, Theme, schmal/breit | R auf Pilot |
+| ☐ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
+| ☐ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
+| ☐ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
+| ☐ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
+| ☐ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
+| ☐ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
+| ☐ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
+| ☐ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
 
-| Stufe | Inhalt | Prüfung |
+Vor 3a eine **Inventarliste** aus `v_*`, `sheet()` und Ereignisfällen mit Zielstufe je Zeile; ansichtsbezogene Dialoge und
+Diagramme ziehen mit ihrer Ansicht um. Gemeinsame Vorlagen bleiben im vorhandenen Shadow Root (Modul ≠ Custom Element).
+
+## 4. Stufe 0a im Einzelnen
+
+- **Versionskette:** `CHANGELOG.md` bleibt die einzige Quelle. `tools/changelog.py` erzeugt `frontend/changelog.json`,
+  neu `frontend/version.json` (`{"version": "…"}`) und setzt nur das Versionsfeld in `manifest.json`; `--pruefen` prüft
+  alle drei, ohne zu schreiben. In der Quelle `const SEITE_VERSION = __BAUSTELLE_VERSION__;`, `bauen.mjs` setzt sie über
+  esbuild `define` (`JSON.stringify(version)`). Kein Werkzeug schreibt mehr ins Bundle; der Regex entfällt.
+- **Bundle:** `bundle: true`, `format: 'esm'`, `platform: 'browser'`, `splitting: false`, keine externen Laufzeit-Imports,
+  unminifiziert, Lizenztexte inline, keine Source-Map-Datei; Ziel nach Edge und der Android-WebView des S23. Quelle zuerst
+  `src/alt.js` = heutige Datei. Rohgröße und Transfergröße messen.
+- **Mockup:** `glas.js` liest `version.json`, Bundle, Beispieldaten; erzeugt (1) klassisches Skript mit Fehleranzeige,
+  fester Uhr, Fetch-Ersatz und Beispiel-hass unter `window.baustelleBeispiel`, (2) `<script type="module">` mit dem Bundle,
+  (3) zweites Modul: `await customElements.whenDefined('baustelle-panel')`, dann Elemente anlegen und einhängen.
+- **Aktualität:** `bauen.mjs --pruefen` und `glas.js --pruefen` erzeugen im Speicher (`write: false`) und vergleichen mit
+  der eingecheckten Datei; keine Zeitstempel/absoluten Pfade. Reihenfolge: `changelog.py --pruefen` → `bauen.mjs --pruefen`
+  → `glas.js --pruefen` → vier Pflichtprüfungen → Browser-Test (Erzeugen ohne `--pruefen` in derselben Reihenfolge).
+- **Auslieferung:** `tools/deploy.sh` mit einer Filterfunktion für Kopieren und Bereinigen; in `frontend/` Positivliste
+  (`baustelle-panel.js`, `changelog.json`); entfernt wird im Ziel, was nicht zugelassen ist oder in der Quelle fehlt. Bundle
+  über temporäre Nachbardatei und Umbenennen ersetzen, `changelog.json` zuletzt.
+- **npm offline:** einmal online auf dem Pi `npm --prefix custom_components/baustelle/frontend ci --cache "$BSM_NPM_CACHE"
+  --include=dev --include=optional --no-audit --no-fund`; Offline-Probe in einem temporären Ordner (`npm ci --offline`,
+  kleiner Build), einmal bei gesperrtem Internet. `@esbuild/linux-arm64` muss enthalten sein. Erfolgsvermerk mit
+  Lockfile-Hash; neu vorbereiten nur bei geändertem Lockfile, Node/npm, Plattform oder Cache-Verlust. GitHub: `npm ci`.
+  `node_modules/` nicht im Repo, `package-lock.json` im Repo.
+- **Prüfläufe** (Skill-Profil, GitHub): neu „seite-gebaut“ (die drei `--pruefen`) und ab 0b „browser“.
+
+## 5. Entscheidung nach dem Lit-Piloten (fünfmal Ja → 2b)
+
+| ☐ | Frage | Nachweis |
 |---|---|---|
-| **0** | esbuild einrichten: `package.json`, `bauen.mjs`; die heutige Datei wird 1:1 zur Quelle `src/alt.js`, gebaut ergibt sie dieselbe Seite. Prüflauf „Seite ist gebaut“ (gebaute Datei = Ergebnis von `bauen.mjs`) in Skill-Profil und GitHub | Panel-Test, Master-Mockup unverändert grün |
-| **1** | Zerlegen ohne Lit: Hilfsfunktionen, Symbole, Himmel, Diagramm-Funktionen, `daten.js`, `aufrufe.js` als eigene Module; die Klasse bleibt noch HTMLElement mit Text-Vorlagen | wie oben; keine Datei > 800 Zeilen außer der Klasse |
-| **2** | Rahmen auf Lit: `BaustellePanel extends LitElement`; die Ansichten liefern vorerst weiter Text, der über `unsafeHTML` eingesetzt wird (Übergang); Klick-Weiche bleibt | Panel-Test auf **happy-dom** umgestellt (echtes DOM statt Text), prüft dieselben Dinge |
-| **3** | Ansichten einzeln auf `html```-Vorlagen mit eigenen Ereignissen (`@click`) – Reihenfolge: Über, Notprogramm/Einstellungen, Pumpen, Verlauf, Heizung, Container, Übersicht, Auswertung (größte zuletzt) | je Ansicht: Panel-Test, Master-Mockup, Sichtprobe durch Herbert |
-| **4** | Einblendungen und Diagramme als Lit-Komponenten; `klick()`-Weiche und `unsafeHTML` entfallen | wie oben; Flackern weg (Eingaben behalten Fokus, Scroll bleibt) |
-| **5** | Aufräumen: doppelte Teile zusammenführen, Doku (`README.md`, `mockups/README.md`), Abschluss BSM-022/024 | alle Prüfläufe |
+| ☐ | Funktioniert alles wie vorher? | Grundprüfung lokal/GitHub; B1–B7 ohne neue Fehler; Pilotdialog je einmal auf S23 und Edge; keine unerklärten Browserfehler |
+| ☐ | Bleibt die Bedienung stabil? | bei 20 Datenupdates: derselbe Eingabeknoten, Text, Fokus, Auswahl; Scroll ±1 px; ein Senden = genau ein Auftrag |
+| ☐ | Ist der Pilot tatsächlich einfacher? | je ein Renderer/Ereignisweg; alte Zweige entfernt; keine neue Fokus-/Scrollrettung oder `innerHTML`-Reparatur im Lit-Teil; Entwurf und Serverdaten getrennt; Liste der entfallenen Sonderfälle |
+| ☐ | Bleiben Aufwand und Reaktion im Rahmen? | Median aus 5 Läufen höchstens `max(20 %, 50 ms)` schlechter; drei Browserläufe ohne Wiederholung, je ≤ 120 s |
+| ☐ | Ist der Rest überschaubar und rückgängig zu machen? | Rückweg auf 1c getestet; Pilotstunden dokumentiert; Schätzung je Familie als Spanne; Herbert akzeptiert den Restaufwand |
 
-Jede Stufe ist eine eigene Version (PATCH). Zwischen den Stufen läuft die Seite normal weiter.
+Sonst kein automatisches Weiterbauen: Mangel beheben und neu entscheiden oder auf 1c zurück. Ein nicht abgenommener
+Hybrid bleibt kein Dauerzustand.
 
-## 5. Tests und Werkzeuge
+## 6. Tests
 
-- **Panel-Test**: ab Stufe 2 mit `happy-dom` (npm, nur Test). Er rendert die gebaute Datei in einem echten DOM, klickt
-  Elemente an und prüft die Aufrufe an die Integration wie heute (`docs/api-0.7.md`). Die vorhandenen Prüfungen werden
-  übernommen (Text-Suchen → DOM-Abfragen, wo nötig).
-- **Master-Mockup**: `mockups/quelle/glas.js` liest weiter die gebaute Datei – unverändert.
-- **Prüfläufe** (Skill-Profil, GitHub): `panel` bekommt vorne `npm ci && node frontend/bauen.mjs --pruefen` (Abbruch, wenn
-  die gebaute Datei nicht zur Quelle passt). `node_modules/` nicht im Repo; `package-lock.json` im Repo (feste Versionen).
-- **Einspielen** (`tools/deploy.sh`) kopiert wie bisher nur `custom_components/baustelle/` ohne `frontend/src`,
-  `node_modules` und Bauwerkzeuge (Liste im Skript ergänzen).
+- **Panel-Test (Node):** ab 0b.1 mit **happy-dom**: gebaute Datei nach Einrichtung der DOM-Umgebung laden, Element
+  einhängen, echte Ereignisse, gesendete Befehle prüfen (`docs/api-0.7.md`); auf `updateComplete` und Antworten warten
+  statt pauschaler `ruhe()`-Schleifen. Fachwerte-/CSV-Abgleiche und `BAUSTELLE_AUFRUFE` bleiben. WebGL auf CSS-Rückfall.
+- **Browser-Test:** `puppeteer-core` gegen Chromium 136 auf dem Pi (headless, ohne Sandbox) und auf GitHub (gleiche
+  Major-Version); Puppeteer-Version passend zu Chromium 136 und Node 22 festlegen. `tests/panel/browser/pruefen.mjs`, Start
+  über npm-Skript im Frontend; lokaler HTTP-Server mit Mockup und Bundle, **keine Verbindung zur produktiven HA**;
+  Testzugang im Beispiel-hass für Antworten, Verzögerungen, Befehlsprotokoll. Bedienung nur über den Browser.
 
-## 6. Risiken und Gegenmittel
-
-| Risiko | Gegenmittel |
+| Test | Ablauf und Ergebnis (Bestand vor Lit) |
 |---|---|
-| Umbau bricht etwas, das der Test nicht sieht | kleine Stufen, je Stufe Sichtprobe; Master-Mockup als Vergleich vorher/nachher |
-| npm auf dem Pi langsam/offline | `package-lock.json`, `npm ci` einmal; esbuild ist ein einzelnes Programm |
-| HA lädt eigene Lit-Version | eigene, eingebündelte Lit-Version im Panel (übliche Praxis bei Custom-Panels) |
-| Lange Bauzeit | Stufen 0–2 zuerst (Grundlage), Stufe 3 Ansicht für Ansicht über mehrere Sitzungen |
+| B1 Start | Mockup und Bundle starten; Ladezustand endet, Ansicht/Version sichtbar, keine Fehler |
+| B2 Eingabeschutz | Melde-Text tippen, Auswahl; geänderte Strukturantwort; Text/Auswahl/Knoten bleiben; nach Fokuswechsel neue Daten sichtbar |
+| B3 Scrollschutz | Hauptansicht, lange Einblendung, Chipleiste scrollen; Update ohne Layoutänderung; Position ±1 px (Knotenidentität im Altzustand nicht gefordert) |
+| B4 Container live | Sensor und Statistik ändern; Diagramm/Kennzahlen aktualisieren, Rest bleibt; mit offener Einblendung/Tooltip heutige Unterdrückung prüfen |
+| B5 Leistung | Leistungsdialog, Regler bedienen, Daten nachliefern; `.lh-daten` aktualisiert, Regler/Einstellung/Scroll bleiben |
+| B6 Befehle/Rechte | schreibender Befehl genau einmal; Nicht-Admin keine Änderung, erlaubte Vor-Ort-Aktion möglich |
+| B7 Lebenszyklus | 20 × entfernen/einhängen; Timer, Abos, `paste`/`location-changed` zählen: keine Zunahme |
 
-## 7. Offen für Herbert
+B2–B5 müssen beweisen, dass die präparierte Antwort verarbeitet wurde (kein falsches Grün). Feste Uhr, gezielte Zeitsteuerung,
+kein `networkidle` bei laufendem Himmel. Versagt ein Schutz heute, wird das als Fehler festgehalten und separat repariert.
+Normale Fälle mit CSS-Himmel, je ein Starttest mit WebGL und mit erzwungenem Ausfall. Ausgangsprotokoll mit Revision,
+Versionen, Ergebnissen, Laufzeiten, ausgewählten Screenshots. **Budget:** Ziel 60–90 s, höchstens 120 s zusätzlich auf dem Pi.
+Echte GPU-Darstellung und Android-Tastatur prüft die kurze Abnahme auf S23 und Edge.
 
-- Abnahme dieses Plans (Stufen und Reihenfolge der Ansichten).
-- BSM-024 („Umstieg auf Lit planen“) wird mit diesem Plan erledigt und geht in BSM-022 auf.
+## 7. Barrierefreiheit und Betrieb
+
+Dialoge mit Tastaturbedienung, Beschriftungen, Fokusführung und Rückkehr zum Auslöser; Diagramme mit Textalternative;
+reduzierte Bewegung für Animationen – sichtbare Änderungen bleiben abnahmepflichtig. Neue Versionen werden durch volles
+Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart“, „mit Neustart“ und Rückweg getrennt prüfen.
 
 ## 8. Entscheidungen
 
-Review mit ChatGPT: `docs/chatgpt-reviews/CGR-2026-10-06-seite-lit/` (läuft). Ergebnisse werden hier eingetragen.
+- 06.10.2026 Herbert: esbuild; Lit als Ziel, aber zuerst bis zum Piloten (2a), dann Entscheidung nach §5.
+- 06.10.2026 Herbert: Browser-Tests lokal (Chromium 136 auf dem Pi, headless geprüft) und auf GitHub; Abnahme S23 Ultra
+  (HA-App) und Microsoft Edge; Pilot-Grenzen und Budget 120 s angenommen.
+- BSM-024 („Umstieg auf Lit planen“) ist mit diesem Plan erledigt und geht in BSM-022 auf.
+- Review: `docs/chatgpt-reviews/CGR-2026-10-06-seite-lit/` (r1: Weg korrigiert, r2: konkreter Stufenplan).
