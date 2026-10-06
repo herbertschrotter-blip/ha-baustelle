@@ -39,7 +39,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 |---|---|---|---|---|---|
 | ☑ | **0a** | esbuild, Versionskette, Modul-Mockup, Auslieferungsfilter (§4) | nichts | Grundprüfung ohne Browser-Test; zwei Builds bytegleich; veraltetes Bundle wird erkannt; Mockup startet; Auslieferungsprobe ohne Quellen/npm-Dateien | R auf 0.8.73 |
 | ☑ | **0b.1** | Panel-Test auf happy-dom (gebaute Datei laden, echte DOM-Ereignisse); Browser-Bestandsaufnahme B1–B7 (§6) | nichts | alle bisherigen Testfälle übertragen; Ausgangsprotokoll; bekannte Fehler einzeln benannt | Teständerung zurück |
-| ☐ | **0b.2** | Listener-Lecks beheben; Wetter-Abos nach dem Wiedereinhängen (Befund 0b.1) | nichts | B7 nach 20 Ein-/Aushängezyklen grün | R |
+| ☑ | **0b.2** | Listener-Lecks beheben; Wetter-Abos nach dem Wiedereinhängen (Befund 0b.1) | nichts | B7 nach 20 Ein-/Aushängezyklen grün | R |
 | ☐ | **1a** | Hilfen und Symbole auslagern | nichts | Grundprüfung; gleiche Ausgabe/Befehle | R |
 | ☐ | **1b** | Himmel und Diagramm-Funktionen auslagern | nichts | Canvas bleibt bei Updates; SVG/WebGL/CSS-Rückfall | R |
 | ☐ | **1c** | Datenadapter und Aufrufe auslagern | nichts | gleiche API-Nutzdaten, Rechte, Fachwerte/CSV | R |
@@ -147,6 +147,8 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Browser-Test B1–B7 in Chromium 136 (≈ 40 s auf dem Pi), Ausgangsprotokoll `docs/lit-ausgangsprotokoll.md` mit drei
   einzeln benannten Fehlern (B7 Listener, B7 Abos nach Wiedereinhängen, B4 ganze Seite neu). WebGL-Starttest nur auf
   GitHub (im Container auf dem Pi kein WebGL).
+- **0b.2, 06.10.2026 (0.8.75):** window-Listener nur solange eingehängt (`_fensterAn`/`_fensterAus`), Wetter-Abos beim
+  Wiedereinhängen neu; B7 grün (dasselbe und 20 neue Elemente), aus `BEKANNT` gestrichen.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner
   ohne Netzzugriff durch npm, `@esbuild/linux-arm64` enthalten, kleiner Build grün; package-lock.json sha256
   `1696ce4356818f04…`, Node v22.23.2, npm 10.9.1, linux/arm64. Neu vorbereiten bei anderem Lockfile, Node/npm,

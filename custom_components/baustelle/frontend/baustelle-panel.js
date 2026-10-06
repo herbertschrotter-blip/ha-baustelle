@@ -1783,7 +1783,7 @@ var kkBalken = (zeilen, n = 99) => {
   return zeilen.slice(0, n).map(([name, v, txt, farbe]) => `<div class="kk-balken"><span>${esc(name)}</span><i style="width:${Math.max(2, (v || 0) / max * 100)}%;background:${farbe || "var(--s1)"}"></i><em>${txt}</em></div>`).join("");
 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.74";
+var SEITE_VERSION = "0.8.75";
 var verNeuer = (a, b) => {
   const x = String(a || "").split(".").map(Number), y = String(b || "").split(".").map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) {
@@ -1843,7 +1843,9 @@ var BaustellePanel = class extends HTMLElement {
   }
   connectedCallback() {
     this._aufbauen();
+    this._fensterAn();
     if (this._hass && !this._timer) this._starten();
+    this._vorhersageAbo();
     if (!this.himmel && this.bg) this.himmel = Himmel.an(this.bg);
     this._stimmung(true);
   }
@@ -1852,10 +1854,36 @@ var BaustellePanel = class extends HTMLElement {
     this._timer = null;
     clearTimeout(this._nachladen);
     this._aboEnde();
+    this._fensterAus();
     if (this.himmel) {
       this.himmel.stop();
       this.himmel = null;
     }
+  }
+  /* Listener am Fenster nur, solange die Seite eingehängt ist (BSM-022.03): sonst hält jede alte Seite sich selbst am Leben */
+  _fensterAn() {
+    if (this._fenster || typeof window === "undefined" || !window.addEventListener) return;
+    this._fenster = {
+      // WU-0016: Screenshot mit Strg+V ins offene Melde-Fenster
+      paste: (e) => {
+        const sh = this.s && this.s.sheet;
+        if (!sh || sh.art !== "melden") return;
+        const it = [...e.clipboardData && e.clipboardData.items || []].find((i) => i.type && i.type.startsWith("image/"));
+        if (!it) return;
+        e.preventDefault();
+        this.mbDatei(it.getAsFile(), "eingefügt");
+      },
+      "location-changed": () => {
+        this._adresseFertig = null;
+        setTimeout(() => this._adresse(), 0);
+      }
+    };
+    for (const [art, f] of Object.entries(this._fenster)) window.addEventListener(art, f);
+  }
+  _fensterAus() {
+    if (!this._fenster) return;
+    for (const [art, f] of Object.entries(this._fenster)) window.removeEventListener(art, f);
+    this._fenster = null;
   }
   _starten() {
     this._laden();
@@ -1883,21 +1911,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     sr.addEventListener("click", (e) => this.klick(e));
     sr.addEventListener("input", (e) => this.eingabe(e));
     sr.addEventListener("change", (e) => this.aenderung(e));
-    if (typeof window !== "undefined") window.addEventListener("paste", (e) => {
-      const sh = this.s && this.s.sheet;
-      if (!sh || sh.art !== "melden") return;
-      const it = [...e.clipboardData && e.clipboardData.items || []].find((i) => i.type && i.type.startsWith("image/"));
-      if (!it) return;
-      e.preventDefault();
-      this.mbDatei(it.getAsFile(), "eingefügt");
-    });
     sr.addEventListener("pointermove", (e) => this.hover(e));
     sr.addEventListener("pointerdown", (e) => this.zugStart(e));
     sr.addEventListener("pointerleave", () => this.tip(null));
-    if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("location-changed", () => {
-      this._adresseFertig = null;
-      setTimeout(() => this._adresse(), 0);
-    });
     sr.addEventListener("focusout", () => {
       if (this._wartet) {
         this._wartet = false;

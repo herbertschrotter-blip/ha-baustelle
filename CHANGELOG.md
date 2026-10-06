@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.75] – 2026-10-06
+
+- Seite aufgeräumt beim Verlassen (BSM-022.03): Die Seite meldet ihre Listener am Browserfenster (Einfügen eines
+  Screenshots, Adresswechsel) beim Verlassen wieder ab – bisher blieben sie bei jedem Öffnen der Seite zurück. Nach dem
+  Zurückkehren auf die Seite kommt die Wettervorhersage wieder live (die Abos fehlten danach bisher).
+
 ## [0.8.74] – 2026-10-06
 
 - Die Seite wird jetzt gebaut (BSM-022, Stufe 0a des Umbaus auf Lit): Die Quelle liegt in `frontend/src`, esbuild baut

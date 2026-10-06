@@ -57,8 +57,8 @@ Testzugang im Mockup: `window.baustelleBeispiel` (Befehlsprotokoll, Verzögerung
 
 | Befund | Ursache | Behebung |
 |---|---|---|
-| **B7 neue Elemente:** nach 20 neuen Seiten-Elementen 22 statt 2 `window`-Listener für `paste` und `location-changed` | `_aufbauen` meldet sie an, `disconnectedCallback` nicht ab (bauplan-lit §1) | 0b.2 (BSM-022.03) |
-| **B7 Abos nach Wiedereinhängen** (neu gefunden): dasselbe Element aus- und wieder eingehängt → die zwei Wetter-Abos fehlen danach (4 → 2) | `disconnectedCallback` beendet die Abos; beim Einhängen holt `_laden` die Struktur, bricht aber bei unveränderter Antwort vor `_vorhersageAbo()` ab | 0b.2 (BSM-022.03) |
+| **B7 neue Elemente:** nach 20 neuen Seiten-Elementen 22 statt 2 `window`-Listener für `paste` und `location-changed` | `_aufbauen` meldet sie an, `disconnectedCallback` nicht ab (bauplan-lit §1) | 0b.2 (BSM-022.03) – **behoben in 0.8.75** |
+| **B7 Abos nach Wiedereinhängen** (neu gefunden): dasselbe Element aus- und wieder eingehängt → die zwei Wetter-Abos fehlen danach (4 → 2) | `disconnectedCallback` beendet die Abos; beim Einhängen holt `_laden` die Struktur, bricht aber bei unveränderter Antwort vor `_vorhersageAbo()` ab | 0b.2 (BSM-022.03) – **behoben in 0.8.75** |
 | **B4 ganze Seite neu** (neu gefunden): neue Statistik (Container-Diagramm) zeichnet die ganze Seite neu statt nur Diagramm und Kennzahlen | Antwort kommt über `_holen` → `_auffrischen` → `render()`; nur ohne Nachladen tauscht `_liveNeu` die zwei Stellen. Position bleibt dank Scroll-Wiederherstellung | Lit-Stufe 3d (Container) |
 
 Ein Schutz, der hier grün ist, ist nur für die geprüften Fälle belegt; echte GPU-Darstellung und die Android-Tastatur

@@ -23,9 +23,7 @@ if (BILDER) mkdirSync(BILDER, { recursive: true });
 
 /* Heute bekannte Fehler (bauplan-lit §1) – werden in eigenen Stufen behoben und dann hier gestrichen */
 const BEKANNT = {
-  'B7 neue Elemente': 'window-Listener paste/location-changed werden in disconnectedCallback nicht entfernt (0b.2, BSM-022.03)',
   'B4 Rest bleibt': 'neue Statistik kommt über _holen → _auffrischen und zeichnet die ganze Seite neu; nur ohne Nachladen tauscht _liveNeu Diagramm/Kennzahlen (Lit-Stufe 3d)',
-  'B7 Abos nach Wiedereinhängen': 'nach Aus- und Einhängen fehlen die Wetter-Abos: _laden bricht bei unveränderter Struktur vor _vorhersageAbo ab (0b.2, BSM-022.03)',
 };
 
 const html = readFileSync(join(REPO, 'mockups', 'glas.html'));
