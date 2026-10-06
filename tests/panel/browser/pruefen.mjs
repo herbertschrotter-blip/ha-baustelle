@@ -75,17 +75,21 @@ const bild = async (page, name) => { if (BILDER) await page.screenshot({ path: j
 async function fall(name, browser, ablauf, himmel) {
   const start = Date.now(), pruef = [];
   const erwarte = (text, ok, info = '') => pruef.push({ text, ok: !!ok, info });
-  let s;
-  try { s = await seite(browser, himmel); await ablauf(s.page, erwarte); }
+  let s; const frisch = browser === 'frisch', b = frisch ? await puppeteer.launch(START) : browser;
+  try { s = await seite(b, himmel); await ablauf(s.page, erwarte); }
   catch (e) { pruef.push({ text: 'Ablauf', ok: false, info: String(e && e.stack || e).split('\n').slice(0, 3).join(' | ') }); }
-  if (s) { erwarte('keine Fehler im Browser', !s.fehler.length, s.fehler.slice(0, 3).join(' | ')); await s.page.close(); }
+  if (s) { erwarte('keine Fehler im Browser', !s.fehler.length, s.fehler.slice(0, 3).join(' | ')); if (!frisch) await s.page.close().catch(() => {}); }
+  if (frisch) await Promise.race([b.close(), warte(5000)]).catch(() => {}).finally(() => { try { b.process() && b.process().kill('SIGKILL'); } catch { /* schon weg */ } });
   const rot = pruef.filter(p => !p.ok);
   ergebnisse.push({ name, ok: !rot.length, ms: Date.now() - start, pruef });
   console.log(`${rot.length ? '✗' : '✓'} ${name} (${((Date.now() - start) / 1000).toFixed(1)} s)` + rot.map(p => `\n    ✗ ${p.text}${p.info ? ' – ' + p.info : ''}`).join(''));
 }
 
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, protocolTimeout: 30000, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--lang=de-AT'] });
-const chromeVersion = await browser.version();
+// Jeder Fall bekommt einen frischen Browser: Chromium auf dem Pi hängt selten nach vielen Seiten in einem Prozess – so
+// trifft ein Hänger höchstens einen Fall, und kein Zustand schleppt sich von Fall zu Fall
+const START = { executablePath: CHROME, headless: true, protocolTimeout: 30000, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--lang=de-AT'] };
+const browser = 'frisch';
+const chromeVersion = await (async () => { const b = await puppeteer.launch(START); const v = await b.version(); await b.close(); return v; })();
 
 /* B1 Start: Ladezustand endet, Ansicht und Version sichtbar */
 await fall('B1 Start', browser, async (page, erwarte) => {
@@ -276,11 +280,11 @@ await fall('Lit-Pilot Melden', browser, async (page, erwarte) => {
   let ok = 0; const text = 'Heizung im Polier schaltet zu spät';
   for (let i = 0; i < text.length; i++) {
     await page.keyboard.type(text[i]);
-    if (i % 2 === 0) await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'T' + a0; await p._laden(); p.render(); }, i);   // Update mitten im Tippen
+    if (i < 20) await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'T' + a0; await p._laden(); p.render(); }, i);   // 20 Updates mitten im Tippen (bauplan-lit §5)
   }
   const r = await panel(page, D, () => { const t = sr.querySelector('textarea[name="ml-text"]'); window.__ta = t;
     return { text: t.value, fokus: sr.activeElement === t, ende: t.selectionStart === t.value.length, entwurf: p.s.sheet.form.text, titel: p.d.titel }; });
-  erwarte('Tippen während 17 Neuzeichnungen: Text, Fokus, Cursor bleiben', r.text === text && r.fokus && r.ende && r.entwurf === text && r.titel.startsWith('T'), JSON.stringify(r));
+  erwarte('Tippen während 20 Neuzeichnungen: Text, Fokus, Cursor bleiben', r.text === text && r.fokus && r.ende && r.entwurf === text && r.titel.startsWith('T'), JSON.stringify(r));
   // Bild über Einfügen (Strg+V): ClipboardEvent mit Bilddatei
   await page.evaluate(async () => { const c = document.createElement('canvas'); c.width = 40; c.height = 20; c.getContext('2d').fillRect(0, 0, 40, 20);
     const blob = await new Promise(r => c.toBlob(r, 'image/png')), dt = new DataTransfer(); dt.items.add(new File([blob], 'bild.png', { type: 'image/png' }));
@@ -323,7 +327,7 @@ await fall('B7 Lebenszyklus', browser, async (page, erwarte) => {
   erwarte('B7 neue Elemente', nach2.paste === vor2.paste && nach2.ort === vor2.ort, `${JSON.stringify(vor2)} → ${JSON.stringify(nach2)}`);
 });
 
-await browser.close(); server.close();
+server.close();
 const gesamt = Date.now() - t0;
 let rot = 0; const bekannteTreffer = [];
 for (const e of ergebnisse) for (const p of e.pruef) if (!p.ok) { if (BEKANNT[p.text]) bekannteTreffer.push(`${p.text}: ${BEKANNT[p.text]} (${p.info})`); else rot++; }

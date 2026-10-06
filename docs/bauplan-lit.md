@@ -181,6 +181,8 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Lit-Bereichen (neue Daten sofort sichtbar). Nur-Lesen-Sperre erkennt den freien Schalter an `.ml-stand`.
   Nachweis: Browser-Fall „Lit-Pilot Melden“ (17 Neuzeichnungen während des Tippens: Text, Fokus, Cursor bleiben;
   Strg+V-Bild, ✕, Abbrechen, Senden = ein Auftrag), B2 auf das neue Verhalten angepasst; Schnappschuss inhaltlich gleich.
+- **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
+  Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner
   ohne Netzzugriff durch npm, `@esbuild/linux-arm64` enthalten, kleiner Build grün; package-lock.json sha256
   `1696ce4356818f04…` (mit Lit, happy-dom, puppeteer-core erneut geprobt: `6025c468e9cf6de0…`), Node v22.23.2, npm 10.9.1, linux/arm64. Neu vorbereiten bei anderem Lockfile, Node/npm,
