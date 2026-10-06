@@ -112,6 +112,10 @@ if (process.env.BAUSTELLE_WEBGL !== '1') {
     await warte(500);
     const r = await panel(page, D, () => ({ himmel: !!p.himmel, canvas: !!sr.querySelector('canvas.himmel') }));
     erwarte('WebGL-Himmel läuft', r.himmel && r.canvas, JSON.stringify(r));
+    const bleibt = await panel(page, D, async () => { const cv = sr.querySelector('canvas.himmel'), h = p.himmel;
+      BB.welt[0].baustelle.titel = 'Himmel bleibt'; await p._laden(); p.render(); await new Promise(r => setTimeout(r, 200));
+      return { canvas: sr.querySelector('canvas.himmel') === cv && cv.isConnected, himmel: p.himmel === h, neu: sr.querySelector('.ui').textContent.includes('Himmel bleibt') }; });
+    erwarte('Canvas und Himmel bleiben beim Neuzeichnen (Stufe 1b)', bleibt.canvas && bleibt.himmel && bleibt.neu, JSON.stringify(bleibt));
   }, 'webgl');
   await gpu.close();
 }

@@ -41,7 +41,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **0b.1** | Panel-Test auf happy-dom (gebaute Datei laden, echte DOM-Ereignisse); Browser-Bestandsaufnahme B1–B7 (§6) | nichts | alle bisherigen Testfälle übertragen; Ausgangsprotokoll; bekannte Fehler einzeln benannt | Teständerung zurück |
 | ☑ | **0b.2** | Listener-Lecks beheben; Wetter-Abos nach dem Wiedereinhängen (Befund 0b.1) | nichts | B7 nach 20 Ein-/Aushängezyklen grün | R |
 | ☑ | **1a** | Hilfen und Symbole auslagern | nichts | Grundprüfung; gleiche Ausgabe/Befehle | R |
-| ☐ | **1b** | Himmel und Diagramm-Funktionen auslagern | nichts | Canvas bleibt bei Updates; SVG/WebGL/CSS-Rückfall | R |
+| ☑ | **1b** | Himmel und Diagramm-Funktionen auslagern | nichts | Canvas bleibt bei Updates; SVG/WebGL/CSS-Rückfall | R |
 | ☐ | **1c** | Datenadapter und Aufrufe auslagern | nichts | gleiche API-Nutzdaten, Rechte, Fachwerte/CSV | R |
 | ☐ | **2a.1** | dauerhafte DOM-Bereiche; „Über“ mit Lit (`render(template, container)`), Klasse bleibt HTMLElement | nichts | 20 Navigationen; Lit-Bereich wird vom Alt-Renderer nicht zerstört | R auf 1c |
 | ☐ | **2a.2** | Melde-Dialog samt Entwurf auf Lit | nichts | Tippen während Updates; Bild/Einfügen/Abbrechen/Senden | R auf 2a.1/1c |
@@ -156,6 +156,10 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   `verNeuer`) und `src/symbole.js` (Wettersymbole, Container-/Schacht-Grafik, Icons, WLAN-Striche) aus `alt.js`
   (4.912 → 4.696 Zeilen). Gleiche Ausgabe/Befehle belegt mit `tests/panel/schnappschuss.js` (57 Schritte mit fester Uhr,
   HTML und WS-Befehle vor/nach bytegleich).
+- **1b, 06.10.2026 (0.8.77):** `src/himmel.js` (Shader, Farben, Sonnen-/Mondlauf, Partikel, Klasse `Himmel`) und
+  `src/diagramme.js` (Linie, Balken, Stufen, Streuung, Fläche, Kachel-Diagramme) aus `alt.js` (→ 4.414 Zeilen).
+  Schnappschuss vor/nach bytegleich; CSS-Rückfall und WebGL-Ausfall im Browser-Test grün, Canvas bleibt beim
+  Neuzeichnen (WebGL-Fall auf GitHub).
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner
   ohne Netzzugriff durch npm, `@esbuild/linux-arm64` enthalten, kleiner Build grün; package-lock.json sha256
   `1696ce4356818f04…`, Node v22.23.2, npm 10.9.1, linux/arm64. Neu vorbereiten bei anderem Lockfile, Node/npm,

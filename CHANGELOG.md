@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.77] – 2026-10-06
+
+- Umbau der Seite, ohne sichtbare Änderung (BSM-022.05, Stufe 1b): Himmel (WebGL mit CSS-Rückfall, Sonnen- und Mondlauf)
+  und die Diagramme liegen jetzt in eigenen Dateien (`frontend/src/himmel.js`, `diagramme.js`). Die Seite zeigt und
+  sendet genau dasselbe wie vorher.
+
 ## [0.8.76] – 2026-10-06
 
 - Umbau der Seite, ohne sichtbare Änderung (BSM-022.04, Stufe 1a): Wettersymbole, Container-Grafik und Icons sowie die
