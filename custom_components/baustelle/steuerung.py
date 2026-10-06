@@ -194,6 +194,7 @@ class Steuerung:
         self._offline_seit: dict[str, datetime] = {}
         self._lief: dict[str, bool] = {}
         self.notprogramm_fehler: dict[str, tuple[datetime | None, str]] = {}   # BSM-019: setzt notprogramm.py (Warnung)
+        self.ruhe: set[str] = set()   # BSM-021: Geräte, die die Automatik gerade nicht schaltet (Ausfall-Probe)
         self._aus_befehle: dict[str, list[datetime]] = {}   # FE-0010: Ausschaltbefehle je Gerät (letzte 10 min)   # zuletzt bekannter Zustand je Gerät (offline: zählt weiter, wenn es lief)
         self._wartet_seit: dict[str, datetime] = {}
         self._frei_verlauf: deque[tuple[datetime, dict[str, float]]] = deque()
@@ -710,6 +711,7 @@ class Steuerung:
             schaltet = (
                 f is not None and f.schaltbar(g) and ein is not None
                 and self.funktion_von(g).hand_seit(g) is None and erreichbar and self.geraet_aktiv(g)
+                and g.id not in self.ruhe
             )
             seit = dt_util.as_local(zustand.last_changed) if zustand is not None else None
             if seit is not None and seit > jetzt:

@@ -264,6 +264,9 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   `laufzeit.container.<id>.symbol` = dasselbe mit Zustand: `eigen`, je Tür `offen` und `sensor_aktiv` (Tür 1 ohne Sensor:
   Türkontakt des Containers), je Fenster `zustand: "zu"|"gekippt"|"offen"` (offen + Drehung ≥ 5° am selben Gerät =
   gekippt), `licht_an` (an bzw. Helligkeit > 50 lx); Pumpenschächte `null`.
+- Ausfall-Probe (0.8.73, BSM-021): `baustelle/notprogramm_probe` (`entry_id`, `geraet`, `minuten` 0–240; 0 = beenden; nur
+  Admins) → Stand des Plugs; `laufzeit.geraete.<id>.notprogramm` mit `probe_bis` und `probe_ergebnis` =
+  `{von, bis, stunden, buch_kwh, buch_min, ha_kwh, ha_min}`.
 - Taste am Plug (0.8.71, BSM-018): `baustelle/setzen` `heizung.taste` (bool, Standard aus, wirkt nur mit
   `heizung.notprogramm`); `laufzeit.taste_bis` = Container → Ende (ISO); Grund `taste`, Text „Taste am Plug · bis …“.
 - Notprogramm anzeigen (0.8.66, BSM-019): `laufzeit.notprogramm` = `{an, geprueft}`; je Heizkörper-Plug

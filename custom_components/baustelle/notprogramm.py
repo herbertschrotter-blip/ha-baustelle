@@ -46,7 +46,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, ROLLE_HEIZKOERPER
 from .db import DATA_DB
-from .db.nachtrag import nachtragen
+from .db.nachtrag import messung, nachtragen
 from .db.tage import async_tage_rechnen
 from .logik import notprogramm as logik
 from .logik.arbeitszeit import ausnahme_am, bedarf_fenster, frei_gilt
@@ -70,6 +70,7 @@ OBJ_TEMPERATUR, OBJ_FENSTER = 69, 45
 TASTE_MIN = 60                 # Taste am Plug: so lange heizen (wie TASTE_S im Skript)
 TASTE_EREIGNIS = "baustelle_taste"
 HAND_NACH_TASTE_S = 5
+HB_MAX_MIN = 15                # so lange wartet das Skript auf das Lebenszeichen (wie HB_MAX_MIN im Skript)
 OHNE_UHRZEIT = 1_000_000_000   # „Notbetrieb seit“ kleiner: begann ohne Uhrzeit (das Skript meldet dann 1)
 
 
@@ -148,6 +149,9 @@ class Stand:
     soll: float | None = None
     notbetrieb_zuletzt: tuple[datetime, datetime] | None = None
     nachtrag_offen: tuple[int, int] | None = None   # Notbetrieb (Unix-Sekunden von, bis), dessen Stundenbuch noch fehlt
+    probe_bis: datetime | None = None               # BSM-021: Ausfall-Probe läuft bis
+    probe_vergleich: bool = False                   # der nächste Nachtrag ist die Probe: vergleichen statt eintragen
+    probe_ergebnis: dict[str, Any] | None = None
     geschrieben: dict[str, str] | None = field(default=None, repr=False)
     geprueft_aus: bool = False
 
@@ -171,7 +175,8 @@ class Stand:
                 "fuehler": self.fuehler, "tuer": self.tuer,
                 "notbetrieb_seit": _iso(dt_util.utc_from_timestamp(self.notbetrieb)) if self.notbetrieb else None,
                 "notbetrieb_zuletzt": [_iso(t) for t in self.notbetrieb_zuletzt] if self.notbetrieb_zuletzt else None,
-                "zuletzt": _iso(self.zuletzt), "skript_id": self.skript_id}
+                "zuletzt": _iso(self.zuletzt), "skript_id": self.skript_id,
+                "probe_bis": _iso(self.probe_bis), "probe_ergebnis": self.probe_ergebnis}
 
 
 class Notprogramm:
@@ -382,6 +387,10 @@ class Notprogramm:
         stand.geprueft_aus = False
         skript_id = await self._async_skript(plug, stand)
         stand.skript_id = skript_id
+        if stand.probe_bis is not None:   # BSM-021: Ausfall-Probe – kein Lebenszeichen, bis sie vorbei ist
+            if dt_util.now() < stand.probe_bis:
+                return
+            self._probe_ende(g, stand)
         nachtrag = stand.nachtrag_offen   # erst in der nächsten Runde: das Skript schreibt die angefangene Stunde nach dem Lebenszeichen
         antwort = await plug.hb(skript_id)
         self._notbetrieb_vorbei(g, stand, int(antwort.get("nb") or 0))
@@ -416,6 +425,22 @@ class Notprogramm:
         if nachtrag is not None:
             await self._async_nachtragen(g, plug, stand, nachtrag)
 
+    async def _async_probe_vergleich(self, g: GeraetInfo, stand: Stand, stunden: list[logik.BuchStunde], von: int, bis: int,
+                                     db: Any) -> None:
+        """Stundenbuch gegen die eigene Messung von HA im selben Zeitraum (Datenbank, Minuten mit Quelle „ha“)."""
+        a, b = dt_util.utc_from_timestamp(von), dt_util.utc_from_timestamp(bis)
+        ha = await db.async_ausfuehren(lambda v: messung(v, g.id, a, b))
+        if ha is None:
+            return
+        buch_wh, buch_min = sum(s.wh for s in stunden), sum(s.min_ein for s in stunden)
+        stand.probe_ergebnis = {"von": _iso(dt_util.as_local(a)), "bis": _iso(dt_util.as_local(b)), "stunden": len(stunden),
+                                "buch_kwh": round(buch_wh / 1000, 3), "buch_min": buch_min,
+                                "ha_kwh": round(ha[0] / 1000, 3), "ha_min": round(ha[1] / 60)}
+        stand.nachtrag_offen, stand.probe_vergleich = None, False
+        e = stand.probe_ergebnis
+        self.st.protokoll("einstellung", g.bereich, f"Ausfall-Probe {g.name}: Stundenbuch {e['buch_kwh']:.2f} kWh, {e['buch_min']} min ein · "
+                          f"HA gemessen {e['ha_kwh']:.2f} kWh, {e['ha_min']} min ein".replace(".", ","))
+
     async def _kvs(self, plug: Plug, muster: str) -> dict[str, str]:
         """KVS-Werte nach Muster, seitenweise wie das Gerät sie liefert."""
         raus: dict[str, str] = {}
@@ -435,6 +460,9 @@ class Notprogramm:
             return
         von, bis = ausfall
         stunden = logik.im_ausfall(logik.buch_lesen(await self._kvs(plug, "bb_*")), von, bis)
+        if stand.probe_vergleich:   # Probe: HA hat die ganze Zeit mitgemessen – vergleichen statt doppelt eintragen
+            await self._async_probe_vergleich(g, stand, stunden, von, bis, db)
+            return
         zone, bid = dt_util.get_default_time_zone(), self.st.entry.entry_id
         erg = await db.async_ausfuehren(lambda v: nachtragen(v, bid, g.id, g.bereich, stunden, dt_util.utc_from_timestamp(von),
                                                              dt_util.utc_from_timestamp(bis), zone))
@@ -447,6 +475,25 @@ class Notprogramm:
         if erg.stunden:
             self.st.protokoll("einstellung", g.bereich, f"Notbetrieb {g.name} nachgetragen: {erg.stunden} h aus dem Stundenbuch, "
                               f"{erg.wh / 1000:.2f} kWh, {erg.sekunden_ein / 3600:.1f} h eingeschaltet".replace(".", ","))
+
+    # ------------------------------------------------------------------ Ausfall-Probe (BSM-021)
+    def probe_starten(self, g: GeraetInfo, minuten: int) -> None:
+        """Dem Plug `minuten` lang kein Lebenszeichen schicken; die Automatik schaltet ihn in der Zeit nicht."""
+        stand = self.stand.setdefault(g.id, Stand())
+        stand.probe_bis, stand.probe_ergebnis = dt_util.now() + timedelta(minutes=minuten), None
+        self.st.ruhe.add(g.id)
+        self.st.protokoll("einstellung", g.bereich, f"Ausfall-Probe {g.name}: bis {stand.probe_bis:%H:%M} kein Lebenszeichen – "
+                          f"der Plug übernimmt nach {HB_MAX_MIN} min, die Automatik schaltet ihn so lange nicht")
+
+    def probe_beenden(self, g: GeraetInfo) -> None:
+        stand = self.stand.get(g.id)
+        if stand is not None and stand.probe_bis is not None:
+            stand.probe_bis = dt_util.now()
+
+    def _probe_ende(self, g: GeraetInfo, stand: Stand) -> None:
+        stand.probe_bis, stand.probe_vergleich = None, True
+        self.st.ruhe.discard(g.id)
+        self.st.protokoll("einstellung", g.bereich, f"Ausfall-Probe {g.name}: vorbei – Home Assistant übernimmt wieder")
 
     def _notbetrieb_vorbei(self, g: GeraetInfo, stand: Stand, seit: int) -> None:
         """Meldet das Skript „Notbetrieb seit …“, war HA so lange weg: ins Protokoll (Bauplan §9) und merken."""
@@ -461,7 +508,7 @@ class Notprogramm:
         stand.notbetrieb_zuletzt = (von, bis)
         minuten = max(1, round((bis - von).total_seconds() / 60))
         self.st.protokoll("warnung", g.bereich, f"Notbetrieb {g.name}: {von:%d.%m. %H:%M} bis {bis:%H:%M} ({minuten} min) – "
-                          "der Plug hat ohne Home Assistant nach dem Notprogramm geheizt")
+                          + ("Ausfall-Probe" if stand.probe_vergleich else "der Plug hat ohne Home Assistant nach dem Notprogramm geheizt"))
 
     # ------------------------------------------------------------------ Taste am Plug (BSM-018)
     async def _async_taste_modus(self, plug: Plug) -> None:

@@ -256,7 +256,7 @@ async def async_panel_anmelden(hass: HomeAssistant, version: str) -> None:
     hass.data[DATA_MELDUNGEN] = Meldungen(hass)
     hass.async_create_task(hass.data[DATA_MELDUNGEN].async_laden(), "baustelle_meldungen_laden")  # lesbare Kopie beim Start
     for befehl in (ws_struktur, ws_setzen, ws_liste, ws_aktion, ws_bericht, ws_protokoll, ws_meldungen, ws_meldung,
-                   ws_auswertung, ws_abrechnung, ws_ohne, ws_statistik, ws_verlauf, ws_notprogramm_pruefen):
+                   ws_auswertung, ws_abrechnung, ws_ohne, ws_statistik, ws_verlauf, ws_notprogramm_pruefen, ws_notprogramm_probe):
         websocket_api.async_register_command(hass, befehl)
 
 
@@ -361,6 +361,29 @@ async def ws_notprogramm_pruefen(hass: HomeAssistant, connection: websocket_api.
         return
     await np.async_runde()
     connection.send_result(msg["id"], np.info())
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "baustelle/notprogramm_probe",
+    vol.Required("entry_id"): str,
+    vol.Required("geraet"): str,
+    vol.Required("minuten"): vol.All(vol.Coerce(int), vol.Range(0, 240)),
+})
+@callback
+def ws_notprogramm_probe(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """BSM-021: Ausfall-Probe für einen Heizungs-Plug starten (minuten > 0) bzw. beenden (0) – nur Admins."""
+    if not _darf(connection, msg, "notprogramm_probe") or (st := _steuerung(hass, connection, msg)) is None:
+        return
+    np = hass.data.get(DATA_NOTPROGRAMM, {}).get(msg["entry_id"])
+    g = st.geraete.get(msg["geraet"])
+    if np is None or g is None or np.geraet_info(g.id) is None or not np.an:
+        _fehler(connection, msg, "Ausfall-Probe nur für Heizungs-Plugs mit eingeschaltetem Notprogramm")
+        return
+    if msg["minuten"]:
+        np.probe_starten(g, msg["minuten"])
+    else:
+        np.probe_beenden(g)
+    connection.send_result(msg["id"], np.geraet_info(g.id))
 
 
 @websocket_api.websocket_command({

@@ -1466,7 +1466,7 @@ const kkBalken = (zeilen, n = 99) => { const max = Math.max(1e-9, ...zeilen.map(
 
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
-const SEITE_VERSION = '0.8.72';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
+const SEITE_VERSION = '0.8.73';   // Version dieser Datei – setzt tools/changelog.py (neueste Version in CHANGELOG.md)
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (Number.isNaN(d)) return false; if (d) return d > 0; } return false; };
@@ -3854,6 +3854,11 @@ class BaustellePanel extends HTMLElement {
         ${z('Tür am Plug', np.tuer ? `✓ Messwert Nr. ${np.tuer}` : '–')}${z('Letzte Prüfung', this.npVor(np.zuletzt))}</div>
       <div class="glas-panel liste"><div class="gruppe">Notbetrieb</div>${np.zustand === 'not' ? z('läuft seit', `${this.npZeit(np.notbetrieb_seit)} · Home Assistant meldet sich nicht`) : ''}
         ${z('zuletzt', np.notbetrieb_zuletzt ? `${this.npZeit(np.notbetrieb_zuletzt[0])} – ${this.npZeit(np.notbetrieb_zuletzt[1], false)}` : 'noch nie (seit dem Start von Home Assistant)')}</div>
+      ${this.d.e.notprogramm ? `<div class="glas-panel liste"><div class="gruppe">Ausfall-Probe</div>
+        <div class="zeile"><div class="leise">Home Assistant schickt dem Plug so lange kein Lebenszeichen und schaltet ihn nicht – nach 15 min übernimmt das Notprogramm. Danach vergleicht HA das Stundenbuch mit der eigenen Messung.</div></div>
+        ${np.probe_bis ? `<div class="zeile"><span class="amber-t">⚗ Probe läuft bis ${this.npZeit(np.probe_bis, false)}</span><button class="knopf klein" data-act="np-probe" data-id="${esc(x.g.id)}" data-min="0">Beenden</button></div>`
+          : `<div class="zeile"><span>Probe starten</span><div class="seg klein">${[30, 60, 120, 180].map(m => `<button data-act="np-probe" data-id="${esc(x.g.id)}" data-min="${m}">${m < 60 ? m + ' min' : m / 60 + ' h'}</button>`).join('')}</div></div>`}
+        ${np.probe_ergebnis ? (e => z('Letzte Probe', `${this.npZeit(e.von)} – ${this.npZeit(e.bis, false)} · Stundenbuch ${de(e.buch_kwh, 2)} kWh, ${e.buch_min} min · HA ${de(e.ha_kwh, 2)} kWh, ${e.ha_min} min`))(np.probe_ergebnis) : ''}</div>` : ''}
       ${this.d.e.notprogramm ? knopf(this.s.npPrueft ? '⟳ prüft …' : '⟳ Jetzt prüfen', 'np-pruefen') : ''}${knopf('Schließen')}`;
   }
   einstGruppen() {
@@ -4542,6 +4547,8 @@ class BaustellePanel extends HTMLElement {
       case 'sym-auf': S.sheet = { art: 'aussehen', id: S.cid || (this.b && this.b.id) }; return neu();   // BSM-032
       case 'sym-doppel': case 'sym-farbe': case 'sym-rahmen': case 'sym-wand': case 'sym-lage': case 'sym-weg': case 'sym-neu': case 'sym-standard': return this.symKlick(a, el);
       case 'np-an': return this.setzen(['heizung', 'notprogramm'], !d.e.notprogramm);   // BSM-019
+      case 'np-probe': { const m = +el.dataset.min;   // BSM-021
+        return this.ws({ type: 'baustelle/notprogramm_probe', entry_id: d.entry, geraet: el.dataset.id, minuten: m }, m ? `Ausfall-Probe ${m} min gestartet` : 'Ausfall-Probe beendet'); }
       case 'np-taste': return this.setzen(['heizung', 'taste'], !d.e.taste);   // BSM-018
       case 'np-plug': S.sheet = { art: 'np-plug', id: el.dataset.id }; return neu();
       case 'np-pruefen': if (S.npPrueft) return; S.npPrueft = true; this.render();

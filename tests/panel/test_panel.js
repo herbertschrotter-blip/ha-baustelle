@@ -1092,6 +1092,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         erwarte('BSM-019: je Plug Zustand, Programm bis, Hinweis Fühler', h.includes('✓ bereit') && h.includes('Programm bis') && h.includes('Fühler nicht am Plug'));
         await klick({ act: 'np-plug', id: panel.npPlugs()[0].g.id }, 10);
         erwarte('BSM-019: Einzelheiten eines Plugs', ui.innerHTML.includes('Messwert Nr. 202') && ui.innerHTML.includes('Version 3') && ui.innerHTML.includes('zuletzt'));
+        erwarte('BSM-021: Ausfall-Probe in den Einzelheiten', ui.innerHTML.includes('data-act="np-probe"'));
+        neu(); await klick({ act: 'np-probe', id: panel.npPlugs()[0].g.id, min: '60' }, 10);
+        erwarte('BSM-021: Probe über baustelle/notprogramm_probe', aufrufe.some(m => m.type === 'baustelle/notprogramm_probe' && m.minuten === 60));
         await klick({ act: 'zu' }, 5);
       }
       neu(); await klick({ act: 'np-pruefen' }, 20);

@@ -476,6 +476,13 @@ Entscheidungen:
   Handbetrieb auf, den das Umschalten ausgelöst hat (auch 5 s danach, falls HA das Umschalten später meldet). Regel
   `taste` in logik/regelung: nach Frostschutz, Tür und Hand, vor Boost, Modus, frei, Heizgrenze und Plan.
 
+- **Ausfall-Probe gebaut (BSM-021, 0.8.73):** je Heizungs-Plug in den Einzelheiten (Seite) bzw. `baustelle/notprogramm_probe`
+  (`geraet`, `minuten` 30–240, 0 = beenden; nur Admins). Während der Probe kein Lebenszeichen an den Plug und die
+  Automatik schaltet ihn nicht (`Steuerung.ruhe`); er behält sein Programm. Danach übernimmt HA wieder, der Plug meldet
+  „Notbetrieb seit“, und HA **vergleicht** das Stundenbuch mit der eigenen Messung (Datenbank, Quelle „ha“) statt es
+  einzutragen: Protokoll „Ausfall-Probe …: Stundenbuch … kWh, … min ein · HA gemessen …“, Ergebnis in den Einzelheiten.
+  Sinnvoll an einem kühlen Tag über einen Schaltpunkt (z. B. 05:00 für 2 h über den Beginn des Vorheizens).
+
 Offen: Gerätepasswort als `!secret`, falls je eins gesetzt wird.
 
 ## 10. Daten zentral (Herbert, 05.10.2026) – Plan, noch nicht gebaut

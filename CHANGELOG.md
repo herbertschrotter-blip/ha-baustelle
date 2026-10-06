@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.73] – 2026-10-06
+
+- Ausfall-Probe (BSM-021): In den Einzelheiten eines Heizungs-Plugs (Einstellungen › Notprogramm) lässt sich eine Probe
+  für 30 min bis 3 h starten. So lange bekommt der Plug kein Lebenszeichen und die Automatik schaltet ihn nicht – nach
+  15 min übernimmt das Notprogramm. Danach vergleicht Home Assistant das Stundenbuch des Plugs mit der eigenen Messung
+  und zeigt das Ergebnis im Protokoll und in den Einzelheiten (nichts wird doppelt eingetragen).
+
 ## [0.8.72] – 2026-10-06
 
 - Taste am Plug (BSM-018), nach dem Test vor Ort: Die vom Relais getrennte Taste meldet beim Plug S Gen3 gar nichts.

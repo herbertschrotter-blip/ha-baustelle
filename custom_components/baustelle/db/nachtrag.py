@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, tzinfo
 from typing import Any
 
-from sqlalchemy import Connection, delete, insert, select, update
+from sqlalchemy import Connection, delete, func, insert, select, update
 
 from homeassistant.util import dt as dt_util
 
@@ -102,3 +102,11 @@ def _sprung_finden(v: Connection, geraet_id: str, von: datetime, bis: datetime) 
         if not vorher.erreichbar and z.erreichbar and z.energie_wh:
             return z.zeit, float(z.energie_wh)
     return None
+
+
+def messung(v: Connection, geraet_id: str, von: datetime, bis: datetime) -> tuple[float, int]:
+    """Was HA selbst gemessen hat (Minuten mit Quelle „ha“): (Wh, Sekunden eingeschaltet) – für die Ausfall-Probe."""
+    gm = s.geraet_minute
+    z = v.execute(select(func.coalesce(func.sum(gm.c.energie_wh), 0.0), func.coalesce(func.sum(gm.c.sekunden_ein), 0)).where(
+        gm.c.geraet_id == geraet_id, gm.c.zeit >= von, gm.c.zeit < bis, gm.c.quelle == "ha")).one()
+    return float(z[0]), int(z[1])

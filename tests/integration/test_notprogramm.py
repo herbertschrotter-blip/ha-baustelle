@@ -477,3 +477,43 @@ async def test_taste_am_plug(hass: HomeAssistant, anlage) -> None:
     assert "sub_c1" not in st.lz["taste_bis"]                            # Taste aus: Drücken wirkt nicht
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=6))   # verzögerte Hand-Prüfung ablaufen lassen
     await hass.async_block_till_done()
+
+
+async def test_ausfall_probe(hass: HomeAssistant, anlage, freezer, hass_ws_client) -> None:
+    """BSM-021: Probe – kein Lebenszeichen, Automatik lässt den Plug in Ruhe; danach Stundenbuch gegen HA-Messung."""
+    from sqlalchemy import insert, select
+    from custom_components.baustelle.db import DATA_DB, schema as s
+    entry, np, plugs = anlage
+    st, db, p1 = entry.runtime_data, hass.data[DATA_DB], plugs["plug1"]
+    hk1 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk1")
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": "baustelle/notprogramm_probe", "entry_id": entry.entry_id, "geraet": hk1, "minuten": 60})
+    r = await client.receive_json()
+    assert r["success"] and r["result"]["probe_bis"] is not None and hk1 in st.ruhe
+    p1.aufrufe.clear()
+    await np.async_runde()
+    assert "hb" not in p1.aufrufe and "hb?neu" not in p1.aufrufe          # kein Lebenszeichen während der Probe
+
+    start = dt_util.utcnow().replace(second=0, microsecond=0)
+    freezer.tick(61 * 60)
+    seit = start + timedelta(minutes=15)                                     # der Plug übernimmt nach 15 min
+    zeilen = [dict(geraet_id=hk1, zeit=seit + timedelta(minutes=i), baustelle_id=entry.entry_id, dauer_s=60, sekunden_ein=60,
+                   energie_wh=30.0, erreichbar=True, quelle="ha") for i in range(46)]   # HA hat mitgemessen
+    await db.async_ausfuehren(lambda v: v.execute(insert(s.geraet_minute), zeilen))
+    h = int(seit.timestamp()) // 3600   # die Probe liegt in einer Stunde (15:05 bis 15:51)
+    p1.kvs[f"bb_{(h // 6) % 28}"] = f"{h - 30},1,1,200,0;{h},1380,46,215,0"   # dazu eine alte Stunde außerhalb
+    p1.nb = int(seit.timestamp())
+    await np.async_runde()                                                   # Probe vorbei: Lebenszeichen, Plug meldet Notbetrieb
+    assert hk1 not in st.ruhe and "hb" in p1.aufrufe
+    await np.async_runde()                                                   # vergleichen statt eintragen
+    e = np.stand[hk1].probe_ergebnis
+    assert e and e["buch_kwh"] == 1.38 and e["buch_min"] == 46 and e["ha_kwh"] == 1.38 and e["ha_min"] == 46
+    n = await db.async_ausfuehren(lambda v: v.execute(select(s.geraet_minute.c.zeit).where(s.geraet_minute.c.quelle == "notprogramm")).all())
+    assert n == []                                                           # nichts doppelt eingetragen
+    texte = [x[3] for x in st.einstellungen.daten["protokoll"]]
+    assert any("Ausfall-Probe Heizkörper 1: Stundenbuch 1,38 kWh, 46 min ein · HA gemessen 1,38 kWh, 46 min ein" in t for t in texte), texte[:4]
+
+    await client.send_json({"id": 2, "type": "baustelle/notprogramm_probe", "entry_id": entry.entry_id, "geraet": "unbekannt", "minuten": 30})
+    assert not (await client.receive_json())["success"]

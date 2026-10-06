@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.72",
+   "version": "0.8.73",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -910,6 +910,8 @@
       "notbetrieb_zuletzt": null,
       "zuletzt": null,
       "skript_id": null,
+      "probe_bis": null,
+      "probe_ergebnis": null,
       "fuehler_fehlt": false
      }
     },
@@ -939,6 +941,8 @@
       "notbetrieb_zuletzt": null,
       "zuletzt": null,
       "skript_id": null,
+      "probe_bis": null,
+      "probe_ergebnis": null,
       "fuehler_fehlt": false
      }
     },
@@ -968,6 +972,8 @@
       "notbetrieb_zuletzt": null,
       "zuletzt": null,
       "skript_id": null,
+      "probe_bis": null,
+      "probe_ergebnis": null,
       "fuehler_fehlt": false
      }
     },
@@ -997,6 +1003,8 @@
       "notbetrieb_zuletzt": null,
       "zuletzt": null,
       "skript_id": null,
+      "probe_bis": null,
+      "probe_ergebnis": null,
       "fuehler_fehlt": false
      }
     },
@@ -1026,6 +1034,8 @@
       "notbetrieb_zuletzt": null,
       "zuletzt": null,
       "skript_id": null,
+      "probe_bis": null,
+      "probe_ergebnis": null,
       "fuehler_fehlt": false
      }
     },
@@ -2092,7 +2102,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.72",
+   "version": "0.8.73",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -2417,6 +2427,8 @@
       "notbetrieb_zuletzt": null,
       "zuletzt": null,
       "skript_id": null,
+      "probe_bis": null,
+      "probe_ergebnis": null,
       "fuehler_fehlt": false
      }
     }
