@@ -26,8 +26,8 @@ async function lauf(welche) {
     const p = document.querySelector('#desktop baustelle-panel'), sr = p.shadowRoot, BB = window.baustelleBeispiel, frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
     sr.querySelector('button.melden-knopf').click(); await frame();
     const m = { render: [], update: [], klick: [] };
-    for (let i = 0; i < 15; i++) { const t = performance.now(); p.render(); m.render.push(performance.now() - t); await frame(); }
-    for (let i = 0; i < 10; i++) { BB.welt[0].baustelle.titel = 'L' + i; const t = performance.now(); await p._laden(); p.render(); m.update.push(performance.now() - t); await frame(); }
+    for (let i = 0; i < 15; i++) { const t = performance.now(); if (p.neuZeichnen) { p._neu = false; p.requestUpdate(); await p.updateComplete; } else p.render(); m.render.push(performance.now() - t); await frame(); }
+    for (let i = 0; i < 10; i++) { BB.welt[0].baustelle.titel = 'L' + i; const t = performance.now(); await p._laden(); if (p.neuZeichnen) await p.neuZeichnen(); else p.render(); m.update.push(performance.now() - t); await frame(); }
     for (let i = 0; i < 10; i++) { const b = [...sr.querySelectorAll('.sheet .seg button')][i % 3]; const t = performance.now(); b.click(); await frame(); m.klick.push(performance.now() - t); }
     const med = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
     return { render: med(m.render), update: med(m.update), klick: med(m.klick) };

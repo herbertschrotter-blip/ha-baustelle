@@ -9,7 +9,9 @@ const path = require('path');
 const argv = process.argv.slice(2);
 
 if (argv[0] === '--vergleich') {
-  const [a, b] = argv.slice(1).map(f => JSON.parse(fs.readFileSync(f, 'utf8')));
+  // Lit-Markierungen (<!--?lit$…$-->, <!---->) sind keine Ausgabe – beim Vergleich weglassen (BSM-022 2b)
+  const ohneLit = o => JSON.parse(JSON.stringify(o, (k, v) => k === 'html' && typeof v === 'string' ? v.replace(/<!--\??(?:lit\$\d+\$)?-->/g, '') : v));
+  const [a, b] = argv.slice(1).map(f => ohneLit(JSON.parse(fs.readFileSync(f, 'utf8'))));
   const unterschiede = [];
   for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
     if (JSON.stringify(a[k]) === JSON.stringify(b[k])) continue;

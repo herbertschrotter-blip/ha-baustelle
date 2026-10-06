@@ -15,7 +15,9 @@ import { BEREICH_FARBEN, ICON_COG, ICON_MELDEN, IC_MINUS, IC_PLUS, IC_POWER, SYM
 import { bauen, lokal, minSeitAb, protokollZeile, zoneMs } from './daten.js';
 import { NUR_ANSEHEN, NUR_LESEN_SPERRE, darfSenden, gesperrt, rechteVon } from './rechte.js';
 import { fehlerText, flowFehler, nachricht } from './api.js';
-import { render as litRender } from 'lit';
+import { LitElement, html, render as litRender, unsafeCSS } from 'lit';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+import { keyed } from 'lit/directives/keyed.js';
 import { ueberVorlage } from './ueber.js';
 import { MB_MAX, MB_PX, meldenVorlage } from './melden.js';
 
@@ -960,10 +962,10 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
 const LIT_SHEETS = ['melden'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2)
-class BaustellePanel extends HTMLElement {
+class BaustellePanel extends LitElement {
+  static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
     this.s = einblendungen({ view: 'uebersicht', cid: null, sheet: null, chart: 'temp', verlauf: 'aktiv' });
     this.cache = {}; this.roh = null; this.alle = []; this.d = null; this.bid = null; this.fehler = null;
     this.vorhersage = { daily: null, hourly: null }; this.abos = []; this.changelog = null;
@@ -975,22 +977,22 @@ class BaustellePanel extends HTMLElement {
   set hass(h) {
     const erst = !this._hass;
     this._hass = h;
-    this._aufbauen();
-    if (erst) this._starten(); else this._beobachten(h);
+    if (erst) { this._starten(); this.requestUpdate(); } else this._beobachten(h);
     this._stimmung();
   }
   get hass() { return this._hass; }
-  set narrow(n) { const alt = this._narrow; this._narrow = !!n; if (alt !== undefined && alt !== this._narrow) this.render(); }
+  set narrow(n) { const alt = this._narrow; this._narrow = !!n; if (alt !== undefined && alt !== this._narrow) this.neuZeichnen(); }
   get narrow() { return this._narrow; }
   set panel(p) { this._panel = p; }
   get panel() { return this._panel; }
   connectedCallback() {
-    this._aufbauen(); this._fensterAn();
+    super.connectedCallback(); this._fensterAn();
     if (this._hass && !this._timer) this._starten();
     this._vorhersageAbo();   // BSM-022.03: nach dem Wiedereinhängen die Wetter-Abos neu (_laden bricht bei unveränderter Struktur vorher ab)
     if (!this.himmel && this.bg) this.himmel = Himmel.an(this.bg); this._stimmung(true);
   }
   disconnectedCallback() {
+    super.disconnectedCallback();
     clearInterval(this._timer); this._timer = null; clearTimeout(this._nachladen);
     this._aboEnde(); this._fensterAus(); if (this.himmel) { this.himmel.stop(); this.himmel = null; }
   }
@@ -1015,14 +1017,14 @@ class BaustellePanel extends HTMLElement {
     this._laden();
     clearInterval(this._timer); this._timer = setInterval(() => this._laden(), 60000);
     if (typeof fetch === 'function') fetch(`${STATISCH}/changelog.json?v=${encodeURIComponent(this.version)}`).then(r => r.ok ? r.json() : null)
-      .then(c => { this.changelog = Array.isArray(c) ? c : []; if (this.s.view === 'ueber') this.render(); }).catch(() => { this.changelog = []; });
+      .then(c => { this.changelog = Array.isArray(c) ? c : []; if (this.s.view === 'ueber') this.neuZeichnen(); }).catch(() => { this.changelog = []; });
   }
   get version() { return (this.d && this.d.version) || (this._panel && this._panel.config && this._panel.config.version) || '–'; }
 
-  _aufbauen() {
-    if (this.root) return;
-    const sr = this.shadowRoot;
-    sr.innerHTML = `<style>${CSS}\n${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui"></div></div></div>`;
+  /* Der Rahmen steht nach dem ersten Zeichnen (render(), BSM-022 2b) und bleibt; die alten Ansichten melden Klicks und
+     Eingaben über data-act an den Shadow Root (bis sie in Stufe 3 Lit-Vorlagen werden) */
+  firstUpdated() {
+    const sr = this.renderRoot;
     this.wurzel = sr.querySelector('.wurzel'); this.root = sr.querySelector('.app');
     this.bg = sr.querySelector('.glas-bg'); this.ui = sr.querySelector('.ui');
     sr.addEventListener('click', e => this.klick(e));
@@ -1033,7 +1035,7 @@ class BaustellePanel extends HTMLElement {
     sr.addEventListener('pointerleave', () => this.tip(null));
     sr.addEventListener('focusout', () => { if (this._wartet) { this._wartet = false; setTimeout(() => this._auffrischen(), 0); } });
     this.himmel = Himmel.an(this.bg);          // WebGL-Himmel; ohne WebGL bleibt der CSS-Hintergrund
-    this.render();
+    this._stimmung(true);
   }
 
   /* Eigene Entitäten geändert → Struktur kurz danach neu holen (Zustände kommen aus der Integration) */
@@ -1068,10 +1070,10 @@ class BaustellePanel extends HTMLElement {
       this._platteGeprueft = Date.now();
       fetch(`${STATISCH}/changelog.json?t=${Date.now()}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(c => {
         const v = Array.isArray(c) && c[0] && c[0].version;
-        if (verNeuer(v, this.neueVersion || SEITE_VERSION)) { this.neueVersion = v; this.render(); }
+        if (verNeuer(v, this.neueVersion || SEITE_VERSION)) { this.neueVersion = v; this.neuZeichnen(); }
       }).catch(() => {});
     }
-    if (this.neueVersion !== vorher) this.render();
+    if (this.neueVersion !== vorher) this.neuZeichnen();
   }
   rechte() { return rechteVon(this.roh); }   /* Rechte und Sperren: src/rechte.js */
   nurLesen() { return !this.rechte().aendern; }
@@ -1183,8 +1185,8 @@ class BaustellePanel extends HTMLElement {
       this._auffrischenGeplant = false;
       const f = this.shadowRoot && this.shadowRoot.activeElement;
       if (this.leistungTeil()) return;   // WU-0012: Leistung offen – nur deren Daten nachladen
-      if (f && ['INPUT', 'TEXTAREA', 'SELECT'].includes(f.tagName) && !f.closest('.lit-bereich')) { this._wartet = true; return; }   // Lit-Felder: kein Aufschub nötig (2a.2)
-      this.render();
+      if (f && ['INPUT', 'TEXTAREA', 'SELECT'].includes(f.tagName) && !f.closest('.lit-bereich') && !(this.s.sheet && LIT_SHEETS.includes(this.s.sheet.art) && f.closest('.sheet'))) { this._wartet = true; return; }   // Lit-Felder: kein Aufschub nötig (2a.2)
+      this.neuZeichnen();
     });
   }
 
@@ -1704,7 +1706,7 @@ class BaustellePanel extends HTMLElement {
         <div class="hp-zeile achse"><div></div><div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div><div></div></div></div>`;
   }
   get b() { return this.d && this.d.bereiche.find(x => x.id === this.s.cid); }
-  gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.leeren(); this.s.zrKal = null; this.render(true); }
+  gehe(view, cid = null) { this.s.view = view; this.s.cid = cid; this.s.leeren(); this.s.zrKal = null; this.neuZeichnen(true); }
   herunterladen(url, name) {
     if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
     const a = document.createElement('a'); if (!a) return; a.href = url; a.download = name; if (a.click) a.click();
@@ -1745,17 +1747,17 @@ class BaustellePanel extends HTMLElement {
     const meldung = { art: f.art, text: f.text.trim(), kontext: f.kontext, version: this.version, geraet: f.geraet,
       seite: f.stand ? { view: this.s.view, cid: this.s.cid, baustelle: this.d ? this.d.entry : null, dialog: this.s.sheet.vorher ? this.s.sheet.vorher.art : null } : null,
       ...((f.bilder || []).length ? { bilder: f.bilder.map(x => x.url) } : {}) };   // WU-0016
-    this.s.sheet = this.s.sheet.vorher || null; this.render(); delete this.cache.meldungen;
+    this.s.sheet = this.s.sheet.vorher || null; this.neuZeichnen(); delete this.cache.meldungen;
     return this.ws({ type: 'baustelle/meldung', entry_id: this.d && this.d.entry, aktion: 'neu', meldung }).then(r => { if (r) this.toast(`Danke – gemeldet als ${r.ticket || 'Ticket'}`); });
   }
-  meldenZu() { this.s.sheet = (this.s.sheet && this.s.sheet.vorher) || null; return this.render(); }
+  meldenZu() { this.s.sheet = (this.s.sheet && this.s.sheet.vorher) || null; return this.neuZeichnen(); }
   /* Melde-Dialog öffnen (Knopf unten rechts, „Über“) */
   meldenAuf() {
     const namen = { uebersicht: 'Übersicht', container: 'Container', heizung: 'Heizung', auswertung: 'Auswertung', verlauf: 'Verlauf', einst: 'Einstellungen', ueber: 'Über', dev: 'Entwicklung', bsdetail: 'Baustelle (abgeschlossen)' };
     const kontext = [namen[this.s.view] || this.s.view, this.s.view === 'container' && this.b ? this.b.name : '', this.s.sheet ? `Dialog „${this.s.sheet.art}“` : ''].filter(Boolean).join(' · ');
     const breite = this.root && this.root.getBoundingClientRect ? this.root.getBoundingClientRect().width : 1000, geraet = breite < 700 ? 'Handy' : 'Desktop';
     this.s.sheet = { art: 'melden', vorher: this.s.sheet, form: { art: 'wunsch', text: '', kontext, geraet, stand: true } };
-    return this.render();
+    return this.neuZeichnen();
   }
   toast(t, wieder = false) {
     const el = this.root && this.root.querySelector('.toast'); if (!el || !t) return;
@@ -1763,78 +1765,74 @@ class BaustellePanel extends HTMLElement {
     if (!wieder) this._toastBis = Date.now() + 2000;
   }
 
-  render(neu = false) {
-    if (!this.ui) return;
-    const evc = this.root.querySelector('.ev-chips'), evPos = evc ? evc.scrollLeft : 0;   // FE-0013: Chip-Leiste der Einstellungen behält ihre Position
-    const scroll = this.root.querySelector('.scroll'), pos = scroll && !neu ? scroll.scrollTop : 0, sh = this.root.querySelector('.sheet'), shPos = sh && this.s.sheet && this._sheetArt === this.s.sheet.art ? sh.scrollTop : 0;
-    this.ui.classList.toggle('still', !neu && this._view === this.s.view);   // Neuzeichnen ohne Einblend-Animationen
-    this._view = this.s.view; this._sheetArt = this.s.sheet && this.s.sheet.art;
+  /* Neu zeichnen (BSM-022 2b): erst den Zustand ändern, dann neuZeichnen() – Lit zeichnet im nächsten Durchlauf, mehrere
+     Aufrufe werden zusammengefasst; neu = Ansicht gewechselt (oben beginnen, Einblend-Animation) */
+  neuZeichnen(neu = false) { if (neu) this._neu = true; this.requestUpdate(); return this.updateComplete; }
+  willUpdate() {
+    const evc = this.ui && this.ui.querySelector('.ev-chips'); this._evPos = evc ? evc.scrollLeft : 0;   // FE-0013: Chip-Leiste behält ihre Position
+    if (this.ui) this.ui.classList.toggle('still', !this._neu && this._view === this.s.view);   // Neuzeichnen ohne Einblend-Animationen
+    this._sheetVorher = this._sheetArt; this._view = this.s.view; this._sheetArt = this.s.sheet && this.s.sheet.art;
     // Reiter nach den Funktionen der Baustelle (api §8): Heizung nur mit Funktion heizung, Pumpen nur mit Funktion
     // pumpen und Pumpenschächten (0.7.8, wie 0.6.3)
-    const mitHeizung = !this.d || this.d.funktionen.includes('heizung');
-    const mitPumpen = !!(this.d && this.d.funktionen.includes('pumpen') && this.d.bereiche.some(b => b.pumpe));
-    const tabs = [['uebersicht', 'Übersicht'], ...(mitHeizung ? [['heizung', 'Heizung']] : []), ...(mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
+    this._mitHeizung = !this.d || this.d.funktionen.includes('heizung');
+    this._mitPumpen = !!(this.d && this.d.funktionen.includes('pumpen') && this.d.bereiche.some(b => b.pumpe));
     if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(this.s.view)) this.s.view = 'uebersicht';
-    if (this.s.view === 'pumpen' && !mitPumpen) this.s.view = 'uebersicht';
-    if (this.s.view === 'heizung' && !mitHeizung) this.s.view = 'uebersicht';
+    if (this.s.view === 'pumpen' && !this._mitPumpen) this.s.view = 'uebersicht';
+    if (this.s.view === 'heizung' && !this._mitHeizung) this.s.view = 'uebersicht';
     if (this.s.view === 'container' && !this.b) this.s.view = 'uebersicht';
-    const aktivTab = this.s.view === 'container' ? 'uebersicht' : this.s.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(this.s.view) ? 'einst' : this.s.view;
+  }
+  /* Rahmen der Seite – bleibt stehen; Scrollbereich und Einblendung behalten so Position und Fokus von selbst */
+  render() {
+    return html`<div class="wurzel"><div class="app"><div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui">${this._ui()}</div></div></div>`;
+  }
+  /* Inhalt: Lit-Teile direkt (Über, Melden); noch nicht umgestellte Ansichten als HTML-Text (unsafeHTML ersetzt sie nur,
+     wenn sich der Text ändert) */
+  _ui() {
+    const neu = !!this._neu, S = this.s;
+    const tabs = [['uebersicht', 'Übersicht'], ...(this._mitHeizung ? [['heizung', 'Heizung']] : []), ...(this._mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
+    const aktivTab = S.view === 'container' ? 'uebersicht' : S.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(S.view) ? 'einst' : S.view;
     let seite;
-    if (!this.roh) seite = `<div class="glas-panel block">${this.fehler ? `<div class="leer">Die Integration antwortet nicht: ${esc(this.fehler)}</div>` : LAEDT}</div>`;
-    else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(this.s.view)) seite = this.v_leer();
-    else seite = this['v_' + this.s.view]();
+    if (!this.roh) seite = unsafeHTML(`<div class="glas-panel block">${this.fehler ? `<div class="leer">Die Integration antwortet nicht: ${esc(this.fehler)}</div>` : LAEDT}</div>`);
+    else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(S.view)) seite = unsafeHTML(this.v_leer());
+    else seite = S.view === 'ueber' ? ueberVorlage(this) : unsafeHTML(this['v_' + S.view]());
     const melden = this.d ? this.d.e.melden : true;
     let sheet = '';
-    if (this.s.sheet) { try { sheet = this.sheet(); } catch (e) { this.s.sheet = null; sheet = ''; } }
-    const neuHtml = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this.versionHinweis()}${this.nurLesenHinweis()}${seite}</div></div>
-      ${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
+    if (S.sheet && S.sheet.art === 'melden') sheet = meldenVorlage(this, S.sheet.form);
+    else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
+    const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
-      <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
-      <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${melden && this.roh && this.s.sheet && this.s.sheet.art !== 'melden' ? `<button class="melden-knopf im-sheet" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}${sheet}</div>
+      <div class="schleier ${S.sheet ? 'an' : ''}" data-act="zu"></div>`;
+    const imSheet = melden && this.roh && S.sheet && S.sheet.art !== 'melden' ? `<button class="melden-knopf im-sheet" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : '';
+    const knopf = melden && this.roh && !S.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : '';
+    return html`<div class="scroll">${keyed(`${S.view}:${S.cid || ''}`, html`<div class="seite ${neu ? 'rein' : ''}">${unsafeHTML(this.versionHinweis() + this.nurLesenHinweis())}${seite}</div>`)}</div>
+      ${unsafeHTML(kopf)}
+      <div class="sheet glas-panel ${S.sheet ? 'an' : ''}">${unsafeHTML(imSheet)}${sheet}</div>
       <div class="tip"></div><div class="toast glas-panel"></div>
-      ${melden && this.roh && !this.s.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}`;
-    this._uiSetzen(neuHtml);
-    if (this.ui.classList) this.ui.classList.toggle('nur-lesen', this.nurLesen());
+      ${unsafeHTML(knopf)}`;
+  }
+  updated() {
+    if (!this.ui) return;
+    this.ui.classList.toggle('nur-lesen', this.nurLesen());
     this._litEinhaengen();
-    const sc = this.root.querySelector('.scroll'); if (sc) sc.scrollTop = pos;
-    const evc2 = this.root.querySelector('.ev-chips');
-    if (evc2) { evc2.scrollLeft = evPos; const on = evc2.querySelector('.chip.amber');   // gewählte Kategorie sichtbar, mittig, wenn sie draußen liegt
+    const sc = this.ui.querySelector('.scroll'); if (sc && this._neu) sc.scrollTop = 0;
+    const sh = this.ui.querySelector('.sheet'); if (sh && this._sheetArt !== this._sheetVorher) sh.scrollTop = 0;
+    const evc2 = this.ui.querySelector('.ev-chips');
+    if (evc2) { evc2.scrollLeft = this._evPos; const on = evc2.querySelector('.chip.amber');   // gewählte Kategorie sichtbar, mittig, wenn sie draußen liegt
       if (on && (on.offsetLeft < evc2.scrollLeft || on.offsetLeft + on.offsetWidth > evc2.scrollLeft + evc2.clientWidth)) evc2.scrollLeft = Math.max(0, on.offsetLeft - (evc2.clientWidth - on.offsetWidth) / 2); }
-    const sh2 = this.root.querySelector('.sheet'); if (sh2 && shPos) sh2.scrollTop = shPos;
-    if (this._toastBis > Date.now()) this.toast(this.letzterToast, true);
+    this._neu = false;
   }
-  /* Neuzeichnen der Seite. Ist eine Lit-Einblendung offen und eingehängt (BSM-022 2a.2), bleibt das Element .sheet
-     stehen und nur alles daneben wird ersetzt – sonst würde der Lit-Bereich kurz ausgehängt und verlöre den Fokus */
-  _uiSetzen(neuHtml) {
-    const alt = [...this.ui.children].find(n => n.classList.contains('sheet'));
-    if (!(this.s.sheet && LIT_SHEETS.includes(this.s.sheet.art) && alt && [...alt.children].some(n => n.classList.contains('lit-bereich')))) { this.ui.innerHTML = neuHtml; return; }
-    const t = document.createElement('template'); t.innerHTML = neuHtml;
-    const neu = [...t.content.children].find(n => n.classList.contains('sheet')), vor = [], nach = [];
-    let gesehen = false;
-    for (const n of [...t.content.childNodes]) { if (n === neu) gesehen = true; else (gesehen ? nach : vor).push(n); }
-    alt.className = neu.className;
-    for (const n of [...this.ui.childNodes]) if (n !== alt) n.remove();
-    alt.before(...vor); alt.after(...nach);
-  }
-  /* Dauerhafte Lit-Bereiche (BSM-022 2a.1): je Platzhalter [data-lit] ein eigener Behälter, der über innerHTML-Neuzeichnen
-     hinweg erhalten bleibt – Lit findet beim nächsten render() seine Knoten wieder (Fokus, Auswahl, Scroll bleiben) */
+  /* Dauerhafter Lit-Bereich für „Über“ in den Einstellungen (Gruppe im noch alten v_einst, bis Stufe 3e): Platzhalter
+     [data-lit] im HTML-Text, je Platzhalter derselbe Behälter, Lit zeichnet hinein */
   _litEinhaengen() {
     this._litBereich ||= {};
     for (const platz of this.ui.querySelectorAll('[data-lit]')) {
       const k = platz.dataset.lit, b = this._litBereich[k] ||= Object.assign(document.createElement('div'), { className: 'lit-bereich' });
       platz.replaceWith(b);
     }
-    this.litNeu();
+    for (const b of Object.values(this._litBereich)) if (b.isConnected) litRender(ueberVorlage(this, { mitZurueck: false }), b, { host: this });
   }
-  /* nur die Lit-Bereiche neu zeichnen, die gerade eingehängt sind */
-  litNeu() {
-    for (const [k, b] of Object.entries(this._litBereich || {})) {
-      if (!b.isConnected) continue;
-      const sh = this.s.sheet;
-      if (k === 'melden' && !(sh && sh.art === 'melden')) continue;
-      litRender(k === 'melden' ? meldenVorlage(this, sh.form) : k === 'ueber' ? ueberVorlage(this) : ueberVorlage(this, { mitZurueck: false }), b, { host: this });
-    }
-  }
+  /* Lit-Teile neu zeichnen (Über, Melden) – unveränderte alte Ansichten bleiben dabei stehen */
+  litNeu() { this.requestUpdate(); }
   v_leer() {
     return `${this.kopf('Baustelle', 'KEINE LAUFENDE BAUSTELLE')}
       <div class="glas-panel liste"><div class="zeile"><span class="leise">Lege eine Baustelle an – danach kommen Container und Shellys dazu.</span></div>
@@ -2738,7 +2736,7 @@ class BaustellePanel extends HTMLElement {
     this.kkMerken(s.ort);
     const neu = { k: e.k, id: e.je && e.je !== 'v' ? s.id : undefined, ids: e.je === 'v' ? s.ids : undefined };
     this.s.kkFrisch = `${s.ort}:${neu.k}:${neu.id || ''}`; clearTimeout(this._kkFrisch); this._kkFrisch = setTimeout(() => { this.s.kkFrisch = null; }, 2000);
-    this.s.sheet = null; this.s.kkLayout = false; this.s.awLayout = false; this.s.awBearb = false; this.render();
+    this.s.sheet = null; this.s.kkLayout = false; this.s.awLayout = false; this.s.awBearb = false; this.neuZeichnen();
     this.toast(`Kachel „${this.kkName(neu)}“ (${s.st}) hinzugefügt`);
   }
   /* WU-0017: Vergleich kWh / Kosten – 2 bis 4 Container gegenüber (Mockup vergleich-kacheln.html, abgenommen 02.10.2026):
@@ -2796,17 +2794,17 @@ class BaustellePanel extends HTMLElement {
   /* Antippen: die passende vorhandene Ansicht oder Einblendung der Seite */
   kkAuf(x, ort) {
     const S = this.s, c = this.kkCtx(ort), e = KK[x.k], b = e && e.je && e.je !== 'v' ? this.kkB(x) : null;
-    if (e && e.je === 'v') { S.sheet = { art: 'verbrauch', t: x.k === 'v-eur' ? 'eur' : undefined, auswahl: [...(x.ids || [])], zeitraum: ort === 'aw' ? c.zc : x.zr || 'Tag', v: ort === 'aw' ? c.vc : 0 }; return this.render(); }   // WU-0017
-    const blatt = (art, extra = {}) => { S.sheet = { art, auswahl: b ? [b.id] : [], zeitraum: c.zc, v: c.vc, ...extra }; this.render(); };
-    const detail = k => { if (S.view !== 'auswertung') this.gehe('auswertung'); S.sheet = { art: 'aw-detail', k }; this.render(); };
+    if (e && e.je === 'v') { S.sheet = { art: 'verbrauch', t: x.k === 'v-eur' ? 'eur' : undefined, auswahl: [...(x.ids || [])], zeitraum: ort === 'aw' ? c.zc : x.zr || 'Tag', v: ort === 'aw' ? c.vc : 0 }; return this.neuZeichnen(); }   // WU-0017
+    const blatt = (art, extra = {}) => { S.sheet = { art, auswahl: b ? [b.id] : [], zeitraum: c.zc, v: c.vc, ...extra }; this.neuZeichnen(); };
+    const detail = k => { if (S.view !== 'auswertung') this.gehe('auswertung'); S.sheet = { art: 'aw-detail', k }; this.neuZeichnen(); };
     switch (x.k) {
-      case 'b-kosten': S.sheet = { art: 'verbrauch', t: 'eur', auswahl: [], zeitraum: c.z, v: c.v }; return this.render();
+      case 'b-kosten': S.sheet = { art: 'verbrauch', t: 'eur', auswahl: [], zeitraum: c.z, v: c.v }; return this.neuZeichnen();
       case 'b-gespart': return detail('ohne');
       case 'b-hoch': return detail('hochrechnung');
       case 'b-wetter': return detail('wetter');
       case 'b-oel': return detail('vergleich');
       case 'b-wer': return detail('rangliste');
-      case 'b-strom': S.sheet = { art: 'strom' }; return this.render();
+      case 'b-strom': S.sheet = { art: 'strom' }; return this.neuZeichnen();
       case 'b-preis': S.awSim = true; return this.gehe('auswertung');   // Auswertung mit dem simulierten Preis
       case 'b-geraete': S.evGruppe = 'geraete'; return this.gehe('einst');
       case 'c-leistung': return blatt('leistung', { zeitraum: 'Tag', v: 0 });
@@ -2815,8 +2813,8 @@ class BaustellePanel extends HTMLElement {
       case 'c-heizzeit': case 'p-pumpzeit': return blatt('heizzeit-c');
       case 'p-zyklen': S.chart = 'zyklen'; S.cZr = null; return this.gehe('container', b.id);
       case 'c-temp': case 'c-warm': S.chart = 'temp'; S.cZr = null; return this.gehe('container', b.id);
-      case 'h-plan': S.sheet = { art: 'hz', k: 'plan' }; return this.render();
-      case 'h-wann': S.sheet = { art: 'hz', k: 'wann' }; return this.render();
+      case 'h-plan': S.sheet = { art: 'hz', k: 'plan' }; return this.neuZeichnen();
+      case 'h-wann': S.sheet = { art: 'hz', k: 'wann' }; return this.neuZeichnen();
     }
   }
   awSeite(B, A, z, alle) {
@@ -2871,7 +2869,7 @@ class BaustellePanel extends HTMLElement {
       window.removeEventListener('pointermove', bewegt); window.removeEventListener('pointerup', fertig); window.removeEventListener('pointercancel', fertig);
       if (art === 'move' && ziel) { const Lg = this.kkListe(ort), nach = an[+ziel.dataset.i], von = Lg.indexOf(item);
         Lg.splice(von, 1); Lg.splice(Lg.indexOf(nach) + (+ziel.dataset.i > +kachel.dataset.i ? 1 : 0), 0, item); }
-      this.kkMerken(ort); this.render();
+      this.kkMerken(ort); this.neuZeichnen();
     };
     window.addEventListener('pointermove', bewegt); window.addEventListener('pointerup', fertig); window.addEventListener('pointercancel', fertig);
   }
@@ -2884,7 +2882,7 @@ class BaustellePanel extends HTMLElement {
     c.getContext('2d').drawImage(quelle, 0, 0, c.width, c.height);
     const url = c.toDataURL('image/jpeg', 0.82), B = (s.form.bilder ||= []);
     if (B.length >= MB_MAX) return this.toast(`Höchstens ${MB_MAX} Bilder`);
-    B.push({ url, b: c.width, h: c.height, kb: Math.round(url.length * 0.75 / 1024) }); this.render(); this.toast(`Bild ${wie}`);
+    B.push({ url, b: c.width, h: c.height, kb: Math.round(url.length * 0.75 / 1024) }); this.neuZeichnen(); this.toast(`Bild ${wie}`);
   }
   mbDatei(datei, wie) {
     if (!datei || !(datei.type || '').startsWith('image/')) return;
@@ -3110,8 +3108,6 @@ class BaustellePanel extends HTMLElement {
           ${t.e.map(e => { const [ic, farbe] = ART[e[2]] || ['•', 'var(--ink2)']; return `<div class="vl-ereignis"><span class="zeit">${e[1]}</span><span class="vl-punkt" style="background:${farbe}">${ic}</span><div>${e[3] ? `<b>${esc(this.bName(e[3]))}</b> ` : ''}<span class="leise">${esc(e[4])}</span></div></div>`; }).join('')}</div>`; }).join('')
         : `<div class="glas-panel block"><div class="leer">${q || f !== 'alle' ? 'Nichts gefunden' : 'Noch keine Einträge'}</div></div>`}`;
   }
-  /* Lit-Pilot (BSM-022 2a.1): „Über“ zeichnet Lit in einen dauerhaften Bereich; der alte Renderer setzt nur den Platzhalter */
-  v_ueber() { return '<div data-lit="ueber"></div>'; }
 
   v_dev() {
     const f = this.s.mfilter || 'offen', alle = this.meldungen(), passt = m => f === 'alle' || (f === 'offen') === this.meldungOffen(m), M = (alle || []).filter(passt);
@@ -3214,7 +3210,7 @@ class BaustellePanel extends HTMLElement {
   symKonfig(b) { const x = this.s.sheet && this.s.sheet.sym; if (x) return x;
     const q = b.symbol || SYMBOL_STANDARD, el = y => ({ wand: y.wand, pos: y.pos, sensor: y.sensor || null });
     return (this.s.sheet.sym = { doppel: !!q.doppel, farbe: q.farbe || null, rahmen: q.rahmen || null, tueren: q.tueren.map(el), fenster: q.fenster.map(el), licht: q.licht || null }); }
-  symSenden(b, c) { this.s.sheet.sym = c; this.render(); return this.setzen(['bereiche', b.id, 'symbol'], c); }
+  symSenden(b, c) { this.s.sheet.sym = c; this.neuZeichnen(); return this.setzen(['bereiche', b.id, 'symbol'], c); }
   symKlick(a, el) {
     const b = this.d.bereiche.find(x => x.id === this.s.sheet.id); if (!b) return undefined;
     const c = JSON.parse(JSON.stringify(this.symKonfig(b))), art = el.dataset.art, i = +el.dataset.i;
@@ -3626,7 +3622,6 @@ class BaustellePanel extends HTMLElement {
       const m = (this.meldungen() || []).find(x => x.id === s.id), u = m && this.mlBild(m, s.i);
       return `${griff}<h3>${esc((m && m.ticket) || 'Meldung')} · Bild ${s.i + 1}</h3>${u ? `<img class="mb-gross" src="${u}" alt="Bild">` : LAEDT}${knopf('Schließen')}`;
     }
-    if (s.art === 'melden') return '<div data-lit="melden"></div>';   // Lit-Pilot (BSM-022 2a.2): src/melden.js
     if (s.art === 'ausnahme') {
       const f = s.form, az = this.azJetzt, z = az && az.tage[wtag(f.datum)];
       return `${griff}<h3>Ausnahme</h3>
@@ -3815,10 +3810,10 @@ class BaustellePanel extends HTMLElement {
   }
   /* Einstellung setzen: sofort anzeigen, dann an die Integration (Pfad wie im Store) */
   setzen(pfad, wert, ok) {
-    if (this.nurLesen()) { this.toast(NUR_ANSEHEN); this.render(); return Promise.resolve(null); }   // Feld zurück auf den alten Wert
+    if (this.nurLesen()) { this.toast(NUR_ANSEHEN); this.neuZeichnen(); return Promise.resolve(null); }   // Feld zurück auf den alten Wert
     const r = this.d && this.d.r;
     this._rohText = null;   // Antwort der Integration immer übernehmen (auch wenn sie den Wert ablehnt)
-    if (r) { let o = r.einstellungen ||= {}; for (const k of pfad.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; o[pfad[pfad.length - 1]] = wert; this._neuBauen(); this.render(); }
+    if (r) { let o = r.einstellungen ||= {}; for (const k of pfad.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; o[pfad[pfad.length - 1]] = wert; this._neuBauen(); this.neuZeichnen(); }
     return this.ws(nachricht.setzen(this.d.entry, pfad, wert), ok);
   }
   aktion(aktion, felder, ok) { return this.ws(nachricht.aktion(this.d.entry, aktion, felder), ok); }
@@ -3858,7 +3853,7 @@ class BaustellePanel extends HTMLElement {
     const el = ev.target && ev.target.closest && ev.target.closest('[data-act]'); if (!el) return;
     if (this.gesperrt(el)) return this.toast(NUR_ANSEHEN);
     const a = el.dataset.act, d = this.d, b = this.b, S = this.s;
-    const neu = () => this.render();
+    const neu = () => this.neuZeichnen();
     switch (a) {
       case 'menue': return this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true }));
       case 'tab': return this.gehe(el.dataset.v);
@@ -3961,8 +3956,8 @@ class BaustellePanel extends HTMLElement {
         return this.ws({ type: 'baustelle/notprogramm_probe', entry_id: d.entry, geraet: el.dataset.id, minuten: m }, m ? `Ausfall-Probe ${m} min gestartet` : 'Ausfall-Probe beendet'); }
       case 'np-taste': return this.setzen(['heizung', 'taste'], !d.e.taste);   // BSM-018
       case 'np-plug': S.sheet = { art: 'np-plug', id: el.dataset.id }; return neu();
-      case 'np-pruefen': if (S.npPrueft) return; S.npPrueft = true; this.render();
-        return this.ws({ type: 'baustelle/notprogramm_pruefen', entry_id: d.entry }, 'Notprogramm geprüft').finally(() => { S.npPrueft = false; this.render(); });
+      case 'np-pruefen': if (S.npPrueft) return; S.npPrueft = true; this.neuZeichnen();
+        return this.ws({ type: 'baustelle/notprogramm_pruefen', entry_id: d.entry }, 'Notprogramm geprüft').finally(() => { S.npPrueft = false; this.neuZeichnen(); });
       case 'test-meldung': return this.aktion('test_meldung', {}).then(r => { if (r && r.an) this.toast(r.an.length ? `Test-Nachricht an ${r.an.join(', ')} gesendet` : 'Kein Empfänger – bitte unter Meldungen wählen'); });
       case 'bsz-speichern': { const f = S.sheet.form; if (f.ende && f.ende < (f.beginn || (d.beginnAuto ? d.beginn : ''))) return this.toast('Bitte Beginn und Ende prüfen');
         S.sheet = null; neu();
@@ -4099,7 +4094,7 @@ class BaustellePanel extends HTMLElement {
       case 'an-weg': { const id = S.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); S.sheet = null; neu();
         return this.liste('anschluesse', 'loeschen', { id }, `Gelöscht – Container hängen jetzt an ${rest ? rest.name : 'keinem Anschluss'}`); }
       case 'tab-einst': S.evGruppe = el.dataset.g || (S.sheet && S.sheet.art === 'strom' ? 'strom' : S.evGruppe); return this.gehe('einst');
-      case 'ev-gruppe': S.evGruppe = el.dataset.v; S.evDev = null; return this.render(true);
+      case 'ev-gruppe': S.evGruppe = el.dataset.v; S.evDev = null; return this.neuZeichnen(true);
       case 'ev-dev': S.evDev = el.dataset.v; return neu();
       case 'b-stufen': return b && this.setzen(['bereiche', b.id, 'stufen'], !b.stufenAn);   // AN-0006
       case 'g-kw': { const g = b && b.geraete.find(x => x.id === el.dataset.id); if (!g) return;   // Szenarien: Nennleistung ohne Messung
@@ -4204,26 +4199,26 @@ class BaustellePanel extends HTMLElement {
       sh.q = el.value; sh.k = null; const t = this.shadowRoot && this.shadowRoot.querySelector('.kk-treffer'); if (t) t.innerHTML = this.kkTreffer(sh); return;
     }
     if (ds.vls !== undefined) {   // Suche in der Chronik (WU-0006): neu zeichnen, Fokus und Cursor behalten
-      this.s.vlSuche = el.value; this.render();
-      const x = this.shadowRoot && this.shadowRoot.querySelector('[data-vls]'); if (x && x.focus) { x.focus(); if (x.setSelectionRange) x.setSelectionRange(el.value.length, el.value.length); }
+      this.s.vlSuche = el.value;
+      this.neuZeichnen().then(() => { const x = this.shadowRoot && this.shadowRoot.querySelector('[data-vls]'); if (x && x.focus) { x.focus(); if (x.setSelectionRange) x.setSelectionRange(el.value.length, el.value.length); } });
       return;
     }
     if (ds.azn) sh.form[ds.azn] = el.value;
     if (ds.ur) sh.form[ds.ur] = el.value;
     if (ds.tm) sh.form[ds.tm] = el.value;
-    if (ds.au) { sh.form[ds.au] = el.value; if (ds.au === 'datum') this.render(); }
+    if (ds.au) { sh.form[ds.au] = el.value; if (ds.au === 'datum') this.neuZeichnen(); }
     if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
     if (ds.bf) sh.edit.firma = el.value;
     if (ds.btuer !== undefined) sh.edit.tuer = el.value;
     if (ds.bfu !== undefined) sh.edit.fuehler = el.value;
     if (ds.bm2 !== undefined) sh.edit.m2 = el.value;
-    if (ds.ban !== undefined) { sh.edit.anschluss = el.value; this.render(); }
+    if (ds.ban !== undefined) { sh.edit.anschluss = el.value; this.neuZeichnen(); }
     if (ds.an) sh.form[ds.an] = el.value;
     if (ds.fn !== undefined) sh.form.name = el.value;
     if (ds.fnc !== undefined) sh.form.neu[+ds.fnc].name = el.value;
     if (ds.b === 'name' && sh && sh.edit) sh.edit.name = el.value;
     if (ds.azt) sh.form.tage[ds.azt][+ds.p] = el.value;
-    if (ds.neu) { sh.form[ds.neu] = el.value; if (ds.neu === 'schalter') this.render(); }   // WU-0008: Heizungsart erst mit Shelly abfragen
+    if (ds.neu) { sh.form[ds.neu] = el.value; if (ds.neu === 'schalter') this.neuZeichnen(); }   // WU-0008: Heizungsart erst mit Shelly abfragen
     if (ds.wq) sh.form[ds.wq] = el.value;
     if (ds.nm) sh.form.name = el.value;
     if (ds.bsz) sh.form[ds.bsz] = el.value;
@@ -4236,7 +4231,7 @@ class BaustellePanel extends HTMLElement {
     if (el && el.dataset && el.dataset.lh !== undefined && this.s.sheet) {   // WU-0011: Regler losgelassen
       this.s.sheet.h = +el.value;
       const max = this.s.sheet.v ? 23 : +this.z.JETZT.slice(0, 2); if (+el.value > max) el.value = String(max);   // heute nur bis jetzt
-      return this.leistungTeil() || this.render();   // WU-0012: nur den Datenteil tauschen
+      return this.leistungTeil() || this.neuZeichnen();   // WU-0012: nur den Datenteil tauschen
     }
     if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
     if (k === 'mail') return this.setzen(PFAD.mail, String(el.value).trim(), 'Gespeichert');

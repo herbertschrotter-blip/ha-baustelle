@@ -70,6 +70,11 @@ const panel = (page, sel, fn, ...a) => page.evaluate((sel, quelle, ...a) => { co
 const klick = async (page, sel) => { await page.waitForSelector(sel, { visible: true, timeout: 5000 }); await page.click(sel); await warte(120); };
 const schreibAnzahl = (page, ab) => page.evaluate(ab => window.baustelleBeispiel.TEST.aufrufe.slice(ab).filter(m => ['baustelle/setzen', 'baustelle/aktion'].includes(m.type)).map(m => m.type + (m.aktion ? ':' + m.aktion : '')), ab);
 const aufrufZahl = page => page.evaluate(() => window.baustelleBeispiel.TEST.aufrufe.length);
+// Mausrad scrollt weich: warten, bis die Position zur Ruhe kommt (der Scrollbereich bleibt seit 2b stehen, nichts bricht ab)
+// (Chromium beginnt erst nach 100–300 ms zu scrollen – daher erst warten, dann dreimal denselben Wert verlangen)
+const ruhig = async (page, sel, innen, prop) => { await warte(400); let alt = null, gleich = 0;
+  for (let i = 0; i < 40; i++) { const w = await page.evaluate((sel, innen, prop) => document.querySelector(sel).shadowRoot.querySelector(innen)[prop], sel, innen, prop);
+    gleich = w === alt ? gleich + 1 : 0; if (gleich >= 2) return w; alt = w; await warte(120); } return alt; };
 const bild = async (page, name) => { if (BILDER) await page.screenshot({ path: join(BILDER, name + '.jpg'), type: 'jpeg', quality: 70, clip: { x: 0, y: 0, width: 1400, height: 1000 } }); };
 
 async function fall(name, browser, ablauf, himmel) {
@@ -117,7 +122,7 @@ if (process.env.BAUSTELLE_WEBGL !== '1') {
     const r = await panel(page, D, () => ({ himmel: !!p.himmel, canvas: !!sr.querySelector('canvas.himmel') }));
     erwarte('WebGL-Himmel läuft', r.himmel && r.canvas, JSON.stringify(r));
     const bleibt = await panel(page, D, async () => { const cv = sr.querySelector('canvas.himmel'), h = p.himmel;
-      BB.welt[0].baustelle.titel = 'Himmel bleibt'; await p._laden(); p.render(); await new Promise(r => setTimeout(r, 200));
+      BB.welt[0].baustelle.titel = 'Himmel bleibt'; await p._laden(); await p.neuZeichnen(); await new Promise(r => setTimeout(r, 200));
       return { canvas: sr.querySelector('canvas.himmel') === cv && cv.isConnected, himmel: p.himmel === h, neu: sr.querySelector('.ui').textContent.includes('Himmel bleibt') }; });
     erwarte('Canvas und Himmel bleiben beim Neuzeichnen (Stufe 1b)', bleibt.canvas && bleibt.himmel && bleibt.neu, JSON.stringify(bleibt));
   }, 'webgl');
@@ -150,30 +155,31 @@ await fall('B2 Eingabeschutz', browser, async (page, erwarte) => {
 await fall('B3 Scrollschutz', browser, async (page, erwarte) => {
   const update = (sel, wert) => panel(page, sel, async () => { BB.welt[0].bereiche[0].name = a0; await p._laden(); await new Promise(r => setTimeout(r, 150)); return sr.querySelector('.ui').textContent.includes(a0); }, wert);
   // Hauptansicht (Desktop)
-  await page.mouse.move(900, 600); await page.mouse.wheel({ deltaY: 500 }); await warte(300);
-  const vor = await panel(page, D, () => sr.querySelector('.scroll').scrollTop);
+  await page.mouse.move(900, 600); await page.mouse.wheel({ deltaY: 500 });
+  const vor = await ruhig(page, D, '.scroll', 'scrollTop');
   const neu1 = await update(D, 'Polier-Container');
-  const nach = await panel(page, D, () => sr.querySelector('.scroll').scrollTop);
+  const nach = await ruhig(page, D, '.scroll', 'scrollTop');
   erwarte('Hauptansicht: Position bleibt (±1 px)', vor > 50 && Math.abs(nach - vor) <= 1 && neu1, `vor ${vor}, nach ${nach}, verarbeitet ${neu1}`);
   // lange Einblendung: Warnungen
   await klick(page, `${D} >>> [data-act="sheet"][data-s="warnungen"]`); await warte(900);   // Einblendung fährt ein
   const sbox = await (await page.$(`${D} >>> .sheet.an`)).boundingBox();
   await page.mouse.move(sbox.x + sbox.width / 2, sbox.y + Math.min(sbox.height, 800) / 2); await warte(150);
-  for (let i = 0; i < 3 && await panel(page, D, () => sr.querySelector('.sheet').scrollTop) < 20; i++) { await page.mouse.wheel({ deltaY: 300 }); await warte(400); }
+  for (let i = 0; i < 3 && await ruhig(page, D, '.sheet', 'scrollTop') < 20; i++) await page.mouse.wheel({ deltaY: 300 });
+  await ruhig(page, D, '.sheet', 'scrollTop');
   const unter = await panel(page, D, () => { const t = sr.elementFromPoint(a0, a1); return t ? t.tagName + '.' + t.className : String(t); }, sbox.x + sbox.width / 2, sbox.y + Math.min(sbox.height, 800) / 2);
   const svor = await panel(page, D, () => ({ top: sr.querySelector('.sheet').scrollTop, hoch: sr.querySelector('.sheet').scrollHeight - sr.querySelector('.sheet').clientHeight }));
   const neu2 = await update(D, 'Polier-Contain3r');
-  const snach = await panel(page, D, () => sr.querySelector('.sheet').scrollTop);
+  const snach = await ruhig(page, D, '.sheet', 'scrollTop');
   erwarte('Einblendung: Position bleibt (±1 px)', svor.top > 20 && Math.abs(snach - svor.top) <= 1 && neu2, `vor ${JSON.stringify(svor)}, nach ${snach}, verarbeitet ${neu2}, unter der Maus ${unter}, Kasten ${JSON.stringify(sbox)}`);
   await klick(page, `${D} >>> .schleier.an`);
   // Chipleiste der Einstellungen (Handy)
   await klick(page, `${T} >>> nav [data-act="tab"][data-v="einst"]`);
   await klick(page, `${T} >>> .ev-chips [data-v="firmen"]`); await warte(200);
   const box = await (await page.$(`${T} >>> .ev-chips`)).boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel({ deltaX: 30 }); await warte(300);
-  const cvor = await panel(page, T, () => sr.querySelector('.ev-chips').scrollLeft);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel({ deltaX: 30 });
+  const cvor = await ruhig(page, T, '.ev-chips', 'scrollLeft');
   const neu3 = await update(T, 'Polier-Contain4r');
-  const cnach = await panel(page, T, () => sr.querySelector('.ev-chips').scrollLeft);
+  const cnach = await ruhig(page, T, '.ev-chips', 'scrollLeft');
   erwarte('Chipleiste: Position bleibt (±1 px)', cvor > 0 && Math.abs(cnach - cvor) <= 1, `vor ${cvor}, nach ${cnach}, verarbeitet ${neu3}`);
 });
 
@@ -181,7 +187,7 @@ await fall('B3 Scrollschutz', browser, async (page, erwarte) => {
    (2) neuer Sensorwert bei offener Einblendung → angekommen, aber Diagramm unverändert (heutige Unterdrückung) */
 await fall('B4 Container live', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`); await warte(400);
-  await page.mouse.move(900, 600); await page.mouse.wheel({ deltaY: 200 }); await warte(300);
+  await page.mouse.move(900, 600); await page.mouse.wheel({ deltaY: 200 }); await ruhig(page, D, '.scroll', 'scrollTop');
   const merken = () => panel(page, D, () => { window.__rest = sr.querySelector('.c-text'); window.__wrap = sr.querySelector('.c-live .chart-wrap');
     return { w: window.__wrap.innerHTML, k: sr.querySelector('.c-live-kennz').textContent, scroll: sr.querySelector('.scroll').scrollTop, lg: p._liveGezeichnet || 0 }; });
   const zustand = (statistik) => panel(page, D, () => {
@@ -190,7 +196,7 @@ await fall('B4 Container live', browser, async (page, erwarte) => {
     for (const eid of eids) { const alt = BB.B.states[eid]; if (alt && Number.isFinite(+alt.state)) BB.B.states[eid] = { ...alt, state: String(+alt.state + 1) }; }
     VERSATZ += a0 ? 61000 : 11000; BB.hassNeu(); return eids.length;   // Uhr weiter: Live-Sperre 10 s, 5-Minuten-Statistik 60 s
   }, statistik);
-  await panel(page, D, () => { window.__render = 0; const r = p.render.bind(p); p.render = (...a) => { window.__render++; return r(...a); }; });
+  await panel(page, D, () => { window.__render = 0; const r = p.neuZeichnen.bind(p); p.neuZeichnen = (...a) => { window.__render++; return r(...a); }; });
   const vor = await merken(); const n = await zustand(true); await warte(600);
   const r = await panel(page, D, () => ({ w: sr.querySelector('.c-live .chart-wrap').innerHTML, k: sr.querySelector('.c-live-kennz').textContent, scroll: sr.querySelector('.scroll').scrollTop,
     render: window.__render, stat: BB.TEST.aufrufe.filter(m => m.type === 'baustelle/statistik' && m.period === '5minute').length }));
@@ -257,12 +263,12 @@ await fall('Lit-Pilot Über', browser, async (page, erwarte) => {
   erwarte('20 Navigationen: derselbe Lit-Knoten', navOk === 20, `${navOk}/20`);
   let updOk = 0;
   for (let i = 0; i < 20; i++) {
-    const ok = await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'Titel ' + a0; await p._laden(); p.render(); await new Promise(r => setTimeout(r, 30));
+    const ok = await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'Titel ' + a0; await p._laden(); await p.neuZeichnen(); await new Promise(r => setTimeout(r, 30));
       const k = sr.querySelector('.lit-bereich .ueber-kopf'); return k === window.__lit && k.isConnected && p.d.titel === 'Titel ' + a0; }, i);
     if (ok) updOk++;
   }
   erwarte('20 Daten-Updates mit Neuzeichnen: derselbe Lit-Knoten', updOk === 20, `${updOk}/20`);
-  const r = await panel(page, D, () => { window.__render = 0; const ro = p.render.bind(p); p.render = (...x) => { window.__render++; return ro(...x); };
+  const r = await panel(page, D, () => { window.__render = 0; const ro = p.neuZeichnen.bind(p); p.neuZeichnen = (...x) => { window.__render++; return ro(...x); };
     window.__seite = sr.querySelector('.seite'); return sr.querySelectorAll('button.cl-v').length; });
   await klick(page, `${D} >>> button.cl-v:nth-of-type(2)`);   // Eintrag 0 ist schon offen
   const auf = await panel(page, D, () => ({ render: window.__render, seite: sr.querySelector('.seite') === window.__seite, offen: [...sr.querySelectorAll('button.cl-v')].findIndex(b => b.getAttribute('aria-expanded') === 'true'), liste: !!sr.querySelector('.cl-liste') }));
@@ -280,7 +286,7 @@ await fall('Lit-Pilot Melden', browser, async (page, erwarte) => {
   let ok = 0; const text = 'Heizung im Polier schaltet zu spät';
   for (let i = 0; i < text.length; i++) {
     await page.keyboard.type(text[i]);
-    if (i < 20) await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'T' + a0; await p._laden(); p.render(); }, i);   // 20 Updates mitten im Tippen (bauplan-lit §5)
+    if (i < 20) await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'T' + a0; await p._laden(); await p.neuZeichnen(); }, i);   // 20 Updates mitten im Tippen (bauplan-lit §5)
   }
   const r = await panel(page, D, () => { const t = sr.querySelector('textarea[name="ml-text"]'); window.__ta = t;
     return { text: t.value, fokus: sr.activeElement === t, ende: t.selectionStart === t.value.length, entwurf: p.s.sheet.form.text, titel: p.d.titel }; });
@@ -290,18 +296,49 @@ await fall('Lit-Pilot Melden', browser, async (page, erwarte) => {
     const blob = await new Promise(r => c.toBlob(r, 'image/png')), dt = new DataTransfer(); dt.items.add(new File([blob], 'bild.png', { type: 'image/png' }));
     window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt })); });
   await warte(600);
-  const b = await panel(page, D, () => ({ bilder: sr.querySelectorAll('.lit-bereich .mb-bild').length, ta: sr.querySelector('textarea[name="ml-text"]') === window.__ta, text: sr.querySelector('textarea[name="ml-text"]').value }));
+  const b = await panel(page, D, () => ({ bilder: sr.querySelectorAll('.sheet .mb-bild').length, ta: sr.querySelector('textarea[name="ml-text"]') === window.__ta, text: sr.querySelector('textarea[name="ml-text"]').value }));
   erwarte('Strg+V fügt ein Bild ein, Textfeld bleibt', b.bilder === 1 && b.ta && b.text === text, JSON.stringify(b));
-  await klick(page, `${D} >>> .lit-bereich .mb-bild button.x`);
-  erwarte('✕ entfernt das Bild', await panel(page, D, () => sr.querySelectorAll('.lit-bereich .mb-bild').length) === 0);
-  await klick(page, `${D} >>> .lit-bereich .ml-zurueck`);
+  await klick(page, `${D} >>> .sheet .mb-bild button.x`);
+  erwarte('✕ entfernt das Bild', await panel(page, D, () => sr.querySelectorAll('.sheet .mb-bild').length) === 0);
+  await klick(page, `${D} >>> .sheet .ml-zurueck`);
   erwarte('Abbrechen schließt den Dialog', await panel(page, D, () => !p.s.sheet));
   await klick(page, `${D} >>> button.melden-knopf[data-act="melden"]`);
   await klick(page, ta); await page.keyboard.type('Knopf zu klein');
   const ab = await aufrufZahl(page);
-  await klick(page, `${D} >>> .lit-bereich .ml-senden`); await warte(300);
+  await klick(page, `${D} >>> .sheet .ml-senden`); await warte(300);
   const gesendet = await page.evaluate(ab => window.baustelleBeispiel.TEST.aufrufe.slice(ab).filter(m => m.type === 'baustelle/meldung'), ab);
   erwarte('Senden: genau ein Auftrag mit dem Text', gesendet.length === 1 && gesendet[0].meldung.text === 'Knopf zu klein', JSON.stringify(gesendet.map(m => m.meldung && m.meldung.text)));
+});
+
+/* Stufe 2b (LitElement): hass vor/nach dem Einhängen, 20 Wiederanschlüsse ohne Mehrfachaufrufe, Menü, Theme, schmal/breit */
+await fall('2b LitElement', browser, async (page, erwarte) => {
+  const r = await page.evaluate(async () => {
+    const BB = window.baustelleBeispiel, da = document.querySelector('#desktop'), warte = ms => new Promise(x => setTimeout(x, ms)), erg = {};
+    const fertig = async el => { for (let i = 0; i < 50 && !(el.shadowRoot && el.shadowRoot.querySelector('nav [data-act="tab"]') && el.d); i++) await warte(50); return !!(el.shadowRoot && el.shadowRoot.querySelector('nav [data-act="tab"]')); };
+    const alt = da.querySelector('baustelle-panel'), hass = alt.hass; alt.remove();
+    const a = document.createElement('baustelle-panel'); a.panel = alt.panel; a.narrow = false; a.hass = hass; da.appendChild(a); erg.vorher = await fertig(a); a.remove();
+    const b = document.createElement('baustelle-panel'); b.panel = alt.panel; b.narrow = false; da.appendChild(b); await warte(100); b.hass = hass; erg.nachher = await fertig(b);
+    // 20 Wiederanschlüsse: je höchstens eine Strukturabfrage, keine doppelten Takte/Abos
+    const ab = BB.TEST.aufrufe.length;
+    for (let i = 0; i < 20; i++) { b.remove(); await warte(10); da.appendChild(b); await warte(30); }
+    await warte(300);
+    erg.struktur = BB.TEST.aufrufe.slice(ab).filter(m => m.type === 'baustelle/struktur').length; erg.abos = BB.TEST.abos; erg.intervalle = window.__z.intervalle.size;
+    erg.zeichnet = !!b.shadowRoot.querySelector('.ui .seite');
+    // Menü (schmal) und schmal/breit
+    let menue = 0; b.addEventListener('hass-toggle-menu', () => menue++);
+    b.narrow = true; await b.updateComplete; erg.knopfSchmal = !!b.shadowRoot.querySelector('.menue-knopf');
+    b.shadowRoot.querySelector('.menue-knopf').click(); erg.menue = menue;
+    b.narrow = false; await b.updateComplete; erg.knopfBreit = !!b.shadowRoot.querySelector('.menue-knopf');
+    // Theme: hell/dunkel aus hass.themes
+    b.hass = { ...b.hass, themes: { darkMode: false } }; await warte(50); erg.hell = b.shadowRoot.querySelector('.wurzel').classList.contains('hell');
+    b.hass = { ...b.hass, themes: { darkMode: true } }; await warte(50); erg.dunkel = !b.shadowRoot.querySelector('.wurzel').classList.contains('hell');
+    return erg;
+  });
+  erwarte('hass vor dem Einhängen gesetzt: Seite steht', r.vorher, JSON.stringify(r));
+  erwarte('hass nach dem Einhängen gesetzt: Seite steht', r.nachher);
+  erwarte('20 Wiederanschlüsse: höchstens eine Strukturabfrage je Anschluss, Takt und Abos wie bei zwei Seiten', r.struktur <= 20 && r.abos === 4 && r.intervalle === 3 && r.zeichnet, `${r.struktur} Abfragen, ${r.abos} Abos, ${r.intervalle} Takte`);
+  erwarte('schmal: Menü-Knopf da, ein Klick = ein hass-toggle-menu; breit: kein Menü-Knopf', r.knopfSchmal && r.menue === 1 && !r.knopfBreit, JSON.stringify({ schmal: r.knopfSchmal, menue: r.menue, breit: r.knopfBreit }));
+  erwarte('Theme hell/dunkel folgt hass.themes', r.hell && r.dunkel, JSON.stringify({ hell: r.hell, dunkel: r.dunkel }));
 });
 
 /* B7 Lebenszyklus: 20 × entfernen/einhängen – Timer, Abos, window-Listener nehmen nicht zu */

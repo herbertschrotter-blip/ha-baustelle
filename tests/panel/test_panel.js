@@ -100,7 +100,7 @@ const klick = async (ds, n) => { if (typeof ds === 'string') { const e = litEl(d
   else ereignis.klick(ds); await ruhe(n); };
 const eingabe = (ds, value) => { if (typeof ds !== 'string') return ereignis.feld(ds, value, 'input');
   const e = litEl(ds); if (!e) return erwarte(`Feld ${ds}`, false); e.value = value; e.dispatchEvent(new Event('input', { bubbles: true, composed: true })); };
-const ML = { fehler: '.lit-bereich .seg button:nth-child(1)', text: '.lit-bereich textarea[name="ml-text"]', senden: '.lit-bereich .ml-senden', bildWeg: '.lit-bereich .mb-bild button.x' };
+const ML = { fehler: '.sheet .seg button:nth-child(1)', text: '.sheet textarea[name="ml-text"]', senden: '.sheet .ml-senden', bildWeg: '.sheet .mb-bild button.x' };
 /* „Über“ ist ein Lit-Bereich (BSM-022 2a.1): Verlauf-Eintrag über den echten Knopf aufklappen (kein data-act) */
 const clAuf = async i => { const b = panel.shadowRoot.querySelectorAll('button.cl-v')[i]; if (!b) return erwarte(`Verlauf-Eintrag ${i} in „Über“`, false);
   const vorher = b.getAttribute('aria-expanded'); b.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); await ruhe();
@@ -356,6 +356,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   panel = document.createElement('baustelle-panel'); panel.panel = { config: { version: '0.7.0' } }; panel.narrow = true; panel.hass = hass;
   const sende = panel.dispatchEvent.bind(panel); panel.dispatchEvent = e => { events.push(e.type); return sende(e); };
   document.body.appendChild(panel);   // connectedCallback wie in HA
+  await panel.updateComplete;   // Lit zeichnet den Rahmen nach dem Einhängen (BSM-022 2b)
   const uiEcht = panel.shadowRoot.querySelector('.ui'); ereignis = umgebung.helfer(panel);
   // Prüfungen lesen das serialisierte DOM; der Serialisierer schreibt U+00A0 (Tausenderpunkt) als &nbsp; – zurück wandeln;
   // Lit-Bereiche (BSM-022 2a) enthalten Markierungskommentare, die Text zerteilen – entfernen
@@ -418,9 +419,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const leer = { ...panel.d.bereiche.find(b => !b.pumpe), id: 'mannschaft', name: 'Mannschaft 01', geraete: [] }; panel.d.bereiche.push(leer);
     panel.s.hzArt = 'tag'; await klick({ act: 'hz-auf', k: 'wann' }, 20);
     erwarte('FE-0007: Tag – Container ohne Heizkörper mit Hinweis und Knopf', ui.innerHTML.includes('Mannschaft 01') && ui.innerHTML.includes('noch kein Heizkörper') && ui.innerHTML.includes('data-act="container" data-id="mannschaft"'));
-    panel.s.hzArt = 'woche'; panel.render();
+    panel.s.hzArt = 'woche'; await panel.neuZeichnen();
     erwarte('FE-0007: Woche – Zeile für Container ohne Heizkörper', ui.innerHTML.includes('hz-wz-ohne') && ui.innerHTML.includes('noch kein Heizkörper · zuordnen'));
-    panel.s.hzArt = 'tag'; panel.d.bereiche.pop(); panel.s.sheet = null; panel.render(); }
+    panel.s.hzArt = 'tag'; panel.d.bereiche.pop(); panel.s.sheet = null; await panel.neuZeichnen(); }
   /* FE-0008: früheren Zeitraum wählen – ‹ › und Kalender (Tag → Monat, Woche → Monat mit KW, Monat → Jahr, Jahr → Jahre) */
   { await klick({ act: 'tab', v: 'auswertung' }, 20); await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 20);
     const h = panel.z.HEUTE, mo = panel.z.WOCHE_ISO[0], seit = n => alleAufrufe.slice(n);
@@ -454,12 +455,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   { await klick({ act: 'container', id: 'polier' }, 20);
     const pol0 = () => panel.d.bereiche.find(x => x.id === 'polier'); let pol = pol0(); pol.modus = 'thermo';
     const lern0 = pol.lern = { an: false, zyklen: 0, kint: { wert: .6, start: .6, fort: 0 }, kext: { wert: .01, start: .01, fort: 0 }, nachlauf: {}, treffer: [], anteil: null, erwartet: 0, aus_bei: 20, zyklus_min: 10 };
-    panel.render(); erwarte('Lernen: Schalter bei Container mit Fühler', ui.innerHTML.includes('Lernende Regelung') && ui.innerHTML.includes('data-act="b-lernen"'));
+    await panel.neuZeichnen(); erwarte('Lernen: Schalter bei Container mit Fühler', ui.innerHTML.includes('Lernende Regelung') && ui.innerHTML.includes('data-act="b-lernen"'));
     neu(); await klick({ act: 'b-lernen' }, 20);
     erwarte('Lernen: Schalter setzt bereiche.polier.lernen', letzte('baustelle/setzen').some(x => JSON.stringify(x.pfad) === '["bereiche","polier","lernen"]' && x.wert === true));
     pol = pol0(); pol.modus = 'thermo'; pol.lern = Object.assign({ ...lern0 }, { an: true, zyklen: 3, anteil: 38, erwartet: .8, aus_bei: 19.2, kint: { wert: .57, start: .6, fort: .06 },
       nachlauf: { 'oel|lang|kalt': { grad: 1.2, min: 12, n: 3 } }, treffer: [.3, -.1, .2] });
-    panel.render(); erwarte('Lernen: Regelungszeile', /Thermostat · lernend/.test(ui.innerHTML) && /aus bei 19,2/.test(ui.innerHTML));
+    await panel.neuZeichnen(); erwarte('Lernen: Regelungszeile', /Thermostat · lernend/.test(ui.innerHTML) && /aus bei 19,2/.test(ui.innerHTML));
     await klick({ act: 'sheet', s: 'lernen' }); pruefe('Lernstand');
     erwarte('Lernen: Lernstand mit Nachlauf und Treffern', /\+1,2 °C/.test(ui.innerHTML) && /Ø ±0,2 °C/.test(ui.innerHTML) && /3\/50 Zyklen/.test(ui.innerHTML));
     await klick({ act: 'lern-k', v: 'mild' }); pruefe('Lernstand mild');
@@ -683,7 +684,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const holen = global.fetch, geholt = []; let platte = eigen, neu_geladen = false;
     global.fetch = async (url, opt) => { geholt.push([String(url), opt && opt.cache]); return String(url).includes('changelog.json') ? { ok: true, json: async () => [{ version: platte }] } : { ok: true, json: async () => null }; };
     const [ma, mi, pa] = eigen.split('.').map(Number), roh0 = panel.roh[0].version;
-    panel.neueVersion = null; panel._platteGeprueft = 0; panel.roh[0].version = `${ma}.${mi}.${pa - 1}`; panel._versionPruefen(); await ruhe(10); panel.render();
+    panel.neueVersion = null; panel._platteGeprueft = 0; panel.roh[0].version = `${ma}.${mi}.${pa - 1}`; panel._versionPruefen(); await ruhe(10); await panel.neuZeichnen();
     erwarte('gleiche/ältere Version: kein Hinweis', !panel.neueVersion && !ui.innerHTML.includes('neu-version') && geholt.some(g => g[0].includes('changelog.json?t=') && g[1] === 'no-store'));
     panel.roh[0].version = `${ma}.${mi}.${pa + 4}`; panel._versionPruefen(); await ruhe(10);
     erwarte('HA neuer (nach Neustart, 0.x.10 > 0.x.9): Hinweis', panel.neueVersion === `${ma}.${mi}.${pa + 4}` && ui.innerHTML.includes(`Neue Version ${ma}.${mi}.${pa + 4} – bitte neu laden`) && ui.innerHTML.includes('data-act="neu-laden"'));
@@ -695,7 +696,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     global.location = { search: '', reload: () => { neu_geladen = true; } };
     await klick({ act: 'neu-laden' }, 20);
     erwarte('Neu laden: Datei am Speicher vorbei holen, dann neu laden', neu_geladen && geholt.some(g => g[0].includes('baustelle-panel.js') && g[1] === 'reload'));
-    global.fetch = holen; global.location = { search: '' }; panel.neueVersion = null; panel.render(); }
+    global.fetch = holen; global.location = { search: '' }; panel.neueVersion = null; await panel.neuZeichnen(); }
   /* 0.7.8: Punkte aus 0.6.3 zurück (Mockup glas.html, api §7) */
   await klick({ act: 'bs-wahl', id: 'dobl' }, 30);
   await klick({ act: 'tab', v: 'uebersicht' }, 20);
@@ -736,11 +737,11 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'cvd', v: 'stunden' }, 30); pruefe('Container Heizzeit'); erwarte('WU-0004: Reiter Heizzeit', ui.innerHTML.includes('data-chart="ch-magazin"'));
   await klick({ act: 'cvd', v: 'heute' });
   { await klick({ act: 'container', id: 'polier' }, 20); const pol = () => panel.d.bereiche.find(x => x.id === 'polier');
-    pol().modus = 'thermo'; panel.render(); pruefe('Container D Thermostat');
+    pol().modus = 'thermo'; await panel.neuZeichnen(); pruefe('Container D Thermostat');
     erwarte('WU-0004: Thermostat-Rad mit Soll ±', ui.innerHTML.includes('class="c-rad"') && ui.innerHTML.includes('data-act="c-soll"') && /Soll \d/.test(ui.innerHTML));
     neu(); await klick({ act: 'c-soll', d: '0.5' }, 20);
     erwarte('WU-0004: Soll + über baustelle/setzen', letzte('baustelle/setzen').some(x => JSON.stringify(x.pfad) === '["bereiche","polier","soll"]' && Number.isFinite(x.wert)));
-    pol().modus = 'plan'; panel.render(); erwarte('WU-0004: im Zeitplan nur Ist, kein Soll ±', ui.innerHTML.includes('class="c-rad"') && !ui.innerHTML.includes('data-act="c-soll"') && /Zeitplan – der Heizkörperthermostat regelt/.test(ui.innerHTML));
+    pol().modus = 'plan'; await panel.neuZeichnen(); erwarte('WU-0004: im Zeitplan nur Ist, kein Soll ±', ui.innerHTML.includes('class="c-rad"') && !ui.innerHTML.includes('data-act="c-soll"') && /Zeitplan – der Heizkörperthermostat regelt/.test(ui.innerHTML));
     erwarte('WU-0004: Geräte-Chips mit ⏻, aktiv, ✎', ['data-act="geraet"', 'data-act="g-aktiv"', 'data-act="g-bearbeiten"'].every(t => ui.innerHTML.includes(t)));
     neu(); await klick({ act: 'g-aktiv', i: '0' }, 20);
     erwarte('WU-0004: aktiv über baustelle/aktion', letzte('baustelle/aktion').some(x => x.aktion === 'aktiv' && x.geraet === pol().geraete[0].id && x.an === false));
@@ -789,7 +790,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('WU-0017: Kachel gespeichert', x.k === 'v-kwh' && x.ids.length === Math.min(3, C.length) && x.zr === 'Woche' && x.art === 'linien' && x.st === 'L');
     erwarte('WU-0017: Linien und Unterschied in kWh und %', ui.innerHTML.includes('class="vg-svg"') && /<b>\+[\d,]+ kWh<\/b>( \(\+\d+ %\))? zu /.test(ui.innerHTML));
     panel.s.kkUe.push(panel.kkGross({ k: 'v-eur', an: true, ids: C.slice(0, 2).map(b => b.id), zr: 'Tag', dia: false }, 'L'), panel.kkGross({ k: 'v-eur', an: true, ids: C.slice(0, 2).map(b => b.id), zr: 'Monat' }, 'M'));
-    panel.render(); await ruhe(20); pruefe('Vergleich Kosten');
+    await panel.neuZeichnen(); await ruhe(20); pruefe('Vergleich Kosten');
     erwarte('WU-0017: Tabelle mit „mehr“ und Kosten-Unterschied in €', ui.innerHTML.includes('<th>mehr</th>') && /<b>\+[\d,]+ €<\/b>/.test(ui.innerHTML));
     await klick({ act: 'kk-layout' }); await klick({ act: 'vg-art-k', ort: 'ue', i: '0' }); erwarte('WU-0017: Balken/Linien in Anpassen', panel.kkListe('ue')[0].art === 'balken');
     await klick({ act: 'kk-layout' }); await klick({ act: 'kk-auf', ort: 'ue', i: '0' }, 10);
@@ -799,13 +800,13 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   { await klick({ act: 'melden' }, 10); pruefe('Melden mit Screenshot');
     erwarte('WU-0016: Screenshot-Bereich mit Bild wählen', ui.innerHTML.includes('📷 Screenshot') && ui.innerHTML.includes('type="file"') && ui.innerHTML.includes('0 von 3'));
     const bild = { url: 'data:image/jpeg;base64,AAAA', b: 900, h: 1600, kb: 120 };
-    panel.s.sheet.form.bilder = [bild, { ...bild }, { ...bild, b: 1600, h: 1000 }]; panel.s.sheet.form.text = 'Test mit Bildern'; panel.render(); pruefe('Melden 3 Bilder');
+    panel.s.sheet.form.bilder = [bild, { ...bild }, { ...bild, b: 1600, h: 1000 }]; panel.s.sheet.form.text = 'Test mit Bildern'; await panel.neuZeichnen(); pruefe('Melden 3 Bilder');
     erwarte('WU-0016: 3 Bilder, keine weiteren', (ui.innerHTML.match(/class="mb-bild[ "]/g) || []).length === 3 && !ui.innerHTML.includes('type="file"') && ui.innerHTML.includes('3 von 3'));
     await klick(ML.bildWeg); erwarte('WU-0016: ✕ entfernt ein Bild', panel.s.sheet.form.bilder.length === 2);
     neu(); await klick(ML.senden, 10);
     erwarte('WU-0016: Senden mit Bildern', letzte('baustelle/meldung').some(a => a.aktion === 'neu' && a.meldung.bilder && a.meldung.bilder.length === 2));
     meldungen[0].bilder = ['FE-0001-1.jpg']; delete panel.cache.meldungen;
-    await klick({ act: 'tab', v: 'einst' }, 10); await klick({ act: 'ev-gruppe', v: 'dev' }, 10); await klick({ act: 'ev-dev', v: 'meldungen' }, 30); await ruhe(20); panel.render(); pruefe('Meldungen mit Bild');
+    await klick({ act: 'tab', v: 'einst' }, 10); await klick({ act: 'ev-gruppe', v: 'dev' }, 10); await klick({ act: 'ev-dev', v: 'meldungen' }, 30); await ruhe(20); await panel.neuZeichnen(); pruefe('Meldungen mit Bild');
     erwarte('WU-0016: Vorschau in der Meldungsliste', ui.innerHTML.includes('data-act="m-bild"'));
     await klick({ act: 'm-bild', id: meldungen[0].id, i: '0' }, 10); pruefe('Bild groß'); erwarte('WU-0016: Bild groß', ui.innerHTML.includes('class="mb-gross"'));
     delete meldungen[0].bilder; delete panel.cache.meldungen; await klick({ act: 'zu' }); }
@@ -916,7 +917,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const neuK = panel.kkListe('ue').at(-1);
     erwarte('WU-0014: Kachel hinzugefügt (L mit Diagramm, je Container)', panel.kkListe('ue').length === n0 + 1 && neuK.k === 'c-verbrauch' && neuK.st === 'L' && neuK.dia === true && neuK.id && !panel.s.sheet);
     panel.s.kkUe = keys.flatMap(k => ['S', 'M', 'L'].map(st => panel.kkGross({ k, an: true, dia: true }, st)));
-    panel.render(); await ruhe(30); pruefe('Übersicht mit allen Kacheln');
+    await panel.neuZeichnen(); await ruhe(30); pruefe('Übersicht mit allen Kacheln');
     erwarte('WU-0014: alle Kacheln gezeigt', (ui.innerHTML.match(/data-act="kk-auf" data-ort="ue"/g) || []).length === keys.length * 3);
     for (let i = 0; i < keys.length; i++) { await klick({ act: 'tab', v: 'uebersicht' }, 10); await klick({ act: 'kk-auf', ort: 'ue', i: String(i * 3) }, 20); pruefe(`Kachel ${keys[i]} geöffnet`, { laedtErlaubt: true });
       erwarte(`WU-0014: ${keys[i]} öffnet eine Ansicht`, panel.s.sheet || panel.s.view !== 'uebersicht'); await klick({ act: 'zu' }, 5); }
@@ -978,7 +979,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       daten.innerHTML = 'ALT'; wert.textContent = 'ALT'; ereignis.feld({ lh: '' }, '0', 'change'); await ruhe(30);
       erwarte('WU-0012: nur der Datenteil wird getauscht', daten.isConnected && regler && regler.isConnected && daten.innerHTML !== 'ALT'
         && panel.shadowRoot.querySelector('.lh-wert') === wert && wert.textContent === '00:00–01:00');
-      panel.render(); await ruhe(); }
+      await panel.neuZeichnen(); await ruhe(); }
     neu(); await klick({ act: 'lh-art', v: 'tag' }, 30); pruefe('Leistung ganzer Tag');
     const tagAuf = alleAufrufe.filter(m => m.type === 'baustelle/verlauf' && (m.entity_ids || []).some(e => e.includes('leistung') || e.includes('power'))).at(-1);
     erwarte('WU-0011: ganzer Tag 0–24 Uhr (eine Abfrage für den Tag)', ui.innerHTML.includes('ganzer Tag') && !ui.innerHTML.includes('data-lh') && tagAuf && panel.lokal(Date.parse(tagAuf.start_time), panel.z.zone).slice(11, 16) === '00:00');
@@ -1021,7 +1022,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         erwarte('Szenarien: Nennleistung ohne Messung einstellbar', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `geraete.${g2.id}.nenn_kw`)); }
       await klick({ act: 'zu' }, 5);
       c.stufen = { an: true, haupt: [b0.geraete.filter(g => g.heizer)[0].id], zusatz: [g2.id], zusatz_an: false, grund: null, text: '' };
-      panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen(); panel.render(); await ruhe();
+      panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen(); await panel.neuZeichnen(); await ruhe();
       erwarte('AN-0006: Chip zeigt „Zusatz – wartet“', ui.innerHTML.includes('Zusatz – wartet, einer reicht') && ui.innerHTML.includes(' · Haupt'));
       Object.keys(c).forEach(k => delete c[k]); Object.assign(c, alt); panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen();
       await klick({ act: 'tab', v: 'uebersicht' }, 10);
@@ -1194,7 +1195,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     panel.cache[`v:dobl:${panel.d.z.HEUTE}`] = { daten: { ...(panel.verlaufDaten(panel.d) || {}), je_tag: { [panel.d.z.HEUTE]: 12.5 } }, zeit: Date.now(), laeuft: false };
     await klick({ act: 'vl-reiter', v: 'prot' }, 20); pruefe('Verlauf Chronik');
     erwarte('WU-0006: Chronik mit Tagessumme', /12,5 kWh · /.test(ui.innerHTML) && ui.innerHTML.includes('vl-tag-kopf'));
-    panel.eingabe({ target: { dataset: { vls: '' }, value: 'zzzz-nichts' } }); erwarte('WU-0006: Suche', /Nichts gefunden/.test(ui.innerHTML));
+    eingabe({ vls: '' }, 'zzzz-nichts'); await ruhe(); erwarte('WU-0006: Suche', /Nichts gefunden/.test(ui.innerHTML));
     panel.eingabe({ target: { dataset: { vls: '' }, value: '' } }); await klick({ act: 'vl-reiter', v: 'bs' });
     await klick({ act: 'bs-oeffnen', id: 'lieboch' }, 40); const bd = ui.innerHTML, L = fall('kennzahlen', 'lieboch'), M = fall('monate', 'lieboch');
     erwarte('Detailseite: Kennzahlen und Verbrauch je Monat der Integration', bd.includes(`<b>${deT(L.kwh, 0)}</b><span>kWh`) && M.reihen.every(r => bd.includes(`<span class="n">${esc(r.name)}</span>`)));

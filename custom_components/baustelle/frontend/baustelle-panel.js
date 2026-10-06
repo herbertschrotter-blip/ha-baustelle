@@ -109,14 +109,14 @@ var stdMin = (h3) => {
 var MONATE = ["Jän", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 var MONATE_LANG = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 var summe = (a3) => (a3 || []).reduce((x2, v2) => x2 + (zahl(v2) ? Number(v2) : 0), 0);
-var addieren = (arr) => arr.length ? arr.reduce((a3, w2) => a3.map((v2, i6) => v2 + (w2[i6] || 0))) : [];
+var addieren = (arr) => arr.length ? arr.reduce((a3, w2) => a3.map((v2, i7) => v2 + (w2[i7] || 0))) : [];
 var erkl = (an, text) => an ? `<div class="erkl">ⓘ ${text}</div>` : "";
 var knopf2 = (t5, act, text) => `<button class="knopf leise-k" data-act="${act}" data-t="${esc(text)}">${t5}</button>`;
 var schalter = (on, act, extra = "") => `<button class="sw ${on ? "on" : ""}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
 var verNeuer = (a3, b3) => {
   const x2 = String(a3 || "").split(".").map(Number), y3 = String(b3 || "").split(".").map(Number);
-  for (let i6 = 0; i6 < Math.max(x2.length, y3.length); i6++) {
-    const d3 = (x2[i6] || 0) - (y3[i6] || 0);
+  for (let i7 = 0; i7 < Math.max(x2.length, y3.length); i7++) {
+    const d3 = (x2[i7] || 0) - (y3[i7] || 0);
     if (Number.isNaN(d3)) return false;
     if (d3) return d3 > 0;
   }
@@ -125,7 +125,7 @@ var verNeuer = (a3, b3) => {
 
 // src/himmel.js
 var HIMMEL_FS = "// Hintergrund „Himmel hinter einer Glasscheibe“: Stimmung nach Tageszeit und Wetter.\n// Eigene Umsetzung (WebGL 1 / GLSL ES 1.0). Einheiten: CSS-Pixel, y nach unten.\n#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n\nuniform vec2 uRes;        // Gerätepixel\nuniform float uDpr;\nuniform float uTime;      // Sekunden\nuniform vec3 uG1, uG2, uG3, uF1, uF2, uF3;   // Verlauf und Lichtflecken der Stimmung\nuniform float uBlobA, uSat;\nuniform vec3 uDunstC; uniform float uDunst;\nuniform vec3 uWolkeD, uWolkeH, uNebelC;\nuniform float uWolken, uRegen, uSchnee, uNebel, uSonne, uNachtKlar, uBlitz, uBlitzX;\nuniform vec2 uSonnePos; uniform vec3 uSonneF;\nuniform vec2 uMondPos; uniform float uMondK, uMondSeite;   // Mond: Ort, cos(2π·Mondalter), +1 zunehmend / −1 abnehmend\n\nvec2 R;\n\nfloat h11(float p) { p = fract(p * .1031); p *= p + 33.33; p *= p + p; return fract(p); }\nvec3 h31(float p) { vec3 q = fract(vec3(p) * vec3(.1031, .1030, .0973)); q += dot(q, q.yzx + 33.33); return fract((q.xxy + q.yzz) * q.zyx); }\nfloat h21(vec2 p) { vec3 q = fract(vec3(p.xyx) * .1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }\nfloat rausch(vec2 p) {\n  vec2 i = floor(p), f = fract(p), u = f * f * (3. - 2. * f);\n  return mix(mix(h21(i), h21(i + vec2(1., 0.)), u.x), mix(h21(i + vec2(0., 1.)), h21(i + vec2(1., 1.)), u.x), u.y);\n}\nfloat fbm(vec2 p) {\n  float s = 0., a = .5;\n  for (int i = 0; i < 5; i++) { s += a * rausch(p); p = p * 2.03 + vec2(1.7, 9.2); a *= .5; }\n  return s;\n}\n\nvec3 fleck(vec3 col, vec3 f, vec2 c, float r, float ph, vec2 p) {\n  float k = .5 - .5 * cos(6.2832 * uTime / 14. + ph);\n  c += vec2(30., 40.) * k; r *= 1. + .15 * k;\n  float g = dot(f, vec3(.299, .587, .114));\n  f = mix(vec3(g), f, uSat);\n  float d = length(p - c) / (r + 60.);\n  return mix(col, f, uBlobA * exp(-d * d * 2.2));\n}\n\nvec3 grund(vec2 p) {\n  float a = radians(165.);\n  vec2 dir = vec2(sin(a), -cos(a));\n  float t = clamp(dot(p - R * .5, dir) / (abs(R.x * dir.x) + abs(R.y * dir.y)) + .5, 0., 1.);\n  vec3 col = t < .5 ? mix(uG1, uG2, t * 2.) : mix(uG2, uG3, t * 2. - 1.);\n  col = fleck(col, uF1, vec2(70., 70.), 130., 0., p);\n  col = fleck(col, uF2, vec2(R.x - 40., 420.), 120., -2.244, p);\n  col = fleck(col, uF3, vec2(140., R.y - 60.), 100., -4.039, p);\n  return col;\n}\n\n/* Alles hinter der Scheibe */\nvec3 szene(vec2 p) {\n  vec2 uv = p / R;\n  vec3 col = grund(p);\n\n  if (uSonne > .01) {\n    vec2 d = p - uSonnePos * R;\n    float r = length(d) / R.y;\n    float ang = atan(d.y, d.x);\n    float strahl = pow(rausch(vec2(ang * 11., uTime * .04)), 4.) * exp(-r * 4.) * smoothstep(.02, .08, r) * .05;\n    // gedämpft, damit die Schrift auf dem Glas davor lesbar bleibt\n    col += uSonneF * (exp(-r * 7.) * .08 + exp(-r * 30.) * .14 + strahl) * uSonne;\n    col = mix(col, vec3(1., .98, .93), smoothstep(.016, .011, r) * .55 * uSonne);\n  }\n\n  if (uNachtKlar > .01) {\n    vec2 id = floor(p / 26.), f = fract(p / 26.) - .5;\n    vec3 n = h31(id.x * 57.3 + id.y * 113.1);\n    float s = smoothstep(.05 + .05 * n.z, 0., length(f - (n.xy - .5) * .7)) * step(.6, n.z);\n    s *= .55 + .45 * sin(uTime * (1. + n.x * 3.) + n.y * 6.28);\n    col += vec3(.9, .95, 1.) * s * smoothstep(.9, .25, uv.y) * uNachtKlar;\n    vec2 mp = uMondPos * R, mq = (p - mp) / 20.;\n    float mr = length(p - mp), anteil = .5 - .5 * uMondK;   // beleuchteter Anteil der Scheibe\n    col += vec3(.55, .65, .9) * exp(-mr / 70.) * .35 * (.2 + .8 * anteil) * uNachtKlar;\n    float scheibe = smoothstep(21., 19.5, mr);\n    // Schattengrenze: beleuchtet, wo x (zur Lichtseite) über uMondK·√(1−y²) liegt\n    float grenze = uMondK * sqrt(max(1. - mq.y * mq.y, 0.));\n    float licht = smoothstep(grenze - .06, grenze + .06, mq.x * uMondSeite);\n    vec3 mf = vec3(.95, .94, .88) - fbm((p - mp) * .14) * .3;\n    col = mix(col, mix(col * .75 + mf * .06, mf, licht), scheibe * uNachtKlar);\n  }\n\n  if (uWolken > .01) {\n    vec2 q = uv * vec2(R.x / R.y, 1.) * 2.4 + vec2(uTime * .015, 0.);\n    float w = fbm(q + fbm(q * 1.6 + vec2(0., uTime * .02)) * 1.3);\n    float bed = mix(.62, .22, clamp(uWolken, 0., 1.));\n    float dichte = smoothstep(bed, bed + .38, w) * (1. - .35 * uv.y);\n    float licht = smoothstep(.3, .85, fbm(q * 2.1 + vec2(3.1, -uTime * .01)) * .6 + (w - bed) * .9);\n    vec3 wf = mix(uWolkeD, uWolkeH, licht);\n    wf += vec3(.8, .84, 1.) * uBlitz * (.25 + licht * .55) * .6;\n    col = mix(col, wf, clamp(dichte * uWolken * 1.15, 0., 1.));\n  }\n\n  if (uBlitz > .01) {\n    float y = uv.y;\n    float x = uBlitzX * R.x + (fbm(vec2(y * 7., uBlitzX * 40.)) - .5) * 160. + (rausch(vec2(y * 40., uBlitzX * 9.)) - .5) * 18.;\n    float strahl = smoothstep(2.5, 0., abs(p.x - x)) + smoothstep(14., 0., abs(p.x - x)) * .35;\n    col += vec3(.9, .92, 1.) * strahl * smoothstep(.62, .45, y) * uBlitz;\n    col += uBlitz * .05;\n  }\n\n  if (uRegen > .01) {\n    vec2 rp = vec2(p.x + p.y * .2, p.y);\n    float sp = floor(rp.x / 5.);\n    vec3 n = h31(sp * 13.7 + 2.);\n    float y = fract(rp.y / (R.y * .7) - uTime * (1.1 + n.x * .8) + n.y);\n    float strich = smoothstep(0., .015, y) * smoothstep(.16, .02, y) * smoothstep(.22, 0., abs(fract(rp.x / 5.) - .5));\n    col += vec3(.75, .82, .95) * strich * step(n.z, .28 * min(uRegen, 1.4)) * .16;\n  }\n\n  if (uNebel > .01) {\n    vec2 q = uv * vec2(R.x / R.y, 1.) * 2.2;\n    float n1 = fbm(q * vec2(.7, 1.5) + vec2(uTime * .03, 0.));\n    float n2 = fbm(q * vec2(1.4, 2.6) - vec2(uTime * .055, uTime * .01) + 5.2);\n    float dichte = smoothstep(.32, .8, n1 * .55 + n2 * .55);\n    vec3 nf = mix(uNebelC * .92, uNebelC * 1.18, dichte);\n    col = mix(col, nf, clamp(.3 + dichte * .6 * (.55 + .45 * uv.y), 0., 1.) * uNebel);\n  }\n\n  if (uSchnee > .01) {\n    for (int k = 0; k < 3; k++) {\n      float fk = float(k) / 2.;\n      float zelle = mix(95., 26., fk), rad = mix(4.2, 1.1, fk), v = mix(62., 22., fk), weich = mix(3.2, .6, fk);\n      vec2 q = p + vec2(sin(uTime * .4 + fk * 3.) * 24., -uTime * v);\n      vec2 id = floor(q / zelle), f = q - (id + .5) * zelle;\n      vec3 n = h31(id.x * 31.7 + id.y * 17.3 + fk * 71.);\n      vec2 o = (n.xy - .5) * zelle * .7 + vec2(sin(uTime * (.7 + n.z) + n.x * 6.28) * zelle * .12, 0.);\n      float fl = smoothstep(rad + weich, rad - weich * .3, length(f - o)) * step(n.z, .8);\n      col = mix(col, vec3(1.), fl * mix(.8, .55, fk) * uSchnee);\n    }\n  }\n\n  return mix(col, uDunstC, uDunst);\n}\n\n/* Tropfen auf der Scheibe: xy = Versatz für die Brechung, z = Wasser, w = klares Glas */\nvec4 laufend(vec2 p) {\n  float cw = 32.;\n  float spalte = floor(p.x / cw);\n  vec3 n = h31(spalte * 17.13 + 3.1);\n  if (n.x > .45 * uRegen) return vec4(0.);\n  float x0 = (spalte + .5) * cw + (n.y - .5) * cw * .18;\n  float dauer = mix(4.5, 9., n.z) / max(uRegen, .6);\n  float k = uTime / dauer + n.x * 7.;\n  vec3 m = h31(spalte * 3.7 + floor(k) * 11.9);\n  float stufen = 7.;\n  float g = fract(k) * stufen;\n  g = (floor(g) + smoothstep(.5, 1., fract(g))) / stufen;\n  float yK = mix(-.08, 1.12, g) * R.y;\n  float r = mix(4.5, 8.5, m.x);\n  float xl = x0 + sin(p.y * .02 + m.y * 6.) * 2.5;\n  vec2 q = vec2(p.x - xl, p.y - yK);\n  q.y *= q.y < 0. ? .6 : 1.05;\n  float wasser = smoothstep(1., .85, length(q) / r);\n  vec2 v = q / r;\n  float oben = yK - p.y;\n  float lang = mix(70., 200., m.z);\n  float xs = abs(p.x - xl);\n  float inSpur = step(0., oben) * smoothstep(lang, 0., oben);\n  float abst = 15.;\n  float yr = mod(oben, abst) - abst * .5;\n  float rr = r * .42 * inSpur * (.55 + .45 * h11(floor(oben / abst) + spalte * 7.));\n  vec2 qr = vec2(p.x - xl, yr);\n  float perle = rr > .2 ? smoothstep(rr, rr * .7, length(qr)) * step(abst * .7, oben) : 0.;\n  if (perle > wasser) { wasser = perle; v = qr / max(rr, .5); }\n  float klar = max(smoothstep(r * .55, r * .25, xs) * step(0., oben) * smoothstep(lang * 1.4, 0., oben), wasser);\n  return vec4(v, wasser, klar);\n}\n\nvec4 stehend(vec2 p, float zelle, float rMin, float rMax, float dichte, float seed) {\n  vec2 id = floor(p / zelle);\n  vec3 n = h31(id.x * 127.1 + id.y * 311.7 + seed);\n  float per = mix(7., 15., n.z);\n  float t = uTime / per + n.x * 5.;\n  float leben = fract(t);\n  vec3 m = h31(id.x * 7.3 + id.y * 13.1 + seed + floor(t) * 1.7);\n  float r = mix(rMin, rMax, m.x) * smoothstep(0., .12, leben) * smoothstep(1., .85, leben) * step(n.y, dichte);\n  if (r < .3) return vec4(0.);\n  vec2 c = (id + .5) * zelle + (m.yz - .5) * (zelle - 2. * rMax) * .9;\n  vec2 q = p - c;\n  float wasser = smoothstep(r, r * .8, length(q));\n  return vec4(q / r, wasser, wasser);\n}\n\nvoid main() {\n  R = uRes / uDpr;\n  vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uDpr;\n  vec3 col = szene(p);\n  if (uRegen > .01) {\n    vec4 a = laufend(p);\n    vec4 b = stehend(p, 19., 1.2, 3.4, .5 + .3 * min(uRegen, 1.), 1.);\n    vec4 c = stehend(p, 40., 3.5, 8.5, .5 * min(uRegen, 1.), 7.);\n    float weg = a.w;\n    b.z *= 1. - weg; c.z *= 1. - weg;\n    vec4 w = a;\n    if (b.z > w.z) w = vec4(b.xy, b.z, max(a.w, b.z));\n    if (c.z > w.z) w = vec4(c.xy, c.z, max(a.w, c.z));\n    float wasser = w.z * min(uRegen, 1.);\n    if (wasser > .01) {\n      vec2 qn = w.xy;                                  // Lage im Tropfen, Mitte 0, Rand 1\n      float lq = length(qn);\n      // Linse: der Himmel erscheint verkleinert und auf dem Kopf\n      vec3 linse = szene(p - qn * 22. + vec2(0., -6.)) * 1.08;\n      linse *= 1. - .38 * smoothstep(.15, 1., -qn.y) * smoothstep(.4, 1., lq);   // oben dunkler Rand\n      linse += vec3(.9, .95, 1.) * .22 * smoothstep(.1, .9, qn.y) * smoothstep(1., .75, lq); // unten helle Sichel\n      linse *= 1. - .25 * smoothstep(.72, 1., lq);                              // Kante\n      linse += vec3(1.) * .75 * smoothstep(.2, .04, length(qn - vec2(-.3, -.42))); // Glanzpunkt\n      col = mix(col, linse, wasser);\n      col *= 1. - .18 * smoothstep(.0, .5, wasser) * smoothstep(1., .5, wasser);   // Schatten am Außenrand\n    }\n    col *= 1. - .035 * max(a.w - wasser, 0.);         // nasse Spur hinter laufenden Tropfen\n    float beschlag = (1. - max(w.w, wasser)) * .07 * min(uRegen, 1.);\n    col = mix(col, uNebelC, beschlag);\n  }\n  if (uSchnee > .01) {\n    vec2 uv = p / R;\n    float rand = min(min(uv.x, 1. - uv.x) * R.x / R.y * 1.4, (1. - uv.y) * .8);\n    float eis = smoothstep(.09, 0., rand + (fbm(p * .018) - .5) * .14) * (.4 + .6 * uv.y);\n    float kristall = smoothstep(.55, .75, fbm(p * .12 + 3.)) * .5 + .5;\n    col = mix(col, vec3(.93, .97, 1.), eis * kristall * .6 * uSchnee);\n  }\n  gl_FragColor = vec4(col, 1.);\n}\n";
-var hex = (h3) => [1, 3, 5].map((i6) => parseInt(h3.slice(i6, i6 + 2), 16) / 255);
+var hex = (h3) => [1, 3, 5].map((i7) => parseInt(h3.slice(i7, i7 + 2), 16) / 255);
 var HIMMEL_FARBEN = {
   dunkel: {
     morgen: ["#2e2748", "#4a3150", "#6b4040", "#ff8a5c", "#6a7bd6", "#d07ab8"],
@@ -188,7 +188,7 @@ function himmelZielBei(hoehe, steigt, wetter, hell) {
   const anteil = (a4, b4) => Math.min(1, Math.max(0, (hoehe - a4) / (b4 - a4))), warm = steigt ? "morgen" : "abend";
   const [a3, b3, w2] = hoehe < 0 ? ["nacht", warm, anteil(-8, 0)] : [warm, "tag", anteil(4, 15)];
   const za = himmelZiel(a3, wetter, hell), zb = himmelZiel(b3, wetter, hell);
-  const m3 = (x2, y3) => Array.isArray(x2) ? x2.map((v2, i6) => v2 + (y3[i6] - v2) * w2) : x2 + (y3 - x2) * w2;
+  const m3 = (x2, y3) => Array.isArray(x2) ? x2.map((v2, i7) => v2 + (y3[i7] - v2) * w2) : x2 + (y3 - x2) * w2;
   return Object.fromEntries(Object.keys(za).map((n4) => [n4, m3(za[n4], zb[n4])]));
 }
 function himmelsBahn(sonne, jetzt = Date.now()) {
@@ -311,7 +311,7 @@ var Himmel = class _Himmel {
     const k2 = 1 - Math.exp(-dt / 0.9);
     for (const n4 in this.ziel) {
       const z2 = this.ziel[n4], j2 = this.jetzt[n4];
-      this.jetzt[n4] = Array.isArray(z2) ? z2.map((v2, i6) => j2[i6] + (v2 - j2[i6]) * k2) : j2 + (z2 - j2) * k2;
+      this.jetzt[n4] = Array.isArray(z2) ? z2.map((v2, i7) => j2[i7] + (v2 - j2[i7]) * k2) : j2 + (z2 - j2) * k2;
     }
     if (this.gewitter && !this.ruhig) {
       this.naechsterBlitz -= dt;
@@ -369,16 +369,16 @@ function linie(id, reihen, einheit, vb = null) {
   let lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.ceil(Math.max(...alle) / 5) * 5;
   if (hi === lo) hi = lo + 5;
   const n4 = (hi - lo) / 5;
-  const x2 = (i6) => L2 + i6 / 24 * (W - L2 - R2), y3 = (v2) => T2 + (1 - (v2 - lo) / (hi - lo)) * (H2 - T2 - U);
+  const x2 = (i7) => L2 + i7 / 24 * (W - L2 - R2), y3 = (v2) => T2 + (1 - (v2 - lo) / (hi - lo)) * (H2 - T2 - U);
   const raster = [...Array(n4 + 1)].map((_2, k2) => lo + k2 * 5).map((v2) => `<line x1="${L2}" x2="${W - R2}" y1="${y3(v2)}" y2="${y3(v2)}" class="gr"/><text x="${L2 - 5}" y="${y3(v2) + 3}" class="ax" text-anchor="end">${v2}°</text>`).join("");
   const achse = [0, 6, 12, 18, 24].map((h3) => `<text x="${x2(h3)}" y="${H2 - 6}" class="ax" text-anchor="middle">${String(h3).padStart(2, "0")}</text>`).join("");
-  const pfade = reihen.map((s4, k2) => `<path d="${s4.v.map((v2, i6) => !zahl(v2) ? "" : `${i6 && zahl(s4.v[i6 - 1]) ? "L" : "M"}${x2(i6).toFixed(1)} ${y3(v2).toFixed(1)}`).join("") || `M${L2} ${H2 - U}`}" fill="none" stroke="var(--s${k2 + 1})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join("");
+  const pfade = reihen.map((s4, k2) => `<path d="${s4.v.map((v2, i7) => !zahl(v2) ? "" : `${i7 && zahl(s4.v[i7 - 1]) ? "L" : "M"}${x2(i7).toFixed(1)} ${y3(v2).toFixed(1)}`).join("") || `M${L2} ${H2 - U}`}" fill="none" stroke="var(--s${k2 + 1})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join("");
   let flaeche2 = "", rechts = "", yv = null;
   if (vb && vb.length) {
     const roh = Math.max(...vb, 0.01) * 1.1 / n4, schritt = [0.1, 0.2, 0.25, 0.5, 1, 1.5, 2, 2.5, 5].find((st) => st >= roh) || 10, vmax = schritt * n4;
     yv = (v2) => T2 + (1 - v2 / vmax) * (H2 - T2 - U);
-    const wert = (i6) => vb[Math.min(i6, vb.length - 1)] || 0, k2 = reihen.length + 1;
-    const d3 = [...Array(25)].map((_2, i6) => `${i6 ? "L" : "M"}${x2(i6).toFixed(1)} ${yv(wert(i6)).toFixed(1)}`).join("");
+    const wert = (i7) => vb[Math.min(i7, vb.length - 1)] || 0, k2 = reihen.length + 1;
+    const d3 = [...Array(25)].map((_2, i7) => `${i7 ? "L" : "M"}${x2(i7).toFixed(1)} ${yv(wert(i7)).toFixed(1)}`).join("");
     flaeche2 = `<defs><linearGradient id="vbg-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--s${k2})" stop-opacity=".42"/><stop offset="1" stop-color="var(--s${k2})" stop-opacity=".06"/></linearGradient></defs>
       <path class="fl-flaeche" d="${d3}L${x2(24)} ${yv(0)}L${x2(0)} ${yv(0)}z" fill="url(#vbg-${id})"/><path class="fl-linie" d="${d3}" fill="none" stroke="var(--s${k2})" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>`;
     rechts = [...Array(n4 + 1)].map((_2, q) => q * schritt).map((v2) => `<text x="${W - R2 + 5}" y="${yv(v2) + 3}" class="ax">${de(v2, schritt < 1 ? schritt < 0.25 ? 1 : 2 : 0)}</text>`).join("") + `<text x="${W - R2 + 5}" y="${T2 - 7}" class="ax ax-e">kWh</text>`;
@@ -393,10 +393,10 @@ function linien(id, reihen, labels, jedes, titel) {
   const alle = reihen.flatMap((s4) => s4.v.filter(zahl));
   if (!alle.length) return '<div class="leer">Noch keine Werte</div>';
   const lo = Math.floor(Math.min(...alle) / 5) * 5, hi = Math.max(lo + 5, Math.ceil(Math.max(...alle) / 5) * 5);
-  const x2 = (i6) => L2 + i6 / Math.max(1, n4 - 1) * (W - L2 - R2), y3 = (v2) => T2 + (1 - (v2 - lo) / (hi - lo)) * (H2 - T2 - U);
+  const x2 = (i7) => L2 + i7 / Math.max(1, n4 - 1) * (W - L2 - R2), y3 = (v2) => T2 + (1 - (v2 - lo) / (hi - lo)) * (H2 - T2 - U);
   const raster = [...Array((hi - lo) / 5 + 1)].map((_2, k2) => lo + k2 * 5).map((v2) => `<line x1="${L2}" x2="${W - R2}" y1="${y3(v2)}" y2="${y3(v2)}" class="gr"/><text x="${L2 - 5}" y="${y3(v2) + 3}" class="ax" text-anchor="end">${v2}°</text>`).join("");
-  const achse = labels.map((t5, i6) => i6 % jedes ? "" : `<text x="${x2(i6)}" y="${H2 - 6}" class="ax" text-anchor="middle">${t5}</text>`).join("");
-  const pfade = reihen.map((s4) => `<path d="${s4.v.map((v2, i6) => !zahl(v2) ? "" : `${i6 && zahl(s4.v[i6 - 1]) ? "L" : "M"}${x2(i6).toFixed(1)} ${y3(v2).toFixed(1)}`).join("")}" fill="none" stroke="${s4.farbe}" stroke-width="${s4.aussen ? 1.5 : 2}" ${s4.aussen ? 'stroke-dasharray="4 4"' : ""} stroke-linejoin="round" stroke-linecap="round"/>`).join("");
+  const achse = labels.map((t5, i7) => i7 % jedes ? "" : `<text x="${x2(i7)}" y="${H2 - 6}" class="ax" text-anchor="middle">${t5}</text>`).join("");
+  const pfade = reihen.map((s4) => `<path d="${s4.v.map((v2, i7) => !zahl(v2) ? "" : `${i7 && zahl(s4.v[i7 - 1]) ? "L" : "M"}${x2(i7).toFixed(1)} ${y3(v2).toFixed(1)}`).join("")}" fill="none" stroke="${s4.farbe}" stroke-width="${s4.aussen ? 1.5 : 2}" ${s4.aussen ? 'stroke-dasharray="4 4"' : ""} stroke-linejoin="round" stroke-linecap="round"/>`).join("");
   CHARTS[id] = { art: "linien", x0: L2, x1: W - R2, W, n: n4, reihen, y: y3, unten: H2 - U, titel };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H2}">${raster}${achse}${pfade}<text x="${L2 - 5}" y="${T2 - 7}" class="ax ax-e" text-anchor="end">°C</text><g class="hover"></g></svg>
     <div class="legende">${reihen.map((s4) => `<span><i style="background:${s4.farbe}"></i>${esc(s4.name)}</span>`).join("")}</div>`;
@@ -406,10 +406,10 @@ function balken(id, werte, labels, einheit, d3 = 1) {
   const W = 320, H2 = 150, L2 = 28, R2 = 8, T2 = 10, U = 22, n4 = werte.length, hi = Math.max(...werte, 0) * 1.15 || 1;
   const bw = (W - L2 - R2) / n4, y3 = (v2) => T2 + (1 - v2 / hi) * (H2 - T2 - U), stufe = hi > 20 ? 10 : hi > 6 ? 2 : hi > 2 ? 1 : 0.5;
   const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_2, k2) => k2 * stufe).map((v2) => `<line x1="${L2}" x2="${W - R2}" y1="${y3(v2)}" y2="${y3(v2)}" class="gr"/><text x="${L2 - 5}" y="${y3(v2) + 3}" class="ax" text-anchor="end">${de(v2, stufe < 1 ? 1 : 0)}</text>`).join("");
-  const b3 = werte.map((v2, i6) => {
-    const h3 = H2 - U - y3(v2), bx = L2 + i6 * bw + 1, w2 = bw - 2;
-    return `${v2 > 0 ? `<path d="M${bx} ${H2 - U}V${y3(v2) + Math.min(4, h3)}q0 -4 4 -4h${w2 - 8}q4 0 4 4V${H2 - U}z" fill="var(--s1)" class="bar" data-i="${i6}"/>` : ""}
-      <text x="${bx + w2 / 2}" y="${H2 - 6}" class="ax" text-anchor="middle">${labels[i6]}</text>`;
+  const b3 = werte.map((v2, i7) => {
+    const h3 = H2 - U - y3(v2), bx = L2 + i7 * bw + 1, w2 = bw - 2;
+    return `${v2 > 0 ? `<path d="M${bx} ${H2 - U}V${y3(v2) + Math.min(4, h3)}q0 -4 4 -4h${w2 - 8}q4 0 4 4V${H2 - U}z" fill="var(--s1)" class="bar" data-i="${i7}"/>` : ""}
+      <text x="${bx + w2 / 2}" y="${H2 - 6}" class="ax" text-anchor="middle">${labels[i7]}</text>`;
   }).join("");
   CHARTS[id] = { art: "balken", werte, labels, einheit, d: d3 };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H2}">${raster}${b3}<rect class="treffer" x="0" y="0" width="0" height="0"/></svg>`;
@@ -423,8 +423,8 @@ function stufen(id, reihen, von, bis, einheit = "W", achse = null) {
   const achseSvg = marken.map(([t5, l4]) => `<text x="${x2(t5)}" y="${H2 - 6}" class="ax" text-anchor="middle">${l4}</text>`).join("");
   const pfade = reihen.map((r5) => {
     let d3 = "";
-    r5.punkte.forEach(([t5, v2], i6) => {
-      const nx = i6 + 1 < r5.punkte.length ? r5.punkte[i6 + 1][0] : bis;
+    r5.punkte.forEach(([t5, v2], i7) => {
+      const nx = i7 + 1 < r5.punkte.length ? r5.punkte[i7 + 1][0] : bis;
       if (!zahl(v2)) return;
       d3 += `${d3 ? "L" : "M"}${x2(t5).toFixed(1)} ${y3(v2).toFixed(1)}H${x2(nx).toFixed(1)}`;
     });
@@ -441,30 +441,30 @@ function streu(id, pkt, k2, d0) {
   const achse = tx.map((t5) => `<text x="${x2(t5)}" y="${H2 - 8}" class="ax" text-anchor="middle">${t5}°</text>`).join("");
   const t1 = -8, t22 = k2 < 0 ? Math.min(15, -d0 / k2) : 15;
   const trend = `<line x1="${x2(t1)}" y1="${y3(Math.max(0, Math.min(ymax, k2 * t1 + d0)))}" x2="${x2(t22)}" y2="${y3(Math.max(0, Math.min(ymax, k2 * t22 + d0)))}" stroke="var(--s2)" stroke-width="2" stroke-dasharray="5 4"/>`;
-  const punkte = pkt.map((q, i6) => `<circle class="punkt-s" data-i="${i6}" cx="${x2(q[0]).toFixed(1)}" cy="${y3(q[1]).toFixed(1)}" r="4.5" fill="var(--s1)"/>`).join("");
+  const punkte = pkt.map((q, i7) => `<circle class="punkt-s" data-i="${i7}" cx="${x2(q[0]).toFixed(1)}" cy="${y3(q[1]).toFixed(1)}" r="4.5" fill="var(--s1)"/>`).join("");
   CHARTS[id] = { art: "streu", pkt, x: x2, y: y3 };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H2}">${raster}${achse}<text x="${W - R2}" y="${H2 - 8}" class="ax" text-anchor="end" dx="0" opacity="0">.</text>${trend}${punkte}<g class="hover"></g></svg>
     <div class="legende"><span><i style="background:var(--s1)"></i>ein Heiztag</span><span><i style="background:var(--s2)"></i>Trend</span><span class="leise">x: Tagesmittel außen · y: kWh</span></div>`;
 }
 function flaeche(id, reihen, labels, einheit, jedes, vergleich = null) {
   const W = 320, H2 = 160, L2 = 30, R2 = 8, T2 = 10, U = 22, n4 = labels.length, viele = reihen.length > 1;
-  reihen = reihen.map((r5) => ({ ...r5, v: labels.map((_2, i6) => zahl(r5.v[i6]) ? Number(r5.v[i6]) : 0) }));
+  reihen = reihen.map((r5) => ({ ...r5, v: labels.map((_2, i7) => zahl(r5.v[i7]) ? Number(r5.v[i7]) : 0) }));
   let unten = Array(n4).fill(0);
   const lagen = reihen.map((r5) => {
-    const u3 = unten, o6 = r5.v.map((v2, i6) => u3[i6] + v2);
+    const u3 = unten, o6 = r5.v.map((v2, i7) => u3[i7] + v2);
     unten = o6;
     return { ...r5, u: u3, o: o6 };
   });
-  const vv = vergleich ? labels.map((_2, i6) => zahl(vergleich.v[i6]) ? Number(vergleich.v[i6]) : 0) : null;
+  const vv = vergleich ? labels.map((_2, i7) => zahl(vergleich.v[i7]) ? Number(vergleich.v[i7]) : 0) : null;
   const hi0 = Math.max(...unten, ...vv || [], 0) * 1.1 || 1;
   const stufe = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1e3, 2e3, 5e3].find((st) => hi0 / st <= 5) || 1e4, hi = Math.ceil(hi0 / stufe) * stufe;
-  const x2 = (i6) => L2 + i6 / Math.max(1, n4 - 1) * (W - L2 - R2), y3 = (v2) => T2 + (1 - v2 / hi) * (H2 - T2 - U);
+  const x2 = (i7) => L2 + i7 / Math.max(1, n4 - 1) * (W - L2 - R2), y3 = (v2) => T2 + (1 - v2 / hi) * (H2 - T2 - U);
   const raster = [...Array(Math.round(hi / stufe) + 1)].map((_2, k2) => k2 * stufe).map((v2) => `<line x1="${L2}" x2="${W - R2}" y1="${y3(v2)}" y2="${y3(v2)}" class="gr"/><text x="${L2 - 5}" y="${y3(v2) + 3}" class="ax" text-anchor="end">${de(v2, stufe < 1 ? 1 : 0)}</text>`).join("");
-  const achse = labels.map((t5, i6) => i6 % jedes ? "" : `<text x="${x2(i6)}" y="${H2 - 6}" class="ax" text-anchor="middle">${t5}</text>`).join("");
+  const achse = labels.map((t5, i7) => i7 % jedes ? "" : `<text x="${x2(i7)}" y="${H2 - 6}" class="ax" text-anchor="middle">${t5}</text>`).join("");
   const g2 = (k2) => `fl-${id.replace(/[^a-z0-9]/gi, "")}-${k2}`;
   const defs = lagen.map((r5, k2) => `<linearGradient id="${g2(k2)}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${r5.farbe}" stop-opacity="${viele ? 0.75 : 0.45}"/><stop offset="1" stop-color="${r5.farbe}" stop-opacity="${viele ? 0.45 : 0.03}"/></linearGradient>`).join("");
-  const linieD = (a3) => a3.map((v2, i6) => `${i6 ? "L" : "M"}${x2(i6).toFixed(1)} ${y3(v2).toFixed(1)}`).join("");
-  const zurueck = (a3) => a3.map((v2, i6) => [i6, v2]).reverse().map(([i6, v2]) => `L${x2(i6).toFixed(1)} ${y3(v2).toFixed(1)}`).join("");
+  const linieD = (a3) => a3.map((v2, i7) => `${i7 ? "L" : "M"}${x2(i7).toFixed(1)} ${y3(v2).toFixed(1)}`).join("");
+  const zurueck = (a3) => a3.map((v2, i7) => [i7, v2]).reverse().map(([i7, v2]) => `L${x2(i7).toFixed(1)} ${y3(v2).toFixed(1)}`).join("");
   const flaechen = lagen.map((r5, k2) => `<path class="fl-flaeche" style="animation-delay:${k2 * 40}ms" d="${linieD(r5.o)}${zurueck(r5.u)}z" fill="url(#${g2(k2)})"/>`).join("");
   const kanten = lagen.map((r5) => `<path class="fl-linie" d="${linieD(r5.o)}" fill="none" stroke="${viele ? "var(--trenn)" : r5.farbe}" stroke-width="${viele ? 1.5 : 2}" stroke-linejoin="round"/>`).join("");
   const oben = viele ? `<path d="${linieD(unten)}" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>` : "";
@@ -479,8 +479,8 @@ function funke(v2, farbe = "var(--s1)") {
   const w2 = 120, h3 = 40, z2 = v2.filter((x2) => x2 !== null);
   if (z2.length < 2) return "";
   const lo = Math.min(...z2), hi = Math.max(...z2), sp = hi - lo || 1;
-  const pts = v2.map((x2, i6) => x2 === null ? null : [i6 / (v2.length - 1) * w2, h3 - 3 - (x2 - lo) / sp * (h3 - 8)]).filter(Boolean);
-  const dL = pts.map((q, i6) => `${i6 ? "L" : "M"}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join("");
+  const pts = v2.map((x2, i7) => x2 === null ? null : [i7 / (v2.length - 1) * w2, h3 - 3 - (x2 - lo) / sp * (h3 - 8)]).filter(Boolean);
+  const dL = pts.map((q, i7) => `${i7 ? "L" : "M"}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join("");
   return `<svg class="kk-funke" viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none"><path d="${dL}L${pts.at(-1)[0].toFixed(1)} ${h3}L${pts[0][0].toFixed(1)} ${h3}z" fill="${farbe}" opacity=".2"/><path d="${dL}" fill="none" stroke="${farbe}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
 }
 var kkBalken = (zeilen, n4 = 99) => {
@@ -512,27 +512,27 @@ function rWolke(dx = 0, dy = 0, s4 = 1, dunkel = false) {
 }
 function rSonne(cx = 32, cy = 32, r5 = 11) {
   return `<circle class="wb-puls" cx="${cx}" cy="${cy}" r="${r5 * 2.2}" fill="url(#wrKorona)"/>
-    <g class="wi-dreh" style="transform-origin:${cx}px ${cy}px" opacity=".9">${[...Array(12)].map((_2, i6) => `<polygon points="${cx},${cy - 1.2} ${cx + r5 * 2.6},${cy} ${cx},${cy + 1.2}" fill="url(#wrStrahl)" transform="rotate(${i6 * 30} ${cx} ${cy})"/>`).join("")}</g>
+    <g class="wi-dreh" style="transform-origin:${cx}px ${cy}px" opacity=".9">${[...Array(12)].map((_2, i7) => `<polygon points="${cx},${cy - 1.2} ${cx + r5 * 2.6},${cy} ${cx},${cy + 1.2}" fill="url(#wrStrahl)" transform="rotate(${i7 * 30} ${cx} ${cy})"/>`).join("")}</g>
     <circle cx="${cx}" cy="${cy}" r="${r5}" fill="url(#wrKern)" filter="url(#wrGlow)"/>
     <circle cx="${cx + r5 * 1.6}" cy="${cy + r5 * 1.5}" r="2.2" fill="#fff" opacity=".3"/><circle cx="${cx + r5 * 2.2}" cy="${cy + r5 * 2.1}" r="1.3" fill="#fff" opacity=".25"/>`;
 }
 function wetterIcon(zustand, groesse = 64) {
-  const regen = (n4, schnell) => [...Array(n4)].map((_2, i6) => {
-    const x2 = 20 + i6 * (26 / Math.max(1, n4 - 1));
-    return `<line class="wi-tropfen" style="animation-delay:${(i6 * 0.23).toFixed(2)}s;animation-duration:${schnell ? 0.7 : 1}s" x1="${x2 + 2}" y1="44" x2="${x2 - 1}" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/>`;
+  const regen = (n4, schnell) => [...Array(n4)].map((_2, i7) => {
+    const x2 = 20 + i7 * (26 / Math.max(1, n4 - 1));
+    return `<line class="wi-tropfen" style="animation-delay:${(i7 * 0.23).toFixed(2)}s;animation-duration:${schnell ? 0.7 : 1}s" x1="${x2 + 2}" y1="44" x2="${x2 - 1}" y2="55" stroke="url(#wrRegen)" stroke-width="1.8" stroke-linecap="round"/>`;
   }).join("");
-  const kristall = (x2, y3, i6) => `<g class="wi-flocke" style="animation-delay:${(i6 * 0.8).toFixed(1)}s"><g class="wr-kristall" style="transform-origin:${x2}px ${y3}px">
+  const kristall = (x2, y3, i7) => `<g class="wi-flocke" style="animation-delay:${(i7 * 0.8).toFixed(1)}s"><g class="wr-kristall" style="transform-origin:${x2}px ${y3}px">
     ${[0, 60, 120].map((w2) => `<g transform="rotate(${w2} ${x2} ${y3})" stroke="#e8f4ff" stroke-width="1.1" stroke-linecap="round"><line x1="${x2}" y1="${y3 - 4}" x2="${x2}" y2="${y3 + 4}"/>
       <line x1="${x2}" y1="${y3 - 2.4}" x2="${x2 - 1.4}" y2="${y3 - 3.6}"/><line x1="${x2}" y1="${y3 - 2.4}" x2="${x2 + 1.4}" y2="${y3 - 3.6}"/>
       <line x1="${x2}" y1="${y3 + 2.4}" x2="${x2 - 1.4}" y2="${y3 + 3.6}"/><line x1="${x2}" y1="${y3 + 2.4}" x2="${x2 + 1.4}" y2="${y3 + 3.6}"/></g>`).join("")}
     <circle cx="${x2}" cy="${y3}" r="1" fill="#fff"/></g></g>`;
   const blitz = `<g class="wi-blitz" filter="url(#wrGlow)"><path d="M34 38l-7 9 5 .5-5 10 11-12-5-.5 5-7z" fill="#fffde7" stroke="#b39ddb" stroke-width=".8" stroke-linejoin="round"/></g>`;
-  const nebel = `<g filter="url(#wrNebel)" opacity=".85">${[46, 52, 58].map((y3, i6) => `<rect class="wi-nebel" style="animation-delay:${i6 * 1.1}s" x="${8 + i6 * 2}" y="${y3 - 3}" width="${48 - i6 * 4}" height="6" rx="3" fill="var(--wr-nebel)"/>`).join("")}</g>`;
+  const nebel = `<g filter="url(#wrNebel)" opacity=".85">${[46, 52, 58].map((y3, i7) => `<rect class="wi-nebel" style="animation-delay:${i7 * 1.1}s" x="${8 + i7 * 2}" y="${y3 - 3}" width="${48 - i7 * 4}" height="6" rx="3" fill="var(--wr-nebel)"/>`).join("")}</g>`;
   const mond = `<circle cx="34" cy="30" r="21" fill="url(#wrKorona)" opacity=".45"/><circle cx="34" cy="30" r="15" fill="url(#wrMond)" filter="url(#wrGlow)"/>
     ${[[29, 25, 2.6], [39, 33, 2], [33, 37, 1.6], [37, 23, 1.3]].map(([x2, y3, r5]) => `<circle cx="${x2}" cy="${y3}" r="${r5}" fill="#cbb46a" opacity=".45"/>`).join("")}
-    ${[[10, 12], [18, 50], [54, 10], [56, 50], [8, 34]].map(([x2, y3], i6) => `<circle class="wi-stern" style="animation-delay:${i6 * 0.6}s" cx="${x2}" cy="${y3}" r="1.1" fill="#fff8e1" filter="url(#wrGlow)"/>`).join("")}`;
-  const wind = `<g fill="none" stroke="var(--wr-wind)" stroke-linecap="round" filter="url(#wrWeich)" opacity=".8">${[[24, 40, 3], [34, 48, 2.2], [44, 34, 1.6]].map(([y3, l4, w2], i6) => `<path class="wi-wind" style="animation-delay:${i6 * 0.6}s" d="M${6 + i6 * 3} ${y3}q${l4 / 2} -5 ${l4} 0" stroke-width="${w2}"/>`).join("")}</g>`;
-  const hagel = [0, 1, 2, 3].map((i6) => `<circle class="wi-tropfen" style="animation-delay:${i6 * 0.3}s" cx="${20 + i6 * 8}" cy="52" r="2.3" fill="url(#wrEis)"/>`).join("");
+    ${[[10, 12], [18, 50], [54, 10], [56, 50], [8, 34]].map(([x2, y3], i7) => `<circle class="wi-stern" style="animation-delay:${i7 * 0.6}s" cx="${x2}" cy="${y3}" r="1.1" fill="#fff8e1" filter="url(#wrGlow)"/>`).join("")}`;
+  const wind = `<g fill="none" stroke="var(--wr-wind)" stroke-linecap="round" filter="url(#wrWeich)" opacity=".8">${[[24, 40, 3], [34, 48, 2.2], [44, 34, 1.6]].map(([y3, l4, w2], i7) => `<path class="wi-wind" style="animation-delay:${i7 * 0.6}s" d="M${6 + i7 * 3} ${y3}q${l4 / 2} -5 ${l4} 0" stroke-width="${w2}"/>`).join("")}</g>`;
+  const hagel = [0, 1, 2, 3].map((i7) => `<circle class="wi-tropfen" style="animation-delay:${i7 * 0.3}s" cx="${20 + i7 * 8}" cy="52" r="2.3" fill="url(#wrEis)"/>`).join("");
   const t5 = {
     sunny: rSonne(32, 32, 11),
     exceptional: rSonne(32, 32, 11),
@@ -543,7 +543,7 @@ function wetterIcon(zustand, groesse = 64) {
     fog: rWolke(0, -9, 0.85) + nebel,
     rainy: rWolke(0, -8) + regen(4),
     pouring: rWolke(0, -8, 1, true) + regen(7, true),
-    snowy: rWolke(0, -8) + [0, 1, 2].map((i6) => kristall(22 + i6 * 10, 51, i6)).join(""),
+    snowy: rWolke(0, -8) + [0, 1, 2].map((i7) => kristall(22 + i7 * 10, 51, i7)).join(""),
     "snowy-rainy": rWolke(0, -8) + regen(2) + kristall(36, 51, 1),
     hail: rWolke(0, -8, 1, true) + hagel,
     lightning: rWolke(0, -10, 1, true) + blitz,
@@ -585,16 +585,16 @@ function bcContainer(f3, zustand, b3) {
     const ges = frei.reduce((a3, [x2, y3]) => a3 + y3 - x2, 0), anz = frei.map(([x2, y3]) => fl.length * (y3 - x2) / ges);
     const n4 = anz.map(Math.floor);
     let rest = fl.length - n4.reduce((a3, b4) => a3 + b4, 0);
-    anz.map((v2, i6) => [v2 - Math.floor(v2), i6]).sort((a3, b4) => b4[0] - a3[0]).forEach(([, i6]) => {
+    anz.map((v2, i7) => [v2 - Math.floor(v2), i7]).sort((a3, b4) => b4[0] - a3[0]).forEach(([, i7]) => {
       if (rest > 0) {
-        n4[i6]++;
+        n4[i7]++;
         rest--;
       }
     });
     let k2 = 0;
-    frei.forEach(([x2, y3], i6) => {
-      const slot = (y3 - x2) / (n4[i6] || 1);
-      for (let j2 = 0; j2 < n4[i6]; j2++) platz.set(fl[k2++], { c: x2 + slot * (j2 + 0.5), bb: Math.max(8, Math.min(FB, slot - LUFT)) });
+    frei.forEach(([x2, y3], i7) => {
+      const slot = (y3 - x2) / (n4[i7] || 1);
+      for (let j2 = 0; j2 < n4[i7]; j2++) platz.set(fl[k2++], { c: x2 + slot * (j2 + 0.5), bb: Math.max(8, Math.min(FB, slot - LUFT)) });
     });
   }
   const lage = (el) => {
@@ -796,7 +796,7 @@ function bauen(r5, hass, ersatzZone) {
   const firmen = (e0.firmen && e0.firmen.length ? e0.firmen : [{ id: "eigen", name: "Eigene Firma", eigen: true }]).map((f3) => ({ ...f3 }));
   const zuordnung = e0.zuordnung || [], jetztMs = z2.jetztMs;
   const ebAlle = e0.bereiche || {}, cAlle = lz.container || {}, gAlle = lz.geraete || {};
-  const bereiche = (r5.bereiche || []).map((b3, i6) => {
+  const bereiche = (r5.bereiche || []).map((b3, i7) => {
     const eb = ebAlle[b3.id] || {}, c4 = cAlle[b3.id] || {}, pumpe = b3.art === "pumpenschacht";
     const geraete = (r5.geraete || []).filter((g2) => g2.bereich === b3.id).map((g2) => {
       const x2 = gAlle[g2.id] || {};
@@ -833,7 +833,7 @@ function bauen(r5, hass, ersatzZone) {
     return {
       id: b3.id,
       name: b3.name || b3.id,
-      f: zahl(b3.nr) ? Number(b3.nr) : i6,
+      f: zahl(b3.nr) ? Number(b3.nr) : i7,
       art: b3.art,
       pumpe,
       fuehler: b3.fuehler || null,
@@ -1071,23 +1071,23 @@ var u = { toAttribute(t5, s4) {
   }
   return t5;
 }, fromAttribute(t5, s4) {
-  let i6 = t5;
+  let i7 = t5;
   switch (s4) {
     case Boolean:
-      i6 = null !== t5;
+      i7 = null !== t5;
       break;
     case Number:
-      i6 = null === t5 ? null : Number(t5);
+      i7 = null === t5 ? null : Number(t5);
       break;
     case Object:
     case Array:
       try {
-        i6 = JSON.parse(t5);
+        i7 = JSON.parse(t5);
       } catch (t6) {
-        i6 = null;
+        i7 = null;
       }
   }
-  return i6;
+  return i7;
 } };
 var f = (t5, s4) => !i2(t5, s4);
 var b = { attribute: true, type: String, converter: u, reflect: false, useDefault: false, hasChanged: f };
@@ -1101,11 +1101,11 @@ var y = class extends HTMLElement {
   }
   static createProperty(t5, s4 = b) {
     if (s4.state && (s4.attribute = false), this._$Ei(), this.prototype.hasOwnProperty(t5) && ((s4 = Object.create(s4)).wrapped = true), this.elementProperties.set(t5, s4), !s4.noAccessor) {
-      const i6 = /* @__PURE__ */ Symbol(), h3 = this.getPropertyDescriptor(t5, i6, s4);
+      const i7 = /* @__PURE__ */ Symbol(), h3 = this.getPropertyDescriptor(t5, i7, s4);
       void 0 !== h3 && e2(this.prototype, t5, h3);
     }
   }
-  static getPropertyDescriptor(t5, s4, i6) {
+  static getPropertyDescriptor(t5, s4, i7) {
     const { get: e6, set: r5 } = h(this.prototype, t5) ?? { get() {
       return this[s4];
     }, set(t6) {
@@ -1113,7 +1113,7 @@ var y = class extends HTMLElement {
     } };
     return { get: e6, set(s5) {
       const h3 = e6?.call(this);
-      r5?.call(this, s5), this.requestUpdate(t5, h3, i6);
+      r5?.call(this, s5), this.requestUpdate(t5, h3, i7);
     }, configurable: true, enumerable: true };
   }
   static getPropertyOptions(t5) {
@@ -1128,31 +1128,31 @@ var y = class extends HTMLElement {
     if (this.hasOwnProperty(d("finalized"))) return;
     if (this.finalized = true, this._$Ei(), this.hasOwnProperty(d("properties"))) {
       const t6 = this.properties, s4 = [...r2(t6), ...o2(t6)];
-      for (const i6 of s4) this.createProperty(i6, t6[i6]);
+      for (const i7 of s4) this.createProperty(i7, t6[i7]);
     }
     const t5 = this[Symbol.metadata];
     if (null !== t5) {
       const s4 = litPropertyMetadata.get(t5);
-      if (void 0 !== s4) for (const [t6, i6] of s4) this.elementProperties.set(t6, i6);
+      if (void 0 !== s4) for (const [t6, i7] of s4) this.elementProperties.set(t6, i7);
     }
     this._$Eh = /* @__PURE__ */ new Map();
     for (const [t6, s4] of this.elementProperties) {
-      const i6 = this._$Eu(t6, s4);
-      void 0 !== i6 && this._$Eh.set(i6, t6);
+      const i7 = this._$Eu(t6, s4);
+      void 0 !== i7 && this._$Eh.set(i7, t6);
     }
     this.elementStyles = this.finalizeStyles(this.styles);
   }
   static finalizeStyles(s4) {
-    const i6 = [];
+    const i7 = [];
     if (Array.isArray(s4)) {
       const e6 = new Set(s4.flat(1 / 0).reverse());
-      for (const s5 of e6) i6.unshift(c(s5));
-    } else void 0 !== s4 && i6.push(c(s4));
-    return i6;
+      for (const s5 of e6) i7.unshift(c(s5));
+    } else void 0 !== s4 && i7.push(c(s4));
+    return i7;
   }
   static _$Eu(t5, s4) {
-    const i6 = s4.attribute;
-    return false === i6 ? void 0 : "string" == typeof i6 ? i6 : "string" == typeof t5 ? t5.toLowerCase() : void 0;
+    const i7 = s4.attribute;
+    return false === i7 ? void 0 : "string" == typeof i7 ? i7 : "string" == typeof t5 ? t5.toLowerCase() : void 0;
   }
   constructor() {
     super(), this._$Ep = void 0, this.isUpdatePending = false, this.hasUpdated = false, this._$Em = null, this._$Ev();
@@ -1168,7 +1168,7 @@ var y = class extends HTMLElement {
   }
   _$E_() {
     const t5 = /* @__PURE__ */ new Map(), s4 = this.constructor.elementProperties;
-    for (const i6 of s4.keys()) this.hasOwnProperty(i6) && (t5.set(i6, this[i6]), delete this[i6]);
+    for (const i7 of s4.keys()) this.hasOwnProperty(i7) && (t5.set(i7, this[i7]), delete this[i7]);
     t5.size > 0 && (this._$Ep = t5);
   }
   createRenderRoot() {
@@ -1183,35 +1183,35 @@ var y = class extends HTMLElement {
   disconnectedCallback() {
     this._$EO?.forEach((t5) => t5.hostDisconnected?.());
   }
-  attributeChangedCallback(t5, s4, i6) {
-    this._$AK(t5, i6);
+  attributeChangedCallback(t5, s4, i7) {
+    this._$AK(t5, i7);
   }
   _$ET(t5, s4) {
-    const i6 = this.constructor.elementProperties.get(t5), e6 = this.constructor._$Eu(t5, i6);
-    if (void 0 !== e6 && true === i6.reflect) {
-      const h3 = (void 0 !== i6.converter?.toAttribute ? i6.converter : u).toAttribute(s4, i6.type);
+    const i7 = this.constructor.elementProperties.get(t5), e6 = this.constructor._$Eu(t5, i7);
+    if (void 0 !== e6 && true === i7.reflect) {
+      const h3 = (void 0 !== i7.converter?.toAttribute ? i7.converter : u).toAttribute(s4, i7.type);
       this._$Em = t5, null == h3 ? this.removeAttribute(e6) : this.setAttribute(e6, h3), this._$Em = null;
     }
   }
   _$AK(t5, s4) {
-    const i6 = this.constructor, e6 = i6._$Eh.get(t5);
+    const i7 = this.constructor, e6 = i7._$Eh.get(t5);
     if (void 0 !== e6 && this._$Em !== e6) {
-      const t6 = i6.getPropertyOptions(e6), h3 = "function" == typeof t6.converter ? { fromAttribute: t6.converter } : void 0 !== t6.converter?.fromAttribute ? t6.converter : u;
+      const t6 = i7.getPropertyOptions(e6), h3 = "function" == typeof t6.converter ? { fromAttribute: t6.converter } : void 0 !== t6.converter?.fromAttribute ? t6.converter : u;
       this._$Em = e6;
       const r5 = h3.fromAttribute(s4, t6.type);
       this[e6] = r5 ?? this._$Ej?.get(e6) ?? r5, this._$Em = null;
     }
   }
-  requestUpdate(t5, s4, i6, e6 = false, h3) {
+  requestUpdate(t5, s4, i7, e6 = false, h3) {
     if (void 0 !== t5) {
       const r5 = this.constructor;
-      if (false === e6 && (h3 = this[t5]), i6 ??= r5.getPropertyOptions(t5), !((i6.hasChanged ?? f)(h3, s4) || i6.useDefault && i6.reflect && h3 === this._$Ej?.get(t5) && !this.hasAttribute(r5._$Eu(t5, i6)))) return;
-      this.C(t5, s4, i6);
+      if (false === e6 && (h3 = this[t5]), i7 ??= r5.getPropertyOptions(t5), !((i7.hasChanged ?? f)(h3, s4) || i7.useDefault && i7.reflect && h3 === this._$Ej?.get(t5) && !this.hasAttribute(r5._$Eu(t5, i7)))) return;
+      this.C(t5, s4, i7);
     }
     false === this.isUpdatePending && (this._$ES = this._$EP());
   }
-  C(t5, s4, { useDefault: i6, reflect: e6, wrapped: h3 }, r5) {
-    i6 && !(this._$Ej ??= /* @__PURE__ */ new Map()).has(t5) && (this._$Ej.set(t5, r5 ?? s4 ?? this[t5]), true !== h3 || void 0 !== r5) || (this._$AL.has(t5) || (this.hasUpdated || i6 || (s4 = void 0), this._$AL.set(t5, s4)), true === e6 && this._$Em !== t5 && (this._$Eq ??= /* @__PURE__ */ new Set()).add(t5));
+  C(t5, s4, { useDefault: i7, reflect: e6, wrapped: h3 }, r5) {
+    i7 && !(this._$Ej ??= /* @__PURE__ */ new Map()).has(t5) && (this._$Ej.set(t5, r5 ?? s4 ?? this[t5]), true !== h3 || void 0 !== r5) || (this._$AL.has(t5) || (this.hasUpdated || i7 || (s4 = void 0), this._$AL.set(t5, s4)), true === e6 && this._$Em !== t5 && (this._$Eq ??= /* @__PURE__ */ new Set()).add(t5));
   }
   async _$EP() {
     this.isUpdatePending = true;
@@ -1234,9 +1234,9 @@ var y = class extends HTMLElement {
         this._$Ep = void 0;
       }
       const t6 = this.constructor.elementProperties;
-      if (t6.size > 0) for (const [s5, i6] of t6) {
-        const { wrapped: t7 } = i6, e6 = this[s5];
-        true !== t7 || this._$AL.has(s5) || void 0 === e6 || this.C(s5, void 0, i6, e6);
+      if (t6.size > 0) for (const [s5, i7] of t6) {
+        const { wrapped: t7 } = i7, e6 = this[s5];
+        true !== t7 || this._$AL.has(s5) || void 0 === e6 || this.C(s5, void 0, i7, e6);
       }
     }
     let t5 = false;
@@ -1303,7 +1303,7 @@ var p2 = RegExp(`>|${f2}(?:([^\\s"'>=/]+)(${f2}*=${f2}*(?:[^
 var g = /'/g;
 var $ = /"/g;
 var y2 = /^(?:script|style|textarea|title)$/i;
-var x = (t5) => (i6, ...s4) => ({ _$litType$: t5, strings: i6, values: s4 });
+var x = (t5) => (i7, ...s4) => ({ _$litType$: t5, strings: i7, values: s4 });
 var b2 = x(1);
 var w = x(2);
 var T = x(3);
@@ -1311,44 +1311,44 @@ var E = /* @__PURE__ */ Symbol.for("lit-noChange");
 var A = /* @__PURE__ */ Symbol.for("lit-nothing");
 var C = /* @__PURE__ */ new WeakMap();
 var P = l2.createTreeWalker(l2, 129);
-function V(t5, i6) {
+function V(t5, i7) {
   if (!u2(t5) || !t5.hasOwnProperty("raw")) throw Error("invalid template strings array");
-  return void 0 !== e3 ? e3.createHTML(i6) : i6;
+  return void 0 !== e3 ? e3.createHTML(i7) : i7;
 }
-var N = (t5, i6) => {
+var N = (t5, i7) => {
   const s4 = t5.length - 1, e6 = [];
-  let n4, l4 = 2 === i6 ? "<svg>" : 3 === i6 ? "<math>" : "", c4 = v;
-  for (let i7 = 0; i7 < s4; i7++) {
-    const s5 = t5[i7];
+  let n4, l4 = 2 === i7 ? "<svg>" : 3 === i7 ? "<math>" : "", c4 = v;
+  for (let i8 = 0; i8 < s4; i8++) {
+    const s5 = t5[i8];
     let a3, u3, d3 = -1, f3 = 0;
     for (; f3 < s5.length && (c4.lastIndex = f3, u3 = c4.exec(s5), null !== u3); ) f3 = c4.lastIndex, c4 === v ? "!--" === u3[1] ? c4 = _ : void 0 !== u3[1] ? c4 = m : void 0 !== u3[2] ? (y2.test(u3[2]) && (n4 = RegExp("</" + u3[2], "g")), c4 = p2) : void 0 !== u3[3] && (c4 = p2) : c4 === p2 ? ">" === u3[0] ? (c4 = n4 ?? v, d3 = -1) : void 0 === u3[1] ? d3 = -2 : (d3 = c4.lastIndex - u3[2].length, a3 = u3[1], c4 = void 0 === u3[3] ? p2 : '"' === u3[3] ? $ : g) : c4 === $ || c4 === g ? c4 = p2 : c4 === _ || c4 === m ? c4 = v : (c4 = p2, n4 = void 0);
-    const x2 = c4 === p2 && t5[i7 + 1].startsWith("/>") ? " " : "";
-    l4 += c4 === v ? s5 + r3 : d3 >= 0 ? (e6.push(a3), s5.slice(0, d3) + h2 + s5.slice(d3) + o3 + x2) : s5 + o3 + (-2 === d3 ? i7 : x2);
+    const x2 = c4 === p2 && t5[i8 + 1].startsWith("/>") ? " " : "";
+    l4 += c4 === v ? s5 + r3 : d3 >= 0 ? (e6.push(a3), s5.slice(0, d3) + h2 + s5.slice(d3) + o3 + x2) : s5 + o3 + (-2 === d3 ? i8 : x2);
   }
-  return [V(t5, l4 + (t5[s4] || "<?>") + (2 === i6 ? "</svg>" : 3 === i6 ? "</math>" : "")), e6];
+  return [V(t5, l4 + (t5[s4] || "<?>") + (2 === i7 ? "</svg>" : 3 === i7 ? "</math>" : "")), e6];
 };
 var S2 = class _S {
-  constructor({ strings: t5, _$litType$: i6 }, e6) {
+  constructor({ strings: t5, _$litType$: i7 }, e6) {
     let r5;
     this.parts = [];
     let l4 = 0, a3 = 0;
-    const u3 = t5.length - 1, d3 = this.parts, [f3, v2] = N(t5, i6);
-    if (this.el = _S.createElement(f3, e6), P.currentNode = this.el.content, 2 === i6 || 3 === i6) {
+    const u3 = t5.length - 1, d3 = this.parts, [f3, v2] = N(t5, i7);
+    if (this.el = _S.createElement(f3, e6), P.currentNode = this.el.content, 2 === i7 || 3 === i7) {
       const t6 = this.el.content.firstChild;
       t6.replaceWith(...t6.childNodes);
     }
     for (; null !== (r5 = P.nextNode()) && d3.length < u3; ) {
       if (1 === r5.nodeType) {
         if (r5.hasAttributes()) for (const t6 of r5.getAttributeNames()) if (t6.endsWith(h2)) {
-          const i7 = v2[a3++], s4 = r5.getAttribute(t6).split(o3), e7 = /([.?@])?(.*)/.exec(i7);
+          const i8 = v2[a3++], s4 = r5.getAttribute(t6).split(o3), e7 = /([.?@])?(.*)/.exec(i8);
           d3.push({ type: 1, index: l4, name: e7[2], strings: s4, ctor: "." === e7[1] ? I : "?" === e7[1] ? L : "@" === e7[1] ? z : H }), r5.removeAttribute(t6);
         } else t6.startsWith(o3) && (d3.push({ type: 6, index: l4 }), r5.removeAttribute(t6));
         if (y2.test(r5.tagName)) {
-          const t6 = r5.textContent.split(o3), i7 = t6.length - 1;
-          if (i7 > 0) {
+          const t6 = r5.textContent.split(o3), i8 = t6.length - 1;
+          if (i8 > 0) {
             r5.textContent = s2 ? s2.emptyScript : "";
-            for (let s4 = 0; s4 < i7; s4++) r5.append(t6[s4], c3()), P.nextNode(), d3.push({ type: 2, index: ++l4 });
-            r5.append(t6[i7], c3());
+            for (let s4 = 0; s4 < i8; s4++) r5.append(t6[s4], c3()), P.nextNode(), d3.push({ type: 2, index: ++l4 });
+            r5.append(t6[i8], c3());
           }
         }
       } else if (8 === r5.nodeType) if (r5.data === n3) d3.push({ type: 2, index: l4 });
@@ -1359,20 +1359,20 @@ var S2 = class _S {
       l4++;
     }
   }
-  static createElement(t5, i6) {
+  static createElement(t5, i7) {
     const s4 = l2.createElement("template");
     return s4.innerHTML = t5, s4;
   }
 };
-function M(t5, i6, s4 = t5, e6) {
-  if (i6 === E) return i6;
+function M(t5, i7, s4 = t5, e6) {
+  if (i7 === E) return i7;
   let h3 = void 0 !== e6 ? s4._$Co?.[e6] : s4._$Cl;
-  const o6 = a2(i6) ? void 0 : i6._$litDirective$;
-  return h3?.constructor !== o6 && (h3?._$AO?.(false), void 0 === o6 ? h3 = void 0 : (h3 = new o6(t5), h3._$AT(t5, s4, e6)), void 0 !== e6 ? (s4._$Co ??= [])[e6] = h3 : s4._$Cl = h3), void 0 !== h3 && (i6 = M(t5, h3._$AS(t5, i6.values), h3, e6)), i6;
+  const o6 = a2(i7) ? void 0 : i7._$litDirective$;
+  return h3?.constructor !== o6 && (h3?._$AO?.(false), void 0 === o6 ? h3 = void 0 : (h3 = new o6(t5), h3._$AT(t5, s4, e6)), void 0 !== e6 ? (s4._$Co ??= [])[e6] = h3 : s4._$Cl = h3), void 0 !== h3 && (i7 = M(t5, h3._$AS(t5, i7.values), h3, e6)), i7;
 }
 var R = class {
-  constructor(t5, i6) {
-    this._$AV = [], this._$AN = void 0, this._$AD = t5, this._$AM = i6;
+  constructor(t5, i7) {
+    this._$AV = [], this._$AN = void 0, this._$AD = t5, this._$AM = i7;
   }
   get parentNode() {
     return this._$AM.parentNode;
@@ -1381,34 +1381,34 @@ var R = class {
     return this._$AM._$AU;
   }
   u(t5) {
-    const { el: { content: i6 }, parts: s4 } = this._$AD, e6 = (t5?.creationScope ?? l2).importNode(i6, true);
+    const { el: { content: i7 }, parts: s4 } = this._$AD, e6 = (t5?.creationScope ?? l2).importNode(i7, true);
     P.currentNode = e6;
     let h3 = P.nextNode(), o6 = 0, n4 = 0, r5 = s4[0];
     for (; void 0 !== r5; ) {
       if (o6 === r5.index) {
-        let i7;
-        2 === r5.type ? i7 = new k(h3, h3.nextSibling, this, t5) : 1 === r5.type ? i7 = new r5.ctor(h3, r5.name, r5.strings, this, t5) : 6 === r5.type && (i7 = new Z(h3, this, t5)), this._$AV.push(i7), r5 = s4[++n4];
+        let i8;
+        2 === r5.type ? i8 = new k(h3, h3.nextSibling, this, t5) : 1 === r5.type ? i8 = new r5.ctor(h3, r5.name, r5.strings, this, t5) : 6 === r5.type && (i8 = new Z(h3, this, t5)), this._$AV.push(i8), r5 = s4[++n4];
       }
       o6 !== r5?.index && (h3 = P.nextNode(), o6++);
     }
     return P.currentNode = l2, e6;
   }
   p(t5) {
-    let i6 = 0;
-    for (const s4 of this._$AV) void 0 !== s4 && (void 0 !== s4.strings ? (s4._$AI(t5, s4, i6), i6 += s4.strings.length - 2) : s4._$AI(t5[i6])), i6++;
+    let i7 = 0;
+    for (const s4 of this._$AV) void 0 !== s4 && (void 0 !== s4.strings ? (s4._$AI(t5, s4, i7), i7 += s4.strings.length - 2) : s4._$AI(t5[i7])), i7++;
   }
 };
 var k = class _k {
   get _$AU() {
     return this._$AM?._$AU ?? this._$Cv;
   }
-  constructor(t5, i6, s4, e6) {
-    this.type = 2, this._$AH = A, this._$AN = void 0, this._$AA = t5, this._$AB = i6, this._$AM = s4, this.options = e6, this._$Cv = e6?.isConnected ?? true;
+  constructor(t5, i7, s4, e6) {
+    this.type = 2, this._$AH = A, this._$AN = void 0, this._$AA = t5, this._$AB = i7, this._$AM = s4, this.options = e6, this._$Cv = e6?.isConnected ?? true;
   }
   get parentNode() {
     let t5 = this._$AA.parentNode;
-    const i6 = this._$AM;
-    return void 0 !== i6 && 11 === t5?.nodeType && (t5 = i6.parentNode), t5;
+    const i7 = this._$AM;
+    return void 0 !== i7 && 11 === t5?.nodeType && (t5 = i7.parentNode), t5;
   }
   get startNode() {
     return this._$AA;
@@ -1416,8 +1416,8 @@ var k = class _k {
   get endNode() {
     return this._$AB;
   }
-  _$AI(t5, i6 = this) {
-    t5 = M(this, t5, i6), a2(t5) ? t5 === A || null == t5 || "" === t5 ? (this._$AH !== A && this._$AR(), this._$AH = A) : t5 !== this._$AH && t5 !== E && this._(t5) : void 0 !== t5._$litType$ ? this.$(t5) : void 0 !== t5.nodeType ? this.T(t5) : d2(t5) ? this.k(t5) : this._(t5);
+  _$AI(t5, i7 = this) {
+    t5 = M(this, t5, i7), a2(t5) ? t5 === A || null == t5 || "" === t5 ? (this._$AH !== A && this._$AR(), this._$AH = A) : t5 !== this._$AH && t5 !== E && this._(t5) : void 0 !== t5._$litType$ ? this.$(t5) : void 0 !== t5.nodeType ? this.T(t5) : d2(t5) ? this.k(t5) : this._(t5);
   }
   O(t5) {
     return this._$AA.parentNode.insertBefore(t5, this._$AB);
@@ -1429,23 +1429,23 @@ var k = class _k {
     this._$AH !== A && a2(this._$AH) ? this._$AA.nextSibling.data = t5 : this.T(l2.createTextNode(t5)), this._$AH = t5;
   }
   $(t5) {
-    const { values: i6, _$litType$: s4 } = t5, e6 = "number" == typeof s4 ? this._$AC(t5) : (void 0 === s4.el && (s4.el = S2.createElement(V(s4.h, s4.h[0]), this.options)), s4);
-    if (this._$AH?._$AD === e6) this._$AH.p(i6);
+    const { values: i7, _$litType$: s4 } = t5, e6 = "number" == typeof s4 ? this._$AC(t5) : (void 0 === s4.el && (s4.el = S2.createElement(V(s4.h, s4.h[0]), this.options)), s4);
+    if (this._$AH?._$AD === e6) this._$AH.p(i7);
     else {
       const t6 = new R(e6, this), s5 = t6.u(this.options);
-      t6.p(i6), this.T(s5), this._$AH = t6;
+      t6.p(i7), this.T(s5), this._$AH = t6;
     }
   }
   _$AC(t5) {
-    let i6 = C.get(t5.strings);
-    return void 0 === i6 && C.set(t5.strings, i6 = new S2(t5)), i6;
+    let i7 = C.get(t5.strings);
+    return void 0 === i7 && C.set(t5.strings, i7 = new S2(t5)), i7;
   }
   k(t5) {
     u2(this._$AH) || (this._$AH = [], this._$AR());
-    const i6 = this._$AH;
+    const i7 = this._$AH;
     let s4, e6 = 0;
-    for (const h3 of t5) e6 === i6.length ? i6.push(s4 = new _k(this.O(c3()), this.O(c3()), this, this.options)) : s4 = i6[e6], s4._$AI(h3), e6++;
-    e6 < i6.length && (this._$AR(s4 && s4._$AB.nextSibling, e6), i6.length = e6);
+    for (const h3 of t5) e6 === i7.length ? i7.push(s4 = new _k(this.O(c3()), this.O(c3()), this, this.options)) : s4 = i7[e6], s4._$AI(h3), e6++;
+    e6 < i7.length && (this._$AR(s4 && s4._$AB.nextSibling, e6), i7.length = e6);
   }
   _$AR(t5 = this._$AA.nextSibling, s4) {
     for (this._$AP?.(false, true, s4); t5 !== this._$AB; ) {
@@ -1464,17 +1464,17 @@ var H = class {
   get _$AU() {
     return this._$AM._$AU;
   }
-  constructor(t5, i6, s4, e6, h3) {
-    this.type = 1, this._$AH = A, this._$AN = void 0, this.element = t5, this.name = i6, this._$AM = e6, this.options = h3, s4.length > 2 || "" !== s4[0] || "" !== s4[1] ? (this._$AH = Array(s4.length - 1).fill(new String()), this.strings = s4) : this._$AH = A;
+  constructor(t5, i7, s4, e6, h3) {
+    this.type = 1, this._$AH = A, this._$AN = void 0, this.element = t5, this.name = i7, this._$AM = e6, this.options = h3, s4.length > 2 || "" !== s4[0] || "" !== s4[1] ? (this._$AH = Array(s4.length - 1).fill(new String()), this.strings = s4) : this._$AH = A;
   }
-  _$AI(t5, i6 = this, s4, e6) {
+  _$AI(t5, i7 = this, s4, e6) {
     const h3 = this.strings;
     let o6 = false;
-    if (void 0 === h3) t5 = M(this, t5, i6, 0), o6 = !a2(t5) || t5 !== this._$AH && t5 !== E, o6 && (this._$AH = t5);
+    if (void 0 === h3) t5 = M(this, t5, i7, 0), o6 = !a2(t5) || t5 !== this._$AH && t5 !== E, o6 && (this._$AH = t5);
     else {
       const e7 = t5;
       let n4, r5;
-      for (t5 = h3[0], n4 = 0; n4 < h3.length - 1; n4++) r5 = M(this, e7[s4 + n4], i6, n4), r5 === E && (r5 = this._$AH[n4]), o6 ||= !a2(r5) || r5 !== this._$AH[n4], r5 === A ? t5 = A : t5 !== A && (t5 += (r5 ?? "") + h3[n4 + 1]), this._$AH[n4] = r5;
+      for (t5 = h3[0], n4 = 0; n4 < h3.length - 1; n4++) r5 = M(this, e7[s4 + n4], i7, n4), r5 === E && (r5 = this._$AH[n4]), o6 ||= !a2(r5) || r5 !== this._$AH[n4], r5 === A ? t5 = A : t5 !== A && (t5 += (r5 ?? "") + h3[n4 + 1]), this._$AH[n4] = r5;
     }
     o6 && !e6 && this.j(t5);
   }
@@ -1499,11 +1499,11 @@ var L = class extends H {
   }
 };
 var z = class extends H {
-  constructor(t5, i6, s4, e6, h3) {
-    super(t5, i6, s4, e6, h3), this.type = 5;
+  constructor(t5, i7, s4, e6, h3) {
+    super(t5, i7, s4, e6, h3), this.type = 5;
   }
-  _$AI(t5, i6 = this) {
-    if ((t5 = M(this, t5, i6, 0) ?? A) === E) return;
+  _$AI(t5, i7 = this) {
+    if ((t5 = M(this, t5, i7, 0) ?? A) === E) return;
     const s4 = this._$AH, e6 = t5 === A && s4 !== A || t5.capture !== s4.capture || t5.once !== s4.once || t5.passive !== s4.passive, h3 = t5 !== A && (s4 === A || e6);
     e6 && this.element.removeEventListener(this.name, this, s4), h3 && this.element.addEventListener(this.name, this, t5), this._$AH = t5;
   }
@@ -1512,8 +1512,8 @@ var z = class extends H {
   }
 };
 var Z = class {
-  constructor(t5, i6, s4) {
-    this.element = t5, this.type = 6, this._$AN = void 0, this._$AM = i6, this.options = s4;
+  constructor(t5, i7, s4) {
+    this.element = t5, this.type = 6, this._$AN = void 0, this._$AM = i7, this.options = s4;
   }
   get _$AU() {
     return this._$AM._$AU;
@@ -1525,12 +1525,12 @@ var Z = class {
 var j = { M: h2, P: o3, A: n3, C: 1, L: N, R, D: d2, V: M, I: k, H, N: L, U: z, B: I, F: Z };
 var B = t2.litHtmlPolyfillSupport;
 B?.(S2, k), (t2.litHtmlVersions ??= []).push("3.3.3");
-var D = (t5, i6, s4) => {
-  const e6 = s4?.renderBefore ?? i6;
+var D = (t5, i7, s4) => {
+  const e6 = s4?.renderBefore ?? i7;
   let h3 = e6._$litPart$;
   if (void 0 === h3) {
     const t6 = s4?.renderBefore ?? null;
-    e6._$litPart$ = h3 = new k(i6.insertBefore(c3(), t6), t6, void 0, s4 ?? {});
+    e6._$litPart$ = h3 = new k(i7.insertBefore(c3(), t6), t6, void 0, s4 ?? {});
   }
   return h3._$AI(t5), h3;
 };
@@ -1590,8 +1590,8 @@ var i5 = class {
   get _$AU() {
     return this._$AM._$AU;
   }
-  _$AT(t5, e6, i6) {
-    this._$Ct = t5, this._$AM = e6, this._$Ci = i6;
+  _$AT(t5, e6, i7) {
+    this._$Ct = t5, this._$AM = e6, this._$Ci = i7;
   }
   _$AS(t5, e6) {
     return this.update(t5, e6);
@@ -1608,8 +1608,8 @@ var i5 = class {
  * SPDX-License-Identifier: BSD-3-Clause
  */
 var e5 = class extends i5 {
-  constructor(i6) {
-    if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
+  constructor(i7) {
+    if (super(i7), this.it = A, i7.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
   }
   render(r5) {
     if (r5 === A || null == r5) return this._t = void 0, this.it = r5;
@@ -1623,6 +1623,35 @@ var e5 = class extends i5 {
 };
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
+
+// node_modules/lit-html/directive-helpers.js
+/**
+ * @license
+ * Copyright 2020 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+var { I: t4 } = j;
+var r4 = (o6) => void 0 === o6.strings;
+var m2 = {};
+var p3 = (o6, t5 = m2) => o6._$AH = t5;
+
+// node_modules/lit-html/directives/keyed.js
+/**
+ * @license
+ * Copyright 2021 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+var i6 = e4(class extends i5 {
+  constructor() {
+    super(...arguments), this.key = A;
+  }
+  render(r5, t5) {
+    return this.key = r5, t5;
+  }
+  update(r5, [t5, e6]) {
+    return t5 !== this.key && (p3(r5), this.key = t5), e6;
+  }
+});
 
 // src/ueber.js
 var NEU_GEPLANT = [
@@ -1639,8 +1668,8 @@ function ueberVorlage(p4, { mitZurueck = true } = {}) {
   const V2 = p4.version, cl = p4.changelog, offen = p4.s.cl ?? 0, eigen = cl && cl.find((c4) => c4.version === V2);
   const neu = eigen ? eigen.punkte : NEU_GEPLANT;
   const ha = p4.hass && p4.hass.config && p4.hass.config.version || "–";
-  const umschalten = (i6) => {
-    p4.s.cl = (p4.s.cl ?? 0) === i6 ? -1 : i6;
+  const umschalten = (i7) => {
+    p4.s.cl = (p4.s.cl ?? 0) === i7 ? -1 : i7;
     p4.litNeu();
   };
   return b2`${mitZurueck ? b2`<div class="zurueck-zeile"><button class="glas-panel chip" @click=${() => p4.gehe("einst")}>‹ Einstellungen</button></div>` : A}
@@ -1654,21 +1683,10 @@ function ueberVorlage(p4, { mitZurueck = true } = {}) {
         <div class="zeile"><span>Baustellen</span><span class="leise">${p4.alle.filter((b3) => b3.aktiv).length} laufend · ${p4.alle.filter((b3) => !b3.aktiv).length} abgeschlossen</span></div></div>
       <div class="glas-panel block"><div class="block-kopf"><b>Neu in ${V2}</b><span class="leise">${eigen ? datum(eigen.datum) : "geplant"}</span></div>${neu.map((n4) => b2`<div class="cl-punkt">${n4}</div>`)}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Verlauf</b><span class="leise">aus CHANGELOG.md</span></div>
-        ${cl === null ? b2`<div class="leer">Lädt …</div>` : !cl.length ? b2`<div class="leise">Kein Verlauf vorhanden</div>` : cl.map((c4, i6) => b2`<button class="zeile cl-v" aria-expanded=${offen === i6 ? "true" : "false"} @click=${() => umschalten(i6)}><span><b>${c4.version}</b> <span class="leise">${datum(c4.datum)}</span></span><span class="chev">${offen === i6 ? "⌄" : "›"}</span></button>
-          ${offen === i6 ? b2`<div class="cl-liste">${(c4.punkte || []).map((t5) => b2`<div class="cl-punkt">${t5}</div>`)}</div>` : A}`)}</div>
+        ${cl === null ? b2`<div class="leer">Lädt …</div>` : !cl.length ? b2`<div class="leise">Kein Verlauf vorhanden</div>` : cl.map((c4, i7) => b2`<button class="zeile cl-v" aria-expanded=${offen === i7 ? "true" : "false"} @click=${() => umschalten(i7)}><span><b>${c4.version}</b> <span class="leise">${datum(c4.datum)}</span></span><span class="chev">${offen === i7 ? "⌄" : "›"}</span></button>
+          ${offen === i7 ? b2`<div class="cl-liste">${(c4.punkte || []).map((t5) => b2`<div class="cl-punkt">${t5}</div>`)}</div>` : A}`)}</div>
       ${!p4.d || p4.d.e.melden ? b2`<button class="knopf" @click=${() => p4.meldenAuf()}>Fehler, Wunsch oder Anregung melden</button>` : A}`;
 }
-
-// node_modules/lit-html/directive-helpers.js
-/**
- * @license
- * Copyright 2020 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
- */
-var { I: t4 } = j;
-var r4 = (o6) => void 0 === o6.strings;
-var m2 = {};
-var p3 = (o6, t5 = m2) => o6._$AH = t5;
 
 // node_modules/lit-html/directives/live.js
 /**
@@ -1684,15 +1702,15 @@ var l3 = e4(class extends i5 {
   render(r5) {
     return r5;
   }
-  update(i6, [t5]) {
+  update(i7, [t5]) {
     if (t5 === E || t5 === A) return t5;
-    const o6 = i6.element, l4 = i6.name;
-    if (i6.type === t3.PROPERTY) {
+    const o6 = i7.element, l4 = i7.name;
+    if (i7.type === t3.PROPERTY) {
       if (t5 === o6[l4]) return E;
-    } else if (i6.type === t3.BOOLEAN_ATTRIBUTE) {
+    } else if (i7.type === t3.BOOLEAN_ATTRIBUTE) {
       if (!!t5 === o6.hasAttribute(l4)) return E;
-    } else if (i6.type === t3.ATTRIBUTE && o6.getAttribute(l4) === t5 + "") return E;
-    return p3(i6), t5;
+    } else if (i7.type === t3.ATTRIBUTE && o6.getAttribute(l4) === t5 + "") return E;
+    return p3(i7), t5;
   }
 });
 
@@ -1709,8 +1727,8 @@ function bilderBox(p4, f3) {
   return b2`<div class="mb-box"><div class="mb-kopf"><b>📷 Screenshot</b><span class="leise">${B2.length} von ${MB_MAX}</span></div>
       ${B2.length >= MB_MAX ? A : b2`<div class="mb-knoepfe"><label>📎 Bild wählen<input type="file" accept="image/*" multiple @change=${gewaehlt}></label>${auf ? b2`<button @click=${() => p4.mbFenster()}>🖥 Fenster aufnehmen</button>` : A}</div>`}
       <div class="mb-hinweis">${pc ? b2`oder einen Screenshot mit <b>Strg+V</b> einfügen (z. B. nach Win+Shift+S)` : "Screenshot mit den Handy-Tasten machen, dann hier wählen"} · wird auf höchstens ${MB_PX} px verkleinert</div>
-      ${B2.length ? b2`<div class="mb-bilder">${B2.map((x2, i6) => b2`<div class="mb-bild ${x2.b > x2.h ? "quer" : ""}"><img src=${x2.url} alt="Bild ${i6 + 1}"><button class="x" aria-label="Bild entfernen" @click=${() => {
-    B2.splice(i6, 1);
+      ${B2.length ? b2`<div class="mb-bilder">${B2.map((x2, i7) => b2`<div class="mb-bild ${x2.b > x2.h ? "quer" : ""}"><img src=${x2.url} alt="Bild ${i7 + 1}"><button class="x" aria-label="Bild entfernen" @click=${() => {
+    B2.splice(i7, 1);
     p4.litNeu();
   }}>✕</button><small>${x2.b}×${x2.h} · ${x2.kb} KB</small></div>`)}</div>` : A}</div>`;
 }
@@ -2835,12 +2853,13 @@ var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.80";
+var SEITE_VERSION = "0.8.81";
 var LIT_SHEETS = ["melden"];
-var BaustellePanel = class extends HTMLElement {
+var BaustellePanel = class extends i4 {
+  static styles = [r(CSS), r(GLAS_CSS)];
+  // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
     super();
-    this.attachShadow({ mode: "open" });
     this.s = einblendungen({ view: "uebersicht", cid: null, sheet: null, chart: "temp", verlauf: "aktiv" });
     this.cache = {};
     this.roh = null;
@@ -2862,9 +2881,10 @@ var BaustellePanel = class extends HTMLElement {
   set hass(h3) {
     const erst = !this._hass;
     this._hass = h3;
-    this._aufbauen();
-    if (erst) this._starten();
-    else this._beobachten(h3);
+    if (erst) {
+      this._starten();
+      this.requestUpdate();
+    } else this._beobachten(h3);
     this._stimmung();
   }
   get hass() {
@@ -2873,7 +2893,7 @@ var BaustellePanel = class extends HTMLElement {
   set narrow(n4) {
     const alt = this._narrow;
     this._narrow = !!n4;
-    if (alt !== void 0 && alt !== this._narrow) this.render();
+    if (alt !== void 0 && alt !== this._narrow) this.neuZeichnen();
   }
   get narrow() {
     return this._narrow;
@@ -2885,7 +2905,7 @@ var BaustellePanel = class extends HTMLElement {
     return this._panel;
   }
   connectedCallback() {
-    this._aufbauen();
+    super.connectedCallback();
     this._fensterAn();
     if (this._hass && !this._timer) this._starten();
     this._vorhersageAbo();
@@ -2893,6 +2913,7 @@ var BaustellePanel = class extends HTMLElement {
     this._stimmung(true);
   }
   disconnectedCallback() {
+    super.disconnectedCallback();
     clearInterval(this._timer);
     this._timer = null;
     clearTimeout(this._nachladen);
@@ -2911,7 +2932,7 @@ var BaustellePanel = class extends HTMLElement {
       paste: (e6) => {
         const sh = this.s && this.s.sheet;
         if (!sh || sh.art !== "melden") return;
-        const it = [...e6.clipboardData && e6.clipboardData.items || []].find((i6) => i6.type && i6.type.startsWith("image/"));
+        const it = [...e6.clipboardData && e6.clipboardData.items || []].find((i7) => i7.type && i7.type.startsWith("image/"));
         if (!it) return;
         e6.preventDefault();
         this.mbDatei(it.getAsFile(), "eingefügt");
@@ -2934,7 +2955,7 @@ var BaustellePanel = class extends HTMLElement {
     this._timer = setInterval(() => this._laden(), 6e4);
     if (typeof fetch === "function") fetch(`${STATISCH}/changelog.json?v=${encodeURIComponent(this.version)}`).then((r5) => r5.ok ? r5.json() : null).then((c4) => {
       this.changelog = Array.isArray(c4) ? c4 : [];
-      if (this.s.view === "ueber") this.render();
+      if (this.s.view === "ueber") this.neuZeichnen();
     }).catch(() => {
       this.changelog = [];
     });
@@ -2942,11 +2963,10 @@ var BaustellePanel = class extends HTMLElement {
   get version() {
     return this.d && this.d.version || this._panel && this._panel.config && this._panel.config.version || "–";
   }
-  _aufbauen() {
-    if (this.root) return;
-    const sr = this.shadowRoot;
-    sr.innerHTML = `<style>${CSS}
-${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui"></div></div></div>`;
+  /* Der Rahmen steht nach dem ersten Zeichnen (render(), BSM-022 2b) und bleibt; die alten Ansichten melden Klicks und
+     Eingaben über data-act an den Shadow Root (bis sie in Stufe 3 Lit-Vorlagen werden) */
+  firstUpdated() {
+    const sr = this.renderRoot;
     this.wurzel = sr.querySelector(".wurzel");
     this.root = sr.querySelector(".app");
     this.bg = sr.querySelector(".glas-bg");
@@ -2964,7 +2984,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       }
     });
     this.himmel = Himmel.an(this.bg);
-    this.render();
+    this._stimmung(true);
   }
   /* Eigene Entitäten geändert → Struktur kurz danach neu holen (Zustände kommen aus der Integration) */
   _beobachten(h3) {
@@ -3018,12 +3038,12 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         const v2 = Array.isArray(c4) && c4[0] && c4[0].version;
         if (verNeuer(v2, this.neueVersion || SEITE_VERSION)) {
           this.neueVersion = v2;
-          this.render();
+          this.neuZeichnen();
         }
       }).catch(() => {
       });
     }
-    if (this.neueVersion !== vorher) this.render();
+    if (this.neueVersion !== vorher) this.neuZeichnen();
   }
   rechte() {
     return rechteVon(this.roh);
@@ -3214,11 +3234,11 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       this._auffrischenGeplant = false;
       const f3 = this.shadowRoot && this.shadowRoot.activeElement;
       if (this.leistungTeil()) return;
-      if (f3 && ["INPUT", "TEXTAREA", "SELECT"].includes(f3.tagName) && !f3.closest(".lit-bereich")) {
+      if (f3 && ["INPUT", "TEXTAREA", "SELECT"].includes(f3.tagName) && !f3.closest(".lit-bereich") && !(this.s.sheet && LIT_SHEETS.includes(this.s.sheet.art) && f3.closest(".sheet"))) {
         this._wartet = true;
         return;
       }
-      this.render();
+      this.neuZeichnen();
     });
   }
   /* Zeiträume der Auswertung: Tag (je Stunde), Woche/Monat (je Tag), Jahr (je Monat); versatz 1 = davor */
@@ -3226,7 +3246,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const h3 = d3.z.HEUTE, J = +h3.slice(0, 4), M2 = +h3.slice(5, 7);
     if (z2 === "Tag") {
       const tag = plusTage(h3, -versatz);
-      return { von: tag, bis: plusTage(tag, 1), periode: "hour", n: 24, labels: [...Array(24)].map((_2, i6) => String(i6).padStart(2, "0")), index: (l4) => l4.slice(0, 10) === tag ? +l4.slice(11, 13) : -1 };
+      return { von: tag, bis: plusTage(tag, 1), periode: "hour", n: 24, labels: [...Array(24)].map((_2, i7) => String(i7).padStart(2, "0")), index: (l4) => l4.slice(0, 10) === tag ? +l4.slice(11, 13) : -1 };
     }
     if (z2 === "Woche") {
       const mo = plusTage(d3.z.WOCHE_ISO[0], -7 * versatz);
@@ -3239,7 +3259,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         j3--;
       }
       const von = `${j3}-${String(m3 + 1).padStart(2, "0")}-01`, n4 = new Date(Date.UTC(j3, m3 + 1, 0)).getUTCDate();
-      return { von, bis: plusTage(von, n4), periode: "day", n: n4, labels: [...Array(n4)].map((_2, i6) => `${i6 + 1}.`), index: (l4) => l4.slice(0, 7) === von.slice(0, 7) ? +l4.slice(8, 10) - 1 : -1, monat: m3, jahr: j3 };
+      return { von, bis: plusTage(von, n4), periode: "day", n: n4, labels: [...Array(n4)].map((_2, i7) => `${i7 + 1}.`), index: (l4) => l4.slice(0, 7) === von.slice(0, 7) ? +l4.slice(8, 10) - 1 : -1, monat: m3, jahr: j3 };
     }
     const j2 = J - versatz;
     return { von: `${j2}-01-01`, bis: `${j2 + 1}-01-01`, periode: "month", n: 12, labels: MONATE, index: (l4) => +l4.slice(0, 4) === j2 ? +l4.slice(5, 7) - 1 : -1, jahr: j2 };
@@ -3296,28 +3316,28 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     for (const id of ids) {
       const arr = Array(zr.n).fill(null);
       for (const p4 of (roh || {})[id] || []) {
-        const i6 = zr.index(this.lokal(ms(p4), d3.z.zone));
-        if (i6 < 0 || i6 >= zr.n) continue;
-        if (zahl(p4.change)) arr[i6] = (arr[i6] || 0) + Number(p4.change);
-        else if (zahl(p4.mean)) arr[i6] = Number(p4.mean);
+        const i7 = zr.index(this.lokal(ms(p4), d3.z.zone));
+        if (i7 < 0 || i7 >= zr.n) continue;
+        if (zahl(p4.change)) arr[i7] = (arr[i7] || 0) + Number(p4.change);
+        else if (zahl(p4.mean)) arr[i7] = Number(p4.mean);
       }
       const mittel = {};
       for (const p4 of (kurz || {})[id] || []) {
         const t5 = ms(p4);
         if (t5 < kurzAb) continue;
-        const i6 = zr.index(this.lokal(t5, d3.z.zone));
-        if (i6 < 0 || i6 >= zr.n) continue;
+        const i7 = zr.index(this.lokal(t5, d3.z.zone));
+        if (i7 < 0 || i7 >= zr.n) continue;
         const hatStunde = ((roh || {})[id] || []).some((q) => zr.periode === "hour" && ms(q) === Math.floor(t5 / 36e5) * 36e5);
         if (hatStunde) continue;
-        if (zahl(p4.change)) arr[i6] = (arr[i6] || 0) + Number(p4.change);
-        else if (zahl(p4.mean)) (mittel[i6] ||= []).push(Number(p4.mean));
+        if (zahl(p4.change)) arr[i7] = (arr[i7] || 0) + Number(p4.change);
+        else if (zahl(p4.mean)) (mittel[i7] ||= []).push(Number(p4.mean));
       }
-      for (const [i6, v2] of Object.entries(mittel)) if (arr[i6] === null) arr[i6] = v2.reduce((x2, y3) => x2 + y3, 0) / v2.length;
+      for (const [i7, v2] of Object.entries(mittel)) if (arr[i7] === null) arr[i7] = v2.reduce((x2, y3) => x2 + y3, 0) / v2.length;
       if (laufend) {
         const letzte = [...(roh || {})[id] || [], ...(kurz || {})[id] || []].filter((q) => zahl(q.change) && zahl(q.state)).sort((x2, y3) => ms(x2) - ms(y3)).at(-1);
-        const jetzt = this._hass && this._hass.states[id], i6 = zr.index(this.lokal(jetztMs, d3.z.zone));
+        const jetzt = this._hass && this._hass.states[id], i7 = zr.index(this.lokal(jetztMs, d3.z.zone));
         const dazu = letzte && jetzt && zahl(jetzt.state) ? Number(jetzt.state) - Number(letzte.state) : 0;
-        if (dazu > 0 && i6 >= 0 && i6 < zr.n) arr[i6] = (arr[i6] || 0) + dazu;
+        if (dazu > 0 && i7 >= 0 && i7 < zr.n) arr[i7] = (arr[i7] || 0) + dazu;
       }
       werte[id] = arr;
     }
@@ -3382,9 +3402,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     return (this.zrSt(ziel) || {}).v || 0;
   }
   zrWahl(ziel, z2, grenze) {
-    const v2 = this.zrV(ziel), max = this.zrMax(z2, grenze), i6 = this.zrInfo(z2, v2), k2 = this.s.zrKal && this.s.zrKal.ziel === ziel ? this.s.zrKal : null, zd = `data-ziel="${ziel}" data-max="${max}"`;
+    const v2 = this.zrV(ziel), max = this.zrMax(z2, grenze), i7 = this.zrInfo(z2, v2), k2 = this.s.zrKal && this.s.zrKal.ziel === ziel ? this.s.zrKal : null, zd = `data-ziel="${ziel}" data-max="${max}"`;
     return `<div class="zr-zeile"><div class="zr-nav glas-panel"><button class="zr-pf" data-act="zr-schritt" ${zd} data-d="1" ${v2 >= max ? "disabled" : ""} aria-label="früher" title="früher">‹</button>
-        <button class="zr-mitte zr-auf" data-act="zr-kal" ${zd}><b>${i6.text}</b>${i6.unter ? `<small>${i6.unter}</small>` : ""}<span class="zr-pfeil">${k2 ? "▴" : "▾"}</span></button>
+        <button class="zr-mitte zr-auf" data-act="zr-kal" ${zd}><b>${i7.text}</b>${i7.unter ? `<small>${i7.unter}</small>` : ""}<span class="zr-pfeil">${k2 ? "▴" : "▾"}</span></button>
         <button class="zr-pf" data-act="zr-schritt" ${zd} data-d="-1" ${v2 <= 0 ? "disabled" : ""} aria-label="später" title="später">›</button></div>
       ${v2 ? `<button class="glas-panel chip zr-akt" data-act="zr-setz" ${zd} data-v="0">Aktuell</button>` : ""}${k2 ? this.zrKalender(ziel, z2, v2, max, k2) : ""}</div>`;
   }
@@ -3508,7 +3528,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       const summeR = { name: "Summe", farbe: "var(--s1)", summe: true, punkte: zeiten.map((t5) => [t5, reihen.reduce((a3, r5) => a3 + (wert(r5, t5) || 0), 0)]) };
       const zeige = reihen.length > 1 ? [...reihen, summeR] : reihen.map((r5) => ({ ...r5, farbe: "var(--s1)", summe: true }));
       const spitze = Math.max(0, ...summeR.punkte.map((p4) => p4[1]));
-      const mittel = summeR.punkte.length ? summeR.punkte.reduce((a3, p4, i6) => a3 + p4[1] * ((i6 + 1 < summeR.punkte.length ? summeR.punkte[i6 + 1][0] : ende) - p4[0]), 0) / Math.max(1, ende - summeR.punkte[0][0]) : 0;
+      const mittel = summeR.punkte.length ? summeR.punkte.reduce((a3, p4, i7) => a3 + p4[1] * ((i7 + 1 < summeR.punkte.length ? summeR.punkte[i7 + 1][0] : ende) - p4[0]), 0) / Math.max(1, ende - summeR.punkte[0][0]) : 0;
       inhalt = `<div class="kennz"><div><b>${de(mittel / 1e3, 2)}</b><span>kW im Mittel</span></div><div><b>${de(spitze / 1e3, 2)}</b><span>kW Spitze</span></div><div><b>${reihen.reduce((a3, r5) => a3 + r5.punkte.length, 0)}</b><span>Messwerte</span></div></div>
         <div class="chart-wrap">${stufen(`lh-${b3.id}-${tag}-${ganzerTag ? "tag" : h3}`, zeige, von, bis, "W", ganzerTag ? [0, 4, 8, 12, 16, 20, 24].map((k2) => [von + k2 * 36e5, hh(k2)]) : null)}</div>
         <div class="legende">${zeige.map((r5) => `<span><i style="background:${r5.farbe}"></i>${esc(r5.name)}</span>`).join("")}<span class="leise">jeder Messwert des Shellys${laufend ? " · bis jetzt" : ""}</span></div>`;
@@ -3539,7 +3559,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const z2 = s4.zeitraum || "Tag", v2 = s4.v || 0, zr = this.zeitraum(z2, v2), r5 = this.heizStunden(d3, b3, z2, v2), su = r5 ? summe(r5) : null;
     const je = { Tag: "je Stunde", Woche: "je Tag", Monat: "je Tag", Jahr: "je Monat" }[z2];
     const sId = !b3.pumpe && this.eid(d3, b3.id, "heizzeit_strom"), rs = sId ? this.reihe(d3, sId, z2, v2) : null, ss = rs ? summe(rs.map((x2) => x2 || 0)) : null;
-    const lab = zr.labels.map((l4, i6) => z2 === "Tag" ? i6 % 3 ? "" : l4 : z2 === "Monat" ? i6 % 5 ? "" : l4 : l4);
+    const lab = zr.labels.map((l4, i7) => z2 === "Tag" ? i7 % 3 ? "" : l4 : z2 === "Monat" ? i7 % 5 ? "" : l4 : l4);
     if (sId) return `<div class="block-kopf"><h3>Heizzeit · ${esc(b3.name)}</h3><span class="leise">${this.zrText(z2, v2)}</span></div>
       <div class="seg">${["Tag", "Woche", "Monat", "Jahr"].map((x2) => `<button data-act="vb-zeitraum" data-ziel="sheet" data-v="${x2}" class="${x2 === z2 ? "on" : ""}">${x2}</button>`).join("")}</div>
       ${this.zrWahl("sheet", z2, this.zrGrenze())}
@@ -3560,7 +3580,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       ${this.zrWahl("sheet", z2, this.zrGrenze())}
       <div class="kennz"><div><b>${zahl(su) ? de(su, 1) : "–"}</b><span>Stunden ${b3.pumpe ? "gepumpt" : "geheizt"}</span></div><div><b>${r5 ? de(Math.max(...r5, 0), 1) : "–"}</b><span>h am meisten ${je}</span></div></div>
       <div class="leise">h ${je} · ${this.zrText(z2, v2)}</div>
-      <div class="chart-wrap">${r5 ? balken(`hz-c-${b3.id}-${z2}-${v2}`, r5, zr.labels.map((l4, i6) => z2 === "Tag" ? i6 % 3 ? "" : l4 : z2 === "Monat" ? i6 % 5 ? "" : l4 : l4), "h") : LAEDT}</div>`;
+      <div class="chart-wrap">${r5 ? balken(`hz-c-${b3.id}-${z2}-${v2}`, r5, zr.labels.map((l4, i7) => z2 === "Tag" ? i7 % 3 ? "" : l4 : z2 === "Monat" ? i7 % 5 ? "" : l4 : l4), "h") : LAEDT}</div>`;
   }
   /* Gemessen: wann zieht ein Gerät Strom (Leistung über „heizt tatsächlich ab“, Standard 50 W) – Verlauf der Leistungssensoren seit Montag */
   messung(d3 = this.d) {
@@ -3582,8 +3602,8 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     for (const { g: g2, eid } of geraete) {
       const liste = ((roh || {})[eid] || []).map((x2) => ({ s: x2.s ?? x2.state, t: zahl(x2.lu) ? x2.lu * 1e3 : zahl(x2.lc) ? x2.lc * 1e3 : Date.parse(x2.last_updated || x2.last_changed) })).filter((x2) => Number.isFinite(x2.t)).sort((a3, b3) => a3.t - b3.t);
       const tage = TAGE.map(() => ({ an: [], off: [] }));
-      liste.forEach((x2, i6) => {
-        const von = Math.max(x2.t, start), bis = i6 + 1 < liste.length ? liste[i6 + 1].t : ende;
+      liste.forEach((x2, i7) => {
+        const von = Math.max(x2.t, start), bis = i7 + 1 < liste.length ? liste[i7 + 1].t : ende;
         if (bis <= von) return;
         const art = x2.s === "unavailable" ? "off" : x2.s === "on" || zahl(x2.s) && Number(x2.s) > d3.e.zieht_w ? "an" : null;
         if (!art) return;
@@ -3862,7 +3882,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const oa = einC ? this._holen(`oh:${this.d.entry}:${einC.id}:${z2}:${st.v || 0}:${basis}`, () => this._hass.callWS({ type: "baustelle/ohne", entry_id: this.d.entry, bereich: einC.id, zeitraum: z2, versatz: st.v || 0, basis })) : void 0;
     const werte = Q.map((q) => ({ q, v: q.v(z2) })), laedt = werte.some((x2) => !x2.v);
     const reihen = laedt ? [] : aus.length ? werte.filter((x2) => st.auswahl.includes(x2.q.id)).map(({ q, v: v2 }) => ({ name: q.name, v: v2, farbe: q.farbe })) : [{ name: "Summe", v: addieren(werte.map((x2) => x2.v)).length ? addieren(werte.map((x2) => x2.v)) : Array(zr.n).fill(0), farbe: "var(--s1)" }];
-    const summeJe = labels.map((_2, i6) => reihen.reduce((a3, r5) => a3 + (r5.v[i6] || 0), 0)), sum = summe(summeJe);
+    const summeJe = labels.map((_2, i7) => reihen.reduce((a3, r5) => a3 + (r5.v[i7] || 0), 0)), sum = summe(summeJe);
     const spitze = Math.max(...summeJe, 0), wo = sum > 0 ? labels[summeJe.indexOf(spitze)] : "–";
     const einheit = eur ? "€" : z2 === "Tag" ? "kWh/h" : "kWh", je = `${{ Tag: "je Stunde", Woche: "je Tag", Monat: "je Tag", Jahr: "je Monat" }[z2]} · ${this.zrText(z2, st.v || 0)}`;
     const p4 = this.d.e.preis;
@@ -3927,7 +3947,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     this.s.cid = cid;
     this.s.leeren();
     this.s.zrKal = null;
-    this.render(true);
+    this.neuZeichnen(true);
   }
   herunterladen(url, name) {
     if (typeof document === "undefined" || typeof document.createElement !== "function") return;
@@ -3988,7 +4008,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       ...(f3.bilder || []).length ? { bilder: f3.bilder.map((x2) => x2.url) } : {}
     };
     this.s.sheet = this.s.sheet.vorher || null;
-    this.render();
+    this.neuZeichnen();
     delete this.cache.meldungen;
     return this.ws({ type: "baustelle/meldung", entry_id: this.d && this.d.entry, aktion: "neu", meldung }).then((r5) => {
       if (r5) this.toast(`Danke – gemeldet als ${r5.ticket || "Ticket"}`);
@@ -3996,7 +4016,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
   }
   meldenZu() {
     this.s.sheet = this.s.sheet && this.s.sheet.vorher || null;
-    return this.render();
+    return this.neuZeichnen();
   }
   /* Melde-Dialog öffnen (Knopf unten rechts, „Über“) */
   meldenAuf() {
@@ -4004,7 +4024,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const kontext = [namen[this.s.view] || this.s.view, this.s.view === "container" && this.b ? this.b.name : "", this.s.sheet ? `Dialog „${this.s.sheet.art}“` : ""].filter(Boolean).join(" · ");
     const breite = this.root && this.root.getBoundingClientRect ? this.root.getBoundingClientRect().width : 1e3, geraet = breite < 700 ? "Handy" : "Desktop";
     this.s.sheet = { art: "melden", vorher: this.s.sheet, form: { art: "wunsch", text: "", kontext, geraet, stand: true } };
-    return this.render();
+    return this.neuZeichnen();
   }
   toast(t5, wieder = false) {
     const el = this.root && this.root.querySelector(".toast");
@@ -4016,96 +4036,92 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     this.letzterToast = t5;
     if (!wieder) this._toastBis = Date.now() + 2e3;
   }
-  render(neu = false) {
-    if (!this.ui) return;
-    const evc = this.root.querySelector(".ev-chips"), evPos = evc ? evc.scrollLeft : 0;
-    const scroll = this.root.querySelector(".scroll"), pos = scroll && !neu ? scroll.scrollTop : 0, sh = this.root.querySelector(".sheet"), shPos = sh && this.s.sheet && this._sheetArt === this.s.sheet.art ? sh.scrollTop : 0;
-    this.ui.classList.toggle("still", !neu && this._view === this.s.view);
+  /* Neu zeichnen (BSM-022 2b): erst den Zustand ändern, dann neuZeichnen() – Lit zeichnet im nächsten Durchlauf, mehrere
+     Aufrufe werden zusammengefasst; neu = Ansicht gewechselt (oben beginnen, Einblend-Animation) */
+  neuZeichnen(neu = false) {
+    if (neu) this._neu = true;
+    this.requestUpdate();
+    return this.updateComplete;
+  }
+  willUpdate() {
+    const evc = this.ui && this.ui.querySelector(".ev-chips");
+    this._evPos = evc ? evc.scrollLeft : 0;
+    if (this.ui) this.ui.classList.toggle("still", !this._neu && this._view === this.s.view);
+    this._sheetVorher = this._sheetArt;
     this._view = this.s.view;
     this._sheetArt = this.s.sheet && this.s.sheet.art;
-    const mitHeizung = !this.d || this.d.funktionen.includes("heizung");
-    const mitPumpen = !!(this.d && this.d.funktionen.includes("pumpen") && this.d.bereiche.some((b3) => b3.pumpe));
-    const tabs = [["uebersicht", "Übersicht"], ...mitHeizung ? [["heizung", "Heizung"]] : [], ...mitPumpen ? [["pumpen", "Pumpen"]] : [], ["auswertung", "Auswertung"], ["verlauf", "Verlauf"], ["einst", "⚙"]];
+    this._mitHeizung = !this.d || this.d.funktionen.includes("heizung");
+    this._mitPumpen = !!(this.d && this.d.funktionen.includes("pumpen") && this.d.bereiche.some((b3) => b3.pumpe));
     if (!this.d && !["verlauf", "bsdetail", "ueber"].includes(this.s.view)) this.s.view = "uebersicht";
-    if (this.s.view === "pumpen" && !mitPumpen) this.s.view = "uebersicht";
-    if (this.s.view === "heizung" && !mitHeizung) this.s.view = "uebersicht";
+    if (this.s.view === "pumpen" && !this._mitPumpen) this.s.view = "uebersicht";
+    if (this.s.view === "heizung" && !this._mitHeizung) this.s.view = "uebersicht";
     if (this.s.view === "container" && !this.b) this.s.view = "uebersicht";
-    const aktivTab = this.s.view === "container" ? "uebersicht" : this.s.view === "bsdetail" ? "verlauf" : ["ueber", "dev"].includes(this.s.view) ? "einst" : this.s.view;
+  }
+  /* Rahmen der Seite – bleibt stehen; Scrollbereich und Einblendung behalten so Position und Fokus von selbst */
+  render() {
+    return b2`<div class="wurzel"><div class="app"><div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui">${this._ui()}</div></div></div>`;
+  }
+  /* Inhalt: Lit-Teile direkt (Über, Melden); noch nicht umgestellte Ansichten als HTML-Text (unsafeHTML ersetzt sie nur,
+     wenn sich der Text ändert) */
+  _ui() {
+    const neu = !!this._neu, S3 = this.s;
+    const tabs = [["uebersicht", "Übersicht"], ...this._mitHeizung ? [["heizung", "Heizung"]] : [], ...this._mitPumpen ? [["pumpen", "Pumpen"]] : [], ["auswertung", "Auswertung"], ["verlauf", "Verlauf"], ["einst", "⚙"]];
+    const aktivTab = S3.view === "container" ? "uebersicht" : S3.view === "bsdetail" ? "verlauf" : ["ueber", "dev"].includes(S3.view) ? "einst" : S3.view;
     let seite;
-    if (!this.roh) seite = `<div class="glas-panel block">${this.fehler ? `<div class="leer">Die Integration antwortet nicht: ${esc(this.fehler)}</div>` : LAEDT}</div>`;
-    else if (!this.d && !["verlauf", "bsdetail", "ueber"].includes(this.s.view)) seite = this.v_leer();
-    else seite = this["v_" + this.s.view]();
+    if (!this.roh) seite = o5(`<div class="glas-panel block">${this.fehler ? `<div class="leer">Die Integration antwortet nicht: ${esc(this.fehler)}</div>` : LAEDT}</div>`);
+    else if (!this.d && !["verlauf", "bsdetail", "ueber"].includes(S3.view)) seite = o5(this.v_leer());
+    else seite = S3.view === "ueber" ? ueberVorlage(this) : o5(this["v_" + S3.view]());
     const melden = this.d ? this.d.e.melden : true;
     let sheet = "";
-    if (this.s.sheet) {
+    if (S3.sheet && S3.sheet.art === "melden") sheet = meldenVorlage(this, S3.sheet.form);
+    else if (S3.sheet) {
       try {
-        sheet = this.sheet();
+        sheet = o5(this.sheet());
       } catch (e6) {
-        this.s.sheet = null;
+        S3.sheet = null;
         sheet = "";
       }
     }
-    const neuHtml = `<div class="scroll"><div class="seite ${neu ? "rein" : ""}">${this.versionHinweis()}${this.nurLesenHinweis()}${seite}</div></div>
-      ${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ""}
+    const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ""}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? "sechs" : ""}">${tabs.map(([k2, t5]) => `<button data-act="tab" data-v="${k2}" class="${k2 === aktivTab ? "on" : ""} ${k2 === "einst" ? "nav-ic" : ""}" ${k2 === "einst" ? 'aria-label="Einstellungen" title="Einstellungen"' : ""}>${k2 === "einst" ? ICON_COG : t5}</button>`).join("")}</nav>
-      <div class="schleier ${this.s.sheet ? "an" : ""}" data-act="zu"></div>
-      <div class="sheet glas-panel ${this.s.sheet ? "an" : ""}">${melden && this.roh && this.s.sheet && this.s.sheet.art !== "melden" ? `<button class="melden-knopf im-sheet" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ""}${sheet}</div>
+      <div class="schleier ${S3.sheet ? "an" : ""}" data-act="zu"></div>`;
+    const imSheet = melden && this.roh && S3.sheet && S3.sheet.art !== "melden" ? `<button class="melden-knopf im-sheet" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : "";
+    const knopf = melden && this.roh && !S3.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : "";
+    return b2`<div class="scroll">${i6(`${S3.view}:${S3.cid || ""}`, b2`<div class="seite ${neu ? "rein" : ""}">${o5(this.versionHinweis() + this.nurLesenHinweis())}${seite}</div>`)}</div>
+      ${o5(kopf)}
+      <div class="sheet glas-panel ${S3.sheet ? "an" : ""}">${o5(imSheet)}${sheet}</div>
       <div class="tip"></div><div class="toast glas-panel"></div>
-      ${melden && this.roh && !this.s.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ""}`;
-    this._uiSetzen(neuHtml);
-    if (this.ui.classList) this.ui.classList.toggle("nur-lesen", this.nurLesen());
+      ${o5(knopf)}`;
+  }
+  updated() {
+    if (!this.ui) return;
+    this.ui.classList.toggle("nur-lesen", this.nurLesen());
     this._litEinhaengen();
-    const sc = this.root.querySelector(".scroll");
-    if (sc) sc.scrollTop = pos;
-    const evc2 = this.root.querySelector(".ev-chips");
+    const sc = this.ui.querySelector(".scroll");
+    if (sc && this._neu) sc.scrollTop = 0;
+    const sh = this.ui.querySelector(".sheet");
+    if (sh && this._sheetArt !== this._sheetVorher) sh.scrollTop = 0;
+    const evc2 = this.ui.querySelector(".ev-chips");
     if (evc2) {
-      evc2.scrollLeft = evPos;
+      evc2.scrollLeft = this._evPos;
       const on = evc2.querySelector(".chip.amber");
       if (on && (on.offsetLeft < evc2.scrollLeft || on.offsetLeft + on.offsetWidth > evc2.scrollLeft + evc2.clientWidth)) evc2.scrollLeft = Math.max(0, on.offsetLeft - (evc2.clientWidth - on.offsetWidth) / 2);
     }
-    const sh2 = this.root.querySelector(".sheet");
-    if (sh2 && shPos) sh2.scrollTop = shPos;
-    if (this._toastBis > Date.now()) this.toast(this.letzterToast, true);
+    this._neu = false;
   }
-  /* Neuzeichnen der Seite. Ist eine Lit-Einblendung offen und eingehängt (BSM-022 2a.2), bleibt das Element .sheet
-     stehen und nur alles daneben wird ersetzt – sonst würde der Lit-Bereich kurz ausgehängt und verlöre den Fokus */
-  _uiSetzen(neuHtml) {
-    const alt = [...this.ui.children].find((n4) => n4.classList.contains("sheet"));
-    if (!(this.s.sheet && LIT_SHEETS.includes(this.s.sheet.art) && alt && [...alt.children].some((n4) => n4.classList.contains("lit-bereich")))) {
-      this.ui.innerHTML = neuHtml;
-      return;
-    }
-    const t5 = document.createElement("template");
-    t5.innerHTML = neuHtml;
-    const neu = [...t5.content.children].find((n4) => n4.classList.contains("sheet")), vor = [], nach = [];
-    let gesehen = false;
-    for (const n4 of [...t5.content.childNodes]) {
-      if (n4 === neu) gesehen = true;
-      else (gesehen ? nach : vor).push(n4);
-    }
-    alt.className = neu.className;
-    for (const n4 of [...this.ui.childNodes]) if (n4 !== alt) n4.remove();
-    alt.before(...vor);
-    alt.after(...nach);
-  }
-  /* Dauerhafte Lit-Bereiche (BSM-022 2a.1): je Platzhalter [data-lit] ein eigener Behälter, der über innerHTML-Neuzeichnen
-     hinweg erhalten bleibt – Lit findet beim nächsten render() seine Knoten wieder (Fokus, Auswahl, Scroll bleiben) */
+  /* Dauerhafter Lit-Bereich für „Über“ in den Einstellungen (Gruppe im noch alten v_einst, bis Stufe 3e): Platzhalter
+     [data-lit] im HTML-Text, je Platzhalter derselbe Behälter, Lit zeichnet hinein */
   _litEinhaengen() {
     this._litBereich ||= {};
     for (const platz of this.ui.querySelectorAll("[data-lit]")) {
       const k2 = platz.dataset.lit, b3 = this._litBereich[k2] ||= Object.assign(document.createElement("div"), { className: "lit-bereich" });
       platz.replaceWith(b3);
     }
-    this.litNeu();
+    for (const b3 of Object.values(this._litBereich)) if (b3.isConnected) D(ueberVorlage(this, { mitZurueck: false }), b3, { host: this });
   }
-  /* nur die Lit-Bereiche neu zeichnen, die gerade eingehängt sind */
+  /* Lit-Teile neu zeichnen (Über, Melden) – unveränderte alte Ansichten bleiben dabei stehen */
   litNeu() {
-    for (const [k2, b3] of Object.entries(this._litBereich || {})) {
-      if (!b3.isConnected) continue;
-      const sh = this.s.sheet;
-      if (k2 === "melden" && !(sh && sh.art === "melden")) continue;
-      D(k2 === "melden" ? meldenVorlage(this, sh.form) : k2 === "ueber" ? ueberVorlage(this) : ueberVorlage(this, { mitZurueck: false }), b3, { host: this });
-    }
+    this.requestUpdate();
   }
   v_leer() {
     return `${this.kopf("Baustelle", "KEINE LAUFENDE BAUSTELLE")}
@@ -4143,10 +4159,10 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
   }
   /* ---- Übersicht ---- */
   pumpenWerte(d3 = this.d) {
-    const st = this.statistik("Woche", 0, d3), i6 = TAGE.indexOf(d3.z.HEUTE_TAG);
+    const st = this.statistik("Woche", 0, d3), i7 = TAGE.indexOf(d3.z.HEUTE_TAG);
     for (const b3 of d3.bereiche) if (b3.pumpe) {
       const z2 = st && this.zyklen(d3, b3, "Woche");
-      b3.zyklen = z2 ? z2[i6] : null;
+      b3.zyklen = z2 ? z2[i7] : null;
     }
   }
   v_uebersicht() {
@@ -4169,7 +4185,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         ${W.length ? `<button class="glas-panel chip warn-chip ${st ? "rot" : "gelb"}" data-act="sheet" data-s="warnungen">⚠ ${W.length === 1 ? `${esc(this.bName(W[0].b))}: ${esc(W[0].titel)}` : [st ? `${st} ${st === 1 ? "Störung" : "Störungen"}` : "", hi ? `${hi} ${hi === 1 ? "Hinweis" : "Hinweise"}` : ""].filter(Boolean).join(" · ")}</button>` : ""}
         <span class="chip-leise">${an} von ${alle} Geräten an</span>
       </div>
-      <div class="glas-raster">${B2.map((b3, i6) => `<div class="glas-panel glas-k ${b3.z}" role="button" tabindex="0" data-act="container" data-id="${b3.id}" style="animation-delay:${i6 * 60}ms;--c:${FARBE[b3.z]}">
+      <div class="glas-raster">${B2.map((b3, i7) => `<div class="glas-panel glas-k ${b3.z}" role="button" tabindex="0" data-act="container" data-id="${b3.id}" style="animation-delay:${i7 * 60}ms;--c:${FARBE[b3.z]}">
         <div class="glas-illu">${illu(b3)}</div>
         <div class="glas-name">${esc(b3.name)}</div>${this.firma(b3.firma).eigen ? "" : `<div class="firma-tag">${esc(this.firma(b3.firma).name)}</div>`}${b3.tuer && b3.tuer.offen ? `<div class="tuer-tag">🚪 offen ${b3.tuer.offen} min</div>` : ""}
         <div class="glas-zeile"><span class="glas-wert">${wertHtml(b3)}</span><span class="glas-kwk">${de(kwVon(b3))} kW</span></div>
@@ -4271,9 +4287,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       </div>
       <div class="glas-panel block"><div class="block-kopf"><b>${b3.pumpe ? "Pumpen" : "Geräte"}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
         ${b3.geraete.length ? "" : '<div class="leise">Noch kein Gerät</div>'}
-        ${b3.geraete.map((g2, i6) => `<div class="zeile geraet"><span class="g-ic ${g2.an ? "an" : ""}">${g2.typ === "Pumpe" ? "💧" : g2.typ === "Steckdose" || g2.typ === "Bautrockner" ? "⏻" : "♨"}</span>
+        ${b3.geraete.map((g2, i7) => `<div class="zeile geraet"><span class="g-ic ${g2.an ? "an" : ""}">${g2.typ === "Pumpe" ? "💧" : g2.typ === "Steckdose" || g2.typ === "Bautrockner" ? "⏻" : "♨"}</span>
           <div class="g-t"><b>${esc(g2.n)}</b><span class="leise">${g2.typ} · ${de(g2.kw, 2)} kW${g2.hand ? ' · <em class="hand">Hand</em>' : ""}${g2.warte ? ` · <em class="warte">wartet – ${esc((WARTE[g2.warte.grund] || WARTE.anschluss_voll)(this.anschluss(b3.anschluss).name))}${zahl(g2.warte.dran_in_min) ? `, dran in ${g2.warte.dran_in_min} min` : ""}</em>` : ""}${b3.z === "pause" && g2.heizer ? ' · <em class="warte">pausiert – Tür offen</em>' : ""}</span></div>
-          ${b3.offline || !g2.erreichbar ? '<span class="leise rot-t">offline</span>' : schalter(g2.an, "geraet", `data-i="${i6}"`)}</div>`).join("")}
+          ${b3.offline || !g2.erreichbar ? '<span class="leise rot-t">offline</span>' : schalter(g2.an, "geraet", `data-i="${i7}"`)}</div>`).join("")}
         <button class="zeile" data-act="sheet" data-s="bereich"><span class="blau">Geräte bearbeiten</span><span class="chev">›</span></button></div>
       ${b3.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter ${de(d3.e.trocken_w, 0)} W beim Laufen)</span><span class="ok">${d3.e.m_trocken ? "● überwacht" : "○ aus"}</span></div>
         <div class="zeile"><span>Dauerlauf über ${d3.e.dauer_min} min</span><span class="ok">${d3.e.m_dauer ? "● überwacht" : "○ aus"}</span></div>
@@ -4306,8 +4322,8 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const farbe = !mitSoll ? "var(--ink)" : dd > 0.5 ? "#ff9f0a" : dd < -0.5 ? "#64a8ff" : "#30d158";
     const w2 = (x2) => Math.max(0, Math.min(1, (x2 - 5) / 25)), R2 = 78, ang = (f3) => (135 + 270 * f3) * Math.PI / 180;
     const [von, bis] = mitSoll ? [Math.min(w2(t5), w2(soll)), Math.max(w2(t5), w2(soll))] : [0, w2(t5)];
-    const striche = [...Array(61)].map((_2, i6) => {
-      const f3 = i6 / 60, a3 = ang(f3), an = f3 >= von - 1e-3 && f3 <= bis + 1e-3, lang = i6 % 10 === 0;
+    const striche = [...Array(61)].map((_2, i7) => {
+      const f3 = i7 / 60, a3 = ang(f3), an = f3 >= von - 1e-3 && f3 <= bis + 1e-3, lang = i7 % 10 === 0;
       return `<line x1="${(100 + (R2 - (lang ? 14 : 9)) * Math.cos(a3)).toFixed(1)}" y1="${(100 + (R2 - (lang ? 14 : 9)) * Math.sin(a3)).toFixed(1)}" x2="${(100 + R2 * Math.cos(a3)).toFixed(1)}" y2="${(100 + R2 * Math.sin(a3)).toFixed(1)}" stroke="${an ? farbe : "var(--ink2)"}" stroke-width="${an ? 3 : 1.6}" stroke-linecap="round" opacity="${an ? 1 : 0.35}"/>`;
     }).join("");
     const ks = ang(w2(soll)), ohne = { plan: "Zeitplan – der Heizkörperthermostat regelt", hand: "Hand – kein Soll", aus: "Aus – nur Frostschutz" }[b3.modus] || "";
@@ -4357,22 +4373,22 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const vT = this.zrV("c-Tag"), vW = this.zrV("c-Woche"), kwhW = vW ? this.verbrauch(d3, b3.id, "Woche", vW) : kwh7, hW = vW ? this.heizStunden(d3, b3, "Woche", vW) : h7;
     const chart = c4 === "heute" ? this.cTag(b3, vT) : c4 === "woche" ? kwhW ? balken("cw-" + b3.id, kwhW, TAGE, "kWh") : LAEDT : hW ? balken("ch-" + b3.id, hW, TAGE, "h") : LAEDT;
     const kwh = kwh7 ? kwh7[heuteNr] : null, h3 = h7 ? h7[heuteNr] : null;
-    const kacheln = [["⚡", de(kwVon(b3)), "kW jetzt", "leistung"], ["🔋", zahl(kwh) ? de(kwh) : "–", "kWh heute", "verbrauch"], ["€", zahl(kwh) ? de(kwh * d3.e.preis, 2) : "–", "Kosten heute", 'verbrauch" data-t="eur'], ["⏱", zahl(h3) ? de(h3) : "–", "h Heizzeit", "heizzeit-c"]].map(([i6, v2, t5, s4]) => `<button class="glas-panel c-kachel" data-act="sheet" data-s="${s4}" data-id="${b3.id}"><span>${i6}</span><b>${v2}</b><small>${t5}</small></button>`).join("");
+    const kacheln = [["⚡", de(kwVon(b3)), "kW jetzt", "leistung"], ["🔋", zahl(kwh) ? de(kwh) : "–", "kWh heute", "verbrauch"], ["€", zahl(kwh) ? de(kwh * d3.e.preis, 2) : "–", "Kosten heute", 'verbrauch" data-t="eur'], ["⏱", zahl(h3) ? de(h3) : "–", "h Heizzeit", "heizzeit-c"]].map(([i7, v2, t5, s4]) => `<button class="glas-panel c-kachel" data-act="sheet" data-s="${s4}" data-id="${b3.id}"><span>${i7}</span><b>${v2}</b><small>${t5}</small></button>`).join("");
     return { c: c4, chart, kacheln };
   }
   /* Geräte-Chips: Ein/Aus (Handbetrieb), Schalter „aktiv“, ✎ Gerät bearbeiten */
   cGeraete(b3) {
     const d3 = this.d;
-    return b3.geraete.map((g2, i6) => {
+    return b3.geraete.map((g2, i7) => {
       const off = b3.offline || !g2.erreichbar, an = g2.an && g2.aktiv;
       const st = b3.stufen && b3.stufen.an ? b3.stufen.zusatz.includes(g2.id) ? b3.stufen.zusatz_an ? ` · <em class="warte">Zusatz – ${esc(b3.stufen.text)}</em>` : " · Zusatz – wartet, einer reicht" : " · Haupt" : "";
       const info = !g2.aktiv ? "inaktiv – die Automatik lässt es aus" : off ? '<span class="rot-t">offline</span>' : `${g2.typ} · ${an ? de(zahl(g2.kwJetzt) ? g2.kwJetzt : g2.kw, 2) + " kW" : "aus"}${st}`;
       return `<div class="c-chip glas-panel ${an ? "an" : ""} ${g2.aktiv ? "" : "inaktiv"}">
         <span class="c-chip-t">${g2.typ === "Steckdose" || g2.typ === "Bautrockner" ? "⏻" : "♨"} <b>${esc(g2.n)}</b><small>${info}${g2.hand && g2.aktiv ? ' · <em class="hand">✋ Hand</em>' : ""}${g2.warte && g2.aktiv ? ` · <em class="warte">wartet – ${esc((d3.anschluesse.find((a3) => a3.id === b3.anschluss) || {}).name || "Anschluss")} ausgelastet</em>` : ""}</small>
-          ${g2.hand && g2.aktiv ? `<button class="link" data-act="g-automatik" data-i="${i6}">Automatik übernehmen</button>` : ""}</span>
-        <button class="c-power ${an ? "an" : ""}" data-act="geraet" data-i="${i6}" ${!g2.aktiv || off ? "disabled" : ""} aria-label="${esc(g2.n)} ${g2.an ? "ausschalten" : "einschalten"}" title="${g2.an ? "Ausschalten" : "Einschalten"} (Handbetrieb)">${IC_POWER}</button>
-        <label class="c-aktiv" title="Gerät aktiv – aus: die Automatik schaltet es nicht, keine Warnungen">${schalter(g2.aktiv, "g-aktiv", `data-i="${i6}"`)}<small>aktiv</small></label>
-        <button class="bs-ic" data-act="g-bearbeiten" data-i="${i6}" title="Gerät bearbeiten" aria-label="${esc(g2.n)} bearbeiten">✎</button></div>`;
+          ${g2.hand && g2.aktiv ? `<button class="link" data-act="g-automatik" data-i="${i7}">Automatik übernehmen</button>` : ""}</span>
+        <button class="c-power ${an ? "an" : ""}" data-act="geraet" data-i="${i7}" ${!g2.aktiv || off ? "disabled" : ""} aria-label="${esc(g2.n)} ${g2.an ? "ausschalten" : "einschalten"}" title="${g2.an ? "Ausschalten" : "Einschalten"} (Handbetrieb)">${IC_POWER}</button>
+        <label class="c-aktiv" title="Gerät aktiv – aus: die Automatik schaltet es nicht, keine Warnungen">${schalter(g2.aktiv, "g-aktiv", `data-i="${i7}"`)}<small>aktiv</small></label>
+        <button class="bs-ic" data-act="g-bearbeiten" data-i="${i7}" title="Gerät bearbeiten" aria-label="${esc(g2.n)} bearbeiten">✎</button></div>`;
     }).join("");
   }
   v_container_d() {
@@ -4488,7 +4504,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const kachel = (id, sym, titel, wert, unter, extra = "") => `<button class="glas-panel hz-kachel" data-act="hz-auf" data-k="${id}">
       <span class="hz-k-kopf"><span class="hz-sym">${sym}</span><span class="chev">›</span></span>
       <span class="hz-k-titel">${titel}</span><b class="hz-k-wert">${wert}</b>${extra}<span class="leise hz-k-unter">${unter || ""}</span></button>`;
-    const mini = `<span class="hz-mini">${k2.woche.map((h3, i6) => `<i style="height:${Math.max(3, h3 / max * 100)}%" class="${i6 === heuteNr ? "heute" : ""}"></i>`).join("")}</span>`;
+    const mini = `<span class="hz-mini">${k2.woche.map((h3, i7) => `<i style="height:${Math.max(3, h3 / max * 100)}%" class="${i7 === heuteNr ? "heute" : ""}"></i>`).join("")}</span>`;
     return `${this.kopf("Heizung", esc(d3.titel), `<div>${schalter(d3.e.auto, "auto")}</div>`)}${this.hzHeld()}
       <div class="hz-raster">
         ${kachel("plan", "📅", "Diese Woche", k2.plan, "Heizplan aus Arbeitszeit und Wetter", mini)}
@@ -4535,8 +4551,8 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       const k2 = K.find((q) => q[0] === Math.round(t5));
       return k2 ? k2[2] : G.soll;
     };
-    const pfad = (i6) => K.map((k2, n4) => `${n4 ? "L" : "M"}${x2(k2[0]).toFixed(1)} ${y3(k2[i6]).toFixed(1)}`).join("");
-    const raster = [...Array(hi - lo + 1)].map((_2, i6) => lo + i6).map((v2) => `<line class="gr" x1="${L2}" x2="${W - R2}" y1="${y3(v2).toFixed(1)}" y2="${y3(v2).toFixed(1)}"/><text class="ax" x="${L2 - 4}" y="${(y3(v2) + 3).toFixed(1)}" text-anchor="end">${v2}°</text>`).join("") + [-10, 0, 10, 20].map((t5) => `<text class="ax" x="${x2(t5)}" y="${H2 - 4}" text-anchor="middle">${t5}° außen</text>`).join("");
+    const pfad = (i7) => K.map((k2, n4) => `${n4 ? "L" : "M"}${x2(k2[0]).toFixed(1)} ${y3(k2[i7]).toFixed(1)}`).join("");
+    const raster = [...Array(hi - lo + 1)].map((_2, i7) => lo + i7).map((v2) => `<line class="gr" x1="${L2}" x2="${W - R2}" y1="${y3(v2).toFixed(1)}" y2="${y3(v2).toFixed(1)}"/><text class="ax" x="${L2 - 4}" y="${(y3(v2) + 3).toFixed(1)}" text-anchor="end">${v2}°</text>`).join("") + [-10, 0, 10, 20].map((t5) => `<text class="ax" x="${x2(t5)}" y="${H2 - 4}" text-anchor="middle">${t5}° außen</text>`).join("");
     const unter = lo < 21 ? `<rect x="${L2}" y="${y3(Math.min(21, hi)).toFixed(1)}" width="${W - L2 - R2}" height="${(H2 - U - y3(Math.min(21, hi))).toFixed(1)}" fill="rgba(255,69,58,.08)"/>` : "";
     const punkte = (G.rueck || []).map(([t5, r5]) => `<circle cx="${x2(Math.max(-10, Math.min(20, t5))).toFixed(1)}" cy="${y3(soll(t5) - r5 * 0.35).toFixed(1)}" r="4" fill="${r5 < 0 ? "#64a8ff" : r5 > 0 ? "#ff9f0a" : "#30d158"}"/>`).join("");
     const tm = Math.max(-10, Math.min(20, G.aussen_mittel));
@@ -4646,7 +4662,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       return `<div class="zeile unter"><span><b class="ft-d">${t5} ${kurzDatum(f3.von)}</b> ${esc(f3.name)}</span><span class="leise">${we ? "Wochenende" : "frei"}</span></div>`;
     }).join("")}
         <div class="gruppe-t">Urlaub · ${urlaubsKal ? `Kalender „${esc(this.name(urlaubsKal))}“` : "kein Kalender gewählt"}</div>
-        ${ur === null ? '<div class="leise">Lädt …</div>' : ur.map((u3, i6) => `<div class="zeile unter"><span><b>${esc(u3.name)}</b> <span class="leise">${kurzDatum(u3.von)} – ${datum(u3.bis)}</span></span><button class="x" data-act="urlaub-weg" data-i="${i6}" title="Urlaub löschen">✕</button></div>`).join("") || '<div class="leise">Kein Urlaub eingetragen</div>'}
+        ${ur === null ? '<div class="leise">Lädt …</div>' : ur.map((u3, i7) => `<div class="zeile unter"><span><b>${esc(u3.name)}</b> <span class="leise">${kurzDatum(u3.von)} – ${datum(u3.bis)}</span></span><button class="x" data-act="urlaub-weg" data-i="${i7}" title="Urlaub löschen">✕</button></div>`).join("") || '<div class="leise">Kein Urlaub eingetragen</div>'}
         <button class="zeile" data-act="sheet" data-s="${urlaubsKal ? "urlaub" : "wetterquelle"}"><span class="blau">${urlaubsKal ? "+ Urlaub eintragen" : "Kalender für Urlaub wählen"}</span></button></div>`;
   }
   /* FE-0012: Ausnahmen je Tag mit mehreren Zeitfenstern; Arbeitszeit-Block und eigene Fenster rechnet die Integration (plan) */
@@ -4730,17 +4746,17 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     )}</div>
       <div class="leise">„Mit Konvektoren“ = der tatsächliche Verbrauch der Ölradiatoren mal ${de(er.faktor, 2)} – so viel mehr bzw. weniger brauchen Konvektoren hier je Gradstunde.</div>`;
     const f3 = (v2, fn) => zahl(v2) ? fn(v2) : "–";
-    const nachteil = (i6, hoch) => {
-      const a3 = T2[0][i6], b3 = T2[1][i6];
+    const nachteil = (i7, hoch) => {
+      const a3 = T2[0][i7], b3 = T2[1][i7];
       if (hoch === null || !zahl(a3) || !zahl(b3) || a3 === b3) return [false, false];
       return hoch ? [a3 > b3, b3 > a3] : [a3 < b3, b3 < a3];
     };
-    const zeile = (titel, i6, hoch, fn) => {
-      const [x2, y3] = nachteil(i6, hoch);
-      return `<tr><td>${titel}</td><td>${x2 ? "<b>" : ""}${f3(T2[0][i6], fn)}${x2 ? "</b>" : ""}</td><td>${y3 ? "<b>" : ""}${f3(T2[1][i6], fn)}${y3 ? "</b>" : ""}</td></tr>`;
+    const zeile = (titel, i7, hoch, fn) => {
+      const [x2, y3] = nachteil(i7, hoch);
+      return `<tr><td>${titel}</td><td>${x2 ? "<b>" : ""}${f3(T2[0][i7], fn)}${x2 ? "</b>" : ""}</td><td>${y3 ? "<b>" : ""}${f3(T2[1][i7], fn)}${y3 ? "</b>" : ""}</td></tr>`;
     };
     const weniger = (A2 && A2.typ && A2.typ.weniger) ?? null;
-    const cmp = (i6) => zahl(T2[0][i6]) && zahl(T2[1][i6]) && T2[0][i6] !== T2[1][i6] ? Math.sign(T2[0][i6] - T2[1][i6]) : 0;
+    const cmp = (i7) => zahl(T2[0][i7]) && zahl(T2[1][i7]) && T2[0][i7] !== T2[1][i7] ? Math.sign(T2[0][i7] - T2[1][i7]) : 0;
     const auf = cmp("auf") < 0 ? "braucht länger" : cmp("auf") > 0 ? "heizt schneller auf" : "";
     const ab = cmp("ab") < 0 ? `hält die Wärme ${auf === "braucht länger" ? "aber " : ""}besser` : cmp("ab") > 0 ? "kühlt schneller ab" : "";
     const vb = weniger > 0 ? `verbraucht rund ${weniger} % weniger` : weniger < 0 ? `verbraucht rund ${-weniger} % mehr` : "";
@@ -4845,20 +4861,20 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
           <div><small>HOCHRECHNUNG HEIZPERIODE</small><b>${h3 && zahl(h3.mit_eur) ? `≈ ${de(h3.mit_eur, 0)} €` : "–"}</b></div></div></div>`;
       case "rangliste":
         if (gr.w <= 2) return `<div class="glas-panel block aw-klein"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">Top 3</span></div>
-          ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch</div>' : rang.slice(0, 3).map((c4, i6) => {
+          ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch</div>' : rang.slice(0, 3).map((c4, i7) => {
           const hier = d3.bereiche.find((b3) => b3.id === c4.bereich);
-          return `<button class="aw-rang aw-rang-z" ${hier ? `data-act="container" data-id="${esc(c4.bereich)}"` : "disabled"}><span><em>${i6 + 1}</em> ${esc(c4.name)}</span><i style="width:${(c4.kwh || 0) / max * 100}%;background:${hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : "var(--ink2)"}"></i><em>${de(c4.kwh, 0)} kWh · ${de(c4.eur, 2)} €</em></button>`;
+          return `<button class="aw-rang aw-rang-z" ${hier ? `data-act="container" data-id="${esc(c4.bereich)}"` : "disabled"}><span><em>${i7 + 1}</em> ${esc(c4.name)}</span><i style="width:${(c4.kwh || 0) / max * 100}%;background:${hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : "var(--ink2)"}"></i><em>${de(c4.kwh, 0)} kWh · ${de(c4.eur, 2)} €</em></button>`;
         }).join("")}</div>`;
         return `<div class="glas-panel block"><div class="block-kopf"><b>Wer verbraucht was</b><span class="leise">antippen öffnet den Container</span></div>
         ${laed ? LAEDT : !rang.length ? '<div class="leer">Noch kein Verbrauch in diesem Zeitraum</div>' : `<div class="aw-tab-kopf"><span></span><span>kWh</span><span>€</span><span>Heizzeit</span><span>kWh/h</span><span>kWh/m²</span><span>jetzt</span></div>
-        ${rang.map((c4, i6) => {
+        ${rang.map((c4, i7) => {
           const hier = d3.bereiche.find((b3) => b3.id === c4.bereich), farbe = hier ? BEREICH_FARBEN[hier.f % BEREICH_FARBEN.length] : "var(--ink2)";
-          return `<button class="aw-tab-zeile" ${hier ? `data-act="container" data-id="${esc(c4.bereich)}"` : "disabled"}><span class="aw-tab-name"><span><em>${i6 + 1}</em>${esc(c4.name)}</span>${this.s.awScope === "alle" ? `<small>${esc(c4.baustelle || "")}</small>` : ""}
+          return `<button class="aw-tab-zeile" ${hier ? `data-act="container" data-id="${esc(c4.bereich)}"` : "disabled"}><span class="aw-tab-name"><span><em>${i7 + 1}</em>${esc(c4.name)}</span>${this.s.awScope === "alle" ? `<small>${esc(c4.baustelle || "")}</small>` : ""}
             <i style="width:${(c4.kwh || 0) / max * 100}%;background:${farbe}"></i></span><b>${de(c4.kwh, 0)}</b><span>${de(c4.eur, 2)}</span><span>${de(c4.heizzeit, 1)} h</span><span>${zahl(c4.kwh_h) ? de(c4.kwh_h, 2) : "–"}</span><span>${zahl(c4.kwh_m2) ? de(c4.kwh_m2, 2) : "–"}</span><span>${hier ? temp(c4.bereich) : "–"}</span></button>`;
         }).join("")}`}</div>`;
       case "erkenntnisse": {
         const E2 = this.awErkenntnisse(A2, z2);
-        return laed ? `<div class="glas-panel block">${LAEDT}</div>` : !E2.length ? '<div class="glas-panel block"><div class="block-kopf"><b>Was fällt auf</b></div><div class="leer">Noch nichts Auffälliges</div></div>' : `<div class="aw-karten">${E2.map(([i6, t5, x2, kk]) => `<button class="glas-panel aw-karte" data-act="aw-detail" data-k="${kk}"><span>${i6}</span><b>${t5}</b><small>${x2}</small></button>`).join("")}</div>`;
+        return laed ? `<div class="glas-panel block">${LAEDT}</div>` : !E2.length ? '<div class="glas-panel block"><div class="block-kopf"><b>Was fällt auf</b></div><div class="leer">Noch nichts Auffälliges</div></div>' : `<div class="aw-karten">${E2.map(([i7, t5, x2, kk]) => `<button class="glas-panel aw-karte" data-act="aw-detail" data-k="${kk}"><span>${i7}</span><b>${t5}</b><small>${x2}</small></button>`).join("")}</div>`;
       }
       case "k-kosten":
         return kachel("abrechnung", `<small>KOSTEN · ${wann}</small><b>${eur}</b><span>${zahl(S3.kwh) ? de(S3.kwh, 0) : "–"} kWh ${this.awDelta((S3.veraenderung || {}).kwh)}</span>`);
@@ -4903,19 +4919,19 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       <div class="seg klein">${[["teil", alle ? "Baustelle" : "Container"], ["firma", "Firma"]].map(([k2, t5]) => `<button data-act="vb-gruppe" data-ziel="aw" data-v="${k2}" class="${(firma ? "firma" : "teil") === k2 ? "on" : ""}">${t5}</button>`).join("")}</div></div>`;
     if (werte.some((x2) => !x2.v)) return `<div class="glas-panel aw-dia">${kopf}${LAEDT}</div>`;
     const zr = this.zeitraum(z2, st.v || 0), labels = zr.labels, n4 = labels.length, reihen = werte.map(({ q, v: v2 }) => ({ name: q.name, farbe: q.farbe, v: v2 }));
-    const summen = labels.map((_2, i6) => reihen.reduce((a3, r5) => a3 + (r5.v[i6] || 0), 0)), ges = summe(summen);
+    const summen = labels.map((_2, i7) => reihen.reduce((a3, r5) => a3 + (r5.v[i7] || 0), 0)), ges = summe(summen);
     const W = gr.w * 160, H2 = Math.max(90, gr.h * 110 + (gr.h - 1) * 12 - 78), L2 = 30, R2 = 6, T2 = 6, U = 16, hi = Math.max(...summen, 0) * 1.1 || 1;
     const stufe = hi > 200 ? 100 : hi > 40 ? 20 : hi > 12 ? 5 : hi > 4 ? 2 : hi > 1.5 ? 0.5 : 0.2, y3 = (v2) => T2 + (1 - v2 / hi) * (H2 - T2 - U), bw = (W - L2 - R2) / n4, jedes = Math.max(1, Math.ceil(n4 / (gr.w * 4)));
     const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_2, q) => q * stufe).map((v2) => `<line x1="${L2}" x2="${W - R2}" y1="${y3(v2).toFixed(1)}" y2="${y3(v2).toFixed(1)}" class="gr"/><text x="${L2 - 4}" y="${(y3(v2) + 3).toFixed(1)}" class="ax" text-anchor="end">${de(v2, stufe < 1 ? 1 : 0)}</text>`).join("");
-    const bars = labels.map((lab, i6) => {
+    const bars = labels.map((lab, i7) => {
       let unten = 0;
       return reihen.map((r5) => {
-        const v2 = r5.v[i6] || 0;
+        const v2 = r5.v[i7] || 0;
         if (!(v2 > 0)) return "";
         const y1 = y3(unten + v2), y0 = y3(unten);
         unten += v2;
-        return `<rect x="${(L2 + i6 * bw + bw * 0.12).toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw * 0.76).toFixed(1)}" height="${Math.max(0, y0 - y1).toFixed(1)}" fill="${r5.farbe}" rx="1.5"><title>${esc(String(lab))} · ${esc(r5.name)} · ${de(v2, 1)} kWh</title></rect>`;
-      }).join("") + (i6 % jedes === 0 ? `<text x="${(L2 + i6 * bw + bw / 2).toFixed(1)}" y="${H2 - 3}" class="ax" text-anchor="middle">${esc(String(lab))}</text>` : "");
+        return `<rect x="${(L2 + i7 * bw + bw * 0.12).toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw * 0.76).toFixed(1)}" height="${Math.max(0, y0 - y1).toFixed(1)}" fill="${r5.farbe}" rx="1.5"><title>${esc(String(lab))} · ${esc(r5.name)} · ${de(v2, 1)} kWh</title></rect>`;
+      }).join("") + (i7 % jedes === 0 ? `<text x="${(L2 + i7 * bw + bw / 2).toFixed(1)}" y="${H2 - 3}" class="ax" text-anchor="middle">${esc(String(lab))}</text>` : "");
     }).join("");
     return `<div class="glas-panel aw-dia">${kopf}
       <svg class="aw-dia-svg" viewBox="0 0 ${W} ${H2}" preserveAspectRatio="xMidYMid meet">${raster}${bars}</svg>
@@ -4977,7 +4993,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const d3 = this.d, S3 = c4.S, A2 = c4.A, p4 = d3.e.preis, f3 = (v2, k2 = 1) => zahl(v2) ? de(v2, k2) : "–", farbe = b3 ? BEREICH_FARBEN[b3.f % BEREICH_FARBEN.length] : "var(--s1)";
     const pfeil = (dl) => zahl(dl) ? `<em class="${dl > 0 ? "mehr" : "weniger"}">${dl > 0 ? "▲" : "▼"} ${Math.abs(dl)} %</em>` : "";
     const zr = this.zeitraum(c4.z, c4.v), zrc = this.zeitraum(c4.zc, c4.vc), wann = this.zrText(c4.z, c4.v), wannC = this.zrText(c4.zc, c4.vc);
-    const lab = (z2, labels) => z2 === "Tag" ? labels.map((h3, i6) => i6 % 6 ? "" : h3) : z2 === "Woche" ? TAGE : labels;
+    const lab = (z2, labels) => z2 === "Tag" ? labels.map((h3, i7) => i7 % 6 ? "" : h3) : z2 === "Woche" ? TAGE : labels;
     const heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), soll = b3 ? this.sollVon(b3) : null;
     switch (x2.k) {
       case "b-kosten": {
@@ -5229,9 +5245,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     return null;
   }
   /* eine Kachel in S / M / L (L mit Diagramm oder vier Kennzahlen); ort 'kat' = Vorschau im Katalog */
-  kkKachel(x2, i6, ort, c4) {
-    if (KK[x2.k] && KK[x2.k].je === "v") return this.vgKachel(x2, i6, ort, c4);
-    if (x2.k === "b-preis") return this.spKachel(x2, i6, ort, c4);
+  kkKachel(x2, i7, ort, c4) {
+    if (KK[x2.k] && KK[x2.k].je === "v") return this.vgKachel(x2, i7, ort, c4);
+    if (x2.k === "b-preis") return this.spKachel(x2, i7, ort, c4);
     const e6 = KK[x2.k], b3 = e6.je ? this.kkB(x2) : null, gr = x2.st, kopf = `<div class="kk-kopf"><span class="kk-ic">${e6.ic}</span><small>${esc(e6.name)}</small></div>`;
     if (e6.je && !b3) return `<div class="glas-panel kk">${kopf}<span class="kk-wo">kein ${e6.je === "p" ? "Schacht" : "Container"} vorhanden</span></div>`;
     const D2 = this.kkDaten(x2, b3, c4), mitDia = gr === "L" && x2.dia !== false;
@@ -5240,24 +5256,24 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     if (gr === "S") inhalt = `${kopf}${zahlH}${!b3 && D2.unter ? `<span class="kk-wo">${D2.unter}</span>` : wo}`;
     else if (gr === "M") inhalt = `<div class="kk-m-l">${kopf}${zahlH}<span class="kk-vgl">${D2.vgl || ""}</span>${b3 ? wo : ""}</div><div class="kk-m-r">${D2.mini || funke(D2.funke, D2.farbe) || `<span class="kk-wo">${esc(b3 ? D2.wo || "" : "")}</span>`}</div>`;
     else {
-      const dia = mitDia ? D2.dia(`kk-${ort}-${i6}-${x2.k}-${b3 ? b3.id : "b"}-${c4.zc}${c4.vc}`) : "";
+      const dia = mitDia ? D2.dia(`kk-${ort}-${i7}-${x2.k}-${b3 ? b3.id : "b"}-${c4.zc}${c4.vc}`) : "";
       inhalt = `${kopf}<div class="kk-l-zeile">${zahlH}${wo}</div><span class="kk-vgl">${D2.vgl || ""}</span>` + (mitDia ? `<div class="kk-dia ${D2.zeilen ? "zeilen" : ""}">${dia || '<div class="leer">Noch keine Werte</div>'}</div>` : `<div class="kk-kennz">${(D2.kennz || []).map(([k2, v2]) => `<div><b>${v2}</b><span>${esc(k2)}</span></div>`).join("")}</div>`);
     }
     const tip = `${esc(this.kkName(x2))} – antippen öffnet die Ansicht`;
-    return ort === "kat" ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>` : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i6}" title="${tip}">${inhalt}</div>`;
+    return ort === "kat" ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>` : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i7}" title="${tip}">${inhalt}</div>`;
   }
   /* Raster mit Layout (ziehen, Größe, ✕, 📈) – Auswertung und Übersicht gleich */
   kkRaster(ort, teile, layout) {
-    return `<div class="aw-raster ${layout ? "layout" : ""}" data-ort="${ort}">${teile.map(({ x: x2, i: i6, html }) => `<div class="aw-frei-s ${this.s.kkFrisch === `${ort}:${x2.k}:${x2.id || ""}` ? "kk-frisch" : ""}" data-i="${i6}" style="--w:${x2.w};--h:${x2.h}"><div class="aw-inhalt">${html}</div>
+    return `<div class="aw-raster ${layout ? "layout" : ""}" data-ort="${ort}">${teile.map(({ x: x2, i: i7, html }) => `<div class="aw-frei-s ${this.s.kkFrisch === `${ort}:${x2.k}:${x2.id || ""}` ? "kk-frisch" : ""}" data-i="${i7}" style="--w:${x2.w};--h:${x2.h}"><div class="aw-inhalt">${html}</div>
         ${layout ? `<div class="aw-ueber"><span class="aw-griff" data-zug="move" title="verschieben">⠿</span><span class="aw-name">${esc(this.kkName(x2))} · <b class="aw-mass">${x2.st}</b></span>
-          ${KK[x2.k] && x2.st === "L" ? `<button class="aw-dia-k ${x2.dia !== false ? "on" : ""}" data-act="kk-dia" data-ort="${ort}" data-i="${i6}" title="mit oder ohne Diagramm" aria-label="Diagramm ein/aus">📈</button>` : ""}
-          ${KK[x2.k] && KK[x2.k].je === "v" && x2.st === "L" && x2.dia !== false ? `<button class="aw-dia-k aw-art-k on" data-act="vg-art-k" data-ort="${ort}" data-i="${i6}" title="Balken oder Linien" aria-label="Balken oder Linien">${x2.art === "linien" ? "〰" : "▮▮"}</button>` : ""}
-          <button class="aw-x" data-act="aw-weg" data-ort="${ort}" data-i="${i6}" aria-label="${KK[x2.k] ? "entfernen" : "ausblenden"}">✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : ""}</div>`).join("")}
+          ${KK[x2.k] && x2.st === "L" ? `<button class="aw-dia-k ${x2.dia !== false ? "on" : ""}" data-act="kk-dia" data-ort="${ort}" data-i="${i7}" title="mit oder ohne Diagramm" aria-label="Diagramm ein/aus">📈</button>` : ""}
+          ${KK[x2.k] && KK[x2.k].je === "v" && x2.st === "L" && x2.dia !== false ? `<button class="aw-dia-k aw-art-k on" data-act="vg-art-k" data-ort="${ort}" data-i="${i7}" title="Balken oder Linien" aria-label="Balken oder Linien">${x2.art === "linien" ? "〰" : "▮▮"}</button>` : ""}
+          <button class="aw-x" data-act="aw-weg" data-ort="${ort}" data-i="${i7}" aria-label="${KK[x2.k] ? "entfernen" : "ausblenden"}">✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : ""}</div>`).join("")}
       ${layout ? "" : `<button class="glas-panel kk-neu-k" data-act="kk-plus" data-ort="${ort}"><span>+</span>Kachel</button>`}</div>`;
   }
   kkBereich() {
     const L2 = this.kkListe("ue"), layout = this.s.kkLayout, c4 = this.kkCtx("ue");
-    const teile = L2.map((x2, i6) => ({ x: x2, i: i6, html: this.kkKachel(x2, i6, "ue", c4) }));
+    const teile = L2.map((x2, i7) => ({ x: x2, i: i7, html: this.kkKachel(x2, i7, "ue", c4) }));
     return `<div class="kk-bereich"><div class="kk-titel"><b>Meine Kacheln</b>
         <span class="kk-knoepfe">${L2.length ? `<button class="glas-panel chip ${layout ? "amber" : ""}" data-act="kk-layout">${layout ? "✓ Fertig" : "✥ Anpassen"}</button>` : ""}<button class="glas-panel chip kk-plus" data-act="kk-plus" data-ort="ue">＋ Kachel</button></span></div>
       ${layout ? '<div class="leise aw-hinweis">Kachel am Griff ⠿ ziehen zum Verschieben · am Griff ◢ ziehen für die Größe · 📈 Diagramm der großen Kachel ein/aus · ✕ entfernen</div>' : ""}
@@ -5332,7 +5348,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     this.s.kkLayout = false;
     this.s.awLayout = false;
     this.s.awBearb = false;
-    this.render();
+    this.neuZeichnen();
     this.toast(`Kachel „${this.kkName(neu)}“ (${s4.st}) hinzugefügt`);
   }
   /* WU-0017: Vergleich kWh / Kosten – 2 bis 4 Container gegenüber (Mockup vergleich-kacheln.html, abgenommen 02.10.2026):
@@ -5353,14 +5369,14 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const y3 = (v2) => T2 + (1 - v2 / hi) * (H2 - T2 - U), bw = (W - L2 - Rr) / n4, jedes = { Tag: 6, Woche: 1, Monat: 7 }[W0.z] || 3, fb = (b3) => BEREICH_FARBEN[b3.f % BEREICH_FARBEN.length];
     const stufe = hi > 200 ? 100 : hi > 40 ? 20 : hi > 12 ? 5 : hi > 4 ? 2 : hi > 1.5 ? 0.5 : 0.2;
     const raster = [...Array(Math.floor(hi / stufe) + 1)].map((_2, q) => q * stufe).map((v2) => `<line class="gr" x1="${L2}" x2="${W - Rr}" y1="${y3(v2).toFixed(1)}" y2="${y3(v2).toFixed(1)}"/><text class="ax" x="${L2 - 4}" y="${(y3(v2) + 3).toFixed(1)}" text-anchor="end">${de(v2, stufe < 1 ? 1 : 0)}</text>`).join("");
-    const achse = W0.zr.labels.map((t5, i6) => i6 % jedes ? "" : `<text class="ax" x="${(L2 + i6 * bw + bw / 2).toFixed(1)}" y="${H2 - 4}" text-anchor="middle">${esc(String(t5))}</text>`).join("");
-    const inhalt = art === "linien" ? R2.map((q) => `<path d="${q.r.map((v2, i6) => `${i6 ? "L" : "M"}${(L2 + i6 * bw + bw / 2).toFixed(1)} ${y3(v2).toFixed(1)}`).join("")}" fill="none" stroke="${fb(q.b)}" stroke-width="2.2" stroke-linejoin="round"/>`).join("") : W0.zr.labels.map((_2, i6) => R2.map((q, k2) => {
-      const w2 = bw * 0.8 / R2.length, xx = L2 + i6 * bw + bw * 0.1 + k2 * w2, v2 = q.r[i6] || 0;
+    const achse = W0.zr.labels.map((t5, i7) => i7 % jedes ? "" : `<text class="ax" x="${(L2 + i7 * bw + bw / 2).toFixed(1)}" y="${H2 - 4}" text-anchor="middle">${esc(String(t5))}</text>`).join("");
+    const inhalt = art === "linien" ? R2.map((q) => `<path d="${q.r.map((v2, i7) => `${i7 ? "L" : "M"}${(L2 + i7 * bw + bw / 2).toFixed(1)} ${y3(v2).toFixed(1)}`).join("")}" fill="none" stroke="${fb(q.b)}" stroke-width="2.2" stroke-linejoin="round"/>`).join("") : W0.zr.labels.map((_2, i7) => R2.map((q, k2) => {
+      const w2 = bw * 0.8 / R2.length, xx = L2 + i7 * bw + bw * 0.1 + k2 * w2, v2 = q.r[i7] || 0;
       return v2 > 0 ? `<rect x="${xx.toFixed(1)}" y="${y3(v2).toFixed(1)}" width="${Math.max(1, w2 - 0.5).toFixed(1)}" height="${(y3(0) - y3(v2)).toFixed(1)}" fill="${fb(q.b)}" rx="1"/>` : "";
     }).join("")).join("");
     return `<svg class="vg-svg" viewBox="0 0 ${W} ${H2}" preserveAspectRatio="xMidYMid meet">${raster}${achse}${inhalt}</svg>`;
   }
-  vgKachel(x2, i6, ort, c4) {
+  vgKachel(x2, i7, ort, c4) {
     const e6 = KK[x2.k], W0 = this.vgWerte(x2, c4), R2 = W0.R, gr = x2.st, eur = W0.eur, fb = (b3) => BEREICH_FARBEN[b3.f % BEREICH_FARBEN.length];
     const wert = (v2) => zahl(v2) ? eur ? `${de(v2, 2)} €` : `${de(v2, v2 < 100 ? 1 : 0)} kWh` : "–";
     const kopf = `<div class="kk-kopf"><span class="kk-ic">${e6.ic}</span><small>${esc(e6.name)}</small></div>`;
@@ -5372,7 +5388,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     else if (gr === "M") inhalt = `<div class="kk-m-l">${kopf}<span class="kk-wo">${esc(W0.wann)}</span><span class="kk-vgl">${unter}</span></div><div class="kk-m-r">${kkBalken(R2.map((q) => [q.b.name, q.su || 0, wert(q.su), fb(q.b)]))}</div>`;
     else inhalt = `${kopf}<div class="kk-l-zeile"><span class="kk-wo">${esc(W0.wann)}</span></div><span class="kk-vgl">${unter}</span>` + (x2.dia !== false ? `<div class="kk-dia">${this.vgDia(W0, x2.art) || '<div class="leer">Noch keine Werte</div>'}</div>${zeilen}` : `<table class="vg-tab"><tr><th></th><th>kWh</th><th>€</th><th>mehr</th><th>Heizzeit</th><th>kWh/h</th></tr>${R2.map((q) => `<tr><td><i style="background:${fb(q.b)}"></i>${esc(q.b.name)}</td>
           <td>${zahl(q.kwh) ? de(q.kwh, 1) : "–"}</td><td>${zahl(q.kwh) ? de(q.kwh * this.d.e.preis, 2) : "–"}</td><td>${zahl(q.su) && zahl(min) && q.su > min ? `+${wert(q.su - min)}` : "–"}</td><td>${stdMin(q.h)}</td><td>${q.h > 0 ? de(q.kwh / q.h, 2) : "–"}</td></tr>`).join("")}</table>`);
-    return ort === "kat" ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>` : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i6}" title="${esc(this.kkName(x2))} – antippen öffnet den Verbrauch">${inhalt}</div>`;
+    return ort === "kat" ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>` : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i7}" title="${esc(this.kkName(x2))} – antippen öffnet den Verbrauch">${inhalt}</div>`;
   }
   vgWahl(s4, e6) {
     const B2 = this.d.bereiche.filter((b3) => !b3.pumpe), ort = s4.ort === "aw" ? "Auswertung" : "Übersicht";
@@ -5393,21 +5409,21 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const S3 = this.s, c4 = this.kkCtx(ort), e6 = KK[x2.k], b3 = e6 && e6.je && e6.je !== "v" ? this.kkB(x2) : null;
     if (e6 && e6.je === "v") {
       S3.sheet = { art: "verbrauch", t: x2.k === "v-eur" ? "eur" : void 0, auswahl: [...x2.ids || []], zeitraum: ort === "aw" ? c4.zc : x2.zr || "Tag", v: ort === "aw" ? c4.vc : 0 };
-      return this.render();
+      return this.neuZeichnen();
     }
     const blatt = (art, extra = {}) => {
       S3.sheet = { art, auswahl: b3 ? [b3.id] : [], zeitraum: c4.zc, v: c4.vc, ...extra };
-      this.render();
+      this.neuZeichnen();
     };
     const detail = (k2) => {
       if (S3.view !== "auswertung") this.gehe("auswertung");
       S3.sheet = { art: "aw-detail", k: k2 };
-      this.render();
+      this.neuZeichnen();
     };
     switch (x2.k) {
       case "b-kosten":
         S3.sheet = { art: "verbrauch", t: "eur", auswahl: [], zeitraum: c4.z, v: c4.v };
-        return this.render();
+        return this.neuZeichnen();
       case "b-gespart":
         return detail("ohne");
       case "b-hoch":
@@ -5420,7 +5436,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         return detail("rangliste");
       case "b-strom":
         S3.sheet = { art: "strom" };
-        return this.render();
+        return this.neuZeichnen();
       case "b-preis":
         S3.awSim = true;
         return this.gehe("auswertung");
@@ -5449,10 +5465,10 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         return this.gehe("container", b3.id);
       case "h-plan":
         S3.sheet = { art: "hz", k: "plan" };
-        return this.render();
+        return this.neuZeichnen();
       case "h-wann":
         S3.sheet = { art: "hz", k: "wann" };
-        return this.render();
+        return this.neuZeichnen();
     }
   }
   awSeite(B2, A2, z2, alle) {
@@ -5464,18 +5480,18 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       <div class="seg glas-panel">${[["diese", "Diese Baustelle"], ["alle", `Alle laufenden (${this.laufende().length})`]].map(([k2, t5]) => `<button data-act="aw-scope" data-v="${k2}" class="${(this.s.awScope || "diese") === k2 ? "on" : ""}">${t5}</button>`).join("")}</div></div>
       ${this.zrWahl("aw", z2, this.zrGrenze(alle))}`;
     if (bearb) {
-      const _gr = (i6, x2, k2, max) => `<span class="aw-gr"><small>${k2 === "w" ? "Breite" : "Höhe"}</small><button class="glas-panel chip" data-act="aw-gr" data-i="${i6}" data-k="${k2}" data-d="-1" ${x2[k2] <= 1 ? "disabled" : ""}>−</button><b>${x2[k2]}</b><button class="glas-panel chip" data-act="aw-gr" data-i="${i6}" data-k="${k2}" data-d="1" ${x2[k2] >= max ? "disabled" : ""}>+</button></span>`;
+      const _gr = (i7, x2, k2, max) => `<span class="aw-gr"><small>${k2 === "w" ? "Breite" : "Höhe"}</small><button class="glas-panel chip" data-act="aw-gr" data-i="${i7}" data-k="${k2}" data-d="-1" ${x2[k2] <= 1 ? "disabled" : ""}>−</button><b>${x2[k2]}</b><button class="glas-panel chip" data-act="aw-gr" data-i="${i7}" data-k="${k2}" data-d="1" ${x2[k2] >= max ? "disabled" : ""}>+</button></span>`;
       return `${kopf}${leiste}
         <div class="glas-panel block aw-vorlagen"><div class="block-kopf"><b>Vorlage</b><span class="leise">stellt Bausteine, Reihenfolge und Größe ein – danach frei anpassbar</span></div>
           <div class="aw-vorlagen-k">${Object.entries(AW_VORLAGEN).map(([k2, [t5]]) => `<button class="glas-panel chip" data-act="aw-vorlage" data-v="${k2}">${t5}</button>`).join("")}</div></div>
         <div class="glas-panel liste aw-wahl"><div class="gruppe">Bausteine · ein/aus, Reihenfolge, Größe (nur Stufen, die zum Inhalt passen)</div>
-          ${L2.map((x2, i6) => `<div class="zeile"><div><b>${esc(this.kkName(x2))}</b><div class="leise">${AW_BAUSTEINE[x2.k] ? AW_BAUSTEINE[x2.k][1] : `Kachel · ${KK[x2.k].text}`}${alle && !B2[x2.k] && B2[x2.k] !== void 0 ? " · nur für diese Baustelle" : ""}</div></div>
-            <div class="aw-wahl-k"><button class="glas-panel chip" data-act="aw-hoch" data-i="${i6}" ${i6 ? "" : "disabled"} aria-label="nach oben">↑</button><button class="glas-panel chip" data-act="aw-runter" data-i="${i6}" ${i6 < L2.length - 1 ? "" : "disabled"} aria-label="nach unten">↓</button>
-              <div class="seg klein">${awStufen(x2.k).map(([n4, w2, h3]) => `<button data-act="aw-stufe" data-i="${i6}" data-v="${n4}" class="${x2.st === n4 ? "on" : ""}" title="${w2}×${h3}">${n4}</button>`).join("")}</div>${schalter(x2.an, "aw-an", `data-i="${i6}"`)}</div></div>`).join("")}
+          ${L2.map((x2, i7) => `<div class="zeile"><div><b>${esc(this.kkName(x2))}</b><div class="leise">${AW_BAUSTEINE[x2.k] ? AW_BAUSTEINE[x2.k][1] : `Kachel · ${KK[x2.k].text}`}${alle && !B2[x2.k] && B2[x2.k] !== void 0 ? " · nur für diese Baustelle" : ""}</div></div>
+            <div class="aw-wahl-k"><button class="glas-panel chip" data-act="aw-hoch" data-i="${i7}" ${i7 ? "" : "disabled"} aria-label="nach oben">↑</button><button class="glas-panel chip" data-act="aw-runter" data-i="${i7}" ${i7 < L2.length - 1 ? "" : "disabled"} aria-label="nach unten">↓</button>
+              <div class="seg klein">${awStufen(x2.k).map(([n4, w2, h3]) => `<button data-act="aw-stufe" data-i="${i7}" data-v="${n4}" class="${x2.st === n4 ? "on" : ""}" title="${w2}×${h3}">${n4}</button>`).join("")}</div>${schalter(x2.an, "aw-an", `data-i="${i7}"`)}</div></div>`).join("")}
           <button class="zeile" data-act="aw-vorlage" data-v="misch"><span class="blau">Auf Vorschlag zurücksetzen</span></button></div>`;
     }
     const an = L2.filter((x2) => x2.an), c4 = this.kkCtx("aw");
-    const teile = an.map((x2, i6) => ({ x: x2, i: i6, html: KK[x2.k] ? this.kkKachel(x2, i6, "aw", c4) : this.awStueck(x2.k, B2, A2, z2, x2) })).filter((t5) => t5.html);
+    const teile = an.map((x2, i7) => ({ x: x2, i: i7, html: KK[x2.k] ? this.kkKachel(x2, i7, "aw", c4) : this.awStueck(x2.k, B2, A2, z2, x2) })).filter((t5) => t5.html);
     return `${kopf}${leiste}
       ${layout ? '<div class="leise aw-hinweis">Kachel am Griff ⠿ ziehen zum Verschieben · am Griff ◢ ziehen für die Größe (rastet im Raster ein) · 📈 Diagramm der großen Kachel ein/aus · ✕ blendet aus</div>' : ""}
       ${teile.length || !layout ? this.kkRaster("aw", teile, layout) : '<div class="leer">Nichts ausgewählt – „＋ Kachel“</div>'}`;
@@ -5520,7 +5536,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         Lg.splice(Lg.indexOf(nach) + (+ziel.dataset.i > +kachel.dataset.i ? 1 : 0), 0, item);
       }
       this.kkMerken(ort);
-      this.render();
+      this.neuZeichnen();
     };
     window.addEventListener("pointermove", bewegt);
     window.addEventListener("pointerup", fertig);
@@ -5538,7 +5554,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const url = c4.toDataURL("image/jpeg", 0.82), B2 = s4.form.bilder ||= [];
     if (B2.length >= MB_MAX) return this.toast(`Höchstens ${MB_MAX} Bilder`);
     B2.push({ url, b: c4.width, h: c4.height, kb: Math.round(url.length * 0.75 / 1024) });
-    this.render();
+    this.neuZeichnen();
     this.toast(`Bild ${wie}`);
   }
   mbDatei(datei, wie) {
@@ -5563,12 +5579,12 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       });
     }).catch(() => this.toast("Aufnahme abgebrochen"));
   }
-  mlBild(m3, i6) {
-    const r5 = this._holen(`mb:${m3.id}:${i6}`, () => this._hass.callWS({ type: "baustelle/meldung", aktion: "bild", meldung_id: m3.id, nr: i6 }), 36e5);
+  mlBild(m3, i7) {
+    const r5 = this._holen(`mb:${m3.id}:${i7}`, () => this._hass.callWS({ type: "baustelle/meldung", aktion: "bild", meldung_id: m3.id, nr: i7 }), 36e5);
     return r5 && r5.url;
   }
   /* Kachel „Preis simulieren“: tatsächliche € (je Tag der damalige Preis) gegen alle kWh × simulierter Preis – beides rechnet die Integration */
-  spKachel(x2, i6, ort, c4) {
+  spKachel(x2, i7, ort, c4) {
     const sim = this.simPreis(), A2 = this.awDaten(c4.z, c4.v, ort === "aw" ? this.s.awScope || "diese" : "diese", this.d, sim), S22 = A2 && A2.summen || {}, S3 = c4.S;
     const echt = S3.eur, simE = S22.eur, kwh = S3.kwh, diff = zahl(simE) && zahl(echt) ? simE - echt : null, gr = x2.st;
     const kopf = '<div class="kk-kopf"><span class="kk-ic">🧮</span><small>Preis simulieren</small></div>';
@@ -5581,15 +5597,15 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     else inhalt = `${kopf}<div class="kk-l-zeile">${zahlH}<span class="kk-wo">${esc(this.zrText(c4.z, c4.v))}</span></div><span class="kk-vgl">${unter}</span>${regler}
       <div class="kk-dia zeilen"><div class="kk-dia-in">${kkBalken([["tatsächlich", echt || 0, zahl(echt) ? `${de(echt, 2)} €` : "–", "var(--s1)"], [`bei ${de(sim, 2)} €`, simE || 0, zahl(simE) ? `${de(simE, 2)} €` : "–", "#bf5af2"]])}</div></div>
       <div class="leise">tatsächlich = je Tag der damals gültige Preis · simuliert = alle ${zahl(kwh) ? de(kwh, 0) : "–"} kWh × ${de(sim, 2)} €</div>`;
-    return ort === "kat" ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>` : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i6}" title="antippen: Auswertung mit diesem Preis">${inhalt}</div>`;
+    return ort === "kat" ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>` : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i7}" title="antippen: Auswertung mit diesem Preis">${inhalt}</div>`;
   }
   /* Strompreis mit „gilt ab“ (Herbert 04.10.2026, Mockup strompreis.html): Liste wie die Arbeitszeit; die Integration
      rechnet jeden Tag mit dem Preis, der damals galt */
   preisListe() {
     const e6 = this.d.e, H2 = this.z.HEUTE, L2 = (e6.preise.length ? e6.preise : [{ ab: null, preis: e6.preis }]).slice().sort((a3, b3) => String(b3.ab).localeCompare(String(a3.ab)));
     const jetzt = L2.find((x2) => !x2.ab || x2.ab <= H2);
-    return `<div class="gruppe-t">Strompreis</div>${L2.map((x2, i6) => {
-      const bis = i6 && L2[i6 - 1].ab ? plusTage(L2[i6 - 1].ab, -1) : null;
+    return `<div class="gruppe-t">Strompreis</div>${L2.map((x2, i7) => {
+      const bis = i7 && L2[i7 - 1].ab ? plusTage(L2[i7 - 1].ab, -1) : null;
       return `<div class="sp-zeile"><b>${de(x2.preis, 2)} €/kWh</b><span class="leise">${x2 === jetzt ? '<span class="badge gruen">gilt jetzt</span> ' : x2.ab > H2 ? '<span class="badge blau-b">geplant</span> ' : ""}${x2.ab && x2.ab > "2000-01-01" ? `ab ${datum(x2.ab)}` : "bisher"}${bis ? ` bis ${datum(bis)}` : ""}</span>
         ${L2.length > 1 && x2.ab ? `<button class="x" data-act="sp-weg" data-ab="${x2.ab}" title="Preis löschen">✕</button>` : ""}</div>`;
     }).join("")}
@@ -5605,7 +5621,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const f3 = (v2, k2 = 2) => `${v2 > 0 ? "+" : v2 < 0 ? "−" : ""}${de(Math.abs(v2), k2)}`, gesehen = /* @__PURE__ */ new Set();
     const letzterAn = [...zeilen].reverse().find((x2) => x2.g.an);
     return `<div class="sr-kopf"><b>Rangliste</b><span class="leise">oben = zuerst an, unten = gibt zuerst ab</span></div>
-      <div class="sr-liste">${zeilen.map((x2, i6) => {
+      <div class="sr-liste">${zeilen.map((x2, i7) => {
       const { b: b3, g: g2 } = x2, B2 = b3.bedarfGrad, erster = !gesehen.has(b3.id);
       gesehen.add(b3.id);
       const stufen2 = (b3.z === "frost" ? '<span class="sr-stufe frost">❄ Frostschutz</span>' : "") + (b3.boost ? '<span class="sr-stufe boost">⚡ Schnell</span>' : "") + (erster ? '<span class="sr-stufe erster">erster im Container</span>' : '<span class="sr-stufe">Zweitgerät</span>') + (b3.prio && b3.prio !== "normal" ? `<span class="sr-stufe">Priorität ${esc(b3.prio)}</span>` : "");
@@ -5620,7 +5636,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         ...B2.gerecht ? [[`wenig Heizzeit in der letzten Stunde (${B2.heiz_min} min)`, B2.gerecht]] : []
       ] : [["Ohne Fühler kein Bedarf – kommt über die Heizzeit der letzten Stunde reihum dran", B2.gerecht]];
       const aufHtml = !auf || !teile.length ? "" : `<div class="sr-auf">${teile.map(([t5, v2]) => `<span>${t5}</span><b>${f3(v2)} °C</b>`).join("")}<span class="summe">Bedarf</span><b class="summe">${f3(B2.summe)} °C</b></div>`;
-      return `<div class="sr-zeile" data-act="sr-auf" data-id="${esc(g2.id)}" role="button" tabindex="0"><span class="sr-nr">${i6 + 1}</span><div class="sr-name"><b>${esc(b3.name)} · ${esc(g2.n)}</b><div>${stufen2}</div></div>${wert}
+      return `<div class="sr-zeile" data-act="sr-auf" data-id="${esc(g2.id)}" role="button" tabindex="0"><span class="sr-nr">${i7 + 1}</span><div class="sr-name"><b>${esc(b3.name)} · ${esc(g2.n)}</b><div>${stufen2}</div></div>${wert}
           <div class="sr-zust"><span class="${zk}">${zt}${x2 === letzterAn && g2.an ? " · gibt als nächstes ab" : ""}</span> <span class="leise">· antippen: woraus</span></div>${aufHtml}</div>`;
     }).join("")}</div>`;
   }
@@ -5677,8 +5693,8 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     for (const id of ids) {
       const arr = Array(n4).fill(null);
       for (const p4 of (roh || {})[id] || []) {
-        const ms = typeof p4.start === "number" ? p4.start < 1e11 ? p4.start * 1e3 : p4.start : Date.parse(p4.start), i6 = tage.indexOf(this.lokal(ms, d3.z.zone).slice(0, 10));
-        if (i6 >= 0 && zahl(p4.mean)) arr[i6] = Number(p4.mean);
+        const ms = typeof p4.start === "number" ? p4.start < 1e11 ? p4.start * 1e3 : p4.start : Date.parse(p4.start), i7 = tage.indexOf(this.lokal(ms, d3.z.zone).slice(0, 10));
+        if (i7 >= 0 && zahl(p4.mean)) arr[i7] = Number(p4.mean);
       }
       werte[id] = arr;
     }
@@ -5695,7 +5711,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         [...C2.map((b3) => ({ name: b3.name, farbe: farbe(b3), v: [...st.werte[b3.fuehler] || [], null] })), ...aid ? [{ ...aussen, v: [...st.werte[aid] || [], null] }] : []],
         [...STUNDEN, "24"],
         6,
-        (i6) => `${String(i6).padStart(2, "0")}:00`
+        (i7) => `${String(i7).padStart(2, "0")}:00`
       );
     } else {
       const n4 = tv === "7" ? 7 : 30, t5 = this.tempTage(n4);
@@ -5704,7 +5720,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         [...C2.map((b3) => ({ name: b3.name, farbe: farbe(b3), v: t5.werte[b3.fuehler] || Array(n4).fill(null) })), ...aid ? [{ ...aussen, v: t5.werte[aid] || Array(n4).fill(null) }] : []],
         t5.tage.map(kurzDatum),
         n4 === 7 ? 1 : 5,
-        (i6) => `${wtag(t5.tage[i6])} ${kurzDatum(t5.tage[i6])} · Tagesmittel`
+        (i7) => `${wtag(t5.tage[i7])} ${kurzDatum(t5.tage[i7])} · Tagesmittel`
       );
     }
     return `<div class="glas-panel block"><div class="block-kopf"><b>Temperaturen</b><span class="leise">alle Container mit Fühler</span></div>
@@ -5771,7 +5787,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
   }
   vlFunke(werte, farbe, w2 = 120, h3 = 34) {
     const max = Math.max(1, ...werte), bw = w2 / werte.length;
-    return `<svg class="vl-funke" viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none">${werte.map((v2, i6) => `<rect x="${(i6 * bw + 1).toFixed(1)}" y="${(h3 - v2 / max * h3).toFixed(1)}" width="${Math.max(0, bw - 2).toFixed(1)}" height="${(v2 / max * h3).toFixed(1)}" rx="1.5" fill="${farbe}" opacity="${v2 > 0.5 ? 0.9 : 0.15}"/>`).join("")}</svg>`;
+    return `<svg class="vl-funke" viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none">${werte.map((v2, i7) => `<rect x="${(i7 * bw + 1).toFixed(1)}" y="${(h3 - v2 / max * h3).toFixed(1)}" width="${Math.max(0, bw - 2).toFixed(1)}" height="${(v2 / max * h3).toFixed(1)}" rx="1.5" fill="${farbe}" opacity="${v2 > 0.5 ? 0.9 : 0.15}"/>`).join("")}</svg>`;
   }
   /* Archiv: Summe über alle, je Baustelle eine Karte mit Mini-Verlauf der letzten 12 Monate (aktive zuerst) */
   vlArchiv() {
@@ -5780,7 +5796,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const zahl0 = (v2, n4 = 0) => zahl(v2) ? de(v2, n4) : "–";
     return `<div class="glas-panel kennz vier">${[[BS.length, `Baustellen · ${BS.filter((b3) => b3.aktiv).length} aktiv`], [laedt ? "–" : de(sum("kwh"), 0), "kWh gesamt"], [laedt ? "–" : `${de(sum("eur"), 0)} €`, "Kosten gesamt"], [laedt ? "–" : `${de(sum("gespart"), 0)} €`, "gespart"]].map(([w2, t5]) => `<div><b>${w2}</b><span>${t5}</span></div>`).join("")}</div>
       ${BS.length ? `<div class="vl-archiv">${BS.map((b3) => {
-      const k2 = K.get(b3.entry), i6 = this.alle.indexOf(b3), farbe = `var(--s${i6 % 6 + 1})`;
+      const k2 = K.get(b3.entry), i7 = this.alle.indexOf(b3), farbe = `var(--s${i7 % 6 + 1})`;
       return `<button class="glas-panel vl-karte ${b3.aktiv ? "aktiv" : ""}" data-act="bs-oeffnen" data-id="${esc(b3.entry)}">
           <div class="bs-kopf"><b>${esc(b3.titel)}</b><span class="badge ${b3.aktiv ? "gruen" : ""}">${b3.aktiv ? "aktiv" : "abgeschlossen"}</span></div>
           <div class="leise">${k2.zeit} · ${k2.container} Container · ${k2.laedt ? "–" : k2.heiztage} Heiztage</div>
@@ -5798,18 +5814,18 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       const k2 = K.get(b3.entry);
       return { name: b3.titel, tag: k2.vergleich.tag, monat: k2.vergleich.monat, kwh: k2.kwh, eur: k2.eur, heiztage: k2.heiztage, container: k2.container }[kk];
     };
-    const zeilen = BS.map((b3, i6) => ({ b: b3, i: i6 })).sort((x2, y3) => {
+    const zeilen = BS.map((b3, i7) => ({ b: b3, i: i7 })).sort((x2, y3) => {
       const a3 = wert(x2.b, sp), c4 = wert(y3.b, sp);
       return (typeof a3 === "string" ? String(a3).localeCompare(String(c4)) : (a3 ?? -1) - (c4 ?? -1)) * (ab ? -1 : 1);
     });
     const tage = BS.map((b3) => wert(b3, "tag")).filter((v2) => zahl(v2) && v2 > 0), bester = tage.length > 1 ? Math.min(...tage) : null;
-    const reihen = BS.map((b3, i6) => ({ name: b3.titel, v: MONK.map((m3) => K.get(b3.entry).jeMonat[m3] || 0), farbe: `var(--s${i6 % 6 + 1})` })).filter((x2) => x2.v.some((v2) => v2 > 0.5));
+    const reihen = BS.map((b3, i7) => ({ name: b3.titel, v: MONK.map((m3) => K.get(b3.entry).jeMonat[m3] || 0), farbe: `var(--s${i7 % 6 + 1})` })).filter((x2) => x2.v.some((v2) => v2 > 0.5));
     const laedt = BS.some((b3) => K.get(b3.entry).laedt), f3 = (v2, n4 = 0) => zahl(v2) ? de(v2, n4) : "–";
     return `<div class="glas-panel block vl-tabelle"><div class="block-kopf"><b>Alle Baustellen</b><span class="leise">Spalte antippen sortiert · kWh je Heiztag ist am besten vergleichbar</span></div>
         <div class="vl-tab-kopf">${spalten.map(([k2, t5]) => `<button data-act="vl-sort" data-v="${k2}" class="${sp === k2 ? "on" : ""}">${t5}${sp === k2 ? ab ? " ▼" : " ▲" : ""}</button>`).join("")}</div>
-        ${zeilen.map(({ b: b3, i: i6 }) => {
+        ${zeilen.map(({ b: b3, i: i7 }) => {
       const k2 = K.get(b3.entry);
-      return `<button class="vl-tab-zeile" data-act="bs-oeffnen" data-id="${esc(b3.entry)}"><span class="vl-tab-name"><span><i class="farbpunkt" style="background:var(--s${i6 % 6 + 1})"></i>${esc(b3.titel)}</span><small>${k2.zeit}</small></span>
+      return `<button class="vl-tab-zeile" data-act="bs-oeffnen" data-id="${esc(b3.entry)}"><span class="vl-tab-name"><span><i class="farbpunkt" style="background:var(--s${i7 % 6 + 1})"></i>${esc(b3.titel)}</span><small>${k2.zeit}</small></span>
           <b class="${bester !== null && k2.vergleich.tag === bester ? "gruen-t" : ""}">${f3(k2.vergleich.tag, 1)}</b><span>${f3(k2.vergleich.monat)}</span><span>${f3(k2.kwh)}</span><span>${f3(k2.eur)}</span><span>${k2.laedt ? "–" : k2.heiztage}</span><span>${k2.container}</span></button>`;
     }).join("")}</div>
       <div class="glas-panel block"><div class="block-kopf"><b>Letzte 12 Monate</b><span class="leise">kWh je Monat, gestapelt nach Baustelle</span></div>
@@ -5842,10 +5858,6 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       }).join("")}</div>`;
     }).join("") : `<div class="glas-panel block"><div class="leer">${q || f3 !== "alle" ? "Nichts gefunden" : "Noch keine Einträge"}</div></div>`}`;
   }
-  /* Lit-Pilot (BSM-022 2a.1): „Über“ zeichnet Lit in einen dauerhaften Bereich; der alte Renderer setzt nur den Platzhalter */
-  v_ueber() {
-    return '<div data-lit="ueber"></div>';
-  }
   v_dev() {
     const f3 = this.s.mfilter || "offen", alle = this.meldungen(), passt = (m3) => f3 === "alle" || f3 === "offen" === this.meldungOffen(m3), M2 = (alle || []).filter(passt);
     const ART = { fehler: ["Fehler", "rot-b"], wunsch: ["Wunsch", "blau-b"], anregung: ["Anregung", "gruen"] };
@@ -5857,9 +5869,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       const letzte = (m3.verlauf || []).filter((v2) => v2.notiz || v2.version).at(-1);
       return `<div class="ml ${this.meldungOffen(m3) ? "offen" : "erledigt"}"><div class="ml-kopf"><span><b class="ml-nr">${esc(m3.ticket || "")}</b> <span class="badge ${(ART[m3.art] || ART.wunsch)[1]}">${(ART[m3.art] || ART.wunsch)[0]}</span> <span class="badge st-${esc(m3.status)}">${esc(TICKET_STATUS[m3.status] || m3.status)}</span></span><span class="leise">${this.meldungZeit(m3)} · ${esc(m3.geraet || "–")} · v${esc(m3.version || "–")}</span></div>
           <div class="ml-text">${esc(m3.text)}</div><div class="leise">📍 ${esc(m3.kontext || "–")}</div>
-          ${(m3.bilder || []).length ? `<div class="ml-bilder">${m3.bilder.map((_2, i6) => {
-        const u3 = this.mlBild(m3, i6);
-        return u3 ? `<img src="${u3}" alt="Bild ${i6 + 1}" data-act="m-bild" data-id="${esc(m3.id)}" data-i="${i6}" role="button">` : '<span class="ml-bild-laedt"></span>';
+          ${(m3.bilder || []).length ? `<div class="ml-bilder">${m3.bilder.map((_2, i7) => {
+        const u3 = this.mlBild(m3, i7);
+        return u3 ? `<img src="${u3}" alt="Bild ${i7 + 1}" data-act="m-bild" data-id="${esc(m3.id)}" data-i="${i7}" role="button">` : '<span class="ml-bild-laedt"></span>';
       }).join("")}</div>` : ""}
           ${letzte ? `<div class="leise ml-notiz">↳ ${esc(letzte.von || "")}: ${esc([letzte.version ? "v" + letzte.version : "", letzte.notiz || ""].filter(Boolean).join(" · "))}</div>` : ""}
           <div class="wk-knoepfe"><button class="chip glas-panel" data-act="m-status" data-id="${esc(m3.id)}">${this.meldungOffen(m3) ? "✓ Schließen" : "↺ wieder öffnen"}</button><button class="chip glas-panel" data-act="m-weg" data-id="${esc(m3.id)}">Löschen</button></div></div>`;
@@ -5873,9 +5885,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
   v_bsdetail() {
     const x2 = this.alle.find((y3) => y3.entry === this.s.bs);
     if (!x2) return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="verlauf">‹ Verlauf</button></div><div class="glas-panel block"><div class="leer">Baustelle nicht gefunden</div></div>`;
-    const k2 = this.kennz(x2), m3 = k2.monate && { labels: k2.monate.labels, reihen: k2.monate.reihen.map((r5, i6) => {
+    const k2 = this.kennz(x2), m3 = k2.monate && { labels: k2.monate.labels, reihen: k2.monate.reihen.map((r5, i7) => {
       const b3 = x2.bereiche.find((y3) => y3.id === r5.bereich);
-      return { name: r5.name, v: r5.v, kwh: r5.kwh, eur: r5.eur, anteil: r5.anteil, farbe: BEREICH_FARBEN[(b3 && zahl(b3.f) ? b3.f : i6) % BEREICH_FARBEN.length] };
+      return { name: r5.name, v: r5.v, kwh: r5.kwh, eur: r5.eur, anteil: r5.anteil, farbe: BEREICH_FARBEN[(b3 && zahl(b3.f) ? b3.f : i7) % BEREICH_FARBEN.length] };
     }) };
     const prot = !x2.geladen ? [] : this._holen(`bp:${x2.entry}`, () => this._hass.callWS({ type: "baustelle/protokoll", entry_id: x2.entry, filter: "alle", vor: null, limit: 5 }), 3e5);
     const ART = { einstellung: "⚙", warnung: "⚠", ok: "✓", schalten: "⏻", wetter: "☁", nachricht: "✉" };
@@ -5989,13 +6001,13 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
   }
   symSenden(b3, c4) {
     this.s.sheet.sym = c4;
-    this.render();
+    this.neuZeichnen();
     return this.setzen(["bereiche", b3.id, "symbol"], c4);
   }
   symKlick(a3, el) {
     const b3 = this.d.bereiche.find((x2) => x2.id === this.s.sheet.id);
     if (!b3) return void 0;
-    const c4 = JSON.parse(JSON.stringify(this.symKonfig(b3))), art = el.dataset.art, i6 = +el.dataset.i;
+    const c4 = JSON.parse(JSON.stringify(this.symKonfig(b3))), art = el.dataset.art, i7 = +el.dataset.i;
     if (a3 === "sym-standard") {
       this.s.sheet.sym = null;
       return this.setzen(["bereiche", b3.id, "symbol"], null);
@@ -6003,9 +6015,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     if (a3 === "sym-doppel") c4.doppel = !c4.doppel;
     if (a3 === "sym-farbe") c4.farbe = el.dataset.v;
     if (a3 === "sym-rahmen") c4.rahmen = el.dataset.v || null;
-    if (a3 === "sym-wand") c4[art][i6].wand = el.dataset.v;
-    if (a3 === "sym-lage") c4[art][i6].pos = +el.dataset.v;
-    if (a3 === "sym-weg" && c4[art].length > 1) c4[art].splice(i6, 1);
+    if (a3 === "sym-wand") c4[art][i7].wand = el.dataset.v;
+    if (a3 === "sym-lage") c4[art][i7].pos = +el.dataset.v;
+    if (a3 === "sym-weg" && c4[art].length > 1) c4[art].splice(i7, 1);
     if (a3 === "sym-neu" && c4[art].length < (art === "tueren" ? 2 : 4)) {
       const frei = [0.15, 0.33, 0.5, 0.67, 0.85].find((v2) => !c4[art].some((y3) => y3.wand === "front" && y3.pos === v2)) ?? 0.5;
       c4[art].push({ wand: "front", pos: frei, sensor: null });
@@ -6015,11 +6027,11 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
   symAenderung(el) {
     const b3 = this.d.bereiche.find((x2) => x2.id === this.s.sheet.id);
     if (!b3) return void 0;
-    const c4 = JSON.parse(JSON.stringify(this.symKonfig(b3))), [k2, i6] = el.dataset.sym.split(":");
+    const c4 = JSON.parse(JSON.stringify(this.symKonfig(b3))), [k2, i7] = el.dataset.sym.split(":");
     if (k2 === "farbe") c4.farbe = el.value;
     else if (k2 === "rahmen") c4.rahmen = el.value;
     else if (k2 === "licht") c4.licht = el.value || null;
-    else c4[k2][+i6].sensor = el.value || null;
+    else c4[k2][+i7].sensor = el.value || null;
     return this.symSenden(b3, c4);
   }
   symDialog(s4, griff, knopf) {
@@ -6029,22 +6041,22 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     const vorschau = {
       ...c4,
       licht_an: ist.licht_an,
-      tueren: c4.tueren.map((t5, i6) => ({ ...t5, offen: !!(ist.tueren[i6] && ist.tueren[i6].offen) })),
-      fenster: c4.fenster.map((f3, i6) => ({ ...f3, zustand: ist.fenster[i6] && ist.fenster[i6].zustand || "zu" }))
+      tueren: c4.tueren.map((t5, i7) => ({ ...t5, offen: !!(ist.tueren[i7] && ist.tueren[i7].offen) })),
+      fenster: c4.fenster.map((f3, i7) => ({ ...f3, zustand: ist.fenster[i7] && ist.fenster[i7].zustand || "zu" }))
     };
     const kontakte = this.entitaeten((x2) => x2.entity_id.startsWith("binary_sensor.") && ["door", "window", "opening", "garage_door"].includes(x2.attributes.device_class));
     const lichter = this.entitaeten((x2) => /^(light|switch)\./.test(x2.entity_id) || x2.entity_id.startsWith("binary_sensor.") && x2.attributes.device_class === "light" || x2.entity_id.startsWith("sensor.") && x2.attributes.device_class === "illuminance");
-    const seg = (act, art, i6, wert, opts) => `<div class="seg klein">${opts.map(([v2, t5]) => `<button data-act="${act}" data-art="${art}" data-i="${i6}" data-v="${v2}" class="${String(wert) === String(v2) ? "on" : ""}">${t5}</button>`).join("")}</div>`;
-    const element = (art, x2, i6, n4) => `<div class="zeile"><b>${art === "tueren" ? "🚪 Tür" : "🪟 Fenster"} ${i6 + 1}</b>${n4 > 1 ? `<button class="knopf klein" data-act="sym-weg" data-art="${art}" data-i="${i6}" aria-label="entfernen">✕</button>` : ""}</div>
-      <div class="zeile unter"><span>Wand</span>${seg("sym-wand", art, i6, x2.wand, [["front", "Front"], ["seite", "Seite"]])}</div>
-      <div class="zeile unter"><span>${art === "tueren" ? "Sitzt" : "Lage"}</span>${art === "tueren" ? seg("sym-lage", art, i6, x2.pos < 0.4 ? 0.15 : x2.pos > 0.6 ? 0.85 : 0.5, [[0.15, "links"], [0.5, "Mitte"], [0.85, "rechts"]]) : seg("sym-lage", art, i6, x2.pos, [[0.15, "links"], [0.33, "◧"], [0.5, "Mitte"], [0.67, "◨"], [0.85, "rechts"]])}</div>
-      <label class="zeile unter"><span>${art === "tueren" ? "Türsensor" : "Fenstersensor"}</span><select data-sym="${art}:${i6}">${this.optionen(kontakte, x2.sensor || "", art === "tueren" && i6 === 0 ? "wie Türkontakt des Containers" : "keiner")}</select></label>`;
+    const seg = (act, art, i7, wert, opts) => `<div class="seg klein">${opts.map(([v2, t5]) => `<button data-act="${act}" data-art="${art}" data-i="${i7}" data-v="${v2}" class="${String(wert) === String(v2) ? "on" : ""}">${t5}</button>`).join("")}</div>`;
+    const element = (art, x2, i7, n4) => `<div class="zeile"><b>${art === "tueren" ? "🚪 Tür" : "🪟 Fenster"} ${i7 + 1}</b>${n4 > 1 ? `<button class="knopf klein" data-act="sym-weg" data-art="${art}" data-i="${i7}" aria-label="entfernen">✕</button>` : ""}</div>
+      <div class="zeile unter"><span>Wand</span>${seg("sym-wand", art, i7, x2.wand, [["front", "Front"], ["seite", "Seite"]])}</div>
+      <div class="zeile unter"><span>${art === "tueren" ? "Sitzt" : "Lage"}</span>${art === "tueren" ? seg("sym-lage", art, i7, x2.pos < 0.4 ? 0.15 : x2.pos > 0.6 ? 0.85 : 0.5, [[0.15, "links"], [0.5, "Mitte"], [0.85, "rechts"]]) : seg("sym-lage", art, i7, x2.pos, [[0.15, "links"], [0.33, "◧"], [0.5, "Mitte"], [0.67, "◨"], [0.85, "rechts"]])}</div>
+      <label class="zeile unter"><span>${art === "tueren" ? "Türsensor" : "Fenstersensor"}</span><select data-sym="${art}:${i7}">${this.optionen(kontakte, x2.sensor || "", art === "tueren" && i7 === 0 ? "wie Türkontakt des Containers" : "keiner")}</select></label>`;
     return `${griff}<div class="block-kopf"><h3>🏠 Aussehen · ${esc(b3.name)}</h3></div><div class="sym-vorschau">${bcContainer(std, b3.z === "pause" || b3.z === "bereit" ? "aus" : b3.z, { symbol: vorschau })}</div>
       <div class="glas-panel liste"><div class="zeile"><div><b>Doppelcontainer</b><div class="leise">zwei Container nebeneinander – das Symbol wird tiefer</div></div>${schalter(c4.doppel, "sym-doppel")}</div>
         <div class="zeile"><span>Farbe</span><span class="sym-farben">${["#3987e5", "#eb6834", "#1baf7a", "#c98500", "#d55181", "#199e70", "#7e57c2", "#78909c"].map((fb) => `<button data-act="sym-farbe" data-v="${fb}" class="sym-farbe ${(c4.farbe || std) === fb ? "on" : ""}" style="background:${fb}" aria-label="Farbe ${fb}"></button>`).join("")}<input type="color" value="${c4.farbe || std}" data-sym="farbe" aria-label="eigene Farbe"></span></div>
         <div class="zeile"><div><span>Rahmen</span><div class="leise">Stahlrahmen an Ecken, oben und unten (20 cm)</div></div><span class="sym-farben"><button data-act="sym-rahmen" data-v="" class="knopf klein ${c4.rahmen ? "" : "on"}">kein</button>${["#c62828", "#37474f", "#eceff1", "#1565c0", "#f9a825", "#2e7d32"].map((fb) => `<button data-act="sym-rahmen" data-v="${fb}" class="sym-farbe ${c4.rahmen === fb ? "on" : ""}" style="background:${fb}" aria-label="Rahmen ${fb}"></button>`).join("")}<input type="color" value="${c4.rahmen || "#37474f"}" data-sym="rahmen" aria-label="eigene Rahmenfarbe"></span></div></div>
-      <div class="glas-panel liste"><div class="gruppe">Türen · ${c4.tueren.length} von 2</div>${c4.tueren.map((x2, i6) => element("tueren", x2, i6, c4.tueren.length)).join("")}${c4.tueren.length < 2 ? '<button class="zeile" data-act="sym-neu" data-art="tueren"><span class="blau">+ Tür</span></button>' : ""}</div>
-      <div class="glas-panel liste"><div class="gruppe">Fenster · ${c4.fenster.length} von 4</div>${c4.fenster.map((x2, i6) => element("fenster", x2, i6, c4.fenster.length)).join("")}${c4.fenster.length < 4 ? '<button class="zeile" data-act="sym-neu" data-art="fenster"><span class="blau">+ Fenster</span></button>' : ""}</div>
+      <div class="glas-panel liste"><div class="gruppe">Türen · ${c4.tueren.length} von 2</div>${c4.tueren.map((x2, i7) => element("tueren", x2, i7, c4.tueren.length)).join("")}${c4.tueren.length < 2 ? '<button class="zeile" data-act="sym-neu" data-art="tueren"><span class="blau">+ Tür</span></button>' : ""}</div>
+      <div class="glas-panel liste"><div class="gruppe">Fenster · ${c4.fenster.length} von 4</div>${c4.fenster.map((x2, i7) => element("fenster", x2, i7, c4.fenster.length)).join("")}${c4.fenster.length < 4 ? '<button class="zeile" data-act="sym-neu" data-art="fenster"><span class="blau">+ Fenster</span></button>' : ""}</div>
       <div class="glas-panel liste"><div class="gruppe">Licht im Symbol</div><label class="zeile"><div><span>Licht kommt von</span><div class="leise">Fenster leuchten, wenn im Container Licht brennt</div></div><select data-sym="licht">${this.optionen(lichter, c4.licht || "", "keins")}</select></label></div>
       <div class="leise p-fuss">Türen sitzen links, mittig oder rechts an ihrer Wand; mehrere Fenster verteilen sich gleichmäßig auf den Platz daneben. Tür offen/zu, Fenster offen/gekippt/zu und Licht kommen von den zugeordneten Sensoren; ohne Sensor bleibt das Element zu bzw. dunkel.</div>
       ${b3.symbol && b3.symbol.eigen ? '<button class="knopf" data-act="sym-standard">Standard (eine Tür, ein Fenster)</button>' : ""}${knopf("Fertig")}`;
@@ -6373,9 +6385,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
           ${d3.bereiche.filter((b3) => (b3.firma || "eigen") === "eigen").map((b3) => `<div class="zeile"><span>${esc(b3.name)}</span></div>`).join("")}
           <div class="leise">Hierher gehören alle Container, die keiner anderen Firma zugeordnet sind.</div>` : `<div class="gruppe-t">Container zuordnen</div>
           ${frei.length ? frei.map((b3) => `<div class="zeile"><span>${esc(b3.name)}</span>${schalter(f3.container.includes(b3.id), "firma-c", `data-id="${b3.id}"`)}</div>`).join("") : '<div class="leise">Alle Container sind schon anderen Firmen zugeordnet.</div>'}
-          ${f3.neu.map((c4, i6) => `<div class="zeile fc-neu"><input value="${esc(c4.name)}" placeholder="Name des Containers" data-fnc="${i6}">
-            <div class="seg klein">${["Container", "Schacht"].map((a3) => `<button data-act="fc-art" data-i="${i6}" data-v="${a3}" class="${c4.art === a3 ? "on" : ""}">${a3}</button>`).join("")}</div>
-            <button class="x" data-act="fc-weg" data-i="${i6}" title="nicht anlegen">✕</button></div>`).join("")}
+          ${f3.neu.map((c4, i7) => `<div class="zeile fc-neu"><input value="${esc(c4.name)}" placeholder="Name des Containers" data-fnc="${i7}">
+            <div class="seg klein">${["Container", "Schacht"].map((a3) => `<button data-act="fc-art" data-i="${i7}" data-v="${a3}" class="${c4.art === a3 ? "on" : ""}">${a3}</button>`).join("")}</div>
+            <button class="x" data-act="fc-weg" data-i="${i7}" title="nicht anlegen">✕</button></div>`).join("")}
           <button class="zeile" data-act="fc-neu"><span class="blau">+ Neuer Container für diese Firma</span></button>
           <div class="leise">Nur Container ohne andere Firma sind wählbar. Nimmst du einen weg, gehört er wieder der eigenen Firma. Frühere Werte bleiben bei der bisherigen Firma.</div>`}
         ${eigen ? knopf("Schließen", "zu", "leise-k") : knopf("Speichern", "firma-speichern", "amber") + (neu ? "" : knopf("Firma löschen", "firma-weg", "rot")) + knopf("Abbrechen", "zu", "leise-k")}`;
@@ -6477,7 +6489,6 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       const m3 = (this.meldungen() || []).find((x2) => x2.id === s4.id), u3 = m3 && this.mlBild(m3, s4.i);
       return `${griff}<h3>${esc(m3 && m3.ticket || "Meldung")} · Bild ${s4.i + 1}</h3>${u3 ? `<img class="mb-gross" src="${u3}" alt="Bild">` : LAEDT}${knopf("Schließen")}`;
     }
-    if (s4.art === "melden") return '<div data-lit="melden"></div>';
     if (s4.art === "ausnahme") {
       const f3 = s4.form, az = this.azJetzt, z2 = az && az.tage[wtag(f3.datum)];
       return `${griff}<h3>Ausnahme</h3>
@@ -6540,7 +6551,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         geraete: b3.geraete.map((g2) => ({ id: g2.id, n: g2.n, typ: g2.typ, schalter: g2.schalter, leistung: g2.leistung, energie: g2.energie, alt: { n: g2.n, typ: g2.typ } }))
       };
       const typen = b3.pumpe ? ["Pumpe"] : ["Ölradiator", "Konvektor", "Bautrockner", "Steckdose"];
-      const wahl = (i6, g2) => `<select data-ge="typ" data-i="${i6}">${typen.map((t5) => `<option ${g2.typ === t5 ? "selected" : ""}>${t5}</option>`).join("")}</select>`;
+      const wahl = (i7, g2) => `<select data-ge="typ" data-i="${i7}">${typen.map((t5) => `<option ${g2.typ === t5 ? "selected" : ""}>${t5}</option>`).join("")}</select>`;
       const tueren = this.entitaeten((x2) => x2.entity_id.startsWith("binary_sensor.") && ["door", "window", "opening", "garage_door"].includes(x2.attributes.device_class));
       const fuehler = this.entitaeten((x2) => x2.entity_id.startsWith("sensor.") && x2.attributes.device_class === "temperature" || x2.entity_id.startsWith("climate."));
       if (e6.fuehler && !fuehler.some((x2) => x2[0] === e6.fuehler)) fuehler.unshift([e6.fuehler, this.name(e6.fuehler)]);
@@ -6562,17 +6573,17 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
         <label class="feld">Stromanschluss<select data-ban>${d3.anschluesse.map((a3) => `<option value="${esc(a3.id)}" ${e6.anschluss === a3.id ? "selected" : ""}>${esc(a3.name)} · ${a3.phasen === 3 ? "3 × " : ""}${a3.ampere} A</option>`).join("")}</select></label>
         <label class="feld">Firma · für die Abrechnung<select data-bf="firma">${d3.firmen.map((f3) => `<option value="${esc(f3.id)}" ${e6.firma === f3.id ? "selected" : ""}>${esc(f3.name)}</option>`).join("")}</select></label>
         <div class="gruppe-t">${b3.pumpe ? "Pumpen" : "Geräte"} · ${e6.geraete.filter((g2) => !g2.weg).length}</div>
-        ${e6.geraete.map((g2, i6) => g2.weg ? `<div class="ge-zeile weg"><span>${esc(g2.n)} wird entfernt</span><button class="chip glas-panel" data-act="ge-zurueck" data-i="${i6}">rückgängig</button></div>` : `<div class="ge-zeile"><div class="ge-felder">
-            ${g2.neu ? `<select data-ge="schalter" data-i="${i6}">${this.optionen(this.freieSchalter().map(([v2, n4]) => [v2, `${n4} (${v2})`]), g2.schalter, "– Shelly wählen –")}</select>` : `<span class="leise ge-shelly">${esc(this.name(g2.schalter))} · ${esc(g2.schalter)}</span>`}
-            <div class="ge-zwei"><input value="${esc(g2.n)}" data-ge="n" data-i="${i6}" placeholder="Name">${wahl(i6, g2)}</div></div>
-            ${g2.neu ? "" : `<button class="bs-ic" data-act="g-bearbeiten" data-i="${i6}" title="Gerät bearbeiten" aria-label="${esc(g2.n)} bearbeiten">✎</button>`}<button class="x" data-act="ge-weg" data-i="${i6}" title="Gerät entfernen">✕</button></div>`).join("")}
+        ${e6.geraete.map((g2, i7) => g2.weg ? `<div class="ge-zeile weg"><span>${esc(g2.n)} wird entfernt</span><button class="chip glas-panel" data-act="ge-zurueck" data-i="${i7}">rückgängig</button></div>` : `<div class="ge-zeile"><div class="ge-felder">
+            ${g2.neu ? `<select data-ge="schalter" data-i="${i7}">${this.optionen(this.freieSchalter().map(([v2, n4]) => [v2, `${n4} (${v2})`]), g2.schalter, "– Shelly wählen –")}</select>` : `<span class="leise ge-shelly">${esc(this.name(g2.schalter))} · ${esc(g2.schalter)}</span>`}
+            <div class="ge-zwei"><input value="${esc(g2.n)}" data-ge="n" data-i="${i7}" placeholder="Name">${wahl(i7, g2)}</div></div>
+            ${g2.neu ? "" : `<button class="bs-ic" data-act="g-bearbeiten" data-i="${i7}" title="Gerät bearbeiten" aria-label="${esc(g2.n)} bearbeiten">✎</button>`}<button class="x" data-act="ge-weg" data-i="${i7}" title="Gerät entfernen">✕</button></div>`).join("")}
         <button class="zeile" data-act="ge-neu"><span class="blau">+ Gerät hinzufügen</span></button>
         <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
         ${knopf("Speichern", "b-speichern", "amber")}${knopf("Container entfernen", "b-weg", "rot")}${knopf("Abbrechen", "zu", "leise-k")}`;
     }
     if (s4.art === "zeitraum-bs") {
       const f3 = s4.form;
-      const mon = (i6) => `<select data-hp="${i6}">${MONATE.map((m3, k2) => `<option value="${k2 + 1}" ${f3.hp[i6] === k2 + 1 ? "selected" : ""}>${m3}</option>`).join("")}</select>`;
+      const mon = (i7) => `<select data-hp="${i7}">${MONATE.map((m3, k2) => `<option value="${k2 + 1}" ${f3.hp[i7] === k2 + 1 ? "selected" : ""}>${m3}</option>`).join("")}</select>`;
       return `${griff}<h3>Beginn, Ende, Heizperiode</h3>
       <div class="raster-2"><label class="feld">Beginn<input type="date" value="${esc(f3.beginn)}" data-bsz="beginn"></label><label class="feld">Ende (geplant)<input type="date" value="${esc(f3.ende)}" data-bsz="ende"></label></div>
       <div class="leise">Gezählt wird ab Beginn. <b>Beginn leer</b> = automatisch der Tag, an dem die Baustelle angelegt wurde${this.d.beginnAuto && this.d.beginn ? ` (${datum(this.d.beginn)})` : ""}.
@@ -6707,7 +6718,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
   setzen(pfad, wert, ok) {
     if (this.nurLesen()) {
       this.toast(NUR_ANSEHEN);
-      this.render();
+      this.neuZeichnen();
       return Promise.resolve(null);
     }
     const r5 = this.d && this.d.r;
@@ -6717,7 +6728,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       for (const k2 of pfad.slice(0, -1)) o6 = o6[k2] = o6[k2] && typeof o6[k2] === "object" ? o6[k2] : {};
       o6[pfad[pfad.length - 1]] = wert;
       this._neuBauen();
-      this.render();
+      this.neuZeichnen();
     }
     return this.ws(nachricht.setzen(this.d.entry, pfad, wert), ok);
   }
@@ -6795,7 +6806,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     if (!el) return;
     if (this.gesperrt(el)) return this.toast(NUR_ANSEHEN);
     const a3 = el.dataset.act, d3 = this.d, b3 = this.b, S3 = this.s;
-    const neu = () => this.render();
+    const neu = () => this.neuZeichnen();
     switch (a3) {
       case "menue":
         return this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
@@ -7112,10 +7123,10 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       case "np-pruefen":
         if (S3.npPrueft) return;
         S3.npPrueft = true;
-        this.render();
+        this.neuZeichnen();
         return this.ws({ type: "baustelle/notprogramm_pruefen", entry_id: d3.entry }, "Notprogramm geprüft").finally(() => {
           S3.npPrueft = false;
-          this.render();
+          this.neuZeichnen();
         });
       case "test-meldung":
         return this.aktion("test_meldung", {}).then((r5) => {
@@ -7297,9 +7308,9 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       }
       case "aw-hoch":
       case "aw-runter": {
-        const Lg = this.awAuswahl(), i6 = +el.dataset.i, j2 = a3 === "aw-hoch" ? i6 - 1 : i6 + 1;
+        const Lg = this.awAuswahl(), i7 = +el.dataset.i, j2 = a3 === "aw-hoch" ? i7 - 1 : i7 + 1;
         if (j2 < 0 || j2 >= Lg.length) return;
-        [Lg[i6], Lg[j2]] = [Lg[j2], Lg[i6]];
+        [Lg[i7], Lg[j2]] = [Lg[j2], Lg[i7]];
         this.awMerken();
         return neu();
       }
@@ -7570,7 +7581,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       case "ev-gruppe":
         S3.evGruppe = el.dataset.v;
         S3.evDev = null;
-        return this.render(true);
+        return this.neuZeichnen(true);
       case "ev-dev":
         S3.evDev = el.dataset.v;
         return neu();
@@ -7797,12 +7808,13 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     }
     if (ds.vls !== void 0) {
       this.s.vlSuche = el.value;
-      this.render();
-      const x2 = this.shadowRoot && this.shadowRoot.querySelector("[data-vls]");
-      if (x2 && x2.focus) {
-        x2.focus();
-        if (x2.setSelectionRange) x2.setSelectionRange(el.value.length, el.value.length);
-      }
+      this.neuZeichnen().then(() => {
+        const x2 = this.shadowRoot && this.shadowRoot.querySelector("[data-vls]");
+        if (x2 && x2.focus) {
+          x2.focus();
+          if (x2.setSelectionRange) x2.setSelectionRange(el.value.length, el.value.length);
+        }
+      });
       return;
     }
     if (ds.azn) sh.form[ds.azn] = el.value;
@@ -7810,7 +7822,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     if (ds.tm) sh.form[ds.tm] = el.value;
     if (ds.au) {
       sh.form[ds.au] = el.value;
-      if (ds.au === "datum") this.render();
+      if (ds.au === "datum") this.neuZeichnen();
     }
     if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
     if (ds.bf) sh.edit.firma = el.value;
@@ -7819,7 +7831,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     if (ds.bm2 !== void 0) sh.edit.m2 = el.value;
     if (ds.ban !== void 0) {
       sh.edit.anschluss = el.value;
-      this.render();
+      this.neuZeichnen();
     }
     if (ds.an) sh.form[ds.an] = el.value;
     if (ds.fn !== void 0) sh.form.name = el.value;
@@ -7828,7 +7840,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     if (ds.azt) sh.form.tage[ds.azt][+ds.p] = el.value;
     if (ds.neu) {
       sh.form[ds.neu] = el.value;
-      if (ds.neu === "schalter") this.render();
+      if (ds.neu === "schalter") this.neuZeichnen();
     }
     if (ds.wq) sh.form[ds.wq] = el.value;
     if (ds.nm) sh.form.name = el.value;
@@ -7843,7 +7855,7 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       this.s.sheet.h = +el.value;
       const max = this.s.sheet.v ? 23 : +this.z.JETZT.slice(0, 2);
       if (+el.value > max) el.value = String(max);
-      return this.leistungTeil() || this.render();
+      return this.leistungTeil() || this.neuZeichnen();
     }
     if (k2 === "preis") {
       const v2 = parseFloat(String(el.value).replace(",", "."));
@@ -7869,11 +7881,11 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
     if (c4.art === "streu") {
       const vx = (ev.clientX - r5.left) / r5.width * 320, vy = ((ev.clientY ?? 0) - (r5.top ?? 0)) / r5.width * 320;
       let best = 0, bd = 1e9;
-      c4.pkt.forEach((q2, i7) => {
+      c4.pkt.forEach((q2, i8) => {
         const dd = (c4.x(q2[0]) - vx) ** 2 + (c4.y(q2[1]) - vy) ** 2;
         if (dd < bd) {
           bd = dd;
-          best = i7;
+          best = i8;
         }
       });
       if (bd > 900) {
@@ -7885,15 +7897,15 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       return this.tip(ev, `<b>${de(q[0], 1)} °C außen</b><div>${de(q[1], 0)} kWh · ${de(q[1] * p4, 2)} €</div>`);
     }
     if (c4.art === "flaeche") {
-      const vx = fx * c4.W, i7 = Math.max(0, Math.min(c4.n - 1, Math.round((vx - c4.x0) / (c4.x1 - c4.x0) * (c4.n - 1)))), x2 = c4.x0 + i7 / Math.max(1, c4.n - 1) * (c4.x1 - c4.x0);
-      const h3 = c4.einheit === "kWh/h" || c4.einheit === "kW", sum = c4.reihen.reduce((a3, q) => a3 + q.v[i7], 0);
+      const vx = fx * c4.W, i8 = Math.max(0, Math.min(c4.n - 1, Math.round((vx - c4.x0) / (c4.x1 - c4.x0) * (c4.n - 1)))), x2 = c4.x0 + i8 / Math.max(1, c4.n - 1) * (c4.x1 - c4.x0);
+      const h3 = c4.einheit === "kWh/h" || c4.einheit === "kW", sum = c4.reihen.reduce((a3, q) => a3 + q.v[i8], 0);
       if (c4.einheit === "kW") {
-        svg.querySelector(".hover").innerHTML = `<line x1="${x2}" x2="${x2}" y1="10" y2="138" class="kreuz"/>` + c4.reihen.map((q) => `<circle cx="${x2}" cy="${c4.y(q.o[i7])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join("");
-        return this.tip(ev, `<b>${c4.labels[i7]}:00</b>` + (c4.reihen.length > 1 ? [...c4.reihen].reverse().map((q) => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i7], 2)} kW</b></div>`).join("") + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kW</b></div>` : `<div>${de(sum, 2)} kW</div>`));
+        svg.querySelector(".hover").innerHTML = `<line x1="${x2}" x2="${x2}" y1="10" y2="138" class="kreuz"/>` + c4.reihen.map((q) => `<circle cx="${x2}" cy="${c4.y(q.o[i8])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join("");
+        return this.tip(ev, `<b>${c4.labels[i8]}:00</b>` + (c4.reihen.length > 1 ? [...c4.reihen].reverse().map((q) => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i8], 2)} kW</b></div>`).join("") + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kW</b></div>` : `<div>${de(sum, 2)} kW</div>`));
       }
-      svg.querySelector(".hover").innerHTML = `<line x1="${x2}" x2="${x2}" y1="10" y2="138" class="kreuz"/>` + c4.reihen.map((q) => `<circle cx="${x2}" cy="${c4.y(q.o[i7])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join("");
-      const vglTip = c4.vergleich ? `<div class="leise">${esc(c4.vglName || "Vergleich")} ${de(c4.vergleich[i7], 2)} ${c4.einheit === "€" ? "€" : "kWh"}</div>` : "";
-      return this.tip(ev, `<b>${c4.labels[i7]}${h3 ? ":00" : ""}</b>` + vglTip + (c4.reihen.length > 1 ? [...c4.reihen].reverse().map((q) => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i7], 2)} ${c4.einheit === "€" ? "€" : "kWh"}</b></div>`).join("") + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p4, 2)} €</div>` : c4.einheit === "€" ? `<div>${de(sum, 2)} €</div>` : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p4, 2)} €</div>`));
+      svg.querySelector(".hover").innerHTML = `<line x1="${x2}" x2="${x2}" y1="10" y2="138" class="kreuz"/>` + c4.reihen.map((q) => `<circle cx="${x2}" cy="${c4.y(q.o[i8])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join("");
+      const vglTip = c4.vergleich ? `<div class="leise">${esc(c4.vglName || "Vergleich")} ${de(c4.vergleich[i8], 2)} ${c4.einheit === "€" ? "€" : "kWh"}</div>` : "";
+      return this.tip(ev, `<b>${c4.labels[i8]}${h3 ? ":00" : ""}</b>` + vglTip + (c4.reihen.length > 1 ? [...c4.reihen].reverse().map((q) => `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i8], 2)} ${c4.einheit === "€" ? "€" : "kWh"}</b></div>`).join("") + `<div class="tip-summe">zusammen <b>${de(sum, 2)} kWh</b> · ${de(sum * p4, 2)} €</div>` : c4.einheit === "€" ? `<div>${de(sum, 2)} €</div>` : `<div>${de(sum, 2)} kWh</div><div class="leise">${de(sum * p4, 2)} €</div>`));
     }
     if (c4.art === "stufen") {
       const vx = fx * c4.W, t5 = c4.von + Math.max(0, Math.min(1, (vx - c4.L) / (c4.B - c4.L))) * (c4.bis - c4.von);
@@ -7913,21 +7925,21 @@ ${GLAS_CSS}</style><div class="wurzel"><div class="app"><div class="glas-bg"><i 
       }).join("")}`);
     }
     if (c4.art === "linien") {
-      const vx = fx * c4.W, i7 = Math.max(0, Math.min(c4.n - 1, Math.round((vx - c4.x0) / (c4.x1 - c4.x0) * (c4.n - 1)))), x2 = c4.x0 + i7 / Math.max(1, c4.n - 1) * (c4.x1 - c4.x0);
-      svg.querySelector(".hover").innerHTML = `<line x1="${x2}" x2="${x2}" y1="10" y2="${c4.unten}" class="kreuz"/>` + c4.reihen.map((q) => !zahl(q.v[i7]) ? "" : `<circle cx="${x2}" cy="${c4.y(q.v[i7])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join("");
-      return this.tip(ev, `<b>${c4.titel(i7)}</b>${c4.reihen.map((q) => !zahl(q.v[i7]) ? "" : `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i7])} °C</b></div>`).join("")}`);
+      const vx = fx * c4.W, i8 = Math.max(0, Math.min(c4.n - 1, Math.round((vx - c4.x0) / (c4.x1 - c4.x0) * (c4.n - 1)))), x2 = c4.x0 + i8 / Math.max(1, c4.n - 1) * (c4.x1 - c4.x0);
+      svg.querySelector(".hover").innerHTML = `<line x1="${x2}" x2="${x2}" y1="10" y2="${c4.unten}" class="kreuz"/>` + c4.reihen.map((q) => !zahl(q.v[i8]) ? "" : `<circle cx="${x2}" cy="${c4.y(q.v[i8])}" r="3.5" fill="${q.farbe}" class="punkt"/>`).join("");
+      return this.tip(ev, `<b>${c4.titel(i8)}</b>${c4.reihen.map((q) => !zahl(q.v[i8]) ? "" : `<div><i style="background:${q.farbe}"></i>${esc(q.name)} <b>${de(q.v[i8])} °C</b></div>`).join("")}`);
     }
     if (c4.art === "linie") {
-      const vx = fx * c4.W, i7 = Math.max(0, Math.min(24, Math.round((vx - c4.x0) / (c4.x1 - c4.x0) * 24))), x2 = c4.x0 + i7 / 24 * (c4.x1 - c4.x0);
-      const v2 = c4.vb ? c4.vb[Math.min(i7, c4.vb.length - 1)] || 0 : null, kv = c4.reihen.length + 1;
-      svg.querySelector(".hover").innerHTML = `<line x1="${x2}" x2="${x2}" y1="10" y2="${c4.unten}" class="kreuz"/>` + c4.reihen.map((s4, k2) => !zahl(s4.v[i7]) ? "" : `<circle cx="${x2}" cy="${c4.y(s4.v[i7])}" r="4" fill="var(--s${k2 + 1})" class="punkt"/>`).join("") + (c4.vb ? `<circle cx="${x2}" cy="${c4.yv(v2)}" r="3.5" fill="var(--s${kv})" class="punkt"/>` : "");
-      return this.tip(ev, `<b>${String(i7).padStart(2, "0")}:00</b>${c4.reihen.map((s4, k2) => !zahl(s4.v[i7]) ? "" : `<div><i style="background:var(--s${k2 + 1})"></i>${s4.name} <b>${de(s4.v[i7])} ${c4.einheit}</b></div>`).join("")}` + (c4.vb ? `<div><i style="background:var(--s${kv})"></i>Verbrauch <b>${de(v2, 2)} kWh</b></div>` : ""));
+      const vx = fx * c4.W, i8 = Math.max(0, Math.min(24, Math.round((vx - c4.x0) / (c4.x1 - c4.x0) * 24))), x2 = c4.x0 + i8 / 24 * (c4.x1 - c4.x0);
+      const v2 = c4.vb ? c4.vb[Math.min(i8, c4.vb.length - 1)] || 0 : null, kv = c4.reihen.length + 1;
+      svg.querySelector(".hover").innerHTML = `<line x1="${x2}" x2="${x2}" y1="10" y2="${c4.unten}" class="kreuz"/>` + c4.reihen.map((s4, k2) => !zahl(s4.v[i8]) ? "" : `<circle cx="${x2}" cy="${c4.y(s4.v[i8])}" r="4" fill="var(--s${k2 + 1})" class="punkt"/>`).join("") + (c4.vb ? `<circle cx="${x2}" cy="${c4.yv(v2)}" r="3.5" fill="var(--s${kv})" class="punkt"/>` : "");
+      return this.tip(ev, `<b>${String(i8).padStart(2, "0")}:00</b>${c4.reihen.map((s4, k2) => !zahl(s4.v[i8]) ? "" : `<div><i style="background:var(--s${k2 + 1})"></i>${s4.name} <b>${de(s4.v[i8])} ${c4.einheit}</b></div>`).join("")}` + (c4.vb ? `<div><i style="background:var(--s${kv})"></i>Verbrauch <b>${de(v2, 2)} kWh</b></div>` : ""));
     }
     const bar = ev.target.closest(".bar");
     svg.querySelectorAll(".bar").forEach((x2) => x2.classList.toggle("matt", !!bar && x2 !== bar));
     if (!bar) return this.tip(null);
-    const i6 = +bar.dataset.i;
-    return this.tip(ev, `<b>${c4.labels[i6]}</b><div>${de(c4.werte[i6], c4.d)} ${c4.einheit}</div>`);
+    const i7 = +bar.dataset.i;
+    return this.tip(ev, `<b>${c4.labels[i7]}</b><div>${de(c4.werte[i7], c4.d)} ${c4.einheit}</div>`);
   }
   tip(ev, html) {
     const t5 = this.root && this.root.querySelector(".tip");

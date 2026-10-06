@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.81] – 2026-10-06
+
+- Seite auf Lit umgestellt, Teil 1 (BSM-022.10, Stufe 2b): Der Rahmen der Seite (Scrollbereich, Seitenleiste, Dialoge)
+  bleibt jetzt stehen, statt bei jeder Änderung neu aufgebaut zu werden. Unveränderte Teile werden nicht mehr neu
+  gezeichnet – Neuzeichnen und Daten-Updates sind etwa doppelt so schnell; Scrollposition und offene Dialoge bleiben von
+  selbst erhalten. Aussehen und Bedienung bleiben gleich.
+
 ## [0.8.80] – 2026-10-06
 
 - Lit-Pilot, Teil 2 (BSM-022.08, Stufe 2a.2): Der Melde-Dialog wird mit Lit gezeichnet. Während du tippst, zeigt die

@@ -46,7 +46,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **2a.1** | dauerhafte DOM-Bereiche; „Über“ mit Lit (`render(template, container)`), Klasse bleibt HTMLElement | nichts | 20 Navigationen; Lit-Bereich wird vom Alt-Renderer nicht zerstört | R auf 1c |
 | ☑ | **2a.2** | Melde-Dialog samt Entwurf auf Lit | nichts | Tippen während Updates; Bild/Einfügen/Abbrechen/Senden | R auf 2a.1/1c |
 | ☑ | **Entscheidung** | Pilot bewerten (§5) | Ja/Nein-Bogen | 5 × Ja und Restaufwand akzeptiert | bei Nein: 1c behalten |
-| ☐ | **2b** | Klasse auf LitElement; Zustand (`s` reaktiv, `neuZeichnen()` → `requestUpdate()`, neue Objektreferenzen), Laden aus Vorlagen heraus, Timer/Abos | nichts | `hass` vor/nach Einhängen; 20 Wiederanschlüsse ohne Mehrfachaufrufe; Menü, Theme, schmal/breit | R auf Pilot |
+| ☑ | **2b** | Klasse auf LitElement; Zustand (`s` reaktiv, `neuZeichnen()` → `requestUpdate()`, neue Objektreferenzen), Laden aus Vorlagen heraus, Timer/Abos | nichts | `hass` vor/nach Einhängen; 20 Wiederanschlüsse ohne Mehrfachaufrufe; Menü, Theme, schmal/breit | R auf Pilot |
 | ☐ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
 | ☐ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
 | ☐ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
@@ -183,6 +183,17 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Lit-Bereichen (neue Daten sofort sichtbar). Nur-Lesen-Sperre erkennt den freien Schalter an `.ml-stand`.
   Nachweis: Browser-Fall „Lit-Pilot Melden“ (17 Neuzeichnungen während des Tippens: Text, Fokus, Cursor bleiben;
   Strg+V-Bild, ✕, Abbrechen, Senden = ein Auftrag), B2 auf das neue Verhalten angepasst; Schnappschuss inhaltlich gleich.
+- **2b, 06.10.2026 (0.8.81):** `BaustellePanel extends LitElement` (Stile über `static styles`). Der Rahmen ist eine
+  Lit-Vorlage und bleibt stehen (`.wurzel`, `.app`, `.glas-bg`, `.ui`, `.scroll`, `.seite` je Ansicht mit `keyed`, `.sheet`,
+  `.tip`, `.toast`); noch nicht umgestellte Ansichten und Einblendungen als `unsafeHTML` (ersetzt nur bei geändertem Text);
+  „Über“ und „Melden“ direkt als Vorlagen. `render(neu)` → `neuZeichnen(neu)` = `requestUpdate()` (asynchron, Aufrufe
+  zusammengefasst); `willUpdate()` (Chipleiste, Ansicht/Einblendung, Weichen), `updated()` (oben beginnen bei Ansichtswechsel,
+  Einblendung bei neuem Inhalt, Chipleiste, Nur-Lesen). **Entfallen:** Scroll-Wiederherstellung der Seite und der
+  Einblendung (die Elemente bleiben stehen), `_uiSetzen`, Platzhalter für „Über“-Ansicht und „Melden“, Neuaufbau von
+  Tooltip/Hinweis samt erneutem Einblenden. `_litEinhaengen` bleibt nur für „Über“ in den Einstellungen (bis 3e).
+  Nachweis: Schnappschuss gleich bis auf den entfallenen Behälter um „Melden“; Panel-Test grün; Browser-Fall „2b
+  LitElement“ (hass vor/nach Einhängen, 20 Wiederanschlüsse ≤ 1 Abfrage je Anschluss, Menü, Theme, schmal/breit);
+  Leistung gegen 0.8.80: `render` 65 → 27 ms, Update 115 → 40 ms, Klick gleich.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner
