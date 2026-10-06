@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.79] – 2026-10-06
+
+- Lit-Pilot, Teil 1 (BSM-022.07, Stufe 2a.1): Die Seite „Über“ (eigene Ansicht und Gruppe in den Einstellungen) wird
+  mit Lit gezeichnet, in einem festen Bereich, den das Neuzeichnen der übrigen Seite nicht ersetzt. Aussehen und
+  Inhalt bleiben gleich; einen Eintrag im Verlauf aufzuklappen zeichnet jetzt nur noch diesen Bereich neu.
+
 ## [0.8.78] – 2026-10-06
 
 - Umbau der Seite, ohne sichtbare Änderung (BSM-022.06, Stufe 1c): Datenadapter (Antwort der Integration → Anzeige),

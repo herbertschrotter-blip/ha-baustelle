@@ -96,6 +96,10 @@ const MONATE_LANG_T = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'J
 let ereignis;   // echte Ereignisse in der Seite (umgebung.helfer)
 const klick = async (ds, n) => { ereignis.klick(ds); await ruhe(n); };
 const eingabe = (ds, value) => ereignis.feld(ds, value, 'input');
+/* „Über“ ist ein Lit-Bereich (BSM-022 2a.1): Verlauf-Eintrag über den echten Knopf aufklappen (kein data-act) */
+const clAuf = async i => { const b = panel.shadowRoot.querySelectorAll('button.cl-v')[i]; if (!b) return erwarte(`Verlauf-Eintrag ${i} in „Über“`, false);
+  const vorher = b.getAttribute('aria-expanded'); b.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); await ruhe();
+  erwarte(`Verlauf-Eintrag ${i} umgeschaltet (Lit, derselbe Knopf)`, panel.shadowRoot.querySelectorAll('button.cl-v')[i] === b && b.getAttribute('aria-expanded') === (vorher === 'true' ? 'false' : 'true')); };
 const erwarte = (text, bedingung) => { if (!bedingung) fehler.push('erwartet: ' + text); };
 const letzte = typ => aufrufe.filter(a => a.type === typ);
 const neu = () => { aufrufe.length = 0; api.length = 0; };
@@ -168,7 +172,7 @@ async function allgemein() {
     await klick({ act: 'pfilter', v: 'alle' }); await klick({ act: 'pmehr' }, 20); pruefe(`${bid} protokoll mehr`);
     await klick({ act: 'verlauf', v: 'ab' }); pruefe(`${bid} verlauf abgeschlossen`); await klick({ act: 'verlauf', v: 'aktiv' });
     await klick({ act: 'tab', v: 'dev' }, 20); for (const f of ['offen', 'erledigt', 'alle']) { await klick({ act: 'mfilter', v: f }); pruefe(`${bid} dev ${f}`); }
-    await klick({ act: 'tab', v: 'ueber' }); await klick({ act: 'cl', i: '1' }); pruefe(`${bid} über verlauf`);
+    await klick({ act: 'tab', v: 'ueber' }); await clAuf(1); pruefe(`${bid} über verlauf`);
   }
   for (const bs of fertige) { const id = bs.baustelle.entry_id; await klick({ act: 'bs-oeffnen', id }, 40); pruefe(`bsdetail ${id}`); hov(`bsdetail ${id}`);
     erwarte(`bsdetail ${id} zeigt Kennzahlen`, /ABGESCHLOSSEN/.test(ui.innerHTML) && /Verbrauch je Monat/.test(ui.innerHTML));
@@ -498,7 +502,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'verlauf', v: 'ab' }); pruefe(`${bid} verlauf abgeschlossen`);
     await klick({ act: 'verlauf', v: 'aktiv' });
     await klick({ act: 'tab', v: 'dev' }, 20); for (const f of ['offen', 'erledigt', 'alle']) { await klick({ act: 'mfilter', v: f }); pruefe(`${bid} dev ${f}`); }
-    await klick({ act: 'tab', v: 'ueber' }); await klick({ act: 'cl', i: '1' }); pruefe(`${bid} über verlauf`);
+    await klick({ act: 'tab', v: 'ueber' }); await clAuf(1); pruefe(`${bid} über verlauf`);
   }
   for (const bs of ['lieboch', 'wundschuh']) { await klick({ act: 'bs-oeffnen', id: bs }, 40); pruefe(`bsdetail ${bs}`); hov(`bsdetail ${bs}`);
     erwarte(`bsdetail ${bs} zeigt Kennzahlen`, /ABGESCHLOSSEN/.test(ui.innerHTML) && /Verbrauch je Monat/.test(ui.innerHTML)); }

@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.79",
+    "datum": "2026-10-06",
+    "punkte": [
+      "Lit-Pilot, Teil 1 (BSM-022.07, Stufe 2a.1): Die Seite „Über“ (eigene Ansicht und Gruppe in den Einstellungen) wird mit Lit gezeichnet, in einem festen Bereich, den das Neuzeichnen der übrigen Seite nicht ersetzt. Aussehen und Inhalt bleiben gleich; einen Eintrag im Verlauf aufzuklappen zeichnet jetzt nur noch diesen Bereich neu."
+    ]
+  },
+  {
     "version": "0.8.78",
     "datum": "2026-10-06",
     "punkte": [

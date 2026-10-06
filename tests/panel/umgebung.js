@@ -18,7 +18,8 @@ function einrichten() {
   const downloads = [], events = [];
   for (const name of ['document', 'customElements', 'HTMLElement', 'Element', 'Node', 'Event', 'CustomEvent', 'MouseEvent', 'PointerEvent',
     'KeyboardEvent', 'InputEvent', 'FocusEvent', 'ResizeObserver', 'MutationObserver', 'matchMedia', 'getComputedStyle', 'DOMParser',
-    'HTMLInputElement', 'HTMLCanvasElement', 'SVGElement', 'DocumentFragment', 'ShadowRoot', 'requestAnimationFrame', 'cancelAnimationFrame']) {
+    'HTMLInputElement', 'HTMLCanvasElement', 'SVGElement', 'DocumentFragment', 'ShadowRoot', 'requestAnimationFrame', 'cancelAnimationFrame',
+    'Document', 'CSSStyleSheet', 'HTMLTemplateElement', 'Text', 'Comment', 'NodeFilter', 'Range']) {
     Object.defineProperty(global, name, { value: fenster[name], configurable: true, writable: true });
   }
   global.window = fenster;

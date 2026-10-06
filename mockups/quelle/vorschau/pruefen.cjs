@@ -1,35 +1,25 @@
-// Prüft das Master-Mockup ohne Browser: node mockups/quelle/vorschau/pruefen.cjs
-// Führt die Skripte aus mockups/glas.html mit einem minimalen DOM aus (wie tests/panel/test_panel.js) und rendert beide
-// Seiten (Handy, Desktop) durch alle Ansichten: kein Fehler, kein undefined/NaN, die Seite ist die aktuelle.
+// Prüft das Master-Mockup ohne Browser: node mockups/quelle/vorschau/pruefen.cjs [anderes-mockup.html]
+// Führt die Skripte aus mockups/glas.html im DOM von happy-dom aus (tests/panel/umgebung.js, wie der Panel-Test) und rendert
+// beide Seiten (Handy, Desktop) durch alle Ansichten: kein Fehler, kein undefined/NaN, die Seite ist die aktuelle.
+// Klassische Skripte und Module laufen der Reihe nach (Module je in eigenem Bereich); das Warten auf whenDefined entfällt,
+// weil hier alles nacheinander läuft.
 'use strict';
 const fs = require('fs'), path = require('path');
 const repo = path.join(__dirname, '..', '..', '..');
-const html = fs.readFileSync(process.argv[2] ? path.resolve(process.argv[2]) : path.join(repo, 'mockups', 'glas.html'), 'utf8');   // anderes Mockup: Pfad als Argument
-// klassische und Modul-Skripte der Reihe nach (Module laufen dort ohnehin nach den klassischen); das Warten auf
-// whenDefined entfällt, weil hier alles nacheinander läuft
-const skripte = [...html.matchAll(/<script( type="module")?>([\s\S]*?)<\/script>/g)]
-  .map(m => m[2].replace(/<\\\/script/gi, '</script').replace(/^await customElements\.whenDefined\([^)]*\);$/m, ''));
+const html = fs.readFileSync(process.argv[2] ? path.resolve(process.argv[2]) : path.join(repo, 'mockups', 'glas.html'), 'utf8');
+const teile = [...html.matchAll(/<script( type="module")?>([\s\S]*?)<\/script>/g)]
+  .map(m => ({ modul: !!m[1], code: m[2].replace(/<\\\/script/gi, '</script').replace(/^await customElements\.whenDefined\([^)]*\);$/m, '') }));
+const skripte = teile.map(t => t.code);
 const f = [];
-
-const klassen = () => { const s = new Set(); return { add: k => s.add(k), remove: k => s.delete(k), toggle: (k, an) => ((an ?? !s.has(k)) ? s.add(k) : s.delete(k)), contains: k => s.has(k) }; };
-const element = (name = 'div') => ({ tagName: name.toUpperCase(), dataset: {}, style: { setProperty() {} }, classList: klassen(), innerHTML: '', textContent: '', value: '', kinder: {},
-  querySelector(s) { return this.kinder[s] ||= element(); }, querySelectorAll() { return []; }, appendChild(k) { (this.angehaengt ||= []).push(k); if (k.connectedCallback) k.connectedCallback(); },
-  insertBefore() {}, addEventListener() {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: 390, height: 844 }), offsetWidth: 390, offsetHeight: 844 });
-class HTMLElement {
-  constructor() { this.dataset = {}; this.style = { setProperty() {} }; }
-  attachShadow() { const teile = {}; this.shadowRoot = { teile, set innerHTML(v) { this._h = v; }, get innerHTML() { return this._h; }, activeElement: null,
-    querySelector: s => teile[s] ||= element(), querySelectorAll: () => [], addEventListener() {}, appendChild() {} }; return this.shadowRoot; }
-  dispatchEvent() { return true; }
-}
-const registry = {}, felder = {};
-global.window = global; global.Date = Date; global.addEventListener = () => {}; global.HTMLElement = HTMLElement;
-global.customElements = { define: (n, c) => { registry[n] = c; }, get: n => registry[n] };
-global.document = { body: element('body'), createElement: n => registry[n] ? new registry[n]() : element(n), getElementById: id => felder[id] ||= element() };
-global.localStorage = { getItem: () => null, setItem() {} };
-global.setInterval = () => 1; global.clearInterval = () => {}; global.Response = class { constructor(b, o = {}) { this.ok = (o.status || 200) < 400; this._b = b; } async json() { return JSON.parse(this._b); } };
+const umgebung = require(path.join(repo, 'tests', 'panel', 'umgebung.js'));
+umgebung.einrichten();
+// Mockup-Rahmen: Leiste, Bühnen und Regler des Mockups als echte Elemente
+const koerper = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script>'));
+document.body.innerHTML = koerper;
+global.Response = class { constructor(b, o = {}) { this.ok = (o.status || 200) < 400; this._b = b; } async json() { return JSON.parse(this._b); } };
 global.fetch = async () => new global.Response('null');
 console.warn = () => {};
-try { (0, eval)(skripte.join('\n;\n') + '\n;globalThis.P = P; globalThis.evVar = v => { EV_VAR = v; };'); } catch (e) { console.error('Skript bricht ab:', e); process.exit(1); }
+try { (0, eval)(teile.map(t => t.modul ? `(function () {\n${t.code}\n})();` : t.code).join('\n;\n')); globalThis.P = window.baustelleBeispiel.P; } catch (e) { console.error('Skript bricht ab:', e); process.exit(1); }
 
 const ruhe = async (n = 30) => { for (let i = 0; i < n; i++) await new Promise(r => setImmediate(r)); };
 (async () => {
@@ -39,8 +29,8 @@ const ruhe = async (n = 30) => { for (let i = 0; i < n; i++) await new Promise(r
   const panelQuelle = fs.readFileSync(path.join(repo, 'custom_components/baustelle/frontend/baustelle-panel.js'), 'utf8');
   if (!skripte.some(s => s.trim() === panelQuelle.trim())) f.push('glas.html enthält nicht die aktuelle Seite – node mockups/quelle/glas.js');
   for (const [i, p] of P.entries()) {
-    const ui = () => p.shadowRoot.teile['.ui'].innerHTML || '', name = i ? 'Desktop' : 'Handy';
-    const klick = async ds => { p.klick({ target: { closest: () => ({ dataset: ds }) } }); await ruhe(); };
+    const ui = () => p.shadowRoot.querySelector('.ui').innerHTML || '', name = i ? 'Desktop' : 'Handy', e = umgebung.helfer(p);
+    const klick = async ds => { e.klick(ds); await ruhe(); };
     const pruefe = wo => { const h = ui(); const m = h.match(/.{40}(undefined|NaN|\[object|Infinity|>null<).{20}/s); if (m) f.push(`${name} ${wo}: ${m[0].replace(/\s+/g, ' ')}`);
       if (!h || /Lädt …/.test(h) && !/Lädt …/.test(wo)) f.push(`${name} ${wo}: leer oder lädt`); };
     if (!p.d) { f.push(`${name}: Beispielbaustelle nicht geladen`); continue; }

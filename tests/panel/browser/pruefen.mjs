@@ -235,6 +235,38 @@ await fall('B6 Befehle/Rechte', browser, async (page, erwarte) => {
   erwarte('Nicht-Admin: Warnung stumm (Vor-Ort-Aktion) genau ein Auftrag', vorOrt.length === 1 && vorOrt[0] === 'baustelle/aktion:warnung_stumm', vorOrt.join(', '));
 });
 
+/* Lit-Pilot „Über“ (Stufe 2a.1): Lit-Bereich übersteht Navigation und Neuzeichnen des alten Renderers; Aufklappen
+   zeichnet nur den Lit-Bereich */
+await fall('Lit-Pilot Über', browser, async (page, erwarte) => {
+  await klick(page, `${D} >>> nav [data-act="tab"][data-v="einst"]`);
+  await klick(page, `${D} >>> [data-act="ev-gruppe"][data-v="ueber"]`); await warte(200);
+  const merken = () => panel(page, D, () => { window.__lit = sr.querySelector('.lit-bereich .ueber-kopf'); return !!window.__lit; });
+  const gleich = () => panel(page, D, () => { const k = sr.querySelector('.lit-bereich .ueber-kopf'); return !!k && k === window.__lit && k.isConnected; });
+  erwarte('„Über“ als Lit-Bereich gezeichnet', await merken());
+  let navOk = 0;
+  for (let i = 0; i < 20; i++) {
+    await klick(page, `${D} >>> [data-act="ev-gruppe"][data-v="${i % 2 ? 'app' : 'heizung'}"]`);
+    await klick(page, `${D} >>> [data-act="ev-gruppe"][data-v="ueber"]`);
+    if (await gleich()) navOk++;
+  }
+  erwarte('20 Navigationen: derselbe Lit-Knoten', navOk === 20, `${navOk}/20`);
+  let updOk = 0;
+  for (let i = 0; i < 20; i++) {
+    const ok = await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'Titel ' + a0; await p._laden(); p.render(); await new Promise(r => setTimeout(r, 30));
+      const k = sr.querySelector('.lit-bereich .ueber-kopf'); return k === window.__lit && k.isConnected && p.d.titel === 'Titel ' + a0; }, i);
+    if (ok) updOk++;
+  }
+  erwarte('20 Daten-Updates mit Neuzeichnen: derselbe Lit-Knoten', updOk === 20, `${updOk}/20`);
+  const r = await panel(page, D, () => { window.__render = 0; const ro = p.render.bind(p); p.render = (...x) => { window.__render++; return ro(...x); };
+    window.__seite = sr.querySelector('.seite'); return sr.querySelectorAll('button.cl-v').length; });
+  await klick(page, `${D} >>> button.cl-v:nth-of-type(2)`);   // Eintrag 0 ist schon offen
+  const auf = await panel(page, D, () => ({ render: window.__render, seite: sr.querySelector('.seite') === window.__seite, offen: [...sr.querySelectorAll('button.cl-v')].findIndex(b => b.getAttribute('aria-expanded') === 'true'), liste: !!sr.querySelector('.cl-liste') }));
+  erwarte('Verlauf aufklappen: nur Lit-Bereich neu (kein render der Seite)', r > 1 && auf.render === 0 && auf.seite && auf.liste && auf.offen === 1, JSON.stringify(auf));
+  await klick(page, `${D} >>> .lit-bereich button.knopf`);
+  const melden = await panel(page, D, () => p.s.sheet && p.s.sheet.art);
+  erwarte('Melden-Knopf in „Über“ öffnet den Melde-Dialog', melden === 'melden', String(melden));
+});
+
 /* B7 Lebenszyklus: 20 × entfernen/einhängen – Timer, Abos, window-Listener nehmen nicht zu */
 await fall('B7 Lebenszyklus', browser, async (page, erwarte) => {
   const stand = () => page.evaluate(() => ({ paste: window.__z.listener.paste, ort: window.__z.listener['location-changed'], intervalle: window.__z.intervalle.size, abos: window.baustelleBeispiel.TEST.abos }));

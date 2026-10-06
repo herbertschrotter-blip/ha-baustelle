@@ -15,6 +15,8 @@ import { BEREICH_FARBEN, ICON_COG, ICON_MELDEN, IC_MINUS, IC_PLUS, IC_POWER, SYM
 import { bauen, lokal, minSeitAb, protokollZeile, zoneMs } from './daten.js';
 import { NUR_ANSEHEN, NUR_LESEN_SPERRE, darfSenden, gesperrt, rechteVon } from './rechte.js';
 import { fehlerText, flowFehler, nachricht } from './api.js';
+import { render as litRender } from 'lit';
+import { ueberVorlage } from './ueber.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -71,6 +73,7 @@ const CSS = `/* Wetter */
 
 /* Glas-Stil aus dem Mockup (mockups/quelle/glas.css) */
 const GLAS_CSS = `:host { display: block; height: 100%; }
+.lit-bereich { display: contents; }   /* dauerhafter Lit-Bereich (BSM-022 2a.1) – ohne eigene Box */
 .wurzel { position: relative; height: 100vh; height: 100dvh; background: #0b0b0b; color: #fff; font-family: -apple-system, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif; font-size: 14px; }
 .wurzel.hell { background: #d9dee5; color: #111; }
 /* Seitenleiste auf dem Handy (HA zeigt bei eigenen Seiten keinen Kopf) */
@@ -1734,6 +1737,14 @@ class BaustellePanel extends HTMLElement {
   }
   meldungen() { const r = this._holen('meldungen', () => this._hass.callWS({ type: 'baustelle/meldungen', entry_id: this.d ? this.d.entry : undefined }), 60000); return r === undefined ? null : Array.isArray(r) ? r : (r && r.meldungen) || []; }
   meldungZeit(m) { const l = this.lokal(m.zeit); return l ? `${wtag(l)} ${kurzDatum(l)} ${l.slice(11, 16)}` : '–'; }
+  /* Melde-Dialog öffnen (Knopf unten rechts, „Über“) */
+  meldenAuf() {
+    const namen = { uebersicht: 'Übersicht', container: 'Container', heizung: 'Heizung', auswertung: 'Auswertung', verlauf: 'Verlauf', einst: 'Einstellungen', ueber: 'Über', dev: 'Entwicklung', bsdetail: 'Baustelle (abgeschlossen)' };
+    const kontext = [namen[this.s.view] || this.s.view, this.s.view === 'container' && this.b ? this.b.name : '', this.s.sheet ? `Dialog „${this.s.sheet.art}“` : ''].filter(Boolean).join(' · ');
+    const breite = this.root && this.root.getBoundingClientRect ? this.root.getBoundingClientRect().width : 1000, geraet = breite < 700 ? 'Handy' : 'Desktop';
+    this.s.sheet = { art: 'melden', vorher: this.s.sheet, form: { art: 'wunsch', text: '', kontext, geraet, stand: true } };
+    return this.render();
+  }
   toast(t, wieder = false) {
     const el = this.root && this.root.querySelector('.toast'); if (!el || !t) return;
     el.textContent = t; el.classList.remove('an'); void el.offsetWidth; el.classList.add('an'); this.letzterToast = t;
@@ -1771,12 +1782,30 @@ class BaustellePanel extends HTMLElement {
       <div class="tip"></div><div class="toast glas-panel"></div>
       ${melden && this.roh && !this.s.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}`;
     if (this.ui.classList) this.ui.classList.toggle('nur-lesen', this.nurLesen());
+    this._litEinhaengen();
     const sc = this.root.querySelector('.scroll'); if (sc) sc.scrollTop = pos;
     const evc2 = this.root.querySelector('.ev-chips');
     if (evc2) { evc2.scrollLeft = evPos; const on = evc2.querySelector('.chip.amber');   // gewählte Kategorie sichtbar, mittig, wenn sie draußen liegt
       if (on && (on.offsetLeft < evc2.scrollLeft || on.offsetLeft + on.offsetWidth > evc2.scrollLeft + evc2.clientWidth)) evc2.scrollLeft = Math.max(0, on.offsetLeft - (evc2.clientWidth - on.offsetWidth) / 2); }
     const sh2 = this.root.querySelector('.sheet'); if (sh2 && shPos) sh2.scrollTop = shPos;
     if (this._toastBis > Date.now()) this.toast(this.letzterToast, true);
+  }
+  /* Dauerhafte Lit-Bereiche (BSM-022 2a.1): je Platzhalter [data-lit] ein eigener Behälter, der über innerHTML-Neuzeichnen
+     hinweg erhalten bleibt – Lit findet beim nächsten render() seine Knoten wieder (Fokus, Auswahl, Scroll bleiben) */
+  _litEinhaengen() {
+    this._litBereich ||= {};
+    for (const platz of this.ui.querySelectorAll('[data-lit]')) {
+      const k = platz.dataset.lit, b = this._litBereich[k] ||= Object.assign(document.createElement('div'), { className: 'lit-bereich' });
+      platz.replaceWith(b);
+    }
+    this.litNeu();
+  }
+  /* nur die Lit-Bereiche neu zeichnen, die gerade eingehängt sind */
+  litNeu() {
+    for (const [k, b] of Object.entries(this._litBereich || {})) {
+      if (!b.isConnected) continue;
+      litRender(k === 'ueber' ? ueberVorlage(this) : ueberVorlage(this, { mitZurueck: false }), b, { host: this });
+    }
   }
   v_leer() {
     return `${this.kopf('Baustelle', 'KEINE LAUFENDE BAUSTELLE')}
@@ -3060,27 +3089,9 @@ class BaustellePanel extends HTMLElement {
           ${t.e.map(e => { const [ic, farbe] = ART[e[2]] || ['•', 'var(--ink2)']; return `<div class="vl-ereignis"><span class="zeit">${e[1]}</span><span class="vl-punkt" style="background:${farbe}">${ic}</span><div>${e[3] ? `<b>${esc(this.bName(e[3]))}</b> ` : ''}<span class="leise">${esc(e[4])}</span></div></div>`; }).join('')}</div>`; }).join('')
         : `<div class="glas-panel block"><div class="leer">${q || f !== 'alle' ? 'Nichts gefunden' : 'Noch keine Einträge'}</div></div>`}`;
   }
-  v_ueber() {
-    const V = this.version, cl = this.changelog, offen = this.s.cl ?? 0, eigen = cl && cl.find(c => c.version === V);
-    const neu = eigen ? eigen.punkte : ['Staffelung der Heizungen je Stromanschluss', 'Arbeitszeiten mit Startdatum, Vor- und Nachheizen', 'Firmen und Abrechnung, Auswertung über alle laufenden Baustellen',
-      'Container nur bei Bedarf, Termine und Serien, schnell aufheizen', 'Türkontakt, Warnungen mit Stufen, dauerhaftes Protokoll', 'Handy-Nachrichten mit Knöpfen, Wochen-/Monatsbericht per E-Mail',
-      'Glas-Oberfläche mit Himmel nach Tageszeit und Wetter', 'Seite „Über“ und Melden-Knopf'];
-    const ha = (this._hass && this._hass.config && this._hass.config.version) || '–';
-    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="einst">‹ Einstellungen</button></div>
-      <div class="glas-panel ueber-kopf"><div class="ueber-illu">${bcContainer(BEREICH_FARBEN[0], 'heizt')}</div>
-        <div><div class="glas-klein">HOME-ASSISTANT-INTEGRATION</div><div class="glas-titel">Baustelle</div><div class="ueber-v">Version <b>${esc(V)}</b>${eigen ? '' : ' <span class="badge blau-b">in Arbeit</span>'}</div>
-          <div class="leise">Heizung und Pumpen auf der Baustelle · Integration und Seite haben dieselbe Nummer</div></div></div>
-      <div class="glas-panel liste"><div class="gruppe">Dieses System</div>
-        <div class="zeile"><span>Integration / Seite</span><span class="leise">${esc(V)} · baustelle</span></div>
-        <div class="zeile"><span>Home Assistant</span><span class="leise">${esc(ha)}</span></div>
-        <div class="zeile"><span>Quellcode</span><span class="leise">GitHub · herbertschrotter-blip/ha-baustelle (öffentlich, MIT-Lizenz)</span></div>
-        <div class="zeile"><span>Baustellen</span><span class="leise">${this.alle.filter(b => b.aktiv).length} laufend · ${this.alle.filter(b => !b.aktiv).length} abgeschlossen</span></div></div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Neu in ${esc(V)}</b><span class="leise">${eigen ? datum(eigen.datum) : 'geplant'}</span></div>${neu.map(n => `<div class="cl-punkt">${esc(n)}</div>`).join('')}</div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Verlauf</b><span class="leise">aus CHANGELOG.md</span></div>
-        ${cl === null ? LAEDT : !cl.length ? '<div class="leise">Kein Verlauf vorhanden</div>' : cl.map((c, i) => `<button class="zeile cl-v" data-act="cl" data-i="${i}"><span><b>${esc(c.version)}</b> <span class="leise">${datum(c.datum)}</span></span><span class="chev">${offen === i ? '⌄' : '›'}</span></button>
-          ${offen === i ? `<div class="cl-liste">${(c.punkte || []).map(p => `<div class="cl-punkt">${esc(p)}</div>`).join('')}</div>` : ''}`).join('')}</div>
-      ${!this.d || this.d.e.melden ? `<button class="knopf" data-act="melden">Fehler, Wunsch oder Anregung melden</button>` : ''}`;
-  }
+  /* Lit-Pilot (BSM-022 2a.1): „Über“ zeichnet Lit in einen dauerhaften Bereich; der alte Renderer setzt nur den Platzhalter */
+  v_ueber() { return '<div data-lit="ueber"></div>'; }
+
   v_dev() {
     const f = this.s.mfilter || 'offen', alle = this.meldungen(), passt = m => f === 'alle' || (f === 'offen') === this.meldungOffen(m), M = (alle || []).filter(passt);
     const ART = { fehler: ['Fehler', 'rot-b'], wunsch: ['Wunsch', 'blau-b'], anregung: ['Anregung', 'gruen'] };
@@ -3305,7 +3316,7 @@ class BaustellePanel extends HTMLElement {
       { k: 'dev', ic: '🛠', t: 'Entwicklung', kurz: `${offen} offene Meldungen · Diagnose`, dev: true,
         html: `<div class="seg ev-dev-reiter">${[['meldungen', 'Meldungen'], ['werkzeuge', 'Werkzeuge']].map(([k, t]) => `<button data-act="ev-dev" data-v="${k}" class="${(dev ? 'meldungen' : 'werkzeuge') === k ? 'on' : ''}">${t}</button>`).join('')}</div>`
           + (dev ? devH.slice(0, devW) : devH.slice(devW) + liste('Für Tests', '<button class="zeile" data-act="test-meldung"><span class="blau">Test-Nachricht senden</span></button><button class="zeile" data-act="sheet" data-s="nachrichten"><span>Beispiel-Nachrichten</span><span class="chev">›</span></button>')) },
-      { k: 'ueber', ic: 'ℹ', t: 'Über', kurz: `Version ${esc(this.version)}`, html: ohneKopf(this.v_ueber()) },
+      { k: 'ueber', ic: 'ℹ', t: 'Über', kurz: `Version ${esc(this.version)}`, html: '<div data-lit="ueber-einst"></div>' },
     ];
   }
   v_einst() {
@@ -3877,10 +3888,7 @@ class BaustellePanel extends HTMLElement {
         return neu(); }
       case 'bereich-einst': S.cid = el.dataset.id; S.sheet = { art: 'bereich' }; return neu();
       case 'zu': S.sheet = null; return neu();
-      case 'melden': { const namen = { uebersicht: 'Übersicht', container: 'Container', heizung: 'Heizung', auswertung: 'Auswertung', verlauf: 'Verlauf', einst: 'Einstellungen', ueber: 'Über', dev: 'Entwicklung', bsdetail: 'Baustelle (abgeschlossen)' };
-        const kontext = [namen[S.view] || S.view, S.view === 'container' && this.b ? this.b.name : '', S.sheet ? `Dialog „${S.sheet.art}“` : ''].filter(Boolean).join(' · ');
-        const breite = this.root && this.root.getBoundingClientRect ? this.root.getBoundingClientRect().width : 1000, geraet = breite < 700 ? 'Handy' : 'Desktop';
-        S.sheet = { art: 'melden', vorher: S.sheet, form: { art: 'wunsch', text: '', kontext, geraet, stand: true } }; return neu(); }
+      case 'melden': return this.meldenAuf();
       case 'ml-art': S.sheet.form.art = el.dataset.v; return neu();
       case 'mb-weg': S.sheet.form.bilder.splice(+el.dataset.i, 1); return neu();
       case 'mb-fenster': return this.mbFenster();
@@ -3900,7 +3908,6 @@ class BaustellePanel extends HTMLElement {
       case 'm-weg': delete this.cache.meldungen; return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'loeschen', meldung_id: el.dataset.id }, 'Meldung gelöscht');
       case 'm-md': { const md = this.meldungenMarkdown(); if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(md).catch(() => {}); return this.toast(`${(this.meldungen() || []).length} Meldungen als Markdown kopiert`); }
       case 'm-json': this.datei(JSON.stringify(this.meldungen() || [], null, 2), 'baustelle-meldungen.json', 'application/json'); return this.toast('baustelle-meldungen.json');
-      case 'cl': { const i = +el.dataset.i; S.cl = (S.cl ?? 0) === i ? -1 : i; return neu(); }
       case 'toast': return this.toast(el.dataset.t);
       case 'diagnose': return this.ws({ type: 'auth/sign_path', path: `/api/diagnostics/config_entry/${d.entry}` }).then(r => { if (r && r.path) { this.herunterladen(r.path, `baustelle-${d.entry}.json`); this.toast('Diagnose wird heruntergeladen (wie in HA unter Geräte & Dienste)'); } });
       case 'auto': return this.setzen(['automatik'], !d.e.auto, !d.e.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
