@@ -87,11 +87,25 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Abnahme-Ort: mockups/README.md
 
 ### Review
-- Config: none
+- Config: ref:CLAUDE.md#Review-Profil
 
 ### Modul
 - Manifest: none
 - Grundsatzregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
+
+## Review-Profil
+
+- Review-Ablage: `docs/chatgpt-reviews/` (Serien `CGR-<Datum>-<thema>`, Übersicht `INDEX.md`)
+- Themen: seite-lit, notprogramm, datenbank, integration
+- GitHub-Repo: herbertschrotter-blip/ha-baustelle (Branch nach Branch-Policy, derzeit `main`)
+- Pflicht-Block: „Regeln der Integration“ – Fachlogik nur in `logik/` (mit Test), die Seite rechnet nichts Fachliches,
+  ausgeliefert wird eine Datei `frontend/baustelle-panel.js`, Master-Mockup `mockups/glas.html` = echte Seite mit
+  Beispieldaten, Pilotbaustelle läuft produktiv (kein Risiko im Betrieb, Stufen einzeln einspielbar), Automatik startet
+  aus, Geräte steuern nur auf Auftrag
+- Kontextquelle: CLAUDE.md (Regeln), README.md (Aufbau, Auslieferung), `docs/bauplan-module.md` §1, der Bauplan des Themas;
+  höchstens 3–5 Blöcke
+- Reviewer-Rolle: erfahrener Frontend-Architekt für Web Components, Lit und Home-Assistant-Custom-Panels
+- Ergebnis-Ort: Bauplan des Themas (Abschnitt „Entscheidungen“), offene Punkte als BSM-Tasks (Tracker-Profil)
 
 ## Tracker-Profil
 
