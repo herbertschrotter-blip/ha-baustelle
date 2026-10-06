@@ -123,21 +123,22 @@ if (process.env.BAUSTELLE_WEBGL !== '1') {
 /* B2 Eingabeschutz: Melde-Text bleibt bei neuer Strukturantwort; nach dem Fokuswechsel sind die neuen Daten sichtbar */
 await fall('B2 Eingabeschutz', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> button.melden-knopf[data-act="melden"]`);
-  const ta = `${D} >>> textarea[data-ml="text"]`;
+  const ta = `${D} >>> textarea[name="ml-text"]`;
   await klick(page, ta); await page.keyboard.type('Heizung schaltet nicht');
   await bild(page, 'b2-eingabe');
   await page.keyboard.press('Home'); await page.keyboard.down('Shift'); for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight'); await page.keyboard.up('Shift');
   const r = await panel(page, D, async () => {
-    const ta = sr.querySelector('textarea[data-ml="text"]');
+    const ta = sr.querySelector('textarea[name="ml-text"]');
     BB.welt[0].baustelle.titel = 'Geänderte Baustelle B2'; await p._laden(); await new Promise(r => setTimeout(r, 100));
-    const jetzt = sr.querySelector('textarea[data-ml="text"]');
-    return { verarbeitet: p.roh[0].baustelle.titel, gleich: jetzt === ta && ta.isConnected, text: ta.value, von: ta.selectionStart, bis: ta.selectionEnd, fokus: sr.activeElement === ta, wartet: !!p._wartet };
+    const jetzt = sr.querySelector('textarea[name="ml-text"]');
+    return { verarbeitet: p.roh[0].baustelle.titel, sofort: sr.querySelector('.ui').textContent.includes('Geänderte Baustelle B2'), gleich: jetzt === ta && ta.isConnected, text: ta.value, von: ta.selectionStart, bis: ta.selectionEnd, fokus: sr.activeElement === ta, wartet: !!p._wartet };
   });
-  erwarte('neue Strukturantwort verarbeitet', r.verarbeitet === 'Geänderte Baustelle B2' && r.wartet, JSON.stringify(r));
+  // ab 2a.2 ist das Melde-Feld ein Lit-Bereich: kein Aufschub mehr, die neuen Daten erscheinen sofort (vorher erst nach dem Fokuswechsel)
+  erwarte('neue Strukturantwort verarbeitet und sofort sichtbar', r.verarbeitet === 'Geänderte Baustelle B2' && !r.wartet && r.sofort, JSON.stringify(r));
   erwarte('Text, Auswahl, Fokus und Knoten bleiben', r.gleich && r.text === 'Heizung schaltet nicht' && r.von === 0 && r.bis === 7 && r.fokus, JSON.stringify(r));
   await klick(page, `${D} >>> .sheet h3`);
   await warte(200);
-  const n = await panel(page, D, () => ({ sichtbar: sr.querySelector('.ui').textContent.includes('Geänderte Baustelle B2'), text: (sr.querySelector('textarea[data-ml="text"]') || {}).value }));
+  const n = await panel(page, D, () => ({ sichtbar: sr.querySelector('.ui').textContent.includes('Geänderte Baustelle B2'), text: (sr.querySelector('textarea[name="ml-text"]') || {}).value }));
   erwarte('nach dem Fokuswechsel neue Daten sichtbar, Entwurf bleibt', n.sichtbar && n.text === 'Heizung schaltet nicht', JSON.stringify(n));
 });
 
@@ -265,6 +266,38 @@ await fall('Lit-Pilot Über', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> .lit-bereich button.knopf`);
   const melden = await panel(page, D, () => p.s.sheet && p.s.sheet.art);
   erwarte('Melden-Knopf in „Über“ öffnet den Melde-Dialog', melden === 'melden', String(melden));
+});
+
+/* Lit-Pilot Melde-Dialog (Stufe 2a.2): Tippen während Updates, Bild einfügen/entfernen, Abbrechen, Senden = ein Auftrag */
+await fall('Lit-Pilot Melden', browser, async (page, erwarte) => {
+  await klick(page, `${D} >>> button.melden-knopf[data-act="melden"]`);
+  const ta = `${D} >>> textarea[name="ml-text"]`;
+  await klick(page, ta);
+  let ok = 0; const text = 'Heizung im Polier schaltet zu spät';
+  for (let i = 0; i < text.length; i++) {
+    await page.keyboard.type(text[i]);
+    if (i % 2 === 0) await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'T' + a0; await p._laden(); p.render(); }, i);   // Update mitten im Tippen
+  }
+  const r = await panel(page, D, () => { const t = sr.querySelector('textarea[name="ml-text"]'); window.__ta = t;
+    return { text: t.value, fokus: sr.activeElement === t, ende: t.selectionStart === t.value.length, entwurf: p.s.sheet.form.text, titel: p.d.titel }; });
+  erwarte('Tippen während 17 Neuzeichnungen: Text, Fokus, Cursor bleiben', r.text === text && r.fokus && r.ende && r.entwurf === text && r.titel.startsWith('T'), JSON.stringify(r));
+  // Bild über Einfügen (Strg+V): ClipboardEvent mit Bilddatei
+  await page.evaluate(async () => { const c = document.createElement('canvas'); c.width = 40; c.height = 20; c.getContext('2d').fillRect(0, 0, 40, 20);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png')), dt = new DataTransfer(); dt.items.add(new File([blob], 'bild.png', { type: 'image/png' }));
+    window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt })); });
+  await warte(600);
+  const b = await panel(page, D, () => ({ bilder: sr.querySelectorAll('.lit-bereich .mb-bild').length, ta: sr.querySelector('textarea[name="ml-text"]') === window.__ta, text: sr.querySelector('textarea[name="ml-text"]').value }));
+  erwarte('Strg+V fügt ein Bild ein, Textfeld bleibt', b.bilder === 1 && b.ta && b.text === text, JSON.stringify(b));
+  await klick(page, `${D} >>> .lit-bereich .mb-bild button.x`);
+  erwarte('✕ entfernt das Bild', await panel(page, D, () => sr.querySelectorAll('.lit-bereich .mb-bild').length) === 0);
+  await klick(page, `${D} >>> .lit-bereich .ml-zurueck`);
+  erwarte('Abbrechen schließt den Dialog', await panel(page, D, () => !p.s.sheet));
+  await klick(page, `${D} >>> button.melden-knopf[data-act="melden"]`);
+  await klick(page, ta); await page.keyboard.type('Knopf zu klein');
+  const ab = await aufrufZahl(page);
+  await klick(page, `${D} >>> .lit-bereich .ml-senden`); await warte(300);
+  const gesendet = await page.evaluate(ab => window.baustelleBeispiel.TEST.aufrufe.slice(ab).filter(m => m.type === 'baustelle/meldung'), ab);
+  erwarte('Senden: genau ein Auftrag mit dem Text', gesendet.length === 1 && gesendet[0].meldung.text === 'Knopf zu klein', JSON.stringify(gesendet.map(m => m.meldung && m.meldung.text)));
 });
 
 /* B7 Lebenszyklus: 20 × entfernen/einhängen – Timer, Abos, window-Listener nehmen nicht zu */

@@ -17,6 +17,7 @@ import { NUR_ANSEHEN, NUR_LESEN_SPERRE, darfSenden, gesperrt, rechteVon } from '
 import { fehlerText, flowFehler, nachricht } from './api.js';
 import { render as litRender } from 'lit';
 import { ueberVorlage } from './ueber.js';
+import { MB_MAX, MB_PX, meldenVorlage } from './melden.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -860,7 +861,6 @@ const HZ_TEILE = [['heute', 'Heute', '🕖', 'Heute'], ['wann', 'Wann welche Hei
   ['az', 'Arbeitszeit', '👷', 'Arbeitszeit'], ['ausn', 'Ausnahmen', '✳️', 'Ausnahmen'], ['regeln', 'So wird geheizt', '⚙️', 'Regeln'],
   ['trocknen', '👕 Kleidung trocknen', '👕', 'Kleidung trocknen'], ['container', 'Je Container', '🏠', 'Container'], ['urlaub', 'Urlaub &amp; Feiertage', '🏖', 'Urlaub & Feiertage']];
 /* Abschnitte der Integration → Klassen der Zeitleiste im Mockup */
-const MB_MAX = 3, MB_PX = 1600;   // WU-0016: Bilder je Meldung, größte Kante
 const ABSCHNITT = { fruehstart: 'extra', vorheizen: 'vor', nachheizen: 'vor', arbeitszeit: 'heiz', trocknen: 'trock', termin: 'termin', fenster: 'eigen' };
 const WARTE = { anschluss_voll: a => `${a} ausgelastet`, max_gleichzeitig: () => 'höchstens gleichzeitig erreicht', mindestpause: () => 'Mindestpause',
   rundlauf: () => 'Rundlauf', anlauf: () => 'Anlaufstaffel' };
@@ -959,6 +959,7 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
+const LIT_SHEETS = ['melden'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2)
 class BaustellePanel extends HTMLElement {
   constructor() {
     super();
@@ -1182,7 +1183,7 @@ class BaustellePanel extends HTMLElement {
       this._auffrischenGeplant = false;
       const f = this.shadowRoot && this.shadowRoot.activeElement;
       if (this.leistungTeil()) return;   // WU-0012: Leistung offen – nur deren Daten nachladen
-      if (f && ['INPUT', 'TEXTAREA', 'SELECT'].includes(f.tagName)) { this._wartet = true; return; }
+      if (f && ['INPUT', 'TEXTAREA', 'SELECT'].includes(f.tagName) && !f.closest('.lit-bereich')) { this._wartet = true; return; }   // Lit-Felder: kein Aufschub nötig (2a.2)
       this.render();
     });
   }
@@ -1737,6 +1738,17 @@ class BaustellePanel extends HTMLElement {
   }
   meldungen() { const r = this._holen('meldungen', () => this._hass.callWS({ type: 'baustelle/meldungen', entry_id: this.d ? this.d.entry : undefined }), 60000); return r === undefined ? null : Array.isArray(r) ? r : (r && r.meldungen) || []; }
   meldungZeit(m) { const l = this.lokal(m.zeit); return l ? `${wtag(l)} ${kurzDatum(l)} ${l.slice(11, 16)}` : '–'; }
+  /* Melde-Dialog (Lit, src/melden.js): senden und schließen */
+  meldungSenden() {
+    const f = this.s.sheet.form; if (!f.text.trim()) return this.toast('Bitte kurz beschreiben');
+    // „Stand der Seite mitschicken“ → Feld `seite` (api §5; `stand` ist in der Integration der Zeitpunkt der Statusänderung)
+    const meldung = { art: f.art, text: f.text.trim(), kontext: f.kontext, version: this.version, geraet: f.geraet,
+      seite: f.stand ? { view: this.s.view, cid: this.s.cid, baustelle: this.d ? this.d.entry : null, dialog: this.s.sheet.vorher ? this.s.sheet.vorher.art : null } : null,
+      ...((f.bilder || []).length ? { bilder: f.bilder.map(x => x.url) } : {}) };   // WU-0016
+    this.s.sheet = this.s.sheet.vorher || null; this.render(); delete this.cache.meldungen;
+    return this.ws({ type: 'baustelle/meldung', entry_id: this.d && this.d.entry, aktion: 'neu', meldung }).then(r => { if (r) this.toast(`Danke – gemeldet als ${r.ticket || 'Ticket'}`); });
+  }
+  meldenZu() { this.s.sheet = (this.s.sheet && this.s.sheet.vorher) || null; return this.render(); }
   /* Melde-Dialog öffnen (Knopf unten rechts, „Über“) */
   meldenAuf() {
     const namen = { uebersicht: 'Übersicht', container: 'Container', heizung: 'Heizung', auswertung: 'Auswertung', verlauf: 'Verlauf', einst: 'Einstellungen', ueber: 'Über', dev: 'Entwicklung', bsdetail: 'Baustelle (abgeschlossen)' };
@@ -1774,13 +1786,14 @@ class BaustellePanel extends HTMLElement {
     const melden = this.d ? this.d.e.melden : true;
     let sheet = '';
     if (this.s.sheet) { try { sheet = this.sheet(); } catch (e) { this.s.sheet = null; sheet = ''; } }
-    this.ui.innerHTML = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this.versionHinweis()}${this.nurLesenHinweis()}${seite}</div></div>
+    const neuHtml = `<div class="scroll"><div class="seite ${neu ? 'rein' : ''}">${this.versionHinweis()}${this.nurLesenHinweis()}${seite}</div></div>
       ${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
       <div class="schleier ${this.s.sheet ? 'an' : ''}" data-act="zu"></div>
       <div class="sheet glas-panel ${this.s.sheet ? 'an' : ''}">${melden && this.roh && this.s.sheet && this.s.sheet.art !== 'melden' ? `<button class="melden-knopf im-sheet" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}${sheet}</div>
       <div class="tip"></div><div class="toast glas-panel"></div>
       ${melden && this.roh && !this.s.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : ''}`;
+    this._uiSetzen(neuHtml);
     if (this.ui.classList) this.ui.classList.toggle('nur-lesen', this.nurLesen());
     this._litEinhaengen();
     const sc = this.root.querySelector('.scroll'); if (sc) sc.scrollTop = pos;
@@ -1789,6 +1802,19 @@ class BaustellePanel extends HTMLElement {
       if (on && (on.offsetLeft < evc2.scrollLeft || on.offsetLeft + on.offsetWidth > evc2.scrollLeft + evc2.clientWidth)) evc2.scrollLeft = Math.max(0, on.offsetLeft - (evc2.clientWidth - on.offsetWidth) / 2); }
     const sh2 = this.root.querySelector('.sheet'); if (sh2 && shPos) sh2.scrollTop = shPos;
     if (this._toastBis > Date.now()) this.toast(this.letzterToast, true);
+  }
+  /* Neuzeichnen der Seite. Ist eine Lit-Einblendung offen und eingehängt (BSM-022 2a.2), bleibt das Element .sheet
+     stehen und nur alles daneben wird ersetzt – sonst würde der Lit-Bereich kurz ausgehängt und verlöre den Fokus */
+  _uiSetzen(neuHtml) {
+    const alt = [...this.ui.children].find(n => n.classList.contains('sheet'));
+    if (!(this.s.sheet && LIT_SHEETS.includes(this.s.sheet.art) && alt && [...alt.children].some(n => n.classList.contains('lit-bereich')))) { this.ui.innerHTML = neuHtml; return; }
+    const t = document.createElement('template'); t.innerHTML = neuHtml;
+    const neu = [...t.content.children].find(n => n.classList.contains('sheet')), vor = [], nach = [];
+    let gesehen = false;
+    for (const n of [...t.content.childNodes]) { if (n === neu) gesehen = true; else (gesehen ? nach : vor).push(n); }
+    alt.className = neu.className;
+    for (const n of [...this.ui.childNodes]) if (n !== alt) n.remove();
+    alt.before(...vor); alt.after(...nach);
   }
   /* Dauerhafte Lit-Bereiche (BSM-022 2a.1): je Platzhalter [data-lit] ein eigener Behälter, der über innerHTML-Neuzeichnen
      hinweg erhalten bleibt – Lit findet beim nächsten render() seine Knoten wieder (Fokus, Auswahl, Scroll bleiben) */
@@ -1804,7 +1830,9 @@ class BaustellePanel extends HTMLElement {
   litNeu() {
     for (const [k, b] of Object.entries(this._litBereich || {})) {
       if (!b.isConnected) continue;
-      litRender(k === 'ueber' ? ueberVorlage(this) : ueberVorlage(this, { mitZurueck: false }), b, { host: this });
+      const sh = this.s.sheet;
+      if (k === 'melden' && !(sh && sh.art === 'melden')) continue;
+      litRender(k === 'melden' ? meldenVorlage(this, sh.form) : k === 'ueber' ? ueberVorlage(this) : ueberVorlage(this, { mitZurueck: false }), b, { host: this });
     }
   }
   v_leer() {
@@ -2850,13 +2878,6 @@ class BaustellePanel extends HTMLElement {
 
   /* WU-0016: bis zu 3 Screenshots je Meldung – Datei/Kamera, Strg+V, am PC „Fenster aufnehmen“; vor dem Senden auf
      höchstens 1600 px verkleinert (JPEG). Mockup melden-bilder.html, abgenommen 02.10.2026 */
-  mbBox(f) {
-    const B = f.bilder || [], pc = !this.narrow, auf = pc && typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia;
-    return `<div class="mb-box"><div class="mb-kopf"><b>📷 Screenshot</b><span class="leise">${B.length} von ${MB_MAX}</span></div>
-      ${B.length >= MB_MAX ? '' : `<div class="mb-knoepfe"><label>📎 Bild wählen<input type="file" accept="image/*" multiple data-mb="datei"></label>${auf ? '<button data-act="mb-fenster">🖥 Fenster aufnehmen</button>' : ''}</div>`}
-      <div class="mb-hinweis">${pc ? 'oder einen Screenshot mit <b>Strg+V</b> einfügen (z. B. nach Win+Shift+S)' : 'Screenshot mit den Handy-Tasten machen, dann hier wählen'} · wird auf höchstens ${MB_PX} px verkleinert</div>
-      ${B.length ? `<div class="mb-bilder">${B.map((x, i) => `<div class="mb-bild ${x.b > x.h ? 'quer' : ''}"><img src="${x.url}" alt="Bild ${i + 1}"><button class="x" data-act="mb-weg" data-i="${i}" aria-label="Bild entfernen">✕</button><small>${x.b}×${x.h} · ${x.kb} KB</small></div>`).join('')}</div>` : ''}</div>`;
-  }
   mbBild(quelle, b, h, wie) {   // Bild/Video → verkleinertes JPEG ins offene Melde-Fenster
     const s = this.s.sheet; if (!s || s.art !== 'melden') return;
     const f = Math.min(1, MB_PX / Math.max(b, h)), c = document.createElement('canvas'); c.width = Math.round(b * f); c.height = Math.round(h * f);
@@ -3605,16 +3626,7 @@ class BaustellePanel extends HTMLElement {
       const m = (this.meldungen() || []).find(x => x.id === s.id), u = m && this.mlBild(m, s.i);
       return `${griff}<h3>${esc((m && m.ticket) || 'Meldung')} · Bild ${s.i + 1}</h3>${u ? `<img class="mb-gross" src="${u}" alt="Bild">` : LAEDT}${knopf('Schließen')}`;
     }
-    if (s.art === 'melden') {
-      const f = s.form;
-      return `${griff}<h3>Melden</h3><div class="leise">Fehler, Wunsch oder Anregung – landet im Entwicklermenü.</div>
-        <div class="seg">${[['fehler', 'Fehler'], ['wunsch', 'Wunsch'], ['anregung', 'Anregung']].map(([k, t]) => `<button data-act="ml-art" data-v="${k}" class="${f.art === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-        <label class="feld">${{ fehler: 'Was ist passiert, was hättest du erwartet?', wunsch: 'Was wünschst du dir?', anregung: 'Deine Idee' }[f.art]}<textarea rows="4" data-ml="text" placeholder="kurz beschreiben">${esc(f.text)}</textarea></label>
-        <div class="ml-kontext"><div><span class="leise">Fenster</span> ${esc(f.kontext)}</div><div><span class="leise">Version</span> ${esc(this.version)} · ${f.geraet} · ${d ? `${wtag(d.z.HEUTE)} ${kurzDatum(d.z.HEUTE)} ${d.z.JETZT}` : ''}</div></div>
-        ${this.mbBox(f)}
-        <div class="zeile"><div><b>Stand der Seite mitschicken</b><div class="leise">Zustand und Einstellungen als Anhang – hilft beim Nachstellen, ohne Zugangsdaten</div></div>${schalter(f.stand, 'ml-stand')}</div>
-        ${knopf('Senden', 'ml-senden', 'amber')}${knopf('Abbrechen', 'ml-zurueck', 'leise-k')}`;
-    }
+    if (s.art === 'melden') return '<div data-lit="melden"></div>';   // Lit-Pilot (BSM-022 2a.2): src/melden.js
     if (s.art === 'ausnahme') {
       const f = s.form, az = this.azJetzt, z = az && az.tage[wtag(f.datum)];
       return `${griff}<h3>Ausnahme</h3>
@@ -3889,19 +3901,7 @@ class BaustellePanel extends HTMLElement {
       case 'bereich-einst': S.cid = el.dataset.id; S.sheet = { art: 'bereich' }; return neu();
       case 'zu': S.sheet = null; return neu();
       case 'melden': return this.meldenAuf();
-      case 'ml-art': S.sheet.form.art = el.dataset.v; return neu();
-      case 'mb-weg': S.sheet.form.bilder.splice(+el.dataset.i, 1); return neu();
-      case 'mb-fenster': return this.mbFenster();
       case 'm-bild': S.sheet = { art: 'm-bild', id: el.dataset.id, i: +el.dataset.i }; return neu();
-      case 'ml-stand': S.sheet.form.stand = !S.sheet.form.stand; return neu();
-      case 'ml-zurueck': S.sheet = S.sheet.vorher || null; return neu();
-      case 'ml-senden': { const f = S.sheet.form; if (!f.text.trim()) return this.toast('Bitte kurz beschreiben');
-        // „Stand der Seite mitschicken“ → Feld `seite` (api §5; `stand` ist in der Integration der Zeitpunkt der Statusänderung)
-        const meldung = { art: f.art, text: f.text.trim(), kontext: f.kontext, version: this.version, geraet: f.geraet,
-          seite: f.stand ? { view: S.view, cid: S.cid, baustelle: d ? d.entry : null, dialog: S.sheet.vorher ? S.sheet.vorher.art : null } : null,
-          ...((f.bilder || []).length ? { bilder: f.bilder.map(x => x.url) } : {}) };   // WU-0016
-        S.sheet = S.sheet.vorher || null; neu(); delete this.cache.meldungen;
-        return this.ws({ type: 'baustelle/meldung', entry_id: d && d.entry, aktion: 'neu', meldung }).then(r => { if (r) this.toast(`Danke – gemeldet als ${r.ticket || 'Ticket'}`); }); }
       case 'mfilter': S.mfilter = el.dataset.v; return neu();
       case 'm-status': { const m = (this.meldungen() || []).find(x => x.id === el.dataset.id); if (!m) return; delete this.cache.meldungen;
         return this.ws({ type: 'baustelle/meldung', entry_id: d.entry, aktion: 'status', meldung_id: m.id, status: this.meldungOffen(m) ? 'geschlossen' : 'neu' }); }
@@ -4212,7 +4212,6 @@ class BaustellePanel extends HTMLElement {
     if (ds.ur) sh.form[ds.ur] = el.value;
     if (ds.tm) sh.form[ds.tm] = el.value;
     if (ds.au) { sh.form[ds.au] = el.value; if (ds.au === 'datum') this.render(); }
-    if (ds.ml) sh.form[ds.ml] = el.value;
     if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
     if (ds.bf) sh.edit.firma = el.value;
     if (ds.btuer !== undefined) sh.edit.tuer = el.value;
@@ -4234,7 +4233,6 @@ class BaustellePanel extends HTMLElement {
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
   aenderung(ev) {
     const el = ev.target, k = el && el.dataset && el.dataset.k;
-    if (el && el.dataset && el.dataset.mb === 'datei') { [...(el.files || [])].forEach(f => this.mbDatei(f, 'gewählt')); el.value = ''; return undefined; }   // WU-0016
     if (el && el.dataset && el.dataset.lh !== undefined && this.s.sheet) {   // WU-0011: Regler losgelassen
       this.s.sheet.h = +el.value;
       const max = this.s.sheet.v ? 23 : +this.z.JETZT.slice(0, 2); if (+el.value > max) el.value = String(max);   // heute nur bis jetzt

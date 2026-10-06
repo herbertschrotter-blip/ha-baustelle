@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.80] – 2026-10-06
+
+- Lit-Pilot, Teil 2 (BSM-022.08, Stufe 2a.2): Der Melde-Dialog wird mit Lit gezeichnet. Während du tippst, zeigt die
+  Seite dahinter neue Daten sofort an (bisher erst, wenn das Textfeld verlassen wurde); Text, Cursor und Fokus bleiben
+  dabei stehen. Bild wählen, einfügen (Strg+V), entfernen, Abbrechen und Senden funktionieren wie bisher.
+
 ## [0.8.79] – 2026-10-06
 
 - Lit-Pilot, Teil 1 (BSM-022.07, Stufe 2a.1): Die Seite „Über“ (eigene Ansicht und Gruppe in den Einstellungen) wird

@@ -44,7 +44,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **1b** | Himmel und Diagramm-Funktionen auslagern | nichts | Canvas bleibt bei Updates; SVG/WebGL/CSS-Rückfall | R |
 | ☑ | **1c** | Datenadapter und Aufrufe auslagern | nichts | gleiche API-Nutzdaten, Rechte, Fachwerte/CSV | R |
 | ☑ | **2a.1** | dauerhafte DOM-Bereiche; „Über“ mit Lit (`render(template, container)`), Klasse bleibt HTMLElement | nichts | 20 Navigationen; Lit-Bereich wird vom Alt-Renderer nicht zerstört | R auf 1c |
-| ☐ | **2a.2** | Melde-Dialog samt Entwurf auf Lit | nichts | Tippen während Updates; Bild/Einfügen/Abbrechen/Senden | R auf 2a.1/1c |
+| ☑ | **2a.2** | Melde-Dialog samt Entwurf auf Lit | nichts | Tippen während Updates; Bild/Einfügen/Abbrechen/Senden | R auf 2a.1/1c |
 | ☐ | **Entscheidung** | Pilot bewerten (§5) | Ja/Nein-Bogen | 5 × Ja und Restaufwand akzeptiert | bei Nein: 1c behalten |
 | ☐ | **2b** | Klasse auf LitElement; Zustand (`s` reaktiv, `neuZeichnen()` → `requestUpdate()`, neue Objektreferenzen), Laden aus Vorlagen heraus, Timer/Abos | nichts | `hass` vor/nach Einhängen; 20 Wiederanschlüsse ohne Mehrfachaufrufe; Menü, Theme, schmal/breit | R auf Pilot |
 | ☐ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
@@ -173,6 +173,14 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Schnappschuss bis auf „Über“ bytegleich, „Über“ inhaltlich gleich; Browser-Fall „Lit-Pilot Über“: 20 Navigationen und
   20 Updates mit Neuzeichnen behalten den Lit-Knoten, Aufklappen ohne `render()`. Test-DOM um `Document`, `CSSStyleSheet` u. a.
   ergänzt; Mockup-Prüfung (`pruefen.cjs`) läuft jetzt in happy-dom.
+- **2a.2, 06.10.2026 (0.8.80):** `src/melden.js` (Entwurf in `s.sheet.form`, Textfeld mit `live()`, `@click`/`@input`/
+  `@change`; `ml-*`/`mb-*`-Fälle, `data-ml`/`data-mb` und `mbBox` entfernt, `meldungSenden()`/`meldenZu()` als Methoden).
+  **Befund im Piloten:** der Lit-Knoten blieb erhalten, aber das `innerHTML` des alten Renderers hängte ihn kurz aus –
+  der Browser nahm dem Feld den Fokus. Lösung ohne Fokusrettung: `_uiSetzen()` lässt bei offener Lit-Einblendung das
+  Element `.sheet` stehen und ersetzt nur die Geschwister; der Aufschub in `_auffrischen` entfällt für Felder in
+  Lit-Bereichen (neue Daten sofort sichtbar). Nur-Lesen-Sperre erkennt den freien Schalter an `.ml-stand`.
+  Nachweis: Browser-Fall „Lit-Pilot Melden“ (17 Neuzeichnungen während des Tippens: Text, Fokus, Cursor bleiben;
+  Strg+V-Bild, ✕, Abbrechen, Senden = ein Auftrag), B2 auf das neue Verhalten angepasst; Schnappschuss inhaltlich gleich.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner
   ohne Netzzugriff durch npm, `@esbuild/linux-arm64` enthalten, kleiner Build grün; package-lock.json sha256
   `1696ce4356818f04…` (mit Lit, happy-dom, puppeteer-core erneut geprobt: `6025c468e9cf6de0…`), Node v22.23.2, npm 10.9.1, linux/arm64. Neu vorbereiten bei anderem Lockfile, Node/npm,

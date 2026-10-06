@@ -94,8 +94,13 @@ function pruefe(wo, { laedtErlaubt = false } = {}) {
 }
 const MONATE_LANG_T = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 let ereignis;   // echte Ereignisse in der Seite (umgebung.helfer)
-const klick = async (ds, n) => { ereignis.klick(ds); await ruhe(n); };
-const eingabe = (ds, value) => ereignis.feld(ds, value, 'input');
+// Lit-Bereiche (BSM-022 2a) haben kein data-act: dort ist ds ein CSS-Selektor für das echte Element
+const litEl = sel => panel.shadowRoot.querySelector(sel);
+const klick = async (ds, n) => { if (typeof ds === 'string') { const e = litEl(ds); if (!e) erwarte(`Element ${ds}`, false); else e.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); }
+  else ereignis.klick(ds); await ruhe(n); };
+const eingabe = (ds, value) => { if (typeof ds !== 'string') return ereignis.feld(ds, value, 'input');
+  const e = litEl(ds); if (!e) return erwarte(`Feld ${ds}`, false); e.value = value; e.dispatchEvent(new Event('input', { bubbles: true, composed: true })); };
+const ML = { fehler: '.lit-bereich .seg button:nth-child(1)', text: '.lit-bereich textarea[name="ml-text"]', senden: '.lit-bereich .ml-senden', bildWeg: '.lit-bereich .mb-bild button.x' };
 /* „Über“ ist ein Lit-Bereich (BSM-022 2a.1): Verlauf-Eintrag über den echten Knopf aufklappen (kein data-act) */
 const clAuf = async i => { const b = panel.shadowRoot.querySelectorAll('button.cl-v')[i]; if (!b) return erwarte(`Verlauf-Eintrag ${i} in „Über“`, false);
   const vorher = b.getAttribute('aria-expanded'); b.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); await ruhe();
@@ -197,7 +202,7 @@ async function allgemein() {
   for (const v of ['heute-laenger', 'morgen-spaeter', 'samstag', 'frei', '']) { await klick({ act: 'ausn-neu', v }); pruefe(`Ausnahme ${v}`); }
   await klick({ act: 'az-neu' }); pruefe('Neue Arbeitszeit');
   await klick({ act: 'bedarf-auf', id: bedarf().id }); pruefe('Bedarf');
-  await klick({ act: 'melden' }); pruefe('Melden'); await klick({ act: 'ml-art', v: 'fehler' }); pruefe('Melden Fehler');
+  await klick({ act: 'melden' }); pruefe('Melden'); await klick(ML.fehler); pruefe('Melden Fehler');
   for (const b of d().bereiche) { await klick({ act: 'bereich-einst', id: b.id }); pruefe(`Bearbeiten ${b.id}`); }
   await klick({ act: 'sheet', s: 'container-neu' }); await klick({ act: 'neu-art', v: 'Pumpenschacht' }); pruefe('Neuer Schacht');
   for (const art of ['monat', 'woche']) { await klick({ act: 'e-wert', k: 'bericht', v: art }, 30); await klick({ act: 'sheet', s: 'bericht' }, 40); pruefe(`Bericht ${art}`);
@@ -264,7 +269,7 @@ async function allgemein() {
     await klick({ act: 'tab', v: 'heizung' }, 30);
     if ((panel.urlaube() || []).length) { const u = await gesendet('calendar/event/delete', 'Urlaub löschen', { act: 'urlaub-weg', i: '0' }); erwarte('Urlaub löschen mit uid', u && u.uid); }
   }
-  await gesendet('baustelle/meldung', 'Meldung senden', { act: 'ml-senden' }, async () => { await klick({ act: 'melden' }); eingabe({ ml: 'text' }, 'Knopf zu klein'); });
+  await gesendet('baustelle/meldung', 'Meldung senden', ML.senden, async () => { await klick({ act: 'melden' }); eingabe(ML.text, 'Knopf zu klein'); });
   await klick({ act: 'tab', v: 'dev' }, 20);
   const m1 = await gesendet('baustelle/meldung', 'Meldung erledigt', { act: 'm-status', id: 'm1' }); erwarte('Meldung mit meldung_id, ohne id', m1 && m1.meldung_id === 'm1' && !('id' in m1));
   await gesendet('baustelle/meldung', 'Meldung löschen', { act: 'm-weg', id: 'm2' });
@@ -352,8 +357,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   const sende = panel.dispatchEvent.bind(panel); panel.dispatchEvent = e => { events.push(e.type); return sende(e); };
   document.body.appendChild(panel);   // connectedCallback wie in HA
   const uiEcht = panel.shadowRoot.querySelector('.ui'); ereignis = umgebung.helfer(panel);
-  // Prüfungen lesen das serialisierte DOM; der Serialisierer schreibt U+00A0 (Tausenderpunkt) als &nbsp; – zurück wandeln
-  ui = { get innerHTML() { return uiEcht.innerHTML.replace(/&nbsp;/g, '\u00a0'); }, get classList() { return uiEcht.classList; } };
+  // Prüfungen lesen das serialisierte DOM; der Serialisierer schreibt U+00A0 (Tausenderpunkt) als &nbsp; – zurück wandeln;
+  // Lit-Bereiche (BSM-022 2a) enthalten Markierungskommentare, die Text zerteilen – entfernen
+  ui = { get innerHTML() { return uiEcht.innerHTML.replace(/&nbsp;/g, '\u00a0').replace(/<!--\??(?:lit\$\d+\$)?-->/g, ''); }, get classList() { return uiEcht.classList; } };
   await ruhe();
   erwarte('„Lädt …“ solange die Struktur fehlt', /Lädt …/.test(ui.innerHTML));
   pruefe('lädt', { laedtErlaubt: true });
@@ -522,7 +528,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   for (const v of ['heute-laenger', 'morgen-spaeter', 'samstag', 'frei', '']) { await klick({ act: 'ausn-neu', v }); pruefe(`Ausnahme ${v}`); }
   await klick({ act: 'az-neu' }); pruefe('Neue Arbeitszeit');
   await klick({ act: 'bedarf-auf', id: 'besprechung' }); pruefe('Bedarf');
-  await klick({ act: 'melden' }); pruefe('Melden'); await klick({ act: 'ml-art', v: 'fehler' }); pruefe('Melden Fehler');
+  await klick({ act: 'melden' }); pruefe('Melden'); await klick(ML.fehler); pruefe('Melden Fehler');
   for (const b of panel.d.bereiche) { await klick({ act: 'bereich-einst', id: b.id }); pruefe(`Bearbeiten ${b.id}`); }
   await klick({ act: 'sheet', s: 'container-neu' }); await klick({ act: 'neu-art', v: 'Pumpenschacht' }); pruefe('Neuer Schacht');
   await klick({ act: 'e-wert', k: 'bericht', v: 'monat' }, 30); await klick({ act: 'sheet', s: 'bericht' }, 40); const bm = pruefe('Bericht Monat'); erwarte('Bericht für den Vormonat', /August 2026/.test(bm) && /zum Juli/.test(bm));
@@ -620,7 +626,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'tab', v: 'heizung' }, 30); neu(); await klick({ act: 'urlaub-weg', i: '0' });
   erwarte('Urlaub löschen', (a => a && a.uid === 'urlaub-1')(letzte('calendar/event/delete').at(-1)));
   // Meldungen
-  neu(); await klick({ act: 'melden' }); eingabe({ ml: 'text' }, '  Knopf zu klein  '); await klick({ act: 'ml-senden' });
+  neu(); await klick({ act: 'melden' }); eingabe(ML.text, '  Knopf zu klein  '); await klick(ML.senden);
   erwarte('Meldung senden', (a => a && a.aktion === 'neu' && a.meldung.text === 'Knopf zu klein' && a.meldung.version === '0.7.0' && a.meldung.seite && a.meldung.seite.view && !('stand' in a.meldung))(letzte('baustelle/meldung').at(-1)));
   await klick({ act: 'tab', v: 'dev' }, 20); neu(); await klick({ act: 'm-status', id: 'm1' });
   erwarte('Meldung schließen (meldung_id, kein id)', (a => a && a.aktion === 'status' && a.meldung_id === 'm1' && a.status === 'geschlossen' && !('id' in a))(letzte('baustelle/meldung').at(-1)));
@@ -791,12 +797,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'zu' }); panel.s.kkUe = null; }
   /* WU-0016: Screenshots zur Meldung – Bereich im Melde-Fenster, Senden mit Bildern, Vorschau in der Meldungsliste */
   { await klick({ act: 'melden' }, 10); pruefe('Melden mit Screenshot');
-    erwarte('WU-0016: Screenshot-Bereich mit Bild wählen', ui.innerHTML.includes('📷 Screenshot') && ui.innerHTML.includes('data-mb="datei"') && ui.innerHTML.includes('0 von 3'));
+    erwarte('WU-0016: Screenshot-Bereich mit Bild wählen', ui.innerHTML.includes('📷 Screenshot') && ui.innerHTML.includes('type="file"') && ui.innerHTML.includes('0 von 3'));
     const bild = { url: 'data:image/jpeg;base64,AAAA', b: 900, h: 1600, kb: 120 };
     panel.s.sheet.form.bilder = [bild, { ...bild }, { ...bild, b: 1600, h: 1000 }]; panel.s.sheet.form.text = 'Test mit Bildern'; panel.render(); pruefe('Melden 3 Bilder');
-    erwarte('WU-0016: 3 Bilder, keine weiteren', (ui.innerHTML.match(/class="mb-bild[ "]/g) || []).length === 3 && !ui.innerHTML.includes('data-mb="datei"') && ui.innerHTML.includes('3 von 3'));
-    await klick({ act: 'mb-weg', i: '0' }); erwarte('WU-0016: ✕ entfernt ein Bild', panel.s.sheet.form.bilder.length === 2);
-    neu(); await klick({ act: 'ml-senden' }, 10);
+    erwarte('WU-0016: 3 Bilder, keine weiteren', (ui.innerHTML.match(/class="mb-bild[ "]/g) || []).length === 3 && !ui.innerHTML.includes('type="file"') && ui.innerHTML.includes('3 von 3'));
+    await klick(ML.bildWeg); erwarte('WU-0016: ✕ entfernt ein Bild', panel.s.sheet.form.bilder.length === 2);
+    neu(); await klick(ML.senden, 10);
     erwarte('WU-0016: Senden mit Bildern', letzte('baustelle/meldung').some(a => a.aktion === 'neu' && a.meldung.bilder && a.meldung.bilder.length === 2));
     meldungen[0].bilder = ['FE-0001-1.jpg']; delete panel.cache.meldungen;
     await klick({ act: 'tab', v: 'einst' }, 10); await klick({ act: 'ev-gruppe', v: 'dev' }, 10); await klick({ act: 'ev-dev', v: 'meldungen' }, 30); await ruhe(20); panel.render(); pruefe('Meldungen mit Bild');
@@ -1223,16 +1229,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   /* Bauplan 0.7 §8: Nicht-Admin sieht nur an – Hinweis, Schalter gesperrt, nichts Änderndes gesendet; vor Ort erlaubt bleibt */
   { const vorher = struktur, b0 = vorher[0];
     // einfacher Ersatz für Element.matches (Klasse, Tag, [a="v"], [a$="v"], :not([a="v"]))
-    const el = (ds, cls = '', tag = 'button') => ({ dataset: ds, matches: sel => {
-      for (const m of sel.matchAll(/:not\(\[data-act="([^"]+)"\]\)/g)) if (ds.act === m[1]) return false;
-      const rest = sel.replace(/:not\([^)]*\)/g, '');
-      return [...rest.matchAll(/\[([\w-]+)(\$?)="([^"]*)"\]|\[([\w-]+)\]|\.([\w-]+)|^([a-z]+)/g)].every(([, a, e, v, nur, k, t]) => {
-        const w = x => ds[x.replace(/^data-/, '').replace(/-(\w)/g, (_, c) => c.toUpperCase())];
-        if (a) return e ? String(w(a) ?? '').endsWith(v) : w(a) === v;
-        if (nur) return w(nur) !== undefined;
-        if (k) return cls.split(' ').includes(k);
-        return tag === t; }); } });
-    const klickEl = async (e, n) => { panel.klick({ target: { closest: () => e } }); await ruhe(n); };
+    // echte Elemente (happy-dom): matches() wie im Browser; Klick über das echte Ereignis in .ui
+    const el = (ds, cls = '', tag = 'button') => { const x = document.createElement(tag); x.className = cls; for (const [k, v] of Object.entries(ds)) x.dataset[k] = v; return x; };
+    const klickEl = async (e, n) => { e.hidden = true; panel.shadowRoot.querySelector('.ui').appendChild(e); e.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); e.remove(); await ruhe(n); };
     struktur = vorher.map(x => ({ ...x, rechte: { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] } }));
     global.location = { search: `?baustelle=${b0.baustelle.entry_id}` }; panel.cache = {}; await panel._laden(); panel._adresse(); await ruhe(30);
     await klick({ act: 'tab', v: 'uebersicht' }, 30);
@@ -1243,7 +1242,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('§8: Schalter gesperrt, nichts gesendet', !letzte('baustelle/setzen').length && panel.letzterToast === 'Nur ansehen – ändern dürfen nur Admins');
     neu(); await klickEl(el({ act: 'az-speichern' })); await klickEl(el({ act: 'sheet', s: 'termin' }));
     erwarte('§8: Speichern und Bearbeiten-Fenster gesperrt', !aufrufe.length && !(panel.s.sheet && panel.s.sheet.art === 'termin'));
-    erwarte('§8: Schalter, die nur in der Seite wirken, bleiben frei', !panel.gesperrt(el({ act: 'ml-stand' }, 'sw')) && !panel.gesperrt(el({ act: 'bedarf-boost' }, 'sw')));
+    erwarte('§8: Schalter, die nur in der Seite wirken, bleiben frei', !panel.gesperrt(el({}, 'sw ml-stand')) && !panel.gesperrt(el({ act: 'bedarf-boost' }, 'sw')));
     neu(); panel.setzen(['heizung', 'fruehstart'], false); await panel.aktion('lern_reset', { bereich: 'polier' }); await ruhe();
     erwarte('§8: Änderungen gar nicht erst gesendet (setzen, Aktion nur für Admins)', !letzte('baustelle/setzen').length && !letzte('baustelle/aktion').length);
     neu(); await klickEl(el({ act: 'boost', id: 'polier' }));
