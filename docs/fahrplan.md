@@ -60,8 +60,8 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe F – Code aufteilen
 
-- [ ] **F1** (BSM-022) Seite zerlegen und schrittweise auf Lit – Bauplan `docs/bauplan-lit.md` (abgenommen 06.10.2026): 0a, 0b.1, 0b.2, 1a, 1b, 1c, 2a.1, 2a.2, dann Entscheidung (5 Ja/Nein) – Unteraufgaben BSM-022.01–.09
-- [ ] **F2** (BSM-023) `steuerung.py` und `funktionen/heizung.py` weiter zerlegen
+- [ ] **F1** (BSM-022) Seite zerlegen und schrittweise auf Lit – Bauplan `docs/bauplan-lit.md` (abgenommen 06.10.2026): 0a, 0b.1, 0b.2, 1a, 1b, 1c, 2a.1, 2a.2, dann Entscheidung (5 Ja/Nein) – Unteraufgaben BSM-022.01–.09 – Stufen 0a–5 erledigt bis 0.8.100 (07.10.2026); offen nur die Abnahme durch Herbert auf S23 und in Edge (`docs/lit-entscheidung.md`)
+- [x] **F2** (BSM-023) `steuerung.py` und `funktionen/heizung.py` weiter zerlegen – erledigt 0.8.101 (`kern/`, `funktionen/heizung/`, Bauplan Module §8)
 - [x] **F3** (BSM-024) Umstieg der Seite auf Lit-Komponenten planen – erledigt 06.10.2026 (`docs/bauplan-lit.md`, ChatGPT-Review CGR-2026-10-06-seite-lit), geht in F1 auf
 
 ## Etappe G – Stabilisieren

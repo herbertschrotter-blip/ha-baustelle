@@ -243,3 +243,44 @@ Versionsregel: Umbau = PATCH. Phase 7 läuft nach Phase 5 und vor der Doku-Phase
 0.7.22) · `d2ec92c` Phase 6 (0.7.22) · Nachbesserung nach der Prüfung (0.7.23, Commit „Kern ohne Pumpenmodul, Seite ohne
 Staffel-Grenze“) · zweite Nachbesserung (0.7.24, Commit „€ und % von der Integration“). Offen mit Herbert:
 HA-Sicherung → Einspielen → Neustart → Sichtprüfung (§6); Push, Releases und Repo-Beschreibung/Themen auf GitHub.
+
+## 8. Kern und Heizung zerlegen (BSM-023, 07.10.2026)
+
+**Ziel:** `steuerung.py` (1.336 Zeilen) und `funktionen/heizung.py` (1.199) nach Zuständigkeit aufteilen, keine Datei
+über ~600 Zeilen, **ohne Verhaltensänderung**; Schnittstelle `funktionen/basis.py` und alle Aufrufer unverändert.
+
+**Muster:** Der Zustand bleibt am Objekt (`Steuerung`, `Heizung`), die Klassen behalten Abläufe, Eigenschaften und
+kurze Methoden. Längere Methoden werden zu Modulfunktionen mit dem Objekt als erstem Parameter (`st: Steuerung`,
+`hz: Heizung`); in der Klasse bleibt je Methode eine Weiterleitung mit derselben Signatur. So bleiben Attribute,
+Aufrufe von außen (`st.nenn_kw`, `hz.warm_ab`, Tests), `@callback` und mypy unverändert; keine Mixins (mypy
+`--strict` prüft die Module einzeln, `self`-Typen in Mixins gingen nicht ohne Umwege).
+
+| Neu | Inhalt |
+|---|---|
+| `kern/typen.py` | Grenzen der Staffelung, `PRIO`, `WARTE_TEXT`, `morgen_frueh`, `BereichInfo`, `GeraetInfo`, `WetterWerte`, `Laufzeit`, `KEIN_VERBRAUCH` |
+| `kern/einrichtung.py` | Bereiche und Geräte aus den Unter-Einträgen, `_sensor_am_geraet` |
+| `kern/wetter.py` | Prognose holen und je Tag merken, Wetter jetzt und je Tag |
+| `kern/kalender.py` | Feiertage, Urlaub, Termine, Arbeitszeiten, Ausnahmen |
+| `kern/staffelung.py` | Nennleistung, Staffelung, Anlauf, Abwurf, Anzeige |
+| `kern/schalten.py` | Geräte schalten, aktiv setzen |
+| `kern/warnungen.py` | Warnungen, Gerätezustand, Bericht planen |
+| `kern/zaehler.py` | Zähler, Preise, Energie und Zeiten zählen |
+| `funktionen/heizung/` | Paket statt Modul (Import `funktionen.heizung.Heizung` bleibt): `typen`, `soll`, `plan`, `lernregelung`, `bedarf`, `hand`, `anzeige`, `zaehlen` |
+
+Was bisher aus `steuerung` importiert wurde (`BereichInfo`, `GeraetInfo`, `WetterWerte`, `morgen_frueh`,
+`_sensor_am_geraet`, `_prognose_auswerten`, `ZAEHLER_SPEICHERN_S`), bleibt dort importierbar; ebenso `FRUEHER_MIN`,
+`FRUEHSTART_NACHRICHT` aus `funktionen.heizung`. Der Logger der Kern-Module bleibt
+`custom_components.baustelle.steuerung` (gleiche Protokollzeilen). Die Regel „Kern ohne Einzelheiten der Funktionen“
+(§3) gilt jetzt auch für `kern/` (neuer Test). Verschoben wurde mit einem Werkzeug (Methoden → Funktionen, `self` → `st`/
+`hz` über die Token, Importe auf Benutztes gekürzt), nicht von Hand; zwei Namenskonflikte sind behoben: lokales `st`
+in der Staffel-Anzeige (mypy) und das Untermodul `lernen`, das im Paket den Import `logik.lernen` verdeckt hätte
+(Integrationstest) – heißt jetzt `lernregelung`. Nachweis: alle 87 verschobenen Funktionsrümpfe sind im AST gleich
+den alten Methoden mit `self` → `st`/`hz` (ohne Docstrings, die nur neu eingerückt sind; einzige Ausnahme die
+Umbenennung `st` → `zst`).
+
+**Prüfung:** alle Tests unverändert grün (logik 670, Integration 363 + 1 neuer = 364, Panel, Notprogramm, Browser),
+mypy `--strict` ohne Befund,
+Auslieferung ohne Neustart-Besonderheit (`deploy.sh` entfernt die alte `funktionen/heizung.py` im Ziel). Danach
+Neustart durch Herbert. Außerhalb von BSM-023 liegen noch über 600 Zeilen: `panel.py` (1.036), `logik/auswertung.py`
+(782), `notprogramm.py` (654) – bei Bedarf eigene Aufgabe.
+

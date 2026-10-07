@@ -23,7 +23,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - **Master-Mockup `mockups/glas.html` = die echte Seite mit Beispieldaten** (`node mockups/quelle/glas.js`, der Panel-Test
   prüft, dass es aktuell ist). Vorschläge zu Tickets als eigene Variantendatei daneben (`mockups/README.md`).
 - **Neue Funktion = neues Modul in `funktionen/`** nach der Schnittstelle in `funktionen/basis.py`, eingetragen in
-  `funktionen.FUNKTIONEN`; `steuerung.py` (Kern) kennt keine Heizungs- oder Pumpen-Einzelheiten und bleibt dabei
+  `funktionen.FUNKTIONEN`; `steuerung.py` mit `kern/` (Kern) kennt keine Heizungs- oder Pumpen-Einzelheiten und bleibt dabei
   unverändert. Anleitung: `docs/funktion-anlegen.md`.
 - **Die Staffelung bleibt im Kern** (alle Funktionen teilen sich die Stromanschlüsse); eine Funktion liefert nur
   `schaltbar`, `standard_kw`, `staffel_vorrang`, `staffel_feld`.

@@ -8,7 +8,7 @@ eine neue Funktion hinkommt. Der Probe-Test `test_neue_funktion_ohne_eingriff_in
 Grundregeln:
 
 - **Fachregeln nur in `logik/`**, ohne HA-Code, mit Test in `tests/logik/`.
-- **Die Funktion ist ein Modul in `funktionen/`** mit der Schnittstelle aus `basis.py`. `steuerung.py` (Kern) wird
+- **Die Funktion ist ein Modul in `funktionen/`** mit der Schnittstelle aus `basis.py`. `steuerung.py` mit `kern/` (Kern) wird
   **nicht** geändert – der Test `test_kern_ohne_einzelheiten_der_funktionen` sucht dort nach Funktionsnamen.
 - **Die Staffelung bleibt im Kern**; die Funktion sagt nur, welche Geräte geschaltet werden und mit welchem Vorrang.
 - **Die Seite rechnet nichts Fachliches** (auch keine € oder % zu Werten der Integration), sie zeigt an, was

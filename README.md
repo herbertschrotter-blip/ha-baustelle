@@ -34,8 +34,8 @@ Baustelle in € um; die Vorschau im Anschluss-Formular rechnet mit den noch nic
 | Schicht | Wo | Was |
 |---|---|---|
 | Fachlogik | `logik/` | jede Fachregel genau einmal, ohne HA-Code, mit Test in `tests/logik/`: Arbeitszeit/Tagesplan, Regelung (Soll je Container), Staffelung, Pumpen, Warnungen, Zählen, Firma, Auswertung/Abrechnung, Bericht |
-| Funktionen | `funktionen/` | je Funktion ein Modul mit der Schnittstelle aus `basis.py` (heute `heizung.py`, `pumpen.py`; Liste `FUNKTIONEN` in `__init__.py`): Soll, Anzeige, Warnungen, Zähler, Status, Handbetrieb der Funktion – ruft `logik/` |
-| Kern | `steuerung.py` | Einrichtung, Ereignisse, Wetter, Kalender, **Staffelung** (für alle Funktionen gemeinsam, ein Anschluss), Schalten, Protokoll, Status; ruft nur die Methoden der Funktionen und kennt keine Heizungs- oder Pumpen-Einzelheiten |
+| Funktionen | `funktionen/` | je Funktion ein Modul mit der Schnittstelle aus `basis.py` (heute `heizung/` als Paket, `pumpen.py`; Liste `FUNKTIONEN` in `__init__.py`): Soll, Anzeige, Warnungen, Zähler, Status, Handbetrieb der Funktion – ruft `logik/` |
+| Kern | `steuerung.py` + `kern/` | Einrichtung, Ereignisse, Wetter, Kalender, **Staffelung** (für alle Funktionen gemeinsam, ein Anschluss), Schalten, Protokoll, Status; ruft nur die Methoden der Funktionen und kennt keine Heizungs- oder Pumpen-Einzelheiten |
 | Ausgabe | `sensor.py`, `binary_sensor.py`, `switch.py`, `daten.py`, `panel.py`, `auswertung.py`, `nachrichten.py` | Entitäten, `baustelle/struktur`, Befehle der Seite (`docs/api-0.7.md`), Auswertung aus der Langzeitstatistik, Nachrichten und Bericht |
 | Seite | `frontend/baustelle-panel.js` | zeigt nur an (Plan, Status, Auswertung mit € und %, Abrechnung, CSV kommen von der Integration); Reiter nach den eingeschalteten Funktionen |
 
@@ -45,8 +45,10 @@ Eine neue Funktion (z. B. Kühlung) ist ein neues Modul in `funktionen/`, ohne E
 ```
 custom_components/baustelle/   Integration (→ /config/custom_components/baustelle/)
   logik/                       Fachlogik ohne HA-Code (je Thema ein Modul)
-  funktionen/                  basis.py (Schnittstelle), heizung.py, pumpen.py; FUNKTIONEN in __init__.py
-  steuerung.py                 Kern: Ereignisse, Wetter, Kalender, Staffelung, Schalten, Protokoll, Status
+  funktionen/                  basis.py (Schnittstelle), heizung/ (Paket: soll, plan, lernregelung, bedarf, hand,
+                               anzeige, zaehlen), pumpen.py; FUNKTIONEN in __init__.py
+  steuerung.py                 Kern: Zustand, Ereignisse, Auswertung, Protokoll, Status; leitet weiter an kern/
+  kern/                        Einrichtung, Wetter, Kalender, Staffelung, Schalten, Warnungen, Zähler (BSM-023)
   auswertung.py                Langzeitstatistik holen und logik/auswertung rechnen lassen (Seite, Bericht, CSV)
   nachrichten.py               Handy-Nachrichten mit Knöpfen, Frühstart-Hinweis, Wochen-/Monatsbericht
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät

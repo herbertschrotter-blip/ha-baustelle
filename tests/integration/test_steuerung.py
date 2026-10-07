@@ -739,6 +739,22 @@ def test_kern_ohne_einzelheiten_der_funktionen() -> None:
     assert treffer == []
 
 
+def test_kern_module_ohne_einzelheiten_der_funktionen() -> None:
+    """BSM-023: Auch die Module des Kerns (`kern/`) nennen keine Funktion, Rolle oder Einstellung von Heizung und Pumpen."""
+    import re
+    from pathlib import Path
+
+    kern = Path(__file__).parents[2] / "custom_components" / "baustelle" / "kern"
+    verboten = [
+        r"funktionen\.(heizung|pumpen)", r"\bHeizung\b", r"\bPumpen\b", r"ROLLE_", "HEIZROLLEN", r"ART_",
+        r"\[\"heizung\"\]", r"SollGrund", r"LageContainer", r"frost", r"boost", r"bedarf", r"[Tt]ür", r"tuer",
+        r"heizgrenze", r"termine_kalender", r"logik\.(pumpen|regelung)",
+    ]
+    dateien = sorted(kern.glob("*.py"))
+    treffer = [(d.name, m, z) for d in dateien for z in d.read_text().splitlines() for m in verboten if re.search(m, z)]
+    assert len(dateien) >= 8 and treffer == []
+
+
 async def test_sensor_am_geraet_bei_mehreren(hass: HomeAssistant) -> None:
     """FE-0003: Shelly „Heizung 01“ mit eigenem Sensor der Baustelle, Energie, Energieverbrauch und Einspeisung –
     vorher gab es bei mehreren Kandidaten keinen Sensor, der Container zählte nichts."""

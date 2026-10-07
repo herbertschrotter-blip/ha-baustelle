@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.101",
+    "datum": "2026-10-07",
+    "punkte": [
+      "Kern und Heizung aufgeteilt (BSM-023): `steuerung.py` (vorher 1.336 Zeilen) und die Heizung (1.199) nach Zuständigkeit in kleinere Module (`kern/`, `funktionen/heizung/`), keine Datei über 600 Zeilen. Am Verhalten ändert sich nichts."
+    ]
+  },
+  {
     "version": "0.8.100",
     "datum": "2026-10-07",
     "punkte": [

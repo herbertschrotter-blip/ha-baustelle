@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.101] – 2026-10-07
+
+- Kern und Heizung aufgeteilt (BSM-023): `steuerung.py` (vorher 1.336 Zeilen) und die Heizung (1.199) nach
+  Zuständigkeit in kleinere Module (`kern/`, `funktionen/heizung/`), keine Datei über 600 Zeilen. Am Verhalten ändert
+  sich nichts.
+
 ## [0.8.100] – 2026-10-07
 
 - Im Nur-Lesen-Modus war der Schalter „Schnell aufheizen“ im Dialog „Bei Bedarf heizen“ ausgegraut, obwohl er vor Ort

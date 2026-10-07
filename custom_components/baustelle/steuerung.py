@@ -13,27 +13,25 @@ Schnittstelle (`funktionen/basis.py`) und kennt keine Einzelheiten einer Funktio
 
 Geschaltet wird nur, wenn die Baustelle aktiv und die Automatik eingeschaltet ist (oder eine Funktion
 `schaltet_ohne_automatik`). Wer ein Gerät von Hand schaltet, übergibt es seiner Funktion (`hand_setzen`, wie 0.6).
+
+Aufgeteilt nach Zuständigkeit (BSM-023): Die Klasse hier hält den Zustand, die Abläufe (Start, Takt, Ereignisse,
+Auswertung, Anzeige, Status) und leitet weiter an `kern/` – `einrichtung`, `wetter`, `kalender`, `staffelung`,
+`schalten`, `warnungen`, `zaehler`; Grundtypen und Konstanten in `kern/typen.py`.
 """
 
 from __future__ import annotations
 
 from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_TEMPERATURE, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import (
-    CALLBACK_TYPE, Context, Event, EventStateChangedData, HomeAssistant, ServiceResponse, State, callback,
-)
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import entity_registry as er, issue_registry as ir
+from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, State, callback
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import (
-    async_call_later,
-    async_track_point_in_time,
     async_track_state_change_event,
     async_track_time_change,
     async_track_time_interval,
@@ -41,136 +39,41 @@ from homeassistant.helpers.event import (
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_ART,
-    CONF_BEREICH,
     CONF_EMPFAENGER,
-    CONF_ENERGIE,
     CONF_FEIERTAG_KALENDER,
-    CONF_FUEHLER,
-    CONF_LEISTUNG,
     CONF_REGEN_SENSOR,
-    CONF_ROLLE,
-    CONF_SCHALTER,
     CONF_STATUS,
     CONF_TEMP_SENSOR,
-    CONF_TYP,
     CONF_URLAUB_KALENDER,
     CONF_WETTER,
     DOMAIN,
     EVENT_PROTOKOLL,
     STATUS_AKTIV,
-    SUB_BEREICH,
-    SUB_GERAET,
     TERMINE_INTERVALL_MIN,
     WETTER_INTERVALL_MIN,
-    ZIEHT_STROM_W,
 )
 from .einstellungen import Einstellungen
 from .funktionen import FUNKTIONEN
-from .funktionen.basis import (
-    ZAEHLER_SPEICHERN_S,
-    Funktion,
-    SollJeBereich,
-    ev_zeit as _ev_zeit,
-    minuten_seit as _minuten_seit,
-    mitternacht as _mitternacht,
-    zahl as _zahl,
-    zeit as _zeit,
-)
-from .logik import regelung as regel_logik, staffel as staffel_logik, warnungen as warn_logik
+from .funktionen.basis import ZAEHLER_SPEICHERN_S, Funktion, SollJeBereich, zahl as _zahl, zeit as _zeit
+from .logik import staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import Arbeitszeit, Ausnahme, WetterTag
 from .logik import preise as preise_logik
 from .db import protokoll_merken
-from .logik.zaehlen import energie_zuwachs, leistung_integriert, zaehlerstand
-from . import texte
-from .texte import GRUND_TEXT
+from .kern import (
+    einrichtung as k_einrichtung,
+    kalender as k_kalender,
+    schalten as k_schalten,
+    staffelung as k_staffelung,
+    warnungen as k_warnungen,
+    wetter as k_wetter,
+    zaehler as k_zaehler,
+)
+from .kern.einrichtung import _sensor_am_geraet as _sensor_am_geraet
+from .kern.typen import BereichInfo as BereichInfo, GeraetInfo as GeraetInfo, Laufzeit as Laufzeit
+from .kern.typen import FEHLT_NACH, WetterWerte as WetterWerte, morgen_frueh as morgen_frueh
+from .kern.wetter import _prognose_auswerten as _prognose_auswerten
 
 _LOGGER = logging.getLogger(__name__)
-
-MAX_SCHRITT_H = 5 / 60  # längere Lücken (Neustart) zählen nicht als Laufzeit
-HOCHFAHREN_UNSICHER = timedelta(minutes=2)  # so lange nach dem Start kann last_changed nur den Start zeigen (WU-0015)
-FEHLT_NACH = timedelta(minutes=10)  # so lange darf eine Entität nach dem Start fehlen (andere Integrationen laden)
-STABIL_S = 60  # Staffelung: kleinster freier Wert der letzten Minute
-ANLAUF_S = 20  # Staffelung: Geräte gehen nacheinander an, höchstens eines je 20 s (kein gemeinsamer Einschaltstoß)
-PRIO = {"niedrig": staffel_logik.Prio.NIEDRIG, "normal": staffel_logik.Prio.NORMAL, "hoch": staffel_logik.Prio.HOCH}
-WARTE_TEXT = {
-    "anschluss_voll": "Anschluss voll",
-    "max_gleichzeitig": "höchstens {max} gleichzeitig",
-    "mindestpause": "Mindestpause",
-    "rundlauf": "Rundlauf {takt} min",
-    "anlauf": "Anlauf",
-}
-
-
-def morgen_frueh(jetzt: datetime) -> datetime:
-    """„Bis morgen“: nächster Tag 07:00 (Arbeitsbeginn im Mockup)."""
-    return datetime.combine(jetzt.date() + timedelta(days=1), time(7, 0), tzinfo=jetzt.tzinfo)
-
-
-@dataclass
-class BereichInfo:
-    """Ein Bereich der Einrichtung (Art je Funktion, z. B. Container oder Pumpenschacht)."""
-
-    id: str
-    name: str
-    art: str
-    fuehler: str | None
-    nr: int = 0
-
-
-@dataclass
-class GeraetInfo:
-    """Ein Shelly aus der Einrichtung."""
-
-    id: str
-    name: str
-    bereich: str
-    schalter: str
-    rolle: str
-    typ: str
-    leistung: str | None
-    energie: str | None
-
-
-@dataclass
-class WetterWerte:
-    """Wetter, mit dem die Regeln gerade rechnen."""
-
-    aussen: float | None = None
-    aussen_max: float | None = None
-    frueh: float | None = None
-    regen_vortag: float | None = None
-    regen_heute: float | None = None
-    zustand: str | None = None
-
-    # Namen wie 0.6 für die Wetter-Sensoren
-    @property
-    def frueh_prognose(self) -> float | None:
-        return self.frueh
-
-    @property
-    def regen_24h(self) -> float | None:
-        return self.regen_heute
-
-
-@dataclass
-class Laufzeit:
-    """Ergebnis der letzten Auswertung, von Entitäten und Seite angezeigt."""
-
-    status: str = "automatik_aus"
-    status_text: str = ""
-    naechste: datetime | None = None
-    grund: dict[str, str] = field(default_factory=dict)
-    zustand: dict[str, str] = field(default_factory=dict)
-    text: dict[str, str] = field(default_factory=dict)
-    temperatur: dict[str, float | None] = field(default_factory=dict)
-    leistung: dict[str, float | None] = field(default_factory=dict)
-    probleme: dict[str, list[str]] = field(default_factory=dict)
-    erreichbar: bool | None = None
-    wetter: WetterWerte = field(default_factory=WetterWerte)
-    warnungen: list[warn_logik.Warnung] = field(default_factory=list)
-    warte: dict[str, dict[str, Any]] = field(default_factory=dict)
-    staffel: dict[str, Any] = field(default_factory=dict)
 
 
 class Steuerung:
@@ -251,26 +154,7 @@ class Steuerung:
         return self.aktiv and self.automatik_moeglich and bool(self.e["automatik"])
 
     def _einrichtung_lesen(self) -> None:
-        registry = er.async_get(self.hass)
-        for sub in self.entry.subentries.values():
-            if sub.subentry_type == SUB_BEREICH:
-                self.bereiche[sub.subentry_id] = BereichInfo(
-                    sub.subentry_id, sub.title, sub.data[CONF_ART], sub.data.get(CONF_FUEHLER), len(self.bereiche)
-                )
-        for sub in self.entry.subentries.values():
-            if sub.subentry_type != SUB_GERAET or sub.data[CONF_BEREICH] not in self.bereiche:
-                continue
-            schalter = sub.data[CONF_SCHALTER]
-            self.geraete[sub.subentry_id] = GeraetInfo(
-                id=sub.subentry_id,
-                name=sub.title,
-                bereich=sub.data[CONF_BEREICH],
-                schalter=schalter,
-                rolle=sub.data[CONF_ROLLE],
-                typ=sub.data[CONF_TYP],
-                leistung=sub.data.get(CONF_LEISTUNG) or _sensor_am_geraet(registry, schalter, "power"),
-                energie=sub.data.get(CONF_ENERGIE) or _sensor_am_geraet(registry, schalter, "energy"),
-            )
+        k_einrichtung._einrichtung_lesen(self)
 
     def geraete_in(self, bereich_id: str) -> list[GeraetInfo]:
         return [g for g in self.geraete.values() if g.bereich == bereich_id]
@@ -462,196 +346,47 @@ class Steuerung:
 
     # ------------------------------------------------------------------ Wetter
     async def _async_prognose(self, _now: datetime | None = None) -> None:
-        """Vorhersage holen (bewährt: Dienst weather.get_forecasts)."""
-        wetter = self.entry.options.get(CONF_WETTER)
-        if not wetter or self.hass.states.get(wetter) is None or self._prognose_laeuft:
-            return
-        self._prognose_laeuft = True
-        try:
-            await self._async_prognose_holen(wetter)
-        finally:
-            self._prognose_laeuft = False
-        self.auswerten()
+        await k_wetter._async_prognose(self, _now)
 
     async def _async_prognose_holen(self, wetter: str) -> None:
-        jetzt = dt_util.now()
-        tage: dict[date, dict[str, float | None]] = {}
-        for art in ("daily", "hourly"):
-            try:
-                antwort = await self.hass.services.async_call(
-                    "weather", "get_forecasts", {"type": art}, target={"entity_id": wetter},
-                    blocking=True, return_response=True,
-                )
-            except HomeAssistantError as err:
-                _LOGGER.debug("Vorhersage %s von %s nicht verfügbar: %s", art, wetter, err)
-                continue
-            liste = _antwort_liste(antwort, wetter, "forecast")
-            for tag, werte in _prognose_je_tag(liste, art).items():
-                ziel = tage.setdefault(tag, {})
-                ziel.update({k: v for k, v in werte.items() if v is not None})
-        if tage:
-            self._prognose_da = True
-            self._wetter_tage_merken(tage, jetzt)
+        await k_wetter._async_prognose_holen(self, wetter)
 
     def _wetter_tage_merken(self, tage: dict[date, dict[str, float | None]], jetzt: datetime) -> None:
-        """Vorhersage je Tag im Store merken; vergangene Morgen/Regen von heute bleiben (die Vorhersage vergisst sie)."""
-        gemerkt = self.lz.setdefault("wetter_tage", {})
-        heute = jetzt.date()
-        for tag, werte in tage.items():
-            alt = gemerkt.setdefault(tag.isoformat(), {})
-            for key, wert in werte.items():
-                if tag == heute and alt.get(key) is not None:
-                    if key == "frueh" and jetzt.hour >= 8:
-                        continue
-                    if key in ("regen", "max"):
-                        wert = max(wert, alt[key])
-                alt[key] = wert
-        grenze = (heute - timedelta(days=10)).isoformat()
-        for iso in [k for k in gemerkt if k < grenze]:
-            del gemerkt[iso]
-        self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
+        k_wetter._wetter_tage_merken(self, tage, jetzt)
 
     def _wetter_tag(self, tag: date) -> dict[str, Any]:
-        tag_werte: dict[str, Any] = self.lz.get("wetter_tage", {}).get(tag.isoformat(), {})
-        return tag_werte
+        return k_wetter._wetter_tag(self, tag)
 
     def _wetter(self, jetzt: datetime) -> WetterWerte:
-        o = self.entry.options
-        heute = jetzt.date()
-        zustand = None
-        aussen = _zahl(self.hass.states.get(o[CONF_TEMP_SENSOR])) if o.get(CONF_TEMP_SENSOR) else None
-        if o.get(CONF_WETTER) and (w := self.hass.states.get(o[CONF_WETTER])):
-            zustand = w.state if w.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN) else None
-            if aussen is None and isinstance(w.attributes.get(ATTR_TEMPERATURE), (int, float)):
-                aussen = float(w.attributes[ATTR_TEMPERATURE])
-        # Außenwert fehlt ganz: der letzte gemessene gilt bis 6 h (logik/regelung, Szenarien), sonst „unbekannt“
-        if aussen is not None:
-            self.lz["aussen_zuletzt"] = [jetzt.isoformat(timespec="seconds"), aussen]
-        elif (z := self.lz.get("aussen_zuletzt")) and (t := dt_util.parse_datetime(str(z[0]))) is not None:
-            aussen = regel_logik.letzter_wert(None, (t, float(z[1])), jetzt, regel_logik.AUSSEN_HALTEN_MIN)
-        tag = self._wetter_tag(heute)
-        regen = _zahl(self.hass.states.get(o[CONF_REGEN_SENSOR])) if o.get(CONF_REGEN_SENSOR) else None
-        if regen is not None:
-            # gemessen (Wetterstation): für „nach Regen früher“ am nächsten Tag merken
-            gemerkt = self.lz.setdefault("wetter_tage", {}).setdefault(heute.isoformat(), {})
-            if gemerkt.get("regen") is None or regen > gemerkt["regen"]:
-                gemerkt["regen"] = regen
-        else:
-            regen = tag.get("regen")
-        aussen_max = tag.get("max")
-        if aussen is not None and o.get(CONF_TEMP_SENSOR) and _zahl(self.hass.states.get(o[CONF_TEMP_SENSOR])) is not None:
-            # gemessener Tageshöchstwert (Szenarien): ein warmer Mittag bleibt bis Mitternacht „zu warm“
-            gemerkt = self.lz.setdefault("wetter_tage", {}).setdefault(heute.isoformat(), {})
-            if gemerkt.get("max_mess") is None or aussen > gemerkt["max_mess"]:
-                gemerkt["max_mess"] = aussen
-        werte = [x for x in (aussen_max, self._wetter_tag(heute).get("max_mess"), aussen) if x is not None]
-        aussen_max = max(werte) if werte else None
-        # Früh-Prognose: der nächste Morgen (vor 8 Uhr heute, danach morgen) – wie 0.6
-        frueh = self._wetter_tag(heute if jetzt.hour < 8 else heute + timedelta(days=1)).get("frueh")
-        return WetterWerte(
-            aussen=aussen, aussen_max=aussen_max, frueh=frueh,
-            regen_vortag=self._wetter_tag(heute - timedelta(days=1)).get("regen"),
-            regen_heute=regen, zustand=zustand,
-        )
+        return k_wetter._wetter(self, jetzt)
 
     def wetter_tag_plan(self, tag: date) -> WetterTag:
-        """Wetter eines Tages (Morgen-Tiefstwert, Regen am Vortag und heute) für die Pläne der Funktionen."""
-        heute = self._wetter_tag(tag)
-        return WetterTag(
-            frueh_min_temp=heute.get("frueh"),
-            regen_vortag_mm=self._wetter_tag(tag - timedelta(days=1)).get("regen"),
-            regen_heute_mm=heute.get("regen"),
-        )
+        return k_wetter.wetter_tag_plan(self, tag)
 
     # ------------------------------------------------------------------ Kalender
     async def _async_kalender(self, _now: datetime | None = None) -> None:
-        """Feiertage, Urlaub und Kalender der Funktionen, laufende und nächste Woche (Dienst calendar.get_events)."""
-        heute = dt_util.now().date()
-        start = _mitternacht(heute - timedelta(days=heute.weekday()))
-        ende = start + timedelta(days=15)
-        o = self.entry.options
-        for art, key in (("feiertag", CONF_FEIERTAG_KALENDER), ("urlaub", CONF_URLAUB_KALENDER)):
-            tage: set[date] = set()
-            for ev in await self.async_events(o.get(key), start, ende):
-                von, bis = _ev_zeit(ev.get("start")), _ev_zeit(ev.get("end"))
-                if von is None or bis is None:
-                    continue
-                tag = von.date()
-                while _mitternacht(tag) < bis:
-                    tage.add(tag)
-                    if art == "feiertag":
-                        self.kalender_namen[tag] = str(ev.get("summary") or "Feiertag")
-                    tag += timedelta(days=1)
-            self.kalender_tage[art] = tage
-        for f in self.funktionen:
-            await f.async_kalender(start, ende)
-        self.auswerten()
+        await k_kalender._async_kalender(self, _now)
 
     async def async_events(self, entity_id: str | None, start: datetime, ende: datetime) -> list[dict[str, Any]]:
-        if not entity_id or self.hass.states.get(entity_id) is None:
-            return []
-        try:
-            antwort = await self.hass.services.async_call(
-                "calendar", "get_events",
-                {"start_date_time": start.isoformat(), "end_date_time": ende.isoformat()},
-                target={"entity_id": entity_id}, blocking=True, return_response=True,
-            )
-        except (HomeAssistantError, ValueError) as err:
-            _LOGGER.debug("Kalender %s nicht lesbar: %s", entity_id, err)
-            return []
-        return _antwort_liste(antwort, entity_id, "events")
+        return await k_kalender.async_events(self, entity_id, start, ende)
 
     async def async_event_details(
         self, entity_id: str | None, start: datetime, ende: datetime
     ) -> dict[tuple[str, str], tuple[str, str | None]]:
-        """uid und rrule je Kalendereintrag (liefert calendar.get_events nicht) – direkt von der Kalender-Entität."""
-        try:
-            from homeassistant.components.calendar.const import DATA_COMPONENT  # noqa: PLC0415
-
-            entity = self.hass.data[DATA_COMPONENT].get_entity(entity_id or "")
-            if entity is None:
-                return {}
-            events = await entity.async_get_events(self.hass, start, ende)
-        except (KeyError, HomeAssistantError, AttributeError, NotImplementedError) as err:
-            _LOGGER.debug("Kalender-Details von %s nicht lesbar: %s", entity_id, err)
-            return {}
-        details = {}
-        for ev in events:
-            von = ev.start if isinstance(ev.start, datetime) else _mitternacht(ev.start)
-            details[(dt_util.as_local(von).isoformat(), ev.summary)] = (ev.uid or "", ev.rrule or None)
-        return details
+        return await k_kalender.async_event_details(self, entity_id, start, ende)
 
     def frei_art(self, tag: date) -> str | None:
-        """„feiertag“, „urlaub“ oder None – aus den Kalendern (heute zusätzlich aus deren Zustand)."""
-        heute = dt_util.now().date()
-        o = self.entry.options
-        if tag in self.kalender_tage["feiertag"] or (tag == heute and self._kalender_an(o.get(CONF_FEIERTAG_KALENDER))):
-            return "feiertag"
-        if tag in self.kalender_tage["urlaub"] or (tag == heute and self._kalender_an(o.get(CONF_URLAUB_KALENDER))):
-            return "urlaub"
-        return None
+        return k_kalender.frei_art(self, tag)
 
     def _kalender_an(self, entity_id: str | None) -> bool:
-        return entity_id is not None and (s := self.hass.states.get(entity_id)) is not None and s.state == STATE_ON
+        return k_kalender._kalender_an(self, entity_id)
 
     # ------------------------------------------------------------------ Arbeitszeit
     def arbeitszeiten(self) -> list[Arbeitszeit]:
-        liste = []
-        for x in self.e["arbeitszeiten"]:
-            try:
-                liste.append(Arbeitszeit.aus_store(x))
-            except (KeyError, ValueError, TypeError, IndexError):
-                _LOGGER.warning("Arbeitszeit %s ist ungültig und wird übergangen", x)
-        return liste
+        return k_kalender.arbeitszeiten(self)
 
     def ausnahmen(self) -> list[Ausnahme]:
-        liste = []
-        for x in self.e["ausnahmen"]:
-            try:
-                liste.append(Ausnahme.aus_store(x))
-            except (KeyError, ValueError, TypeError):
-                _LOGGER.warning("Ausnahme %s ist ungültig und wird übergangen", x)
-        return liste
+        return k_kalender.ausnahmen(self)
 
     # ------------------------------------------------------------------ Auswertung
     def temperatur(self, fuehler: str | None) -> float | None:
@@ -675,174 +410,21 @@ class Steuerung:
             self.einstellungen.speichern()
 
     def nenn_kw(self, g: GeraetInfo) -> float:
-        """Leistung eines Geräts für die Staffelung: gemessenes Mittel im Betrieb, sonst `standard_kw` seiner Funktion."""
-        mittel_w = self.zaehler.get(f"mittel:{g.id}")
-        if isinstance(mittel_w, (int, float)) and mittel_w > ZIEHT_STROM_W:
-            return round(mittel_w / 1000, 3)
-        eigen = (self.e.get("geraete") or {}).get(g.id, {}).get("nenn_kw")   # im Gerät eingestellt (Szenarien)
-        if isinstance(eigen, (int, float)):
-            return float(eigen)
-        return f.standard_kw if (f := self._je_rolle.get(g.rolle)) is not None else 0.0
+        return k_staffelung.nenn_kw(self, g)
 
     def _staffeln(self, jetzt: datetime, soll: SollJeBereich) -> tuple[set[str], dict[str, bool | None]]:
-        """Staffelung über alle Anschlüsse; liefert die Geräte, die laufen sollen, und das Ziel je geschaltetem Gerät."""
-        s = self.e["staffel"]
-        anschluesse = [
-            staffel_logik.anschluss(a["id"], float(a["ampere"]), int(a["phasen"]), float(a["reserve_kw"]),
-                                    float(s["nutzbar_prozent"]))
-            for a in self.e["anschluesse"]
-        ]
-        lasten: list[staffel_logik.Last] = []
-        ziel: dict[str, bool | None] = {}
-        for g in self.geraete.values():
-            zustand = self.hass.states.get(g.schalter)
-            erreichbar = zustand is not None and zustand.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-            an = erreichbar and zustand is not None and zustand.state == STATE_ON
-            if erreichbar:
-                self._lief[g.id] = an
-            letzter = self._letzter_befehl.get(g.id)
-            if erreichbar and letzter is not None and jetzt - letzter[1] < timedelta(seconds=55):
-                an = letzter[0]   # eigener Befehl noch unterwegs: zählt schon als geschaltet
-            e = self.einstellungen.bereich(g.bereich)
-            leistung_w = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
-            s_c = soll.get(g.bereich)
-            f = self._je_rolle.get(g.rolle)
-            ein = (f.geraet_ein(g, s_c[0]) if f is not None else s_c[0].ein) if s_c is not None else None
-            schaltet = (
-                f is not None and f.schaltbar(g) and ein is not None
-                and self.funktion_von(g).hand_seit(g) is None and erreichbar and self.geraet_aktiv(g)
-                and g.id not in self.ruhe
-            )
-            seit = dt_util.as_local(zustand.last_changed) if zustand is not None else None
-            if seit is not None and seit > jetzt:
-                seit = None  # Uhr zurückgestellt: Zeitpunkt unbekannt
-            # WU-0015: nach einem Neustart zeigt last_changed den Start, nicht das echte Schalten – ein Gerät, das die
-            # Integration seither nicht selbst geschaltet hat, war wohl länger aus: keine Mindestpause ab dem Start
-            seit_unbekannt = (
-                seit is not None and seit <= self._gestartet + HOCHFAHREN_UNSICHER and g.id not in self._letzter_befehl
-            )
-            an_seit = _minuten_seit(seit, jetzt) if an else 0.0
-            unterwegs = letzter is not None and letzter[0] and jetzt - letzter[1] < timedelta(seconds=55)
-            if schaltet:
-                # FE-0011: gemessener Verbrauch; wer dazukommen will (und die ersten Minuten danach), zählt voll –
-                # auch solange der eigene Einschaltbefehl noch unterwegs ist
-                kw = staffel_logik.last_kw(leistung_w, self.nenn_kw(g), an, 0.0 if unterwegs else an_seit)
-                ziel[g.id] = bool(ein)
-            elif not erreichbar and self._lief.get(g.id):
-                kw, an = self.nenn_kw(g), True   # offline, lief aber zuletzt: vorsichtig weiter mitzählen (Szenarien)
-            else:
-                kw = (leistung_w / 1000 if leistung_w is not None else (self.nenn_kw(g) if an else 0.0)) if an else 0.0
-            if schaltet and ein and not an:
-                self._wartet_seit.setdefault(g.id, jetzt)
-            else:
-                self._wartet_seit.pop(g.id, None)
-            vorrang = self.funktion_von(g).staffel_vorrang(s_c, schaltet, g.bereich) if s_c is not None else {}
-            lasten.append(
-                staffel_logik.Last(
-                    id=g.id, anschluss=e.get("anschluss") or "", kw=kw, heizer=schaltet, an=an, gruppe=g.bereich,
-                    will=bool(schaltet and ein), prio=PRIO.get(e.get("prio") or "normal", 1), **vorrang,
-                    an_seit_min=an_seit,
-                    aus_seit_min=_minuten_seit(seit, jetzt) if not an and not seit_unbekannt else 1e9,
-                    wartet_seit_min=_minuten_seit(self._wartet_seit.get(g.id), jetzt) if g.id in self._wartet_seit else 0.0,
-                )
-            )
-        frei_jetzt = staffel_logik.frei_je_anschluss(anschluesse, lasten)
-        self._frei_verlauf.append((jetzt, frei_jetzt))
-        while self._frei_verlauf and not 0 <= (jetzt - self._frei_verlauf[0][0]).total_seconds() <= STABIL_S:
-            self._frei_verlauf.popleft()
-        stabil = {
-            a.id: min(werte[a.id] for _, werte in self._frei_verlauf if a.id in werte) for a in anschluesse
-        }
-        self.daten.warte = {}
-        if s["an"]:
-            ergebnis = staffel_logik.staffeln(
-                anschluesse, lasten,
-                staffel_logik.StaffelRegeln(
-                    max_gleichzeitig=int(s["max_gleichzeitig"]), min_lauf_min=float(s["min_lauf_min"]),
-                    min_pause_min=float(s["min_pause_min"]), takt_min=float(s["takt_min"]),
-                ),
-                stabil,
-                self._abwerfen(jetzt, frei_jetzt),
-            )
-            an_set = set(ergebnis.an)
-            for gid, grund in ergebnis.wartet.items():
-                dran = ergebnis.dran_in_min.get(gid)
-                self.daten.warte[gid] = {"grund": grund, "dran_in_min": None if dran is None else max(0, round(dran))}
-            self._anlauf_begrenzen(jetzt, lasten, an_set)
-            frei_nach = ergebnis.frei_kw
-        else:
-            an_set = {l.id for l in lasten if l.heizer and l.will}
-            frei_nach = {a: round(f, 3) for a, f in frei_jetzt.items()}
-        self._staffel_anzeige(anschluesse, lasten, frei_nach)
-        return an_set, ziel
+        return k_staffelung._staffeln(self, jetzt, soll)
 
     def _anlauf_begrenzen(self, jetzt: datetime, lasten: list[staffel_logik.Last], an_set: set[str]) -> None:
-        """Anlaufstaffel: von den neu einzuschaltenden Geräten höchstens eines je ANLAUF_S; die übrigen warten
-        („anlauf“) und werden nach ANLAUF_S erneut ausgewertet. Reihenfolge `staffel.anlauf_folge`."""
-        neue = staffel_logik.anlauf_folge([l for l in lasten if l.id in an_set and not l.an])
-        if not neue:
-            return
-        frei = self._letzter_anlauf is None or not 0 <= (jetzt - self._letzter_anlauf).total_seconds() < ANLAUF_S
-        erlaubt = {neue[0].id} if frei else set()
-        if erlaubt:
-            self._letzter_anlauf = jetzt
-        zurueck = [l.id for l in neue if l.id not in erlaubt]
-        for gid in zurueck:
-            an_set.discard(gid)
-            self.daten.warte[gid] = {"grund": "anlauf", "dran_in_min": 0}
-        if zurueck and self._anlauf_geplant is None:
-            @callback
-            def _weiter(_now: datetime) -> None:
-                self._anlauf_geplant = None
-                self.auswerten()
-            self._anlauf_geplant = async_call_later(self.hass, ANLAUF_S, _weiter)
+        k_staffelung._anlauf_begrenzen(self, jetzt, lasten, an_set)
 
     def _abwerfen(self, jetzt: datetime, frei: dict[str, float]) -> dict[str, bool]:
-        """Abwurf je Anschluss erst, wenn er `staffel.UEBERLAST_S` lang zu voll ist (kurze Spitzen, z. B. ein Thermostat,
-        der kurz anspringt); dann wird noch einmal ausgewertet."""
-        erlaubt: dict[str, bool] = {}
-        for aid, f in frei.items():
-            if f >= -staffel_logik.TOLERANZ_KW:
-                self._ueberlast_seit.pop(aid, None)
-                continue
-            seit = self._ueberlast_seit.setdefault(aid, jetzt)
-            erlaubt[aid] = (jetzt - seit).total_seconds() >= staffel_logik.UEBERLAST_S
-            if not erlaubt[aid] and self._ueberlast_geplant is None:
-                @callback
-                def _nochmal(_now: datetime) -> None:
-                    self._ueberlast_geplant = None
-                    self.auswerten()
-                self._ueberlast_geplant = async_call_later(self.hass, staffel_logik.UEBERLAST_S + 1, _nochmal)
-        return erlaubt
+        return k_staffelung._abwerfen(self, jetzt, frei)
 
     def _staffel_anzeige(
         self, anschluesse: list[staffel_logik.Anschluss], lasten: list[staffel_logik.Last], frei: dict[str, float]
     ) -> None:
-        """Anschlüsse mit Leistung je Funktion (`staffel_feld`, sonst `sonst_kw`) und die laufenden geschalteten Geräte."""
-        s = self.e["staffel"]
-        feld = {g.id: f.staffel_feld if (f := self._je_rolle.get(g.rolle)) is not None else "" for g in self.geraete.values()}
-        felder = [f.staffel_feld for f in self.funktionen if f.staffel_feld]
-        liste = []
-        for a, roh in zip(anschluesse, self.e["anschluesse"], strict=True):
-            laufend = [l for l in lasten if l.an and l.anschluss == a.id]
-            eintrag: dict[str, Any] = {
-                "id": a.id, "name": roh.get("name", a.id),
-                "voll_kw": round(float(roh["ampere"]) * 230 * int(roh["phasen"]) / 1000, 3),
-                "grenze_kw": round(a.grenze_kw, 3), "reserve_kw": a.reserve_kw,
-            }
-            for name in [*felder, "sonst_kw"]:
-                eintrag[name] = round(sum(l.kw for l in laufend if (feld.get(l.id) or "sonst_kw") == name), 3)
-            eintrag["frei_kw"] = frei.get(a.id, 0.0)
-            liste.append(eintrag)
-        geschaltet = [g for g in self.geraete.values() if (f := self._je_rolle.get(g.rolle)) is not None and f.schaltbar(g)]
-        self.daten.staffel = {
-            "an": bool(s["an"]),
-            "laufen": sum(1 for g in geschaltet if (st := self.hass.states.get(g.schalter)) is not None and st.state == STATE_ON),
-            "warten": len(self.daten.warte),
-            "max": int(s["max_gleichzeitig"]),
-            "anschluesse": liste,
-            "rang": staffel_logik.rangliste(lasten),   # oben zuerst an, unten gibt zuerst ab (Bedarf in °C)
-        }
+        k_staffelung._staffel_anzeige(self, anschluesse, lasten, frei)
 
     @callback
     def auswerten(self) -> None:
@@ -895,66 +477,10 @@ class Steuerung:
     def _schalten_alle(
         self, jetzt: datetime, soll: SollJeBereich, an_set: set[str], ziel: dict[str, bool | None]
     ) -> None:
-        geschaltet: dict[str, list[tuple[GeraetInfo, bool]]] = {}
-        for gid in sorted(ziel, key=lambda x: x in an_set):   # erst alle aus, dann ein – nie kurz Überlast
-            g = self.geraete[gid]
-            zustand = self.hass.states.get(g.schalter)
-            ein = gid in an_set
-            if self._schalten(g, zustand, ein, jetzt) and not (
-                not ein and warn_logik.selbst_ein_seit(self._aus_befehle.get(g.id, []), jetzt) is not None
-            ):   # FE-0010: schaltet es sich selbst wieder ein, steht das einmal als Störung im Protokoll, nicht jede Minute
-                geschaltet.setdefault(g.bereich, []).append((g, ein))
-        if geschaltet:
-            self._frei_verlauf.clear()   # eigene Schaltung: der freie Strom von vorhin gilt nicht mehr
-        # Staffelung: neu wartende Geräte ins Protokoll (Mockup „Staffelung: Konvektor wartet …“)
-        s = self.e["staffel"]
-        for gid, w in self.daten.warte.items():
-            # „anlauf“ (einer nach dem anderen, dauert Sekunden) ist kein Warten, das ins Protokoll gehört
-            if self._letztes_warten.get(gid) != w["grund"] and gid in self.geraete and w["grund"] != "anlauf":
-                g = self.geraete[gid]
-                text = WARTE_TEXT.get(w["grund"], w["grund"]).format(max=s["max_gleichzeitig"], takt=s["takt_min"])
-                self.protokoll("schalten", g.bereich, f"Staffelung: {g.name} wartet ({text})")
-        self._letztes_warten = {gid: w["grund"] for gid, w in self.daten.warte.items()}
-        if not geschaltet:
-            return
-        eintraege: dict[tuple[str, bool], list[str]] = {}
-        for bid, liste in geschaltet.items():
-            s_c = soll[bid][0]
-            for ein in {e for _, e in liste}:
-                eintraege.setdefault((s_c.grund, ein), []).append(bid)
-        alle = {bid for bid, (s_c, _) in soll.items() if s_c.ein is not None}
-        for (grund, ein), bids in eintraege.items():
-            titel = GRUND_TEXT.get(grund, str(grund))
-            if len(bids) > 1 and set(bids) == alle:
-                self.protokoll("schalten", None, f"{titel} – alle Container {'ein' if ein else 'aus'}")
-                continue
-            for bid in bids:
-                namen = ", ".join(g.name for g, e in geschaltet[bid] if e == ein)
-                self.protokoll("schalten", bid, f"{titel} – {namen} {'ein' if ein else 'aus'}")
+        k_schalten._schalten_alle(self, jetzt, soll, an_set, ziel)
 
     def _schalten(self, g: GeraetInfo, zustand: State | None, ein: bool, jetzt: datetime) -> bool:
-        if zustand is None or zustand.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-            return False
-        if (zustand.state == STATE_ON) == ein:
-            return False
-        letzter = self._letzter_befehl.get(g.id)
-        if letzter and letzter[0] == ein and jetzt - letzter[1] < timedelta(seconds=55):
-            return False
-        kontext = Context()
-        self._eigene_kontexte.append(kontext.id)
-        self._letzter_befehl[g.id] = (ein, jetzt)
-        if not ein:   # FE-0010: wie oft musste ausgeschaltet werden (schaltet es sich selbst wieder ein?)
-            grenze = jetzt - timedelta(minutes=warn_logik.SELBST_EIN_FENSTER_MIN)
-            self._aus_befehle[g.id] = [t for t in self._aus_befehle.get(g.id, []) if t >= grenze] + [jetzt]
-        _LOGGER.debug("%s → %s", g.schalter, "ein" if ein else "aus")
-        self.hass.async_create_task(
-            self.hass.services.async_call(
-                "switch", "turn_on" if ein else "turn_off", {"entity_id": g.schalter}, context=kontext
-            ),
-            f"baustelle_schalten_{g.schalter}",
-            eager_start=False,
-        )
-        return True
+        return k_schalten._schalten(self, g, zustand, ein, jetzt)
 
     def geraet_aktiv(self, g: GeraetInfo) -> bool:
         """Inaktive Geräte (z. B. ausgeliehen oder defekt) schaltet die Automatik nicht, sie zählen nicht in der
@@ -962,37 +488,10 @@ class Steuerung:
         return (self.e.get("geraete") or {}).get(g.id, {}).get("aktiv", True) is not False
 
     def geraet_aktiv_setzen(self, g: GeraetInfo, aktiv: bool) -> None:
-        """Aktiv/inaktiv setzen; beim Deaktivieren einmal ausschalten und den Handbetrieb beenden."""
-        self.e.setdefault("geraete", {}).setdefault(g.id, {})["aktiv"] = aktiv
-        self.lz["hand"].pop(g.id, None)
-        self.protokoll("einstellung", g.bereich, f"{g.name}: {'aktiv' if aktiv else 'inaktiv – die Automatik lässt es aus'}")
-        zustand = self.hass.states.get(g.schalter)
-        if not aktiv and zustand is not None and zustand.state == STATE_ON:
-            kontext = Context()
-            self._eigene_kontexte.append(kontext.id)
-            self.hass.async_create_task(
-                self.hass.services.async_call("switch", "turn_off", {"entity_id": g.schalter}, context=kontext),
-                f"baustelle_inaktiv_{g.schalter}", eager_start=False,
-            )
-        self.einstellungen.speichern()
-        self.auswerten()
+        k_schalten.geraet_aktiv_setzen(self, g, aktiv)
 
     def geraet_schalten(self, g: GeraetInfo, an: bool) -> None:
-        """Gerät von der Seite aus schalten: Handbetrieb bis zum nächsten Schaltpunkt (api §2 `schalten`)."""
-        zustand = self.hass.states.get(g.schalter)
-        if not (self.automatik and self.funktion_von(g).hand_setzen(g, an)):
-            self.protokoll("schalten", g.bereich, f"{g.name} von Hand {'eingeschaltet' if an else 'ausgeschaltet'}")
-        self._letzter_befehl.pop(g.id, None)
-        if zustand is not None and zustand.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-            kontext = Context()
-            self._eigene_kontexte.append(kontext.id)
-            self.hass.async_create_task(
-                self.hass.services.async_call(
-                    "switch", "turn_on" if an else "turn_off", {"entity_id": g.schalter}, context=kontext
-                ),
-                f"baustelle_hand_{g.schalter}",
-                eager_start=False,
-            )
+        k_schalten.geraet_schalten(self, g, an)
 
     def _anzeige(self, jetzt: datetime, soll: SollJeBereich) -> None:
         """Zustand und Text je Bereich wie die Kacheln im Mockup (`TEXT(b)`) – von der Funktion des Bereichs."""
@@ -1028,127 +527,21 @@ class Steuerung:
         return warn_logik.WarnEinstellungen.aus_store(self.e["meldungen_einst"], einst)
 
     def _warnungen_laden(self) -> None:
-        """Offene Warnungen vom letzten Lauf (für Beginn und „schon gemeldet“ über einen Neustart hinweg)."""
-        for key, w in (self.lz.get("warnungen_offen") or {}).items():
-            if isinstance(w, dict) and (zeit := _zeit(w.get("seit"))) is not None:
-                art = key.split(":", 1)[0]
-                self._warn_alt[key] = warn_logik.Warnung(
-                    key, art, str(warn_logik.stufe_von(art)), w.get("bereich"), w.get("geraet"), zeit,
-                    dict(w.get("werte") or {}),
-                )
+        k_warnungen._warnungen_laden(self)
 
     def _geraete_zustand(self, jetzt: datetime) -> list[warn_logik.GeraetZustand]:
-        liste = []
-        for g in self.geraete.values():
-            if not self.geraet_aktiv(g):
-                continue   # inaktiv: keine Warnungen (WU-0004)
-            zustand = self.hass.states.get(g.schalter)
-            erreichbar = zustand is not None and zustand.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-            # Protokoll von HA einmal beim Ausfall und einmal, wenn der Shelly wieder antwortet
-            if erreichbar:
-                if self._offline_seit.pop(g.id, None) is not None:
-                    _LOGGER.info("%s (%s) ist wieder erreichbar", g.name, g.schalter)
-            elif g.id not in self._offline_seit:
-                self._offline_seit[g.id] = jetzt
-                _LOGGER.info("%s (%s) ist nicht erreichbar", g.name, g.schalter)
-            l_zustand = self.hass.states.get(g.leistung) if g.leistung else None
-            leistung = _zahl(l_zustand) if g.leistung else None
-            an = erreichbar and zustand is not None and zustand.state == STATE_ON
-            f = self._je_rolle.get(g.rolle)
-            typ, laeuft_seit, zyklen = (
-                f.geraet_warnung(g, erreichbar, leistung, jetzt) if f is not None else (warn_logik.Typ.SONST, None, 0)
-            )
-            liste.append(
-                warn_logik.GeraetZustand(
-                    id=g.id, bereich=g.bereich, typ=typ, name=g.name, erreichbar=erreichbar,
-                    offline_seit=self._offline_seit.get(g.id), leistung=leistung, an=an,
-                    an_seit=dt_util.as_local(zustand.last_changed) if an and zustand is not None else None,
-                    leistung_seit=dt_util.as_local(l_zustand.last_changed) if l_zustand is not None else None,
-                    hand_seit=self.funktion_von(g).hand_seit(g), laeuft_seit=laeuft_seit, zyklen_h=zyklen,
-                    selbst_ein_seit=warn_logik.selbst_ein_seit(self._aus_befehle.get(g.id, []), jetzt),
-                    notprogramm_seit=self.notprogramm_fehler.get(g.id, (None, ""))[0],   # BSM-019
-                    notprogramm_fehler=self.notprogramm_fehler.get(g.id, (None, ""))[1],
-                )
-            )
-        return liste
+        return k_warnungen._geraete_zustand(self, jetzt)
 
     def warnung_vergessen(self, bereich: str, art: str) -> None:
         """Eine Warnung still beenden (ohne „wieder ok“ im Protokoll), z. B. nach dem Knopf „Trotzdem heizen“."""
         self._warn_alt = {k: w for k, w in self._warn_alt.items() if not (w.bereich == bereich and w.art == art)}
 
     def _warnungen(self, jetzt: datetime, soll: SollJeBereich) -> None:
-        geraete = self._geraete_zustand(jetzt)
-        bereiche = [c for f in self.funktionen if f.aktiv() for c in f.warnungen(jetzt, soll)]
-        erreichbar = [g.erreichbar for g in geraete]
-        self.daten.erreichbar = None if not erreichbar else not warn_logik.baustelle_offline(erreichbar)
-        wetter_da = (
-            not any(f.braucht_wetter and f.aktiv() for f in self.funktionen)
-            or not self.entry.options.get(CONF_WETTER) or self._prognose_da
-            or jetzt - self._gestartet < FEHLT_NACH
-        )
-        zustand = warn_logik.BaustellenZustand(geraete=tuple(geraete), container=tuple(bereiche), wetter_vorhanden=wetter_da)
-        neu = warn_logik.behalte_seit(warn_logik.pruefe(zustand, self.warn_einstellungen(), jetzt), self._warn_alt.values())
-        self.daten.warnungen = neu
-        self.daten.probleme = {g.id: [] for g in self.geraete.values()}
-        for w in neu:
-            if w.geraet in self.daten.probleme and w.stufe == warn_logik.Stufe.STOERUNG:
-                self.daten.probleme[w.geraet].append(w.art)
-        if not self.aktiv:
-            self._warn_alt = {w.key: w for w in neu}
-            return
-        stumm = {k: z for k, v in self.e["stumm"].items() if (z := _zeit(v)) is not None}
-        alt = self._warn_alt
-        for w in neu:
-            if w.key not in alt:
-                art, text = next(
-                    (t for f in self.funktionen if (t := f.warnung_protokoll(w)) is not None),
-                    ("warnung", texte.protokoll_warnung(w)),
-                )
-                self.protokoll(art, w.bereich, text)
-        neu_keys = {w.key for w in neu}
-        for key, w in alt.items():
-            if key not in neu_keys:
-                self.protokoll("ok", w.bereich, texte.wieder_ok(w))
-        bisher = warn_logik.erinnern(set(self.lz.get("gemeldet") or []), self.lz.pop("stumm_vorbei", []), neu)
-        gemeldet = warn_logik.zu_melden(neu, bisher, stumm, jetzt)
-        for w in gemeldet:
-            self.nachrichten.warnung_melden(w)
-        self.lz["gemeldet"] = sorted(warn_logik.gemeldet_merken(neu, bisher, gemeldet))
-        offen = {
-            w.key: {"seit": w.seit.isoformat(timespec="seconds"), "bereich": w.bereich, "geraet": w.geraet,
-                    "werte": {k: v for k, v in w.werte.items() if isinstance(v, (str, int, float, bool))}}
-            for w in neu
-        }
-        if set(offen) != set(self.lz.get("warnungen_offen") or {}) or gemeldet:
-            self.lz["warnungen_offen"] = offen
-            self.einstellungen.speichern()
-        else:
-            self.lz["warnungen_offen"] = offen
-        self._warn_alt = {w.key: w for w in neu}
+        k_warnungen._warnungen(self, jetzt, soll)
 
     # ------------------------------------------------------------------ Bericht
     def bericht_planen(self) -> None:
-        """Nächsten Wochen-/Monatsbericht einplanen (logik/bericht.naechster_bericht)."""
-        if self._bericht_abmelden:
-            self._bericht_abmelden()
-            self._bericht_abmelden = None
-        if self.nachrichten is None:
-            return
-        naechster = self.nachrichten.naechster_bericht(dt_util.now())
-        if naechster is None:
-            return
-        zeitpunkt, art = naechster
-
-        @callback
-        def faellig(_now: datetime) -> None:
-            self._bericht_abmelden = None
-            if self.aktiv:
-                self.entry.async_create_background_task(
-                    self.hass, self.nachrichten.async_bericht_senden(art, zeitpunkt), "baustelle_bericht"
-                )
-            self.bericht_planen()
-
-        self._bericht_abmelden = async_track_point_in_time(self.hass, faellig, zeitpunkt)
+        k_warnungen.bericht_planen(self)
 
     # ------------------------------------------------------------------ Zählen (Energie; Zeiten zählen die Funktionen)
     @property
@@ -1158,12 +551,7 @@ class Steuerung:
         return zaehler
 
     def zaehler_plus(self, key: str, wert: float) -> None:
-        if wert <= 0:
-            return
-        z = self.zaehler
-        z[key] = z.get(key, 0.0) + wert
-        z.setdefault("seit", dt_util.now().isoformat())
-        self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
+        k_zaehler.zaehler_plus(self, key, wert)
 
     # ------------------------------------------------------------------ Strompreis mit „gilt ab“ (logik/preise)
     def preise(self) -> list[tuple[date, float]]:
@@ -1173,83 +561,25 @@ class Steuerung:
         return preise_logik.preis_am(self.preise(), tag)
 
     def preis_abgleichen(self) -> None:
-        """`preis` (Preis von heute, für Seite und Sensoren) aus der Liste nachziehen."""
-        if self.e.get("preise"):
-            heute = self.preis_am(dt_util.now().date())
-            if heute != self.e["preis"]:
-                self.e["preis"] = heute
-                self.einstellungen.speichern()
+        k_zaehler.preis_abgleichen(self)
 
     def zaehler_minus(self, key: str, wert: float) -> None:
-        """Zähler verringern, nie unter null (Reparatur falscher Buchungen, FE-0016)."""
-        if key in self.zaehler and wert > 0:
-            self.zaehler[key] = max(0.0, float(self.zaehler[key]) - wert)
-            self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
+        k_zaehler.zaehler_minus(self, key, wert)
 
     def kosten_ausbuchen(self, g: GeraetInfo, eur: float) -> None:
-        """FE-0016: falsch gezählte Kosten eines Geräts zurücknehmen (z. B. zum Preis von damals)."""
-        for key in ("kosten", f"kosten:{g.bereich}"):
-            self.zaehler_minus(key, eur)
-        self.protokoll("einstellung", g.bereich, f"{g.name}: {eur:.2f} € falsch gezählt – zurückgenommen".replace(".", ","))
+        k_zaehler.kosten_ausbuchen(self, g, eur)
 
     def energie_ausbuchen(self, g: GeraetInfo, kwh: float) -> None:
-        """FE-0016: falsch gezählte Energie eines Geräts zurücknehmen – Energie und Kosten je Bereich und gesamt, dazu die
-        Zähler der Funktion; Kosten zum Preis von jetzt (anderer Preis damals: Rest mit `kosten_ausbuchen`)."""
-        preis = float(self.e["preis"])
-        for key in ("energie", f"energie:{g.bereich}"):
-            self.zaehler_minus(key, kwh)
-        for key in ("kosten", f"kosten:{g.bereich}"):
-            self.zaehler_minus(key, kwh * preis)
-        if (f := self._je_rolle.get(g.rolle)) is not None:
-            f.energie_ausbuchen(g, kwh)
-        self.protokoll("einstellung", g.bereich, f"{g.name}: {kwh:.2f} kWh falsch gezählt – zurückgenommen".replace(".", ","))
+        k_zaehler.energie_ausbuchen(self, g, kwh)
 
     def _energie_buchen(self, g: GeraetInfo, kwh: float) -> None:
-        """Energie eines Shelly der Baustelle und seinem Bereich zurechnen; Kosten zum aktuellen Preis."""
-        if kwh <= 0 or not self.aktiv:
-            return
-        preis = self.preis_am(dt_util.now().date())   # Kosten zum Preis, der heute gilt
-        for key in ("energie", f"energie:{g.bereich}"):
-            self.zaehler_plus(key, kwh)
-        for key in ("kosten", f"kosten:{g.bereich}"):
-            self.zaehler_plus(key, kwh * preis)
-        if (f := self._je_rolle.get(g.rolle)) is not None:
-            f.energie_buchen(g, kwh)
+        k_zaehler._energie_buchen(self, g, kwh)
 
     def _energie_zaehlen(self, g: GeraetInfo, stand: float | None) -> None:
-        """Neuer Stand des Energiezählers eines Shelly; der letzte Stand ist gespeichert (übersteht Neustarts)."""
-        if stand is None:
-            return
-        key, zeit_key = f"stand:{g.id}", f"stand:{g.id}:zeit"
-        alt, vorher = self.zaehler.get(key), self.zaehler.get(zeit_key)
-        jetzt = dt_util.now().timestamp()
-        stunden = (jetzt - vorher) / 3600 if vorher is not None else None   # BSM-003: Lücke seit dem letzten Stand
-        self.zaehler[key] = zaehlerstand(alt, stand)   # FE-0016: Rauschen verschiebt den Stand nicht
-        self.zaehler[zeit_key] = jetzt
-        self._energie_buchen(g, energie_zuwachs(alt, stand, stunden))
-        self.einstellungen.speichern(ZAEHLER_SPEICHERN_S)
+        k_zaehler._energie_zaehlen(self, g, stand)
 
     def _zeiten_zaehlen(self, jetzt: datetime) -> None:
-        """Zeiten der Funktionen (`zaehlen_geraet`, `zaehlen_bereich`, `zaehlen_ende`) und Energie der Shellys ohne Energiezähler."""
-        vorher, self._letzte_auswertung = self._letzte_auswertung, jetzt
-        if vorher is None or not self.aktiv:
-            return
-        stunden = (jetzt - vorher).total_seconds() / 3600
-        if stunden <= 0 or stunden > MAX_SCHRITT_H:
-            return
-        for bid, info in self.bereiche.items():
-            in_betrieb = False
-            for g in self.geraete_in(bid):
-                zustand = self.hass.states.get(g.schalter)
-                an = zustand is not None and zustand.state == STATE_ON
-                leistung = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
-                if (f := self._je_rolle.get(g.rolle)) is not None and f.zaehlen_geraet(g, an, leistung, stunden):
-                    in_betrieb = True
-                if not g.energie and an:
-                    self._energie_buchen(g, leistung_integriert(leistung, stunden))
-            self._je_art[info.art].zaehlen_bereich(bid, in_betrieb, jetzt, stunden)
-        for f in self.funktionen:
-            f.zaehlen_ende(jetzt, stunden)
+        k_zaehler._zeiten_zaehlen(self, jetzt)
 
 
 def _einstellung_text(pfad: tuple[str, ...], wert: Any) -> str:
@@ -1266,71 +596,3 @@ def _einstellung_text(pfad: tuple[str, ...], wert: Any) -> str:
     return f"Einstellung {name}: {wert_text}"
 
 
-# Sensoren am Shelly, die nie Verbrauch sind (Shelly: Energieeinspeisung)
-KEIN_VERBRAUCH = {"energy_returned"}
-
-
-def _sensor_am_geraet(registry: er.EntityRegistry, schalter: str, device_class: str) -> str | None:
-    """Leistungs- bzw. Energiesensor desselben Shelly finden.
-
-    Eigene Sensoren der Baustelle (hängen am Shelly-Gerät) und die Einspeisung zählen nicht; bei Mehrkanal gleicher
-    Namensanfang; bleiben mehrere (z. B. „Energie“ und „Energieverbrauch“), der mit dem kürzesten Namen – der
-    Hauptsensor. Vorher gab es bei mehreren gar keinen, der Container zählte dann nichts (FE-0003).
-    """
-    eintrag = registry.async_get(schalter)
-    if eintrag is None or eintrag.device_id is None:
-        return None
-    kandidaten = [
-        x.entity_id
-        for x in er.async_entries_for_device(registry, eintrag.device_id)
-        if x.domain == "sensor" and x.platform != DOMAIN and not x.disabled
-        and (x.device_class or x.original_device_class) == device_class and x.translation_key not in KEIN_VERBRAUCH
-    ]
-    if len(kandidaten) > 1:
-        stamm = schalter.split(".", 1)[1]
-        kandidaten = [k for k in kandidaten if k.split(".", 1)[1].startswith(stamm)]
-    return min(kandidaten, key=lambda k: (len(k), k)) if kandidaten else None
-
-
-def _antwort_liste(antwort: ServiceResponse, entity_id: str, key: str) -> list[dict[str, Any]]:
-    """Liste `key` einer Entität aus der Antwort eines Dienstes (`weather.get_forecasts`, `calendar.get_events`)."""
-    je_entitaet = (antwort or {}).get(entity_id)
-    liste = je_entitaet.get(key) if isinstance(je_entitaet, dict) else None
-    return [x for x in liste if isinstance(x, dict)] if isinstance(liste, list) else []
-
-
-def _prognose_je_tag(liste: list[dict[str, Any]], art: str) -> dict[date, dict[str, float | None]]:
-    """Je Tag: tiefster Wert 4–8 Uhr („frueh“), Tageshöchstwert („max“), Niederschlag („regen“)."""
-    tage: dict[date, dict[str, float | None]] = {}
-    for eintrag in liste:
-        zeit = dt_util.parse_datetime(str(eintrag.get("datetime", "")))
-        if zeit is None:
-            continue
-        zeit = dt_util.as_local(zeit)
-        tag = tage.setdefault(zeit.date(), {"frueh": None, "max": None, "regen": None})
-        temp = eintrag.get("temperature")
-        regen = eintrag.get("precipitation")
-        if art == "hourly":
-            if temp is not None:
-                tag["max"] = temp if tag["max"] is None else max(tag["max"], temp)
-                if 4 <= zeit.hour <= 8:
-                    tag["frueh"] = temp if tag["frueh"] is None else min(tag["frueh"], temp)
-            if regen is not None:
-                tag["regen"] = (tag["regen"] or 0.0) + float(regen)
-        else:
-            tag["max"] = temp
-            tag["frueh"] = eintrag.get("templow")
-            tag["regen"] = float(regen) if regen is not None else None
-    return tage
-
-
-def _prognose_auswerten(liste: list[dict[str, Any]], art: str, jetzt: datetime) -> dict[str, float | None]:
-    """Wie 0.6: Tageshöchstwert, Früh-Prognose (nächster Morgen) und Regen heute."""
-    tage = _prognose_je_tag(liste, art)
-    heute = jetzt.date()
-    morgen = heute if (jetzt.hour < 8 and art == "hourly") else heute + timedelta(days=1)
-    return {
-        "max_heute": tage.get(heute, {}).get("max"),
-        "frueh": tage.get(morgen, {}).get("frueh"),
-        "regen_heute": tage.get(heute, {}).get("regen"),
-    }
