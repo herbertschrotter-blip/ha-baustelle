@@ -93,6 +93,11 @@ siehe Auslieferung), dann neu starten.
   Kalender für Feiertage und Urlaub, Empfänger der Meldungen, Heizperiode (Monate).
 - **Neu konfigurieren:** Baustelle umbenennen; Container und Shellys über ihren Unter-Eintrag.
 - Alles Übrige (Arbeitszeiten, Regeln, Anschlüsse, Firmen, Bericht, Automatik) auf der Seite **Baustelle**.
+- **Datenbank** (für die ganze Instanz, wie beim Recorder): ohne Angabe die SQLite-Datei `/config/baustelle/baustelle.db`;
+  für einen gemeinsamen Server (PostgreSQL mit TimescaleDB, mehrere Instanzen, Excel/Power BI) in YAML
+  `baustelle: db_url: !secret baustelle_db_url` (z. B. `packages/baustelle.yaml`). Beim ersten Start zieht die
+  Integration die SQLite-Datei einmal um, die Datei bleibt liegen. Server einrichten: `tools/db-einrichten.sh`
+  (Bauplan Datenbank §4a).
 
 ## Was die Integration liefert
 
@@ -166,6 +171,9 @@ python3 -m pytest -q -p no:cacheprovider tests/logik
 uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
   --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 \
   python -m pytest -q -p no:cacheprovider tests/integration
+BAUSTELLE_TEST_PG=$(tools/pg-test.sh) uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
+  --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" \
+  python -m pytest -q -p no:cacheprovider tests/integration     # dieselben Tests gegen PostgreSQL mit TimescaleDB
 node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js \
   custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
 node tests/shelly/test_notprogramm.js custom_components/baustelle/shelly/notprogramm.js

@@ -88,3 +88,34 @@ def migrieren(engine: Engine, pfad: Path | None) -> int:
             SCHRITTE[nr](verbindung)
             verbindung.execute(insert(schema_version).values(version=nr, angewendet=dt_util.utcnow()))
     return SCHEMA_VERSION
+
+
+# Zeitreihen auf PostgreSQL mit TimescaleDB (Phase 8, BSM-026): Tabelle → Zeitspalte. Eine Hypertable braucht die
+# Zeitspalte in jedem eindeutigen Schlüssel – messwert und ereignis haben eine laufende Nummer und bekommen auf
+# PostgreSQL den Schlüssel (id, zeit); SQLite bleibt unverändert.
+ZEITREIHEN = {"geraet_minute": "zeit", "bereich_minute": "zeit", "wetter_minute": "zeit", "messwert": "zeit", "ereignis": "zeit"}
+MIT_NUMMER = ("messwert", "ereignis")
+
+
+def zeitreihen_einrichten(verbindung: Connection) -> None:
+    """Auf PostgreSQL: TimescaleDB-Erweiterung und Hypertables, bei jedem Start nachgezogen (wiederholbar). Ohne die
+    Erweiterung (reines PostgreSQL) bleiben es normale Tabellen."""
+    if verbindung.dialect.name != "postgresql":
+        return
+    vorhanden = verbindung.execute(text("SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb'")).scalar()
+    if not vorhanden:
+        return
+    verbindung.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb"))
+    for tabelle, zeit in ZEITREIHEN.items():
+        if tabelle in MIT_NUMMER:
+            schluessel = verbindung.execute(text(
+                "SELECT array_agg(a.attname::text ORDER BY a.attname) FROM pg_index i "
+                "JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) "
+                "WHERE i.indrelid = CAST(:t AS regclass) AND i.indisprimary"), {"t": tabelle}).scalar() or []
+            if list(schluessel) == ["id"]:
+                verbindung.execute(text(f'ALTER TABLE "{tabelle}" DROP CONSTRAINT "{tabelle}_pkey"'))
+                verbindung.execute(text(f'ALTER TABLE "{tabelle}" ADD PRIMARY KEY (id, "{zeit}")'))
+        verbindung.execute(text(
+            "SELECT create_hypertable(CAST(:t AS regclass), by_range(:z), if_not_exists => TRUE, migrate_data => TRUE)"),
+            {"t": tabelle, "z": zeit})
+

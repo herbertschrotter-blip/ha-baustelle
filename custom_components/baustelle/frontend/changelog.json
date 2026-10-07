@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.102",
+    "datum": "2026-10-07",
+    "punkte": [
+      "Datenbank auf einem Server (BSM-026, Schritt 8a): Mit `baustelle: db_url:` in YAML schreibt die Integration statt in die SQLite-Datei in PostgreSQL mit TimescaleDB (Minutenwerte, Messwerte und Ereignisse als Zeitreihen). Beim ersten Start zieht sie die SQLite-Datei einmal dorthin um; die Datei bleibt als Rückweg liegen. Ohne Angabe bleibt alles wie bisher. Neu als Abhängigkeit: `psycopg` (Treiber für PostgreSQL, installiert Home Assistant beim Neustart). Einrichtung des Servers: `tools/db-einrichten.sh`."
+    ]
+  },
+  {
     "version": "0.8.101",
     "datum": "2026-10-07",
     "punkte": [

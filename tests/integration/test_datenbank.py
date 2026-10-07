@@ -22,10 +22,12 @@ from custom_components.baustelle.db.migration import migrieren
 from custom_components.baustelle.db.schema import SCHEMA_VERSION
 from custom_components.baustelle.db.uebernahme import UEBERNAHME_VERSION, async_uebernehmen
 
-from .conftest import C1, C2, HK1, HK2, P1, SCHACHT, baustelle_anlegen, eid
+from .conftest import C1, C2, HK1, HK2, P1, SCHACHT, TEST_PG, baustelle_anlegen, eid, nur_sqlite, zeilen_db
 
 
 def _zeilen(hass: HomeAssistant, tabelle: str) -> list[sqlite3.Row]:
+    if TEST_PG:   # Phase 8: dieselben Prüfungen gegen PostgreSQL (Werte in SQLite-Rohdarstellung)
+        return zeilen_db(hass, tabelle)   # type: ignore[return-value]
     verbindung = sqlite3.connect(hass.config.path(DATEI))
     verbindung.row_factory = sqlite3.Row
     try:
@@ -38,7 +40,7 @@ async def test_angelegt_und_stammdaten(hass: HomeAssistant, baustelle) -> None:
     await hass.async_block_till_done()
     db = hass.data[DATA_DB]
     assert db.bereit and db.version == SCHEMA_VERSION and db.fehler is None
-    assert Path(hass.config.path(DATEI)).exists()
+    assert TEST_PG or Path(hass.config.path(DATEI)).exists()
     assert [r["version"] for r in _zeilen(hass, "schema_version")] == list(range(1, SCHEMA_VERSION + 1))
     assert len(_zeilen(hass, "instanz")) == 1
     (b,) = _zeilen(hass, "baustelle")
@@ -79,7 +81,7 @@ async def test_sicherung_haelt_an(hass: HomeAssistant, baustelle) -> None:
     db = hass.data[DATA_DB]
     await backup.async_pre_backup(hass)
     assert db.angehalten and db.info()["zustand"] == "angehalten" and db.fehler is None
-    assert not Path(hass.config.path(DATEI) + "-wal").exists() or Path(hass.config.path(DATEI) + "-wal").stat().st_size == 0
+    assert TEST_PG or not Path(hass.config.path(DATEI) + "-wal").exists() or Path(hass.config.path(DATEI) + "-wal").stat().st_size == 0
     db.schreiber.dazu(lambda v: v.execute(insert(s.protokoll).values(
         zeit=dt_util.utcnow(), baustelle_id=baustelle.entry_id, art="einstellung", text="während der Sicherung")))
     assert not await db.schreiber.async_schreiben() and len(db.schreiber) == 1
@@ -90,6 +92,7 @@ async def test_sicherung_haelt_an(hass: HomeAssistant, baustelle) -> None:
     assert [r["text"] for r in _zeilen(hass, "protokoll")] == ["während der Sicherung"]
 
 
+@nur_sqlite
 async def test_zweiter_start_aendert_nichts(hass: HomeAssistant, baustelle) -> None:
     await hass.async_block_till_done()
     engine = create_engine(f"sqlite:///{hass.config.path(DATEI)}")
@@ -102,6 +105,7 @@ async def test_zweiter_start_aendert_nichts(hass: HomeAssistant, baustelle) -> N
     assert not list(Path(hass.config.path("baustelle")).glob("baustelle.db.vor-[0-9]*"))   # keine Migrationskopie ohne Migration
 
 
+@nur_sqlite
 async def test_neuere_datenbank_haelt_integration_nicht_an(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     """Datenbank mit neuerem Aufbau (z. B. ältere Version eingespielt): nicht anfassen, Integration läuft, Fehler sichtbar."""
     pfad = Path(hass.config.path(DATEI))
@@ -200,6 +204,7 @@ async def test_meldungen_in_der_datenbank(hass: HomeAssistant, baustelle, freeze
     assert [r["status"] for r in _zeilen(hass, "meldung_verlauf")] == ["angenommen"]
 
 
+@nur_sqlite
 async def test_migration_von_aufbau_1(hass: HomeAssistant, freezer, shellys, nachrichten) -> None:
     """Aufbau 1 (wie auf dem Pi seit 0.8.53): Kopie bleibt, JSON-Spalten werden als Text neu angelegt, Stammdaten bleiben."""
     from sqlalchemy import JSON, MetaData, Table   # noqa: PLC0415
@@ -239,7 +244,7 @@ async def test_uebernahme_store(hass: HomeAssistant, baustelle, freezer) -> None
     db, st = hass.data[DATA_DB], baustelle.runtime_data
     merker = {r["schluessel"]: json.loads(r["wert"]) for r in _zeilen(hass, "zustand")}
     assert merker["uebernahme"]["version"] == UEBERNAHME_VERSION and "zaehler" in merker["zaehler_uebernahme"]
-    assert Path(hass.config.path(DATEI) + ".vor-uebernahme").exists()
+    assert TEST_PG or Path(hass.config.path(DATEI) + ".vor-uebernahme").exists()   # PostgreSQL sichert selbst
     migration = {r["schluessel"]: r["wert"] and json.loads(r["wert"]) for r in _zeilen(hass, "einstellung") if r["quelle"] == "migration"}
     assert migration["heizung"]["soll"] == st.e["heizung"]["soll"] and "protokoll" not in migration and "zaehler" not in migration
     st.protokoll("einstellung", None, "Eintrag vor dem zweiten Lauf")   # steht im Store und direkt in der Datenbank

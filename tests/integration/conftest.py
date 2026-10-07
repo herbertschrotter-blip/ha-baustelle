@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
+import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -25,16 +28,82 @@ def eigene_integration(enable_custom_integrations):
     return
 
 
+# Phase 8 (BSM-026): mit BAUSTELLE_TEST_PG (Verwaltungs-Adresse eines Test-PostgreSQL, tools/pg-test.sh) laufen alle
+# Integrationstests gegen PostgreSQL – je Test eine frische Datenbank „baustelle_test“; ohne die Variable SQLite.
+TEST_PG = os.environ.get("BAUSTELLE_TEST_PG")
+nur_sqlite = pytest.mark.skipif(bool(TEST_PG), reason="prüft die SQLite-Datei selbst")
+nur_postgres = pytest.mark.skipif(not TEST_PG, reason="braucht BAUSTELLE_TEST_PG (tools/pg-test.sh)")
+
+
+def pg_url(name: str = "baustelle_test") -> str:
+    from sqlalchemy import make_url   # noqa: PLC0415
+    return make_url(TEST_PG).set(database=name).render_as_string(hide_password=False)
+
+
+def pg_frisch(name: str = "baustelle_test") -> str:
+    """Leere Test-Datenbank anlegen (eine vorhandene wird verworfen); liefert ihre Adresse."""
+    from sqlalchemy import create_engine, text   # noqa: PLC0415
+    engine = create_engine(TEST_PG, isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as v:
+            v.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+            v.execute(text(f'CREATE DATABASE "{name}"'))
+    finally:
+        engine.dispose()
+    return pg_url(name)
+
+
 @pytest.fixture(autouse=True)
-def leere_datenbank():
+def leere_datenbank(monkeypatch):
     """Eigene Datenbank (BSM-006) liegt im gemeinsamen Test-Konfigurationsordner: vor und nach jedem Test entfernen.
-    Ohne `hass` als Fixture, damit Tests mit `recorder_mock` den Recorder vor HA einrichten können."""
+    Ohne `hass` als Fixture, damit Tests mit `recorder_mock` den Recorder vor HA einrichten können. Mit TEST_PG startet
+    die Integration auf einer frischen PostgreSQL-Datenbank (wie mit `db_url` in YAML)."""
     def weg() -> None:
         for datei in (Path(get_test_config_dir()) / "baustelle").glob("baustelle.db*"):
             datei.unlink()
     weg()
+    if TEST_PG:
+        import custom_components.baustelle as integration   # noqa: PLC0415
+        url, starten = pg_frisch(), integration.async_datenbank_starten
+
+        async def mit_postgres(hass: HomeAssistant, eigene: str | None = None) -> Any:
+            return await starten(hass, eigene or url)
+
+        monkeypatch.setattr(integration, "async_datenbank_starten", mit_postgres)
     yield
     weg()
+
+
+def roh(wert: Any) -> Any:
+    """Wert so, wie ihn sqlite3 aus der SQLite-Datei liest (Tests vergleichen mit dieser Darstellung)."""
+    if isinstance(wert, datetime):
+        if wert.tzinfo is not None:
+            from datetime import UTC   # noqa: PLC0415
+            wert = wert.astimezone(UTC).replace(tzinfo=None)
+        return wert.strftime("%Y-%m-%d %H:%M:%S.%f")
+    if isinstance(wert, date):
+        return wert.isoformat()
+    if isinstance(wert, bool):
+        return int(wert)
+    if isinstance(wert, (dict, list)):
+        return json.dumps(wert, ensure_ascii=False)
+    return wert
+
+
+def zeilen_db(hass: HomeAssistant, tabelle: str) -> list[dict[str, Any]]:
+    """Alle Zeilen einer Tabelle der eigenen Datenbank in SQLite-Rohdarstellung – auch bei PostgreSQL."""
+    from sqlalchemy import select   # noqa: PLC0415
+
+    from custom_components.baustelle.db import DATA_DB, schema as s   # noqa: PLC0415
+    from sqlalchemy import JSON   # noqa: PLC0415
+    t = s.metadata.tables[tabelle]
+    json_spalten = {c.name for c in t.columns if isinstance(c.type, JSON)}   # in SQLite Text – auch einzelne Zahlen
+
+    def wert(k: str, w: Any) -> Any:
+        return None if w is None else json.dumps(w, ensure_ascii=False) if k in json_spalten else roh(w)
+
+    with hass.data[DATA_DB].engine.connect() as v:
+        return [{c.name: wert(c.name, z._mapping[c.name]) for c in t.columns} for z in v.execute(select(t))]
 
 
 def sub(sid, typ, title, data) -> ConfigSubentryDataWithId:

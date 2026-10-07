@@ -390,7 +390,7 @@ async def test_bericht_zum_termin(hass: HomeAssistant, baustelle, freezer, nachr
     zeit = datetime(2026, 10, 5, 7, 0, 1, tzinfo=dt_util.get_default_time_zone())
     freezer.move_to(zeit)
     async_fire_time_changed(hass, zeit)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)   # Bericht läuft als Hintergrundaufgabe (sonst Zeitfrage)
     handy = [n for n in nachrichten if n.data["title"].startswith("Baustelle B1 – Woche")]
     assert handy[0].data["title"] == "Baustelle B1 – Woche 28.09.–04.10.2026"
     assert handy[0].data["message"].startswith("Vorwoche: 30 kWh · 8,40 € (+50 % zur Woche davor)")

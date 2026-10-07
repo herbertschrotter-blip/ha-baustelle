@@ -11,6 +11,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     Column,
     Date,
@@ -48,6 +49,7 @@ class TextJSON(TypeDecorator[Any]):
 
 JSONWERT = JSON().with_variant(TextJSON(), "sqlite")   # PostgreSQL: echtes JSON
 JSON_TABELLEN = ("einstellung", "zustand", "lernen", "ereignis", "meldung")
+NUMMER = BigInteger().with_variant(Integer, "sqlite")   # laufende Nummer: SQLite rowid, PostgreSQL bigserial (Phase 8)
 
 
 def _zeit(name: str, **kw: Any) -> Column[Any]:
@@ -173,7 +175,7 @@ ausnahme = Table(
 # ---------------------------------------------------------------------- 2.2 Einstellungen und Laufzeit
 einstellung = Table(
     "einstellung", metadata,
-    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("id", NUMMER, primary_key=True, autoincrement=True),
     Column("baustelle_id", String(ID), nullable=False),
     Column("bereich_id", String(ID)),
     Column("geraet_id", String(ID)),
@@ -246,7 +248,7 @@ wetter_minute = Table(
 
 messwert = Table(   # Aufbau 5 (Herbert 05.10.2026): jeder gemeldete Wert der Leistung, für immer
     "messwert", metadata,
-    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("id", NUMMER, primary_key=True, autoincrement=True),
     Column("geraet_id", String(ID), nullable=False),
     _zeit("zeit", nullable=False),                       # sekundengenau (last_updated in HA)
     Column("baustelle_id", String(ID), nullable=False),
@@ -257,7 +259,7 @@ messwert = Table(   # Aufbau 5 (Herbert 05.10.2026): jeder gemeldete Wert der Le
 
 ereignis = Table(   # §6: ohne Benutzer
     "ereignis", metadata,
-    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("id", NUMMER, primary_key=True, autoincrement=True),
     _zeit("zeit", nullable=False),
     Column("baustelle_id", String(ID), nullable=False),
     Column("bereich_id", String(ID)),
@@ -308,7 +310,7 @@ tag_bereich = Table(
 
 protokoll = Table(
     "protokoll", metadata,
-    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("id", NUMMER, primary_key=True, autoincrement=True),
     _zeit("zeit", nullable=False),
     Column("baustelle_id", String(ID), nullable=False),
     Column("bereich_id", String(ID)),

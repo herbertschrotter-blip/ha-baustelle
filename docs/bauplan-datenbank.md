@@ -195,6 +195,33 @@ beobachten. Jede Phase hat einen Rückweg.
 
 Reihenfolge der Abhängigkeiten: 0 → 1 → 2 → 3 → 4 → 5 → 6; 7 braucht 2 und §9; 8 braucht 6.
 
+## 4a. Phase 8 im Einzelnen (BSM-026, 07.10.2026)
+
+**Server (Herbert, 07.10.2026):** Add-on „TimescaleDB“ (expaso, PostgreSQL 17 + TimescaleDB) auf dem Pi für den Betrieb –
+Port nicht nach außen freigegeben, Datenbank `baustelle` mit TimescaleDB, Telemetrie aus; später dieselbe `db_url` auf
+einen Server der Firma. Passwörter setzt nur Herbert. Die automatischen Tests laufen gegen einen eigenen
+Test-PostgreSQL im Terminal-Container (`tools/pg-test.sh`, ohne Passwort, nur lokal), auf GitHub gegen einen
+Dienst-Container `timescale/timescaledb`. Treiber `psycopg[binary]` fest in `manifest.json` (Herbert).
+
+| Schritt | Inhalt | Version |
+|---|---|---|
+| **8a** ✅ 0.8.102 | `db_url` wie beim Recorder in YAML (`baustelle: db_url: !secret baustelle_db_url`, Paket in `/config/packages/`); ohne Angabe bleibt alles bei SQLite. Verbindung, Migration und Diagnose für PostgreSQL (keine Datei-Kopie vor Migrationen – der Server sichert selbst), Hypertables für `geraet_minute`, `bereich_minute`, `wetter_minute`, `messwert`, `ereignis` (bei den beiden letzten Schlüssel `id` + `zeit`, nur auf PostgreSQL). Umzug: neue, leere PostgreSQL-Datenbank + vorhandene SQLite-Datei → alle Tabellen einmal kopieren (Merker `zustand` „umzug“), die SQLite-Datei bleibt liegen. Alle Datenbank-Tests zusätzlich gegen PostgreSQL | PATCH |
+| **8b** | **Puffer:** Ist der Server nicht erreichbar, schreibt die Warteschlange in eine lokale SQLite-Datei mit demselben Aufbau (`/config/baustelle/puffer.db`); sobald er wieder erreichbar ist, werden deren Zeilen übertragen (Schlüssel gleich → ersetzen, laufende Nummern neu vergeben), danach die betroffenen Tage neu summiert und der Puffer geleert. Vorher Prüfung jeder Schreibarbeit, ob sie nur schreibt (lesende Arbeiten im Puffer nicht ausführen, sondern in der Warteschlange halten). Warnung „Datenbank“ wie §5 | PATCH |
+| **8c** | **Ansichten** `v_tag_firma`, `v_tag_container`, `v_monat_baustelle`, `v_schaltungen` (Aufbau 7, SQLite und PostgreSQL; sie summieren nur `tag_*` bzw. lesen `ereignis` – keine Fachregel); Skript für Herbert: Datenbank, Schreib- und Lese-Benutzer anlegen (Passwörter fragt das Skript ab), Lese-Benutzer nur `SELECT` auf die Ansichten; Anleitung Excel (ODBC/Power Query) | PATCH |
+| **8d** | Zwei Instanzen in einer Datenbank (Test mit zwei HA-Instanzen gegen denselben Server), Rückweg PostgreSQL → SQLite (Kopie in Gegenrichtung), Betriebsanleitung (mit BSM-027) | PATCH |
+
+**Stand 8a (0.8.102):** `db/verbindung.py` (Adresse, Engine mit `timezone=UTC` und `pool_pre_ping`, Diagnose ohne
+Passwort, Größe über `pg_database_size` alle 15 min), `db/migration.py` (`zeitreihen_einrichten`: TimescaleDB und
+Hypertables, wiederholbar; ohne Erweiterung normale Tabellen), `db/umzug.py` (Kopie aller Tabellen in Stapeln, Zeiten
+ausdrücklich UTC, Nummernzähler nachgezogen, Merker „umzug“), laufende Nummern auf PostgreSQL `bigint`.
+Tests: alle Integrationstests laufen zusätzlich gegen PostgreSQL (`BAUSTELLE_TEST_PG`, je Test eine frische Datenbank;
+drei Tests prüfen die SQLite-Datei selbst und laufen nur dort), dazu `test_datenbank_pg.py` (YAML, Hypertables, Umzug,
+Adresse ohne Passwort). Ein Test (`test_bericht_zum_termin`) wartete nicht auf die Hintergrundaufgabe des Berichts und
+war nur mit SQLite schnell genug – jetzt `wait_background_tasks`. Server: Add-on installiert, Einrichtung durch Herbert mit
+`tools/db-einrichten.sh`; der Pilot bleibt bei SQLite, bis `db_url` eingetragen ist.
+
+Offen für die Abnahme: Bestätigung der Datenschutz-Vorgabe (§6) durch Betriebsrat/Datenschutz der Firma (Herbert).
+
 ## 5. Verhalten bei Fehlern
 
 - **Datenbank nicht erreichbar/gesperrt:** Die Steuerung läuft weiter (sie braucht die Datenbank nur beim Start und für

@@ -7,6 +7,16 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    # Phase 8 (BSM-026): PostgreSQL mit TimescaleDB für den zweiten Lauf der Integrationstests (ohne Passwort, nur im Job)
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -21,7 +31,11 @@ jobs:
       - name: Fachlogik
         run: uv run --no-project --python 3.12 --with pytest python -m pytest -q -p no:cacheprovider tests/logik
       - name: Integration gegen Home Assistant
-        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration
+        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" python -m pytest -q -p no:cacheprovider tests/integration
+      - name: Integration gegen PostgreSQL mit TimescaleDB
+        env:
+          BAUSTELLE_TEST_PG: postgresql+psycopg://postgres@127.0.0.1:5432/postgres
+        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" python -m pytest -q -p no:cacheprovider tests/integration
       - name: Seite (Panel)
         run: node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
       - name: Notprogramm (Shelly)

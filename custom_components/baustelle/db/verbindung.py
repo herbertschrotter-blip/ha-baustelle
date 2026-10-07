@@ -1,6 +1,7 @@
 """Verbindung zur eigenen Datenbank (docs/bauplan-datenbank.md §3.1, §5).
 
-Standard ist die SQLite-Datei `/config/baustelle/baustelle.db` (WAL, `synchronous=NORMAL`). Alle Zugriffe laufen im
+Standard ist die SQLite-Datei `/config/baustelle/baustelle.db` (WAL, `synchronous=NORMAL`); mit `db_url` (Phase 8,
+BSM-026) PostgreSQL mit TimescaleDB – mehrere Instanzen schreiben dann in dieselbe Datenbank. Alle Zugriffe laufen im
 Executor von HA, nacheinander hinter einer Sperre – nie in der Ereignisschleife. Fehler der Datenbank halten die
 Steuerung nie an: sie stehen in `fehler` (Diagnose-Sensor) und im Log, geschrieben wird später nach.
 """
@@ -15,16 +16,25 @@ import sqlite3
 import threading
 from typing import Any, TypeVar
 
-from sqlalchemy import Connection, Engine, create_engine, event
+from sqlalchemy import Connection, Engine, create_engine, event, make_url
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from .migration import migrieren
+from .migration import migrieren, stand, zeitreihen_einrichten
+from .umzug import umziehen
 from .schreiber import Schreiber
 
 _LOGGER = logging.getLogger(__name__)
 T = TypeVar("T")
+
+
+def url_pruefen(url: str) -> str:
+    """`postgresql://…` bzw. `postgres://…` auf den Treiber psycopg (3) stellen; andere Adressen bleiben, wie sie sind."""
+    u = make_url(url)
+    if u.drivername in ("postgresql", "postgres"):
+        u = u.set(drivername="postgresql+psycopg")
+    return u.render_as_string(hide_password=False)
 
 
 def _sqlite_einstellen(verbindung: Any, _eintrag: Any) -> None:
@@ -37,15 +47,18 @@ def _sqlite_einstellen(verbindung: Any, _eintrag: Any) -> None:
 class Datenbank:
     """Eine Datenbank für alle Baustellen dieser HA-Instanz."""
 
-    def __init__(self, hass: HomeAssistant, pfad: Path) -> None:
+    def __init__(self, hass: HomeAssistant, pfad: Path, url: str | None = None) -> None:
         self.hass = hass
-        self.pfad = pfad
+        self.pfad = pfad   # SQLite-Datei (Standard; bei PostgreSQL Quelle des Umzugs)
+        self.url = url_pruefen(url) if url else None
         self.engine: Engine | None = None
         self.version: int | None = None
         self.fehler: str | None = None
         self.angehalten = False          # während einer HA-Sicherung (backup.py)
         self.letzte_schreibzeit: datetime | None = None
         self.schreiber = Schreiber(self)
+        self.abmelden: list[Callable[[], None]] = []   # Zeitgeber (Größe messen)
+        self.groesse_server: float | None = None   # PostgreSQL: Größe der Datenbank in Byte (pg_database_size)
         self._sperre = threading.Lock()
 
     # ------------------------------------------------------------------ Start/Stopp
@@ -54,20 +67,44 @@ class Datenbank:
             await self.hass.async_add_executor_job(self._start)
         except Exception as err:   # noqa: BLE001 – Datenbank darf die Integration nie anhalten
             self.fehler = f"Start: {err}"
-            _LOGGER.warning("Datenbank %s nicht verfügbar: %s", self.pfad, err)
+            _LOGGER.warning("Datenbank %s nicht verfügbar: %s", self.ort, err)
             return False
         self.fehler = None
         return True
 
     def _start(self) -> None:
-        self.pfad.parent.mkdir(parents=True, exist_ok=True)
-        engine = create_engine(f"sqlite:///{self.pfad}", connect_args={"check_same_thread": False})
-        event.listen(engine, "connect", _sqlite_einstellen)
+        if self.url is None:
+            self.pfad.parent.mkdir(parents=True, exist_ok=True)
+            engine = create_engine(f"sqlite:///{self.pfad}", connect_args={"check_same_thread": False})
+            event.listen(engine, "connect", _sqlite_einstellen)
+            with self._sperre:
+                self.version = migrieren(engine, self.pfad)
+            self.engine = engine
+            return
+        # PostgreSQL: Zeiten immer in UTC; tote Verbindungen vor der Nutzung erkennen (Server neu gestartet)
+        engine = create_engine(self.url, pool_pre_ping=True, connect_args={"options": "-c timezone=UTC"})
         with self._sperre:
-            self.version = migrieren(engine, self.pfad)
+            with engine.connect() as verbindung:
+                neu = stand(verbindung) == 0
+            self.version = migrieren(engine, None)
+            with engine.begin() as verbindung:
+                zeitreihen_einrichten(verbindung)
+                if neu and self.pfad.exists():
+                    umziehen(self.pfad, verbindung)
         self.engine = engine
 
+    @property
+    def postgres(self) -> bool:
+        return self.url is not None
+
+    @property
+    def ort(self) -> str:
+        """Wo die Daten liegen – ohne Passwort (Diagnose, Log)."""
+        return make_url(self.url).render_as_string(hide_password=True) if self.url else str(self.pfad)
+
     async def async_stop(self) -> None:
+        while self.abmelden:
+            self.abmelden.pop()()
         await self.schreiber.async_schreiben()
         if self.engine is not None:
             engine, self.engine = self.engine, None
@@ -97,8 +134,9 @@ class Datenbank:
             return arbeit(verbindung)
 
     async def async_kopie(self, endung: str) -> Path | None:
-        """Stimmige Kopie der SQLite-Datei neben ihr (`baustelle.db.<endung>`), z. B. vor der Übernahme der Altdaten."""
-        if self.engine is None:
+        """Stimmige Kopie der SQLite-Datei neben ihr (`baustelle.db.<endung>`), z. B. vor der Übernahme der Altdaten.
+        Bei PostgreSQL keine Kopie – der Server sichert selbst (Betriebsanleitung)."""
+        if self.engine is None or self.postgres:
             return None
         ziel = self.pfad.with_name(f"{self.pfad.name}.{endung}")
         engine = self.engine
@@ -123,7 +161,7 @@ class Datenbank:
         """Vor einer HA-Sicherung: Warteschlange schreiben, Prüfpunkt (WAL in die Datei), dann nichts mehr schreiben."""
         await self.schreiber.async_schreiben()
         self.angehalten = True
-        if self.engine is not None:
+        if self.engine is not None and not self.postgres:
             # Ergebnis abholen – sonst scheitert das Abschließen („SQL statements in progress“)
             await self.async_ausfuehren(lambda v: v.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)").all())
 
@@ -133,17 +171,27 @@ class Datenbank:
 
     # ------------------------------------------------------------------ Diagnose
     def info(self) -> dict[str, Any]:
-        groesse = 0
-        for name in (self.pfad.name, f"{self.pfad.name}-wal"):
-            datei = self.pfad.with_name(name)
-            if datei.exists():
-                groesse += datei.stat().st_size
+        groesse: float | None
+        if self.postgres:
+            groesse = self.groesse_server   # beim Takt der Diagnose gemessen (async_groesse_messen)
+        else:
+            dateien = [self.pfad.with_name(n) for n in (self.pfad.name, f"{self.pfad.name}-wal")]
+            groesse = float(sum(d.stat().st_size for d in dateien if d.exists()))
         return {
             "zustand": "fehler" if self.fehler else "angehalten" if self.angehalten else "ok" if self.bereit else "aus",
-            "pfad": str(self.pfad), "groesse_mb": round(groesse / 1_000_000, 2), "schema_version": self.version,
+            "art": "postgresql" if self.postgres else "sqlite", "pfad": self.ort,
+            "groesse_mb": round(groesse / 1_000_000, 2) if groesse is not None else None, "schema_version": self.version,
             "fehler": self.fehler, "warteschlange": len(self.schreiber),
             "letzte_schreibzeit": self.letzte_schreibzeit.isoformat() if self.letzte_schreibzeit else None,
         }
+
+    async def async_groesse_messen(self) -> None:
+        """PostgreSQL: Größe der Datenbank für die Diagnose (bei SQLite liest `info` die Datei)."""
+        if self.postgres and self.engine is not None:
+            wert = await self.async_ausfuehren(
+                lambda v: v.exec_driver_sql("SELECT pg_database_size(current_database())").scalar())
+            if wert is not None:
+                self.groesse_server = float(wert)
 
     def geschrieben(self) -> None:
         self.letzte_schreibzeit = dt_util.utcnow()

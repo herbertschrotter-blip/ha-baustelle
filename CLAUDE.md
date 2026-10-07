@@ -46,6 +46,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 ### Checks
 - logik: python3 -m pytest -q -p no:cacheprovider tests/logik [custom_components/baustelle/logik/**; tests/logik/**]
 - integration: uv run --no-project --python 3.14 --index-strategy unsafe-best-match --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 python -m pytest -q -p no:cacheprovider tests/integration [custom_components/**; tests/integration/**]
+- integration-pg: BAUSTELLE_TEST_PG=$(tools/pg-test.sh) uv run --offline --no-project --python 3.14 --index-strategy unsafe-best-match --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" python -m pytest -q -p no:cacheprovider tests/integration [custom_components/baustelle/db/**; custom_components/baustelle/__init__.py; tests/integration/conftest.py; tests/integration/test_datenbank*.py; tools/pg-test.sh]
 - panel: node --check custom_components/baustelle/frontend/baustelle-panel.js; node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json [custom_components/baustelle/frontend/**; tests/panel/**]
 - notprogramm: node --check custom_components/baustelle/shelly/notprogramm.js; node tests/shelly/test_notprogramm.js custom_components/baustelle/shelly/notprogramm.js [custom_components/baustelle/shelly/**; tests/shelly/**]
 - seite-gebaut: python3 tools/changelog.py --pruefen; node custom_components/baustelle/frontend/bauen.mjs --pruefen; node mockups/quelle/glas.js --pruefen [CHANGELOG.md; custom_components/baustelle/frontend/**; custom_components/baustelle/manifest.json; mockups/**; tests/panel/**]
@@ -57,7 +58,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Versionsquelle: changelog:CHANGELOG.md
 - Versionsregel: MINOR nur für eine wirklich neue Funktion, die es vorher nicht gab; Verbesserungen, Korrekturen und Umbauten (auch neue Gestaltung bestehender Seiten, z. B. neue Übersicht) sind PATCH – im Zweifel PATCH; Commits nur an Doku, Tests oder Werkzeugen behalten die Nummer; `custom_components/baustelle/manifest.json#version` zieht mit (Herbert, 29.09.2026)
 - Push-Policy: user-only
-- Pre-Commit-Checks: seite-gebaut; logik; integration; panel; notprogramm; browser
+- Pre-Commit-Checks: seite-gebaut; logik; integration; integration-pg; panel; notprogramm; browser
 - Doku-Check: none
 
 ### Code
@@ -65,7 +66,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Pflichtkontext: CLAUDE.md; README.md; mockups/README.md
 - Aufgabenquelle: none
 - Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
-- Tests: seite-gebaut; logik; integration; panel; notprogramm; browser
+- Tests: seite-gebaut; logik; integration; integration-pg; panel; notprogramm; browser
 - Auslieferung: ref:README.md#Auslieferung
 - Mockup-Policy: none
 - Befund-Ort: none

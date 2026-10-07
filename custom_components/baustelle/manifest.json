@@ -25,6 +25,6 @@
   "integration_type": "hub",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/herbertschrotter-blip/ha-baustelle/issues",
-  "requirements": [],
-  "version": "0.8.101"
+  "requirements": ["psycopg[binary]==3.3.6"],
+  "version": "0.8.102"
 }

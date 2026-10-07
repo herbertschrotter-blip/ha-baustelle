@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -10,6 +10,7 @@ from sqlalchemy import Connection, delete, insert
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 from homeassistant.helpers import instance_id
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 from homeassistant.util.hass_dict import HassKey
@@ -27,11 +28,19 @@ INTEGRATION = "_integration"   # baustelle_id für Daten der ganzen Integration 
 DATEI = "baustelle/baustelle.db"
 
 
-async def async_datenbank_starten(hass: HomeAssistant) -> Datenbank:
-    """Datenbank öffnen und Aufbau nachziehen (einmal je HA-Start); ein Fehler hält die Integration nicht an."""
-    db = Datenbank(hass, Path(hass.config.path(DATEI)))
+async def async_datenbank_starten(hass: HomeAssistant, url: str | None = None) -> Datenbank:
+    """Datenbank öffnen und Aufbau nachziehen (einmal je HA-Start); ein Fehler hält die Integration nicht an. Ohne
+    `url` die SQLite-Datei, mit `url` (YAML `baustelle: db_url:`, Phase 8) PostgreSQL – beim ersten Start mit Umzug."""
+    db = Datenbank(hass, Path(hass.config.path(DATEI)), url)
     await db.async_start()
     hass.data[DATA_DB] = db
+    if db.postgres:   # Größe für Diagnose-Sensor: beim Start und alle 15 min (eine Abfrage)
+        await db.async_groesse_messen()
+
+        async def messen(_jetzt: datetime) -> None:
+            await db.async_groesse_messen()
+
+        db.abmelden.append(async_track_time_interval(hass, messen, timedelta(minutes=15)))
     return db
 
 

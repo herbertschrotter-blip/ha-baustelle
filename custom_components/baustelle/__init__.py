@@ -25,14 +25,18 @@ from .steuerung import Steuerung
 
 type BaustelleConfigEntry = ConfigEntry[Steuerung]
 
-CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+CONF_DB_URL = "db_url"
+# Baustellen kommen aus der Oberfläche; in YAML nur die Datenbank der ganzen Instanz (wie beim Recorder, Phase 8):
+#   baustelle:
+#     db_url: !secret baustelle_db_url
+CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({vol.Optional(CONF_DB_URL): cv.string})}, extra=vol.ALLOW_EXTRA)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Eigene Seite „Baustelle“ anmelden (unabhängig von den einzelnen Baustellen)."""
     version = str((await async_get_integration(hass, DOMAIN)).version)
     # eigene Datenbank zuerst (docs/bauplan-datenbank.md) – Seite und Meldungen laden schon aus ihr (BSM-015)
-    db = await async_datenbank_starten(hass)
+    db = await async_datenbank_starten(hass, (config.get(DOMAIN) or {}).get(CONF_DB_URL))
     await async_panel_anmelden(hass, version)
 
     async def datenbank_schliessen(_event: Event) -> None:
