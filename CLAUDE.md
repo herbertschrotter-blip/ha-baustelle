@@ -65,7 +65,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Stacks: python; home-assistant-yaml; typescript-lit
 - Pflichtkontext: CLAUDE.md; README.md; mockups/README.md
 - Aufgabenquelle: none
-- Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
+- Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-workbench/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
 - Tests: seite-gebaut; logik; integration; integration-pg; panel; notprogramm; browser
 - Auslieferung: ref:README.md#Auslieferung
 - Mockup-Policy: none
@@ -97,7 +97,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 
 ### Modul
 - Manifest: none
-- Grundsatzregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
+- Grundsatzregeln: ref:https://github.com/herbertschrotter-blip/claude-workbench/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
 
 ## Review-Profil
 
@@ -116,7 +116,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 ## Tracker-Profil
 
 - Projekt: bsm
-- Skill-Repo: /config/projekte/claude-skills-bpm (auf dem HA-Pi)
+- Skill-Repo: /config/projekte/claude-workbench (auf dem HA-Pi)
 - Projekt-Config: projects/bsm/
 - ClickUp: Space Smart Home 1200660000001609, Liste BSM Baustrommanager 1200660000007163
 - Nummernschema: BSM-NNN | KÜRZEL | Schritt Kurztitel, Etappe als Tag etappe-a … etappe-h (Fahrplan `docs/fahrplan.md`)
