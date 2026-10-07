@@ -81,7 +81,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 
 ### Tracker
 - Provider: clickup
-- Config: ref:CLAUDE.md#Tracker-Profil
+- Config: .claude/skill-config/tracker.md
 
 ### Ticket
 - Config: ref:CLAUDE.md#Ticket-Profil
@@ -111,17 +111,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Kontextquelle: CLAUDE.md (Regeln), README.md (Aufbau, Auslieferung), `docs/bauplan-module.md` §1, der Bauplan des Themas;
   höchstens 3–5 Blöcke
 - Reviewer-Rolle: erfahrener Frontend-Architekt für Web Components, Lit und Home-Assistant-Custom-Panels
-- Ergebnis-Ort: Bauplan des Themas (Abschnitt „Entscheidungen“), offene Punkte als BSM-Tasks (Tracker-Profil)
-
-## Tracker-Profil
-
-- Projekt: bsm
-- Skill-Repo: /config/projekte/claude-workbench (auf dem HA-Pi)
-- Projekt-Config: projects/bsm/
-- ClickUp: Space Smart Home 1200660000001609, Liste BSM Baustrommanager 1200660000007163
-- Nummernschema: BSM-NNN | KÜRZEL | Schritt Kurztitel, Etappe als Tag etappe-a … etappe-h (Fahrplan `docs/fahrplan.md`)
-- Nächste freie Nummer: BSM-034
-- Melden-Tickets (FE-/WU-/AN-NNNN) laufen nicht über ClickUp, sondern über das Ticket-Profil
+- Ergebnis-Ort: Bauplan des Themas (Abschnitt „Entscheidungen“), offene Punkte als BSM-Tasks (Tracker-Config)
 
 ## Ticket-Profil
 
