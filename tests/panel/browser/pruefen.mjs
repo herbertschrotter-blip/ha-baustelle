@@ -249,21 +249,21 @@ await fall('B6 Befehle/Rechte', browser, async (page, erwarte) => {
    zeichnet nur den Lit-Bereich */
 await fall('Lit-Pilot Über', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> nav [data-act="tab"][data-v="einst"]`);
-  await klick(page, `${D} >>> [data-act="ev-gruppe"][data-v="ueber"]`); await warte(200);
-  const merken = () => panel(page, D, () => { window.__lit = sr.querySelector('.lit-bereich .ueber-kopf'); return !!window.__lit; });
-  const gleich = () => panel(page, D, () => { const k = sr.querySelector('.lit-bereich .ueber-kopf'); return !!k && k === window.__lit && k.isConnected; });
-  erwarte('„Über“ als Lit-Bereich gezeichnet', await merken());
+  // seit 3e sind die ganzen Einstellungen Lit (kein Lit-Bereich im alten Renderer mehr): Gruppenwechsel zeichnen „Über“ neu
+  await klick(page, `${D} >>> .ev-nav [data-v="ueber"]`); await warte(200);
+  const merken = () => panel(page, D, () => { window.__lit = sr.querySelector('.ev-inhalt .ueber-kopf'); return !!window.__lit; });
   let navOk = 0;
   for (let i = 0; i < 20; i++) {
-    await klick(page, `${D} >>> [data-act="ev-gruppe"][data-v="${i % 2 ? 'app' : 'heizung'}"]`);
-    await klick(page, `${D} >>> [data-act="ev-gruppe"][data-v="ueber"]`);
-    if (await gleich()) navOk++;
+    await klick(page, `${D} >>> .ev-nav [data-v="${i % 2 ? 'app' : 'heizung'}"]`);
+    await klick(page, `${D} >>> .ev-nav [data-v="ueber"]`);
+    if (await panel(page, D, () => !!sr.querySelector('.ev-inhalt .ueber-kopf') && sr.querySelector('.ev-nav [data-v="ueber"]').classList.contains('on'))) navOk++;
   }
-  erwarte('20 Navigationen: derselbe Lit-Knoten', navOk === 20, `${navOk}/20`);
+  erwarte('20 Navigationen: „Über“ jedes Mal da', navOk === 20, `${navOk}/20`);
+  erwarte('„Über“ in den Einstellungen gezeichnet', await merken());
   let updOk = 0;
   for (let i = 0; i < 20; i++) {
     const ok = await panel(page, D, async () => { BB.welt[0].baustelle.titel = 'Titel ' + a0; await p._laden(); await p.neuZeichnen(); await new Promise(r => setTimeout(r, 30));
-      const k = sr.querySelector('.lit-bereich .ueber-kopf'); return k === window.__lit && k.isConnected && p.d.titel === 'Titel ' + a0; }, i);
+      const k = sr.querySelector('.ev-inhalt .ueber-kopf'); return k === window.__lit && k.isConnected && p.d.titel === 'Titel ' + a0; }, i);
     if (ok) updOk++;
   }
   erwarte('20 Daten-Updates mit Neuzeichnen: derselbe Lit-Knoten', updOk === 20, `${updOk}/20`);
@@ -272,7 +272,7 @@ await fall('Lit-Pilot Über', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> button.cl-v:nth-of-type(2)`);   // Eintrag 0 ist schon offen
   const auf = await panel(page, D, () => ({ render: window.__render, seite: sr.querySelector('.seite') === window.__seite, offen: [...sr.querySelectorAll('button.cl-v')].findIndex(b => b.getAttribute('aria-expanded') === 'true'), liste: !!sr.querySelector('.cl-liste') }));
   erwarte('Verlauf aufklappen: nur Lit-Bereich neu (kein render der Seite)', r > 1 && auf.render === 0 && auf.seite && auf.liste && auf.offen === 1, JSON.stringify(auf));
-  await klick(page, `${D} >>> .lit-bereich button.knopf`);
+  await klick(page, `${D} >>> .ev-inhalt button.knopf`);
   const melden = await panel(page, D, () => p.s.sheet && p.s.sheet.art);
   erwarte('Melden-Knopf in „Über“ öffnet den Melde-Dialog', melden === 'melden', String(melden));
 });

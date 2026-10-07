@@ -222,7 +222,7 @@ async function allgemein() {
       .map(k => ({ act: 'st', k, d: '1' })),
     { act: 'e-bool', k: 'fruehstart' }, { act: 'e-bool', k: 'staffel' }, { act: 'e-bool', k: 'melden' }, { act: 'e-bool', k: 'knoepfe' }, { act: 'e-bool', k: 'feiertag_frei' },
     ...Object.keys(ARTEN_TEST).map(k => ({ act: 'e-bool', k })), { act: 'basis', v: 'jetzt' }, { act: 'basis', v: 'tageshoechst' },
-    { act: 'e-wert', k: 'bericht', v: 'beides' }, { act: 'e-wert', k: 'bericht', v: 'woche' }, { act: 'prio', id: C()[0].id, v: 'hoch' },
+    { act: 'e-wert', k: 'bericht', v: 'beides' }, { act: 'e-wert', k: 'bericht', v: 'woche' },
     { act: 'jc-auto', id: C()[0].id }, { act: 'tr-b', id: C()[0].id }, { act: 'jc-soll', id: C()[0].id, d: '0.5' }])
     await gesendet('baustelle/setzen', 'Einstellung', ds);
   // Stepper an der Grenze: kein Wert, den die Integration ablehnt (z. B. schnell aufheizen mindestens 5 min, Soll 5–30 °C)
@@ -230,7 +230,8 @@ async function allgemein() {
   erwarte('Stepper bleiben in den Grenzen der Integration', letzte('baustelle/setzen').every(a => a.wert >= 5 && a.wert <= 30 || a.pfad[1] === 'boost_min' && a.wert >= 5)
     && d().e.boost_min === 5 && d().e.soll === 30);
   neu(); panel.aenderung({ target: { dataset: { k: 'preis' }, value: '0,31' } }); await ruhe(); erwarte('Preis', letzte('baustelle/setzen').length === 1);
-  neu(); panel.aenderung({ target: { dataset: { k: 'mail' }, value: ' bau@example.at ' } }); await ruhe(); erwarte('Mail', letzte('baustelle/setzen').length === 1);
+  { await klick({ act: 'tab', v: 'einst' }, 10); await klick('.ev-nav button[data-v="bericht"], .ev-chips button[data-v="bericht"]', 10); const m = litEl('.ev-inhalt input[type="email"]');   // Lit (3e): echtes change
+    if (m) { neu(); m.value = ' bau@example.at '; m.dispatchEvent(new Event('change', { bubbles: true, composed: true })); await ruhe(); erwarte('Mail', letzte('baustelle/setzen').length === 1); } }
   const c = C()[0];
   await klick({ act: 'container', id: c.id }, 20);
   await gesendet('baustelle/setzen', 'Container-Automatik', { act: 'b-auto' });
@@ -569,14 +570,20 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await setzen({ act: 'e-bool', k: 'm_hand' }, ['meldungen_einst', 'arten', 'hand_zu_lange'], false, 'Meldungsart Handbetrieb');
   await setzen({ act: 'basis', v: 'jetzt' }, ['heizung', 'heizgrenze_basis'], 'jetzt', 'Heizgrenze-Grundlage');
   await setzen({ act: 'e-wert', k: 'bericht', v: 'beides' }, ['bericht', 'haeufigkeit'], 'beides', 'Bericht');
-  await setzen({ act: 'prio', id: 'polier', v: 'hoch' }, ['bereiche', 'polier', 'prio'], 'hoch', 'Vorrang');
+  { await klick({ act: 'tab', v: 'einst' }, 10); await klick('.ev-nav button[data-v="strom"], .ev-chips button[data-v="strom"]', 10);   // Vorrang (Lit, 3e)
+    if (!panel.d.e.staffel) { panel.d.e.staffel = true; await panel.neuZeichnen(); }   // Vorrang-Zeilen gibt es nur mit Staffelung
+    const z = [...panel.shadowRoot.querySelectorAll('.ev-inhalt div.zeile.unter')].find(x => x.querySelector('.seg') && x.textContent.includes('Poliercontainer'));
+    neu(); if (z) { z.querySelector('.seg button[data-v="hoch"]').click(); await ruhe(); }
+    const a = letzte('baustelle/setzen').at(-1); erwarte('Vorrang: baustelle/setzen bereiche.polier.prio = "hoch"', a && a.pfad.join('.') === 'bereiche.polier.prio' && a.wert === 'hoch');
+    await klick({ act: 'container', id: c.id }, 20); }
   await setzen({ act: 'jc-auto', id: 'lager' }, ['bereiche', 'lager', 'auto'], false, 'Je Container Auto');
   await setzen({ act: 'tr-b', id: 'magazin' }, ['bereiche', 'magazin', 'trocknen'], true, 'Je Container Trocknen');
   await setzen({ act: 'jc-soll', id: 'polier', d: '0.5' }, ['bereiche', 'polier', 'soll'], 21, 'Je Container Soll');
   neu(); panel.aenderung({ target: { dataset: { k: 'preis' }, value: '0,31' } }); await ruhe();
   erwarte('Preis speichern', (a => a && JSON.stringify(a.pfad) === '["preis"]' && a.wert === 0.31)(letzte('baustelle/setzen').at(-1)));
-  neu(); panel.aenderung({ target: { dataset: { k: 'mail' }, value: ' bau@example.at ' } }); await ruhe();
-  erwarte('Mail speichern', (a => a && JSON.stringify(a.pfad) === '["bericht","mail_an"]' && a.wert === 'bau@example.at')(letzte('baustelle/setzen').at(-1)));
+  { await klick({ act: 'tab', v: 'einst' }, 10); await klick('.ev-nav button[data-v="bericht"], .ev-chips button[data-v="bericht"]', 10); const m = litEl('.ev-inhalt input[type="email"]');
+    neu(); if (m) { m.value = ' bau@example.at '; m.dispatchEvent(new Event('change', { bubbles: true, composed: true })); await ruhe(); }
+    erwarte('Mail speichern', (a => a && JSON.stringify(a.pfad) === '["bericht","mail_an"]' && a.wert === 'bau@example.at')(letzte('baustelle/setzen').at(-1))); }
   await klick({ act: 'container', id: 'polier' }, 20);
   await setzen({ act: 'b-auto' }, ['bereiche', 'polier', 'auto'], false, 'Container-Automatik');
   await setzen({ act: 'b-trocknen' }, ['bereiche', 'polier', 'trocknen'], false, 'Container trocknen');
@@ -1119,12 +1126,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'ev-gruppe', v: 'strom' }, 10); erwarte('FE-0013: Position bleibt (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 200);
       links = 700; await klick({ act: 'ev-gruppe', v: 'ueber' }, 10);
       erwarte('FE-0013: gewählte Kategorie mittig (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 700 - (300 - 80) / 2); layout.setzen(null); }
-    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-act="ev-gruppe" data-v="${g}"`)));
-    const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'data-act="auto"', 'data-k="frost_aussen"'],
+    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-v="${g}"`)));
+    const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'Automatik', 'data-k="frost_aussen"'],
       notprogramm: ['Notprogramm in den Plugs', 'data-act="np-an"'], container: ['Container und Geräte', 'Je Container'],
       geraete: ['Schaltgeräte', 'class="zeile ger"'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Neuer Preis ab', 'Staffelung'], firmen: ['Firma hinzufügen'],
-      meldungen: ['Test-Nachricht senden', 'data-k="kalt_min"', 'data-k="hand_h"'], bericht: ['Wie oft'], app: ['Erklärungen anzeigen', 'Melden-Knopf', 'data-act="aw-vorlage" data-v="misch"'],
-      dev: ['Meldungen', 'data-act="ev-dev"'], ueber: ['Version'] };
+      meldungen: ['Test-Nachricht senden', 'data-k="kalt_min"', 'data-k="hand_h"'], bericht: ['Wie oft'], app: ['Erklärungen anzeigen', 'Melden-Knopf', 'Auswertung auf Vorschlag zurücksetzen'],
+      dev: ['Meldungen', 'ev-dev-reiter'], ueber: ['Version'] };
     for (const [g, texte] of Object.entries(soll)) { const h = await gruppe(g); const fehlt = texte.filter(t => !h.includes(t)); erwarte(`WU-0007: Gruppe ${g} – fehlt ${fehlt.join(', ')}`, !fehlt.length); }
     { const h = await gruppe('geraete'), L = (panel.d.r && panel.d.r.geraete_links) || {};   // WU-0010
       if (REFERENZ) {
@@ -1132,7 +1139,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         const web = Object.entries(L).find(([, l]) => l.web), ha = Object.entries(L).find(([, l]) => !l.web && l.ha);
         erwarte('AN-0009: Statuspunkt und Signalbalken', h.includes('class="ger-punkt da"') && /class="ger-sig s[0-4]" title="Signal -\d+ dBm"/.test(h));
         erwarte('BSM-019: Heizungs-Plugs mit 🛟', h.includes('class="np-marke'));
-        erwarte('WU-0010: Klick öffnet Website bzw. HA-Geräteseite', (!web || h.includes(`href="${web[1].web}" target="_blank"`)) && (!ha || h.includes(`href="${ha[1].ha}"`)));
+        erwarte('WU-0010: Klick öffnet Website bzw. HA-Geräteseite', (!web || (h.includes(`href="${web[1].web}"`) && h.includes('target="_blank"'))) && (!ha || h.includes(`href="${ha[1].ha}"`)));
       } }
     { const h = await gruppe('notprogramm');   // BSM-019: Notprogramm anzeigen und prüfen
       if (REFERENZ) {
@@ -1151,7 +1158,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'np-an' }, 10);
       if (panel.d.e.notprogramm) { neu(); await klick({ act: 'np-taste' }, 10);
         erwarte('BSM-018: Taste am Plug über baustelle/setzen', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'heizung.taste')); await klick({ act: 'np-taste' }, 10); } }
-    await gruppe('dev'); await klick({ act: 'ev-dev', v: 'werkzeuge' }, 20);
+    await gruppe('dev'); await klick('.ev-dev-reiter button[data-v="werkzeuge"]', 20);
     erwarte('WU-0007: Entwicklung › Werkzeuge', ui.innerHTML.includes('Diagnose herunterladen') && !ui.innerHTML.includes('Melden-Knopf in jedem Fenster'));
     await gruppe('meldungen'); neu(); const k0 = panel.d.e.kalt_min; await klick({ act: 'st', k: 'kalt_min', d: '15' }, 10);
     erwarte('WU-0007: Schwelle „zu kalt“ einstellbar', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'meldungen_einst.kalt_min' && m.wert === k0 + 15));

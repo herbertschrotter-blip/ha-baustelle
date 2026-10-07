@@ -274,6 +274,18 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Einblendungen“ um die neue Arbeitszeit erweitert (Tippen während 3 Datenupdates, Samstag, ein Auftrag). Prüfung §3 für
   3d: Live-Daten während Dialog/Tooltip (B4, B5, Tippen in Termin und Arbeitszeit), Modi, Soll, Schreibbefehle (je ein
   Auftrag, Nicht-Admin) – erfüllt.
+- **3e Einstellungen (Rahmen und Gruppen), 07.10.2026 (0.8.91):** `src/ansichten/einstellungen.js` – Seitenleiste/Chips,
+  je Gruppe eine Vorlage, „Geräte“ (`geraeteListe`) mit Lit; Heizung-Blöcke, „Entwicklung“ und „Über“ direkt als
+  Vorlagen. Das Notprogramm bleibt bis zu seiner Lieferung HTML-Text (`npGruppe`, `unsafeHTML`). `WETTER_TEXT` nach
+  `tabellen.js`. Methoden `einstGruppeWahl`, `bereichEinst`, `firmaAuf`, `anschlussAuf`, `preisNeu`, `preisWeg`,
+  `vorrang`, `testMeldung`, `berichtSenden`, `mailSetzen`, `awVorlageWahl`. **Entfallene Sonderfälle:** `einstBloecke` +
+  `einstBlock` (Gruppen per Titelsuche aus einem HTML-Text geschnitten), `einstGruppen`, `v_einst`, die dauerhaften
+  Lit-Bereiche (`_litEinhaengen`, `data-lit`, `.lit-bereich`-Ausnahme in `_auffrischen`), Klick-Fälle `ev-dev`, `prio`,
+  `mail` in `aenderung()`. `preisListe` bleibt für „Baustelle bearbeiten“. Nur-Lesen: Name, Beginn/Ende, Heizperiode,
+  Neue Baustelle, Wetter/Kalender, Container neu, Preis löschen, E-Mail über `.nur-admin`. Nachweis: Schnappschuss um die
+  Bedienung aller Gruppen erweitert (336 Schritte), inhaltlich gleich bis auf den entfallenen Lit-Behälter und zweimal
+  die Klasse `rein`; Panel-Test (Gruppen, Vorrang, E-Mail über echte Ereignisse), Browser-Fall „Lit-Pilot Über“ auf
+  die Lit-Einstellungen umgestellt (Navigation, 20 Updates ohne neuen Knoten, Aufklappen, Melden).
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

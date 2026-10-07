@@ -33,3 +33,7 @@ export const TEXT = b => b.text || TEXT_MOCKUP(b);
 /* Warum ein Gerät wartet (Staffelung der Integration) */
 export const WARTE = { anschluss_voll: a => `${a} ausgelastet`, max_gleichzeitig: () => 'höchstens gleichzeitig erreicht', mindestpause: () => 'Mindestpause',
   rundlauf: () => 'Rundlauf', anlauf: () => 'Anlaufstaffel' };
+
+/* Zustand des Wetters (weather.*) → Text */
+export const WETTER_TEXT = { sunny: 'Sonnig', 'clear-night': 'Klar', exceptional: 'Unwetter', partlycloudy: 'Heiter', 'partlycloudy-night': 'Heiter', cloudy: 'Bewölkt', windy: 'Windig', 'windy-variant': 'Windig',
+  rainy: 'Regen', pouring: 'Starkregen', hail: 'Hagel', lightning: 'Gewitter', 'lightning-rainy': 'Gewitter', fog: 'Nebel', snowy: 'Schnee', 'snowy-rainy': 'Schneeregen' };

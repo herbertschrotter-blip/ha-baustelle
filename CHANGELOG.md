@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.91] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 9 (BSM-022.15, Stufe 3e, erster Teil): Die Einstellungen – Seitenleiste bzw. Chips und
+  alle Gruppen (Baustelle, Heizung, Container & Geräte, Geräte, Pumpen, Strom & Staffelung, Firmen, Meldungen, Bericht,
+  Ansicht, Entwicklung, Über) – werden mit Lit gezeichnet. Das Notprogramm und die Dialoge folgen. Aussehen und
+  Bedienung bleiben gleich.
+
 ## [0.8.90] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 8 (BSM-022.14, Stufe 3d abgeschlossen): Die Dialoge Heizplan, Arbeitszeit, Neue

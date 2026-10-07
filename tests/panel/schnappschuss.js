@@ -243,6 +243,32 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('d az 3', '.hz-raster .hz-kachel:nth-child(4)');
   await schritt('d az 3 auf', '.sheet .az-name ~ button.zeile');
   await schritt('d az löschen', '.sheet .knopf.rot');
+  // Einstellungen (Stufe 3e): je Gruppe die Bedienung; Knöpfe über ihren Text (trifft alten und neuen Stand)
+  const text = async (name, sel, t) => { const ab = befehle.length, x = [...panel.shadowRoot.querySelectorAll(sel)].find(y => y.textContent.includes(t));
+    if (x) x.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); else aus[`fehlt ${sel} „${t}“`] = { html: '', befehle: [] };
+    await ruhe(); aus[name] = { html: ui.innerHTML, befehle: befehle.slice(ab) }; };
+  const gruppe = async g => schritt(`e3 ${g}`, `.ev-nav button:nth-child(${['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app'].indexOf(g) + 1})`);
+  const zu = async n => schritt(`${n} zu`, { act: 'zu' });
+  await schritt('e3', { act: 'tab', v: 'einst' });
+  await gruppe('baustelle'); await text('e3 name', '.ev-inhalt button.zeile', 'Name'); await zu('e3 name'); await text('e3 wetter', '.ev-inhalt button.zeile', 'Regenmenge'); await zu('e3 wetter');
+  await text('e3 abschliessen', '.ev-inhalt button.zeile', 'abschließen'); await zu('e3 abschliessen');
+  await gruppe('heizung'); await schritt('e3 automatik', '.ev-inhalt .liste .sw'); await schritt('e3 automatik 2', '.ev-inhalt .liste .sw');
+  await text('e3 az', '.ev-inhalt button.zeile', 'Arbeitszeit'); await zu('e3 az');
+  await gruppe('container'); await text('e3 bereich', '.ev-inhalt button.zeile', 'Poliercontainer'); await zu('e3 bereich'); await text('e3 neu', '.ev-inhalt button.zeile', 'Container oder Schacht'); await zu('e3 neu');
+  await gruppe('geraete');
+  await gruppe('pumpen'); await schritt('e3 pumpen +', '.ev-inhalt .stepper button:nth-child(3)'); await schritt('e3 pumpen auto', '.ev-inhalt .liste .sw');
+  await gruppe('strom'); await text('e3 preis neu', '.ev-inhalt button.zeile', 'Neuer Preis'); await zu('e3 preis neu');
+  await text('e3 anschluss', '.ev-inhalt button.zeile', 'Anschluss hinzufügen'); await zu('e3 anschluss'); await text('e3 prio', '.ev-inhalt .seg button', 'hoch');
+  await schritt('e3 nutzbar', '.ev-inhalt .stepper button:nth-child(3)'); await schritt('e3 staffel', '.ev-inhalt .liste > .zeile .sw'); await schritt('e3 staffel 2', '.ev-inhalt .liste > .zeile .sw');
+  await gruppe('firmen'); await text('e3 firma', '.ev-inhalt button.zeile', 'Firma hinzufügen'); await zu('e3 firma');
+  await gruppe('meldungen'); await schritt('e3 knöpfe', '.ev-inhalt .liste .sw'); await text('e3 test', '.ev-inhalt button.zeile', 'Test-Nachricht'); await schritt('e3 kalt', '.ev-inhalt .stepper button:nth-child(3)');
+  await text('e3 beispiele', '.ev-inhalt button.zeile', 'Beispiele ansehen'); await zu('e3 beispiele');
+  await gruppe('bericht'); await text('e3 bericht woche', '.ev-inhalt .seg button', 'Woche'); await schritt('e3 bericht handy', '.ev-inhalt .zeile.unter .sw');
+  await text('e3 bericht senden', '.ev-inhalt button.zeile', 'Jetzt senden');
+  await feld('e3 mail', '.ev-inhalt input[type="email"]', 'bau@example.org', 'change');
+  await gruppe('app'); await schritt('e3 erklär', '.ev-inhalt .liste .sw'); await schritt('e3 erklär 2', '.ev-inhalt .liste .sw'); await text('e3 vorlage', '.ev-inhalt button.zeile', 'Vorschlag');
+  await schritt('e3 dev', { act: 'ev-gruppe', v: 'dev' }); await text('e3 dev werkzeuge', '.ev-dev-reiter button', 'Werkzeuge'); await text('e3 dev meldungen', '.ev-dev-reiter button', 'Meldungen');
+  await schritt('e3 über', { act: 'ev-gruppe', v: 'ueber' });
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
@@ -267,6 +293,9 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('nur-lesen h', { act: 'tab', v: 'heizung' }); await schritt('nur-lesen az', '.hz-raster .hz-kachel:nth-child(4)');
   await schritt('nur-lesen az auf', '.sheet .az-name ~ button.zeile'); await schritt('nur-lesen az bearbeiten', '.sheet .knopf.amber'); await schritt('nur-lesen az löschen', '.sheet .knopf.rot');
   await schritt('nur-lesen heizplan', { act: 'sheet', s: 'heizplan' }); await schritt('nur-lesen heizplan jetzt', '.sheet .bedarf-dauer .chip:nth-child(1)');
+  await schritt('nur-lesen e3', { act: 'tab', v: 'einst' }); await schritt('nur-lesen e3 strom', { act: 'ev-gruppe', v: 'strom' });
+  await text('nur-lesen e3 preis neu', '.ev-inhalt button.zeile', 'Neuer Preis'); await schritt('nur-lesen e3 staffel', '.ev-inhalt .liste > .zeile .sw');
+  await schritt('nur-lesen e3 bericht', { act: 'ev-gruppe', v: 'bericht' }); await feld('nur-lesen e3 mail', '.ev-inhalt input[type="email"]', 'x@example.org', 'change');
   aus.toast = { html: panel.letzterToast || '', befehle: [] };
   fs.writeFileSync(ziel, JSON.stringify(aus));
   console.log(`Schnappschuss: ${Object.keys(aus).length} Schritte, ${befehle.length} Befehle → ${ziel}`);
