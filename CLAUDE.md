@@ -61,7 +61,7 @@ eigener Seite „Baustelle“ in der Seitenleiste. Zweck, Aufbau und Auslieferun
 - Doku-Check: none
 
 ### Code
-- Stacks: python; home-assistant-yaml
+- Stacks: python; home-assistant-yaml; typescript-lit
 - Pflichtkontext: CLAUDE.md; README.md; mockups/README.md
 - Aufgabenquelle: none
 - Architekturregeln: ref:https://github.com/herbertschrotter-blip/claude-skills-bpm/blob/main/docs/ha-grundsatz/README.md#HA-Grundsatzregeln
