@@ -68,8 +68,8 @@ const panel = (page, sel, fn, ...a) => page.evaluate((sel, quelle, ...a) => { co
 const klick = async (page, sel) => { await page.waitForSelector(sel, { visible: true, timeout: 5000 }); await page.click(sel); await warte(120); };
 const schreibAnzahl = (page, ab) => page.evaluate(ab => window.baustelleBeispiel.TEST.aufrufe.slice(ab).filter(m => ['baustelle/setzen', 'baustelle/aktion'].includes(m.type)).map(m => m.type + (m.aktion ? ':' + m.aktion : '')), ab);
 const aufrufZahl = page => page.evaluate(() => window.baustelleBeispiel.TEST.aufrufe.length);
-// Mausrad scrollt weich: warten, bis die Position zur Ruhe kommt (der Scrollbereich bleibt seit 2b stehen, nichts bricht ab)
-// (Chromium beginnt erst nach 100–300 ms zu scrollen – daher erst warten, dann dreimal denselben Wert verlangen)
+// Warten, bis die Scrollposition zur Ruhe kommt (der Scrollbereich bleibt seit 2b stehen, nichts bricht ab). Weiches Scrollen
+// ist abgeschaltet (START); das Mausrad-Ereignis kommt trotzdem verzögert an – daher erst warten, dann dreimal denselben Wert
 const ruhig = async (page, sel, innen, prop) => { await warte(400); let alt = null, gleich = 0;
   for (let i = 0; i < 40; i++) { const w = await page.evaluate((sel, innen, prop) => document.querySelector(sel).shadowRoot.querySelector(innen)[prop], sel, innen, prop);
     gleich = w === alt ? gleich + 1 : 0; if (gleich >= 2) return w; alt = w; await warte(120); } return alt; };
@@ -90,7 +90,7 @@ async function fall(name, browser, ablauf, himmel) {
 
 // Jeder Fall bekommt einen frischen Browser: Chromium auf dem Pi hängt selten nach vielen Seiten in einem Prozess – so
 // trifft ein Hänger höchstens einen Fall, und kein Zustand schleppt sich von Fall zu Fall
-const START = { executablePath: CHROME, headless: true, protocolTimeout: 30000, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--lang=de-AT'] };
+const START = { executablePath: CHROME, headless: true, protocolTimeout: 30000, args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--lang=de-AT', '--disable-smooth-scrolling'] };   // Mausrad springt sofort (B3 sonst zufällig rot)
 const browser = 'frisch';
 const chromeVersion = await (async () => { const b = await puppeteer.launch(START); const v = await b.version(); await b.close(); return v; })();
 

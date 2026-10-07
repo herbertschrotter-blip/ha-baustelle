@@ -194,6 +194,10 @@ Symbol: `custom_components/baustelle/brand/icon.png` (+ `icon@2x.png`), gezeichn
    `tools/neustart.sh` prüft die Konfiguration über die HA-API und startet nur bei gültiger neu, dann wartet es, bis HA
    wieder läuft. Claude darf Einspielen und Neustart nur, wenn Herbert es für eine Sitzung per `--allowedTools` freigibt.
 4. Einstellungen → Geräte & Dienste → Baustelle prüfen; Protokoll auf Meldungen von `custom_components.baustelle` ansehen.
+5. **Rückweg** auf ein früheres Release (ohne npm und Internet, die gebaute Seite liegt im Repo):
+   `git worktree add --detach /tmp/rueckweg <commit>` und `/tmp/rueckweg/tools/deploy.sh`, danach Konfiguration prüfen,
+   Neustart, Browser neu laden; `git worktree remove /tmp/rueckweg`. Zur Probe vorher mit `HA_CONFIG=<leerer Ordner>`
+   in ein temporäres Ziel ausliefern.
 
 ## Nie ins Repo
 

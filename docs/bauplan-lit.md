@@ -54,7 +54,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
 | ☑ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
 | ☑ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
-| ☐ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
+| ◐ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
 
 **Gleiche Ausgabe** (1a–1c): `node tests/panel/schnappschuss.js <bundle> vorher.json` vor dem Umbau, danach erneut und
 `--vergleich vorher.json nachher.json` – HTML jeder Ansicht/Einblendung und die WS-Befehle müssen gleich sein.
@@ -365,6 +365,15 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   0.8.99 geprüft (Schnappschuss inhaltlich gleich), danach mit 0.8.100 668/668 gleich. Panel-Test prüft, dass keine
   Weiche zurückkommt. Nebenbei: „Schnell aufheizen“ im Bedarf-Dialog ist wieder `vor-ort` (war seit 3d im Nur-Lesen
   ausgegraut). Normalisierung blendet `kk-frisch` (Hervorhebung, endet nach 2 s) aus.
+- **Stufe 5, 07.10.2026 (auf 0.8.100):** Rückweg geprobt: 0.8.100 und dann 0.8.99 (Arbeitskopie `git worktree` auf
+  6f712b5) mit `HA_CONFIG=<temporärer Ordner>` ausgeliefert, ohne npm/Internet; Manifest, Seite und Verlauf 0.8.99, Seite
+  bytegleich mit dem Release, im Ziel nur `baustelle-panel.js` und `changelog.json`. Offline-Bau: `npm ci --offline` mit
+  dem Cache in einem temporären Ordner (93 Pakete, `@esbuild/linux-arm64` dabei, Lockfile sha256 `6025c468e9cf6de0…`),
+  gebaute Seite bytegleich mit der ausgelieferten. Browser-Test: weiches Scrollen abgeschaltet
+  (`--disable-smooth-scrolling`), B3 zweimal in Folge grün, Laufzeit 112–120 s (Budget 120 s). Rückweg in README
+  (Auslieferung, Punkt 5). Grundprüfung grün (logik 670, Integration 363, Panel beide Strukturen, Notprogramm 20/20,
+  seite-gebaut, Browser 17). **Offen:** Abnahme durch Herbert auf S23 Ultra (HA-App) und in Edge
+  (`docs/lit-entscheidung.md`, Abschnitt „Abnahme der ganzen Seite“).
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

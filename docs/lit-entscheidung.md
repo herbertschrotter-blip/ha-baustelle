@@ -52,3 +52,20 @@ Jede Stufe ist eine eigene PATCH-Version, einzeln einspielbar und mit Rückweg a
 - [x] Herbert: Restaufwand akzeptiert
 - **Ergebnis (06.10.2026, Herbert: „passt so. weiter mit ganzer seite“):** fünfmal Ja → weiter mit Stufe 2b und der
   ganzen Seite.
+
+## Abnahme der ganzen Seite (Stufe 5, BSM-022.18)
+
+Stand 0.8.100 (07.10.2026): Alle Ansichten und Einblendungen mit Lit, keine Alt-Weiche mehr; Rückweg auf 0.8.99 geprobt.
+Herbert prüft nach dem Neustart je auf S23 Ultra (HA-App) und in Microsoft Edge (Seite neu laden, „Über“ zeigt 0.8.100):
+
+| Prüfung | S23 | Edge |
+|---|---|---|
+| Reiter wechseln, ☰ öffnet die Seitenleiste (Handy), Melden-Knopf öffnet „Melden“ | ☐ | ☐ |
+| Übersicht: Container öffnen, Automatik-Chip, Warnungen, Strom- und Wetter-Einblendung, Kachel antippen | ☐ | ☐ |
+| Container und Heizung: Modus, Soll ±, Termin anlegen, Bedarf „jetzt heizen“, Arbeitszeit bearbeiten | ☐ | ☐ |
+| Auswertung: Zeitraum und Kalender, Anpassen (Stufe, Reihenfolge), Layout (Ziehen, ✕), Preis simulieren, CSV | ☐ | ☐ |
+| Verlauf und Einstellungen: Filter, Baustelle öffnen, Dialoge mit Eingabe (Android-Tastatur bleibt offen) | ☐ | ☐ |
+| Darstellung: Himmel/Hintergrund, Diagramm-Tooltip, Scrollposition bleibt bei Aktualisierung | ☐ | ☐ |
+
+Ergebnis: ☐ abgenommen – danach BSM-022.18 auf shipped und Bauplan §3 Stufe 5 ☑.
+
