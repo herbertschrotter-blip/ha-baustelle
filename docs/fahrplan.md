@@ -55,7 +55,8 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 - [x] **E3** (BSM-018) Taste am Plug = 1 h heizen (mit HA eigene Regel „Taste“, ohne HA im Skript) – erledigt 0.8.72, am Gerät geprüft 06.10.2026 (004-01: Druck → „1 h heizen bis …“)
 - [x] **E4** (BSM-019) Anzeige: Notprogramm je Plug (aktiv/fehlt/Fehler, Programm gültig bis), Protokoll „Notbetrieb“ – erledigt 0.8.66, eingespielt 05.10.2026 (Einstellungen › Notprogramm, Jetzt prüfen, Dienst, Warnung)
 - [x] **E5** (BSM-020) Datenbank Phase 7: Stundenbuch der Plugs nach einem Ausfall nachtragen – erledigt 0.8.67, eingespielt 06.10.2026 (am echten Ausfall noch nicht erlebt → E6)
-- [ ] **E6** (BSM-021) Ausfall-Probe auf der Pilotbaustelle: HA bzw. VPN abschalten, Notbetrieb und Nachtragen prüfen
+- [x] **E6** (BSM-021) Ausfall-Probe auf der Pilotbaustelle – am 07.10.2026 mit 002-01 (Probe-Modus, 120 min): Notbetrieb
+  05:11–07:01, Stundenbuch 1,31 kWh/43 min gegen HA 1,30 kWh/44 min (Bauplan 0.7 §9)
 
 ## Etappe F – Code aufteilen
 

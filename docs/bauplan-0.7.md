@@ -482,6 +482,12 @@ Entscheidungen:
   „Notbetrieb seit“, und HA **vergleicht** das Stundenbuch mit der eigenen Messung (Datenbank, Quelle „ha“) statt es
   einzutragen: Protokoll „Ausfall-Probe …: Stundenbuch … kWh, … min ein · HA gemessen …“, Ergebnis in den Einzelheiten.
   Sinnvoll an einem kühlen Tag über einen Schaltpunkt (z. B. 05:00 für 2 h über den Beginn des Vorheizens).
+- **Ausfall-Probe am echten Plug (07.10.2026, 002-01_C_HZ_MAN_Konvektor01, 120 min ab 04:58):** Notbetrieb 05:11–07:01
+  (110 min; Übernahme 15 min nach dem letzten Lebenszeichen), das Skript hat selbst geheizt (05:20: an, 1,9 kW, Quelle
+  `loopback`). Stundenbuch 05:00 861 Wh/29 min, 06:00 423 Wh/13 min (Tür 60 s), 07:00 22 Wh/1 min. Vergleich nach der
+  Übergabe: **Stundenbuch 1,31 kWh, 43 min ein · HA gemessen 1,30 kWh, 44 min ein** – stimmt. HA hat um 07:01 wieder
+  übernommen und schaltet normal. Nebenbefund derselben Nacht (0.8.84): Fehlgriff der Taste nach einem WLAN-Abriss
+  (004-01, 01:11) und Warnflut „zieht keinen Strom“ durch Thermostat-Pausen des Radiators.
 
 Offen: Gerätepasswort als `!secret`, falls je eins gesetzt wird.
 
