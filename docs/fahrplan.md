@@ -92,3 +92,15 @@ nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 - [ ] **I9** (BSM-031.09) Bestand umstellen (POL → FOR, MAN → CRW)
 - [ ] **I10** (BSM-031.10) Aufkleber mit Name und QR-Code (später)
 - [x] **I11** (BSM-032) Container-Symbol anpassbar: Doppelcontainer, Türen 1–2 und Fenster 1–4 mit Lage, Farbe; echter Zustand (Tür offen/zu, Fenster gekippt, Licht an/aus) – erledigt 0.8.68, eingespielt 06.10.2026
+
+## Etappe J – Realistische Hochrechnung und Ersparnis (BSM-033, Herbert 07.10.2026)
+
+Heute: Tagesschnitt × Tage der Heizperiode (im milden Oktober zu niedrig) und „ohne Automatik“ = 24 h Volllast (viel zu
+hoch). Künftig nach professionellem Vorgehen: Energiesignatur je Container (ASHRAE Guideline 14), Hochrechnung mit
+Heizgradtagen (ÖNORM B 8135, Klimamittel GeoSphere Austria) als Spanne, Ersparnis nach IPMVP aus einer gemessenen
+Baseline; die Baseline-Läufe plant und fährt die Integration selbst (startet aus, Kostenrahmen, Ankündigung, Abbruch).
+
+- [ ] **J1** (BSM-033.01) Energiesignatur je Container (logik, Gütemaß)
+- [ ] **J2** (BSM-033.02) Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung
+- [ ] **J3** (BSM-033.03) Anzeige mit Spanne, Signatur, Baseline (Mockup)
+- [ ] **J4** (BSM-033.04) Automatische Baseline-Läufe (startet aus, Budget, Ankündigung, Abbruch)
