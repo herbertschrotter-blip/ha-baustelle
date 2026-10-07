@@ -192,6 +192,26 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
     await schritt('e termin eintragen leer', '.sheet .knopf.amber');
     await schritt('e termin abbrechen', '.sheet .knopf.leise-k');
   }
+  // Reiter Heizung (Stufe 3d): Kacheln als Einblendung, darin die Bedienung je Block
+  const wenn = async (name, sel) => { if (panel.shadowRoot.querySelector(sel)) await schritt(name, sel); };
+  await schritt('h', { act: 'tab', v: 'heizung' });
+  await schritt('h automatik', '.seite .glas-kopf .sw'); await schritt('h automatik 2', '.seite .glas-kopf .sw');
+  await schritt('h heute', '.seite .hz-held'); await wenn('h heute container', '.sheet .hz-ohne .chip'); await schritt('h heute zu', { act: 'tab', v: 'heizung' });
+  for (let n = 1; n <= 8; n++) {
+    await schritt(`h ${n}`, `.hz-raster .hz-kachel:nth-child(${n})`);
+    if (n === 2) { await schritt('h wann woche', '.sheet .block-kopf .seg button:nth-child(2)'); await wenn('h wann zelle', '.sheet .hz-zelle'); await wenn('h wann tag', '.sheet .vb-wer button:nth-child(1)'); }
+    if (n === 3) { await wenn('h jc soll', '.sheet .jc .stepper button:nth-child(3)'); await wenn('h jc trocknen', '.sheet .jc .sw');
+      await feld('h jc modus', '.sheet .jc-modus', 'hand', 'change'); }
+    if (n === 4) { await wenn('h az weg', '.sheet .am-fenster .x'); await wenn('h az früher', '.sheet .az-name ~ button.zeile:nth-last-child(2)'); await wenn('h ausn heute', '.sheet .bedarf-dauer .chip:nth-child(1)'); }
+    if (n === 5) { await wenn('h ausn dazu', '.sheet .am-tag > button.zeile'); }
+    if (n === 6) { await schritt('h regeln +', '.sheet .rv-karte .stepper button:nth-child(3)'); await schritt('h regeln frühstart', '.sheet .rv-karte .sw');
+      await schritt('h regeln gleitend', '.sheet .rv-karte .zeile:not(.unter) .seg button:nth-child(2)'); await wenn('h regeln vergessen', '.sheet .rv-karte .rv-link');
+      await wenn('h regeln basis', '.sheet .rv-karte .zeile.unter .seg button:nth-child(1)'); await schritt('h regeln fest', '.sheet .rv-karte .zeile:not(.unter) .seg button:nth-child(1)'); }
+    if (n === 7) await schritt('h trocknen +', '.sheet .stepper button:nth-child(3)');
+    if (n === 8) { await schritt('h urlaub feiertag', '.sheet .zeile .sw'); await schritt('h urlaub absenken', '.sheet .seg button:nth-child(2)'); await wenn('h urlaub weg', '.sheet .zeile.unter .x');
+      await schritt('h urlaub neu', '.sheet .hz-innen > button.zeile:last-of-type'); }
+    await schritt(`h ${n} zu`, { act: 'zu' });
+  }
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon

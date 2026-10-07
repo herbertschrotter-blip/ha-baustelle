@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.89] – 2026-10-07
+
+- Kleidung trocknen: Die Kachel „Kleidung trocknen“ im Reiter Heizung zeigte den Block „So wird geheizt“, und in den
+  Einstellungen unter Heizung stand dieser Block doppelt – die drei Regler fürs Trocknen (ab wie viel Regen, wie viel
+  länger, wie viel früher) waren nirgends erreichbar. Jetzt zeigen beide den richtigen Block.
+- Seite auf Lit umgestellt, Teil 7 (BSM-022.14, Stufe 3d, dritter Teil): Der Reiter Heizung mit seinen Kacheln und
+  Blöcken (Heute, Wann heizt was, Diese Woche, Container, Arbeitszeit, Ausnahmen, Regeln, Kleidung trocknen, Urlaub &
+  Feiertage) wird mit Lit gezeichnet – auch dort, wo die Einstellungen diese Blöcke zeigen. Aussehen und Bedienung
+  bleiben sonst gleich.
+
 ## [0.8.88] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 6 (BSM-022.14, Stufe 3d, zweiter Teil): Die Einblendungen der Container-Ansicht –

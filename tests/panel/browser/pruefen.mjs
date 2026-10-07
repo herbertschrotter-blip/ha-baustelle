@@ -453,6 +453,17 @@ await fall('3d Container', browser, async (page, erwarte) => {
   await einer('.seite > .liste .zeile:last-child .sw', 'baustelle/setzen', 'Kleidung trocknen');
   await klick(page, `${D} >>> .c-live .seg [data-v="woche"]`);
   erwarte('Diagramm Woche', await panel(page, D, () => p.s.cvd === 'woche' && !!sr.querySelector('.c-live .chart-wrap svg')));
+  // Reiter Heizung (3d): Block als Einblendung, Modus je Container (Auswahlliste), Regler – je genau ein Auftrag
+  await klick(page, `${D} >>> nav [data-act="tab"][data-v="heizung"]`);
+  await klick(page, `${D} >>> .hz-raster .hz-kachel[data-k="container"]`);
+  { const ab = await aufrufZahl(page); await page.select(`${D} >>> .sheet .jc[data-id="polier"] .jc-modus`, 'hand'); await warte(200);
+    const a = await schreibAnzahl(page, ab); erwarte('Heizung: Modus je Container = genau ein Auftrag', JSON.stringify(a) === '["baustelle/setzen"]', a.join(', ')); }
+  await einer('.sheet .jc[data-id="polier"] .stepper button[data-d="0.5"]', 'baustelle/setzen', 'Heizung: Soll je Container +');
+  await klick(page, `${D} >>> .sheet > .knopf`);
+  await klick(page, `${D} >>> .hz-raster .hz-kachel[data-k="trocknen"]`);
+  await einer('.sheet .stepper button[data-k="tr_mm"][data-d="0.5"]', 'baustelle/setzen', 'Heizung: Kleidung trocknen ab Regen +');
+  await klick(page, `${D} >>> .sheet > .knopf`);
+  await klick(page, `${D} >>> nav [data-act="tab"][data-v="uebersicht"]`); await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`);
   await panel(page, D, async () => { for (const b of BB.welt) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] }; await p._laden(); await new Promise(r => setTimeout(r, 150)); });
   let ab = await aufrufZahl(page);
   await klick(page, `${D} >>> .c-chip .bs-ic`);

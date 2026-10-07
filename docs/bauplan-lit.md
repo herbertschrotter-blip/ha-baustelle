@@ -247,6 +247,23 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   merkt die sichtbare Stunde. Panel-Test (Regler über echte Ereignisse, WU-0012 über Knotenidentität), Browser-Fall
   „3d Einblendungen“ (Tippen im Termin während 5 Datenupdates, ein Auftrag, Nicht-Admin), B5 grün. „Aussehen“ zieht mit
   „Container bearbeiten“ nach 3e.
+- **3d Heizung, 07.10.2026 (0.8.89):** `src/ansichten/heizung.js` – Reiter (Kopf, „Heute“-Karte, Kacheln) und je Block
+  eine Vorlage (`HZ_BLOECKE`: heute, wann, plan, az, ausn, regeln, trocknen, container, urlaub); Einblendung „hz“ über
+  `hzEinblendung`, die Einstellungen binden Regeln, Trocknen, Urlaub und Je Container als dauerhafte Lit-Bereiche ein
+  (`data-lit="hz-…"`, bis 3e). In der Seite bleiben `hzKurz`, `heizplanInhalt`, `zeitstrahl`, `sollKurve` (Text/SVG).
+  Methoden `automatikUmschalten`, `hzAuf`, `einstellungUmschalten`, `einstellungWert`, `heizgrenzeBasis`,
+  `gefuehlVergessen`, `containerSoll`, `urlaubWeg`, `ausnahmeNeu`, `ausnahmeDazu`, `ausnahmeWeg`, `azNeu`.
+  **Entfallene Sonderfälle:** `hzTeile` (zerschnitt den HTML-Text von `heizungBloecke` per Textsuche nach dem Titel),
+  `heizungBloecke`, `hzHeld`, `v_heizung`, `regelnInhalt`, `sollBlock`, `uebersichtHeizzeiten`, `azBlock`,
+  `ausnahmenBlock`, `HZ_TEILE`, der `data-jm`-Pfad in `aenderung()`, Klick-Fälle `hz-art`, `hz-tag`, `az-alt`.
+  **Befund behoben:** die Textsuche fand für „👕 Kleidung trocknen“ zuerst die gleichnamige Zeile in den Regeln – Kachel
+  und Einstellungen zeigten die Regeln statt der Trocknen-Regler. Nachweis: Schnappschuss um den Reiter Heizung erweitert
+  (240 Schritte); inhaltlich gleich bis auf den Trocknen-Block (Gegenlauf ohne den Trocknen-Klick: sonst nur die Klasse
+  `rein` nach dem Gruppenwechsel), die Einstellungen laden den Verlauf nicht mehr unnötig (vorher baute `hzTeile` alle
+  Blöcke samt Messung). Vergleich sortiert jetzt auch Klassen. Panel-Test (Heizung auf Lit-Merkmale, Auswahlliste über
+  echtes `change`, Prüfung Trocknen-Block), Browser-Fall „3d Container“ um Heizung erweitert (Modus je Container, Soll,
+  Trocknen je ein Auftrag). Browser-Test 112 s – nah am Budget (≤ 120 s), bei 3e Fälle zusammenlegen. Offen in 3d: die
+  Dialoge Heizplan, Arbeitszeit, Neue Arbeitszeit, Ausnahme.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

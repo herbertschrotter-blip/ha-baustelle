@@ -12,7 +12,7 @@ def norm(h):
     h=re.sub(r' (data-[a-z-]+|role)="[^"]*"','',h); h=re.sub(r'(<input class="vl-suche"[^>]*?) value="[^"]*"', r'\1', h)
     h=re.sub(r' (ml-status|ml-weg|dev-md|dev-json|dev-diagnose|bs-csv|bs-aktiv|ml-stand|ml-senden|ml-zurueck|nur-admin|vor-ort)(?=[ "])','',h)
     h=re.sub(r'<([a-zA-Z][\w-]*)((?:\s+[^\s=>]+(?:="[^"]*")?)*)\s*(/?)>', lambda m: '<'+m.group(1)+''.join(' '+x for x in sorted(re.findall(r'[^\s=>]+(?:="[^"]*")?', m.group(2))))+m.group(3)+'>', h)   # Lit setzt gebundene Attribute ans Ende (3c/3d): Reihenfolge egal
-    h=re.sub(r'class="([^"]*)"',lambda m:'class="'+' '.join(m.group(1).split())+'"',h)
+    h=re.sub(r'class="([^"]*)"',lambda m:'class="'+' '.join(sorted(m.group(1).split()))+'"',h)   # Reihenfolge der Klassen egal (3d)
     h=re.sub(r' class=""','',h)
     h=re.sub(r'\s+',' ',h); h=re.sub(r'> <','><',h); h=h.replace(' >','>'); return h
 for k in a:

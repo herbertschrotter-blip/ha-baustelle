@@ -422,7 +422,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   { await klick({ act: 'tab', v: 'heizung' }, 20);
     const leer = { ...panel.d.bereiche.find(b => !b.pumpe), id: 'mannschaft', name: 'Mannschaft 01', geraete: [] }; panel.d.bereiche.push(leer);
     panel.s.hzArt = 'tag'; await klick({ act: 'hz-auf', k: 'wann' }, 20);
-    erwarte('FE-0007: Tag – Container ohne Heizkörper mit Hinweis und Knopf', ui.innerHTML.includes('Mannschaft 01') && ui.innerHTML.includes('noch kein Heizkörper') && ui.innerHTML.includes('data-act="container" data-id="mannschaft"'));
+    erwarte('FE-0007: Tag – Container ohne Heizkörper mit Hinweis und Knopf', ui.innerHTML.includes('Mannschaft 01') && ui.innerHTML.includes('noch kein Heizkörper') && /hz-ohne"><button[^>]*data-id="mannschaft"/.test(ui.innerHTML.replace(/<!--[^]*?-->/g, '')));
     panel.s.hzArt = 'woche'; await panel.neuZeichnen();
     erwarte('FE-0007: Woche – Zeile für Container ohne Heizkörper', ui.innerHTML.includes('hz-wz-ohne') && ui.innerHTML.includes('noch kein Heizkörper · zuordnen'));
     panel.s.hzArt = 'tag'; panel.d.bereiche.pop(); panel.s.sheet = null; await panel.neuZeichnen(); }
@@ -800,10 +800,16 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'tab', v: 'heizung' }, 30);
   erwarte('Heizung als Kacheln: Heute-Karte und 8 Kacheln', ui.innerHTML.includes('hz-held') && (ui.innerHTML.match(/class="glas-panel hz-kachel"/g) || []).length === 8);
   const hzOffen = async k => { await klick({ act: 'hz-auf', k }, 20); return ui.innerHTML; };
+  { // 3d: die Kachel „Kleidung trocknen“ zeigt ihren eigenen Block (bis 0.8.88 fand die Textsuche „So wird geheizt“)
+    const h = await hzOffen('trocknen');
+    erwarte('3d: Kachel „Kleidung trocknen“ mit ihren Reglern', h.includes('ab Regen (seit gestern)') && ['tr_mm', 'tr_laenger', 'tr_frueher'].every(k => h.includes(`data-k="${k}"`)) && !h.includes('So wird geheizt'));
+    await klick({ act: 'zu' }, 5); await klick({ act: 'tab', v: 'einst' }, 20); await klick({ act: 'ev-gruppe', v: 'heizung' }, 20);
+    erwarte('3d: Einstellungen Heizung – Regeln einmal, Trocknen mit Reglern', (ui.innerHTML.match(/So wird geheizt/g) || []).length === 1 && ui.innerHTML.includes('ab Regen (seit gestern)'));
+    await klick({ act: 'tab', v: 'heizung' }, 20); }
   /* AN-0012: Regeln nach Tagesablauf, bisher feste Werte einstellbar, feste Regeln sichtbar */
   { const h = await hzOffen('regeln'); pruefe('Regeln nach Tagesablauf');
     erwarte('AN-0012: Gruppen nach Tagesablauf und feste Regeln', ['Vor der Arbeit', 'In der Arbeitszeit', 'Nach der Arbeit', 'Nachts, frei, Urlaub', 'Immer', 'Feste Regeln'].every(t => h.includes(t)));
-    erwarte('AN-0012: neue Regler', ['toleranz', 'hand_nachfrist', 'fuehler_halten', 'zieht_w'].every(k => h.includes(`data-act="st" data-k="${k}"`)) && h.includes('data-act="tab-einst" data-g="strom"'));
+    erwarte('AN-0012: neue Regler', ['toleranz', 'hand_nachfrist', 'fuehler_halten', 'zieht_w'].every(k => h.includes(`data-k="${k}"`)) && /Staffelung[^]*?class="rv-link"/.test(h));   // Lit (3d): Stepper mit data-k
     neu(); for (const k of ['toleranz', 'hand_nachfrist', 'fuehler_halten', 'zieht_w']) await klick({ act: 'st', k, d: k === 'toleranz' ? '0.1' : '5' });
     const S = letzte('baustelle/setzen').map(a => `${a.pfad.join('.')}=${a.wert}`);
     erwarte('AN-0012: neue Regler setzen die Integration (' + S.join(', ') + ')', ['heizung.toleranz=0.4', 'heizung.hand_nachfrist_min=35', 'heizung.fuehler_halten_min=20', 'heizung.zieht_strom_w=55'].every(x => S.includes(x)));
@@ -859,7 +865,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     d.ausnahmen = [...altA.filter(a => a.datum !== iso), { datum: iso, art: 'arbeit', von: '04:00', bis: '05:00', notiz: 'Betonpumpe' }, { datum: iso, art: 'arbeit', von: '12:30', bis: '16:30', notiz: '' }];
     d.plan[iso] = { start: 375, vor: 375, a: 420, b: 990, nach: 1005, ende: 1005, gruende: ['ausnahme'], ausnahme: null, eigene: [[240, 300]], ausnahmen: [] };
     const h = await hzOffen('az'); pruefe('Ausnahmen mehrere');
-    erwarte('FE-0012: Tag mit zwei Fenstern, eigenes Fenster, + weiteres', h.includes('04:00–05:00') && h.includes('12:30–16:30') && h.includes('nur 04:00–05:00 geheizt') && h.includes('tl-eigen') && h.includes(`data-act="ausn-dazu" data-d="${iso}"`));
+    erwarte('FE-0012: Tag mit zwei Fenstern, eigenes Fenster, + weiteres', h.includes('04:00–05:00') && h.includes('12:30–16:30') && h.includes('nur 04:00–05:00 geheizt') && h.includes('tl-eigen') && h.includes(`data-d="${iso}"`));
     neu(); await klick({ act: 'ausn-weg', d: iso, art: 'arbeit', von: '04:00', bis: '05:00' });
     erwarte('FE-0012: ✕ löscht nur dieses Fenster', letzte('baustelle/liste').some(a => a.aktion === 'loeschen' && a.eintrag.von === '04:00' && a.eintrag.bis === '05:00' && a.eintrag.art === 'arbeit'));
     d.ausnahmen = [...altA.filter(a => a.datum !== iso), { datum: iso, art: 'arbeit', von: '04:00', bis: '05:00', notiz: '' }]; d.plan[iso] = { start: 375, vor: 375, a: 420, b: 990, nach: 1005, ende: 1005, gruende: [], eigene: [[240, 300]], ausnahmen: [] };
@@ -874,7 +880,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     panel.d.sollG = { aussen_mittel: 6.4, tage: 3, start: 21.56, gefuehl: 0.15, soll: 21.71, n: 1, schritt: 0.15, rueck: [[6.0, -1]],
       kurve: [...Array(31)].map((_, i) => [i - 10, Math.max(21, Math.min(24, 21 + 0.1 * (12 - (i - 10)))), Math.max(21, Math.min(24, 21.15 + 0.1 * (12 - (i - 10))))]) };
     const h = await hzOffen('regeln'); pruefe('Regeln Soll gleitend');
-    erwarte('Soll gleitend: Rechnung, Kurve, Regler', ['Soll heute', 'sg-kurve', 'data-k="gleit_min"', 'data-k="gleit_tage"', 'data-act="sg-vergessen"'].every(t => h.includes(t)) && h.includes('21,7 °C'));
+    erwarte('Soll gleitend: Rechnung, Kurve, Regler', ['Soll heute', 'sg-kurve', 'data-k="gleit_min"', 'data-k="gleit_tage"', 'class="rv-link">vergessen'].every(t => h.includes(t)) && h.includes('21,7 °C'));
     neu(); await klick({ act: 'e-wert', k: 'soll_art', v: 'fest' }); await klick({ act: 'st', k: 'gleit_min', d: '-0.5' });
     erwarte('Soll gleitend: Umschalten und Untergrenze über baustelle/setzen', letzte('baustelle/setzen').some(a => a.pfad.join('.') === 'heizung.soll_art' && a.wert === 'fest')
       && letzte('baustelle/setzen').some(a => a.pfad.join('.') === 'heizung.gleit_min' && a.wert === 20.5));
@@ -893,12 +899,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         && !letzte('baustelle/setzen').some(a => a.pfad[2] === 'soll'));
       [b.modus, b.sollJ] = altB; }
     [panel.d.e.soll_art, panel.d.sollG] = alt; await klick({ act: 'tab', v: 'heizung' }, 10); }
-  erwarte('Heizung: Frostschutz ein/aus (Regeln), Urlaub-Auswahl, Modus je Container', (await hzOffen('regeln')).includes('aus über') && (await hzOffen('urlaub')).includes('data-k="urlaub"') && (await hzOffen('container')).includes('data-jm="polier"'));
+  erwarte('Heizung: Frostschutz ein/aus (Regeln), Urlaub-Auswahl, Modus je Container', (await hzOffen('regeln')).includes('aus über') && (await hzOffen('urlaub')).includes('Im Urlaub und an freien Feiertagen') && (await hzOffen('container')).includes('class="jc" data-id="polier"'));
   await hzOffen('regeln'); neu(); await klick({ act: 'st', k: 'frost_aus', d: '0.5' }); await hzOffen('urlaub'); await klick({ act: 'e-wert', k: 'urlaub', v: 'absenk' });
   erwarte('Frostschutz aus und Urlaub über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frost_aus"]' && a.wert === 7.5)
     && letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frei_modus"]' && a.wert === 'absenk'));
   pruefe('Heizung absenken'); erwarte('absenken auf … °C', ui.innerHTML.includes('data-k="absenk"'));
-  neu(); panel.aenderung({ target: { dataset: { jm: 'sanitaer' }, value: 'aus' } }); await ruhe(10);
+  await hzOffen('container'); neu(); { const sel = litEl('.jc[data-id="sanitaer"] .jc-modus'); sel.value = 'aus'; sel.dispatchEvent(new Event('change', { bubbles: true, composed: true })); } await ruhe(10);
   erwarte('Modus je Container (Auswahlliste)', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["bereiche","sanitaer","modus"]' && a.wert === 'aus'));
   neu(); panel.d.e.frost_aus = 5.5; await klick({ act: 'st', k: 'frost_temp', d: '0.5' });
   erwarte('„ein unter“ nicht über „aus über“', !letzte('baustelle/setzen').length);
@@ -1168,7 +1174,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'e-bool', k: 'erklaer' }); await klick({ act: 'tab', v: 'heizung' }, 20); await klick({ act: 'hz-auf', k: 'regeln' }, 20); erwarte('mit Erklärungen „ⓘ“', ui.innerHTML.includes('class="erkl"'));
   /* Kleinigkeiten nach 0.7.8: Frostschutz auch bei Automatik aus, Kälte-Frühstart unter 0 °C */
   await klick({ act: 'tab', v: 'heizung' }, 20); await klick({ act: 'hz-auf', k: 'regeln' }, 20);
-  erwarte('Schalter „auch bei Automatik aus“', ui.innerHTML.includes('data-k="frost_immer"'));
+  erwarte('Schalter „auch bei Automatik aus“', /auch bei Automatik aus[^]*?class="sw /.test(ui.innerHTML));
   neu(); await klick({ act: 'e-bool', k: 'frost_immer' });
   erwarte('frost_immer über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["heizung","frost_immer"]' && a.wert === true));
   neu(); for (let k = 0; k < 20; k++) await klick({ act: 'st', k: 'frueh_temp', d: '-1' });

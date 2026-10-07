@@ -26,6 +26,7 @@ import { bsdetailVorlage, verlaufVorlage } from './ansichten/verlauf.js';
 import { pumpenVorlage, schachtVorlage } from './ansichten/pumpen.js';
 import { containerVorlage } from './ansichten/container.js';
 import { CONTAINER_EINBLENDUNGEN } from './ansichten/einblendungen-container.js';
+import { HZ_BLOECKE, heizungVorlage, hzEinblendung } from './ansichten/heizung.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -863,10 +864,6 @@ const GRENZEN = { nutzbar: [30, 100], max_gleich: [1, 50], min_lauf: [1, 120], m
 const MODUS_TEXT = { plan: 'an in der Heizzeit – der Thermostat am Heizkörper regelt', thermo: 'in der Heizzeit auf das Soll nach dem Fühler',
   bedarf: 'nur per Schalter oder Termin, sonst Frostschutz', hand: 'die Automatik schaltet nicht – Schalter unten', aus: 'alles aus, Frostschutz bleibt' };
 const STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, '0'));
-/* Reiter Heizung als Kacheln: Schlüssel, Titel des bisherigen Blocks, Symbol, Name der Einblendung */
-const HZ_TEILE = [['heute', 'Heute', '🕖', 'Heute'], ['wann', 'Wann welche Heizung heizt', '🔥', 'Wann heizt was'], ['plan', 'Heizplan · diese Woche', '📅', 'Diese Woche'],
-  ['az', 'Arbeitszeit', '👷', 'Arbeitszeit'], ['ausn', 'Ausnahmen', '✳️', 'Ausnahmen'], ['regeln', 'So wird geheizt', '⚙️', 'Regeln'],
-  ['trocknen', '👕 Kleidung trocknen', '👕', 'Kleidung trocknen'], ['container', 'Je Container', '🏠', 'Container'], ['urlaub', 'Urlaub &amp; Feiertage', '🏖', 'Urlaub & Feiertage']];
 /* Abschnitte der Integration → Klassen der Zeitleiste im Mockup */
 const ABSCHNITT = { fruehstart: 'extra', vorheizen: 'vor', nachheizen: 'vor', arbeitszeit: 'heiz', trocknen: 'trock', termin: 'termin', fenster: 'eigen' };
 /* Wetter der Baustelle (weather.*) → Stimmung des Hintergrunds und Text im Kopf */
@@ -958,7 +955,7 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
   static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
@@ -1535,43 +1532,6 @@ class BaustellePanel extends LitElement {
     const m = this.mess && this.mess[g.id];
     return (m && m[tagNr]) || leer;
   }
-  uebersichtHeizzeiten() {
-    const art = this.s.hzArt || 'tag', tag = this.s.hzTag || this.z.HEUTE_TAG, C = this.d.bereiche.filter(b => !b.pumpe);
-    const A = 4 * 60, B = 21 * 60, x = m => Math.max(0, Math.min(100, (m - A) / (B - A) * 100)), breite = (a, b) => Math.max(0, x(b) - x(a));
-    const std = segs => segs.reduce((a, q) => a + (q[1] - q[0]), 0) / 60;
-    const HZ = b => b.geraete.filter(g => g.heizer);
-    const ohne = b => `<div class="hz-c"><span class="hz-cn">${esc(b.name)}</span><span class="leise hz-cp">noch kein Heizkörper</span></div>
-      <div class="hz-ohne"><button class="chip glas-panel" data-act="container" data-id="${b.id}">+ Heizkörper zuordnen</button></div>`;   // FE-0007: Container ohne Heizkörper trotzdem zeigen
-    const tagNr = TAGE.indexOf(tag), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), jetzt = minu(this.z.JETZT);
-    this.mess = this.messung();
-    const kopf = `<div class="block-kopf"><b>Wann welche Heizung heizt</b><div class="seg klein">${[['tag', 'Tag'], ['woche', 'Woche']].map(([k, t]) => `<button data-act="hz-art" data-v="${k}" class="${art === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
-    if (this.mess === null) return `<div class="glas-panel block">${kopf}${LAEDT}</div>`;
-    let inhalt;
-    if (!C.length) inhalt = '<div class="leer">Keine Container</div>';
-    else if (art === 'tag') {
-      const zukunft = tagNr > heuteNr, heute = tagNr === heuteNr;
-      inhalt = `<div class="vb-wer">${this.z.WOCHE.map(([t, d]) => `<button data-act="hz-tag" data-v="${t}" class="${t === tag ? 'on' : ''}">${t === this.z.HEUTE_TAG ? 'heute' : t} ${d.slice(0, 2)}.</button>`).join('')}</div>
-        <div class="leise">${zukunft ? 'Noch nichts gemessen – blass der Plan.' : heute ? 'Bis jetzt gemessen, danach blass der Plan.' : 'Gemessen an der Leistung: kräftig = zieht Strom (über 50 W).'}</div>
-        <div class="hz-tag">${C.map(b => { if (!HZ(b).length) return ohne(b); const plan = this.heizzeiten(b, tag), ph = std(plan);
-          return `<div class="hz-c"><span class="hz-cn">${esc(b.name)}${b.bedarf ? ' <span class="leise">bei Bedarf</span>' : ''}${b.offline ? ' <span class="rot-t">offline</span>' : ''}</span><span class="leise hz-cp">${ph ? `${de(ph)} h geplant` : b.bedarf ? 'kein Termin' : !b.auto ? 'Hand' : 'frei'}</span></div>
-            ${HZ(b).map(g => { const a = this.aktiv(b, g, tag), ah = std(a.an);
-              return `<div class="hz-zeile"><span class="hz-n hz-g">${esc(g.n)}</span>
-                <div class="tl-spur hz">${plan.map(q => `<i class="hz-plan ${!zukunft && (!heute || q[1] <= jetzt) ? 'vorbei' : ''}" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
-                  ${zukunft ? '' : a.an.map(q => `<i class="hz-an" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
-                  ${a.off.map(q => `<i class="hz-off" style="left:${x(q[0])}%;width:${breite(q[0], q[1])}%"></i>`).join('')}
-                  ${heute ? `<i class="tl-jetzt" style="left:${x(jetzt)}%"></i>` : ''}</div>
-                <span class="hz-h">${zukunft ? '–' : `${de(ah)} h`}</span></div>`; }).join('')}`; }).join('')}
-          <div class="hz-zeile achse"><span></span><div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div><span></span></div></div>
-        <div class="hp-legende"><span><i class="hz-an"></i>zieht Strom</span><span><i class="hz-plan"></i>geplant</span><span><i class="hz-off"></i>offline</span><span class="leise">Lücken im Plan: Thermostat, Staffelung, Tür offen</span></div>`;
-    } else {
-      const zeilen = C.flatMap(b => HZ(b).length ? HZ(b).map(g => ({ b, g, h: TAGE.map((t, k) => k > heuteNr ? std(this.heizzeiten(b, t)) : std(this.aktiv(b, g, t).an)) })) : [{ b, g: null, h: null }]);
-      const max = Math.max(...zeilen.flatMap(z => z.h || []), 1);
-      inhalt = `<div class="hz-woche"><div class="hz-wk"><span></span>${this.z.WOCHE.map(([t, d]) => `<span class="${t === this.z.HEUTE_TAG ? 'heute' : ''}">${t}<br><small>${d.slice(0, 2)}.</small></span>`).join('')}<span>Σ</span></div>
-        ${zeilen.map(({ b, g, h }) => !g ? `<div class="hz-wz"><span class="hz-n">${esc(b.name)}</span><button class="hz-wz-ohne leise" data-act="container" data-id="${b.id}">noch kein Heizkörper · zuordnen</button></div>` : `<div class="hz-wz"><span class="hz-n">${esc(b.name)} <span class="leise">· ${esc(g.n)}</span></span>${h.map((v, k) => `<button class="hz-zelle ${k > heuteNr ? 'geplant' : ''}" data-act="hz-tag" data-v="${TAGE[k]}" data-art="tag" style="--a:${v ? .15 + .75 * v / max : 0}" title="${esc(b.name)} · ${esc(g.n)} ${TAGE[k]}: ${de(v)} h ${k > heuteNr ? 'geplant' : 'gemessen'}">${v ? de(v, v % 1 ? 1 : 0) : ''}</button>`).join('')}<b class="hz-sum">${de(h.slice(0, heuteNr + 1).reduce((a, v) => a + v, 0), 0)} h</b></div>`).join('')}</div>
-        <div class="leise">Stunden, in denen der Heizkörper Strom gezogen hat (heute bis jetzt); kommende Tage blass und kursiv = geplant. Σ = bisher gemessen. Tippen zeigt den Tag.</div>`;
-    }
-    return `<div class="glas-panel block">${kopf}${inhalt}</div>`;
-  }
   anschluss(id) { return this.d.anschluesse.find(a => a.id === id) || this.d.anschluesse[0] || { id: null, name: 'kein Anschluss', ampere: 0, phasen: 3, reserve: 0 }; }
   laufende() { return this.alle.filter(x => x.aktiv); }
   firma(id, d = this.d) { return d.firmen.find(f => f.id === id) || d.firmen[0]; }
@@ -1694,6 +1654,36 @@ class BaustellePanel extends LitElement {
     if (art === 'zeitraum-bs') { S.sheet = { art, form: { beginn: d.beginnAuto ? '' : d.beginn || '', ende: d.ende || '', hp: [...d.hp] } }; return neu(); }
     if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
     S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
+  }
+  /* Reiter Heizung (src/ansichten/heizung.js, BSM-022 3d); Einstellungen und Einblendungen nutzen sie über klick() */
+  automatikUmschalten() { const e = this.d.e; return this.setzen(['automatik'], !e.auto, !e.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind'); }
+  hzAuf(k) { this.s.sheet = { art: 'hz', k }; return this.neuZeichnen(); }
+  einstellungUmschalten(k) { const e = this.d.e; if (ARTEN[k]) return this.setzen(['meldungen_einst', 'arten', ARTEN[k]], !e[k]); return this.setzen(PFAD[k], !e[k]); }
+  einstellungWert(k, v) { return this.setzen(PFAD[k], isNaN(+v) ? v : +v); }
+  heizgrenzeBasis(v) { return this.setzen(PFAD.basis, v === 'jetzt' ? 'jetzt' : 'tageshoechst'); }
+  gefuehlVergessen() { return this.aktion('gefuehl_vergessen', {}, 'Gelerntes Gefühl vergessen – es gilt der Startwert nach draußen'); }
+  containerSoll(x, dd) { const [min, max] = GRENZEN.soll; return this.setzen(['bereiche', x.id, 'soll'], Math.min(max, Math.max(min, Math.round(((x.soll ?? this.d.e.soll) + dd) * 2) / 2))); }
+  urlaubWeg(u) {
+    const d = this.d; delete this.cache['k:' + d.optionen.urlaub_kalender];
+    return this.ws({ type: 'calendar/event/delete', entity_id: d.optionen.urlaub_kalender, uid: u.uid, ...(u.recurrence_id ? { recurrence_id: u.recurrence_id } : {}) }, `${u.name} gelöscht`);
+  }
+  ausnahmeNeu(v) {
+    const az = (this.azJetzt || { tage: {} }).tage, h = this.z.HEUTE, morgen = plusTage(h, 1);
+    const sa = plusTage(h, (5 - (new Date(h + 'T12:00:00Z').getUTCDay() + 6) % 7 + 7) % 7 || 7);   // nächster Samstag
+    const vor = { 'heute-laenger': { datum: h, art: 'zeiten', von: (az[wtag(h)] || ['07:00'])[0], bis: '18:00', notiz: 'heute länger' },
+      'morgen-spaeter': { datum: morgen, art: 'zeiten', von: '09:00', bis: (az[wtag(morgen)] || ['', '16:30'])[1], notiz: 'morgen später' },
+      samstag: { datum: sa, art: 'arbeit', von: '07:00', bis: '12:00', notiz: '' }, frei: { datum: morgen, art: 'frei', von: '07:00', bis: '16:30', notiz: '' } }[v]
+      || { datum: plusTage(h, 7), art: 'zeiten', von: '07:00', bis: '16:30', notiz: '' };
+    this.s.sheet = { art: 'ausnahme', form: { ...vor } }; return this.neuZeichnen();
+  }
+  ausnahmeDazu(datum) { this.s.sheet = { art: 'ausnahme', form: { datum, art: 'arbeit', von: '17:00', bis: '19:00', notiz: '' } }; return this.neuZeichnen(); }
+  ausnahmeWeg(a) {   // FE-0012: nur dieses Fenster
+    const e = a.art ? { datum: a.datum, art: a.art, von: a.von || null, bis: a.bis || null } : { datum: a.datum };
+    return this.liste('ausnahmen', 'loeschen', e, a.art && a.art !== 'frei' ? `Zeitfenster ${a.von}–${a.bis} gelöscht – die anderen bleiben` : 'Ausnahme gelöscht – es gilt wieder die Arbeitszeit');
+  }
+  azNeu(v) {   // neue Arbeitszeit ab nächstem Montag, Tage als Vorlage aus v (die geltende oder die gewählte)
+    const tage = v ? JSON.parse(JSON.stringify(v.tage)) : { Mo: ['07:00', '16:30'], Di: ['07:00', '16:30'], Mi: ['07:00', '16:30'], Do: ['07:00', '16:30'], Fr: ['07:00', '12:30'], Sa: null, So: null };
+    this.s.sheet = { art: 'az-neu', form: { ab: plusTage(this.z.WOCHE_ISO[0], 7), name: '', tage } }; return this.neuZeichnen();
   }
   /* Einblendungen der Container-Ansicht (src/ansichten/einblendungen-container.js, BSM-022 3d) */
   schliessen() { this.s.sheet = null; return this.neuZeichnen(); }
@@ -1838,7 +1828,7 @@ class BaustellePanel extends LitElement {
     const tabs = [['uebersicht', 'Übersicht'], ...(this._mitHeizung ? [['heizung', 'Heizung']] : []), ...(this._mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     const aktivTab = S.view === 'container' ? 'uebersicht' : S.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(S.view) ? 'einst' : S.view;
     let seite;
-    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this), verlauf: () => verlaufVorlage(this), bsdetail: () => bsdetailVorlage(this), pumpen: () => pumpenVorlage(this),   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
+    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this), verlauf: () => verlaufVorlage(this), bsdetail: () => bsdetailVorlage(this), pumpen: () => pumpenVorlage(this), heizung: () => heizungVorlage(this),   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
       container: () => this.b.pumpe ? schachtVorlage(this) : containerVorlage(this) };
     if (!this.roh) seite = ladenVorlage(this.fehler);
     else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(S.view)) seite = leerVorlage(this);
@@ -1847,6 +1837,7 @@ class BaustellePanel extends LitElement {
     let sheet = '';
     if (S.sheet && S.sheet.art === 'melden') sheet = meldenVorlage(this, S.sheet.form);
     else if (S.sheet && CONTAINER_EINBLENDUNGEN[S.sheet.art]) sheet = CONTAINER_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
+    else if (S.sheet && S.sheet.art === 'hz') sheet = hzEinblendung(this, S.sheet);
     else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
     const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
@@ -1878,7 +1869,8 @@ class BaustellePanel extends LitElement {
       const k = platz.dataset.lit, b = this._litBereich[k] ||= Object.assign(document.createElement('div'), { className: 'lit-bereich' });
       platz.replaceWith(b);
     }
-    const vorlage = { 'ueber-einst': () => ueberVorlage(this, { mitZurueck: false }), 'dev-meldungen': () => devVorlage(this, { teil: 'meldungen' }), 'dev-werkzeuge': () => devVorlage(this, { teil: 'werkzeuge' }) };
+    const hz = k => () => HZ_BLOECKE[k](this, 'glas-panel block');   // Heizung-Blöcke in den Einstellungen (3d)
+    const vorlage = { 'hz-regeln': hz('regeln'), 'hz-trocknen': hz('trocknen'), 'hz-urlaub': hz('urlaub'), 'hz-container': hz('container'), 'ueber-einst': () => ueberVorlage(this, { mitZurueck: false }), 'dev-meldungen': () => devVorlage(this, { teil: 'meldungen' }), 'dev-werkzeuge': () => devVorlage(this, { teil: 'werkzeuge' }) };
     for (const [k, b] of Object.entries(this._litBereich)) if (b.isConnected && vorlage[k]) litRender(vorlage[k](), b, { host: this });
   }
   /* Lit-Teile neu zeichnen (Über, Melden) – unveränderte alte Ansichten bleiben dabei stehen */
@@ -2049,14 +2041,7 @@ class BaustellePanel extends LitElement {
   stepper(k, d, fmt) { const e = this.d.e; return `<span class="stepper"><button data-act="st" data-k="${k}" data-d="${-d}">−</button><b>${fmt(e[k])}</b><button data-act="st" data-k="${k}" data-d="${d}">+</button></span>`; }
   feiertage() { const k = this._kalender(this.d.optionen.feiertag_kalender); return k === null ? null : k.filter(f => f.von > this.z.HEUTE).sort((a, b) => a.von.localeCompare(b.von)); }
   urlaube() { const k = this._kalender(this.d.optionen.urlaub_kalender); return k === null ? null : k.filter(u => u.bis >= this.z.HEUTE).sort((a, b) => a.von.localeCompare(b.von)); }
-  /* ---- Heizung als Kacheln (0.7.11, Mockup heizung-varianten.html Variante A, abgenommen 30.09.2026) ----
-     Große Karte „Heute“, darunter die Hauptteile als Kacheln mit Kurzwert; ein Tipp öffnet den bisherigen Block als
-     Einblendung (heizungBloecke – Inhalte unverändert). */
-  hzTeile() {
-    const html = this.heizungBloecke(), stuecke = html.split(/(?=<div class="glas-panel block">)/), teile = {};
-    for (const [k, titel] of HZ_TEILE) { const x = stuecke.find(y => y.includes(`<b>${titel}</b>`)); teile[k] = x ? x.trim() : ''; }
-    return teile;
-  }
+  /* ---- Heizung als Kacheln (0.7.11): Vorlagen in src/ansichten/heizung.js (Lit, BSM-022 3d); hier Kurzwerte der Kacheln ---- */
   hzKurz() {
     const d = this.d, e = d.e, az = this.azJetzt, C = d.bereiche.filter(b => !b.pumpe), H = this.z.HEUTE;
     const ausn = d.ausnahmen.filter(a => a.datum >= H).sort((a, b) => a.datum.localeCompare(b.datum));
@@ -2067,7 +2052,7 @@ class BaustellePanel extends LitElement {
     return {
       woche, plan: `${woche.filter(Boolean).length} Heiztage · ${de(summe(woche), 0)} h`,
       wann: `${L.laufen} von ${L.hk.length} Heizkörpern an`,
-      az: az ? esc(az.name || 'Arbeitszeit') : 'keine Arbeitszeit', az2: az ? `Mo ${zeiten('Mo')} · Fr ${zeiten('Fr')}` : 'unter Arbeitszeit anlegen',
+      az: az ? az.name || 'Arbeitszeit' : 'keine Arbeitszeit', az2: az ? `Mo ${zeiten('Mo')} · Fr ${zeiten('Fr')}` : 'unter Arbeitszeit anlegen',
       ausn: ausn.length ? `${ausn.length} geplant` : 'keine', ausn2: ausn.length ? `nächste ${wtag(ausn[0].datum)} ${kurzDatum(ausn[0].datum)}` : 'Samstag, länger, frei …',
       regeln: `Soll ${de(e.soll, 1)} °C`, regeln2: `vor ${e.vorheizen} · nach ${e.nachheizen} min · Grenze ${de(e.grenze, 0)} °C · ${e.frost ? `Frost ${de(e.frost_temp, 1)}–${de(e.frost_aus, 1)} °C` : 'Frostschutz aus'}`,
       trocknen: `ab ${de(e.tr_mm, 1)} mm Regen`, trocknen2: `+${e.tr_laenger} min · früher ${e.tr_frueher} min`,
@@ -2075,44 +2060,6 @@ class BaustellePanel extends LitElement {
       urlaub: ur === null ? 'Lädt …' : ur.length ? `${ur.length} Urlaub` : 'kein Urlaub', urlaub2: naechsterFt ? `Feiertag ${wtag(naechsterFt.von)} ${kurzDatum(naechsterFt.von)}` : e.feiertag_frei ? '' : 'an Feiertagen wird gearbeitet',
     };
   }
-  hzHeld() {
-    const d = this.d, e = d.e, H = this.z.HEUTE, p = this.planTag(this.z.HEUTE_TAG), hg = d.heizgrenze || {}, pm = d.plan[plusTage(H, 1)], L = this.last();
-    const heizt = /heizt|♨/.test(this.statusText());
-    const chips = [
-      !e.auto ? '⏸ Automatik aus' : '',
-      p ? `🕖 ${uhr(p.a)}–${uhr(p.b)}` : `🕖 ${this.freiText(H)}`,
-      hg.zu_warm ? '🌡 zu warm – kein Heizen' : '',
-      p && p.codes.includes('trocknen') ? `🌧 trocknen +${e.tr_laenger} min` : '',
-      p && p.codes.includes('fruehstart') ? '❄ Frühstart heute' : pm && (pm.gruende || []).includes('fruehstart') ? '❄ Frühstart morgen' : '',
-      e.staffel && L.warten ? `⚡ ${L.warten} wartet` : '',
-      d.jetztBis ? `♨ alle heizen bis ${d.jetztBis}` : '',
-    ].filter(Boolean).map(c => `<span class="hz-chip">${c}</span>`).join('');
-    return `<div class="glas-panel hz-held klickbar" data-act="hz-auf" data-k="heute" role="button" tabindex="0">
-      <div class="hz-held-kopf"><div><div class="glas-klein">HEUTE · ${this.z.HEUTE_TAG} ${kurzDatum(H)}</div><div class="hz-status ${heizt ? 'an' : ''}">${esc(this.statusText())}</div></div><span class="chev">›</span></div>
-      <div class="tl">${this.zeitstrahl(p, true)}<div class="tl-achse">${['04', '08', '12', '16', '20'].map(h => `<span>${h}</span>`).join('')}</div></div>
-      ${chips ? `<div class="hz-chips">${chips}</div>` : ''}</div>`;
-  }
-  v_heizung() {
-    const d = this.d, k = this.hzKurz(), heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), max = Math.max(1, ...k.woche);
-    const kachel = (id, sym, titel, wert, unter, extra = '') => `<button class="glas-panel hz-kachel" data-act="hz-auf" data-k="${id}">
-      <span class="hz-k-kopf"><span class="hz-sym">${sym}</span><span class="chev">›</span></span>
-      <span class="hz-k-titel">${titel}</span><b class="hz-k-wert">${wert}</b>${extra}<span class="leise hz-k-unter">${unter || ''}</span></button>`;
-    const mini = `<span class="hz-mini">${k.woche.map((h, i) => `<i style="height:${Math.max(3, h / max * 100)}%" class="${i === heuteNr ? 'heute' : ''}"></i>`).join('')}</span>`;
-    return `${this.kopf('Heizung', esc(d.titel), `<div>${schalter(d.e.auto, 'auto')}</div>`)}${this.hzHeld()}
-      <div class="hz-raster">
-        ${kachel('plan', '📅', 'Diese Woche', k.plan, 'Heizplan aus Arbeitszeit und Wetter', mini)}
-        ${kachel('wann', '🔥', 'Wann heizt was', k.wann, 'gemessen je Heizkörper')}
-        ${kachel('container', '🏠', 'Container', k.container, k.container2)}
-        ${kachel('az', '👷', 'Arbeitszeit', k.az, k.az2)}
-        ${kachel('ausn', '✳️', 'Ausnahmen', k.ausn, k.ausn2)}
-        ${kachel('regeln', '⚙️', 'Regeln', k.regeln, k.regeln2)}
-        ${kachel('trocknen', '👕', 'Kleidung trocknen', k.trocknen, k.trocknen2)}
-        ${kachel('urlaub', '🏖', 'Urlaub & Feiertage', k.urlaub, k.urlaub2)}
-      </div>`;
-  }
-  /* AN-0012: Regeln nach Tagesablauf gruppiert (Mockup regeln-varianten.html, Variante B, abgenommen 01.10.2026) – auch die bisher
-     festen Werte: einstellbar (Schaltabstand, „heizt tatsächlich ab“, Handbetrieb übernehmen, Fühler ohne Wert) oder als „Feste Regeln“ */
-  /* Solltemperatur fest oder gleitend – alle Zahlen von der Integration (laufzeit.soll_gleitend, logik/soll) */
   /* AN-0014: Größe im Dialog „Container bearbeiten“ – Einzel, Doppel oder m² frei; Werte und Schätzung von der Integration */
   groesseBlock(b, e) {
     const G = b.groesse, T = G.typen, art = e.groesseArt, typ = k => `${k === 'einzel' ? 'Einzel' : 'Doppel'}container innen ${de(T[k].laenge, 2)} × ${de(T[k].breite, 2)} m ≈ ${de(T[k].m2, 1)} m² · ${de(G.hoehe, 2)} m hoch ≈ ${de(T[k].m3, 0)} m³`;
@@ -2124,26 +2071,6 @@ class BaustellePanel extends LitElement {
       ${w && w.geschaetzt && gleich ? `<div class="leise" style="padding:0 0 6px 12px">🧠 Noch nichts gelernt: Aufheizen geschätzt aus der Größe – ${de(w.geschaetzt, 1)} °C/h</div>` : ''}`;
   }
 
-  sollBlock(z) {
-    const e = this.d.e, G = this.d.sollG, gl = e.soll_art === 'gleitend', grad = v => `${de(v, 1)} °C`;
-    const kopf = z('🌡 Solltemperatur', 'für Container mit Fühler; ohne Fühler regelt der Heizkörperthermostat',
-      `<div class="seg klein">${[['fest', 'fest'], ['gleitend', 'gleitend']].map(([k, t]) => `<button data-act="e-wert" data-k="soll_art" data-v="${k}" class="${e.soll_art === k ? 'on' : ''}">${t}</button>`).join('')}</div>`);
-    if (!gl) return kopf + z('Soll', '', this.stepper('soll', .5, grad), true);
-    const st = (k, s, fmt) => this.stepper(k, s, fmt), f = v => `${v >= 0 ? '+' : '−'}${de(Math.abs(v), 1)} °C`;
-    const heute = !G ? '<div class="leise">Noch keine Außentemperatur – bis dahin gilt das feste Soll.</div>'
-      : `<div class="sg-heute"><span>Grundwert („mindestens“)${e.gleit_min >= 21 ? ' – Aufenthaltsräume (§ 36 BauV)' : ''}</span><b>${grad(e.gleit_min)}</b>
-        <span>kalte Tage: Außenmittel der letzten ${G.tage} Tage ${de(G.aussen_mittel, 1)} °C</span><b>${f(G.start - e.gleit_min)}</b>
-        <span>dein Gefühl: ${G.n} ${G.n === 1 ? 'Rückmeldung' : 'Rückmeldungen'} bei ähnlichem Wetter (je ${de(G.schritt, 2)} °C)</span><b>${f(G.gefuehl)}</b>
-        <span class="summe">Soll heute</span><b class="summe">${grad(G.soll)}</b></div>${this.sollKurve(G)}`;
-    return kopf + heute
-      + z('mindestens', e.gleit_min < 21 ? '<span class="amber-t">unter 21 °C – § 36 BauV verlangt für Aufenthaltsräume 21 °C</span>' : 'nie darunter (§ 36 BauV: Aufenthaltsräume 21 °C)', st('gleit_min', .5, grad), true)
-      + z('höchstens', '', st('gleit_max', .5, grad), true)
-      + z('wärmer je Grad kälter draußen', `unter ${de(e.gleit_bezug, 0)} °C Außenmittel`, st('gleit_je', .05, v => `+${de(v, 2)} °C`), true)
-      + z('ab Außenmittel unter', '', st('gleit_bezug', 1, v => `${de(v, 0)} °C`), true)
-      + z('Außenmittel über', 'wie EN 16798-1: jüngere Tage zählen mehr', st('gleit_tage', 1, v => `${v} ${v === 1 ? 'Tag' : 'Tage'}`), true)
-      + z('dein Gefühl', '„zu kalt / passt / zu warm“ und + / − im Container verschieben das Soll bei ähnlichem Wetter, höchstens ±1,5 °C', '<button class="rv-link" data-act="sg-vergessen">vergessen</button>', true)
-      + '<div class="leise">Ein eigenes Soll im Container gilt als Verschiebung gegenüber dem der Baustelle (Je Container).</div>';
-  }
   sollKurve(G) {
     const W = 320, H = 150, L = 30, R = 8, T = 8, U = 18, K = G.kurve || [], ys = K.flatMap(k => [k[1], k[2]]), lo = Math.floor(Math.min(20, ...ys)), hi = Math.ceil(Math.max(lo + 3, ...ys));
     const x = t => L + (t + 10) / 30 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U), soll = t => { const k = K.find(q => q[0] === Math.round(t)); return k ? k[2] : G.soll; };
@@ -2158,148 +2085,10 @@ class BaustellePanel extends LitElement {
       <circle cx="${x(tm).toFixed(1)}" cy="${y(G.soll).toFixed(1)}" r="6" fill="#fff" stroke="var(--amber)" stroke-width="3"/></svg>
       <div class="sg-leg"><span><i style="background:var(--amber)"></i>Soll (mit deinem Gefühl)</span><span><i style="background:var(--ink2)"></i>Startwert nach draußen</span><span><i style="background:#64a8ff"></i>zu kalt</span><span><i style="background:#30d158"></i>passt</span><span><i style="background:#ff9f0a"></i>zu warm</span>${unter ? '<span><i style="background:rgba(255,69,58,.35)"></i>unter 21 °C</span>' : ''}</div>`;
   }
-  regelnInhalt(lernend, C) {
-    const e = this.d.e, st = (k, s, fmt) => this.stepper(k, s, fmt), grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, minus = v => `${de(v, 0).replace('-', '−')} °C`;
-    const z = (titel, text, ctrl, unter) => `<div class="zeile${unter ? ' unter' : ''}"><div>${unter ? `<span>${titel}</span>` : `<b>${titel}</b>`}${text ? `<div class="leise">${text}</div>` : ''}</div>${ctrl || ''}</div>`;
-    const link = (act, extra) => `<button class="rv-link" data-act="${act}" ${extra}>ändern ›</button>`;
-    const nichtLern = lernend.length ? ' · <i>nicht für lernende Container</i>' : '';
-    const R = {
-      vorheizen: z('Vorheizen', `vor Arbeitsbeginn, damit es warm ist${nichtLern}`, st('vorheizen', 5, min)),
-      frueh: z('Kälte-Frühstart', `unter ${minus(e.frueh_temp)} zusätzlich früher${nichtLern}`, schalter(e.fruehstart, 'e-bool', 'data-k="fruehstart"'))
-        + (e.fruehstart ? z('wenn morgens kälter als', '', st('frueh_temp', 1, minus), true) + z('so viel früher', '', st('frueh_min', 5, min), true) : ''),
-      lernend: z('🧠 Lernende Container', `heizen selbst so früh, dass das Soll rechtzeitig erreicht ist – statt Vorheizen, Kälte-Frühstart und Nachheizen. Bis genug gelernt ist, gelten die Werte oben.${lernend.length ? ` Jetzt: ${lernend.map(b => esc(b.name)).join(', ')}.` : ' Gilt für Container mit Fühler, Modus Thermostat und lernender Regelung.'}`, ''),
-      warm_vor: z('Soll erreicht', 'vor Arbeitsbeginn, z. B. zum Umziehen', st('warm_vor', 5, v => v ? `${v} min vorher` : 'bei Beginn'), true),
-      warm_max: z('Frühestens', 'vor Arbeitsbeginn – Grenze, falls der Raum sehr kalt ist', st('warm_max', 15, v => `${v} min vorher`), true),
-      soll: this.sollBlock(z),
-      toleranz: z('Schaltabstand ± um das Soll', 'Thermostat: ein unter Soll − Abstand, aus über Soll + Abstand', st('toleranz', .1, v => `± ${de(v, 1)} °C`), true),
-      grenze: z('Heizgrenze', 'nicht heizen, wenn es wärmer ist', st('grenze', .5, grad)),
-      basis: z('Grundlage', '', `<div class="seg klein">${['jetzt', 'Tageshöchstwert'].map(v => `<button data-act="basis" data-v="${v}" class="${e.basis === v ? 'on' : ''}">${v}</button>`).join('')}</div>`, true),
-      boost: z('⚡ Schnell aufheizen', 'alle Heizkörper eines Containers zugleich, Vorrang in der Staffelung – bis zum Soll, ohne Fühler für', st('boost_min', 5, min)),
-      zusatz: !C.some(b => b.geraete.filter(g => g.heizer).length >= 2) ? '' : z('🔥 Zusatz-Heizkörper', `in Containern mit „Zusatz nur bei Bedarf“: zuerst heizt einer, der Zusatz kommt dazu, wenn …${(() => { const n = C.filter(b => b.stufenAn); return n.length ? ` Jetzt: ${n.map(b => esc(b.name)).join(', ')}.` : ' Einschalten im Container unter Bearbeiten.'; })()}`, '')
-        + z('… der Raum weiter unter dem Soll ist als', '', st('stufen_abstand', .5, grad), true) + z('… einer schon so lange läuft', '', st('stufen_min', 5, min), true)
-        + z('… und es dabei weniger wärmer wurde als', '', st('stufen_anstieg', .1, v => `${de(v)} °C`), true) + z('… es draußen kälter ist als (beide von Anfang an)', '', st('stufen_kalt', 1, minus), true),
-      tuer: z('🚪 Tür offen', 'Heizung pausieren nach', st('tuer_pause', 1, min)) + z('Nachricht nach', '', st('tuer_melden', 5, min), true),
-      nachheizen: z('Nachheizen', `nach Arbeitsende, jeden Tag${nichtLern}`, st('nachheizen', 5, min)),
-      warm_nach: z('Warm halten (lernende)', 'nach Arbeitsende; Kleidung trocknen kommt dazu', st('warm_nach', 5, v => v ? `${v} min länger` : 'bis Ende'), true),
-      trocknen: z('👕 Kleidung trocknen', `ab ${de(e.tr_mm, 1)} mm Regen: +${e.tr_laenger} min nach dem Nachheizen, am Morgen ${e.tr_frueher} min früher`, link('hz-auf', 'data-k="trocknen"')),
-      hand: z('✋ Handbetrieb übernehmen nach', 'Läuft ein Heizkörper zu lange von Hand, kommt eine Nachricht – ohne „So lassen“ übernimmt die Automatik so viel später', st('hand_nachfrist', 5, min)),
-      frost: z('❄ Frostschutz', 'hält jeden Container über der Grenze, auch außerhalb der Arbeitszeit', schalter(e.frost, 'e-bool', 'data-k="frost"'))
-        + (e.frost ? z('ein unter', '', st('frost_temp', .5, grad), true) + z('aus über', '', st('frost_aus', .5, grad), true)
-          + z('ohne Fühler: ein, wenn draußen unter', 'aus erst 2 °C darüber; der Heizkörperthermostat regelt dann selbst', e.frost_aussen === null ? '<span class="leise">aus</span>' : st('frost_aussen', 1, minus), true)
-          + z('auch bei Automatik aus', 'schaltet dann nur den Frostschutz, sonst nichts', schalter(e.frost_immer, 'e-bool', 'data-k="frost_immer"'), true) : ''),
-      urlaub: z('🏖 Urlaub &amp; freie Feiertage', { frost: 'nur Frostschutz', absenk: `absenken auf ${de(e.absenk)} °C`, aus: 'alles aus' }[e.urlaub], link('hz-auf', 'data-k="urlaub"')),
-      zieht: z('Heizt tatsächlich ab', 'Leistung, ab der ein Heizkörper als „heizt“ zählt – Heizzeit geheizt, Heiztage, Warm ab, Lernen, Wann heizt was', st('zieht_w', 5, v => `${v} W`)),
-      fuehler: z('🌡 Fühler ohne Wert', 'meldet ein Fühler nichts, gilt sein letzter Wert noch so lange – danach regelt der Container wie ohne Fühler', st('fuehler_halten', 5, min)),
-      staffel: z('⚡ Staffelung', e.staffel ? `${e.nutzbar} % je Anschluss nutzbar · höchstens ${e.max_gleich} gleichzeitig · mindestens ${e.min_lauf} min an, ${e.min_pause} min Pause` : 'aus – alle Heizkörper dürfen zugleich', link('tab-einst', 'data-g="strom"')),
-    };
-    const karte = (ic, titel, unter, teile) => { const inhalt = teile.map(k => R[k]).join(''); return inhalt ? `<div class="rv-kopf"><b>${ic} ${titel}</b><span class="leise">${unter}</span></div><div class="rv-karte">${inhalt}</div>` : ''; };
-    const FEST = [
-      ['Außentemperatur ohne Wert', '6 h', 'der letzte Außenwert gilt noch so lange (Heizgrenze, Frostschutz ohne Fühler)'],
-      ['Frostschutz ohne Fühler aus', '+2 °C', 'über der Außen-Grenze, damit er nicht dauernd ein- und ausschaltet'],
-      ['„Schaltet sich selbst ein“', '3× in 10 min', 'so oft musste die Automatik ein Gerät ausschalten – dann Störung statt Protokoll jede Minute'],
-      ['Lernen: Takt', '10 min, mind. 2 min ein', 'Thermostat lernend: Anteil je Takt; kürzere Pulse lohnen nicht'],
-      ['Lernen: Aufheizen zählt', 'ab 1 °C unter Soll, ≥ 20 min, ≥ 0,5 °C', 'so wird die Aufheizrate gemessen; ab 3 Messungen je Außenband rechnet der Container selbst'],
-      ['Lernen: kalt / mild', 'unter 5 °C außen', 'Aufheizraten getrennt nach kaltem und mildem Wetter'],
-      ['Tür vermutlich offen', '−0,3 °C in 10 min', 'beim Heizen, während es draußen kaum kälter wurde – danach 10 min nichts lernen'],
-    ];
-    return karte('🌅', 'Vor der Arbeit', 'warm, wenn es losgeht', ['vorheizen', 'frueh', 'lernend', 'warm_vor', 'warm_max'])
-      + karte('👷', 'In der Arbeitszeit', 'auf das Soll halten', ['soll', 'toleranz', 'grenze', 'basis', 'boost', 'zusatz', 'tuer'])
-      + karte('🌇', 'Nach der Arbeit', 'warm halten, trocknen, übernehmen', ['nachheizen', 'warm_nach', 'trocknen', 'hand'])
-      + karte('🌙', 'Nachts, frei, Urlaub', 'nur Frostschutz', ['frost', 'urlaub'])
-      + karte('⏱', 'Immer', 'Messung und Strom', ['zieht', 'fuehler', 'staffel'])
-      + `<div class="rv-kopf"><b>📐 Feste Regeln</b><span class="leise">bewährte Schwellen, nicht änderbar</span></div><div class="rv-karte">${FEST.map(([t, w, x]) => `<div class="rv-fest"><span>${t}</span><b>${w}</b><div class="leise">${x}</div></div>`).join('')}</div>`
-      + erkl(e.erklaer, 'Vorheizen und Nachheizen gelten jeden Arbeitstag. Die Verlängerungen zählen zusammen: vor der Arbeit Vorheizen + Kälte-Frühstart + früher nach Regen, danach Nachheizen + Kleidung trocknen (AN-0003). Die Heizgrenze verhindert Heizen an warmen Tagen. Der Frostschutz springt unter „ein“ an und hört erst über „aus“ wieder auf, damit der Heizkörper nicht dauernd ein- und ausschaltet.');
-  }
-  heizungBloecke() {
-    const d = this.d, e = d.e, st = (k, s, fmt) => this.stepper(k, s, fmt);
-    const grad = v => `${de(v, 1)} °C`, min = v => `${v} min`, mm = v => `${de(v, 1)} mm`;
-    const p = this.planTag(this.z.HEUTE_TAG), az = this.azJetzt, hg = d.heizgrenze || {}, w = d.wetter || {};
-    const bezug = zahl(hg.bezug) ? hg.bezug : e.basis === 'jetzt' ? w.aussen : w.aussen_max;
-    const ft = this.feiertage(), naechster = ft && ft[0];
-    const morgen = plusTage(this.z.HEUTE, 1), wm = this.wetterTag(morgen), pm = this.d.plan[morgen];
-    const regel = (ic, titel, text, an) => `<div class="hr-zeile ${an ? 'an' : ''}"><span class="hr-ic">${ic}</span><div><b>${titel}</b><div class="leise">${text}</div></div><span class="hr-an">${an ? '●' : '○'}</span></div>`;
-    const C = d.bereiche.filter(b => !b.pumpe), ur = this.urlaube(), lernend = C.filter(b => b.lern && b.lern.warm);   // AN-0004
-    const freiT = e.urlaub === 'absenk' ? `heute abgesenkt auf ${de(e.absenk)} °C (mit Fühler), sonst Frostschutz` : e.urlaub === 'aus' ? 'heute alles aus – auch kein Frostschutz' : 'heute nur Frostschutz';
-    const frei = { urlaub: ['Urlaub', freiT], feiertag: ['Feiertag', freiT] }[d.status];
-    const urlaubsKal = d.optionen.urlaub_kalender, feiertagsKal = d.optionen.feiertag_kalender;
-    return `${this.kopf('Heizung', esc(d.titel), `<div>${schalter(e.auto, 'auto')}</div>`)}
-      <div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">welche Regeln greifen</span></div>
-        ${regel('🕖', `Arbeitszeit ${p ? `${uhr(p.a)}–${uhr(p.b)}` : 'frei'}`, `${az ? `„${esc(az.name)}“` : 'keine Arbeitszeit'} · heizt ${p ? `${uhr(p.extra)}–${uhr(p.ende)}` : 'nicht'}`, !!p)}
-        ${p ? `<div class="zeile unter hz-rechnung"><span class="leise">${this.planRechnung(p)}</span></div>` : ''}
-        ${lernend.map(b => `<div class="zeile unter"><span class="leise">🧠 <b>${esc(b.name)}</b>: ${this.warmText(b)}</span></div>`).join('')}
-        ${regel('🌡', `Heizgrenze ${de(e.grenze, 0)} °C`, zahl(bezug) ? `${e.basis === 'jetzt' ? 'jetzt' : 'Höchstwert heute'} ${de(bezug, 0)} °C → ${hg.zu_warm ?? bezug > e.grenze ? 'zu warm, es wird nicht geheizt' : 'es wird geheizt'}` : 'kein Wert vom Wetter', !(hg.zu_warm ?? (zahl(bezug) && bezug > e.grenze)))}
-        ${regel('🌧', 'Kleidung trocknen', zahl(w.regen_heute) ? `${de(w.regen_heute, w.regen_heute % 1 ? 1 : 0)} mm Regen seit gestern (ab ${de(e.tr_mm)} mm) → ${w.regen_heute >= e.tr_mm ? `${e.tr_laenger} min länger, bis ${p ? uhr(p.ende) : '–'}` : 'nicht nötig'}` : 'kein Regenwert vom Wetter', zahl(w.regen_heute) && w.regen_heute >= e.tr_mm)}
-        ${regel('❄', 'Kälte-Frühstart morgen', zahl(wm.kalt) ? `${de(wm.kalt).replace('-', '−')} °C erwartet (unter ${de(e.frueh_temp, 0).replace('-', '−')} °C) → ${wm.kalt < e.frueh_temp ? `${e.frueh_min} min früher` : 'nicht nötig'}${pm && (pm.gruende || []).includes('frueher_nach_regen') ? `, dazu ${e.tr_frueher} min nach Regen` : ''}` : 'noch keine Vorhersage für morgen', e.fruehstart && zahl(wm.kalt) && wm.kalt < e.frueh_temp)}
-        ${e.staffel ? (() => { const L = this.last(); return regel('⚡', `Staffelung: ${L.laufen} von ${L.hk.length} Heizkörpern`, `${L.warten ? `${L.warten} wartet, weil ein Anschluss ausgelastet ist` : 'alle haben Platz'} · höchstens ${e.max_gleich} gleichzeitig · Vorheizen startet 15 min früher, damit alle warm werden`, true); })() : ''}
-        ${frei ? regel('🏖', frei[0], frei[1], true) : regel('🏖', 'Kein Urlaub, kein Feiertag', naechster ? `nächster Feiertag ${wtag(naechster.von)} ${kurzDatum(naechster.von)} ${esc(naechster.name)}` : feiertagsKal ? (ft === null ? 'Feiertage laden …' : 'kein Feiertag im Kalender') : 'kein Feiertagskalender gewählt', false)}</div>
-      ${this.uebersichtHeizzeiten()}
-      <div class="glas-panel block"><div class="block-kopf"><b>Heizplan · diese Woche</b><span class="leise">aus Arbeitszeit und Wetter</span></div>${this.heizplanInhalt()}</div>
-      ${this.azBlock()}
-      ${this.ausnahmenBlock()}
-      <div class="glas-panel block"><div class="block-kopf"><b>So wird geheizt</b><span class="leise">nach Tagesablauf</span></div>
-        ${this.regelnInhalt(lernend, C)}</div>
-      <div class="glas-panel block"><div class="block-kopf"><b>👕 Kleidung trocknen</b><span class="leise">nach Regen zusätzlich zum Nachheizen</span></div>
-        <div class="zeile"><span>ab Regen (seit gestern)</span>${st('tr_mm', .5, mm)}</div>
-        <div class="zeile"><span>zusätzlich nach dem Nachheizen</span>${st('tr_laenger', 5, min)}</div>
-        <div class="zeile"><span>am nächsten Morgen früher</span>${st('tr_frueher', 5, min)}</div></div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Je Container</b><span class="leise">Modus · Trocknen · Soll</span></div>
-        ${C.map(b => { const soll = this.sollVon(b);
-          return `<div class="jc"><div class="jc-name"><b>${esc(b.name)}</b><span class="leise">${b.offline ? 'offline' : b.t !== null ? `🌡 ${de(b.t)} °C` : 'ohne Fühler'}</span></div>
-            <div class="jc-ctrl"><select class="jc-modus" data-jm="${b.id}" title="Modus" aria-label="Modus ${esc(b.name)}">${MODI.map(([k, t]) => `<option value="${k}" ${b.modus === k ? 'selected' : ''} ${k === 'thermo' && !b.fuehler ? 'disabled' : ''}>${t}</option>`).join('')}</select>
-              <span class="jc-l">👕</span>${schalter(b.trocknen, 'tr-b', `data-id="${b.id}"`).replace('class="sw', 'class="sw klein')}
-              ${b.fuehler ? `<span class="stepper klein"><button data-act="jc-soll" data-id="${b.id}" data-d="-0.5">−</button><b class="${b.soll !== undefined ? 'eigen' : ''}">${de(soll)}°</b><button data-act="jc-soll" data-id="${b.id}" data-d="0.5">+</button></span>`
-                : '<span class="leise jc-th">Thermostat</span>'}</div></div>`; }).join('')}
-        <div class="leise">Ein eigener Sollwert (bernstein) gilt nur für diesen Container, sonst gilt ${de(e.soll)} °C.</div>
-        ${erkl(e.erklaer, 'Zeitplan: an in der Heizzeit, der Heizkörper regelt selbst. Thermostat: in der Heizzeit nach dem Fühler auf das Soll (nur mit Fühler). Bei Bedarf: nur per Schalter oder Termin. Hand: die Automatik schaltet nicht. Aus: nur Frostschutz.')}</div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Urlaub &amp; Feiertage</b></div>
-        <div class="zeile"><div><b>An Feiertagen frei</b><div class="leise">${feiertagsKal ? `Feiertage aus dem Kalender „${esc(this.name(feiertagsKal))}“` : 'noch kein Feiertagskalender gewählt'}</div></div>${schalter(e.feiertag_frei, 'e-bool', 'data-k="feiertag_frei"')}</div>
-        <div class="zeile modus-z"><div><b>Im Urlaub und an freien Feiertagen</b><div class="leise">${{ frost: 'nur Frostschutz', absenk: `mit Fühler auf ${de(e.absenk)} °C halten, ohne Fühler nur Frostschutz`, aus: 'alles aus – auch kein Frostschutz. Nur, wenn nichts einfrieren kann.' }[e.urlaub]}</div></div>
-          <div class="seg klein">${[['frost', 'nur Frostschutz'], ['absenk', 'absenken'], ['aus', 'alles aus']].map(([k, t]) => `<button data-act="e-wert" data-k="urlaub" data-v="${k}" class="${e.urlaub === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
-        ${e.urlaub === 'absenk' ? `<div class="zeile unter"><span>absenken auf</span>${st('absenk', .5, grad)}</div>` : ''}
-        ${ft === null ? '<div class="leise">Lädt …</div>' : ft.slice(0, 4).map(f => { const t = wtag(f.von), we = t === 'Sa' || t === 'So';
-          return `<div class="zeile unter"><span><b class="ft-d">${t} ${kurzDatum(f.von)}</b> ${esc(f.name)}</span><span class="leise">${we ? 'Wochenende' : 'frei'}</span></div>`; }).join('')}
-        <div class="gruppe-t">Urlaub · ${urlaubsKal ? `Kalender „${esc(this.name(urlaubsKal))}“` : 'kein Kalender gewählt'}</div>
-        ${ur === null ? '<div class="leise">Lädt …</div>' : ur.map((u, i) => `<div class="zeile unter"><span><b>${esc(u.name)}</b> <span class="leise">${kurzDatum(u.von)} – ${datum(u.bis)}</span></span><button class="x" data-act="urlaub-weg" data-i="${i}" title="Urlaub löschen">✕</button></div>`).join('') || '<div class="leise">Kein Urlaub eingetragen</div>'}
-        <button class="zeile" data-act="sheet" data-s="${urlaubsKal ? 'urlaub' : 'wetterquelle'}"><span class="blau">${urlaubsKal ? '+ Urlaub eintragen' : 'Kalender für Urlaub wählen'}</span></button></div>`;
-  }
-  /* FE-0012: Ausnahmen je Tag mit mehreren Zeitfenstern; Arbeitszeit-Block und eigene Fenster rechnet die Integration (plan) */
-  ausnahmenBlock() {
-    const H = this.z.HEUTE, L = this.d.ausnahmen.filter(a => a.datum >= H), tage = [...new Set(L.map(a => a.datum))].sort();
-    const badge = a => a.art === 'frei' ? '' : `<span class="badge ${a.art === 'zeiten' ? '' : 'blau-b'}">${AUSNAHME[a.art]}</span>`;
-    return `<div class="glas-panel block"><div class="block-kopf"><b>Ausnahmen</b><span class="leise">einmalig – mehrere Zeitfenster je Tag möglich</span></div>
-      <div class="bedarf-dauer">${[['heute-laenger', '+ Heute länger'], ['morgen-spaeter', '+ Morgen später'], ['samstag', '+ Samstag arbeiten'], ['frei', '+ Freier Tag']].map(([k, t]) => `<button class="chip glas-panel" data-act="ausn-neu" data-v="${k}">${t}</button>`).join('')}</div>
-      ${tage.length ? tage.map(t => { const A = L.filter(a => a.datum === t).sort((x, y) => (x.von || '').localeCompare(y.von || '')), frei = A.some(a => a.art === 'frei'), p = this.planIso(t);
-        const az = this.azJetzt && this.azJetzt.tage[wtag(t)], basis = !frei && !A.some(a => a.art === 'zeiten') && az ? `<div class="am-fenster leise">${az.join('–')} laut Arbeitszeit</div>` : '';
-        return `<div class="am-tag"><div class="am-tag-kopf"><b>${wtag(t)} ${kurzDatum(t)}</b>${frei ? '<span class="badge">frei</span>' : ''}</div>${basis}
-          ${A.map(a => `<div class="am-fenster">${a.art === 'frei' ? '<b>frei</b>' : `<b>${a.von}–${a.bis}</b>`} ${badge(a)}${a.notiz ? ` <span class="leise">${esc(a.notiz)}</span>` : ''}
-            <button class="x" data-act="ausn-weg" data-d="${a.datum}" data-art="${a.art}" data-von="${a.von || ''}" data-bis="${a.bis || ''}" title="dieses Zeitfenster löschen">✕</button></div>`).join('')}
-          ${frei || !p ? '' : `<div class="am-strahl">${this.zeitstrahl(p, t === H)}<div class="tl-achse"><span>04</span><span>12</span><span>20</span></div></div>
-            <div class="am-hinweis">${this.planFensterText(p)}</div>`}
-          ${frei ? '' : `<button class="zeile" data-act="ausn-dazu" data-d="${t}"><span class="blau">+ weiteres Zeitfenster an diesem Tag</span></button>`}</div>`; }).join('') : '<div class="leise">Keine Ausnahmen</div>'}
-      <button class="zeile" data-act="ausn-neu" data-v=""><span class="blau">+ Ausnahme für einen anderen Tag</span></button></div>`;
-  }
   planFensterText(p) {
     return [`Arbeit ${uhr(p.a)}–${uhr(p.b)}, geheizt ${uhr(p.extra)}–${uhr(p.ende)} (mit Vor-/Nachheizen)`,
       ...(p.eigene || []).map(f => `nur ${uhr(f[0])}–${uhr(f[1])} geheizt (eigenes Fenster, ohne Vor-/Nachheizen)`)].join(' · ');
   }
-  azBlock() {
-    const L = this.azListe, jetzt = this.azJetzt;
-    if (!jetzt) return `<div class="glas-panel block"><div class="block-kopf"><b>Arbeitszeit</b></div><div class="leise">Noch keine Arbeitszeit – ohne Arbeitszeit läuft nur der Frostschutz.</div>
-      <button class="zeile" data-act="az-neu"><span class="blau">+ Neue Arbeitszeit ab …</span></button></div>`;
-    const geplant = L.filter(a => a.ab > this.z.HEUTE), frueher = L.filter(a => a.ab < jetzt.ab).reverse();
-    const idx = a => this.d.arbeitszeiten.indexOf(a);
-    return `<div class="glas-panel block"><div class="block-kopf"><b>Arbeitszeit</b><span class="badge gruen">${jetzt.ab <= this.z.HEUTE ? 'gilt seit' : 'gilt ab'} ${datum(jetzt.ab)}</span></div>
-      <div class="az-name">${esc(jetzt.name)}</div>
-      ${jetzt.auto ? '<div class="leise">Automatisch angelegt – wird ersetzt, sobald du eine eigene Arbeitszeit speicherst (auch mit früherem Datum).</div>' : ''}
-      <button class="zeile" data-act="sheet" data-s="az" data-i="${idx(jetzt)}"><span class="blau">Bearbeiten oder löschen</span><span class="chev">›</span></button>
-      ${TAGE.map(t => { const z = jetzt.tage[t]; return `<div class="zeile az ${t === this.z.HEUTE_TAG ? 'heute' : ''}"><b class="tag-n">${t}</b>
-        <span class="fenster">${z ? `<em>${z[0]}–${z[1]}</em>` : '<span class="leise">frei</span>'}</span><span class="leise">${z ? dauer(z[0], z[1]) : ''}</span></div>`; }).join('')}
-      ${geplant.filter(a => a !== jetzt).map(a => `<button class="zeile" data-act="sheet" data-s="az" data-i="${idx(a)}"><span><span class="badge blau-b">geplant</span> ab ${datum(a.ab)} · ${esc(a.name)}</span><span class="chev">›</span></button>`).join('')}
-      ${frueher.length ? `<button class="zeile" data-act="az-alt"><span>Frühere Arbeitszeiten (${frueher.length})</span><span class="chev">${this.s.azAlt ? '⌄' : '›'}</span></button>` : ''}
-      ${this.s.azAlt ? frueher.map(a => `<button class="zeile unter" data-act="sheet" data-s="az" data-i="${idx(a)}"><span>${datum(a.ab)} · ${esc(a.name)}</span><span class="leise">${a.tage.Mo ? a.tage.Mo.join('–') : ''} ›</span></button>`).join('') : ''}
-      <button class="zeile" data-act="az-neu"><span class="blau">+ Neue Arbeitszeit ab …</span></button></div>`;
-  }
-
   /* ---- Auswertung ---- */
   v_auswertung() {
     const d = this.d, aw = this.s.aw ||= { zeitraum: 'Monat', auswahl: d.bereiche.map(b => b.id) }, z = aw.zeitraum;
@@ -3116,7 +2905,7 @@ class BaustellePanel extends LitElement {
       ${this.d.e.notprogramm ? knopf(this.s.npPrueft ? '⟳ prüft …' : '⟳ Jetzt prüfen', 'np-pruefen') : ''}${knopf('Schließen')}`;
   }
   einstGruppen() {
-    const d = this.d, e = d.e, o = d.optionen, hz = this.hzTeile(), st = (k, s, fmt) => this.stepper(k, s, fmt), M = this.meldungen();
+    const d = this.d, e = d.e, o = d.optionen, st = (k, s, fmt) => this.stepper(k, s, fmt), M = this.meldungen();
     this._einstAlt = null;
     const zeile = (t, x, sub = '') => `<div class="zeile"><div><b>${t}</b>${sub ? `<div class="leise">${sub}</div>` : ''}</div>${x}</div>`;
     const knopf = (t, wert, act, extra = '') => `<button class="zeile" data-act="${act}" ${extra}><span>${t}</span><span class="leise">${wert} ›</span></button>`;
@@ -3133,10 +2922,10 @@ class BaustellePanel extends LitElement {
           + knopf('Feiertage', o.feiertag_kalender ? nm(o.feiertag_kalender) : 'kein Kalender', 'sheet', wq) + knopf('Termine (Bei Bedarf)', tk ? nm(tk) : 'kein Kalender', 'sheet', wq)) },
       { k: 'heizung', ic: '🔥', t: 'Heizung', kurz: `Automatik ${e.auto ? 'an' : 'aus'} · Soll ${de(e.soll)} °C · Vorheizen ${e.vorheizen} min`,
         html: liste('Automatik', zeile('Automatik', schalter(e.auto, 'auto'), 'die Integration schaltet die Heizungen nach Plan und Regeln'))
-          + (hz.regeln || '') + (hz.trocknen || '') + (hz.urlaub || '')
+          + '<div data-lit="hz-regeln"></div><div data-lit="hz-trocknen"></div><div data-lit="hz-urlaub"></div>'
           + liste('Zeiten', knopf('Arbeitszeit', 'ändern, neue ab Datum', 'hz-auf', 'data-k="az"') + knopf('Ausnahmen', 'einmalig', 'hz-auf', 'data-k="ausn"') + knopf('Heizplan · diese Woche', 'ansehen', 'hz-auf', 'data-k="plan"')) },
       this.npGruppe(),
-      { k: 'container', ic: '🏠', t: 'Container & Geräte', kurz: `${cont.length} Container · ${pumpen.length} ${pumpen.length === 1 ? 'Schacht' : 'Schächte'} · ${geraete} Geräte`, html: this.einstBlock('Container und Geräte') + (hz.container || '') },
+      { k: 'container', ic: '🏠', t: 'Container & Geräte', kurz: `${cont.length} Container · ${pumpen.length} ${pumpen.length === 1 ? 'Schacht' : 'Schächte'} · ${geraete} Geräte`, html: this.einstBlock('Container und Geräte') + '<div data-lit="hz-container"></div>' },
       (() => { const gl = this.geraeteListe(); return { k: 'geraete', ic: '🔌', t: 'Geräte', kurz: `${gl.n} Geräte${gl.offline ? ` · ${gl.offline} meldet nichts` : ' · alle erreichbar'}`, html: gl.html }; })(),
       { k: 'pumpen', ic: '💧', t: 'Pumpen', kurz: pumpen.length ? `offline nach ${e.offline_min} min · Trockenlauf unter ${e.trocken_w} W` : 'keine Schächte',
         html: liste('Überwachung der Pumpen', zeile('Offline – melden nach', st('offline_min', 1, v => `${v} min`)) + zeile('Trockenlauf unter', st('trocken_w', 5, v => `${v} W`))
@@ -3256,9 +3045,6 @@ class BaustellePanel extends LitElement {
     if (s.art === 'np-plug') return this.npPlug(s, griff, knopf);   // BSM-019
     if (s.art === 'aussehen') return this.symDialog(s, griff, knopf);   // BSM-032
     if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
-    if (s.art === 'hz') { const T = this.hzTeile(), def = HZ_TEILE.find(x => x[0] === s.k) || HZ_TEILE[0];
-      const inhalt = s.k === 'heute' ? T.heute + T.wann : s.k === 'az' ? T.az + T.ausn : T[s.k];
-      return `${griff}<div class="block-kopf"><h3>${def[2]} ${esc(def[3])}</h3></div>${(inhalt || '').replace(/class="glas-panel block"/g, 'class="block hz-innen"')}${knopf('Schließen')}`; }
     if (s.art === 'wetter') {
       const a = s.wa || 'std', e = d.e, ws = this.zustand(d.wetterEid), w = d.wetter || {};
       const folge = (t, mm) => [zahl(t) && t < e.frueh_temp ? '<span class="w-folge blau">Frühstart</span>' : '', zahl(mm) && mm >= e.tr_mm ? '<span class="w-folge amber">Kleidung trocknen</span>' : '',
@@ -3661,34 +3447,25 @@ class BaustellePanel extends LitElement {
       case 'zu': return this.schliessen();
       case 'melden': return this.meldenAuf();
       case 'toast': return this.toast(el.dataset.t);
-      case 'auto': return this.setzen(['automatik'], !d.e.auto, !d.e.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
+      case 'auto': return this.automatikUmschalten();
       case 'bedarf-auf': S.sheet = { art: 'bedarf', cid: el.dataset.id, boost: false }; return neu();
       case 'bedarf-an': return this.bedarfAn(el.dataset.id, el.dataset.v);
       case 'bedarf-aus': return this.bedarfAus(el.dataset.id);
       case 'termin-weg': { const t = d.termine[+el.dataset.i]; return t && this.terminWeg(t); }
       case 'termin-speichern': return this.terminSpeichern();
       case 'boost': return this.boostUmschalten(d.bereiche.find(y => y.id === el.dataset.id));
-      case 'hz-art': S.hzArt = el.dataset.v; return neu();
-      case 'hz-tag': S.hzTag = el.dataset.v; if (el.dataset.art) S.hzArt = 'tag'; return neu();
-      case 'ausn-neu': { const v = el.dataset.v, az = (this.azJetzt || { tage: {} }).tage, h = this.z.HEUTE, morgen = plusTage(h, 1);
-        const sa = plusTage(h, (5 - (new Date(h + 'T12:00:00Z').getUTCDay() + 6) % 7 + 7) % 7 || 7);   // nächster Samstag
-        const vor = { 'heute-laenger': { datum: h, art: 'zeiten', von: (az[wtag(h)] || ['07:00'])[0], bis: '18:00', notiz: 'heute länger' },
-          'morgen-spaeter': { datum: morgen, art: 'zeiten', von: '09:00', bis: (az[wtag(morgen)] || ['', '16:30'])[1], notiz: 'morgen später' },
-          samstag: { datum: sa, art: 'arbeit', von: '07:00', bis: '12:00', notiz: '' }, frei: { datum: morgen, art: 'frei', von: '07:00', bis: '16:30', notiz: '' } }[v]
-          || { datum: plusTage(h, 7), art: 'zeiten', von: '07:00', bis: '16:30', notiz: '' };
-        S.sheet = { art: 'ausnahme', form: { ...vor } }; return neu(); }
+      case 'ausn-neu': return this.ausnahmeNeu(el.dataset.v);
       case 'au-art': S.sheet.form.art = el.dataset.v; return neu();
       case 'au-speichern': { const f = S.sheet.form; if (!f.datum || (f.art !== 'frei' && f.bis <= f.von)) return this.toast('Bitte Tag und Uhrzeit prüfen');
         S.sheet = null; neu();
         const dazu = f.art !== 'frei' && d.ausnahmen.some(a => a.datum === f.datum && a.art !== 'frei');
         return this.liste('ausnahmen', 'speichern', { datum: f.datum, art: f.art, von: f.von, bis: f.bis, notiz: f.notiz.trim() }, `Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)} ${dazu ? 'dazu – die anderen bleiben' : 'gespeichert'}`); }
-      case 'ausn-weg': { const x = el.dataset, e = x.art ? { datum: x.d, art: x.art, von: x.von || null, bis: x.bis || null } : { datum: x.d };   // FE-0012: nur dieses Fenster
-        return this.liste('ausnahmen', 'loeschen', e, x.art && x.art !== 'frei' ? `Zeitfenster ${x.von}–${x.bis} gelöscht – die anderen bleiben` : 'Ausnahme gelöscht – es gilt wieder die Arbeitszeit'); }
-      case 'ausn-dazu': S.sheet = { art: 'ausnahme', form: { datum: el.dataset.d, art: 'arbeit', von: '17:00', bis: '19:00', notiz: '' } }; return neu();
+      case 'ausn-weg': { const x = el.dataset; return this.ausnahmeWeg({ datum: x.d, art: x.art, von: x.von, bis: x.bis }); }
+      case 'ausn-dazu': return this.ausnahmeDazu(el.dataset.d);
       case 'jetzt-an': return this.aktion('jetzt_heizen', { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`);
       case 'jetzt-aus': return this.aktion('jetzt_heizen', { minuten: null }, 'Zurück zum Plan');
       case 'b-auto': { const x = el.dataset.id ? d.bereiche.find(y => y.id === el.dataset.id) : b; return x && this.bereichAuto(x); }
-      case 'hz-auf': S.sheet = { art: 'hz', k: el.dataset.k }; return neu();
+      case 'hz-auf': return this.hzAuf(el.dataset.k);
       case 'modus': { const x = d.bereiche.find(y => y.id === el.dataset.id); return x && this.modusSetzen(x, el.dataset.v); }
       case 'tv': S.tv = el.dataset.v; return neu();
       case 'sym-auf': S.sheet = { art: 'aussehen', id: S.cid || (this.b && this.b.id) }; return neu();   // BSM-032
@@ -3735,7 +3512,7 @@ class BaustellePanel extends LitElement {
       case 'kk-layout': S.kkLayout = !S.kkLayout; return neu();
       case 'sg-gefuehl': return this.gefuehl(b, +el.dataset.v);
       case 'sg-zurueck': return this.sollZurueck({ id: el.dataset.id });
-      case 'sg-vergessen': return this.aktion('gefuehl_vergessen', {}, 'Gelerntes Gefühl vergessen – es gilt der Startwert nach draußen');
+      case 'sg-vergessen': return this.gefuehlVergessen();
       case 'sr-auf': { const o = S.srOffen ||= [], id = el.dataset.id; if (o.includes(id)) o.splice(o.indexOf(id), 1); else o.push(id); return neu(); }
       case 'kk-dia': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; if (!x) return; x.dia = x.dia === false; this.kkMerken(ort); return neu(); }
       case 'kk-auf': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; return x ? this.kkAuf(x, ort) : undefined; }
@@ -3767,16 +3544,12 @@ class BaustellePanel extends LitElement {
       case 'geraet': return this.geraetSchalten(b, +el.dataset.i);
       case 'chart': S.chart = el.dataset.c; return neu();
       case 'verlauf': S.verlauf = el.dataset.v; return neu();
-      case 'basis': return this.setzen(PFAD.basis, el.dataset.v === 'jetzt' ? 'jetzt' : 'tageshoechst');
-      case 'e-bool': { const k = el.dataset.k;
-        if (ARTEN[k]) return this.setzen(['meldungen_einst', 'arten', ARTEN[k]], !d.e[k]);
-        return this.setzen(PFAD[k], !d.e[k]); }
+      case 'basis': return this.heizgrenzeBasis(el.dataset.v);
+      case 'e-bool': return this.einstellungUmschalten(el.dataset.k);
       case 'st': return this.stufeSchritt(el.dataset.k, +el.dataset.d);
       case 'jc-auto': { const x = d.bereiche.find(y => y.id === el.dataset.id); return this.setzen(['bereiche', x.id, 'auto'], !x.auto); }
-      case 'jc-soll': { const x = d.bereiche.find(y => y.id === el.dataset.id), [min, max] = GRENZEN.soll;
-        return this.setzen(['bereiche', x.id, 'soll'], Math.min(max, Math.max(min, Math.round(((x.soll ?? d.e.soll) + +el.dataset.d) * 2) / 2))); }
-      case 'urlaub-weg': { const u = (this.urlaube() || [])[+el.dataset.i]; if (!u) return; delete this.cache['k:' + d.optionen.urlaub_kalender];
-        return this.ws({ type: 'calendar/event/delete', entity_id: d.optionen.urlaub_kalender, uid: u.uid, ...(u.recurrence_id ? { recurrence_id: u.recurrence_id } : {}) }, `${u.name} gelöscht`); }
+      case 'jc-soll': return this.containerSoll(d.bereiche.find(y => y.id === el.dataset.id), +el.dataset.d);
+      case 'urlaub-weg': { const u = (this.urlaube() || [])[+el.dataset.i]; return u && this.urlaubWeg(u); }
       case 'urlaub-speichern': { const f = S.sheet.form; if (!f.von || !f.bis || f.bis < f.von) return this.toast('Bitte Von und Bis prüfen');
         S.sheet = null; neu(); delete this.cache['k:' + d.optionen.urlaub_kalender];
         return this.ws({ type: 'calendar/event/create', entity_id: d.optionen.urlaub_kalender, event: { summary: f.name.trim() || 'Urlaub', dtstart: f.von, dtend: plusTage(f.bis, 1) } }, 'Eingetragen – in der Zeit nur Frostschutz'); }
@@ -3806,7 +3579,7 @@ class BaustellePanel extends LitElement {
       case 'fc-weg': S.sheet.form.neu.splice(+el.dataset.i, 1); return neu();
       case 'fc-art': S.sheet.form.neu[+el.dataset.i].art = el.dataset.v; return neu();
       case 'firma-weg': { const id = S.sheet.form.id; S.sheet = null; neu(); return this.liste('firmen', 'loeschen', { id }, 'Firma gelöscht – Container gehören wieder der eigenen Firma'); }
-      case 'e-wert': { const v = el.dataset.v; return this.setzen(PFAD[el.dataset.k], isNaN(+v) ? v : +v); }
+      case 'e-wert': return this.einstellungWert(el.dataset.k, el.dataset.v);
       case 'prio': return this.setzen(['bereiche', el.dataset.id, 'prio'], el.dataset.v);
       case 'n-knopf': return this.toast(`„${el.dataset.t}“ – so reagierst du direkt aus der Nachricht`);
       case 'bericht-senden': { const art = d.e.bericht === 'monat' ? 'monat' : 'woche'; return this.aktion('bericht_senden', { art }, `Bericht für ${art === 'monat' ? 'den Vormonat' : 'die Vorwoche'} gesendet`); }
@@ -3830,12 +3603,9 @@ class BaustellePanel extends LitElement {
       case 'warm-eigen': { if (!b) return; const vor = el.dataset.k === 'vor', alt = vor ? b.warmVor ?? d.e.warm_vor : b.warmNach ?? d.e.warm_nach;   // AN-0004
         return this.setzen(['bereiche', b.id, vor ? 'warm_vor' : 'warm_nach'], Math.max(0, Math.min(240, alt + +el.dataset.d))); }
       case 'warm-zurueck': return this.setzen(['bereiche', b.id, 'warm_vor'], null).then(() => this.setzen(['bereiche', b.id, 'warm_nach'], null));
-      case 'az-alt': S.azAlt = !S.azAlt; return neu();
       case 'az-heizung': return this.gehe('heizung');
-      case 'az-neu': case 'az-vorlage': { const v = a === 'az-vorlage' ? d.arbeitszeiten[S.sheet.i] : this.azJetzt;
-        const tage = v ? JSON.parse(JSON.stringify(v.tage)) : { Mo: ['07:00', '16:30'], Di: ['07:00', '16:30'], Mi: ['07:00', '16:30'], Do: ['07:00', '16:30'], Fr: ['07:00', '12:30'], Sa: null, So: null };
-        const mo = plusTage(this.z.WOCHE_ISO[0], 7);
-        S.sheet = { art: 'az-neu', form: { ab: mo, name: '', tage } }; return neu(); }
+      case 'az-neu': return this.azNeu(this.azJetzt);
+      case 'az-vorlage': return this.azNeu(d.arbeitszeiten[S.sheet.i]);
       case 'az-bearbeiten': { const v = d.arbeitszeiten[S.sheet.i]; if (!v) return;   // FE-0002
         S.sheet = { art: 'az-neu', form: { alt_ab: v.ab, ab: v.ab, name: v.auto ? '' : v.name, tage: JSON.parse(JSON.stringify(v.tage)) } }; return neu(); }
       case 'az-weg': { if (d.arbeitszeiten.length < 2) return this.toast('Die letzte Arbeitszeit bleibt'); const x = d.arbeitszeiten[S.sheet.i]; S.sheet = null; neu(); return this.liste('arbeitszeiten', 'loeschen', { ab: x.ab }, `${x.name} gelöscht`); }
@@ -3945,9 +3715,6 @@ class BaustellePanel extends LitElement {
     if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
     if (k === 'mail') return this.setzen(PFAD.mail, String(el.value).trim(), 'Gespeichert');
     if (el && el.dataset && el.dataset.sym) return this.symAenderung(el);   // BSM-032
-    const jm = el && el.dataset && el.dataset.jm;
-    if (jm) { const x = this.d.bereiche.find(y => y.id === jm); if (!x || x.modus === el.value) return undefined;
-      return this.setzen(['bereiche', jm, 'modus'], el.value, `${x.name}: ${(MODI.find(q => q[0] === el.value) || [el.value, el.value])[1]}`); }
     return undefined;
   }
   hover(ev) {
