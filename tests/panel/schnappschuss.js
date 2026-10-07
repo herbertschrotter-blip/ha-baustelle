@@ -297,6 +297,38 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('b bearbeiten 3', { act: 'bs-bearbeiten', id: panel.d.entry }); await text('b bearbeiten preis', '.sheet button.zeile', 'Neuer Preis'); await zu('b bearbeiten preis');
   await schritt('b bearbeiten 4', { act: 'bs-bearbeiten', id: panel.d.entry }); await text('b bearbeiten alle', '.sheet button.zeile', 'Alle Einstellungen');
   await schritt('b bearbeiten 5', { act: 'bs-bearbeiten', id: panel.d.entry }); await schritt('b bearbeiten fertig', '.sheet .knopf.amber');
+  // Dialoge für Container und Geräte (Stufe 3e): Firma, Anschluss, Container neu, Bearbeiten, Aussehen, Gerät
+  const alleSel = async (name, sel, i) => { const x = panel.shadowRoot.querySelectorAll(sel)[i], ab = befehle.length; if (x) x.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); else aus[`fehlt ${sel}[${i}]`] = { html: '', befehle: [] }; await ruhe(); aus[name] = { html: ui.innerHTML, befehle: befehle.slice(ab) }; };
+  await schritt('g', { act: 'tab', v: 'einst' }); await schritt('g firmen', { act: 'ev-gruppe', v: 'firmen' });
+  await text('g firma', '.ev-inhalt button.zeile', 'Firma hinzufügen'); await feld('g firma name', '.sheet .feld input', 'Trockenbau Maier');
+  await alleSel('g firma c', '.sheet .zeile .sw', 0); await text('g firma neu', '.sheet button.zeile', 'Neuer Container'); await feld('g firma neu name', '.sheet .fc-neu input', 'Lager Ost');
+  await text('g firma neu art', '.sheet .fc-neu .seg button', 'Schacht'); await text('g firma neu 2', '.sheet button.zeile', 'Neuer Container'); await alleSel('g firma neu weg', '.sheet .fc-neu .x', 1);
+  await schritt('g firma speichern', '.sheet .knopf.amber');
+  await text('g firma eigen', '.ev-inhalt button.zeile', 'eigene'); await zu('g firma eigen');
+  await text('g firma leer', '.ev-inhalt button.zeile', 'Firma hinzufügen'); await schritt('g firma leer speichern', '.sheet .knopf.amber'); await zu('g firma leer');
+  await schritt('g strom', { act: 'ev-gruppe', v: 'strom' }); await text('g an', '.ev-inhalt button.zeile', 'Anschluss hinzufügen'); await feld('g an name', '.sheet .feld input', 'Verteiler West');
+  await text('g an 63', '.sheet .seg button', '63 A'); await text('g an schuko', '.sheet .seg button', 'Schuko'); await schritt('g an res', '.sheet .stepper button:nth-child(3)'); await alleSel('g an c', '.sheet .zeile .sw', 0);
+  await schritt('g an speichern', '.sheet .knopf.amber');
+  await alleSel('g an alt', '.ev-inhalt button.zeile.unter', 0); await wenn('g an löschen', '.sheet .knopf.rot'); await wenn('g an alt zu', '.sheet .knopf.leise-k');
+  await schritt('g cont', { act: 'ev-gruppe', v: 'container' }); await text('g neu', '.ev-inhalt button.zeile', 'Container oder Schacht'); await feld('g neu name', '.sheet .feld input', 'Lager Nord');
+  await text('g neu schacht', '.sheet .seg button', 'Pumpenschacht'); await text('g neu container', '.sheet .seg button', 'Container');
+  { const sel = panel.shadowRoot.querySelectorAll('.sheet label.feld select')[1], wert = sel && sel.options[1] ? sel.options[1].value : '';
+    await feld('g neu shelly', '.sheet label.feld:nth-of-type(3) select', wert, 'change'); }
+  await wenn('g neu typ da', '.sheet label.feld:nth-of-type(4) select'); await feld('g neu typ', '.sheet label.feld:nth-of-type(4) select', 'Konvektor', 'change'); await schritt('g neu anlegen', '.sheet .knopf.amber');
+  await text('g b', '.ev-inhalt button.zeile', 'Poliercontainer'); await feld('g b name', '.sheet > .feld input', 'Polier');
+  await wenn('g b zusatz', '.sheet > .zeile .sw'); await text('g b doppel', '.sheet .seg button', 'Doppel'); await text('g b m2', '.sheet .seg button', 'm²'); await feld('g b m2 wert', '.sheet input[type="number"]', '18');
+  await feld('g b tür', '.sheet .feld:nth-last-of-type(3) select', '', 'change'); await feld('g b firma', '.sheet .feld:nth-last-of-type(1) select', 'eigen', 'change');
+  await feld('g b gerät name', '.sheet .ge-zeile input', 'Radiator A'); await alleSel('g b gerät weg', '.sheet .ge-zeile .x', 0); await alleSel('g b gerät zurück', '.sheet .ge-zeile.weg .chip', 0);
+  await text('g b gerät neu', '.sheet button.zeile', 'Gerät hinzufügen'); await alleSel('g b gerät neu weg', '.sheet .ge-zeile .x', 2);
+  await schritt('g b speichern', '.sheet .knopf.amber');
+  await text('g b2', '.ev-inhalt button.zeile', 'Polier'); await schritt('g aussehen', '.sheet .sym-zeile');
+  await schritt('g sym doppel', '.sheet .liste .zeile .sw'); await alleSel('g sym farbe', '.sheet .sym-farbe', 2); await alleSel('g sym rahmen', '.sheet .sym-farben .knopf', 0); await alleSel('g sym rahmen 2', '.sheet .sym-farben:last-of-type .sym-farbe', 1);
+  await text('g sym tür neu', '.sheet button.zeile', '+ Tür'); await text('g sym seite', '.sheet .seg button', 'Seite'); await text('g sym rechts', '.sheet .seg button', 'rechts');
+  await alleSel('g sym tür weg', '.sheet .knopf.klein[aria-label="entfernen"]', 0); await feld('g sym sensor', '.sheet label.zeile.unter select', '', 'change');
+  await feld('g sym farbe eigen', '.sheet input[type="color"]', '#123456', 'change'); await wenn('g sym standard', '.sheet > .knopf:not(.leise-k):not(.amber)'); await schritt('g sym fertig', '.sheet > .knopf:last-child');
+  await text('g b3', '.ev-inhalt button.zeile', 'Polier'); await schritt('g gerät', '.sheet .ge-zeile .bs-ic'); await feld('g gerät name', '.sheet > .feld input', 'Radiator B');
+  await feld('g gerät typ', '.sheet .raster-2 .feld:nth-child(1) select', 'Konvektor', 'change'); await schritt('g gerät aktiv', '.sheet > .zeile .sw'); await wenn('g gerät kw', '.sheet .stepper button:nth-child(3)');
+  await schritt('g gerät speichern', '.sheet .knopf.amber');
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
@@ -326,6 +358,8 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('nur-lesen e3 bericht', { act: 'ev-gruppe', v: 'bericht' }); await feld('nur-lesen e3 mail', '.ev-inhalt input[type="email"]', 'x@example.org', 'change');
   await schritt('nur-lesen b bearbeiten', { act: 'bs-bearbeiten', id: panel.d.entry }); await text('nur-lesen b bearbeiten name', '.sheet button.zeile', 'Name'); await zu('nur-lesen b bearbeiten');
   await schritt('nur-lesen b nachrichten', { act: 'sheet', s: 'nachrichten' }); await zu('nur-lesen b nachrichten');
+  await schritt('nur-lesen g', { act: 'ev-gruppe', v: 'container' }); await text('nur-lesen g b', '.ev-inhalt button.zeile', 'Polier'); await schritt('nur-lesen g b speichern', '.sheet .knopf.amber');
+  await wenn('nur-lesen g b gerät', '.sheet .ge-zeile .bs-ic'); await zu('nur-lesen g b');
   aus.toast = { html: panel.letzterToast || '', befehle: [] };
   fs.writeFileSync(ziel, JSON.stringify(aus));
   console.log(`Schnappschuss: ${Object.keys(aus).length} Schritte, ${befehle.length} Befehle → ${ziel}`);

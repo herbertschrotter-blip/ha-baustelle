@@ -295,6 +295,17 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   `preisListe`, Felder `data-sp`/`data-ur`/`data-wq`/`data-nm`/`data-bsz`/`data-hp` in `eingabe()`, Klick-Fälle
   `n-knopf`, `wetterquelle-auf`. Nachweis: Schnappschuss um die Dialoge erweitert (402 Schritte), inhaltlich gleich, auch
   Nicht-Admin; Panel-Test über die Feld-Merkmale `data-f`.
+- **3e Dialoge für Container und Geräte, 07.10.2026 (0.8.94):** `src/ansichten/einblendungen-einrichtung.js` (Firma,
+  Anschluss, Neuer Container, Container bearbeiten mit Größe/„Warm ab“/Geräteliste, Aussehen, Gerät bearbeiten;
+  `EINRICHTUNG_EINBLENDUNGEN`). Die langen Speichern-Rümpfe stehen unverändert als Methoden (`firmaSpeichern`,
+  `firmaWeg`, `anschlussSpeichern`, `anschlussWeg`, `containerAnlegen`, `bereichSpeichern`, `bereichWeg`,
+  `geraetSpeichern`), dazu `bereichEntwurf`, `warmEigen`, `warmZurueck`, `geraetNennKw`, `aussehenAuf`, `symAendern`
+  (Konfiguration kopieren, ändern, senden), `symStandard`. **Entfallen:** fünf Zweige in `sheet()` und `symDialog`,
+  `groesseBlock`, `symKlick`, `symAenderung`, zwölf Feldarten in `eingabe()`, der `data-sym`-Pfad in `aenderung()` und
+  rund 20 Klick-Fälle (Zuordnen, Werte, Geräteliste, Größe, Aussehen). Die Speichern-/Löschen-Fälle bleiben bis Stufe 4
+  als Weiterleitung. Test-Merkmale ohne Ereignisweg: `data-f`/`data-i` an Feldern, `data-id` an Zuordnungszeilen,
+  `data-zeile`, `data-w`, `data-z`/`data-art`. Nachweis: Schnappschuss um die Dialoge erweitert (476 Schritte), inhaltlich
+  gleich (Vergleich blendet jetzt auch `data-*` mit Ziffern aus); Panel-Test über die neuen Merkmale.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

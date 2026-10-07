@@ -30,6 +30,7 @@ import { HZ_BLOECKE, heizungVorlage, hzEinblendung } from './ansichten/heizung.j
 import { HEIZUNG_EINBLENDUNGEN } from './ansichten/einblendungen-heizung.js';
 import { einstellungenVorlage } from './ansichten/einstellungen.js';
 import { BAUSTELLE_EINBLENDUNGEN } from './ansichten/einblendungen-baustelle.js';
+import { EINRICHTUNG_EINBLENDUNGEN } from './ansichten/einblendungen-einrichtung.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -956,7 +957,7 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN)];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN)];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
   static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
@@ -1681,6 +1682,105 @@ class BaustellePanel extends LitElement {
     S.sheet = null; this.neuZeichnen();
     return this.liste('arbeitszeiten', 'speichern', { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage, ...(f.alt_ab !== undefined ? { alt_ab: f.alt_ab } : {}) }, text);
   }
+  /* Dialoge für Container und Geräte (src/ansichten/einblendungen-einrichtung.js, BSM-022 3e); Rümpfe wie bisher in klick() */
+  firmaSpeichern() {
+    const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
+    const f = S.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
+    const neue = f.neu.filter(c => c.name.trim());
+    S.sheet = null; neu();
+    return (async () => {
+      let ids = [];
+      if (neue.length) { try { for (const c of neue) await this.bereichAnlegen(c.name.trim(), c.art === 'Schacht'); ids = await this.neueIds(neue.map(c => c.name.trim())); } catch (e) { return this.toast(`Nicht angelegt: ${this.fehlerText(e)}`); } }
+      return this.liste('firmen', 'speichern', { ...(f.id ? { id: f.id } : {}), name: f.name.trim(), container: [...f.container, ...ids] }, `${f.name.trim()} gespeichert${neue.length ? ` · ${neue.length} Container angelegt` : ''}`);
+    })();
+  }
+  firmaWeg() {
+    const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
+    const id = S.sheet.form.id; S.sheet = null; neu(); return this.liste('firmen', 'loeschen', { id }, 'Firma gelöscht – Container gehören wieder der eigenen Firma');
+  }
+  anschlussSpeichern() {
+    const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
+    const f = S.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
+    S.sheet = null; neu();
+    return this.liste('anschluesse', 'speichern', { ...(f.id ? { id: f.id } : {}), name: f.name.trim(), ampere: f.ampere, phasen: f.phasen, reserve_kw: f.reserve, container: f.container }, `${f.name.trim()} gespeichert`);
+  }
+  anschlussWeg() {
+    const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
+    const id = S.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); S.sheet = null; neu();
+    return this.liste('anschluesse', 'loeschen', { id }, `Gelöscht – Container hängen jetzt an ${rest ? rest.name : 'keinem Anschluss'}`);
+  }
+  containerAnlegen() {
+    const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
+    const f = S.sheet.form, name = f.name.trim() || 'Neuer Container', schacht = f.art === 'Pumpenschacht';
+    S.sheet = null; neu();
+    return this.einrichten(async () => {
+      const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'bereich'] }, this.bereichDaten(name, schacht ? 'pumpenschacht' : 'container', f.fuehler));
+      if (this.flowFehler(r) || !f.schalter) return r;
+      const [bid] = await this.neueIds([name]); if (!bid) return r;
+      return this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'] }, this.geraetDaten(bid, { n: schacht ? 'Pumpe 1' : '', typ: f.typ, schalter: f.schalter }));
+    }, `${name} angelegt`).then(() => this._laden());
+  }
+  bereichSpeichern() {
+    const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
+    const e = S.sheet.edit, x = b; S.sheet = null; neu();
+    return this.einrichten(async () => {
+      const eb = { ...((d.r.einstellungen.bereiche || {})[x.id] || {}) }, pfad = k => ['bereiche', x.id, k];
+      if (e.name.trim() && (e.name.trim() !== x.name || (e.fuehler || '') !== (x.fuehler || ''))) {
+        const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'bereich'], subentry_id: x.id }, this.bereichDaten(e.name.trim(), x.art || 'container', e.fuehler));
+        if (this.flowFehler(r)) return r; }
+      const call = (k, w) => this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: pfad(k), wert: w });
+      if (e.bedarf !== !!eb.bedarf) await call('bedarf', e.bedarf);
+      if (x.groesse) { const m2 = e.groesseArt === 'einzel' ? null : e.groesseArt === 'doppel' ? x.groesse.typen.doppel.m2 : (zahl(e.m2) && Number(e.m2) >= 4 ? Number(e.m2) : undefined);   // AN-0014
+        if (m2 !== undefined && m2 !== (eb.groesse_m2 ?? null)) await call('groesse_m2', m2); }
+      if ((e.tuer || null) !== (eb.tuer || null)) await call('tuer', e.tuer || null);
+      if (e.anschluss && e.anschluss !== x.anschluss) await call('anschluss', e.anschluss);
+      if (e.firma !== x.firma) {
+        if (x.firma !== 'eigen') await this._hass.callWS({ type: 'baustelle/liste', entry_id: d.entry, liste: 'firmen', aktion: 'speichern', eintrag: { id: x.firma, name: this.firma(x.firma).name, container: d.bereiche.filter(y => y.firma === x.firma && y.id !== x.id).map(y => y.id) } });
+        if (e.firma !== 'eigen') await this._hass.callWS({ type: 'baustelle/liste', entry_id: d.entry, liste: 'firmen', aktion: 'speichern', eintrag: { id: e.firma, name: this.firma(e.firma).name, container: [...d.bereiche.filter(y => y.firma === e.firma).map(y => y.id), x.id] } });
+      }
+      for (const g of e.geraete) {
+        if (g.weg && !g.neu) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
+        else if (g.neu && !g.weg && g.schalter) { const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'] }, this.geraetDaten(x.id, g)); if (this.flowFehler(r)) return r; }
+        else if (!g.neu && !g.weg && (g.n !== g.alt.n || g.typ !== g.alt.typ)) { const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id }, this.geraetDaten(x.id, g)); if (this.flowFehler(r)) return r; }
+      }
+      return true;
+    }, e.geraete.some(g => g.weg && !g.neu) ? `Gespeichert · ${e.geraete.filter(g => g.weg && !g.neu).length} entfernt – Werte bleiben im Verlauf` : 'Gespeichert').then(() => this._laden());
+  }
+  bereichWeg() {
+    const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
+    const x = b; S.sheet = null; this.gehe('uebersicht');
+    return this.einrichten(async () => {
+      for (const g of x.geraete) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
+      await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: x.id }); return true;
+    }, `${x.name} entfernt – Werte bleiben im Verlauf`).then(() => this._laden());
+  }
+  geraetSpeichern() {
+    const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
+    const f = S.sheet.form, g = b.geraete[S.sheet.i], x = b; if (!f.n.trim() || !f.schalter) return this.toast('Bitte Name und Shelly wählen');
+    S.sheet = null; neu();
+    const geaendert = f.n.trim() !== g.n || f.schalter !== g.schalter || f.typ !== g.typ || f.bereich !== x.id || f.leistung !== (g.leistungEigen || '') || f.energie !== (g.energieEigen || '');
+    return this.einrichten(async () => {
+      if (geaendert) {
+        const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id },
+          this.geraetDaten(f.bereich, { n: f.n.trim(), typ: f.typ, schalter: f.schalter, leistung: f.leistung || undefined, energie: f.energie || undefined }));
+        if (this.flowFehler(r)) return r; }
+      if (f.aktiv !== g.aktiv) await this._hass.callWS({ type: 'baustelle/aktion', entry_id: d.entry, aktion: 'aktiv', geraet: g.id, an: f.aktiv });
+      return true;
+    }, `${f.n.trim()} gespeichert`).then(() => this._laden());
+  }
+  warmEigen(x, k, dd) { const d = this.d, vor = k === 'vor', alt = vor ? x.warmVor ?? d.e.warm_vor : x.warmNach ?? d.e.warm_nach;   // AN-0004
+    return this.setzen(['bereiche', x.id, vor ? 'warm_vor' : 'warm_nach'], Math.max(0, Math.min(240, alt + dd))); }
+  warmZurueck(x) { return this.setzen(['bereiche', x.id, 'warm_vor'], null).then(() => this.setzen(['bereiche', x.id, 'warm_nach'], null)); }
+  geraetNennKw(g, dd) { return this.setzen(['geraete', g.id, 'nenn_kw'], Math.max(0, Math.min(10, Math.round(((g.nennKwEigen ?? g.kw) + dd) * 10) / 10))); }   // Szenarien: Nennleistung ohne Messung
+  aussehenAuf(x) { this.s.sheet = { art: 'aussehen', id: x.id }; return this.neuZeichnen(); }   // BSM-032
+  bereichEntwurf(x, s) {   // Entwurf für „Container bearbeiten“: einmal aus den Daten, danach bleibt er beim Neuzeichnen stehen
+    const d = this.d;
+    return s.edit ||= { bedarf: !!x.bedarf, name: x.name, anschluss: x.anschluss || (d.anschluesse[0] && d.anschluesse[0].id) || '', tuer: (x.tuer && x.tuer.eid) || '', firma: x.firma || 'eigen', fuehler: x.fuehler || '',
+      groesseArt: (x.groesse && x.groesse.art) || 'einzel', m2: x.groesse ? x.groesse.m2 : null,
+      geraete: x.geraete.map(g => ({ id: g.id, n: g.n, typ: g.typ, schalter: g.schalter, leistung: g.leistung, energie: g.energie, alt: { n: g.n, typ: g.typ } })) };
+  }
+  symAendern(x, fn) { const c = JSON.parse(JSON.stringify(this.symKonfig(x))); fn(c); return this.symSenden(x, c); }
+  symStandard(x) { this.s.sheet.sym = null; return this.setzen(['bereiche', x.id, 'symbol'], null); }
   /* Dialoge rund um die Baustelle (src/ansichten/einblendungen-baustelle.js, BSM-022 3e) */
   berichtDaten() {   // Inhalt des Beispielberichts von der Integration; undefined = lädt, null = nicht verfügbar
     const d = this.d, e = d.e, art = e.bericht === 'monat' ? 'monat' : 'woche';
@@ -1931,6 +2031,7 @@ class BaustellePanel extends LitElement {
     else if (S.sheet && S.sheet.art === 'hz') sheet = hzEinblendung(this, S.sheet);
     else if (S.sheet && HEIZUNG_EINBLENDUNGEN[S.sheet.art]) sheet = HEIZUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && BAUSTELLE_EINBLENDUNGEN[S.sheet.art]) sheet = BAUSTELLE_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
+    else if (S.sheet && EINRICHTUNG_EINBLENDUNGEN[S.sheet.art]) sheet = EINRICHTUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
     const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
@@ -2140,17 +2241,6 @@ class BaustellePanel extends LitElement {
       urlaub: ur === null ? 'Lädt …' : ur.length ? `${ur.length} Urlaub` : 'kein Urlaub', urlaub2: naechsterFt ? `Feiertag ${wtag(naechsterFt.von)} ${kurzDatum(naechsterFt.von)}` : e.feiertag_frei ? '' : 'an Feiertagen wird gearbeitet',
     };
   }
-  /* AN-0014: Größe im Dialog „Container bearbeiten“ – Einzel, Doppel oder m² frei; Werte und Schätzung von der Integration */
-  groesseBlock(b, e) {
-    const G = b.groesse, T = G.typen, art = e.groesseArt, typ = k => `${k === 'einzel' ? 'Einzel' : 'Doppel'}container innen ${de(T[k].laenge, 2)} × ${de(T[k].breite, 2)} m ≈ ${de(T[k].m2, 1)} m² · ${de(G.hoehe, 2)} m hoch ≈ ${de(T[k].m3, 0)} m³`;
-    const w = b.lern && b.lern.warm, gleich = art === G.art && (art !== 'frei' || Number(e.m2) === G.m2);
-    return `<div class="zeile"><div><b>Größe</b><div class="leise">für Vergleiche (kWh je m²) und als Startwert der lernenden Regelung</div></div>
-      <div class="seg klein">${[['einzel', 'Einzel'], ['doppel', 'Doppel'], ['frei', 'm²']].map(([k, t]) => `<button data-act="groesse-art" data-v="${k}" class="${art === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
-      ${art === 'frei' ? `<label class="zeile unter"><span>Fläche innen</span><span class="eingabe"><input type="number" step="0.5" min="4" value="${esc(e.m2 ?? '')}" data-bm2> m²</span></label>
-        <div class="leise" style="padding:0 0 6px 12px">Höhe ${de(G.hoehe, 2)} m${gleich ? ` ≈ ${de(G.m3, 0)} m³` : ''}</div>` : `<div class="leise" style="padding:0 0 6px 12px">${typ(art)}</div>`}
-      ${w && w.geschaetzt && gleich ? `<div class="leise" style="padding:0 0 6px 12px">🧠 Noch nichts gelernt: Aufheizen geschätzt aus der Größe – ${de(w.geschaetzt, 1)} °C/h</div>` : ''}`;
-  }
-
   sollKurve(G) {
     const W = 320, H = 150, L = 30, R = 8, T = 8, U = 18, K = G.kurve || [], ys = K.flatMap(k => [k[1], k[2]]), lo = Math.floor(Math.min(20, ...ys)), hi = Math.ceil(Math.max(lo + 3, ...ys));
     const x = t => L + (t + 10) / 30 * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - U), soll = t => { const k = K.find(q => q[0] === Math.round(t)); return k ? k[2] : G.soll; };
@@ -2855,47 +2945,6 @@ class BaustellePanel extends LitElement {
     const q = b.symbol || SYMBOL_STANDARD, el = y => ({ wand: y.wand, pos: y.pos, sensor: y.sensor || null });
     return (this.s.sheet.sym = { doppel: !!q.doppel, farbe: q.farbe || null, rahmen: q.rahmen || null, tueren: q.tueren.map(el), fenster: q.fenster.map(el), licht: q.licht || null }); }
   symSenden(b, c) { this.s.sheet.sym = c; this.neuZeichnen(); return this.setzen(['bereiche', b.id, 'symbol'], c); }
-  symKlick(a, el) {
-    const b = this.d.bereiche.find(x => x.id === this.s.sheet.id); if (!b) return undefined;
-    const c = JSON.parse(JSON.stringify(this.symKonfig(b))), art = el.dataset.art, i = +el.dataset.i;
-    if (a === 'sym-standard') { this.s.sheet.sym = null; return this.setzen(['bereiche', b.id, 'symbol'], null); }
-    if (a === 'sym-doppel') c.doppel = !c.doppel;
-    if (a === 'sym-farbe') c.farbe = el.dataset.v;
-    if (a === 'sym-rahmen') c.rahmen = el.dataset.v || null;
-    if (a === 'sym-wand') c[art][i].wand = el.dataset.v;
-    if (a === 'sym-lage') c[art][i].pos = +el.dataset.v;
-    if (a === 'sym-weg' && c[art].length > 1) c[art].splice(i, 1);
-    if (a === 'sym-neu' && c[art].length < (art === 'tueren' ? 2 : 4)) { const frei = [.15, .33, .5, .67, .85].find(v => !c[art].some(y => y.wand === 'front' && y.pos === v)) ?? .5; c[art].push({ wand: 'front', pos: frei, sensor: null }); }
-    return this.symSenden(b, c);
-  }
-  symAenderung(el) {
-    const b = this.d.bereiche.find(x => x.id === this.s.sheet.id); if (!b) return undefined;
-    const c = JSON.parse(JSON.stringify(this.symKonfig(b))), [k, i] = el.dataset.sym.split(':');
-    if (k === 'farbe') c.farbe = el.value; else if (k === 'rahmen') c.rahmen = el.value; else if (k === 'licht') c.licht = el.value || null; else c[k][+i].sensor = el.value || null;
-    return this.symSenden(b, c);
-  }
-  symDialog(s, griff, knopf) {
-    const b = this.d.bereiche.find(x => x.id === s.id); if (!b) return `${griff}<div class="leer">Container nicht gefunden</div>${knopf('Schließen')}`;
-    const c = this.symKonfig(b), ist = b.symbol || SYMBOL_STANDARD, std = BEREICH_FARBEN[b.f % BEREICH_FARBEN.length];
-    const vorschau = { ...c, licht_an: ist.licht_an, tueren: c.tueren.map((t, i) => ({ ...t, offen: !!(ist.tueren[i] && ist.tueren[i].offen) })),
-      fenster: c.fenster.map((f, i) => ({ ...f, zustand: (ist.fenster[i] && ist.fenster[i].zustand) || 'zu' })) };
-    const kontakte = this.entitaeten(x => x.entity_id.startsWith('binary_sensor.') && ['door', 'window', 'opening', 'garage_door'].includes(x.attributes.device_class));
-    const lichter = this.entitaeten(x => /^(light|switch)\./.test(x.entity_id) || (x.entity_id.startsWith('binary_sensor.') && x.attributes.device_class === 'light') || (x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'illuminance'));
-    const seg = (act, art, i, wert, opts) => `<div class="seg klein">${opts.map(([v, t]) => `<button data-act="${act}" data-art="${art}" data-i="${i}" data-v="${v}" class="${String(wert) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
-    const element = (art, x, i, n) => `<div class="zeile"><b>${art === 'tueren' ? '🚪 Tür' : '🪟 Fenster'} ${i + 1}</b>${n > 1 ? `<button class="knopf klein" data-act="sym-weg" data-art="${art}" data-i="${i}" aria-label="entfernen">✕</button>` : ''}</div>
-      <div class="zeile unter"><span>Wand</span>${seg('sym-wand', art, i, x.wand, [['front', 'Front'], ['seite', 'Seite']])}</div>
-      <div class="zeile unter"><span>${art === 'tueren' ? 'Sitzt' : 'Lage'}</span>${art === 'tueren' ? seg('sym-lage', art, i, x.pos < .4 ? .15 : x.pos > .6 ? .85 : .5, [[.15, 'links'], [.5, 'Mitte'], [.85, 'rechts']]) : seg('sym-lage', art, i, x.pos, [[.15, 'links'], [.33, '◧'], [.5, 'Mitte'], [.67, '◨'], [.85, 'rechts']])}</div>
-      <label class="zeile unter"><span>${art === 'tueren' ? 'Türsensor' : 'Fenstersensor'}</span><select data-sym="${art}:${i}">${this.optionen(kontakte, x.sensor || '', art === 'tueren' && i === 0 ? 'wie Türkontakt des Containers' : 'keiner')}</select></label>`;
-    return `${griff}<div class="block-kopf"><h3>🏠 Aussehen · ${esc(b.name)}</h3></div><div class="sym-vorschau">${bcContainer(std, b.z === 'pause' || b.z === 'bereit' ? 'aus' : b.z, { symbol: vorschau })}</div>
-      <div class="glas-panel liste"><div class="zeile"><div><b>Doppelcontainer</b><div class="leise">zwei Container nebeneinander – das Symbol wird tiefer</div></div>${schalter(c.doppel, 'sym-doppel')}</div>
-        <div class="zeile"><span>Farbe</span><span class="sym-farben">${['#3987e5', '#eb6834', '#1baf7a', '#c98500', '#d55181', '#199e70', '#7e57c2', '#78909c'].map(fb => `<button data-act="sym-farbe" data-v="${fb}" class="sym-farbe ${(c.farbe || std) === fb ? 'on' : ''}" style="background:${fb}" aria-label="Farbe ${fb}"></button>`).join('')}<input type="color" value="${c.farbe || std}" data-sym="farbe" aria-label="eigene Farbe"></span></div>
-        <div class="zeile"><div><span>Rahmen</span><div class="leise">Stahlrahmen an Ecken, oben und unten (20 cm)</div></div><span class="sym-farben"><button data-act="sym-rahmen" data-v="" class="knopf klein ${c.rahmen ? '' : 'on'}">kein</button>${['#c62828', '#37474f', '#eceff1', '#1565c0', '#f9a825', '#2e7d32'].map(fb => `<button data-act="sym-rahmen" data-v="${fb}" class="sym-farbe ${c.rahmen === fb ? 'on' : ''}" style="background:${fb}" aria-label="Rahmen ${fb}"></button>`).join('')}<input type="color" value="${c.rahmen || '#37474f'}" data-sym="rahmen" aria-label="eigene Rahmenfarbe"></span></div></div>
-      <div class="glas-panel liste"><div class="gruppe">Türen · ${c.tueren.length} von 2</div>${c.tueren.map((x, i) => element('tueren', x, i, c.tueren.length)).join('')}${c.tueren.length < 2 ? '<button class="zeile" data-act="sym-neu" data-art="tueren"><span class="blau">+ Tür</span></button>' : ''}</div>
-      <div class="glas-panel liste"><div class="gruppe">Fenster · ${c.fenster.length} von 4</div>${c.fenster.map((x, i) => element('fenster', x, i, c.fenster.length)).join('')}${c.fenster.length < 4 ? '<button class="zeile" data-act="sym-neu" data-art="fenster"><span class="blau">+ Fenster</span></button>' : ''}</div>
-      <div class="glas-panel liste"><div class="gruppe">Licht im Symbol</div><label class="zeile"><div><span>Licht kommt von</span><div class="leise">Fenster leuchten, wenn im Container Licht brennt</div></div><select data-sym="licht">${this.optionen(lichter, c.licht || '', 'keins')}</select></label></div>
-      <div class="leise p-fuss">Türen sitzen links, mittig oder rechts an ihrer Wand; mehrere Fenster verteilen sich gleichmäßig auf den Platz daneben. Tür offen/zu, Fenster offen/gekippt/zu und Licht kommen von den zugeordneten Sensoren; ohne Sensor bleibt das Element zu bzw. dunkel.</div>
-      ${b.symbol && b.symbol.eigen ? '<button class="knopf" data-act="sym-standard">Standard (eine Tür, ein Fenster)</button>' : ''}${knopf('Fertig')}`;
-  }
   /* BSM-019: Notprogramm in den Plugs – Zustand je Heizkörper-Plug kommt fertig von der Integration (laufzeit.geraete.<id>.notprogramm) */
   npPlugs() { return this.d.bereiche.flatMap(b => b.geraete.filter(g => g.np).map(g => ({ b, g, np: g.np }))); }
   npModus(np) { return { thermo: `Thermostat ${zahl(np.soll) ? de(np.soll) + ' °C' : ''}`.trim(), plan: 'Zeitplan', bedarf: 'Bei Bedarf (Termine)', hand: 'Hand – nicht anfassen', aus: 'aus – nur Frostschutz' }[np.modus] || '–'; }
@@ -2955,7 +3004,6 @@ class BaustellePanel extends LitElement {
     const griff = '<div class="griff"></div>';
     if (s.art === 'kk-katalog') return this.kkKatalog(s, griff);   // WU-0014
     if (s.art === 'np-plug') return this.npPlug(s, griff, knopf);   // BSM-019
-    if (s.art === 'aussehen') return this.symDialog(s, griff, knopf);   // BSM-032
     if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
     if (s.art === 'wetter') {
       const a = s.wa || 'std', e = d.e, ws = this.zustand(d.wetterEid), w = d.wetter || {};
@@ -3007,25 +3055,6 @@ class BaustellePanel extends LitElement {
     if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.alle.map(b => `<div class="zeile bs-zeile"><button class="bs-wahl" data-act="bs-wahl" data-id="${esc(b.entry)}"><span>${esc(b.titel)}${d && b.entry === d.entry ? ' ✓' : ''}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>
         <button class="bs-ic" data-act="bs-bearbeiten" data-id="${esc(b.entry)}" title="Bearbeiten" aria-label="${esc(b.titel)} bearbeiten">✎</button><button class="x" data-act="sheet" data-s="bs-loeschen" data-id="${esc(b.entry)}" title="Löschen" aria-label="${esc(b.titel)} löschen">✕</button></div>`).join('')}
       <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>`;
-    if (s.art === 'firma') {
-      const f = s.form, neu = !f.id, eigen = !neu && this.firma(f.id).eigen;
-      // wählbar: Container ohne fremde Firma, dazu die, die schon dieser Firma gehören
-      const frei = d.bereiche.filter(b => (b.firma || 'eigen') === 'eigen' || (!neu && b.firma === f.id));
-      return `${griff}<h3>${neu ? 'Neue Firma' : 'Firma'}</h3>
-        <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Trockenbau Maier" data-fn ${eigen ? 'disabled' : ''}></label>
-        ${eigen ? `<div class="gruppe-t">Container der eigenen Firma</div>
-          ${d.bereiche.filter(b => (b.firma || 'eigen') === 'eigen').map(b => `<div class="zeile"><span>${esc(b.name)}</span></div>`).join('')}
-          <div class="leise">Hierher gehören alle Container, die keiner anderen Firma zugeordnet sind.</div>`
-        : `<div class="gruppe-t">Container zuordnen</div>
-          ${frei.length ? frei.map(b => `<div class="zeile"><span>${esc(b.name)}</span>${schalter(f.container.includes(b.id), 'firma-c', `data-id="${b.id}"`)}</div>`).join('')
-            : '<div class="leise">Alle Container sind schon anderen Firmen zugeordnet.</div>'}
-          ${f.neu.map((c, i) => `<div class="zeile fc-neu"><input value="${esc(c.name)}" placeholder="Name des Containers" data-fnc="${i}">
-            <div class="seg klein">${['Container', 'Schacht'].map(a => `<button data-act="fc-art" data-i="${i}" data-v="${a}" class="${c.art === a ? 'on' : ''}">${a}</button>`).join('')}</div>
-            <button class="x" data-act="fc-weg" data-i="${i}" title="nicht anlegen">✕</button></div>`).join('')}
-          <button class="zeile" data-act="fc-neu"><span class="blau">+ Neuer Container für diese Firma</span></button>
-          <div class="leise">Nur Container ohne andere Firma sind wählbar. Nimmst du einen weg, gehört er wieder der eigenen Firma. Frühere Werte bleiben bei der bisherigen Firma.</div>`}
-        ${eigen ? knopf('Schließen', 'zu', 'leise-k') : knopf('Speichern', 'firma-speichern', 'amber') + (neu ? '' : knopf('Firma löschen', 'firma-weg', 'rot')) + knopf('Abbrechen', 'zu', 'leise-k')}`;
-    }
     if (s.art === 'strom') {
       const L = this.last(), e = d.e;
       const zustand = x => x.b.offline || !x.g.erreichbar ? ['offline', 'rot-t'] : x.b.boost && x.g.an ? ['heizt – schnell, Vorrang', 'amber-t'] : x.b.z === 'pause' ? ['pausiert – Tür offen', 'lila']
@@ -3042,94 +3071,14 @@ class BaustellePanel extends LitElement {
         <div class="hinweis-k">Je Anschluss gilt: ${e.nutzbar} % der Anschlussleistung (vorsichtig, weil die Verteilung auf die Phasen unbekannt ist) minus Reserve minus alles, was gerade läuft (gemessen). Gerechnet wird mit dem gemessenen Verbrauch: ein eingeschalteter Heizkörper, dessen Thermostat gerade abgeschaltet hat, zählt mit dem, was er zieht. Ist der Anschluss länger als 30 s zu voll, geht der unterste der Rangliste aus – bei gleichem Rang der größere. Die Rangliste: Frostschutz, Schnell aufheizen, erster im Container, Priorität, dann der Bedarf in °C (jetzt unter dem Soll + Abkühlen ohne Heizen − Nachlauf + was bis Arbeitsbeginn fehlt + wenig Heizzeit in der letzten Stunde). Ein Heizkörper kommt erst dazu, wenn eine Minute lang genug für seine volle Leistung frei ist. Jeder läuft mindestens ${e.min_lauf} min und pausiert mindestens ${e.min_pause} min; dürfen nicht alle, wechseln sie alle ${e.takt} min – der oberste Wartende gegen den untersten Laufenden. Jeder Container bekommt zuerst einen Heizkörper; ein zweiter im selben Container kommt erst dazu, wenn Platz ist, und verdrängt nie den einzigen eines anderen.</div>
         ${knopf('Anschlüsse einstellen', 'tab-einst', 'leise-k')}${knopf('Schließen', 'zu', 'leise-k')}`;
     }
-    if (s.art === 'anschluss') {
-      const f = s.form, neu = !f.id;
-      return `${griff}<h3>${neu ? 'Neuer Anschluss' : 'Anschluss'}</h3>
-        <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Verteiler West" data-an="name"></label>
-        <div class="zeile"><span>Absicherung</span><div class="seg klein">${[16, 32, 63].map(v => `<button data-act="an-wert" data-k="ampere" data-v="${v}" class="${f.ampere === v ? 'on' : ''}">${v} A</button>`).join('')}</div></div>
-        <div class="zeile"><span>Art</span><div class="seg klein">${[3, 1].map(v => `<button data-act="an-wert" data-k="phasen" data-v="${v}" class="${f.phasen === v ? 'on' : ''}">${v === 3 ? 'Starkstrom (CEE)' : 'Schuko 230 V'}</button>`).join('')}</div></div>
-        <div class="zeile"><div><span>Reserve</span><div class="leise">für Ungemessenes wie Kran oder Werkzeug</div></div><span class="stepper"><button data-act="an-res" data-d="-1">−</button><b>${de(f.reserve)} kW</b><button data-act="an-res" data-d="1">+</button></span></div>
-        <div class="leise">Anschlussleistung ${de(f.ampere * .23 * f.phasen)} kW, davon rechnet die Staffelung mit ${d.e.nutzbar} % = ${de(f.ampere * .23 * f.phasen * d.e.nutzbar / 100)} kW, abzüglich ${de(f.reserve)} kW Reserve.</div>
-        <div class="gruppe-t">Container an diesem Anschluss</div>
-        ${d.bereiche.map(b => `<div class="zeile"><span>${esc(b.name)} <span class="leise">${f.container.includes(b.id) ? '' : '· ' + esc(this.anschluss(b.anschluss).name)}</span></span>${schalter(f.container.includes(b.id), 'an-c', `data-id="${b.id}"`)}</div>`).join('')}
-        <div class="leise">Ein Container hängt an genau einem Anschluss.</div>
-        ${knopf('Speichern', 'an-speichern', 'amber')}${!neu && d.anschluesse.length > 1 ? knopf('Anschluss löschen', 'an-weg', 'rot') : ''}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    }
     if (s.art === 'm-bild') {   // WU-0016: Bild einer Meldung groß
       const m = (this.meldungen() || []).find(x => x.id === s.id), u = m && this.mlBild(m, s.i);
       return `${griff}<h3>${esc((m && m.ticket) || 'Meldung')} · Bild ${s.i + 1}</h3>${u ? `<img class="mb-gross" src="${u}" alt="Bild">` : LAEDT}${knopf('Schließen')}`;
-    }
-    if (s.art === 'container-neu') {
-      const f = s.form, schacht = f.art === 'Pumpenschacht';
-      const fuehler = this.entitaeten(x => (x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'temperature') || x.entity_id.startsWith('climate.'));
-      return `${griff}<h3>Neuer Container</h3>
-      <label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Lager Nord" data-neu="name"></label>
-      <div class="feld">Art<div class="seg klein">${['Container', 'Pumpenschacht'].map(v => `<button data-act="neu-art" data-v="${v}" class="${f.art === v ? 'on' : ''}">${v}</button>`).join('')}</div></div>
-      <label class="feld">Temperaturfühler<select data-neu="fuehler">${this.optionen(fuehler, f.fuehler, '– keiner –')}</select></label>
-      <label class="feld">Shelly<select data-neu="schalter">${this.optionen(this.freieSchalter().map(([v, n]) => [v, `${n} (${v})`]), f.schalter, '– später –')}</select></label>
-      ${f.schalter ? `<label class="feld">${schacht ? 'Welches Gerät hängt an diesem Shelly?' : 'Welche Heizung hängt an diesem Shelly?'}<select data-neu="typ">${this.optionen((schacht ? ['Pumpe'] : ['Ölradiator', 'Konvektor']).map(t => [t, t]), f.typ)}</select></label>`
-        : `<div class="leise">Ohne Shelly wird nur der ${schacht ? 'Schacht' : 'Container'} angelegt – ${schacht ? 'Pumpen' : 'Heizungen'} kommen später unter „Bearbeiten“ dazu.</div>`}
-      ${knopf('Anlegen', 'neu-anlegen', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'bereich') {
-      const b = this.b; if (!b) { this.s.sheet = null; return ''; }
-      const e = s.edit ||= { bedarf: !!b.bedarf, name: b.name, anschluss: b.anschluss || (d.anschluesse[0] && d.anschluesse[0].id) || '', tuer: (b.tuer && b.tuer.eid) || '', firma: b.firma || 'eigen', fuehler: b.fuehler || '',
-        groesseArt: (b.groesse && b.groesse.art) || 'einzel', m2: b.groesse ? b.groesse.m2 : null,
-        geraete: b.geraete.map(g => ({ id: g.id, n: g.n, typ: g.typ, schalter: g.schalter, leistung: g.leistung, energie: g.energie, alt: { n: g.n, typ: g.typ } })) };
-      const typen = b.pumpe ? ['Pumpe'] : ['Ölradiator', 'Konvektor', 'Bautrockner', 'Steckdose'];
-      const wahl = (i, g) => `<select data-ge="typ" data-i="${i}">${typen.map(t => `<option ${g.typ === t ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
-      const tueren = this.entitaeten(x => x.entity_id.startsWith('binary_sensor.') && ['door', 'window', 'opening', 'garage_door'].includes(x.attributes.device_class));
-      const fuehler = this.entitaeten(x => (x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'temperature') || x.entity_id.startsWith('climate.'));
-      if (e.fuehler && !fuehler.some(x => x[0] === e.fuehler)) fuehler.unshift([e.fuehler, this.name(e.fuehler)]);
-      if (e.tuer && !tueren.some(x => x[0] === e.tuer)) tueren.unshift([e.tuer, this.name(e.tuer)]);
-      return `${griff}<div class="block-kopf"><h3>Bearbeiten</h3><span class="leise">${b.pumpe ? 'Pumpenschacht' : 'Container'}</span></div>
-        <label class="feld">Name<input value="${esc(e.name)}" data-b="name"></label>
-        ${!b.pumpe && b.geraete.filter(g => g.heizer).length >= 2 ? `<div class="zeile"><div><b>🔥 Zusatz-Heizkörper nur bei Bedarf</b><div class="leise">zuerst heizt einer; der Zusatz kommt bei Kälte, weit unter dem Soll oder wenn einer es nicht schafft. Welcher Zusatz ist, steht im Gerät.</div></div>${schalter(b.stufenAn, 'b-stufen')}</div>` : ''}
-        ${b.pumpe ? '' : `<div class="zeile"><div><b>Nur bei Bedarf heizen</b><div class="leise">z. B. Besprechungscontainer: heizt nur per Schalter oder Termin, sonst Frostschutz</div></div>${schalter(e.bedarf, 'ge-bedarf')}</div>`}
-        ${b.lern && b.lern.warm ? (() => { const w = { vor: b.warmVor ?? d.e.warm_vor, nach: b.warmNach ?? d.e.warm_nach, vor_eigen: b.warmVor !== null, nach_eigen: b.warmNach !== null }, sw = (k, v, eigen, f) => `<span class="stepper klein"><button data-act="warm-eigen" data-k="${k}" data-d="-5">−</button><b class="${eigen ? 'eigen' : ''}">${f(v)}</b><button data-act="warm-eigen" data-k="${k}" data-d="5">+</button></span>`;
-          return `<div class="gruppe-t">🧠 Warm ab</div><div class="zeile"><div><span>Soll erreicht</span><div class="leise">${w.vor_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('vor', w.vor, w.vor_eigen, v => v ? `${v} min vorher` : 'bei Beginn')}</div>
-            <div class="zeile"><div><span>Warm halten</span><div class="leise">${w.nach_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('nach', w.nach, w.nach_eigen, v => v ? `${v} min länger` : 'bis Ende')}</div>
-            ${w.vor_eigen || w.nach_eigen ? '<button class="zeile" data-act="warm-zurueck"><span class="blau">Wie die Baustelle</span></button>' : ''}`; })() : ''}
-        ${b.pumpe || !b.groesse ? '' : this.groesseBlock(b, e)}
-        ${b.pumpe ? '' : `<div class="glas-panel liste"><button class="zeile sym-zeile" data-act="sym-auf"><span class="sym-mini">${bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], 'aus', b)}</span><div><b class="blau">🏠 Aussehen</b><div class="leise">${b.symbol && b.symbol.doppel ? 'Doppel' : 'Einzel'} · ${b.symbol ? b.symbol.tueren.length : 1} ${b.symbol && b.symbol.tueren.length === 2 ? 'Türen' : 'Tür'} · ${b.symbol ? b.symbol.fenster.length : 1} Fenster · Farbe, Sensoren</div></div><span class="chev">›</span></button></div>`}
-        ${b.pumpe ? '' : `<label class="feld">Temperaturfühler<select data-bfu>${this.optionen(fuehler, e.fuehler, '– keiner –')}</select></label>`}
-        ${b.pumpe ? '' : `<label class="feld">Türkontakt<select data-btuer>${this.optionen(tueren, e.tuer, 'keiner')}</select></label>`}
-        <label class="feld">Stromanschluss<select data-ban>${d.anschluesse.map(a => `<option value="${esc(a.id)}" ${e.anschluss === a.id ? 'selected' : ''}>${esc(a.name)} · ${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A</option>`).join('')}</select></label>
-        <label class="feld">Firma · für die Abrechnung<select data-bf="firma">${d.firmen.map(f => `<option value="${esc(f.id)}" ${e.firma === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></label>
-        <div class="gruppe-t">${b.pumpe ? 'Pumpen' : 'Geräte'} · ${e.geraete.filter(g => !g.weg).length}</div>
-        ${e.geraete.map((g, i) => g.weg ? `<div class="ge-zeile weg"><span>${esc(g.n)} wird entfernt</span><button class="chip glas-panel" data-act="ge-zurueck" data-i="${i}">rückgängig</button></div>`
-          : `<div class="ge-zeile"><div class="ge-felder">
-            ${g.neu ? `<select data-ge="schalter" data-i="${i}">${this.optionen(this.freieSchalter().map(([v, n]) => [v, `${n} (${v})`]), g.schalter, '– Shelly wählen –')}</select>` : `<span class="leise ge-shelly">${esc(this.name(g.schalter))} · ${esc(g.schalter)}</span>`}
-            <div class="ge-zwei"><input value="${esc(g.n)}" data-ge="n" data-i="${i}" placeholder="Name">${wahl(i, g)}</div></div>
-            ${g.neu ? '' : `<button class="bs-ic" data-act="g-bearbeiten" data-i="${i}" title="Gerät bearbeiten" aria-label="${esc(g.n)} bearbeiten">✎</button>`}<button class="x" data-act="ge-weg" data-i="${i}" title="Gerät entfernen">✕</button></div>`).join('')}
-        <button class="zeile" data-act="ge-neu"><span class="blau">+ Gerät hinzufügen</span></button>
-        <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
-        ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     /* AN-0002: ✎ im Dialog „Baustellen“ – nur die Daten dieser Baustelle; Staffelung, Bericht, Meldungen und App bleiben unter Einstellungen */
     if (s.art === 'aw-detail') {   // WU-0005: Details einer Kachel/Karte der Auswertung
       const T = this._awTeile, html = T ? this.awStueck(s.k, T.B, T.A, T.z) : '';
       return `${griff}<div class="aw-detail">${html || '<div class="leer">Nur für diese Baustelle</div>'}</div>${knopf('Schließen', 'zu', 'leise-k')}`;
-    }
-    /* WU-0004: Gerät bearbeiten – Name, Shelly, Typ, Container, Leistungs-/Energiesensor (leer = automatisch), aktiv */
-    if (s.art === 'geraet-edit') {
-      const b = this.b, g = b && b.geraete[s.i]; if (!g) { this.s.sheet = null; return ''; }
-      const f = s.form, typen = ['Ölradiator', 'Konvektor', 'Bautrockner', 'Steckdose'];
-      const leistung = this.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'power');
-      const energie = this.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'energy');
-      const auto = (eid, eigen) => `automatisch${!eigen && eid ? ` · ${this.name(eid) || eid}` : ''}`;
-      return `${griff}<div class="block-kopf"><h3>Gerät bearbeiten</h3><span class="leise">${esc(b.name)}</span></div>
-        <label class="feld">Name<input value="${esc(f.n)}" data-gf="n"></label>
-        <label class="feld">Shelly (Schalter)<select data-gf="schalter">${this.optionen(this.freieSchalter(g.schalter).map(([v, n]) => [v, `${n} (${v})`]), f.schalter)}</select></label>
-        <div class="raster-2"><label class="feld">Typ<select data-gf="typ">${typen.map(t => `<option ${f.typ === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
-          <label class="feld">Container<select data-gf="bereich">${this.optionen(d.bereiche.filter(x => !x.pumpe).map(x => [x.id, x.name]), f.bereich)}</select></label></div>
-        <label class="feld">Leistungssensor<select data-gf="leistung">${this.optionen(leistung, f.leistung, auto(g.leistung, g.leistungEigen))}</select></label>
-        <label class="feld">Energiesensor<select data-gf="energie">${this.optionen(energie, f.energie, auto(g.energie, g.energieEigen))}</select></label>
-        <div class="zeile"><div><b>Aktiv</b><div class="leise">aus: die Automatik schaltet das Gerät nicht, es zählt nicht in der Staffelung, keine Warnungen</div></div>${schalter(f.aktiv, 'gf-aktiv')}</div>
-        ${!g.leistung ? `<div class="zeile"><div><b>Leistung ohne Messung</b><div class="leise">zählt so in der Staffelung, wenn das Gerät an ist${g.nennKwEigen === null ? ' · Standard' : ''}</div></div><span class="stepper klein"><button data-act="g-kw" data-id="${g.id}" data-d="-0.1">−</button><b class="${g.nennKwEigen !== null ? 'eigen' : ''}">${de(g.nennKwEigen ?? g.kw, 1)} kW</b><button data-act="g-kw" data-id="${g.id}" data-d="0.1">+</button></span></div>` : ''}
-        ${g.heizer && b.geraete.filter(x => x.heizer).length >= 2 ? `<div class="zeile"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">${b.stufenAn ? 'heizt nur dazu, wenn einer nicht reicht' : 'wirkt, wenn im Container „Zusatz nur bei Bedarf“ an ist'}${b.stufen && b.stufen.haupt.includes(g.id) && !g.zusatz ? ' · jetzt der erste' : ''}</div></div>${schalter(g.zusatz, 'g-zusatz', `data-id="${g.id}"`)}</div>` : ''}
-        <div class="leise">Neuer Shelly: die Werte des alten bleiben im Verlauf. Anderer Container: der Verbrauch zählt ab jetzt dort.</div>
-        ${knopf('Speichern', 'gf-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     /* Lernende Regelung (0.8): Lernstand eines Containers (Mockup glas.html, abgenommen 30.09.2026) */
     return `${griff}<h3>${{ name: 'Name', 'baustelle-neu': 'Neue Baustelle' }[s.art] || ''}</h3>
@@ -3225,6 +3174,14 @@ class BaustellePanel extends LitElement {
       case 'bedarf-aus': return this.bedarfAus(el.dataset.id);
       case 'termin-weg': { const t = d.termine[+el.dataset.i]; return t && this.terminWeg(t); }
       case 'termin-speichern': return this.terminSpeichern();
+      case 'firma-speichern': return this.firmaSpeichern();
+      case 'firma-weg': return this.firmaWeg();
+      case 'an-speichern': return this.anschlussSpeichern();
+      case 'an-weg': return this.anschlussWeg();
+      case 'neu-anlegen': return this.containerAnlegen();
+      case 'b-speichern': return this.bereichSpeichern();
+      case 'b-weg': return this.bereichWeg();
+      case 'gf-speichern': return this.geraetSpeichern();
       case 'boost': return this.boostUmschalten(d.bereiche.find(y => y.id === el.dataset.id));
       case 'ausn-neu': return this.ausnahmeNeu(el.dataset.v);
       case 'au-speichern': return this.ausnahmeSpeichern();
@@ -3236,8 +3193,6 @@ class BaustellePanel extends LitElement {
       case 'hz-auf': return this.hzAuf(el.dataset.k);
       case 'modus': { const x = d.bereiche.find(y => y.id === el.dataset.id); return x && this.modusSetzen(x, el.dataset.v); }
       case 'tv': S.tv = el.dataset.v; return neu();
-      case 'sym-auf': S.sheet = { art: 'aussehen', id: S.cid || (this.b && this.b.id) }; return neu();   // BSM-032
-      case 'sym-doppel': case 'sym-farbe': case 'sym-rahmen': case 'sym-wand': case 'sym-lage': case 'sym-weg': case 'sym-neu': case 'sym-standard': return this.symKlick(a, el);
       case 'np-an': return this.setzen(['heizung', 'notprogramm'], !d.e.notprogramm);   // BSM-019
       case 'np-probe': { const m = +el.dataset.min;   // BSM-021
         return this.ws({ type: 'baustelle/notprogramm_probe', entry_id: d.entry, geraet: el.dataset.id, minuten: m }, m ? `Ausfall-Probe ${m} min gestartet` : 'Ausfall-Probe beendet'); }
@@ -3291,18 +3246,6 @@ class BaustellePanel extends LitElement {
       case 'g-aktiv': return this.geraetAktiv(b, +el.dataset.i);
       case 'g-automatik': return this.geraetAutomatik(b, +el.dataset.i);
       case 'g-bearbeiten': return this.geraetBearbeiten(b, +el.dataset.i);
-      case 'gf-aktiv': S.sheet.form.aktiv = !S.sheet.form.aktiv; return neu();
-      case 'gf-speichern': { const f = S.sheet.form, g = b.geraete[S.sheet.i], x = b; if (!f.n.trim() || !f.schalter) return this.toast('Bitte Name und Shelly wählen');
-        S.sheet = null; neu();
-        const geaendert = f.n.trim() !== g.n || f.schalter !== g.schalter || f.typ !== g.typ || f.bereich !== x.id || f.leistung !== (g.leistungEigen || '') || f.energie !== (g.energieEigen || '');
-        return this.einrichten(async () => {
-          if (geaendert) {
-            const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id },
-              this.geraetDaten(f.bereich, { n: f.n.trim(), typ: f.typ, schalter: f.schalter, leistung: f.leistung || undefined, energie: f.energie || undefined }));
-            if (this.flowFehler(r)) return r; }
-          if (f.aktiv !== g.aktiv) await this._hass.callWS({ type: 'baustelle/aktion', entry_id: d.entry, aktion: 'aktiv', geraet: g.id, an: f.aktiv });
-          return true;
-        }, `${f.n.trim()} gespeichert`).then(() => this._laden()); }
       case 'b-lernen': return this.lernenUmschalten(b);
       case 'lern-reset': return this.lernZuruecksetzen(b);
       case 'b-trocknen': case 'tr-b': return this.trocknenUmschalten(a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b);
@@ -3322,87 +3265,17 @@ class BaustellePanel extends LitElement {
       case 'bs-loeschen': return this.bsLoeschen();
       case 'csv': return this.csv(el.dataset.art);
       case 'firma-auf': return this.firmaAuf(el.dataset.id);
-      case 'firma-c': { const c = S.sheet.form.container, id = el.dataset.id; S.sheet.form.container = c.includes(id) ? c.filter(x => x !== id) : [...c, id]; return neu(); }
-      case 'firma-speichern': { const f = S.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
-        const neue = f.neu.filter(c => c.name.trim());
-        S.sheet = null; neu();
-        return (async () => {
-          let ids = [];
-          if (neue.length) { try { for (const c of neue) await this.bereichAnlegen(c.name.trim(), c.art === 'Schacht'); ids = await this.neueIds(neue.map(c => c.name.trim())); } catch (e) { return this.toast(`Nicht angelegt: ${this.fehlerText(e)}`); } }
-          return this.liste('firmen', 'speichern', { ...(f.id ? { id: f.id } : {}), name: f.name.trim(), container: [...f.container, ...ids] }, `${f.name.trim()} gespeichert${neue.length ? ` · ${neue.length} Container angelegt` : ''}`);
-        })(); }
-      case 'fc-neu': S.sheet.form.neu.push({ name: '', art: 'Container' }); return neu();
-      case 'fc-weg': S.sheet.form.neu.splice(+el.dataset.i, 1); return neu();
-      case 'fc-art': S.sheet.form.neu[+el.dataset.i].art = el.dataset.v; return neu();
-      case 'firma-weg': { const id = S.sheet.form.id; S.sheet = null; neu(); return this.liste('firmen', 'loeschen', { id }, 'Firma gelöscht – Container gehören wieder der eigenen Firma'); }
       case 'e-wert': return this.einstellungWert(el.dataset.k, el.dataset.v);
       case 'bericht-senden': return this.berichtSenden();
       case 'anschluss-auf': return this.anschlussAuf(el.dataset.id);
-      case 'an-wert': S.sheet.form[el.dataset.k] = +el.dataset.v; return neu();
-      case 'an-res': S.sheet.form.reserve = Math.max(0, S.sheet.form.reserve + +el.dataset.d); return neu();
-      case 'an-c': { const c = S.sheet.form.container, id = el.dataset.id; S.sheet.form.container = c.includes(id) ? c.filter(x => x !== id) : [...c, id]; return neu(); }
-      case 'an-speichern': { const f = S.sheet.form; if (!f.name.trim()) return this.toast('Bitte einen Namen eingeben');
-        S.sheet = null; neu();
-        return this.liste('anschluesse', 'speichern', { ...(f.id ? { id: f.id } : {}), name: f.name.trim(), ampere: f.ampere, phasen: f.phasen, reserve_kw: f.reserve, container: f.container }, `${f.name.trim()} gespeichert`); }
-      case 'an-weg': { const id = S.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); S.sheet = null; neu();
-        return this.liste('anschluesse', 'loeschen', { id }, `Gelöscht – Container hängen jetzt an ${rest ? rest.name : 'keinem Anschluss'}`); }
       case 'tab-einst': return this.einstGruppe(el.dataset.g || (S.sheet && S.sheet.art === 'strom' ? 'strom' : S.evGruppe));
       case 'ev-gruppe': return this.einstGruppeWahl(el.dataset.v);
-      case 'b-stufen': return b && this.setzen(['bereiche', b.id, 'stufen'], !b.stufenAn);   // AN-0006
-      case 'g-kw': { const g = b && b.geraete.find(x => x.id === el.dataset.id); if (!g) return;   // Szenarien: Nennleistung ohne Messung
-        return this.setzen(['geraete', g.id, 'nenn_kw'], Math.max(0, Math.min(10, Math.round(((g.nennKwEigen ?? g.kw) + +el.dataset.d) * 10) / 10))); }
-      case 'g-zusatz': { const g = b && b.geraete.find(x => x.id === el.dataset.id); return g && this.setzen(['geraete', g.id, 'zusatz'], !g.zusatz); }
-      case 'warm-eigen': { if (!b) return; const vor = el.dataset.k === 'vor', alt = vor ? b.warmVor ?? d.e.warm_vor : b.warmNach ?? d.e.warm_nach;   // AN-0004
-        return this.setzen(['bereiche', b.id, vor ? 'warm_vor' : 'warm_nach'], Math.max(0, Math.min(240, alt + +el.dataset.d))); }
-      case 'warm-zurueck': return this.setzen(['bereiche', b.id, 'warm_vor'], null).then(() => this.setzen(['bereiche', b.id, 'warm_nach'], null));
       case 'az-neu': return this.azNeu(this.azJetzt);
       case 'az-vorlage': return this.azNeu(d.arbeitszeiten[S.sheet.i]);
       case 'az-bearbeiten': { const v = d.arbeitszeiten[S.sheet.i]; return v && this.azBearbeiten(v); }
       case 'az-weg': return this.azWeg(d.arbeitszeiten[S.sheet.i]);
       case 'azn-speichern': return this.azSpeichern();
-      case 'neu-art': S.sheet.form.art = el.dataset.v; S.sheet.form.typ = el.dataset.v === 'Pumpenschacht' ? 'Pumpe' : 'Ölradiator'; return neu();
-      case 'neu-anlegen': { const f = S.sheet.form, name = f.name.trim() || 'Neuer Container', schacht = f.art === 'Pumpenschacht';
-        S.sheet = null; neu();
-        return this.einrichten(async () => {
-          const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'bereich'] }, this.bereichDaten(name, schacht ? 'pumpenschacht' : 'container', f.fuehler));
-          if (this.flowFehler(r) || !f.schalter) return r;
-          const [bid] = await this.neueIds([name]); if (!bid) return r;
-          return this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'] }, this.geraetDaten(bid, { n: schacht ? 'Pumpe 1' : '', typ: f.typ, schalter: f.schalter }));
-        }, `${name} angelegt`).then(() => this._laden()); }
-      case 'b-speichern': { const e = S.sheet.edit, x = b; S.sheet = null; neu();
-        return this.einrichten(async () => {
-          const eb = { ...((d.r.einstellungen.bereiche || {})[x.id] || {}) }, pfad = k => ['bereiche', x.id, k];
-          if (e.name.trim() && (e.name.trim() !== x.name || (e.fuehler || '') !== (x.fuehler || ''))) {
-            const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'bereich'], subentry_id: x.id }, this.bereichDaten(e.name.trim(), x.art || 'container', e.fuehler));
-            if (this.flowFehler(r)) return r; }
-          const call = (k, w) => this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: pfad(k), wert: w });
-          if (e.bedarf !== !!eb.bedarf) await call('bedarf', e.bedarf);
-          if (x.groesse) { const m2 = e.groesseArt === 'einzel' ? null : e.groesseArt === 'doppel' ? x.groesse.typen.doppel.m2 : (zahl(e.m2) && Number(e.m2) >= 4 ? Number(e.m2) : undefined);   // AN-0014
-            if (m2 !== undefined && m2 !== (eb.groesse_m2 ?? null)) await call('groesse_m2', m2); }
-          if ((e.tuer || null) !== (eb.tuer || null)) await call('tuer', e.tuer || null);
-          if (e.anschluss && e.anschluss !== x.anschluss) await call('anschluss', e.anschluss);
-          if (e.firma !== x.firma) {
-            if (x.firma !== 'eigen') await this._hass.callWS({ type: 'baustelle/liste', entry_id: d.entry, liste: 'firmen', aktion: 'speichern', eintrag: { id: x.firma, name: this.firma(x.firma).name, container: d.bereiche.filter(y => y.firma === x.firma && y.id !== x.id).map(y => y.id) } });
-            if (e.firma !== 'eigen') await this._hass.callWS({ type: 'baustelle/liste', entry_id: d.entry, liste: 'firmen', aktion: 'speichern', eintrag: { id: e.firma, name: this.firma(e.firma).name, container: [...d.bereiche.filter(y => y.firma === e.firma).map(y => y.id), x.id] } });
-          }
-          for (const g of e.geraete) {
-            if (g.weg && !g.neu) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
-            else if (g.neu && !g.weg && g.schalter) { const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'] }, this.geraetDaten(x.id, g)); if (this.flowFehler(r)) return r; }
-            else if (!g.neu && !g.weg && (g.n !== g.alt.n || g.typ !== g.alt.typ)) { const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id }, this.geraetDaten(x.id, g)); if (this.flowFehler(r)) return r; }
-          }
-          return true;
-        }, e.geraete.some(g => g.weg && !g.neu) ? `Gespeichert · ${e.geraete.filter(g => g.weg && !g.neu).length} entfernt – Werte bleiben im Verlauf` : 'Gespeichert').then(() => this._laden()); }
-      case 'ge-bedarf': S.sheet.edit.bedarf = !S.sheet.edit.bedarf; return neu();
-      case 'groesse-art': { const e = S.sheet.edit; e.groesseArt = el.dataset.v; if (e.groesseArt === 'frei' && !zahl(e.m2)) e.m2 = b.groesse.m2; return neu(); }
-      case 'ge-weg': { const g = S.sheet.edit.geraete[+el.dataset.i]; if (g.neu) S.sheet.edit.geraete.splice(+el.dataset.i, 1); else g.weg = true; return neu(); }
-      case 'ge-zurueck': S.sheet.edit.geraete[+el.dataset.i].weg = false; return neu();
-      case 'ge-neu': S.sheet.edit.geraete.push({ neu: true, schalter: '', n: '', typ: b.pumpe ? 'Pumpe' : 'Ölradiator' }); return neu();
       case 'temp-vb': S.tempVb = S.tempVb === false; return neu();
-      case 'b-weg': { const x = b; S.sheet = null; this.gehe('uebersicht');
-        return this.einrichten(async () => {
-          for (const g of x.geraete) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
-          await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: x.id }); return true;
-        }, `${x.name} entfernt – Werte bleiben im Verlauf`).then(() => this._laden()); }
       case 'abschliessen': return this.abschliessen();
       case 'name-speichern': return this.nameSpeichern();
       case 'baustelle-anlegen': return this.baustelleAnlegen();
@@ -3415,24 +3288,11 @@ class BaustellePanel extends LitElement {
     if (ds.kk === 'q' && sh && sh.art === 'kk-katalog') {   // WU-0014: Treffer neu, Fokus bleibt im Suchfeld
       sh.q = el.value; sh.k = null; const t = this.shadowRoot && this.shadowRoot.querySelector('.kk-treffer'); if (t) t.innerHTML = this.kkTreffer(sh); return;
     }
-    if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
-    if (ds.bf) sh.edit.firma = el.value;
-    if (ds.btuer !== undefined) sh.edit.tuer = el.value;
-    if (ds.bfu !== undefined) sh.edit.fuehler = el.value;
-    if (ds.bm2 !== undefined) sh.edit.m2 = el.value;
-    if (ds.ban !== undefined) { sh.edit.anschluss = el.value; this.neuZeichnen(); }
-    if (ds.an) sh.form[ds.an] = el.value;
-    if (ds.fn !== undefined) sh.form.name = el.value;
-    if (ds.fnc !== undefined) sh.form.neu[+ds.fnc].name = el.value;
-    if (ds.b === 'name' && sh && sh.edit) sh.edit.name = el.value;
-    if (ds.neu) { sh.form[ds.neu] = el.value; if (ds.neu === 'schalter') this.neuZeichnen(); }   // WU-0008: Heizungsart erst mit Shelly abfragen
-    if (ds.gf) sh.form[ds.gf] = el.value;
   }
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
   aenderung(ev) {
     const el = ev.target, k = el && el.dataset && el.dataset.k;
     if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
-    if (el && el.dataset && el.dataset.sym) return this.symAenderung(el);   // BSM-032
     return undefined;
   }
   hover(ev) {

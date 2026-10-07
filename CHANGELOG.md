@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.94] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 11 (BSM-022.15, Stufe 3e, dritter Teil): Die Dialoge für Container und Geräte – Firma,
+  Anschluss, Neuer Container, Container bearbeiten (mit Größe, „Warm ab“ und Geräten), Aussehen und Gerät bearbeiten –
+  werden mit Lit gezeichnet. Aussehen und Bedienung bleiben gleich.
+
 ## [0.8.93] – 2026-10-07
 
 - „Über“ zeigte nach einem Seiten-Update die alte Nummer (z. B. „Version 0.8.85“ und „Neu in 0.8.85“, obwohl im Verlauf
