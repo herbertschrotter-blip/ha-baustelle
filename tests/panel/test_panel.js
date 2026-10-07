@@ -96,6 +96,7 @@ const MONATE_LANG_T = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'J
 let ereignis;   // echte Ereignisse in der Seite (umgebung.helfer)
 // Lit-Bereiche (BSM-022 2a) haben kein data-act: dort ist ds ein CSS-Selektor für das echte Element
 const litEl = sel => panel.shadowRoot.querySelector(sel);
+const litEls = sel => [...panel.shadowRoot.querySelectorAll(sel)];
 // Kachel-Katalog (Lit, BSM-022 3f): Zeile data-k, Größe data-v; Treffer als HTML des Bereichs
 const KAT = { gk: (k, st) => `.sheet .kk-tr-zeile[data-k="${k}"] .kk-tr-gr [data-v="${st}"]`, hinzu: '.sheet .kk-wahl .knopf.amber', diaW: '.sheet .kk-wahl .sw', suche: '.sheet input[type="search"]',
   treffer: () => (litEl('.sheet .kk-treffer') || { innerHTML: '' }).innerHTML };
@@ -107,6 +108,9 @@ const eingabe = (ds, value) => { if (typeof ds !== 'string') return ereignis.fel
 const DEV = { status: id => `.ml[data-meldung="${id}"] .ml-status`, weg: id => `.ml[data-meldung="${id}"] .ml-weg`, bild: id => `.ml[data-meldung="${id}"] .ml-bilder img`, md: '.dev-md', json: '.dev-json', diagnose: '.dev-diagnose' };
 // Verlauf (Lit, BSM-022 3b): Merkmale ohne Ereignisweg – Reiter data-vr, Art data-va, Sortierung data-sp, Filter data-pf, Baustelle data-bs
 const bsOeffnen = async (id, n = 40) => { if (!litEl(`[data-bs="${id}"]`)) await klick({ act: 'tab', v: 'verlauf' }, 20); if (!litEl(`[data-bs="${id}"]`)) await klick('[data-vr="bs"]', 20); await klick(`[data-bs="${id}"]`, n); };
+// Auswertung (Lit, BSM-022 3f): Kopf data-aw, Leiste data-v, Anpassen-Zeile data-i
+const AW = { bearb: '.aw-knoepfe [data-aw="bearb"]', layout: '.aw-knoepfe [data-aw="layout"]', sim: '.aw-knoepfe [data-aw="sim"]', scope: v => `.aw-leiste .seg:nth-child(2) [data-v="${v}"]`,
+  stufe: (i, v) => `.aw-wahl .zeile[data-i="${i}"] .seg [data-v="${v}"]`, runter: i => `.aw-wahl .zeile[data-i="${i}"] [aria-label="nach unten"]` };
 const ML = { fehler: '.sheet .seg button:nth-child(1)', text: '.sheet textarea[name="ml-text"]', senden: '.sheet .ml-senden', bildWeg: '.sheet .mb-bild button.x' };
 /* „Über“ ist ein Lit-Bereich (BSM-022 2a.1): Verlauf-Eintrag über den echten Knopf aufklappen (kein data-act) */
 const clAuf = async i => { const b = panel.shadowRoot.querySelectorAll('button.cl-v')[i]; if (!b) return erwarte(`Verlauf-Eintrag ${i} in „Über“`, false);
@@ -172,12 +176,12 @@ async function allgemein() {
     for (const t of ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) { await klick({ act: 'hz-tag', v: t, art: 'tag' }, 30); pruefe(`${bid} heizzeiten ${t}`); }
     await klick({ act: 'hz-auf', k: 'az' }); await klick({ act: 'az-alt' }); pruefe(`${bid} frühere Arbeitszeiten`); await klick({ act: 'zu' });
     await klick({ act: 'tab', v: 'auswertung' }, 30);
-    for (const scope of ['diese', 'alle']) { await klick({ act: 'aw-scope', v: scope }, 30);
+    for (const scope of ['diese', 'alle']) { await klick(AW.scope(scope), 30);
       for (const z of ['Tag', 'Woche', 'Monat', 'Jahr']) { await klick({ act: 'vb-zeitraum', ziel: 'aw', v: z }, 40);
         for (const gr of ['teil', 'firma']) { await klick({ act: 'vb-gruppe', ziel: 'aw', v: gr }, 40); pruefe(`${bid} auswertung ${scope} ${z} ${gr}`); hov(`${bid} auswertung ${scope} ${z}`); }
         await klick({ act: 'vb-wer', ziel: 'aw' }); pruefe(`${bid} auswertung Summe ${z}`);
         await klick({ act: 'vb-wer', ziel: 'aw', id: '*' }); pruefe(`${bid} auswertung alle ${z}`); } }
-    await klick({ act: 'aw-scope', v: 'diese' });
+    await klick(AW.scope('diese'));
     await klick({ act: 'tab', v: 'verlauf' }, 30);
     for (const v of ['tag', 'monat', 'ges']) { await klick({ act: 'vgl', v }); pruefe(`${bid} verlauf ${v}`); }
     for (const f of ['alle', 'warnung', 'schalten', 'wetter', 'nachricht']) { await klick({ act: 'pfilter', v: f }, 20); pruefe(`${bid} protokoll ${f}`); }
@@ -441,10 +445,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   /* FE-0008: früheren Zeitraum wählen – ‹ › und Kalender (Tag → Monat, Woche → Monat mit KW, Monat → Jahr, Jahr → Jahre) */
   { await klick({ act: 'tab', v: 'auswertung' }, 20); await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 20);
     const h = panel.z.HEUTE, mo = panel.z.WOCHE_ISO[0], seit = n => alleAufrufe.slice(n);
-    erwarte('FE-0008: Auswertung zeigt ‹ Monat ›', ui.innerHTML.includes('data-act="zr-schritt" data-ziel="aw"') && ui.innerHTML.includes(`<b>${MONATE_LANG_T[+h.slice(5, 7) - 1]} ${h.slice(0, 4)}</b>`));
+    erwarte('FE-0008: Auswertung zeigt ‹ Monat ›', !!litEl('.zr-zeile[data-ziel="aw"]') && ui.innerHTML.includes(`<b>${MONATE_LANG_T[+h.slice(5, 7) - 1]} ${h.slice(0, 4)}</b>`));
     let n0 = alleAufrufe.length; await klick({ act: 'zr-schritt', ziel: 'aw', max: '99', d: '1' }, 30);
     erwarte('FE-0008: ‹ fragt Auswertung und Abrechnung mit Versatz 1', panel.s.aw.v === 1 && seit(n0).some(m => m.type === 'baustelle/auswertung' && m.versatz === 1)
-      && seit(n0).some(m => m.type === 'baustelle/abrechnung' && m.versatz === 1) && /data-act="zr-setz" data-ziel="aw" data-max="\d+" data-v="0">Aktuell/.test(ui.innerHTML));
+      && seit(n0).some(m => m.type === 'baustelle/abrechnung' && m.versatz === 1) && !!litEl('.zr-zeile[data-ziel="aw"] .zr-akt'));
     const vormonat = (() => { let m = +h.slice(5, 7) - 2, j = +h.slice(0, 4); if (m < 0) { m = 11; j--; } return `${j}-${String(m + 1).padStart(2, '0')}-01`; })();
     erwarte('FE-0008: Diagramm holt die Statistik des Vormonats', seit(n0).some(m => m.type === 'baustelle/statistik' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === vormonat));
     for (const [z, art, gesucht] of [['Tag', 'Monat mit Tagen', 'zr-woche-z'], ['Woche', 'Monat mit KW', 'class="zr-woche'], ['Monat', 'Jahr mit Monaten', 'zr-kal-monate'], ['Jahr', 'Jahre', 'zr-kal-monate']]) {
@@ -514,12 +518,12 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     for (const t of ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']) { await klick({ act: 'hz-tag', v: t, art: 'tag' }, 30); pruefe(`${bid} heizzeiten ${t}`); }
     await klick({ act: 'hz-auf', k: 'az' }); await klick({ act: 'az-alt' }); pruefe(`${bid} frühere Arbeitszeiten`); await klick({ act: 'zu' });
     await klick({ act: 'tab', v: 'auswertung' }, 30);
-    for (const scope of ['diese', 'alle']) { await klick({ act: 'aw-scope', v: scope }, 30);
+    for (const scope of ['diese', 'alle']) { await klick(AW.scope(scope), 30);
       for (const z of ['Tag', 'Woche', 'Monat', 'Jahr']) { await klick({ act: 'vb-zeitraum', ziel: 'aw', v: z }, 40);
         for (const gr of ['teil', 'firma']) { await klick({ act: 'vb-gruppe', ziel: 'aw', v: gr }, 40); pruefe(`${bid} auswertung ${scope} ${z} ${gr}`); hov(`${bid} auswertung ${scope} ${z}`); }
         await klick({ act: 'vb-wer', ziel: 'aw' }); pruefe(`${bid} auswertung Summe ${z}`);
         await klick({ act: 'vb-wer', ziel: 'aw', id: '*' }); pruefe(`${bid} auswertung alle ${z}`); } }
-    await klick({ act: 'aw-scope', v: 'diese' });
+    await klick(AW.scope('diese'));
     await klick({ act: 'tab', v: 'verlauf' }, 30);
     for (const v of ['tag', 'monat', 'ges']) { await klick({ act: 'vgl', v }); pruefe(`${bid} verlauf ${v}`); }
     for (const f of ['alle', 'warnung', 'schalten', 'wetter', 'nachricht']) { await klick({ act: 'pfilter', v: f }, 20); pruefe(`${bid} protokoll ${f}`); }
@@ -837,10 +841,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('Strompreis: Liste mit „gilt jetzt“ und „Neuer Preis ab“', ui.innerHTML.includes('Neuer Preis ab') && ui.innerHTML.includes('gilt jetzt'));
     await klick({ act: 'sp-neu' }); pruefe('Neuer Strompreis'); eingabe({ f: 'preis' }, '0,19'); neu(); await klick({ act: 'sp-speichern' }, 10);
     erwarte('Strompreis speichern über baustelle/liste', letzte('baustelle/liste').some(a => a.liste === 'preise' && a.aktion === 'speichern' && a.eintrag.preis === 0.19 && a.eintrag.ab));
-    panel.s.awSim = false; await klick({ act: 'tab', v: 'auswertung' }, 20); neu(); await klick({ act: 'sp-aw' }, 20); pruefe('Auswertung simuliert');
+    panel.s.awSim = false; await klick({ act: 'tab', v: 'auswertung' }, 20); neu(); await klick(AW.sim, 20); pruefe('Auswertung simuliert');
     erwarte('Simulieren: Band und Auswertung mit Preis', ui.innerHTML.includes('Simuliert: alle €') && letzte('baustelle/auswertung').some(a => typeof a.preis === 'number'));
     const p0 = panel.simPreis(); await klick({ act: 'sp-sim', d: '0.01' }, 10); erwarte('Simulieren: Preis ±', Math.abs(panel.simPreis() - p0 - 0.01) < 1e-9);
-    await klick({ act: 'sp-aw' }, 10); erwarte('Simulieren aus', !panel.s.awSim && !ui.innerHTML.includes('Simuliert: alle €'));
+    await klick(AW.sim, 10); erwarte('Simulieren aus', !panel.s.awSim && !ui.innerHTML.includes('Simuliert: alle €'));
     panel.s.kkUe = [panel.kkGross({ k: 'b-preis', an: true }, 'L')]; await klick({ act: 'tab', v: 'uebersicht' }, 20); pruefe('Kachel Preis simulieren');
     erwarte('Kachel Preis simulieren mit Regler', ui.innerHTML.includes('Preis simulieren') && ui.innerHTML.includes('class="sp-sim"'));
     await klick({ act: 'kk-auf', ort: 'ue', i: '0' }, 10); erwarte('Kachel öffnet die Auswertung simuliert', panel.s.view === 'auswertung' && panel.s.awSim);
@@ -929,25 +933,25 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   /* WU-0005: Auswertung aus Bausteinen – Vorschlag Mischform, Vorlagen, Anpassen, Layout, Rangliste, Was fällt auf, Details */
   { panel.s.awListe = null; await klick({ act: 'tab', v: 'auswertung' }, 30); pruefe('Auswertung Mischform');
     erwarte('WU-0005: Vorschlag Mischform mit Kosten groß, Rangliste, Was fällt auf', ['aw-betrag', 'Wer verbraucht was', 'aw-tab-zeile', 'aw-karte', 'Weitere Auswertungen'.slice(0, 0)].every(t => ui.innerHTML.includes(t)) && /€ gespart/.test(ui.innerHTML));
-    await klick({ act: 'aw-bearb' }); pruefe('Auswertung anpassen');
-    erwarte('WU-0005: Anpassen mit Vorlagen 1–5 und Größenstufen', (ui.innerHTML.match(/data-act="aw-vorlage"/g) || []).length >= 5 && ui.innerHTML.includes('data-act="aw-stufe"'));
-    await klick({ act: 'aw-vorlage', v: 'kacheln' }); erwarte('WU-0005: Vorlage Kacheln', panel.awAuswahl()[0].k === 'k-kosten' && panel.awAuswahl().filter(x => x.an).length === 9);
-    await klick({ act: 'aw-stufe', i: '0', v: 'L' }); erwarte('FE-0006: Stufe L = 2×2', panel.awAuswahl()[0].w === 2 && panel.awAuswahl()[0].h === 2 && panel.awAuswahl()[0].st === 'L');
-    await klick({ act: 'aw-stufe', i: '0', v: 'XL' }); erwarte('FE-0006: nur erlaubte Stufen', panel.awAuswahl()[0].st === 'L');
-    await klick({ act: 'aw-runter', i: '0' }); erwarte('WU-0005: Reihenfolge', panel.awAuswahl()[1].k === 'k-kosten');
-    await klick({ act: 'aw-layout' }); pruefe('Auswertung Layout');
+    await klick(AW.bearb); pruefe('Auswertung anpassen');
+    erwarte('WU-0005: Anpassen mit Vorlagen 1–5 und Größenstufen', litEls('.aw-vorlagen-k [data-v]').length >= 5 && !!litEl('.aw-wahl .zeile .seg [data-v]'));
+    await klick('.aw-vorlagen-k [data-v="kacheln"]'); erwarte('WU-0005: Vorlage Kacheln', panel.awAuswahl()[0].k === 'k-kosten' && panel.awAuswahl().filter(x => x.an).length === 9);
+    await klick(AW.stufe('0', 'L')); erwarte('FE-0006: Stufe L = 2×2', panel.awAuswahl()[0].w === 2 && panel.awAuswahl()[0].h === 2 && panel.awAuswahl()[0].st === 'L');
+    erwarte('FE-0006: keine Stufe XL zur Wahl', !litEl(AW.stufe('0', 'XL'))); panel.awStufeWahl(0, 'XL'); await ruhe(); erwarte('FE-0006: nur erlaubte Stufen', panel.awAuswahl()[0].st === 'L');
+    await klick(AW.runter('0')); erwarte('WU-0005: Reihenfolge', panel.awAuswahl()[1].k === 'k-kosten');
+    await klick(AW.layout); pruefe('Auswertung Layout');
     erwarte('WU-0005: Layout mit Griffen', ui.innerHTML.includes('data-zug="move"') && ui.innerHTML.includes('data-zug="size"') && ui.innerHTML.includes('aw-raster layout'));
     await klick({ act: 'aw-weg', i: '0' }); erwarte('WU-0005: ✕ blendet aus', panel.awAuswahl().filter(x => x.an).length === 8);
     /* FE-0006: Kachel-Diagramm füllt die Kachel, je Firma umschaltbar; Rangliste klein = Top 3 */
-    await klick({ act: 'aw-layout' }); await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' });
+    await klick(AW.layout); await klick(AW.bearb); await klick('.aw-wahl [data-v="misch"]');
     const iv = panel.awAuswahl().findIndex(x => x.k === 'verlauf'), ir = panel.awAuswahl().findIndex(x => x.k === 'rangliste');
-    await klick({ act: 'aw-stufe', i: String(iv), v: 'S' }); await klick({ act: 'aw-stufe', i: String(ir), v: 'M' }); await klick({ act: 'aw-bearb' }); pruefe('Auswertung kleine Stufen');
+    await klick(AW.stufe(String(iv), 'S')); await klick(AW.stufe(String(ir), 'M')); await klick(AW.bearb); pruefe('Auswertung kleine Stufen');
     erwarte('FE-0006: Kachel-Diagramm und Rangliste Top 3', ui.innerHTML.includes('aw-dia-svg') && ui.innerHTML.includes('aw-klein') && !ui.innerHTML.includes('aw-tab-kopf'));
     await klick({ act: 'vb-gruppe', ziel: 'aw', v: 'firma' }, 30); pruefe('Kachel-Diagramm je Firma'); await klick({ act: 'vb-gruppe', ziel: 'aw', v: 'teil' }, 30);
-    await klick({ act: 'aw-layout' });
-    await klick({ act: 'aw-layout' });
-    for (const k of ['abrechnung', 'geraete', 'temperaturen', 'wetter', 'ohne', 'hochrechnung', 'vergleich']) { await klick({ act: 'aw-detail', k }); pruefe(`Auswertung Detail ${k}`); erwarte(`WU-0005: Detail ${k}`, panel.s.sheet && panel.s.sheet.art === 'aw-detail' && !/Nur für diese Baustelle/.test(ui.innerHTML)); await klick({ act: 'zu' }); }
-    await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' }); await klick({ act: 'aw-bearb' }); }
+    await klick(AW.layout);
+    await klick(AW.layout);
+    for (const k of ['abrechnung', 'geraete', 'temperaturen', 'wetter', 'ohne', 'hochrechnung', 'vergleich']) { panel.awDetail(k); await ruhe(); pruefe(`Auswertung Detail ${k}`); erwarte(`WU-0005: Detail ${k}`, panel.s.sheet && panel.s.sheet.art === 'aw-detail' && !/Nur für diese Baustelle/.test(ui.innerHTML)); await klick({ act: 'zu' }); }
+    await klick(AW.bearb); await klick('.aw-wahl [data-v="misch"]'); await klick(AW.bearb); }
   /* FE-0011: Stromverteilung nach gemessenem Verbrauch – ein eingeschalteter Heizkörper ohne Strom zeigt „zieht gerade nichts“ */
   { await klick({ act: 'tab', v: 'uebersicht' }, 10); const g = panel.d.bereiche.flatMap(b => b.geraete).find(x => x.heizer);
     if (g) { const alt = [g.an, g.kwJetzt]; g.an = true; g.kwJetzt = 0; await klick({ act: 'sheet', s: 'strom' }, 10); pruefe('Stromverteilung gemessen');
@@ -1003,17 +1007,17 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 30);
     await klick({ act: 'kk-plus', ort: 'aw' }); await klick(KAT.gk('rangliste', 'M')); await klick(KAT.hinzu, 20);
     const rl = panel.awAuswahl().find(x => x.k === 'rangliste'); erwarte('WU-0014: Baustein aus dem Katalog eingeschaltet', rl.an && rl.st === 'M');
-    await klick({ act: 'aw-layout' }); const an2 = panel.awAuswahl().filter(x => x.an), n2 = panel.awAuswahl().length;
+    await klick(AW.layout); const an2 = panel.awAuswahl().filter(x => x.an), n2 = panel.awAuswahl().length;
     await klick({ act: 'aw-weg', ort: 'aw', i: String(an2.findIndex(x => x.k === 'b-kosten')) }); erwarte('WU-0014: ✕ entfernt die Kachel aus der Auswertung', panel.awAuswahl().length === n2 - 1);
-    await klick({ act: 'aw-layout' }); await klick({ act: 'aw-bearb' }); await klick({ act: 'aw-vorlage', v: 'misch' }); await klick({ act: 'aw-bearb' }); panel.s.kkUe = null; }
+    await klick(AW.layout); await klick(AW.bearb); await klick('.aw-wahl [data-v="misch"]'); await klick(AW.bearb); panel.s.kkUe = null; }
   panel.awAuswahl().forEach(x => { x.an = true; });   // WU-0005: alle Bausteine zeigen – die Inhalte prüfen die folgenden Tests
   await klick({ act: 'tab', v: 'auswertung' }, 30);
   erwarte('Auswertung: Leistung heute, Temperaturen, Je Gerät, Hochrechnung', ['Leistung heute', 'Temperaturen', 'Je Gerät', 'Hochrechnung Heizperiode'].every(t => ui.innerHTML.includes(t)));
-  for (const v of ['7', '30', 'heute']) { await klick({ act: 'tv', v }, 30); pruefe('Temperaturen ' + v); }
+  for (const v of ['7', '30', 'heute']) { await klick(`.seite .seg [data-v="${v}"]`, 30); pruefe('Temperaturen ' + v); }
   erwarte('Temperaturen: alle Container mit Fühler und außen', ['Poliercontainer', 'Mannschaft', 'Außen'].every(t => ui.innerHTML.includes(t)) && ui.innerHTML.includes('data-chart="tp-heute"'));
-  await klick({ act: 'aw-scope', v: 'alle' }, 30); pruefe('Auswertung alle');
-  erwarte('Alle laufenden: ohne Je Gerät und Temperaturen', !ui.innerHTML.includes('Je Gerät') && !ui.innerHTML.includes('data-act="tv"'));
-  await klick({ act: 'aw-scope', v: 'diese' }, 30);
+  await klick(AW.scope('alle'), 30); pruefe('Auswertung alle');
+  erwarte('Alle laufenden: ohne Je Gerät und Temperaturen', !ui.innerHTML.includes('Je Gerät') && !litEl('.seite .seg [data-v="30"]'));
+  await klick(AW.scope('diese'), 30);
   await klick({ act: 'tab', v: 'einst' }, 30);
   /* AN-0003: Zusammensetzung der Heizzeit sichtbar (Verlängerungen zählen zusammen) */
   { const p = panel.planTag(panel.z.HEUTE_TAG), uhr2 = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
@@ -1236,7 +1240,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   { const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const deT = (x, d = 1) => Number(x).toLocaleString('de-AT', { minimumFractionDigits: d, maximumFractionDigits: d });
     const fall = (art, name) => VEKTOR[art].find(f => f.name === `struktur-0.7 ${name}`).erwartet;
-    await klick({ act: 'aw-scope', v: 'diese' }); await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 40); const h = ui.innerHTML;
+    await klick(AW.scope('diese')); await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 40); const h = ui.innerHTML;
     erwarte('Auswertung über baustelle/auswertung (Zeitraum, Versatz, Scope)', letzte('baustelle/auswertung').some(a => a.entry_id === 'dobl' && a.zeitraum === 'Monat' && a.versatz === 0 && a.scope === 'diese'));
     erwarte('Abrechnung über baustelle/abrechnung', letzte('baustelle/abrechnung').some(a => a.entry_id === 'dobl' && a.zeitraum === 'Monat' && a.scope === 'diese'));
     // AN-0008: fairer Vergleich – kWh je Gradstunde, zählende und ausgeschlossene Container (Werte des Beispiel-hass)

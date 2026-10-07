@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.99] – 2026-10-07
+
+- Links aus Handy-Nachrichten wie „Bericht öffnen“ (`?ansicht=auswertung`) öffneten seit der Umstellung auf Lit nur
+  noch die Übersicht. Jetzt öffnen sie wieder die gewünschte Ansicht (Auswertung, Heizung, Pumpen, Verlauf,
+  Einstellungen).
+- Seite auf Lit umgestellt, Teil 16 (BSM-022.16, Stufe 3f abgeschlossen): Die Auswertung (Kopf, Zeitraum, Bausteine,
+  Anpassen, Layout, Preis-Simulation, Einzelheiten) wird mit Lit gezeichnet. Aussehen und Bedienung bleiben gleich. Im
+  Nur-Lesen-Modus ist ✕ an den Kacheln weiterhin gesperrt.
+
 ## [0.8.98] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 15 (BSM-022.16, Stufe 3f, dritter Teil): Die Einblendungen der Übersicht – Verbrauch,

@@ -383,6 +383,21 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('e2 bs 5', '.seite .glas-kopf .klickbar'); await alleSel('e2 bs wahl selbst', '.sheet .bs-wahl', 0);
   await wenn('e2 strom', '.seite .strom-knopf'); await alleSel('e2 strom rang', '.sheet .sr-zeile', 0); await alleSel('e2 strom rang 2', '.sheet .sr-zeile', 0);
   await text('e2 strom einst', '.sheet .knopf', 'Anschlüsse'); await schritt('e2 ü4', { act: 'tab', v: 'uebersicht' });
+  // Auswertung (Stufe 3f): Leiste, Zeitraum, Scope, Preis, Anpassen, Layout, Bausteine, Detail
+  await schritt('a', { act: 'tab', v: 'auswertung' });
+  for (const z of ['Woche', 'Jahr', 'Tag', 'Monat']) await text(`a ${z}`, '.aw-leiste .seg:first-child button', z);
+  await schritt('a früher', '.seite .zr-nav .zr-pf:first-child'); await schritt('a kalender', '.seite .zr-auf'); await schritt('a kalender zu', '.seite .zr-kal-fuss .chip');
+  await text('a alle', '.aw-leiste .seg:nth-child(2) button', 'Alle laufenden'); await text('a diese', '.aw-leiste .seg:nth-child(2) button', 'Diese Baustelle');
+  await text('a sim', '.aw-knoepfe button', 'Preis'); await alleSel('a sim +', '.sp-band .sp-sim button', 1); await alleSel('a sim −', '.sp-band .sp-sim button', 0); await schritt('a sim zurück', '.sp-band .rv-link');
+  await text('a firma', '.seite .seg.klein button', 'Firma'); await text('a container', '.seite .seg.klein button', 'Container');
+  for (const n of [0, 1, 2, 3, 4, 5]) { await alleSel(`a detail ${n}`, '.seite .aw-k, .seite .aw-karte', n); await zu(`a detail ${n}`); await schritt(`a detail ${n} tab`, { act: 'tab', v: 'auswertung' }); }
+  await alleSel('a link', '.seite .aw-inhalt button.zeile', 0); await zu('a link'); await schritt('a link tab', { act: 'tab', v: 'auswertung' });
+  await text('a anpassen', '.aw-knoepfe button', 'Anpassen'); await alleSel('a vorlage', '.aw-vorlagen-k button', 0); await alleSel('a runter', '.aw-wahl .aw-wahl-k button[aria-label="nach unten"]', 0);
+  await alleSel('a hoch', '.aw-wahl .aw-wahl-k button[aria-label="nach oben"]', 2); await alleSel('a stufe', '.aw-wahl .aw-wahl-k .seg button', 1); await alleSel('a an', '.aw-wahl .aw-wahl-k .sw', 3);
+  await alleSel('a an 2', '.aw-wahl .aw-wahl-k .sw', 3); await text('a misch', '.aw-wahl button.zeile', 'Vorschlag'); await text('a anpassen fertig', '.aw-knoepfe button', 'Fertig');
+  await text('a layout', '.aw-knoepfe button', 'Layout'); await wenn('a layout dia', '.seite .aw-dia-k'); await alleSel('a layout weg', '.seite .aw-x', 0); await text('a layout fertig', '.aw-knoepfe button', 'Fertig');
+  await text('a plus', '.aw-knoepfe button', 'Kachel'); await zu('a plus');
+  await alleSel('a temp', '.seite .aw-inhalt .seg button', 1); await alleSel('a temp 2', '.seite .aw-inhalt .seg button', 2);
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
@@ -415,6 +430,8 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('nur-lesen b nachrichten', { act: 'sheet', s: 'nachrichten' }); await zu('nur-lesen b nachrichten');
   await schritt('nur-lesen g', { act: 'ev-gruppe', v: 'container' }); await text('nur-lesen g b', '.ev-inhalt button.zeile', 'Polier'); await schritt('nur-lesen g b speichern', '.sheet .knopf.amber');
   await wenn('nur-lesen g b gerät', '.sheet .ge-zeile .bs-ic'); await zu('nur-lesen g b');
+  await schritt('nur-lesen a', { act: 'tab', v: 'auswertung' }); await text('nur-lesen a layout', '.aw-knoepfe button', 'Layout'); await alleSel('nur-lesen a weg', '.seite .aw-x', 0); await text('nur-lesen a fertig', '.aw-knoepfe button', 'Fertig');
+  await schritt('nur-lesen a einst', { act: 'tab', v: 'einst' });
   await schritt('nur-lesen n', { act: 'ev-gruppe', v: 'notprogramm' }); await alleSel('nur-lesen n an', '.ev-inhalt .liste .zeile .sw', 0);
   await alleSel('nur-lesen n plug', '.ev-inhalt .liste:nth-of-type(3) button.zeile', 0); await wenn('nur-lesen n probe', '.sheet .seg button:nth-child(2)'); await zu('nur-lesen n plug');
   aus.toast = { html: panel.letzterToast || '', befehle: [] };

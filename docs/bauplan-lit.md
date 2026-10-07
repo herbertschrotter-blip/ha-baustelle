@@ -52,7 +52,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
 | ☑ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
 | ☑ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
-| ☐ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
+| ☑ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
 | ☐ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
 | ☐ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
 
@@ -339,6 +339,19 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   `stromRang`, Klick-Fälle `wa`, `oh-basis`, `w-hin`, `w-protokoll`, `sr-auf`; Weiterleitung bleibt für `w-stumm`,
   `vb-gruppe`, `vb-wer`, `bs-wahl`, `bs-bearbeiten`. Nachweis: Schnappschuss um die Bedienung dieser Einblendungen
   erweitert (614 Schritte), inhaltlich gleich; Panel- und Browser-Test auf Lit-Selektoren.
+- **3f Auswertung, 07.10.2026 (0.8.99), Stufe 3f abgeschlossen:** `src/ansichten/auswertung.js` (`auswertungVorlage`,
+  `awDetailEinblendung`; Bausteine über `rasterVorlage`/`kachelVorlage`, Verbrauch über `verbrauchVorlage`, Zeitraum über
+  `zeitraumVorlage`), vorbereitet vom zweiten Agenten in eigener Arbeitskopie. Methoden `awDetail`, `awBearbUmschalten`,
+  `awLayoutUmschalten`, `awAn`, `awScopeWahl`, `awStufeWahl`, `awVerschieben`, `simUmschalten`, `tvWahl`. **Entfallen:**
+  `v_auswertung`, `awSeite`, `awStueck`, `awDiagramm`, `awErkenntnisse`, `awVgl`, `awDelta`, `leistungHeute`,
+  `temperaturen`, `geraeteBlock`, `hochrechnung`, `abrechnung`, `_awTeile`, Zweig `aw-detail` in `sheet()`, dazu die
+  nun ungenutzten `kkRaster`, `kkKachel`, `vgKachel`, `spKachel`, `verbrauchInhalt`, `zrWahl`, `zrKalender` und zwölf
+  Importe; Klick-Fälle `aw-scope`, `tv`, `aw-bearb`, `aw-layout`, `sp-aw`, `aw-gr` (tot), `aw-detail`. Weiterleitung
+  bleibt für `aw-an`, `aw-stufe`, `aw-hoch`/`aw-runter`, `aw-vorlage`, `aw-weg`, `kk-plus`, `sp-sim`, `vb-*`, `zr-*`,
+  `container`, `csv` (Stufe 4). ✕ im Raster jetzt `nur-admin` (wie vorher über `-weg` gesperrt). Nebenbei behoben:
+  `?ansicht=` prüfte auf `v_<ansicht>` und öffnete seit 3b–3f nur noch die Übersicht. Nachweis: Schnappschuss um die
+  Auswertung erweitert (673 Schritte), inhaltlich gleich bis auf einen zeitabhängigen Schritt (`kk-frisch` erlischt nach
+  2 s); Panel-Test auf Selektoren (`AW`), Browser-Test grün (124 s, knapp über dem Richtwert 120 s).
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

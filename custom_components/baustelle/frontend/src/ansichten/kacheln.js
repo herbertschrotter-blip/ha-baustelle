@@ -77,7 +77,7 @@ export function rasterVorlage(p, ort, teile, layout) {
         ${layout ? html`<div class="aw-ueber"><span class="aw-griff" data-zug="move" title="verschieben">⠿</span><span class="aw-name">${p.kkName(x)} · <b class="aw-mass">${x.st}</b></span>
           ${KK[x.k] && x.st === 'L' ? html`<button class="aw-dia-k ${x.dia !== false ? 'on' : ''}" title="mit oder ohne Diagramm" aria-label="Diagramm ein/aus" @click=${() => p.kkDiaUm(ort, i)}>📈</button>` : nothing}
           ${KK[x.k] && KK[x.k].je === 'v' && x.st === 'L' && x.dia !== false ? html`<button class="aw-dia-k aw-art-k on" title="Balken oder Linien" aria-label="Balken oder Linien" @click=${() => p.vgArtUm(ort, i)}>${x.art === 'linien' ? '〰' : '▮▮'}</button>` : nothing}
-          <button class="aw-x" aria-label=${KK[x.k] ? 'entfernen' : 'ausblenden'} @click=${() => p.kkWeg(ort, i)}>✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : nothing}</div>`)}
+          <button class="aw-x nur-admin" aria-label=${KK[x.k] ? 'entfernen' : 'ausblenden'} @click=${p.nurAdmin(() => p.kkWeg(ort, i))}>✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : nothing}</div>`)}
       ${layout ? nothing : html`<button class="glas-panel kk-neu-k" data-ort=${ort} @click=${() => p.kkPlus(ort)}><span>+</span>Kachel</button>`}</div>`;
 }
 
