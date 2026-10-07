@@ -5,6 +5,7 @@
    Bedienung: baustelle/setzen|aktion|liste|protokoll|meldung(en) (api §2) und die HA-Standardwege
    (Subentry-/Options-Dialoge, calendar/event/*, Diagnose). Gerechnet wird in der Integration, nicht hier.
    ========================================================================================= */
+import { AW_BAUSTEINE, AW_HOEHE, AW_SPEICHER, AW_STUFEN, AW_VORLAGEN, KK, KK_BEREICHE, KK_GROESSE, KK_JEDES, KK_SPEICHER, KK_START, ST_KACHEL, awStufe, awStufen } from './kacheln-daten.js';
 import { ARTEN, AUSNAHME, FARBE, MODI, TEXT, TICKET_STATUS, WARTE, WETTER_TEXT, WIEDER, illu, kwVon, wertHtml } from './tabellen.js';
 
 import { Himmel, himmelLauf, partikel, phaseAusSonne } from './himmel.js';
@@ -33,6 +34,7 @@ import { BAUSTELLE_EINBLENDUNGEN } from './ansichten/einblendungen-baustelle.js'
 import { EINRICHTUNG_EINBLENDUNGEN } from './ansichten/einblendungen-einrichtung.js';
 import { npPlugEinblendung } from './ansichten/notprogramm.js';
 import { uebersichtVorlage } from './ansichten/uebersicht.js';
+import { katalogEinblendung } from './ansichten/kacheln.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -891,75 +893,10 @@ function einblendungen(s) {
   return s;
 }
 
-/* WU-0005: Auswertung aus Bausteinen (Mockup glas.html Variante 6, abgenommen 30.09.2026) – [Name, Beschreibung] */
-const AW_BAUSTEINE = {
-  betrag: ['Kosten groß', 'Betrag des Zeitraums, Vergleich, Gespart, Hochrechnung'], kennzahlen: ['Kennzahlen', 'kWh, Kosten, Heizzeit, Pumpzeit mit Vergleich'],
-  rangliste: ['Wer verbraucht was', 'Rangliste der Container'], verlauf: ['Verbrauchsdiagramm', 'gestapelt nach Container, Baustelle oder Firma'],
-  erkenntnisse: ['Was fällt auf', 'Erkenntnisse der Integration'], abrechnung: ['Abrechnung nach Firma', 'mit CSV'],
-  'k-kosten': ['Kachel Kosten', 'kurz'], 'k-gespart': ['Kachel Gespart', 'kurz'], 'k-hoch': ['Kachel Hochrechnung', 'kurz'], 'k-wer': ['Kachel Wer verbraucht', 'Top 4 als Balken'],
-  'k-firmen': ['Kachel Firmen', 'Betrag je Firma'], 'k-wetter': ['Kachel Wetter', 'kWh je Grad kälter'], 'k-oel': ['Kachel Ölradiator', 'Vergleich kurz'], 'k-temp': ['Kachel Temperaturen', 'jetzt je Container'],
-  geraete: ['Je Gerät', 'Tabelle je Gerät'], temperaturen: ['Temperaturen', 'Diagramm heute/7/30 Tage'], wetter: ['Wetter-Einfluss', 'Streudiagramm'],
-  ohne: ['Ohne Automatik', 'Vergleich mit Dauerbetrieb'], hochrechnung: ['Hochrechnung Heizperiode', 'bis Ende der Heizperiode'], vergleich: ['Ölradiator oder Konvektor', 'Tabelle'],
-  leistung: ['Leistung heute', 'Diagramm heute'], links: ['Weitere Auswertungen', 'Liste zum Antippen'],
-};
-/* FE-0006: Größenstufen je Baustein [Name, Breite, Höhe] – nur Größen, die zum Inhalt passen (Mockup glas.html) */
-const ST_KACHEL = [['S', 1, 1], ['M', 2, 1], ['L', 2, 2]];
-const AW_STUFEN = {
-  betrag: [['M', 2, 2], ['L', 4, 2]], kennzahlen: [['M', 2, 2], ['L', 4, 2]], rangliste: [['M', 2, 3], ['L', 4, 3], ['XL', 4, 4]],
-  verlauf: [['S', 2, 2], ['M', 2, 3], ['L', 4, 3], ['XL', 4, 4]], erkenntnisse: [['M', 2, 2], ['L', 4, 2]], abrechnung: [['M', 2, 4], ['L', 4, 4]],
-  links: [['M', 2, 3], ['L', 4, 3]], geraete: [['L', 4, 4]], temperaturen: [['M', 2, 3], ['L', 4, 3]], wetter: [['S', 1, 1], ['M', 2, 3], ['L', 4, 3]],
-  ohne: [['M', 2, 2], ['L', 4, 2]], hochrechnung: [['M', 2, 3], ['L', 4, 2]], vergleich: [['M', 2, 3], ['L', 4, 3]], leistung: [['M', 2, 3], ['L', 4, 3]],
-};
-const awStufen = k => AW_STUFEN[k] || ST_KACHEL;
-const awStufe = (k, w, h) => awStufen(k).reduce((best, st) => { const dd = Math.abs(st[1] - w) * 2 + Math.abs(st[2] - h); return dd < best[0] ? [dd, st] : best; }, [1e9, null])[1];
-const AW_HOEHE = { betrag: 2, kennzahlen: 2, rangliste: 4, verlauf: 4, erkenntnisse: 2, abrechnung: 4, links: 3, geraete: 4, temperaturen: 4, wetter: 4, ohne: 2, hochrechnung: 3, vergleich: 3, leistung: 3 };
-/* Vorlagen = die Varianten 1–5 des Mockups [Schlüssel, Breite 1–4, Höhe 1–6] */
-const AW_VORLAGEN = {
-  kacheln: ['1 · Kacheln', [['k-kosten', 2, 2], ['k-gespart', 1, 2], ['k-hoch', 1, 2], ['verlauf', 4, 4], ['k-wer', 2, 2], ['k-firmen', 2, 2], ['k-wetter', 1, 2], ['k-oel', 1, 2], ['k-temp', 2, 2]]],
-  kosten: ['2 · Kosten im Fokus', [['betrag', 4, 2], ['abrechnung', 4, 4], ['verlauf', 4, 4], ['links', 4, 3]]],
-  wer: ['3 · Wer verbraucht was', [['kennzahlen', 4, 2], ['rangliste', 4, 4], ['erkenntnisse', 4, 2]]],
-  verlauf: ['4 · Verlauf mit Erkenntnissen', [['verlauf', 4, 4], ['erkenntnisse', 4, 2], ['kennzahlen', 4, 2], ['links', 4, 3]]],
-  misch: ['5 · Mischform (Vorschlag)', [['betrag', 4, 2], ['rangliste', 4, 4], ['verlauf', 4, 4], ['erkenntnisse', 4, 2], ['k-wetter', 2, 2], ['k-oel', 2, 2], ['links', 4, 3]]],
-};
-const AW_SPEICHER = 'baustelle-aw-bausteine';
-/* WU-0014: Kachel-Katalog – jede Auswertung der Seite als Kachel S (1×1), M (2×1) oder L (2×2, mit oder ohne Diagramm), auf der
-   Übersicht und in der Auswertung (Mockup kachel-katalog.html, Variante 3 „Suche mit Filter-Chips“, abgenommen 01.10.2026).
-   Die Kacheln zeigen nur an: Beträge, gespart, Hochrechnung, Wetter, Vergleich und „Warm ab“ kommen von der Integration,
-   Verläufe aus der Statistik ihrer Sensoren. je: c = je Container, f = je Container mit Fühler, p = je Schacht */
-const KK_BEREICHE = [['baustelle', 'Baustelle'], ['container', 'Container'], ['pumpen', 'Pumpen'], ['heizung', 'Heizung'], ['auswertung', 'Auswertung']];
-const KK = {
-  'b-kosten': { ber: 'baustelle', ic: '💶', name: 'Kosten & Verbrauch', text: 'Betrag und kWh im Zeitraum, Vergleich zum Zeitraum davor', such: 'euro geld kwh strom monat' },
-  'b-gespart': { ber: 'baustelle', ic: '🌱', name: 'Gespart · ohne Automatik', text: 'Was die Automatik gegenüber Dauerbetrieb spart', such: 'euro ersparnis 24/7 dauerbetrieb' },
-  'b-hoch': { ber: 'baustelle', ic: '📅', name: 'Hochrechnung Heizperiode', text: 'Kosten bis Ende der Heizperiode, mit und ohne Automatik', such: 'prognose euro heizperiode ende' },
-  'b-wetter': { ber: 'baustelle', ic: '🌦', name: 'Wetter-Einfluss', text: 'kWh je Grad kälter, letzte 30 Heiztage', such: 'temperatur außen kälte grad' },
-  'b-strom': { ber: 'baustelle', ic: '⚡', name: 'Stromverteilung · Staffelung', text: 'Last je Anschluss, Grenze und Reserve', such: 'anschluss ampere kw last verteiler staffel' },
-  'b-oel': { ber: 'baustelle', ic: '⚖', name: 'Ölradiator-Ersparnis', text: 'Ölradiator gegen Konvektor, fair verglichen', such: 'konvektor heizkörper typ vergleich euro' },
-  'b-preis': { ber: 'baustelle', ic: '🧮', name: 'Preis simulieren', text: 'Verbrauch mit einem anderen Strompreis – was hätte es gekostet', such: 'euro preis simulieren tarif was wäre wenn' },
-  'b-geraete': { ber: 'baustelle', ic: '📶', name: 'Geräte · erreichbar & Signal', text: 'Wie viele Shellys antworten, WLAN-Signal', such: 'shelly wlan signal offline erreichbar' },
-  'b-wer': { ber: 'baustelle', ic: '🔥', name: 'Wer verbraucht was', text: 'Rangliste der Container nach kWh', such: 'rangliste container verbrauch kwh euro' },
-  'c-temp': { ber: 'container', je: 'f', ic: '🌡', name: 'Temperatur', text: 'innen jetzt, Verlauf heute mit außen', such: 'grad celsius fühler innen außen' },
-  'c-leistung': { ber: 'container', je: 'c', ic: '⚡', name: 'Leistung jetzt', text: 'kW gerade, Stundenmittel heute', such: 'kw watt strom gerade' },
-  'c-verbrauch': { ber: 'container', je: 'c', ic: '📊', name: 'Verbrauch', text: 'kWh im Zeitraum, Vergleich zum Zeitraum davor', such: 'kwh energie strom tag' },
-  'c-kosten': { ber: 'container', je: 'c', ic: '💶', name: 'Kosten', text: 'Euro im Zeitraum (kWh × Strompreis)', such: 'euro geld preis' },
-  'c-heizzeit': { ber: 'container', je: 'c', ic: '⏱', name: 'Heizzeit', text: 'eingeschaltet und tatsächlich geheizt', such: 'stunden laufzeit zeit strom' },
-  'c-ohne': { ber: 'container', je: 'c', ic: '🌱', name: 'Ohne Automatik', text: 'Container gegen Dauerbetrieb (24/7)', such: 'gespart ersparnis dauerbetrieb euro' },
-  'c-warm': { ber: 'container', je: 'f', ic: '🧠', name: 'Warm ab (lernend)', text: 'Gelernter Heizbeginn, damit das Soll rechtzeitig erreicht ist', such: 'lernen aufheizen beginn start' },
-  'v-kwh': { ber: 'container', je: 'v', ic: '⚖', name: 'Vergleich kWh', text: '2–4 Container gegenüber – Verbrauch', such: 'vergleich gegenüber kwh verbrauch container' },   // WU-0017
-  'v-eur': { ber: 'container', je: 'v', ic: '⚖', name: 'Vergleich Kosten', text: '2–4 Container gegenüber – Kosten in €', such: 'vergleich gegenüber euro kosten container' },
-  'p-pumpzeit': { ber: 'pumpen', je: 'p', ic: '⏱', name: 'Pumpzeit', text: 'Wie lange gepumpt wurde', such: 'schacht pumpe laufzeit stunden wasser' },
-  'p-zyklen': { ber: 'pumpen', je: 'p', ic: '🔁', name: 'Zyklen', text: 'Ein/Aus im Zeitraum – viele deuten auf Schwimmer oder Grundwasser', such: 'schacht pumpe schwimmer an aus' },
-  'h-plan': { ber: 'heizung', ic: '📅', name: 'Heizplan heute / Woche', text: 'Vorheizen, Arbeitszeit, Nachheizen, Trocknen', such: 'zeitplan arbeitszeit vorheizen nachheizen woche' },
-  'h-wann': { ber: 'heizung', ic: '🔥', name: 'Wann heizt was', text: 'Heizzeiten je Container heute', such: 'container zeitstrahl heute heizzeiten' },
-};
-const KK_GROESSE = [['S', 'Klein', '1×1'], ['M', 'Mittel', '2×1'], ['L', 'Groß', '2×2']];
-const KK_SPEICHER = 'baustelle-kacheln-uebersicht';
-const KK_START = [{ k: 'b-kosten', st: 'M' }, { k: 'b-gespart', st: 'M' }, { k: 'h-wann', st: 'M' }];
-const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
-
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', 'kk-katalog'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
   static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
@@ -1684,6 +1621,15 @@ class BaustellePanel extends LitElement {
     S.sheet = null; this.neuZeichnen();
     return this.liste('arbeitszeiten', 'speichern', { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage, ...(f.alt_ab !== undefined ? { alt_ab: f.alt_ab } : {}) }, text);
   }
+  /* Kacheln (src/ansichten/kacheln.js, BSM-022 3f); die noch alte Auswertung nutzt sie über klick() */
+  kkAn(ort, i) { return this.kkListe(ort).filter(y => y.an)[i]; }
+  kkWeg(ort, i) { const Lg = this.kkListe(ort), x = Lg.filter(y => y.an)[i]; /* eine Liste: awAuswahl() liefert je Aufruf ein neues Array */ if (!x) return undefined; if (KK[x.k]) Lg.splice(Lg.indexOf(x), 1); else x.an = false; this.kkMerken(ort); return this.neuZeichnen(); }
+  kkDiaUm(ort, i) { const x = this.kkAn(ort, i); if (!x) return undefined; x.dia = x.dia === false; this.kkMerken(ort); return this.neuZeichnen(); }
+  vgArtUm(ort, i) { const x = this.kkAn(ort, i); if (!x) return undefined; x.art = x.art === 'linien' ? 'balken' : 'linien'; this.kkMerken(ort); return this.neuZeichnen(); }
+  kkAufI(ort, i) { const x = this.kkAn(ort, i); return x ? this.kkAuf(x, ort) : undefined; }
+  kkPlus(ort) { this.s.sheet = { art: 'kk-katalog', ort, k: null, st: 'M', id: null, dia: true, q: '', f: 'alle', nurJe: false, nurEur: false }; return this.neuZeichnen(); }
+  kkLayoutUm() { this.s.kkLayout = !this.s.kkLayout; return this.neuZeichnen(); }
+  spSim(dd) { const S = this.s; S.simPreis = Math.max(0, Math.round((this.simPreis() + dd) * 100) / 100); try { localStorage.setItem('baustelle-sim-preis', String(S.simPreis)); } catch (e) { /* egal */ } return this.neuZeichnen(); }
   /* Notprogramm (src/ansichten/notprogramm.js, BSM-022 3e; BSM-019/021) */
   npPruefen() { const S = this.s; if (S.npPrueft) return undefined; S.npPrueft = true; this.neuZeichnen();
     return this.ws({ type: 'baustelle/notprogramm_pruefen', entry_id: this.d.entry }, 'Notprogramm geprüft').finally(() => { S.npPrueft = false; this.neuZeichnen(); }); }
@@ -2044,6 +1990,7 @@ class BaustellePanel extends LitElement {
     else if (S.sheet && BAUSTELLE_EINBLENDUNGEN[S.sheet.art]) sheet = BAUSTELLE_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && EINRICHTUNG_EINBLENDUNGEN[S.sheet.art]) sheet = EINRICHTUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'np-plug') sheet = npPlugEinblendung(this, S.sheet);
+    else if (S.sheet && S.sheet.art === 'kk-katalog') sheet = katalogEinblendung(this, S.sheet);
     else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
     const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
@@ -2561,61 +2508,17 @@ class BaustellePanel extends LitElement {
           <button class="aw-x" data-act="aw-weg" data-ort="${ort}" data-i="${i}" aria-label="${KK[x.k] ? 'entfernen' : 'ausblenden'}">✕</button><span class="aw-groesse" data-zug="size" title="Größe ändern">◢</span></div>` : ''}</div>`).join('')}
       ${layout ? '' : `<button class="glas-panel kk-neu-k" data-act="kk-plus" data-ort="${ort}"><span>+</span>Kachel</button>`}</div>`;
   }
-  kkBereich() {
-    const L = this.kkListe('ue'), layout = this.s.kkLayout, c = this.kkCtx('ue');
-    const teile = L.map((x, i) => ({ x, i, html: this.kkKachel(x, i, 'ue', c) }));
-    return `<div class="kk-bereich"><div class="kk-titel"><b>Meine Kacheln</b>
-        <span class="kk-knoepfe">${L.length ? `<button class="glas-panel chip ${layout ? 'amber' : ''}" data-act="kk-layout">${layout ? '✓ Fertig' : '✥ Anpassen'}</button>` : ''}<button class="glas-panel chip kk-plus" data-act="kk-plus" data-ort="ue">＋ Kachel</button></span></div>
-      ${layout ? '<div class="leise aw-hinweis">Kachel am Griff ⠿ ziehen zum Verschieben · am Griff ◢ ziehen für die Größe · 📈 Diagramm der großen Kachel ein/aus · ✕ entfernen</div>' : ''}
-      ${this.kkRaster('ue', teile, layout)}</div>`;
-  }
-  /* Katalog (Einblendung): Suche mit Filter-Chips, Schnellknöpfe S/M/L, Auswahl mit Vorschau */
+  /* Katalog (src/ansichten/kacheln.js): Einträge je Ort */
   kkEintraege(ort) {
     const E = Object.entries(KK).filter(([k, e]) => !e.je || this.kkWahlListe(k).length).map(([k, e]) => ({ k, ...e, stufen: ST_KACHEL }));
     if (ort !== 'aw') return E;
     return [...E, ...Object.entries(AW_BAUSTEINE).filter(([k]) => !k.startsWith('k-')).map(([k, [name, text]]) => ({ k, ber: 'auswertung', ic: '📊', name, text, such: '', stufen: awStufen(k), baustein: true }))];
   }
-  kkTreffer(s) {
-    const q = (s.q || '').toLowerCase().split(/\s+/).filter(Boolean), bt = k => (KK_BEREICHE.find(x => x[0] === k) || [])[1] || '';
-    const markiere = t => { let h = esc(t); for (const w of q.filter(x => x.length > 1)) h = h.replace(new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>'); return h; };
-    const L = this.kkEintraege(s.ort).filter(e => ((s.f || 'alle') === 'alle' || e.ber === s.f) && (!s.nurJe || e.je) && (!s.nurEur || /euro/.test(`${e.such} ${e.name} ${e.text}`.toLowerCase()))
-      && q.every(w => `${e.name} ${e.text} ${e.such} ${bt(e.ber)}`.toLowerCase().includes(w)));
-    if (!L.length) return '<div class="kk-tr-leer">Keine Kachel gefunden – anderes Wort oder Filter „Alle“.</div>';
-    return `<div class="leise">${L.length} ${L.length === 1 ? 'Kachel' : 'Kacheln'}</div>` + L.map(e => { const on = s.k === e.k;
-      return `<div class="kk-tr-zeile ${on ? 'on' : ''}" data-act="kk-k" data-k="${e.k}" role="button" tabindex="0"><span class="kk-z-ic">${e.ic}</span><div class="kk-z-t"><b>${markiere(e.name)}</b><div class="leise">${bt(e.ber)} · ${markiere(e.text)}</div></div>
-        <span class="kk-tr-gr">${e.stufen.map(([g]) => `<button data-act="kk-gk" data-k="${e.k}" data-v="${g}" class="${on && s.st === g ? 'on' : ''}">${g}</button>`).join('')}</span></div>${on ? this.kkWahl(s, e) : ''}`; }).join('');
-  }
-  kkWahl(s, e) {
-    if (e.je === 'v') return this.vgWahl(s, e);   // WU-0017
-    const opts = e.je ? this.kkWahlListe(e.k) : [], ort = s.ort === 'aw' ? 'Auswertung' : 'Übersicht';
-    if (e.je && !opts.some(b => b.id === s.id)) s.id = opts[0] && opts[0].id;
-    if (!e.stufen.some(q => q[0] === s.st)) s.st = (e.stufen.find(q => q[0] === 'M') || e.stufen[0])[0];
-    if (e.baustein) { const x = this.awAuswahl().find(y => y.k === e.k);
-      return `<div class="kk-wahl"><div class="gruppe-t">Größe</div><div class="seg">${e.stufen.map(([g, w, h]) => `<button data-act="kk-gr" data-v="${g}" class="${s.st === g ? 'on' : ''}">${g} · ${w}×${h}</button>`).join('')}</div>
-        ${x && x.an ? '<div class="leise">ist schon in der Auswertung – „Hinzufügen“ stellt nur die Größe um</div>' : ''}<button class="knopf amber" data-act="kk-hinzu">Zur Auswertung hinzufügen</button></div>`; }
-    const c = this.kkCtx(s.ort);
-    return `<div class="kk-wahl">
-      ${e.je ? `<div class="gruppe-t">${e.je === 'p' ? 'Schacht' : 'Container'}${e.je === 'f' ? ' · nur mit Fühler' : ''}</div><div class="vb-wer">${opts.map(b => `<button data-act="kk-id" data-id="${b.id}" class="${b.id === s.id ? 'on' : ''}"><i style="background:${BEREICH_FARBEN[b.f % BEREICH_FARBEN.length]}"></i>${esc(b.name)}</button>`).join('')}</div>` : ''}
-      <div class="gruppe-t">Größe</div><div class="seg">${KK_GROESSE.map(([g, t, m]) => `<button data-act="kk-gr" data-v="${g}" class="${s.st === g ? 'on' : ''}">${t} · ${m}</button>`).join('')}</div>
-      <div class="leise">${{ S: 'Symbol und eine Zahl', M: 'Zahl, Vergleich und Mini-Verlauf', L: s.dia ? 'mit Diagramm' : 'vier Kennzahlen statt Diagramm' }[s.st]}</div>
-      ${s.st === 'L' ? `<div class="zeile kk-sw"><div><span>mit Diagramm</span><div class="leise">aus: vier Kennzahlen statt Diagramm</div></div>${schalter(s.dia, 'kk-dia-w')}</div>` : ''}
-      <div class="gruppe-t">Vorschau</div><div class="aw-raster kk-vorschau"><div class="aw-frei-s" style="--w:${s.st === 'S' ? 1 : 2};--h:${s.st === 'L' ? 2 : 1}"><div class="aw-inhalt">${this.kkKachel({ k: e.k, id: s.id, st: s.st, dia: s.dia }, 0, 'kat', c)}</div></div></div>
-      <button class="knopf amber" data-act="kk-hinzu">Zur ${ort} hinzufügen</button></div>`;
-  }
-  kkKatalog(s, griff) {
-    return `${griff}<div class="kk-kat kk-such"><h3>＋ Kachel · ${s.ort === 'aw' ? 'Auswertung' : 'Übersicht'}</h3>
-      <input type="search" data-kk="q" placeholder="Suchen – z. B. Kosten, Temperatur, Pumpe" value="${esc(s.q || '')}" autocomplete="off">
-      <div class="kk-chips">${[['alle', 'Alle'], ...KK_BEREICHE.filter(([k]) => k !== 'auswertung' || s.ort === 'aw')].map(([k, t]) => `<button class="kk-chip ${(s.f || 'alle') === k ? 'on' : ''}" data-act="kk-f" data-v="${k}">${t}</button>`).join('')}
-        <button class="kk-chip ${s.nurJe ? 'on' : ''}" data-act="kk-nurje">je Container</button><button class="kk-chip ${s.nurEur ? 'on' : ''}" data-act="kk-nureur">€</button></div>
-      <div class="kk-treffer">${this.kkTreffer(s)}</div>
-      ${s.ort === 'aw' ? `<details class="kk-vorlagen"><summary>Vorlage laden</summary><div class="aw-vorlagen-k">${Object.entries(AW_VORLAGEN).map(([k, [t]]) => `<button class="glas-panel chip" data-act="aw-vorlage" data-v="${k}">${t}</button>`).join('')}</div></details>` : ''}
-      <button class="knopf" data-act="zu">Schließen</button></div>`;
-  }
   kkHinzu(s) {
     const e = this.kkEintraege(s.ort).find(y => y.k === s.k); if (!e) return;
     const L = this.kkListe(s.ort);
     if (e.baustein) { const x = L.find(y => y.k === e.k); Object.assign(x, this.kkGross(x, s.st), { an: true }); }
-    else if (e.je === 'v') L.push(this.kkGross({ k: e.k, an: true, ids: [...s.ids], zr: s.zr, art: s.art || 'balken', ...(s.st === 'L' ? { dia: !!s.dia } : {}) }, s.st));   // WU-0017
+    else if (e.je === 'v') L.push(this.kkGross({ k: e.k, an: true, ids: [...s.ids], zr: s.zr, art: s.vgArt || 'balken', ...(s.st === 'L' ? { dia: !!s.dia } : {}) }, s.st));   // WU-0017
     else L.push(this.kkGross({ k: e.k, an: true, ...(e.je ? { id: s.id } : {}), ...(s.st === 'L' ? { dia: !!s.dia } : {}) }, s.st));
     this.kkMerken(s.ort);
     const neu = { k: e.k, id: e.je && e.je !== 'v' ? s.id : undefined, ids: e.je === 'v' ? s.ids : undefined };
@@ -2662,18 +2565,6 @@ class BaustellePanel extends LitElement {
           <td>${zahl(q.kwh) ? de(q.kwh, 1) : '–'}</td><td>${zahl(q.kwh) ? de(q.kwh * this.d.e.preis, 2) : '–'}</td><td>${zahl(q.su) && zahl(min) && q.su > min ? `+${wert(q.su - min)}` : '–'}</td><td>${stdMin(q.h)}</td><td>${q.h > 0 ? de(q.kwh / q.h, 2) : '–'}</td></tr>`).join('')}</table>`);
     return ort === 'kat' ? `<div class="glas-panel kk kk-${gr}">${inhalt}</div>`
       : `<div class="glas-panel kk kk-${gr}" role="button" tabindex="0" data-act="kk-auf" data-ort="${ort}" data-i="${i}" title="${esc(this.kkName(x))} – antippen öffnet den Verbrauch">${inhalt}</div>`;
-  }
-  vgWahl(s, e) {
-    const B = this.d.bereiche.filter(b => !b.pumpe), ort = s.ort === 'aw' ? 'Auswertung' : 'Übersicht';
-    s.ids = (s.ids || B.slice(0, 2).map(b => b.id)).filter(id => B.some(b => b.id === id)); s.zr ||= 'Tag'; s.art ||= 'balken';
-    if (!['S', 'M', 'L'].includes(s.st)) s.st = 'M';
-    return `<div class="kk-wahl"><div class="gruppe-t">Container · 2 bis 4 wählen</div><div class="vb-wer vg-chips">${B.map(b => `<button data-act="vg-id" data-id="${b.id}" class="${s.ids.includes(b.id) ? 'on' : ''}"><i style="background:${BEREICH_FARBEN[b.f % BEREICH_FARBEN.length]}"></i>${esc(b.name)}</button>`).join('')}</div>
-      ${s.ort === 'aw' ? '<div class="leise">Zeitraum: der gewählte der Auswertung</div>' : `<div class="gruppe-t">Zeitraum</div><div class="seg">${[['Tag', 'heute'], ['Woche', 'diese Woche'], ['Monat', 'dieser Monat']].map(([k, t]) => `<button data-act="vg-zr" data-v="${k}" class="${s.zr === k ? 'on' : ''}">${t}</button>`).join('')}</div>`}
-      <div class="gruppe-t">Größe</div><div class="seg">${KK_GROESSE.map(([g, t, m]) => `<button data-act="kk-gr" data-v="${g}" class="${s.st === g ? 'on' : ''}">${t} · ${m}</button>`).join('')}</div>
-      ${s.st === 'L' ? `<div class="zeile kk-sw"><div><span>mit Diagramm</span><div class="leise">aus: Tabelle kWh, €, mehr als der sparsamste, Heizzeit, kWh je Stunde</div></div>${schalter(s.dia, 'kk-dia-w')}</div>
-        ${s.dia ? `<div class="seg">${[['balken', '▮▮ Balken'], ['linien', '〰 Linien']].map(([k, t]) => `<button data-act="vg-art" data-v="${k}" class="${s.art === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}` : ''}
-      <div class="gruppe-t">Vorschau</div><div class="aw-raster kk-vorschau"><div class="aw-frei-s" style="--w:${s.st === 'S' ? 1 : 2};--h:${s.st === 'L' ? 2 : 1}"><div class="aw-inhalt">${this.vgKachel({ k: e.k, ids: s.ids, zr: s.zr, st: s.st, dia: s.dia, art: s.art }, 0, 'kat', this.kkCtx(s.ort))}</div></div></div>
-      <button class="knopf amber" data-act="kk-hinzu" ${s.ids.length < 2 ? 'disabled' : ''}>Zur ${ort} hinzufügen</button></div>`;
   }
   /* Antippen: die passende vorhandene Ansicht oder Einblendung der Seite */
   kkAuf(x, ort) {
@@ -2751,6 +2642,8 @@ class BaustellePanel extends LitElement {
     };
     const fertig = () => {
       window.removeEventListener('pointermove', bewegt); window.removeEventListener('pointerup', fertig); window.removeEventListener('pointercancel', fertig);
+      kachel.classList.remove('zieht', 'waechst'); kachel.style.transform = ''; kachel.style.pointerEvents = '';   // Lit lässt das Element stehen (3f)
+      raster.querySelectorAll('.aw-frei-s.ziel').forEach(x => x.classList.remove('ziel'));
       if (art === 'move' && ziel) { const Lg = this.kkListe(ort), nach = an[+ziel.dataset.i], von = Lg.indexOf(item);
         Lg.splice(von, 1); Lg.splice(Lg.indexOf(nach) + (+ziel.dataset.i > +kachel.dataset.i ? 1 : 0), 0, item); }
       this.kkMerken(ort); this.neuZeichnen();
@@ -2954,7 +2847,6 @@ class BaustellePanel extends LitElement {
   sheet() {
     const s = this.s.sheet, d = this.d, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
     const griff = '<div class="griff"></div>';
-    if (s.art === 'kk-katalog') return this.kkKatalog(s, griff);   // WU-0014
     if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
     if (s.art === 'wetter') {
       const a = s.wa || 'std', e = d.e, ws = this.zustand(d.wetterEid), w = d.wetter || {};
@@ -3154,37 +3046,21 @@ class BaustellePanel extends LitElement {
       case 'aw-bearb': S.awBearb = !S.awBearb; S.awLayout = false; return neu();
       case 'aw-layout': S.awLayout = !S.awLayout; S.awBearb = false; return neu();
       case 'aw-an': { const x = this.awAuswahl()[+el.dataset.i]; x.an = !x.an; this.awMerken(); return neu(); }
-      case 'aw-weg': { const ort = el.dataset.ort || 'aw', Lg = this.kkListe(ort), x = Lg.filter(y => y.an)[+el.dataset.i]; if (!x) return;
-        if (KK[x.k]) Lg.splice(Lg.indexOf(x), 1); else x.an = false; this.kkMerken(ort); return neu(); }
-      /* WU-0014: Kachel-Katalog */
-      case 'kk-plus': S.sheet = { art: 'kk-katalog', ort: el.dataset.ort, k: null, st: 'M', id: null, dia: true, q: '', f: 'alle', nurJe: false, nurEur: false }; return neu();
-      case 'kk-k': { const sh = S.sheet; if (sh.k === el.dataset.k) sh.k = null; else { sh.k = el.dataset.k; sh.id = null; } return neu(); }
-      case 'kk-gk': { const sh = S.sheet; if (sh.k !== el.dataset.k) sh.id = null; sh.k = el.dataset.k; sh.st = el.dataset.v; return neu(); }
-      case 'kk-id': S.sheet.id = el.dataset.id; return neu();
-      case 'kk-gr': S.sheet.st = el.dataset.v; return neu();
-      case 'kk-dia-w': S.sheet.dia = !S.sheet.dia; return neu();
-      case 'kk-f': S.sheet.f = el.dataset.v; S.sheet.k = null; return neu();
-      case 'kk-nurje': S.sheet.nurJe = !S.sheet.nurJe; S.sheet.k = null; return neu();
-      case 'kk-nureur': S.sheet.nurEur = !S.sheet.nurEur; S.sheet.k = null; return neu();
-      case 'kk-hinzu': return this.kkHinzu(S.sheet);
-      case 'vg-id': { const sh = S.sheet, j = sh.ids.indexOf(el.dataset.id);   // WU-0017: 2 bis 4 Container
-        if (j >= 0) { if (sh.ids.length <= 2) return this.toast('Mindestens 2 Container'); sh.ids.splice(j, 1); } else { if (sh.ids.length >= 4) return this.toast('Höchstens 4 Container'); sh.ids.push(el.dataset.id); }
-        return neu(); }
-      case 'vg-zr': S.sheet.zr = el.dataset.v; return neu();
+      case 'aw-weg': return this.kkWeg(el.dataset.ort || 'aw', +el.dataset.i);
+      case 'kk-plus': return this.kkPlus(el.dataset.ort);
       case 'sp-neu': return this.preisNeu();
       case 'sp-speichern': return this.preisSpeichern();
       case 'sp-weg': return this.preisWeg(el.dataset.ab);
-      case 'sp-sim': { S.simPreis = Math.max(0, Math.round((this.simPreis() + +el.dataset.d) * 100) / 100); try { localStorage.setItem('baustelle-sim-preis', String(S.simPreis)); } catch (e) { /* egal */ } return neu(); }
+      case 'sp-sim': return this.spSim(+el.dataset.d);
       case 'sp-aw': S.awSim = !S.awSim; return neu();
-      case 'vg-art': S.sheet.art = el.dataset.v; return neu();
-      case 'vg-art-k': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; if (!x) return; x.art = x.art === 'linien' ? 'balken' : 'linien'; this.kkMerken(ort); return neu(); }
-      case 'kk-layout': S.kkLayout = !S.kkLayout; return neu();
+      case 'vg-art-k': return this.vgArtUm(el.dataset.ort, +el.dataset.i);
+      case 'kk-layout': return this.kkLayoutUm();
       case 'sg-gefuehl': return this.gefuehl(b, +el.dataset.v);
       case 'sg-zurueck': return this.sollZurueck({ id: el.dataset.id });
       case 'sg-vergessen': return this.gefuehlVergessen();
       case 'sr-auf': { const o = S.srOffen ||= [], id = el.dataset.id; if (o.includes(id)) o.splice(o.indexOf(id), 1); else o.push(id); return neu(); }
-      case 'kk-dia': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; if (!x) return; x.dia = x.dia === false; this.kkMerken(ort); return neu(); }
-      case 'kk-auf': { const ort = el.dataset.ort, x = this.kkListe(ort).filter(y => y.an)[+el.dataset.i]; return x ? this.kkAuf(x, ort) : undefined; }
+      case 'kk-dia': return this.kkDiaUm(el.dataset.ort, +el.dataset.i);
+      case 'kk-auf': return this.kkAufI(el.dataset.ort, +el.dataset.i);
       case 'aw-stufe': { const x = this.awAuswahl()[+el.dataset.i], st = awStufen(x.k).find(q => q[0] === el.dataset.v); if (!st) return; Object.assign(x, { w: st[1], h: st[2], st: st[0] }); this.awMerken(); return neu(); }
       case 'aw-gr': { const x = this.awAuswahl()[+el.dataset.i], k = el.dataset.k; x[k] = Math.max(1, Math.min(k === 'w' ? 4 : 6, x[k] + +el.dataset.d)); this.awMerken(); return neu(); }
       case 'aw-hoch': case 'aw-runter': { const Lg = this.awAuswahl(), i = +el.dataset.i, j = a === 'aw-hoch' ? i - 1 : i + 1; if (j < 0 || j >= Lg.length) return; [Lg[i], Lg[j]] = [Lg[j], Lg[i]]; this.awMerken(); return neu(); }
@@ -3234,9 +3110,6 @@ class BaustellePanel extends LitElement {
   }
   eingabe(ev) {
     const el = ev.target, ds = (el && el.dataset) || {}, sh = this.s.sheet;
-    if (ds.kk === 'q' && sh && sh.art === 'kk-katalog') {   // WU-0014: Treffer neu, Fokus bleibt im Suchfeld
-      sh.q = el.value; sh.k = null; const t = this.shadowRoot && this.shadowRoot.querySelector('.kk-treffer'); if (t) t.innerHTML = this.kkTreffer(sh); return;
-    }
   }
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
   aenderung(ev) {

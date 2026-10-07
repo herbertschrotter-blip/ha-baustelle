@@ -348,6 +348,23 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await wenn('u bedarf', '.seite .glas-k .bedarf-knopf'); await zu('u bedarf');
   await schritt('u neu', '.seite .glas-k.neu'); await zu('u neu');
   await schritt('u karte', '.seite .glas-raster .glas-k:nth-child(1)'); await schritt('u zurück', { act: 'tab', v: 'uebersicht' });
+  // Meine Kacheln (Stufe 3f): Raster, Antippen, Layout, Katalog
+  await schritt('k', { act: 'tab', v: 'uebersicht' });
+  for (let n = 0; n < 4; n++) { await alleSel(`k auf ${n}`, '.kk-bereich .aw-frei-s .kk', n); await schritt(`k auf ${n} zurück`, { act: 'tab', v: 'uebersicht' }); await zu(`k auf ${n} zu`); }
+  await text('k layout', '.kk-bereich .kk-knoepfe button', 'Anpassen'); await wenn('k dia', '.kk-bereich .aw-dia-k'); await wenn('k dia 2', '.kk-bereich .aw-dia-k');
+  await wenn('k art', '.kk-bereich .aw-art-k'); await alleSel('k weg', '.kk-bereich .aw-x', 0); await text('k fertig', '.kk-bereich .kk-knoepfe button', 'Fertig');
+  await text('k plus', '.kk-bereich .kk-knoepfe button', 'Kachel'); await feld('k suche', '.sheet input[type="search"]', 'temp');
+  await feld('k suche leer', '.sheet input[type="search"]', ''); await text('k filter', '.sheet .kk-chip', 'Container'); await text('k je', '.sheet .kk-chip', 'je Container');
+  await text('k filter alle', '.sheet .kk-chip', 'Alle'); await text('k je aus', '.sheet .kk-chip', 'je Container'); await text('k eur', '.sheet .kk-chip', '€'); await text('k eur aus', '.sheet .kk-chip', '€');
+  await feld('k suche temp', '.sheet input[type="search"]', 'Temperatur'); await alleSel('k wahl', '.sheet .kk-tr-zeile', 1); await alleSel('k wahl id', '.sheet .kk-wahl .vb-wer button', 1); await text('k wahl L', '.sheet .kk-wahl .seg button', 'Groß');
+  await wenn('k wahl dia', '.sheet .kk-wahl .sw'); await alleSel('k gk', '.sheet .kk-tr-gr button', 0); await schritt('k hinzu', '.sheet .kk-wahl .knopf.amber');
+  await text('k plus 2', '.kk-bereich button', 'Kachel'); await feld('k suche vg', '.sheet input[type="search"]', 'gegenüber'); await alleSel('k vg', '.sheet .kk-tr-zeile', 1);
+  await alleSel('k vg id', '.sheet .vg-chips button', 2); await alleSel('k vg id weg', '.sheet .vg-chips button', 0); await alleSel('k vg id weg 2', '.sheet .vg-chips button', 1);
+  await text('k vg woche', '.sheet .kk-wahl .seg button', 'diese Woche'); await text('k vg L', '.sheet .kk-wahl .seg button', 'Groß'); await text('k vg linien', '.sheet .kk-wahl .seg button', 'Linien');
+  await schritt('k vg hinzu', '.sheet .kk-wahl .knopf.amber');
+  await text('k plus 3', '.kk-bereich button', 'Kachel'); await feld('k suche preis', '.sheet input[type="search"]', 'Preis'); await alleSel('k preis', '.sheet .kk-tr-zeile', 0); await text('k preis M', '.sheet .kk-wahl .seg button', 'Mittel');
+  await schritt('k preis hinzu', '.sheet .kk-wahl .knopf.amber'); await wenn('k sim +', '.kk-bereich .sp-sim button:nth-child(3)'); await wenn('k sim −', '.kk-bereich .sp-sim button:nth-child(1)');
+  await text('k plus 4', '.kk-bereich button', 'Kachel'); await schritt('k katalog zu', '.sheet > .kk-kat > .knopf');
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon

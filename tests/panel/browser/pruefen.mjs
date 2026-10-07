@@ -477,6 +477,14 @@ await fall('3d Container', browser, async (page, erwarte) => {
 /* Stufe 3d: Einblendungen der Container-Ansicht – Bei Bedarf → Termin: Tippen während neuer Daten (Text, Fokus, Knoten
    bleiben), Eintragen = genau ein Auftrag; Nicht-Admin: „schnell aufheizen“ bleibt frei (Vor-Ort), Termin gesperrt */
 await fall('3d Einblendungen', browser, async (page, erwarte) => {
+  // 3f: „Meine Kacheln“ – im Anpassen-Modus Kachel 1 auf Kachel 2 ziehen: Reihenfolge neu, keine Reste vom Ziehen
+  { const vor = await panel(page, D, () => { p.s.kkLayout = true; p.neuZeichnen(); return p.kkListe('ue').map(x => x.k); }); await warte(300);
+    await panel(page, D, () => sr.querySelector('.kk-bereich').scrollIntoView({ block: 'center' })); await warte(500);   // Griffe ins Bild
+    const g = await (await page.$(`${D} >>> .kk-bereich .aw-frei-s:nth-child(1) .aw-griff`)).boundingBox(), z = await (await page.$(`${D} >>> .kk-bereich .aw-frei-s:nth-child(2)`)).boundingBox();
+    await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2); await page.mouse.down(); await page.mouse.move(z.x + z.width / 2, z.y + z.height / 2, { steps: 8 }); await page.mouse.up(); await warte(300);
+    const r = await panel(page, D, () => ({ k: p.kkListe('ue').map(x => x.k), rest: [...sr.querySelectorAll('.kk-bereich .aw-frei-s')].some(x => x.style.transform || x.style.pointerEvents || x.classList.contains('zieht') || x.classList.contains('ziel')) }));
+    erwarte('Kacheln: Ziehen ändert die Reihenfolge, keine Reste', r.k[0] === vor[1] && r.k[1] === vor[0] && !r.rest, JSON.stringify({ vor, ...r }));
+    await panel(page, D, () => { p.s.kkLayout = false; p.neuZeichnen(); }); await warte(200); }
   const bed = await panel(page, D, () => (p.d.bereiche.find(b => b.bedarf) || {}).id);
   await klick(page, `${D} >>> .glas-k[data-id="${bed}"] .bedarf-knopf`); await warte(400);
   await klick(page, `${D} >>> .sheet .zeile .sw.vor-ort`);

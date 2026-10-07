@@ -319,6 +319,17 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   (`stopPropagation`) – vorher entschied `closest('[data-act]')`. Methode `bedarfAuf` (Vor-Ort-Recht „bedarf“ geprüft).
   **Entfallen:** `v_uebersicht`. Nachweis: Schnappschuss um die Bedienung der Übersicht erweitert (516 Schritte),
   inhaltlich gleich; Browser-Test auf Lit-Selektoren für Karte, Automatik, Warnungen, Bei Bedarf.
+- **3f Meine Kacheln und Katalog, 07.10.2026 (0.8.97):** `src/ansichten/kacheln.js` (`kachelVorlage`, `rasterVorlage`,
+  `bereichVorlage`, `katalogEinblendung`); Tabellen der Kacheln und Bausteine nach `src/kacheln-daten.js`. Methoden `kkAn`,
+  `kkWeg`, `kkDiaUm`, `vgArtUm`, `kkAufI`, `kkPlus`, `kkLayoutUm`, `spSim`; die Klick-Fälle bleiben für die noch alte
+  Auswertung als Weiterleitung. Ziehen/Größe (`zugStart`, Griffe `data-zug`) bleiben, räumen aber am Ende selbst auf
+  (`transform`, `pointer-events`, `zieht`/`waechst`/`ziel`) – vorher erledigte das das Neuzeichnen per `innerHTML`.
+  **Befund behoben:** im Katalog landete „Balken/Linien“ in `sheet.art` (= Art der Einblendung) – jetzt `vgArt`.
+  `kkWeg` nimmt die Liste nur einmal (`awAuswahl()` liefert je Aufruf ein neues Array). **Entfallen:** `kkBereich`,
+  `kkKatalog`, `kkTreffer`, `kkWahl`, `vgWahl`, Such-Pfad in `eingabe()`, Klick-Fälle des Katalogs. `kkRaster`, `kkKachel`,
+  `vgKachel`, `spKachel` bleiben bis zur Auswertung. Nachweis: Schnappschuss um Kacheln/Katalog erweitert (568 Schritte),
+  inhaltlich gleich bis auf die Korrektur (Gegenlauf ohne den „Linien“-Klick: nur „Balken“ vorgewählt); Panel-Test auf
+  Lit-Merkmale; Browser-Fall „3d Einblendungen“ um Ziehen einer Kachel erweitert (Reihenfolge neu, keine Reste).
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

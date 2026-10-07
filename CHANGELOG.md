@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.97] – 2026-10-07
+
+- Kachel-Katalog, Vergleich kWh/Kosten: Ein Tipp auf „Balken“ oder „Linien“ zerstörte den Dialog (es erschien ein leeres
+  Namensfeld), und neu angelegte Vergleichs-Kacheln bekamen keine gültige Darstellung – die Wahl landete im selben Feld
+  wie die Art der Einblendung. Jetzt bleibt der Katalog stehen, „Balken“ ist vorgewählt, und die gewählte Darstellung
+  wird übernommen.
+- Seite auf Lit umgestellt, Teil 14 (BSM-022.16, Stufe 3f, zweiter Teil): „Meine Kacheln“ auf der Übersicht (Kacheln,
+  Anpassen mit Ziehen und Größe, Vergleichs- und Preis-Kacheln) und der Kachel-Katalog werden mit Lit gezeichnet.
+  Aussehen und Bedienung bleiben sonst gleich.
+
 ## [0.8.96] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 13 (BSM-022.16, Stufe 3f, erster Teil): Die Übersicht – Kopf mit Baustelle, Strom,

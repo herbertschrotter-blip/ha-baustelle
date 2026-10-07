@@ -96,6 +96,9 @@ const MONATE_LANG_T = ['Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni', 'J
 let ereignis;   // echte Ereignisse in der Seite (umgebung.helfer)
 // Lit-Bereiche (BSM-022 2a) haben kein data-act: dort ist ds ein CSS-Selektor für das echte Element
 const litEl = sel => panel.shadowRoot.querySelector(sel);
+// Kachel-Katalog (Lit, BSM-022 3f): Zeile data-k, Größe data-v; Treffer als HTML des Bereichs
+const KAT = { gk: (k, st) => `.sheet .kk-tr-zeile[data-k="${k}"] .kk-tr-gr [data-v="${st}"]`, hinzu: '.sheet .kk-wahl .knopf.amber', diaW: '.sheet .kk-wahl .sw', suche: '.sheet input[type="search"]',
+  treffer: () => (litEl('.sheet .kk-treffer') || { innerHTML: '' }).innerHTML };
 const klick = async (ds, n) => { if (typeof ds === 'string') { const e = litEl(ds); if (!e) erwarte(`Element ${ds}`, false); else e.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); }
   else ereignis.klick(ds); await ruhe(n); };
 const eingabe = (ds, value) => { if (typeof ds !== 'string') return ereignis.feld(ds, value, 'input');
@@ -839,18 +842,18 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const p0 = panel.simPreis(); await klick({ act: 'sp-sim', d: '0.01' }, 10); erwarte('Simulieren: Preis ±', Math.abs(panel.simPreis() - p0 - 0.01) < 1e-9);
     await klick({ act: 'sp-aw' }, 10); erwarte('Simulieren aus', !panel.s.awSim && !ui.innerHTML.includes('Simuliert: alle €'));
     panel.s.kkUe = [panel.kkGross({ k: 'b-preis', an: true }, 'L')]; await klick({ act: 'tab', v: 'uebersicht' }, 20); pruefe('Kachel Preis simulieren');
-    erwarte('Kachel Preis simulieren mit Regler', ui.innerHTML.includes('Preis simulieren') && ui.innerHTML.includes('data-act="sp-sim"'));
+    erwarte('Kachel Preis simulieren mit Regler', ui.innerHTML.includes('Preis simulieren') && ui.innerHTML.includes('class="sp-sim"'));
     await klick({ act: 'kk-auf', ort: 'ue', i: '0' }, 10); erwarte('Kachel öffnet die Auswertung simuliert', panel.s.view === 'auswertung' && panel.s.awSim);
     panel.s.awSim = false; panel.s.kkUe = null; }
   /* WU-0017: Vergleich kWh / Kosten – 2 bis 4 Container, Zeitraum, Balken oder Linien, Unterschied in Zahlen */
   { panel.s.kkUe = []; await klick({ act: 'tab', v: 'uebersicht' }, 10); await klick({ act: 'kk-plus', ort: 'ue' });
-    await klick({ act: 'kk-gk', k: 'v-kwh', v: 'L' }); pruefe('Vergleich anlegen');
-    erwarte('WU-0017: Auswahl 2–4 Container, Zeitraum, Balken/Linien', ui.innerHTML.includes('2 bis 4 wählen') && ui.innerHTML.includes('data-act="vg-zr"') && ui.innerHTML.includes('data-act="vg-art"'));
+    await klick(KAT.gk('v-kwh', 'L')); pruefe('Vergleich anlegen');
+    erwarte('WU-0017: Auswahl 2–4 Container, Zeitraum, Balken/Linien', ui.innerHTML.includes('2 bis 4 wählen') && ui.innerHTML.includes('diese Woche') && ui.innerHTML.includes('Linien'));
     const C = panel.d.bereiche.filter(b => !b.pumpe);
-    if (C.length >= 3) await klick({ act: 'vg-id', id: C[2].id });
-    await klick({ act: 'vg-id', id: C[0].id }); if (C.length === 2) erwarte('WU-0017: mindestens 2', panel.letzterToast === 'Mindestens 2 Container');
-    if (C.length >= 3) await klick({ act: 'vg-id', id: C[0].id });
-    await klick({ act: 'vg-zr', v: 'Woche' }); await klick({ act: 'vg-art', v: 'linien' }); await klick({ act: 'kk-hinzu' }, 20); pruefe('Vergleich auf der Übersicht');
+    if (C.length >= 3) await klick(`.sheet .vg-chips [data-id=\"${C[2].id}\"]`);
+    await klick(`.sheet .vg-chips [data-id=\"${C[0].id}\"]`); if (C.length === 2) erwarte('WU-0017: mindestens 2', panel.letzterToast === 'Mindestens 2 Container');
+    if (C.length >= 3) await klick(`.sheet .vg-chips [data-id=\"${C[0].id}\"]`);
+    await klick('.sheet .kk-wahl .seg [data-v="Woche"]'); await klick('.sheet .kk-wahl .seg [data-v="linien"]'); await klick(KAT.hinzu, 20); pruefe('Vergleich auf der Übersicht');
     const x = panel.kkListe('ue').at(-1);
     erwarte('WU-0017: Kachel gespeichert', x.k === 'v-kwh' && x.ids.length === Math.min(3, C.length) && x.zr === 'Woche' && x.art === 'linien' && x.st === 'L');
     erwarte('WU-0017: Linien und Unterschied in kWh und %', ui.innerHTML.includes('class="vg-svg"') && /<b>\+[\d,]+ kWh<\/b>( \(\+\d+ %\))? zu /.test(ui.innerHTML));
@@ -964,41 +967,41 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     panel.d.e.staffel = staffelAlt; }
   /* WU-0014: Kachel-Katalog – Übersicht und Auswertung, Suche mit Chips, jede Kachel in S/M/L (L mit und ohne Diagramm), Antippen öffnet die Ansicht */
   { panel.s.kkUe = null; await klick({ act: 'tab', v: 'uebersicht' }, 30); pruefe('Übersicht mit Kacheln');
-    erwarte('WU-0014: Meine Kacheln auf der Übersicht (Vorschlag)', ui.innerHTML.includes('Meine Kacheln') && (ui.innerHTML.match(/data-act="kk-auf" data-ort="ue"/g) || []).length === 3 && ui.innerHTML.includes('kk-neu-k'));
+    erwarte('WU-0014: Meine Kacheln auf der Übersicht (Vorschlag)', ui.innerHTML.includes('Meine Kacheln') && (ui.innerHTML.match(/data-ort="ue" data-i="/g) || []).length === 3 && ui.innerHTML.includes('kk-neu-k'));
     await klick({ act: 'kk-plus', ort: 'ue' }); pruefe('Katalog Übersicht');
-    erwarte('WU-0014: Katalog mit Suche und Chips, ohne Bausteine der Auswertung', ui.innerHTML.includes('data-kk="q"') && ui.innerHTML.includes('data-act="kk-nurje"') && !ui.innerHTML.includes('data-act="kk-f" data-v="auswertung"'));
-    eingabe({ kk: 'q' }, 'pumpe'); const tr = panel.kkTreffer(panel.s.sheet);
+    erwarte('WU-0014: Katalog mit Suche und Chips, ohne Bausteine der Auswertung', ui.innerHTML.includes('type="search"') && ui.innerHTML.includes('>je Container</button>') && !/class="kk-chip[^"]*">Auswertung</.test(ui.innerHTML));
+    eingabe(KAT.suche, 'pumpe'); await panel.updateComplete; const tr = KAT.treffer();
     erwarte('WU-0014: Suche „pumpe“', tr.includes('data-k="p-pumpzeit"') === panel.d.bereiche.some(b => b.pumpe) && !tr.includes('data-k="b-kosten"'));
-    eingabe({ kk: 'q' }, 'xyz'); erwarte('WU-0014: Suche ohne Treffer', panel.kkTreffer(panel.s.sheet).includes('Keine Kachel gefunden'));
-    eingabe({ kk: 'q' }, ''); await klick({ act: 'kk-nureur' });
-    erwarte('WU-0014: Chip €', panel.kkTreffer(panel.s.sheet).includes('data-k="b-kosten"') && !panel.kkTreffer(panel.s.sheet).includes('data-k="h-plan"')); await klick({ act: 'kk-nureur' });
+    eingabe(KAT.suche, 'xyz'); await panel.updateComplete; erwarte('WU-0014: Suche ohne Treffer', KAT.treffer().includes('Keine Kachel gefunden'));
+    eingabe(KAT.suche, ''); await klick('.sheet .kk-chips .kk-chip:last-child');
+    erwarte('WU-0014: Chip €', KAT.treffer().includes('data-k="b-kosten"') && !KAT.treffer().includes('data-k="h-plan"')); await klick('.sheet .kk-chips .kk-chip:last-child');
     const keys = panel.kkEintraege('ue').map(e => e.k);
     erwarte('WU-0014: Katalog mit Baustelle, Heizung und je Container', ['b-kosten', 'b-wer', 'h-plan', 'h-wann', 'c-verbrauch'].every(k => keys.includes(k)));
     for (const k of keys) for (const [st, dia] of [['S', true], ['M', true], ['L', true], ['L', false]]) {
-      await klick({ act: 'kk-gk', k, v: st }); if (panel.s.sheet.dia !== dia) await klick({ act: 'kk-dia-w' }); pruefe(`Katalog ${k} ${st}${dia ? '' : ' ohne Diagramm'}`, { laedtErlaubt: true });
+      await klick(KAT.gk(k, st)); if (panel.s.sheet.dia !== dia) { if (litEl(KAT.diaW)) await klick(KAT.diaW); else { panel.s.sheet.dia = dia; await panel.neuZeichnen(); } }   // Schalter nur bei L pruefe(`Katalog ${k} ${st}${dia ? '' : ' ohne Diagramm'}`, { laedtErlaubt: true });
     }
     const n0 = panel.kkListe('ue').length;
-    await klick({ act: 'kk-gk', k: 'c-verbrauch', v: 'L' }); if (!panel.s.sheet.dia) await klick({ act: 'kk-dia-w' }); await klick({ act: 'kk-hinzu' }, 20); pruefe('Kachel hinzugefügt');
+    await klick(KAT.gk('c-verbrauch', 'L')); if (!panel.s.sheet.dia) await klick(KAT.diaW); await klick(KAT.hinzu, 20); pruefe('Kachel hinzugefügt');
     const neuK = panel.kkListe('ue').at(-1);
     erwarte('WU-0014: Kachel hinzugefügt (L mit Diagramm, je Container)', panel.kkListe('ue').length === n0 + 1 && neuK.k === 'c-verbrauch' && neuK.st === 'L' && neuK.dia === true && neuK.id && !panel.s.sheet);
     panel.s.kkUe = keys.flatMap(k => ['S', 'M', 'L'].map(st => panel.kkGross({ k, an: true, dia: true }, st)));
     await panel.neuZeichnen(); await ruhe(30); pruefe('Übersicht mit allen Kacheln');
-    erwarte('WU-0014: alle Kacheln gezeigt', (ui.innerHTML.match(/data-act="kk-auf" data-ort="ue"/g) || []).length === keys.length * 3);
+    erwarte('WU-0014: alle Kacheln gezeigt', (ui.innerHTML.match(/data-ort="ue" data-i="/g) || []).length === keys.length * 3);
     for (let i = 0; i < keys.length; i++) { await klick({ act: 'tab', v: 'uebersicht' }, 10); await klick({ act: 'kk-auf', ort: 'ue', i: String(i * 3) }, 20); pruefe(`Kachel ${keys[i]} geöffnet`, { laedtErlaubt: true });
       erwarte(`WU-0014: ${keys[i]} öffnet eine Ansicht`, panel.s.sheet || panel.s.view !== 'uebersicht'); await klick({ act: 'zu' }, 5); }
     await klick({ act: 'tab', v: 'uebersicht' }, 10); await klick({ act: 'kk-layout' }); pruefe('Übersicht Kacheln anpassen');
-    erwarte('WU-0014: Anpassen mit Griffen und 📈', ui.innerHTML.includes('data-act="kk-dia" data-ort="ue"') && ui.innerHTML.includes('data-zug="move"'));
+    erwarte('WU-0014: Anpassen mit Griffen und 📈', ui.innerHTML.includes('class="aw-dia-k') && ui.innerHTML.includes('data-zug="move"'));
     await klick({ act: 'kk-dia', ort: 'ue', i: '2' }); erwarte('WU-0014: Diagramm aus', panel.kkListe('ue')[2].dia === false);
     const n1 = panel.kkListe('ue').length; await klick({ act: 'aw-weg', ort: 'ue', i: '0' }); erwarte('WU-0014: ✕ entfernt die Kachel', panel.kkListe('ue').length === n1 - 1);
     await klick({ act: 'kk-layout' });
     await klick({ act: 'tab', v: 'auswertung' }, 30); await klick({ act: 'kk-plus', ort: 'aw' }); pruefe('Katalog Auswertung');
-    erwarte('WU-0014: Katalog der Auswertung mit Bausteinen und Vorlagen', ui.innerHTML.includes('data-act="kk-f" data-v="auswertung"') && panel.kkTreffer(panel.s.sheet).includes('data-k="rangliste"') && ui.innerHTML.includes('Vorlage laden'));
-    await klick({ act: 'kk-gk', k: 'b-kosten', v: 'L' }); await klick({ act: 'kk-hinzu' }, 30); pruefe('Auswertung mit Kachel');
+    erwarte('WU-0014: Katalog der Auswertung mit Bausteinen und Vorlagen', /class="kk-chip[^"]*">Auswertung</.test(ui.innerHTML) && KAT.treffer().includes('data-k="rangliste"') && ui.innerHTML.includes('Vorlage laden'));
+    await klick(KAT.gk('b-kosten', 'L')); await klick(KAT.hinzu, 30); pruefe('Auswertung mit Kachel');
     erwarte('WU-0014: Kachel im Raster der Auswertung', panel.awAuswahl().some(x => x.an && x.k === 'b-kosten') && ui.innerHTML.includes('data-act="kk-auf" data-ort="aw"'));
     await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Woche' }, 30); pruefe('Auswertung Woche mit Kachel');
     erwarte('WU-0014: Kachel folgt dem Zeitraum', panel.kkCtx('aw').z === 'Woche' && ui.innerHTML.includes('<span class="kk-wo">diese Woche</span>'));
     await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 30);
-    await klick({ act: 'kk-plus', ort: 'aw' }); await klick({ act: 'kk-gk', k: 'rangliste', v: 'M' }); await klick({ act: 'kk-hinzu' }, 20);
+    await klick({ act: 'kk-plus', ort: 'aw' }); await klick(KAT.gk('rangliste', 'M')); await klick(KAT.hinzu, 20);
     const rl = panel.awAuswahl().find(x => x.k === 'rangliste'); erwarte('WU-0014: Baustein aus dem Katalog eingeschaltet', rl.an && rl.st === 'M');
     await klick({ act: 'aw-layout' }); const an2 = panel.awAuswahl().filter(x => x.an), n2 = panel.awAuswahl().length;
     await klick({ act: 'aw-weg', ort: 'aw', i: String(an2.findIndex(x => x.k === 'b-kosten')) }); erwarte('WU-0014: ✕ entfernt die Kachel aus der Auswertung', panel.awAuswahl().length === n2 - 1);

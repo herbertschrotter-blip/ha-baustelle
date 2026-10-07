@@ -1,11 +1,11 @@
 // Übersicht mit Lit (BSM-022 Stufe 3f): Kopf (Baustelle, Strom, Wetter, Leistung), Chips (Automatik, Status, Warnungen),
-// Raster der Container. Zahlen und Texte kommen aus der Integration; die Seite ordnet nur zu. Der Bereich „Meine Kacheln“
-// bleibt bis zu seiner Lieferung ein eigener Teilbaum aus HTML-Text der Seite (kkBereich, eigener Ereignisweg data-act).
+// Raster der Container und „Meine Kacheln“ (kacheln.js). Zahlen und Texte kommen aus der Integration; die Seite ordnet nur zu.
 import { html, nothing } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { de, zahl } from '../hilfen.js';
 import { FARBE, TEXT, illu, kwVon, wertHtml } from '../tabellen.js';
 import { wetterIcon } from '../symbole.js';
+import { bereichVorlage } from './kacheln.js';
 
 export function uebersichtVorlage(p) {
   const d = p.d, B = d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), W = d.warnungen.filter(w => !w.stumm);
@@ -35,5 +35,5 @@ export function uebersichtVorlage(p) {
       </div>
       <div class="glas-raster">${B.map(karte)}
         <button class="glas-panel glas-k neu nur-admin" @click=${p.nurAdmin(() => p.einblenden('container-neu'))}><span>+</span>Container</button></div>
-      ${unsafeHTML(p.kkBereich())}`;
+      ${bereichVorlage(p)}`;
 }
