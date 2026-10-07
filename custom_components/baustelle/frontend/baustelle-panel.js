@@ -3176,6 +3176,43 @@ function geraetEdit(p4, s4) {
 }
 var EINRICHTUNG_EINBLENDUNGEN = { firma, anschluss, "container-neu": containerNeu, bereich, aussehen, "geraet-edit": geraetEdit };
 
+// src/ansichten/uebersicht.js
+function uebersichtVorlage(p4) {
+  const d3 = p4.d, B2 = d3.bereiche, kw = B2.reduce((s4, b3) => s4 + kwVon(b3), 0), W = d3.warnungen.filter((w2) => !w2.stumm);
+  const st = W.filter((w2) => w2.stufe === "stoerung").length, hi = W.length - st;
+  const an = B2.flatMap((b3) => b3.geraete).filter((g2) => g2.an).length, alle = B2.flatMap((b3) => b3.geraete).length;
+  const [wz, wt, wtemp] = p4.wetterJetzt(), auf = (art) => () => p4.einblenden(art);
+  p4.pumpenWerte();
+  const L2 = d3.e.staffel && p4.last().A.length ? p4.last() : null;
+  const karte = (b3, i7) => b2`<div class="glas-panel glas-k ${b3.z}" role="button" tabindex="0" data-id=${b3.id} style="animation-delay:${i7 * 60}ms;--c:${FARBE[b3.z]}" @click=${() => p4.containerOeffnen(b3.id)}>
+        <div class="glas-illu">${o5(illu(b3))}</div>
+        <div class="glas-name">${b3.name}</div>${p4.firma(b3.firma).eigen ? A : b2`<div class="firma-tag">${p4.firma(b3.firma).name}</div>`}${b3.tuer && b3.tuer.offen ? b2`<div class="tuer-tag">🚪 offen ${b3.tuer.offen} min</div>` : A}
+        <div class="glas-zeile"><span class="glas-wert">${o5(wertHtml(b3))}</span><span class="glas-kwk">${de(kwVon(b3))} kW</span></div>
+        <div class="glas-status"><span class="glas-dot"></span>${TEXT(b3)}</div>
+        <div class="glas-geraete">${b3.geraete.map((g2) => b2`<i class=${g2.an ? "an" : ""}></i>`)}<span>${b3.geraete.length} ${b3.pumpe ? "Pumpen" : "Geräte"}</span></div>
+        ${b3.bedarf ? b2`<button class="bedarf-knopf ${b3.bedarfBis ? "an" : ""}" data-id=${b3.id} @click=${(e6) => {
+    e6.stopPropagation();
+    return b3.bedarfBis ? p4.bedarfAus(b3.id) : p4.bedarfAuf(b3.id);
+  }}>${b3.bedarfBis ? `■ bis ${b3.bedarfBis}` : "▶ jetzt heizen"}</button>` : A}</div>`;
+  return b2`<div class="glas-kopf glas-panel">
+        <div><div class="klickbar" @click=${auf("baustellen")}><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">${d3.titel} <span class="pfeil">▾</span></div>
+        ${L2 ? b2`<button class="strom-knopf" @click=${(e6) => {
+    e6.stopPropagation();
+    return p4.einblenden("strom");
+  }}>${o5(p4.stromBalken(L2, true))}<span class="strom-t"><b>${de(L2.gesamt)} kW</b> · ${L2.A.length} ${L2.A.length === 1 ? "Anschluss" : "Anschlüsse"} · ${L2.laufen} Heizkörper an${L2.warten ? ` · ${L2.warten} wartet` : ""} ›</span></button>` : A}</div>
+          <button class="kopf-wetter ${d3.wetterEid ? "" : "nur-admin"}" @click=${d3.wetterEid ? auf("wetter") : p4.nurAdmin(auf("wetterquelle"))}>${o5(wetterIcon(wz, 22))}<span>${zahl(wtemp) ? de(wtemp) + "°" : "–"}</span><span class="kw-t">${wt}</span></button></div>
+        <button class="glas-kw kw-knopf" title="Verbrauch anzeigen" @click=${auf("verbrauch")}><span class="blitz ${kw ? "an" : ""}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
+      <div class="glas-chips">
+        <button class="glas-panel chip auto-chip ${d3.e.auto ? "on" : ""}" role="switch" aria-checked=${String(d3.e.auto)} title="Automatik ${d3.e.auto ? "ausschalten" : "einschalten"}" @click=${() => p4.automatikUmschalten()}><span class="mini-sw"><i></i></span>Automatik</button>
+        <button class="chip-status ${d3.e.auto ? "amber" : ""}" title="Heizplan anzeigen" @click=${auf("heizplan")}>${p4.statusText()} <span class="pfeil">›</span></button>
+        ${W.length ? b2`<button class="glas-panel chip warn-chip ${st ? "rot" : "gelb"}" @click=${auf("warnungen")}>⚠ ${W.length === 1 ? `${p4.bName(W[0].b)}: ${W[0].titel}` : [st ? `${st} ${st === 1 ? "Störung" : "Störungen"}` : "", hi ? `${hi} ${hi === 1 ? "Hinweis" : "Hinweise"}` : ""].filter(Boolean).join(" · ")}</button>` : A}
+        <span class="chip-leise">${an} von ${alle} Geräten an</span>
+      </div>
+      <div class="glas-raster">${B2.map(karte)}
+        <button class="glas-panel glas-k neu nur-admin" @click=${p4.nurAdmin(() => p4.einblenden("container-neu"))}><span>+</span>Container</button></div>
+      ${o5(p4.kkBereich())}`;
+}
+
 // src/alt.js
 var CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -4222,7 +4259,7 @@ var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.95";
+var SEITE_VERSION = "0.8.96";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS)];
@@ -5830,6 +5867,12 @@ var BaustellePanel = class extends i4 {
     this.neuZeichnen();
     return this.aktion("bedarf", { bereich: x2.id, ...felder, boost }, `${x2.name} heizt bis ${bisText}`);
   }
+  bedarfAuf(id) {
+    const r5 = this.rechte();
+    if (!r5.aendern && !(r5.aktionen || []).includes("bedarf")) return this.toast(NUR_ANSEHEN);
+    this.s.sheet = { art: "bedarf", cid: id, boost: false };
+    return this.neuZeichnen();
+  }
   bedarfAus(id) {
     const x2 = this.d.bereiche.find((y3) => y3.id === id);
     return this.aktion("bedarf_aus", { bereich: x2.id }, `${x2.name} aus – nur Frostschutz`);
@@ -6052,6 +6095,7 @@ var BaustellePanel = class extends i4 {
       pumpen: () => pumpenVorlage(this),
       heizung: () => heizungVorlage(this),
       einst: () => einstellungenVorlage(this),
+      uebersicht: () => uebersichtVorlage(this),
       // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
       container: () => this.b.pumpe ? schachtVorlage(this) : containerVorlage(this)
     };
@@ -6140,36 +6184,6 @@ var BaustellePanel = class extends i4 {
       const z2 = st && this.zyklen(d3, b3, "Woche");
       b3.zyklen = z2 ? z2[i7] : null;
     }
-  }
-  v_uebersicht() {
-    const d3 = this.d, B2 = d3.bereiche, kw = B2.reduce((s4, b3) => s4 + kwVon(b3), 0), W = d3.warnungen.filter((w2) => !w2.stumm);
-    const st = W.filter((w2) => w2.stufe === "stoerung").length, hi = W.length - st;
-    const an = B2.flatMap((b3) => b3.geraete).filter((g2) => g2.an).length, alle = B2.flatMap((b3) => b3.geraete).length;
-    const [wz, wt, wtemp] = this.wetterJetzt();
-    this.pumpenWerte();
-    return `<div class="glas-kopf glas-panel">
-        <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">${esc(d3.titel)} <span class="pfeil">▾</span></div>
-        ${d3.e.staffel && this.last().A.length ? (() => {
-      const L2 = this.last();
-      return `<button class="strom-knopf" data-act="sheet" data-s="strom">${this.stromBalken(L2, true)}<span class="strom-t"><b>${de(L2.gesamt)} kW</b> · ${L2.A.length} ${L2.A.length === 1 ? "Anschluss" : "Anschlüsse"} · ${L2.laufen} Heizkörper an${L2.warten ? ` · ${L2.warten} wartet` : ""} ›</span></button>`;
-    })() : ""}</div>
-          <button class="kopf-wetter" data-act="sheet" data-s="${d3.wetterEid ? "wetter" : "wetterquelle"}">${wetterIcon(wz, 22)}<span>${zahl(wtemp) ? de(wtemp) + "°" : "–"}</span><span class="kw-t">${esc(wt)}</span></button></div>
-        <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? "an" : ""}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
-      <div class="glas-chips">
-        <button class="glas-panel chip auto-chip ${d3.e.auto ? "on" : ""}" data-act="auto" role="switch" aria-checked="${d3.e.auto}" title="Automatik ${d3.e.auto ? "ausschalten" : "einschalten"}"><span class="mini-sw"><i></i></span>Automatik</button>
-        <button class="chip-status ${d3.e.auto ? "amber" : ""}" data-act="sheet" data-s="heizplan" title="Heizplan anzeigen">${esc(this.statusText())} <span class="pfeil">›</span></button>
-        ${W.length ? `<button class="glas-panel chip warn-chip ${st ? "rot" : "gelb"}" data-act="sheet" data-s="warnungen">⚠ ${W.length === 1 ? `${esc(this.bName(W[0].b))}: ${esc(W[0].titel)}` : [st ? `${st} ${st === 1 ? "Störung" : "Störungen"}` : "", hi ? `${hi} ${hi === 1 ? "Hinweis" : "Hinweise"}` : ""].filter(Boolean).join(" · ")}</button>` : ""}
-        <span class="chip-leise">${an} von ${alle} Geräten an</span>
-      </div>
-      <div class="glas-raster">${B2.map((b3, i7) => `<div class="glas-panel glas-k ${b3.z}" role="button" tabindex="0" data-act="container" data-id="${b3.id}" style="animation-delay:${i7 * 60}ms;--c:${FARBE[b3.z]}">
-        <div class="glas-illu">${illu(b3)}</div>
-        <div class="glas-name">${esc(b3.name)}</div>${this.firma(b3.firma).eigen ? "" : `<div class="firma-tag">${esc(this.firma(b3.firma).name)}</div>`}${b3.tuer && b3.tuer.offen ? `<div class="tuer-tag">🚪 offen ${b3.tuer.offen} min</div>` : ""}
-        <div class="glas-zeile"><span class="glas-wert">${wertHtml(b3)}</span><span class="glas-kwk">${de(kwVon(b3))} kW</span></div>
-        <div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b3))}</div>
-        <div class="glas-geraete">${b3.geraete.map((g2) => `<i class="${g2.an ? "an" : ""}"></i>`).join("")}<span>${b3.geraete.length} ${b3.pumpe ? "Pumpen" : "Geräte"}</span></div>
-        ${b3.bedarf ? `<button class="bedarf-knopf ${b3.bedarfBis ? "an" : ""}" data-act="${b3.bedarfBis ? "bedarf-aus" : "bedarf-auf"}" data-id="${b3.id}">${b3.bedarfBis ? `■ bis ${b3.bedarfBis}` : "▶ jetzt heizen"}</button>` : ""}</div>`).join("")}
-        <button class="glas-panel glas-k neu" data-act="sheet" data-s="container-neu"><span>+</span>Container</button></div>
-      ${this.kkBereich()}`;
   }
   /* ---- Container ---- */
   /* Diagramm und Kennzahlen der Container-Ansicht – eigene Funktion, damit neue Sensorwerte nur diese zwei Stellen tauschen (WU-0002) */
@@ -7747,8 +7761,7 @@ var BaustellePanel = class extends i4 {
       case "auto":
         return this.automatikUmschalten();
       case "bedarf-auf":
-        S3.sheet = { art: "bedarf", cid: el.dataset.id, boost: false };
-        return neu();
+        return this.bedarfAuf(el.dataset.id);
       case "bedarf-an":
         return this.bedarfAn(el.dataset.id, el.dataset.v);
       case "bedarf-aus":

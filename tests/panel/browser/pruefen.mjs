@@ -159,7 +159,7 @@ await fall('B3 Scrollschutz', browser, async (page, erwarte) => {
   const nach = await ruhig(page, D, '.scroll', 'scrollTop');
   erwarte('Hauptansicht: Position bleibt (±1 px)', vor > 50 && Math.abs(nach - vor) <= 1 && neu1, `vor ${vor}, nach ${nach}, verarbeitet ${neu1}`);
   // lange Einblendung: Warnungen
-  await klick(page, `${D} >>> [data-act="sheet"][data-s="warnungen"]`); await warte(900);   // Einblendung fährt ein
+  await klick(page, `${D} >>> .warn-chip`); await warte(900);   // Einblendung fährt ein
   const sbox = await (await page.$(`${D} >>> .sheet.an`)).boundingBox();
   await page.mouse.move(sbox.x + sbox.width / 2, sbox.y + Math.min(sbox.height, 800) / 2); await warte(150);
   for (let i = 0; i < 3 && await ruhig(page, D, '.sheet', 'scrollTop') < 20; i++) await page.mouse.wheel({ deltaY: 300 });
@@ -185,7 +185,7 @@ await fall('B3 Scrollschutz', browser, async (page, erwarte) => {
    Lit zeichnet nur Geändertes);
    (2) neuer Sensorwert bei offener Einblendung → angekommen, aber Diagramm unverändert (heutige Unterdrückung) */
 await fall('B4 Container live', browser, async (page, erwarte) => {
-  await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`); await warte(400);
+  await klick(page, `${D} >>> .glas-k[data-id="polier"]`); await warte(400);
   await page.mouse.move(900, 600); await page.mouse.wheel({ deltaY: 200 }); await ruhig(page, D, '.scroll', 'scrollTop');
   const merken = () => panel(page, D, () => { window.__rest = [sr.querySelector('.c-d-info'), sr.querySelector('.c-d-knoepfe .seg button'), sr.querySelector('.c-chip .c-power'), sr.querySelector('.c-live .seg button')]; window.__wrap = sr.querySelector('.c-live .chart-wrap');
     return { w: window.__wrap.innerHTML, k: sr.querySelector('.c-live-kennz').textContent, scroll: sr.querySelector('.scroll').scrollTop, lg: p._liveGezeichnet || 0 }; });
@@ -211,7 +211,7 @@ await fall('B4 Container live', browser, async (page, erwarte) => {
 
 /* B5 Leistung: Regler mit der Tastatur, Daten kommen verzögert; Datenteil neu, Regler/Fokus/Scroll bleiben */
 await fall('B5 Leistung', browser, async (page, erwarte) => {
-  await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`); await warte(200);
+  await klick(page, `${D} >>> .glas-k[data-id="polier"]`); await warte(200);
   await klick(page, `${D} >>> .c-kachel[data-s="leistung"]`); await warte(400);
   const regler = `${D} >>> input[data-lh]`;
   await page.waitForSelector(regler, { visible: true });
@@ -230,15 +230,15 @@ await fall('B5 Leistung', browser, async (page, erwarte) => {
 /* B6 Befehle und Rechte: ein Klick = genau ein Auftrag; Nicht-Admin ändert nichts, Vor-Ort-Aktion geht */
 await fall('B6 Befehle/Rechte', browser, async (page, erwarte) => {
   let ab = await aufrufZahl(page);
-  await klick(page, `${D} >>> [data-act="auto"]`); await warte(200);
+  await klick(page, `${D} >>> .auto-chip`); await warte(200);
   const admin = await schreibAnzahl(page, ab);
   erwarte('Admin: Automatik-Schalter sendet genau einen Auftrag', admin.length === 1 && admin[0] === 'baustelle/setzen', admin.join(', '));
   await panel(page, D, async () => { for (const b of BB.welt) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] }; await p._laden(); await new Promise(r => setTimeout(r, 150)); });
   ab = await aufrufZahl(page);
-  await klick(page, `${D} >>> [data-act="auto"]`); await warte(200);
+  await klick(page, `${D} >>> .auto-chip`); await warte(200);
   const gesperrt = await schreibAnzahl(page, ab), toast = await panel(page, D, () => sr.querySelector('.toast').textContent);
   erwarte('Nicht-Admin: kein Auftrag, Hinweis „Nur ansehen“', !gesperrt.length && /ansehen/i.test(toast), `${gesperrt.join(', ')} / ${toast}`);
-  await klick(page, `${D} >>> [data-act="sheet"][data-s="warnungen"]`); await warte(200);
+  await klick(page, `${D} >>> .warn-chip`); await warte(200);
   ab = await aufrufZahl(page);
   await klick(page, `${D} >>> [data-act="w-stumm"]`); await warte(200);
   const vorOrt = await schreibAnzahl(page, ab);
@@ -441,7 +441,7 @@ await fall('3c Pumpen', browser, async (page, erwarte) => {
 /* Stufe 3d: Container – Modus, Soll, Schnell aufheizen, Gerät schalten, Trocknen je genau ein Auftrag; Diagrammwahl;
    Nicht-Admin: ✎ und Termin gesperrt (ausgegraut, Hinweis, keine Einblendung), Schnell aufheizen geht (Vor-Ort) */
 await fall('3d Container', browser, async (page, erwarte) => {
-  await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`); await warte(300);
+  await klick(page, `${D} >>> .glas-k[data-id="polier"]`); await warte(300);
   const einer = async (sel, soll, text) => { const ab = await aufrufZahl(page); await klick(page, `${D} >>> ${sel}`); await warte(150);
     const a = await schreibAnzahl(page, ab); erwarte(`${text} = genau ein Auftrag`, JSON.stringify(a) === JSON.stringify([soll]), a.join(', ')); };
   await einer('.c-d-knoepfe .seg button:not(.on):not([disabled])', 'baustelle/setzen', 'Modus wechseln');
@@ -463,7 +463,7 @@ await fall('3d Container', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> .hz-raster .hz-kachel[data-k="trocknen"]`);
   await einer('.sheet .stepper button[data-k="tr_mm"][data-d="0.5"]', 'baustelle/setzen', 'Heizung: Kleidung trocknen ab Regen +');
   await klick(page, `${D} >>> .sheet > .knopf`);
-  await klick(page, `${D} >>> nav [data-act="tab"][data-v="uebersicht"]`); await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`);
+  await klick(page, `${D} >>> nav [data-act="tab"][data-v="uebersicht"]`); await klick(page, `${D} >>> .glas-k[data-id="polier"]`);
   await panel(page, D, async () => { for (const b of BB.welt) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] }; await p._laden(); await new Promise(r => setTimeout(r, 150)); });
   let ab = await aufrufZahl(page);
   await klick(page, `${D} >>> .c-chip .bs-ic`);
@@ -478,7 +478,7 @@ await fall('3d Container', browser, async (page, erwarte) => {
    bleiben), Eintragen = genau ein Auftrag; Nicht-Admin: „schnell aufheizen“ bleibt frei (Vor-Ort), Termin gesperrt */
 await fall('3d Einblendungen', browser, async (page, erwarte) => {
   const bed = await panel(page, D, () => (p.d.bereiche.find(b => b.bedarf) || {}).id);
-  await klick(page, `${D} >>> [data-act="bedarf-auf"][data-id="${bed}"]`); await warte(400);
+  await klick(page, `${D} >>> .glas-k[data-id="${bed}"] .bedarf-knopf`); await warte(400);
   await klick(page, `${D} >>> .sheet .zeile .sw.vor-ort`);
   erwarte('Bei Bedarf: schnell aufheizen umgeschaltet', await panel(page, D, () => p.s.sheet.boost === true));
   await klick(page, `${D} >>> .sheet button.zeile`);
@@ -505,7 +505,7 @@ await fall('3d Einblendungen', browser, async (page, erwarte) => {
   erwarte('Arbeitszeit speichern = genau ein Auftrag (mit Samstag)', JSON.stringify(az) === '["arbeitszeiten:Winter:true"]', JSON.stringify(az));
   await panel(page, D, () => p.gehe('uebersicht')); await warte(200);
   await panel(page, D, async () => { for (const b of BB.welt) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] }; await p._laden(); await new Promise(x => setTimeout(x, 150)); });
-  await klick(page, `${D} >>> [data-act="bedarf-auf"][data-id="${bed}"]`); await warte(300);
+  await klick(page, `${D} >>> .glas-k[data-id="${bed}"] .bedarf-knopf`); await warte(300);
   const nl = await panel(page, D, () => ({ frei: getComputedStyle(sr.querySelector('.sheet .zeile .sw.vor-ort')).opacity, termin: getComputedStyle(sr.querySelector('.sheet button.zeile')).opacity }));
   await klick(page, `${D} >>> .sheet button.zeile`);
   const art = await panel(page, D, () => p.s.sheet && p.s.sheet.art);

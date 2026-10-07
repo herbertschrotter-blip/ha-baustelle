@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.96] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 13 (BSM-022.16, Stufe 3f, erster Teil): Die Übersicht – Kopf mit Baustelle, Strom,
+  Wetter und Leistung, die Chips und das Raster der Container – wird mit Lit gezeichnet. „Meine Kacheln“ folgt. Aussehen
+  und Bedienung bleiben gleich.
+
 ## [0.8.95] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 12 (BSM-022.15, Stufe 3e abgeschlossen): Das Notprogramm – Gruppe in den Einstellungen

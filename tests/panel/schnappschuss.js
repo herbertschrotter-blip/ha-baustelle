@@ -336,12 +336,25 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await text('n prüfen sheet', '.sheet > .knopf', 'Jetzt prüfen'); await schritt('n plug zu', '.sheet > .knopf:last-child');
   await text('n prüfen', '.ev-inhalt button.zeile', 'Jetzt prüfen'); await alleSel('n taste', '.ev-inhalt .liste .zeile .sw', 1); await alleSel('n taste 2', '.ev-inhalt .liste .zeile .sw', 1);
   await alleSel('n aus', '.ev-inhalt .liste .zeile .sw', 0); await alleSel('n an', '.ev-inhalt .liste .zeile .sw', 0);
+  // Übersicht (Stufe 3f): Kopf, Chips, Raster
+  await schritt('u', { act: 'tab', v: 'uebersicht' });
+  await schritt('u baustellen', '.seite .glas-kopf .klickbar'); await zu('u baustellen');
+  await wenn('u strom', '.seite .strom-knopf'); await zu('u strom');
+  await schritt('u wetter', '.seite .kopf-wetter'); await zu('u wetter');
+  await schritt('u kw', '.seite .kw-knopf'); await zu('u kw');
+  await schritt('u status', '.seite .chip-status'); await zu('u status');
+  await wenn('u warnungen', '.seite .warn-chip'); await zu('u warnungen');
+  await schritt('u automatik', '.seite .auto-chip'); await schritt('u automatik 2', '.seite .auto-chip');
+  await wenn('u bedarf', '.seite .glas-k .bedarf-knopf'); await zu('u bedarf');
+  await schritt('u neu', '.seite .glas-k.neu'); await zu('u neu');
+  await schritt('u karte', '.seite .glas-raster .glas-k:nth-child(1)'); await schritt('u zurück', { act: 'tab', v: 'uebersicht' });
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
   for (const b of STRUKTUR) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] };
   panel.cache = {}; await panel._laden(); await schritt('nur-lesen start');
   await schritt('nur-lesen automatik', { act: 'auto' });
+  await schritt('nur-lesen u auto', '.seite .auto-chip'); await wenn('nur-lesen u bedarf', '.seite .glas-k .bedarf-knopf'); await zu('nur-lesen u bedarf');
   await schritt('nur-lesen warnungen', { act: 'sheet', s: 'warnungen' });
   const w = panel.d.warnungen[0]; if (w) await schritt('nur-lesen warnung stumm', { act: 'w-stumm', id: w.id });
   await schritt('nur-lesen zu', { act: 'zu' });

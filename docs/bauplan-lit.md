@@ -313,6 +313,12 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Taste und Schalter erweitert (492 Schritte), inhaltlich gleich bis auf die Klasse `rein` nach einem gesperrten Klick
   (Nicht-Admin); Panel-Test. Prüfung §3 für 3e: Admin/Nicht-Admin und genau ein Auftrag je Aktion – im Schnappschuss
   je Schritt die gesendeten Befehle gleich (Admin und Nicht-Admin), dazu B6 und die 3d-Fälle im Browser.
+- **3f Übersicht, 07.10.2026 (0.8.96):** `src/ansichten/uebersicht.js` (Kopf, Chips, Raster); „Meine Kacheln“ bleibt bis
+  zur nächsten Lieferung ein eigener Teilbaum aus HTML-Text (`kkBereich`, `unsafeHTML`, eigener Ereignisweg `data-act`).
+  Verschachtelte Knöpfe (Strom-Knopf im Baustellen-Kopf, „jetzt heizen“ in der Karte) halten den Klick an
+  (`stopPropagation`) – vorher entschied `closest('[data-act]')`. Methode `bedarfAuf` (Vor-Ort-Recht „bedarf“ geprüft).
+  **Entfallen:** `v_uebersicht`. Nachweis: Schnappschuss um die Bedienung der Übersicht erweitert (516 Schritte),
+  inhaltlich gleich; Browser-Test auf Lit-Selektoren für Karte, Automatik, Warnungen, Bei Bedarf.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

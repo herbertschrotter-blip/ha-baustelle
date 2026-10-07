@@ -32,6 +32,7 @@ import { einstellungenVorlage } from './ansichten/einstellungen.js';
 import { BAUSTELLE_EINBLENDUNGEN } from './ansichten/einblendungen-baustelle.js';
 import { EINRICHTUNG_EINBLENDUNGEN } from './ansichten/einblendungen-einrichtung.js';
 import { npPlugEinblendung } from './ansichten/notprogramm.js';
+import { uebersichtVorlage } from './ansichten/uebersicht.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -1916,6 +1917,10 @@ class BaustellePanel extends LitElement {
     const bisText = v === 'ende' ? this.arbeitsende() : v === 'abend' ? '19:00' : uhr(minu(this.z.JETZT) + +v);
     S.sheet = null; this.neuZeichnen(); return this.aktion('bedarf', { bereich: x.id, ...felder, boost }, `${x.name} heizt bis ${bisText}`);
   }
+  bedarfAuf(id) {   // Vor-Ort-Aktion: auch ohne Adminrechte, wenn die Integration „bedarf“ erlaubt
+    const r = this.rechte(); if (!r.aendern && !(r.aktionen || []).includes('bedarf')) return this.toast(NUR_ANSEHEN);
+    this.s.sheet = { art: 'bedarf', cid: id, boost: false }; return this.neuZeichnen();
+  }
   bedarfAus(id) { const x = this.d.bereiche.find(y => y.id === id); return this.aktion('bedarf_aus', { bereich: x.id }, `${x.name} aus – nur Frostschutz`); }
   terminWeg(t) {
     if (!t.uid) return this.toast('Dieser Kalender nennt keine Kennung – Termin bitte im Kalender löschen');
@@ -2025,7 +2030,7 @@ class BaustellePanel extends LitElement {
     const tabs = [['uebersicht', 'Übersicht'], ...(this._mitHeizung ? [['heizung', 'Heizung']] : []), ...(this._mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     const aktivTab = S.view === 'container' ? 'uebersicht' : S.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(S.view) ? 'einst' : S.view;
     let seite;
-    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this), verlauf: () => verlaufVorlage(this), bsdetail: () => bsdetailVorlage(this), pumpen: () => pumpenVorlage(this), heizung: () => heizungVorlage(this), einst: () => einstellungenVorlage(this),   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
+    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this), verlauf: () => verlaufVorlage(this), bsdetail: () => bsdetailVorlage(this), pumpen: () => pumpenVorlage(this), heizung: () => heizungVorlage(this), einst: () => einstellungenVorlage(this), uebersicht: () => uebersichtVorlage(this),   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
       container: () => this.b.pumpe ? schachtVorlage(this) : containerVorlage(this) };
     if (!this.roh) seite = ladenVorlage(this.fehler);
     else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(S.view)) seite = leerVorlage(this);
@@ -2094,34 +2099,7 @@ class BaustellePanel extends LitElement {
     const st = this.statistik('Woche', 0, d), i = TAGE.indexOf(d.z.HEUTE_TAG);
     for (const b of d.bereiche) if (b.pumpe) { const z = st && this.zyklen(d, b, 'Woche'); b.zyklen = z ? z[i] : null; }
   }
-  v_uebersicht() {
-    const d = this.d, B = d.bereiche, kw = B.reduce((s, b) => s + kwVon(b), 0), W = d.warnungen.filter(w => !w.stumm);
-    const st = W.filter(w => w.stufe === 'stoerung').length, hi = W.length - st;
-    const an = B.flatMap(b => b.geraete).filter(g => g.an).length, alle = B.flatMap(b => b.geraete).length;
-    const [wz, wt, wtemp] = this.wetterJetzt();
-    this.pumpenWerte();
-    return `<div class="glas-kopf glas-panel">
-        <div><div class="klickbar" data-act="sheet" data-s="baustellen"><div class="glas-klein">BAUSTELLE</div><div class="glas-titel">${esc(d.titel)} <span class="pfeil">▾</span></div>
-        ${d.e.staffel && this.last().A.length ? (() => { const L = this.last(); return `<button class="strom-knopf" data-act="sheet" data-s="strom">${this.stromBalken(L, true)}<span class="strom-t"><b>${de(L.gesamt)} kW</b> · ${L.A.length} ${L.A.length === 1 ? 'Anschluss' : 'Anschlüsse'} · ${L.laufen} Heizkörper an${L.warten ? ` · ${L.warten} wartet` : ''} ›</span></button>`; })() : ''}</div>
-          <button class="kopf-wetter" data-act="sheet" data-s="${d.wetterEid ? 'wetter' : 'wetterquelle'}">${wetterIcon(wz, 22)}<span>${zahl(wtemp) ? de(wtemp) + '°' : '–'}</span><span class="kw-t">${esc(wt)}</span></button></div>
-        <button class="glas-kw kw-knopf" data-act="sheet" data-s="verbrauch" title="Verbrauch anzeigen"><span class="blitz ${kw ? 'an' : ''}">⚡</span>${de(kw)}<small> kW</small><span class="kw-pfeil">›</span></button></div>
-      <div class="glas-chips">
-        <button class="glas-panel chip auto-chip ${d.e.auto ? 'on' : ''}" data-act="auto" role="switch" aria-checked="${d.e.auto}" title="Automatik ${d.e.auto ? 'ausschalten' : 'einschalten'}"><span class="mini-sw"><i></i></span>Automatik</button>
-        <button class="chip-status ${d.e.auto ? 'amber' : ''}" data-act="sheet" data-s="heizplan" title="Heizplan anzeigen">${esc(this.statusText())} <span class="pfeil">›</span></button>
-        ${W.length ? `<button class="glas-panel chip warn-chip ${st ? 'rot' : 'gelb'}" data-act="sheet" data-s="warnungen">⚠ ${W.length === 1 ? `${esc(this.bName(W[0].b))}: ${esc(W[0].titel)}`
-          : [st ? `${st} ${st === 1 ? 'Störung' : 'Störungen'}` : '', hi ? `${hi} ${hi === 1 ? 'Hinweis' : 'Hinweise'}` : ''].filter(Boolean).join(' · ')}</button>` : ''}
-        <span class="chip-leise">${an} von ${alle} Geräten an</span>
-      </div>
-      <div class="glas-raster">${B.map((b, i) => `<div class="glas-panel glas-k ${b.z}" role="button" tabindex="0" data-act="container" data-id="${b.id}" style="animation-delay:${i * 60}ms;--c:${FARBE[b.z]}">
-        <div class="glas-illu">${illu(b)}</div>
-        <div class="glas-name">${esc(b.name)}</div>${this.firma(b.firma).eigen ? '' : `<div class="firma-tag">${esc(this.firma(b.firma).name)}</div>`}${b.tuer && b.tuer.offen ? `<div class="tuer-tag">🚪 offen ${b.tuer.offen} min</div>` : ''}
-        <div class="glas-zeile"><span class="glas-wert">${wertHtml(b)}</span><span class="glas-kwk">${de(kwVon(b))} kW</span></div>
-        <div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b))}</div>
-        <div class="glas-geraete">${b.geraete.map(g => `<i class="${g.an ? 'an' : ''}"></i>`).join('')}<span>${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'}</span></div>
-        ${b.bedarf ? `<button class="bedarf-knopf ${b.bedarfBis ? 'an' : ''}" data-act="${b.bedarfBis ? 'bedarf-aus' : 'bedarf-auf'}" data-id="${b.id}">${b.bedarfBis ? `■ bis ${b.bedarfBis}` : '▶ jetzt heizen'}</button>` : ''}</div>`).join('')}
-        <button class="glas-panel glas-k neu" data-act="sheet" data-s="container-neu"><span>+</span>Container</button></div>
-      ${this.kkBereich()}`;
-  }
+
 
   /* ---- Container ---- */
   /* Diagramm und Kennzahlen der Container-Ansicht – eigene Funktion, damit neue Sensorwerte nur diese zwei Stellen tauschen (WU-0002) */
@@ -3142,7 +3120,7 @@ class BaustellePanel extends LitElement {
       case 'melden': return this.meldenAuf();
       case 'toast': return this.toast(el.dataset.t);
       case 'auto': return this.automatikUmschalten();
-      case 'bedarf-auf': S.sheet = { art: 'bedarf', cid: el.dataset.id, boost: false }; return neu();
+      case 'bedarf-auf': return this.bedarfAuf(el.dataset.id);
       case 'bedarf-an': return this.bedarfAn(el.dataset.id, el.dataset.v);
       case 'bedarf-aus': return this.bedarfAus(el.dataset.id);
       case 'termin-weg': { const t = d.termine[+el.dataset.i]; return t && this.terminWeg(t); }

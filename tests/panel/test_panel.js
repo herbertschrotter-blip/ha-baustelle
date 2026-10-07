@@ -1225,7 +1225,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   /* Treue zum Mockup (mockups/quelle/glas-app.js) an Stellen, die leicht abweichen */
   const vorher = struktur; struktur = JSON.parse(JSON.stringify(STRUKTUR)); panel.cache = {}; await panel._laden(); await ruhe(20);   // unveränderte Beispieldaten
   global.location = { search: '' }; await klick({ act: 'bs-wahl', id: 'dobl' }, 30); await klick({ act: 'tab', v: 'uebersicht' }, 30);
-  erwarte('Strombalken sitzt wie im Mockup im Baustellen-Kopf (.klickbar)', /<div class="klickbar"[^]*?class="strom-knopf"[^]*?<\/button><\/div>\s*<button class="kopf-wetter"/.test(ui.innerHTML));
+  erwarte('Strombalken sitzt wie im Mockup im Baustellen-Kopf (.klickbar)', /<div class="klickbar"[^]*?class="strom-knopf"[^]*?<\/button>\s*<\/div>\s*<button class="kopf-wetter/.test(ui.innerHTML.replace(/<!--[^]*?-->/g, '')));
   await klick({ act: 'tab', v: 'auswertung' }, 40); const aw = ui.innerHTML;
   erwarte('Ölradiator/Konvektor: Fußsatz wie im Mockup, Kosten nicht fett', /Der Ölradiator [^<]*(braucht länger|heizt schneller auf|verbraucht rund)/.test(aw) && !/<td><b>[^<]*€<\/b><\/td>/.test(aw));
 

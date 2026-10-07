@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.96",
+    "datum": "2026-10-07",
+    "punkte": [
+      "Seite auf Lit umgestellt, Teil 13 (BSM-022.16, Stufe 3f, erster Teil): Die Übersicht – Kopf mit Baustelle, Strom, Wetter und Leistung, die Chips und das Raster der Container – wird mit Lit gezeichnet. „Meine Kacheln“ folgt. Aussehen und Bedienung bleiben gleich."
+    ]
+  },
+  {
     "version": "0.8.95",
     "datum": "2026-10-07",
     "punkte": [
