@@ -330,6 +330,15 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   `vgKachel`, `spKachel` bleiben bis zur Auswertung. Nachweis: Schnappschuss um Kacheln/Katalog erweitert (568 Schritte),
   inhaltlich gleich bis auf die Korrektur (Gegenlauf ohne den „Linien“-Klick: nur „Balken“ vorgewählt); Panel-Test auf
   Lit-Merkmale; Browser-Fall „3d Einblendungen“ um Ziehen einer Kachel erweitert (Reihenfolge neu, keine Reste).
+- **3f Einblendungen der Übersicht, 07.10.2026 (0.8.98):** `src/ansichten/einblendungen-uebersicht.js` (Verbrauch,
+  Wetter, Warnungen, Baustellen, Strom mit Rangliste, Bild einer Meldung; `verbrauchVorlage` auch für die Auswertung).
+  Erste Lieferung mit paralleler Vorbereitung: ein Agent hat die Vorlage samt Notiz (Methoden, Fälle, Tests) in einer
+  eigenen Arbeitskopie gebaut; verdrahtet, geprüft und ausgeliefert im Hauptstrang. Methoden `verbrauchDaten` (Rechenteil
+  aus `verbrauchInhalt`, das für die alte Auswertung darauf aufsetzt), `vbGruppe`, `vbWer`, `ohneBasisWahl`,
+  `wetterAnsicht`, `warnungStumm`, `warnungenProtokoll`, `stromRangAuf`. **Entfallen:** sechs Zweige in `sheet()`,
+  `stromRang`, Klick-Fälle `wa`, `oh-basis`, `w-hin`, `w-protokoll`, `sr-auf`; Weiterleitung bleibt für `w-stumm`,
+  `vb-gruppe`, `vb-wer`, `bs-wahl`, `bs-bearbeiten`. Nachweis: Schnappschuss um die Bedienung dieser Einblendungen
+  erweitert (614 Schritte), inhaltlich gleich; Panel- und Browser-Test auf Lit-Selektoren.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

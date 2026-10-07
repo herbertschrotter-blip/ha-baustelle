@@ -240,7 +240,7 @@ await fall('B6 Befehle/Rechte', browser, async (page, erwarte) => {
   erwarte('Nicht-Admin: kein Auftrag, Hinweis „Nur ansehen“', !gesperrt.length && /ansehen/i.test(toast), `${gesperrt.join(', ')} / ${toast}`);
   await klick(page, `${D} >>> .warn-chip`); await warte(200);
   ab = await aufrufZahl(page);
-  await klick(page, `${D} >>> [data-act="w-stumm"]`); await warte(200);
+  await klick(page, `${D} >>> .sheet .wk-knoepfe .chip:last-child`); await warte(200);
   const vorOrt = await schreibAnzahl(page, ab);
   erwarte('Nicht-Admin: Warnung stumm (Vor-Ort-Aktion) genau ein Auftrag', vorOrt.length === 1 && vorOrt[0] === 'baustelle/aktion:warnung_stumm', vorOrt.join(', '));
 });

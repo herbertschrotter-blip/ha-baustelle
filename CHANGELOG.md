@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.98] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 15 (BSM-022.16, Stufe 3f, dritter Teil): Die Einblendungen der Übersicht – Verbrauch,
+  Wetter, Warnungen, Baustellen, Stromverteilung und Bild einer Meldung – werden mit Lit gezeichnet. Aussehen und
+  Bedienung bleiben gleich.
+
 ## [0.8.97] – 2026-10-07
 
 - Kachel-Katalog, Vergleich kWh/Kosten: Ein Tipp auf „Balken“ oder „Linien“ zerstörte den Dialog (es erschien ein leeres

@@ -12,7 +12,7 @@ import { Himmel, himmelLauf, partikel, phaseAusSonne } from './himmel.js';
 import { CHARTS, balken, flaeche, funke, kkBalken, linie, linien, streu, stufen } from './diagramme.js';
 
 import { MONATE, MONATE_LANG, TAGE, addieren, datum, dauer, de, erkl, esc, knopf2, kurzDatum, kwNr, minu, plusTage, schalter, stdMin, summe, tageZwischen, uhr, verNeuer, wtag, zahl, zrInfo, zrVersatz } from './hilfen.js';
-import { BEREICH_FARBEN, ICON_COG, ICON_MELDEN, SYMBOL_STANDARD, bcContainer, sigHtml, sigStufe, wetterIcon } from './symbole.js';
+import { BEREICH_FARBEN, ICON_COG, ICON_MELDEN, SYMBOL_STANDARD, bcContainer, sigHtml, sigStufe } from './symbole.js';
 import { bauen, lokal, minSeitAb, protokollZeile, zoneMs } from './daten.js';
 import { NUR_ANSEHEN, NUR_LESEN_SPERRE, darfSenden, gesperrt, rechteVon } from './rechte.js';
 import { fehlerText, flowFehler, nachricht } from './api.js';
@@ -35,6 +35,7 @@ import { EINRICHTUNG_EINBLENDUNGEN } from './ansichten/einblendungen-einrichtung
 import { npPlugEinblendung } from './ansichten/notprogramm.js';
 import { uebersichtVorlage } from './ansichten/uebersicht.js';
 import { katalogEinblendung } from './ansichten/kacheln.js';
+import { UEBERSICHT_EINBLENDUNGEN } from './ansichten/einblendungen-uebersicht.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -896,7 +897,7 @@ function einblendungen(s) {
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', 'kk-katalog'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', 'kk-katalog', ...Object.keys(UEBERSICHT_EINBLENDUNGEN)];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
   static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
@@ -1488,30 +1489,14 @@ class BaustellePanel extends LitElement {
     if (alle) return lauf.map((l, k) => ({ id: l.entry, name: l.titel, farbe: `var(--s${(k % 6) + 1})`, v: z => this.verbrauch(l, null, z, vs) }));
     return this.d.bereiche.map(b => ({ id: b.id, name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: z => this.verbrauch(this.d, b.id, z, vs) }));
   }
-  verbrauchInhalt(st, ziel, kennzahlen) {
-    const Q = this.quellen(st, ziel), z = st.zeitraum, aus = Q.filter(q => st.auswahl.includes(q.id)), alleGewaehlt = aus.length === Q.length && Q.length > 0;
-    const alle = ziel === 'aw' && this.s.awScope === 'alle', summenName = alle ? 'Alle laufenden' : this.d.titel;
-    const zr = this.zeitraum(z, st.v || 0), labels = zr.labels, zd = `data-ziel="${ziel}"`;
-    const was = st.gruppe === 'firma' ? 'Firmen' : alle ? 'Baustellen' : 'Container';
-    const titel = !aus.length ? `${esc(summenName)} · Summe` : aus.length === 1 ? esc(aus[0].name) : `${aus.length} ${was} gestapelt`;
-    const eur = st.t === 'eur', f = eur ? this.d.e.preis : 1;   // FE-0009: Kosten-Kachel zeigt denselben Verlauf in € (kWh × Preis)
-    // WU-0013: ein Container mit Heizkörpern – „ohne Automatik“ von der Integration (baustelle/ohne)
-    const einC = ziel === 'sheet' && st.auswahl.length === 1 ? this.d.bereiche.find(b => b.id === st.auswahl[0] && !b.pumpe && b.geraete.some(g => g.heizer)) : null;
-    const basis = st.ohneBasis || 'geraet';
-    const oa = einC ? this._holen(`oh:${this.d.entry}:${einC.id}:${z}:${st.v || 0}:${basis}`, () => this._hass.callWS({ type: 'baustelle/ohne', entry_id: this.d.entry, bereich: einC.id, zeitraum: z, versatz: st.v || 0, basis })) : undefined;
-    const werte = Q.map(q => ({ q, v: q.v(z) })), laedt = werte.some(x => !x.v);
-    const reihen = laedt ? [] : aus.length ? werte.filter(x => st.auswahl.includes(x.q.id)).map(({ q, v }) => ({ name: q.name, v, farbe: q.farbe }))
-      : [{ name: 'Summe', v: addieren(werte.map(x => x.v)).length ? addieren(werte.map(x => x.v)) : Array(zr.n).fill(0), farbe: 'var(--s1)' }];
-    const summeJe = labels.map((_, i) => reihen.reduce((a, r) => a + (r.v[i] || 0), 0)), sum = summe(summeJe);
-    const spitze = Math.max(...summeJe, 0), wo = sum > 0 ? labels[summeJe.indexOf(spitze)] : '–';
-    const einheit = eur ? '€' : z === 'Tag' ? 'kWh/h' : 'kWh', je = `${{ Tag: 'je Stunde', Woche: 'je Tag', Monat: 'je Tag', Jahr: 'je Monat' }[z]} · ${this.zrText(z, st.v || 0)}`;
-    const p = this.d.e.preis;
-    return `<div class="block-kopf">${ziel === 'sheet' ? `<h3>${eur ? 'Kosten' : 'Verbrauch'}</h3>` : '<b>Verbrauch</b>'}<span class="leise">${titel}</span></div>
+  verbrauchInhalt(st, ziel, kennzahlen) {   // nur noch Auswertung (ziel 'aw'), bis sie Lit ist – dann verbrauchVorlage
+    const V = this.verbrauchDaten(st, ziel), { Q, z, aus, alle, eur, einC, basis, oa, laedt, reihen, sum, spitze, wo, preis: p } = V, zd = `data-ziel="${ziel}"`;
+    return `<div class="block-kopf">${ziel === 'sheet' ? `<h3>${eur ? 'Kosten' : 'Verbrauch'}</h3>` : '<b>Verbrauch</b>'}<span class="leise">${esc(V.titel)}</span></div>
       <div class="seg">${['Tag', 'Woche', 'Monat', 'Jahr'].map(v => `<button data-act="vb-zeitraum" ${zd} data-v="${v}" class="${v === z ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${ziel === 'aw' ? '' : this.zrWahl(ziel, z, this.zrGrenze(alle))}
       <div class="vb-gruppe"><span class="leise">stapeln nach</span><div class="seg klein">${[['teil', alle ? 'Baustelle' : 'Container'], ['firma', 'Firma']].map(([k, t]) => `<button data-act="vb-gruppe" ${zd} data-v="${k}" class="${(st.gruppe || 'teil') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
       <div class="vb-wer"><button data-act="vb-wer" ${zd} class="${!aus.length ? 'on' : ''}"><i style="background:var(--s1)"></i>Summe</button>
-        <button data-act="vb-wer" ${zd} data-id="*" class="${alleGewaehlt ? 'on' : ''}">Alle gestapelt</button>
+        <button data-act="vb-wer" ${zd} data-id="*" class="${V.alleGewaehlt ? 'on' : ''}">Alle gestapelt</button>
         ${Q.map(q => `<button data-act="vb-wer" ${zd} data-id="${esc(q.id)}" class="${st.auswahl.includes(q.id) ? 'on' : ''}"><i style="background:${q.farbe}"></i>${esc(q.name)}${st.auswahl.includes(q.id) ? ' ✓' : ''}</button>`).join('')}</div>
       ${kennzahlen ? `<div class="kennz"><div><b>${laedt ? '–' : de(sum, sum < 100 ? 1 : 0)}</b><span>kWh ${{ Tag: 'heute', Woche: 'diese Woche', Monat: 'im Monat', Jahr: 'im Jahr' }[z]}${reihen.length > 1 ? ' zusammen' : ''}</span></div>
         <div><b>${laedt ? '–' : de(sum * p, 2)} €</b><span>Kosten</span></div><div><b>${laedt ? '–' : wo}</b><span>Spitze ${laedt ? '–' : de(spitze, 1)} kWh</span></div></div>` : ''}
@@ -1519,12 +1504,11 @@ class BaustellePanel extends LitElement {
         ${oa && oa.ergebnis ? `<div class="kennz"><div><b>${de(oa.ohne_kwh, oa.ohne_kwh < 100 ? 1 : 0)}</b><span>kWh ohne Automatik</span></div><div><b>${de(oa.ergebnis.gespart_eur, 2)} €</b><span>gespart</span></div><div><b>${de(oa.ergebnis.prozent, 0)} %</b><span>weniger</span></div></div>`
           : oa ? '<div class="leise">Noch keine gemessene Leistung der Heizkörper – „ohne Automatik“ folgt nach dem ersten Heizen.</div>' : ''}
         <div class="leise">So rechnet „ohne Automatik“: ${basis === 'typ' ? 'die Ø-Leistung aller Heizkörper desselben Typs (Ölradiator bzw. Konvektor)' : 'jeder Heizkörper mit seiner gemessenen Ø-Leistung im Betrieb (sobald er Strom zieht, ab 5 W)'} rund um die Uhr seit Beginn der Baustelle; gespart = ohne Automatik − tatsächlich verbraucht, mal Strompreis.</div>` : ''}
-      <div class="leise">${einheit} ${je}${aus.length > 1 ? ' · gestapelt, oberste Kante = Summe' : ''}</div>
-      <div class="chart-wrap">${laedt ? LAEDT : flaeche(`vb-${ziel}-${this.s.awScope || ''}-${st.gruppe || ''}-${aus.map(q => q.id).join('_') || 'alle'}-${z}${eur ? '-eur' : ''}`, eur ? reihen.map(r => ({ ...r, v: r.v.map(x => (x || 0) * f) })) : reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3,
-        oa && oa.ergebnis ? { name: 'ohne Automatik', v: oa.reihe.map(x => x * f) } : null)}</div>
-      ${reihen.length > 1 ? `<div class="vb-je">${reihen.map(r => { const su = summe(r.v), sp = Math.max(...r.v, 0);
-          return `<div><i style="background:${r.farbe}"></i><span class="n">${esc(r.name)}</span><b>${de(su, su < 100 ? 1 : 0)} kWh</b><span>${de(su * p, 2)} €</span><span class="leise">Spitze ${su > 0 ? labels[r.v.indexOf(sp)] : '–'}</span></div>`; }).join('')}</div>` : ''}`;
+      <div class="leise">${V.einheit} ${V.je}${aus.length > 1 ? ' · gestapelt, oberste Kante = Summe' : ''}</div>
+      <div class="chart-wrap">${laedt ? LAEDT : V.chart}</div>
+      ${V.jeReihe.length ? `<div class="vb-je">${V.jeReihe.map(r => `<div><i style="background:${r.farbe}"></i><span class="n">${esc(r.name)}</span><b>${de(r.su, r.su < 100 ? 1 : 0)} kWh</b><span>${de(r.su * p, 2)} €</span><span class="leise">Spitze ${r.spitzeBei}</span></div>`).join('')}</div>` : ''}`;
   }
+
   /* Abrechnung: je Firma die Container mit kWh und Kosten im gewählten Zeitraum (rechnet die Integration, Firma je Tag) */
   abrechnung(z) {
     const lauf = this.s.awScope === 'alle' ? this.laufende() : [this.d], p = this.d.e.preis, vs = this.zrV('aw'), a = this.abDaten(z, undefined, this.d, vs), zeilen = a && (a.firmen || []);
@@ -1621,6 +1605,48 @@ class BaustellePanel extends LitElement {
     S.sheet = null; this.neuZeichnen();
     return this.liste('arbeitszeiten', 'speichern', { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage, ...(f.alt_ab !== undefined ? { alt_ab: f.alt_ab } : {}) }, text);
   }
+  /* Einblendungen der Übersicht (src/ansichten/einblendungen-uebersicht.js, BSM-022 3f) */
+  /* Verbrauch (Einblendung „verbrauch“ und Auswertung, src/ansichten/einblendungen-uebersicht.js): Reihen, Summen, Diagramm */
+  verbrauchDaten(st, ziel) {
+    const Q = this.quellen(st, ziel), z = st.zeitraum, aus = Q.filter(q => st.auswahl.includes(q.id)), alleGewaehlt = aus.length === Q.length && Q.length > 0;
+    const alle = ziel === 'aw' && this.s.awScope === 'alle', summenName = alle ? 'Alle laufenden' : this.d.titel;
+    const zr = this.zeitraum(z, st.v || 0), labels = zr.labels;
+    const was = st.gruppe === 'firma' ? 'Firmen' : alle ? 'Baustellen' : 'Container';
+    const titel = !aus.length ? `${summenName} · Summe` : aus.length === 1 ? aus[0].name : `${aus.length} ${was} gestapelt`;   // Text, Lit maskiert
+    const eur = st.t === 'eur', f = eur ? this.d.e.preis : 1;   // FE-0009: Kosten-Kachel zeigt denselben Verlauf in € (kWh × Preis)
+    // WU-0013: ein Container mit Heizkörpern – „ohne Automatik“ von der Integration (baustelle/ohne)
+    const einC = ziel === 'sheet' && st.auswahl.length === 1 ? this.d.bereiche.find(b => b.id === st.auswahl[0] && !b.pumpe && b.geraete.some(g => g.heizer)) : null;
+    const basis = st.ohneBasis || 'geraet';
+    const oa = einC ? this._holen(`oh:${this.d.entry}:${einC.id}:${z}:${st.v || 0}:${basis}`, () => this._hass.callWS({ type: 'baustelle/ohne', entry_id: this.d.entry, bereich: einC.id, zeitraum: z, versatz: st.v || 0, basis })) : undefined;
+    const werte = Q.map(q => ({ q, v: q.v(z) })), laedt = werte.some(x => !x.v);
+    const reihen = laedt ? [] : aus.length ? werte.filter(x => st.auswahl.includes(x.q.id)).map(({ q, v }) => ({ name: q.name, v, farbe: q.farbe }))
+      : [{ name: 'Summe', v: addieren(werte.map(x => x.v)).length ? addieren(werte.map(x => x.v)) : Array(zr.n).fill(0), farbe: 'var(--s1)' }];
+    const summeJe = labels.map((_, i) => reihen.reduce((a, r) => a + (r.v[i] || 0), 0)), sum = summe(summeJe);
+    const spitze = Math.max(...summeJe, 0), wo = sum > 0 ? labels[summeJe.indexOf(spitze)] : '–';
+    const einheit = eur ? '€' : z === 'Tag' ? 'kWh/h' : 'kWh', je = `${{ Tag: 'je Stunde', Woche: 'je Tag', Monat: 'je Tag', Jahr: 'je Monat' }[z]} · ${this.zrText(z, st.v || 0)}`;
+    const chart = laedt ? null : flaeche(`vb-${ziel}-${this.s.awScope || ''}-${st.gruppe || ''}-${aus.map(q => q.id).join('_') || 'alle'}-${z}${eur ? '-eur' : ''}`, eur ? reihen.map(r => ({ ...r, v: r.v.map(x => (x || 0) * f) })) : reihen, labels, einheit, z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3,
+      oa && oa.ergebnis ? { name: 'ohne Automatik', v: oa.reihe.map(x => x * f) } : null);
+    const jeReihe = reihen.length > 1 ? reihen.map(r => { const su = summe(r.v), sp = Math.max(...r.v, 0); return { name: r.name, farbe: r.farbe, su, spitzeBei: su > 0 ? labels[r.v.indexOf(sp)] : '–' }; }) : [];
+    return { Q, z, aus, alleGewaehlt, alle, titel, eur, einC, basis, oa, laedt, reihen, sum, spitze, wo, einheit, je, preis: this.d.e.preis, chart, jeReihe };
+  }
+  /* Verbrauch: stapeln nach Container/Baustelle oder Firma (vorher case 'vb-gruppe') */
+  vbGruppe(ziel, v) { const S = this.s, st = ziel === 'aw' ? S.aw : S.sheet; st.gruppe = v; st.auswahl = this.quellen(st, ziel).map(q => q.id); return this.neuZeichnen(); }
+  /* Verbrauch: Summe ('' ), alle gestapelt ('*') oder einen Teil an/ab (vorher case 'vb-wer') */
+  vbWer(ziel, id) {
+    const S = this.s, sh = ziel === 'aw' ? S.aw : S.sheet;
+    if (!id) sh.auswahl = []; else if (id === '*') sh.auswahl = this.quellen(sh, ziel || 'sheet').map(q => q.id);
+    else sh.auswahl = sh.auswahl.includes(id) ? sh.auswahl.filter(x => x !== id) : [...sh.auswahl, id];
+    return this.neuZeichnen();
+  }
+  ohneBasisWahl(v) { this.s.sheet.ohneBasis = v; return this.neuZeichnen(); }   // WU-0013: Ø je Gerät | je Typ (vorher case 'oh-basis')
+  wetterAnsicht(v) { this.s.sheet.wa = v; return this.neuZeichnen(); }          // Wetter: std | tag | 3 (vorher case 'wa')
+  /* Warnung bis morgen 07:00 stumm bzw. wieder melden – Vor-Ort-Aktion warnung_stumm (vorher case 'w-stumm') */
+  warnungStumm(id) {
+    const w = this.d.warnungen.find(x => x.id === id); if (!w) return undefined;
+    return this.aktion('warnung_stumm', { key: w.key, bis: w.stumm ? null : this.morgenFrueh() }, w.stumm ? 'Wird wieder gemeldet' : 'Stumm bis morgen – bleibt im Protokoll');
+  }
+  warnungenProtokoll() { const S = this.s; S.verlauf = 'aktiv'; S.pfilter = 'warnung'; return this.gehe('verlauf'); }   // vorher case 'w-protokoll'
+  stromRangAuf(id) { const o = this.s.srOffen ||= []; if (o.includes(id)) o.splice(o.indexOf(id), 1); else o.push(id); return this.neuZeichnen(); }   // vorher case 'sr-auf'
   /* Kacheln (src/ansichten/kacheln.js, BSM-022 3f); die noch alte Auswertung nutzt sie über klick() */
   kkAn(ort, i) { return this.kkListe(ort).filter(y => y.an)[i]; }
   kkWeg(ort, i) { const Lg = this.kkListe(ort), x = Lg.filter(y => y.an)[i]; /* eine Liste: awAuswahl() liefert je Aufruf ein neues Array */ if (!x) return undefined; if (KK[x.k]) Lg.splice(Lg.indexOf(x), 1); else x.an = false; this.kkMerken(ort); return this.neuZeichnen(); }
@@ -1991,6 +2017,7 @@ class BaustellePanel extends LitElement {
     else if (S.sheet && EINRICHTUNG_EINBLENDUNGEN[S.sheet.art]) sheet = EINRICHTUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'np-plug') sheet = npPlugEinblendung(this, S.sheet);
     else if (S.sheet && S.sheet.art === 'kk-katalog') sheet = katalogEinblendung(this, S.sheet);
+    else if (S.sheet && UEBERSICHT_EINBLENDUNGEN[S.sheet.art]) sheet = UEBERSICHT_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
     const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
@@ -2694,32 +2721,6 @@ class BaustellePanel extends LitElement {
      rechnet jeden Tag mit dem Preis, der damals galt */
   /* Rangliste der Staffelung (Herbert 01.10.2026, Mockup staffel-rang.html): Reihenfolge und Bedarf in °C rechnet die
      Integration (laufzeit.staffel.rang, laufzeit.container.<id>.bedarf) – die Seite zeigt nur an */
-  stromRang(L, zustand) {
-    const d = this.d, rang = (d.staffel && d.staffel.rang) || [], offen = this.s.srOffen || [];
-    const nachId = Object.fromEntries(L.hk.map(x => [x.g.id, x])), zeilen = rang.map(id => nachId[id]).filter(Boolean);
-    if (!zeilen.length) return '';
-    const f = (v, k = 2) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${de(Math.abs(v), k)}`, gesehen = new Set();
-    const letzterAn = [...zeilen].reverse().find(x => x.g.an);
-    return `<div class="sr-kopf"><b>Rangliste</b><span class="leise">oben = zuerst an, unten = gibt zuerst ab</span></div>
-      <div class="sr-liste">${zeilen.map((x, i) => {
-        const { b, g } = x, B = b.bedarfGrad, erster = !gesehen.has(b.id); gesehen.add(b.id);
-        const stufen = (b.z === 'frost' ? '<span class="sr-stufe frost">❄ Frostschutz</span>' : '') + (b.boost ? '<span class="sr-stufe boost">⚡ Schnell</span>' : '')
-          + (erster ? '<span class="sr-stufe erster">erster im Container</span>' : '<span class="sr-stufe">Zweitgerät</span>') + (b.prio && b.prio !== 'normal' ? `<span class="sr-stufe">Priorität ${esc(b.prio)}</span>` : '');
-        const [zt, zk] = zustand(x), auf = offen.includes(g.id);
-        const mitFuehler = B && zahl(B.jetzt);
-        const wert = B ? `<div class="sr-bedarf">${f(B.summe)} °C<small>${mitFuehler ? `Bedarf in ${B.horizont_min} min` : 'ohne Fühler'}</small></div>` : '<div class="sr-bedarf">–<small>noch nicht gerechnet</small></div>';
-        const teile = !B ? '' : mitFuehler ? [
-          [`jetzt ${de(b.t, 1)} °C, Soll ${de(this.sollVon(b), 1)} °C`, B.jetzt],
-          ...(zahl(B.abkuehlen) ? [[`kühlt ohne Heizen ${de(B.abkuehl_h, 1)} °C/h ab (${B.gemessen ? 'gemessen' : 'gelernt'}) → in ${B.horizont_min} min`, B.abkuehlen]] : []),
-          ...(B.nachlauf ? [['heizt nach dem Aus noch nach (gelernt)', B.nachlauf]] : []),
-          ...(B.ziel ? [[`schafft das Soll bis Arbeitsbeginn nicht (${zahl(B.aufheiz_h) ? `${de(B.aufheiz_h, 1)} °C/h gelernt` : 'gelernt'})`, B.ziel]] : []),
-          ...(B.gerecht ? [[`wenig Heizzeit in der letzten Stunde (${B.heiz_min} min)`, B.gerecht]] : []),
-        ] : [['Ohne Fühler kein Bedarf – kommt über die Heizzeit der letzten Stunde reihum dran', B.gerecht]];
-        const aufHtml = !auf || !teile.length ? '' : `<div class="sr-auf">${teile.map(([t, v]) => `<span>${t}</span><b>${f(v)} °C</b>`).join('')}<span class="summe">Bedarf</span><b class="summe">${f(B.summe)} °C</b></div>`;
-        return `<div class="sr-zeile" data-act="sr-auf" data-id="${esc(g.id)}" role="button" tabindex="0"><span class="sr-nr">${i + 1}</span><div class="sr-name"><b>${esc(b.name)} · ${esc(g.n)}</b><div>${stufen}</div></div>${wert}
-          <div class="sr-zust"><span class="${zk}">${zt}${x === letzterAn && g.an ? ' · gibt als nächstes ab' : ''}</span> <span class="leise">· antippen: woraus</span></div>${aufHtml}</div>`; }).join('')}</div>`;
-  }
-  /* ---- Auswertung: Leistung heute, Temperaturen, je Gerät, Hochrechnung (0.7.8) ---- */
   leistungHeute() {
     const d = this.d, Q = d.bereiche.map(b => ({ name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: this.verbrauch(d, b.id, 'Tag') }));
     return `<div class="glas-panel block"><div class="block-kopf"><b>Leistung heute</b><span class="leise">kW je Stunde (Mittel)</span></div>
@@ -2847,78 +2848,6 @@ class BaustellePanel extends LitElement {
   sheet() {
     const s = this.s.sheet, d = this.d, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
     const griff = '<div class="griff"></div>';
-    if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
-    if (s.art === 'wetter') {
-      const a = s.wa || 'std', e = d.e, ws = this.zustand(d.wetterEid), w = d.wetter || {};
-      const folge = (t, mm) => [zahl(t) && t < e.frueh_temp ? '<span class="w-folge blau">Frühstart</span>' : '', zahl(mm) && mm >= e.tr_mm ? '<span class="w-folge amber">Kleidung trocknen</span>' : '',
-        zahl(t) && t > e.grenze ? '<span class="w-folge">über Heizgrenze</span>' : ''].join('');
-      const H = this.vorhersage.hourly, D = this.vorhersage.daily, jetzt = d.z.jetztMs;
-      let inhalt;
-      if (a === 'std') {
-        const std = (H || []).filter(x => Date.parse(x.datetime) > jetzt - 36e5).slice(0, 6);
-        inhalt = H === null ? LAEDT : !std.length ? '<div class="leer">Keine stündliche Vorhersage</div>' : `<div class="w-std">${std.map(x => `<div><span class="leise">${this.lokal(x.datetime).slice(11, 13)}:00</span>${wetterIcon(this.nachtWetter(x.condition, Date.parse(x.datetime)), 36)}<b>${de(x.temperature, 0)}°</b>
-          <span class="w-regen">${zahl(x.precipitation) && x.precipitation > 0 ? de(x.precipitation) + ' mm' : '–'}</span><span class="leise">${zahl(x.precipitation_probability) ? x.precipitation_probability : 0} %</span></div>`).join('')}</div>`;
-      } else if (a === 'tag') {
-        const teile = [['Morgen', 7], ['Mittag', 12], ['Nachmittag', 16], ['Nacht', 22]], jetztH = +d.z.JETZT.slice(0, 2);
-        const tagSt = this.statistik('Tag'), aussen = tagSt && tagSt.werte[this.eid(d, d.entry, 'aussen')];
-        const stunde = (tag, h) => (H || []).find(x => this.lokal(x.datetime).slice(0, 13) === `${tag} ${String(h).padStart(2, '0')}`);
-        inhalt = H === null ? LAEDT : [['Heute', d.z.HEUTE], ['Morgen', plusTage(d.z.HEUTE, 1)]].map(([name, tag]) => `<div class="w-tag"><div class="w-tag-n">${name}</div><div class="w-teile">${teile.map(([t, h]) => {
-          const x = stunde(tag, h), vorbei = tag === d.z.HEUTE && h < jetztH, temp = x ? x.temperature : vorbei && aussen ? aussen[h] : null;
-          return `<div class="${vorbei ? 'vorbei' : ''}"><span class="leise">${t}</span>${wetterIcon(x ? this.nachtWetter(x.condition, Date.parse(x.datetime)) : (ws ? this.nachtWetter(ws.state) : 'cloudy'), 34)}<b>${zahl(temp) ? de(temp, 0) + '°' : '–'}</b><span class="w-regen">${x && zahl(x.precipitation) && x.precipitation > 0 ? de(x.precipitation) + ' mm' : '–'}</span></div>`; }).join('')}</div></div>`).join('');
-      } else {
-        const tage = (D || []).filter(x => this.lokal(x.datetime).slice(0, 10) > d.z.HEUTE).slice(0, 3);
-        inhalt = D === null ? LAEDT : !tage.length ? '<div class="leer">Keine Tagesvorhersage</div>' : `<div class="w-3">${tage.map(x => { const t = this.lokal(x.datetime).slice(0, 10); return `<div class="w-3z">
-          <div class="w-3t"><b>${wtag(t)}</b><span class="leise">${kurzDatum(t)}</span></div>${wetterIcon(x.condition, 40)}
-          <div class="w-3w"><b>${de(x.temperature, 0)}°</b><span class="leise">${de(x.templow, 0)}°</span></div>
-          <div class="w-3r"><span class="w-regen">${zahl(x.precipitation) && x.precipitation > 0 ? de(x.precipitation) + ' mm' : '–'}</span><span class="leise">${zahl(x.precipitation_probability) ? x.precipitation_probability : 0} %</span></div>
-          <div class="w-3f">${folge(x.templow, x.precipitation)}</div></div>`; }).join('')}</div>`;
-      }
-      const [wz, wt, wtemp] = this.wetterJetzt(), gef = ws && ws.attributes.apparent_temperature;
-      const morgen = plusTage(d.z.HEUTE, 1), pm = d.plan[morgen], wm = this.wetterTag(morgen), g = (pm && pm.gruende) || [];
-      const fuer = [g.includes('frueher_nach_regen') ? `Kleidung trocknen morgen früh aktiv (Regen über ${de(e.tr_mm)} mm)` : '',
-        g.includes('fruehstart') ? `Kälte-Frühstart morgen ${e.frueh_min} min früher${zahl(wm.kalt) ? ` (${de(wm.kalt, 0).replace('-', '−')} °C)` : ''}` : ''].filter(Boolean);
-      return `${griff}<h3>Wetter · ${esc(this.name(d.wetterEid) || d.titel)}</h3><div class="w-jetzt">${wetterIcon(wz, 72)}<div><b>${zahl(wtemp) ? de(wtemp) + ' °C' : '–'}</b><div class="leise">${esc([ws ? WETTER_TEXT[this.nachtWetter(ws.state)] || ws.state : wt, zahl(w.regen_heute) && w.regen_heute > 0 ? `${de(w.regen_heute, w.regen_heute % 1 ? 1 : 0)} mm seit gestern` : '', zahl(gef) ? `gefühlt ${de(gef, 0)} °C` : ''].filter(Boolean).join(' · '))}</div></div></div>
-        <div class="seg">${[['std', 'Stündlich'], ['tag', 'Tagesverlauf'], ['3', '3 Tage']].map(([k, t]) => `<button data-act="wa" data-v="${k}" class="${a === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-        <div class="w-inhalt">${inhalt}</div>
-        <div class="leise">Für die Heizung: ${fuer.length ? fuer.join(', ') + '.' : 'morgen nichts Besonderes.'}</div>${knopf('Schließen')}`;
-    }
-    if (s.art === 'warnungen') {
-      const W = d.warnungen, karte = w => `<div class="wk ${w.stufe} ${w.stumm ? 'stumm' : ''}"><div class="wk-kopf"><b>${esc(this.bName(w.b))}</b><span class="leise">${this.seitText(w.seitIso)}</span></div>
-        <div class="wk-titel">${esc(w.titel)}</div><div class="leise">${esc(w.hilfe)}</div>
-        <div class="wk-knoepfe">${w.b && d.bereiche.some(b => b.id === w.b) ? `<button class="chip glas-panel" data-act="w-hin" data-id="${w.b}">Zum Container ›</button>` : ''}
-          <button class="chip glas-panel" data-act="w-stumm" data-id="${esc(w.id)}">${w.stumm ? '🔔 wieder melden' : '🔕 bis morgen stumm'}</button></div></div>`;
-      const gruppe = (titel, liste) => liste.length ? `<div class="gruppe-t">${titel} · ${liste.length}</div>${liste.map(karte).join('')}` : '';
-      const offen = W.filter(w => !w.stumm);
-      return `${griff}<div class="block-kopf"><h3>Warnungen</h3><span class="leise">${offen.length} offen</span></div>
-        ${offen.length ? '' : '<div class="leer">Alles in Ordnung ✓</div>'}
-        ${gruppe('Störungen', offen.filter(w => w.stufe === 'stoerung'))}${gruppe('Hinweise', offen.filter(w => w.stufe === 'hinweis'))}${gruppe('Stumm bis morgen', W.filter(w => w.stumm))}
-        <button class="zeile" data-act="w-protokoll"><span class="blau">Alle Einträge im Protokoll</span><span class="chev">›</span></button>
-        ${knopf('Schließen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.alle.map(b => `<div class="zeile bs-zeile"><button class="bs-wahl" data-act="bs-wahl" data-id="${esc(b.entry)}"><span>${esc(b.titel)}${d && b.entry === d.entry ? ' ✓' : ''}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>
-        <button class="bs-ic" data-act="bs-bearbeiten" data-id="${esc(b.entry)}" title="Bearbeiten" aria-label="${esc(b.titel)} bearbeiten">✎</button><button class="x" data-act="sheet" data-s="bs-loeschen" data-id="${esc(b.entry)}" title="Löschen" aria-label="${esc(b.titel)} löschen">✕</button></div>`).join('')}
-      <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>`;
-    if (s.art === 'strom') {
-      const L = this.last(), e = d.e;
-      const zustand = x => x.b.offline || !x.g.erreichbar ? ['offline', 'rot-t'] : x.b.boost && x.g.an ? ['heizt – schnell, Vorrang', 'amber-t'] : x.b.z === 'pause' ? ['pausiert – Tür offen', 'lila']
-        : x.g.warte ? [`wartet${zahl(x.g.warte.dran_in_min) ? ` – dran in ${x.g.warte.dran_in_min} min` : ''}`, 'blau']
-        : x.g.an ? (zahl(x.g.kwJetzt) && x.g.kwJetzt < 0.05 ? ['an · zieht gerade nichts (Thermostat)', 'leise'] : [`heizt · ${de(zahl(x.g.kwJetzt) ? x.g.kwJetzt : x.g.kw, 2)} kW`, 'amber-t']) : ['aus', 'leise'];   // FE-0011: gemessen
-      return `${griff}<div class="block-kopf"><h3>Stromverteilung</h3><span class="leise">${L.laufen} von ${L.hk.length} Heizkörpern an · höchstens ${L.max}</span></div>
-        <div class="strom-leg"><span><i class="s-heiz"></i>Heizung ${de(L.heiz)} kW</span><span><i class="s-pumpe"></i>Pumpen ${de(L.pumpe)} kW</span><span><i class="s-sonst"></i>Sonstiges ${de(L.sonst)} kW</span><span><i class="s-res"></i>Reserve (Kran, Werkzeug)</span></div>
-        ${L.A.map(a => { const w = v => `${a.grenze > 0 ? Math.max(0, v / a.grenze * 100) : 0}%`;
-          return `<div class="an-block"><div class="an-kopf"><b>${esc(a.name)}</b><span class="leise">${a.phasen === 3 ? '3 × ' : ''}${a.ampere ?? '–'} A · ${de(a.heiz + a.pumpe + a.sonst)} von ${de(a.grenze)} kW</span></div>
-          <div class="strom-spur"><i class="s-heiz" style="width:${w(a.heiz)}"></i><i class="s-pumpe" style="width:${w(a.pumpe)}"></i><i class="s-sonst" style="width:${w(a.sonst)}"></i><i class="s-res" style="width:${w(a.reserve)}"></i></div>
-          <div class="leise">${a.frei < 2 ? `<span class="amber-t">nur ${de(Math.max(0, a.frei))} kW frei</span>` : `${de(a.frei)} kW frei`} für Heizungen</div>
-          ${L.hk.filter(x => x.b.anschluss === a.id).map(x => { const [t, k] = zustand(x); return `<div class="zeile"><span>${esc(x.b.name)} · ${esc(x.g.n)}</span><span class="${k}">${t}</span></div>`; }).join('')}</div>`; }).join('')}
-        ${e.staffel ? this.stromRang(L, zustand) : ''}
-        <div class="hinweis-k">Je Anschluss gilt: ${e.nutzbar} % der Anschlussleistung (vorsichtig, weil die Verteilung auf die Phasen unbekannt ist) minus Reserve minus alles, was gerade läuft (gemessen). Gerechnet wird mit dem gemessenen Verbrauch: ein eingeschalteter Heizkörper, dessen Thermostat gerade abgeschaltet hat, zählt mit dem, was er zieht. Ist der Anschluss länger als 30 s zu voll, geht der unterste der Rangliste aus – bei gleichem Rang der größere. Die Rangliste: Frostschutz, Schnell aufheizen, erster im Container, Priorität, dann der Bedarf in °C (jetzt unter dem Soll + Abkühlen ohne Heizen − Nachlauf + was bis Arbeitsbeginn fehlt + wenig Heizzeit in der letzten Stunde). Ein Heizkörper kommt erst dazu, wenn eine Minute lang genug für seine volle Leistung frei ist. Jeder läuft mindestens ${e.min_lauf} min und pausiert mindestens ${e.min_pause} min; dürfen nicht alle, wechseln sie alle ${e.takt} min – der oberste Wartende gegen den untersten Laufenden. Jeder Container bekommt zuerst einen Heizkörper; ein zweiter im selben Container kommt erst dazu, wenn Platz ist, und verdrängt nie den einzigen eines anderen.</div>
-        ${knopf('Anschlüsse einstellen', 'tab-einst', 'leise-k')}${knopf('Schließen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'm-bild') {   // WU-0016: Bild einer Meldung groß
-      const m = (this.meldungen() || []).find(x => x.id === s.id), u = m && this.mlBild(m, s.i);
-      return `${griff}<h3>${esc((m && m.ticket) || 'Meldung')} · Bild ${s.i + 1}</h3>${u ? `<img class="mb-gross" src="${u}" alt="Bild">` : LAEDT}${knopf('Schließen')}`;
-    }
-    /* AN-0002: ✎ im Dialog „Baustellen“ – nur die Daten dieser Baustelle; Staffelung, Bericht, Meldungen und App bleiben unter Einstellungen */
     if (s.art === 'aw-detail') {   // WU-0005: Details einer Kachel/Karte der Auswertung
       const T = this._awTeile, html = T ? this.awStueck(s.k, T.B, T.A, T.z) : '';
       return `${griff}<div class="aw-detail">${html || '<div class="leer">Nur für diese Baustelle</div>'}</div>${knopf('Schließen', 'zu', 'leise-k')}`;
@@ -2987,26 +2916,18 @@ class BaustellePanel extends LitElement {
       case 'tab': return this.gehe(el.dataset.v);
       case 'neu-laden': return this.neuLaden();
       case 'container': return this.containerOeffnen(el.dataset.id);
-      case 'w-hin': return this.gehe('container', el.dataset.id);
-      case 'w-stumm': { const w = d.warnungen.find(x => x.id === el.dataset.id); if (!w) return;
-        return this.aktion('warnung_stumm', { key: w.key, bis: w.stumm ? null : this.morgenFrueh() }, w.stumm ? 'Wird wieder gemeldet' : 'Stumm bis morgen – bleibt im Protokoll'); }
-      case 'w-protokoll': S.verlauf = 'aktiv'; S.pfilter = 'warnung'; return this.gehe('verlauf');
+      case 'w-stumm': return this.warnungStumm(el.dataset.id);
       case 'pfilter': S.pfilter = el.dataset.v; S.pmehr = false; return neu();
       case 'pmehr': S.pmehr = true; return neu();
       case 'sheet': return this.einblenden(el.dataset.s, el.dataset);
-      case 'wa': S.sheet.wa = el.dataset.v; return neu();
-      case 'oh-basis': S.sheet.ohneBasis = el.dataset.v; return neu();   // WU-0013: Ø je Gerät | je Typ
-      case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
+      case 'vb-gruppe': return this.vbGruppe(el.dataset.ziel, el.dataset.v);
       case 'aw-scope': S.awScope = el.dataset.v; S.aw.auswahl = this.quellen(S.aw, 'aw').map(q => q.id); return neu();
       case 'vb-zeitraum': return this.zeitraumWahl(el.dataset.ziel, el.dataset.v);
       case 'zr-schritt': return this.zrSchritt(el.dataset.ziel, +el.dataset.max || 0, +el.dataset.d);
       case 'zr-setz': return this.zrSetzen(el.dataset.ziel, +el.dataset.max || 0, +el.dataset.v);
       case 'zr-kal': return this.zrKalAuf(el.dataset.ziel);
       case 'zr-kal-nav': return this.zrKalBlaettern(+el.dataset.d);
-      case 'vb-wer': { const sh = el.dataset.ziel === 'aw' ? S.aw : S.sheet, id = el.dataset.id;
-        if (!id) sh.auswahl = []; else if (id === '*') sh.auswahl = this.quellen(sh, el.dataset.ziel || 'sheet').map(q => q.id);
-        else sh.auswahl = sh.auswahl.includes(id) ? sh.auswahl.filter(x => x !== id) : [...sh.auswahl, id];
-        return neu(); }
+      case 'vb-wer': return this.vbWer(el.dataset.ziel, el.dataset.id);
       case 'bereich-einst': return this.bereichEinst(el.dataset.id);
       case 'zu': return this.schliessen();
       case 'melden': return this.meldenAuf();
@@ -3058,7 +2979,6 @@ class BaustellePanel extends LitElement {
       case 'sg-gefuehl': return this.gefuehl(b, +el.dataset.v);
       case 'sg-zurueck': return this.sollZurueck({ id: el.dataset.id });
       case 'sg-vergessen': return this.gefuehlVergessen();
-      case 'sr-auf': { const o = S.srOffen ||= [], id = el.dataset.id; if (o.includes(id)) o.splice(o.indexOf(id), 1); else o.push(id); return neu(); }
       case 'kk-dia': return this.kkDiaUm(el.dataset.ort, +el.dataset.i);
       case 'kk-auf': return this.kkAufI(el.dataset.ort, +el.dataset.i);
       case 'aw-stufe': { const x = this.awAuswahl()[+el.dataset.i], st = awStufen(x.k).find(q => q[0] === el.dataset.v); if (!st) return; Object.assign(x, { w: st[1], h: st[2], st: st[0] }); this.awMerken(); return neu(); }

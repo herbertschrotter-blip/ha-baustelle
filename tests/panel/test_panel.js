@@ -207,7 +207,7 @@ async function allgemein() {
   await klick({ act: 'bs-wahl', id: entry }, 30);
   const d = () => panel.d, C = () => d().bereiche.filter(b => !b.pumpe), bedarf = () => C().find(b => b.bedarf) || C()[0];
   for (const s of EINBLENDUNGEN) { await klick({ act: 'sheet', s, id: s === 'termin' ? bedarf().id : undefined }, 30); const h = pruefe(`Einblendung ${s}`); erwarte(`Einblendung ${s} offen`, /class="sheet glas-panel an"/.test(h)); hov(`Einblendung ${s}`); }
-  await klick({ act: 'sheet', s: 'wetter' }, 20); for (const wa of ['std', 'tag', '3']) { await klick({ act: 'wa', v: wa }, 20); pruefe(`Wetter ${wa}`); }
+  await klick({ act: 'sheet', s: 'wetter' }, 20); for (const wa of ['std', 'tag', '3']) { await klick(`.sheet > .seg button[data-v="${wa}"]`, 20); pruefe(`Wetter ${wa}`); }
   await klick({ act: 'sheet', s: 'verbrauch' }, 20);
   for (const z of ['Tag', 'Woche', 'Monat', 'Jahr']) { await klick({ act: 'vb-zeitraum', ziel: 'sheet', v: z }, 30); for (const b of C().slice(0, 2)) await klick({ act: 'vb-wer', ziel: 'sheet', id: b.id }); pruefe(`Verbrauch ${z}`); hov(`Verbrauch ${z}`); }
   await klick({ act: 'vb-gruppe', ziel: 'sheet', v: 'firma' }, 30); pruefe('Verbrauch nach Firma');
@@ -537,7 +537,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'bs-wahl', id: 'dobl' }, 30);
   const sheets = ['verbrauch', 'wetter', 'warnungen', 'baustellen', 'heizplan', 'strom', 'nachrichten', 'bericht', 'container-neu', 'abschliessen', 'urlaub', 'wetterquelle', 'name', 'baustelle-neu', 'termin', 'zeitraum-bs'];
   for (const s of sheets) { await klick({ act: 'sheet', s, id: s === 'termin' ? 'besprechung' : undefined }, 30); const h = pruefe(`Einblendung ${s}`); erwarte(`Einblendung ${s} offen`, /class="sheet glas-panel an"/.test(h)); hov(`Einblendung ${s}`); }
-  await klick({ act: 'sheet', s: 'wetter' }, 20); for (const wa of ['std', 'tag', '3']) { await klick({ act: 'wa', v: wa }, 20); const h = pruefe(`Wetter ${wa}`); erwarte(`Wetter ${wa} mit Symbolen`, (h.match(/<svg class="wi wr"/g) || []).length >= 4); }
+  await klick({ act: 'sheet', s: 'wetter' }, 20); for (const wa of ['std', 'tag', '3']) { await klick(`.sheet > .seg button[data-v="${wa}"]`, 20); const h = pruefe(`Wetter ${wa}`); erwarte(`Wetter ${wa} mit Symbolen`, (h.match(/<svg class="wi wr"/g) || []).length >= 4); }
   await klick({ act: 'sheet', s: 'verbrauch' }, 20);
   for (const z of ['Tag', 'Woche', 'Monat', 'Jahr']) { await klick({ act: 'vb-zeitraum', ziel: 'sheet', v: z }, 30); await klick({ act: 'vb-wer', ziel: 'sheet', id: 'polier' }); await klick({ act: 'vb-wer', ziel: 'sheet', id: 'mannschaft' }); pruefe(`Verbrauch ${z}`); hov(`Verbrauch ${z}`); }
   await klick({ act: 'vb-gruppe', ziel: 'sheet', v: 'firma' }, 30); pruefe('Verbrauch nach Firma');
@@ -961,7 +961,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         : { summe: 0.2, jetzt: null, abkuehlen: null, abkuehl_h: null, gemessen: false, trend_h: null, nachlauf: 0, aufheiz_h: null, ziel: 0, gerecht: 0.2, heiz_min: 10, horizont_min: 15 };
       await klick({ act: 'sheet', s: 'strom' }, 10); pruefe('Stromverteilung Rangliste');
       erwarte('Rangliste in der Stromverteilung', ui.innerHTML.includes('Rangliste') && (ui.innerHTML.match(/class="sr-zeile"/g) || []).length === L.hk.length && ui.innerHTML.includes('erster im Container'));
-      await klick({ act: 'sr-auf', id: L.hk[0].g.id }, 5); pruefe('Rangliste aufgeklappt');
+      await klick(`.sheet .sr-zeile[data-id="${L.hk[0].g.id}"]`, 5); pruefe('Rangliste aufgeklappt');
       erwarte('Rangliste: Aufschlüsselung des Bedarfs', ui.innerHTML.includes('class="summe">Bedarf') && (mitT ? ui.innerHTML.includes('kühlt ohne Heizen 2,0 °C/h ab (gemessen)') : ui.innerHTML.includes('Ohne Fühler kein Bedarf')));
       panel.d.staffel = alt; b.bedarfGrad = altB; panel.s.srOffen = []; await klick({ act: 'zu' }); }
     panel.d.e.staffel = staffelAlt; }
@@ -1055,8 +1055,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick('.sheet .zr-nav .zr-pf:first-child', 30); pruefe('Leistung gestern'); erwarte('AN-0005: gestern', ui.innerHTML.includes('<b>Gestern</b>'));
     await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'verbrauch', id: b.id }, 30); pruefe('Verbrauch mit ohne Automatik');
     if (b.geraete.some(g => g.heizer)) {   // WU-0013
-      erwarte('WU-0013: ohne Automatik je Container', ui.innerHTML.includes('kWh ohne Automatik') && ui.innerHTML.includes('gespart') && ui.innerHTML.includes('stroke-dasharray="5 4"') && ui.innerHTML.includes('data-act="oh-basis"'));
-      neu(); await klick({ act: 'oh-basis', v: 'typ' }, 30);
+      erwarte('WU-0013: ohne Automatik je Container', ui.innerHTML.includes('kWh ohne Automatik') && ui.innerHTML.includes('gespart') && ui.innerHTML.includes('stroke-dasharray="5 4"') && !!litEl('.sheet .vb-gruppe button[data-v="typ"]'));
+      neu(); await klick('.sheet .vb-gruppe button[data-v="typ"]', 30);
       erwarte('WU-0013: Basis je Typ fragt die Integration', aufrufe.some(m => m.type === 'baustelle/ohne' && m.basis === 'typ' && m.bereich === b.id));
       erwarte('AN-0007: Erklärung der Rechnung', ui.innerHTML.includes('So rechnet „ohne Automatik“'));
       erwarte('Einblendung drückt nichts zusammen (Chip-Reihe bleibt sichtbar)', /\.sheet > \* \{ flex-shrink: 0; \}/.test(fs.readFileSync(datei, 'utf8')));
@@ -1200,7 +1200,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     && ui.innerHTML.includes('−15 °C'));
   /* AN-0001: im Fenster „Baustelle wählen“ je Baustelle Bearbeiten und Löschen */
   await klick({ act: 'sheet', s: 'baustellen' }); pruefe('Baustelle wählen');
-  erwarte('Baustelle wählen: Bearbeiten und Löschen je Baustelle', panel.alle.every(x => ui.innerHTML.includes(`data-act="bs-bearbeiten" data-id="${x.entry}"`) && ui.innerHTML.includes(`data-s="bs-loeschen" data-id="${x.entry}"`)));
+  erwarte('Baustelle wählen: Bearbeiten und Löschen je Baustelle', panel.alle.every(x => litEl(`.sheet .bs-ic[data-id="${x.entry}"]`) && litEl(`.sheet .bs-zeile .x[data-id="${x.entry}"]`)));
   await klick({ act: 'bs-bearbeiten', id: 'dobl' }, 30); pruefe('Baustelle bearbeiten');
   /* AN-0002: Bearbeiten zeigt nur die Daten der Baustelle; Unterdialoge kehren dorthin zurück */
   erwarte('AN-0002: Bearbeiten (aktiv) öffnet „Baustelle bearbeiten“', panel.s.sheet && panel.s.sheet.art === 'bs-bearbeiten' && panel.d.entry === 'dobl'
@@ -1271,7 +1271,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'tab', v: 'auswertung' }, 30); }
   await klick({ act: 'sheet', s: 'nachrichten' }, 20); erwarte('„Noch früher (hh:mm)“ wie im Mockup', /Noch früher \(\d\d:\d\d\)/.test(ui.innerHTML));
   erwarte('Nachricht „nicht erreichbar“ mit dem Container, der offline ist', /⚠ Lager Süd nicht erreichbar/.test(ui.innerHTML));
-  await klick({ act: 'sheet', s: 'wetter' }, 20); await klick({ act: 'wa', v: 'tag' }, 20);
+  await klick({ act: 'sheet', s: 'wetter' }, 20); await klick('.sheet > .seg button[data-v="tag"]', 20);
   erwarte('Tagesverlauf um 16:20: Morgen und Mittag vorbei, Nachmittag nicht', (ui.innerHTML.match(/class="vorbei"/g) || []).length === 2);
   for (const s of ['name', 'baustelle-neu', 'wetterquelle']) { await klick({ act: 'sheet', s }, 20); erwarte(`Einblendung ${s}: nur „Speichern“ wie im Mockup`, !/data-act="zu">Abbrechen/.test(ui.innerHTML)); }
   await klick({ act: 'sheet', s: 'container-neu' }, 20); eingabe({ f: 'schalter' }, (panel.freieSchalter()[0] || ['switch.x'])[0]); await ruhe();   // WU-0008: Art erst mit Shelly

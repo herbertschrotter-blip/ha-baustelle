@@ -365,6 +365,24 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await text('k plus 3', '.kk-bereich button', 'Kachel'); await feld('k suche preis', '.sheet input[type="search"]', 'Preis'); await alleSel('k preis', '.sheet .kk-tr-zeile', 0); await text('k preis M', '.sheet .kk-wahl .seg button', 'Mittel');
   await schritt('k preis hinzu', '.sheet .kk-wahl .knopf.amber'); await wenn('k sim +', '.kk-bereich .sp-sim button:nth-child(3)'); await wenn('k sim −', '.kk-bereich .sp-sim button:nth-child(1)');
   await text('k plus 4', '.kk-bereich button', 'Kachel'); await schritt('k katalog zu', '.sheet > .kk-kat > .knopf');
+  // Einblendungen der Übersicht (Stufe 3f): Verbrauch, Wetter, Warnungen, Baustellen, Strom
+  await schritt('e2', { act: 'tab', v: 'uebersicht' });
+  await schritt('e2 vb', '.seite .kw-knopf'); await text('e2 vb woche', '.sheet > .seg button', 'Woche'); await text('e2 vb firma', '.sheet .vb-gruppe button', 'Firma');
+  await text('e2 vb teil', '.sheet .vb-gruppe button', 'Container'); await text('e2 vb alle', '.sheet .vb-wer button', 'Alle gestapelt'); await alleSel('e2 vb eins', '.sheet .vb-wer button', 2);
+  await text('e2 vb summe', '.sheet .vb-wer button', 'Summe'); await schritt('e2 vb früher', '.sheet .zr-nav .zr-pf:first-child'); await zu('e2 vb');
+  await schritt('e2 c', '.seite .glas-raster .glas-k:nth-child(1)'); await schritt('e2 kachel vb', '.c-kacheln .c-kachel:nth-child(2)');
+  await wenn('e2 ohne typ', '.sheet .vb-gruppe:last-of-type .seg button:nth-child(2)'); await zu('e2 kachel vb'); await schritt('e2 ü', { act: 'tab', v: 'uebersicht' });
+  await schritt('e2 wetter', '.seite .kopf-wetter'); await text('e2 wetter tag', '.sheet > .seg button', 'Tag'); await alleSel('e2 wetter 3', '.sheet > .seg button', 2); await zu('e2 wetter');
+  await wenn('e2 warn', '.seite .warn-chip'); await wenn('e2 warn stumm', '.sheet .wk-knoepfe .chip:last-child'); await wenn('e2 warn stumm 2', '.sheet .wk-knoepfe .chip:last-child');
+  await wenn('e2 warn prot', '.sheet button.zeile'); await schritt('e2 ü2', { act: 'tab', v: 'uebersicht' });
+  await wenn('e2 warn 2', '.seite .warn-chip'); await wenn('e2 warn hin', '.sheet .wk-knoepfe .chip:first-child'); await schritt('e2 ü3', { act: 'tab', v: 'uebersicht' });
+  await schritt('e2 bs', '.seite .glas-kopf .klickbar'); await alleSel('e2 bs edit', '.sheet .bs-ic', 0); await zu('e2 bs edit');
+  await schritt('e2 bs 2', '.seite .glas-kopf .klickbar'); await alleSel('e2 bs weg', '.sheet .bs-zeile .x', 1); await zu('e2 bs weg');
+  await schritt('e2 bs 3', '.seite .glas-kopf .klickbar'); await wenn('e2 bs neu', '.sheet > button.zeile'); await zu('e2 bs neu');
+  await schritt('e2 bs 4', '.seite .glas-kopf .klickbar'); await alleSel('e2 bs wahl', '.sheet .bs-wahl', 1); await schritt('e2 bs zurück', { act: 'bs-wahl', id: panel.d.entry });
+  await schritt('e2 bs 5', '.seite .glas-kopf .klickbar'); await alleSel('e2 bs wahl selbst', '.sheet .bs-wahl', 0);
+  await wenn('e2 strom', '.seite .strom-knopf'); await alleSel('e2 strom rang', '.sheet .sr-zeile', 0); await alleSel('e2 strom rang 2', '.sheet .sr-zeile', 0);
+  await text('e2 strom einst', '.sheet .knopf', 'Anschlüsse'); await schritt('e2 ü4', { act: 'tab', v: 'uebersicht' });
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
