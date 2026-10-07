@@ -454,8 +454,11 @@ async def test_taste_am_plug(hass: HomeAssistant, anlage) -> None:
     hk1 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk1")
     st.lz["hand"][hk1] = dt_util.now().isoformat()                         # das Umschalten durch die Taste = Hand
 
+    def druck(sek: int = 0) -> str:   # Zeitstempel eines Tastenereignisses (wie die Event-Entität), frisch
+        return (dt_util.utcnow() + timedelta(seconds=sek)).isoformat()
+
     hass.states.async_set("event.plug1_baustelle", "unknown", {"event_types": ["baustelle_taste"]})
-    hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:51:00+00:00", {"event_type": "baustelle_taste"})
+    hass.states.async_set("event.plug1_baustelle", druck(), {"event_type": "baustelle_taste"})
     await hass.async_block_till_done()
     assert "sub_c1" in st.lz["taste_bis"] and hk1 not in st.lz["hand"]
     assert any("Taste am Plug Heizkörper 1: 1 h heizen bis" in e[3] for e in st.einstellungen.daten["protokoll"])
@@ -463,16 +466,25 @@ async def test_taste_am_plug(hass: HomeAssistant, anlage) -> None:
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=6))
     await hass.async_block_till_done()
     assert hk1 not in st.lz["hand"]                                       # auch dann aufgehoben
-    hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:52:00+00:00", {"event_type": "baustelle_taste"})
+    hass.states.async_set("event.plug1_baustelle", zweiter := druck(1), {"event_type": "baustelle_taste"})
     await hass.async_block_till_done()
     assert "sub_c1" not in st.lz["taste_bis"]                            # nochmal drücken beendet
-    hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:53:00+00:00", {"event_type": "anderes"})
+    hass.states.async_set("event.plug1_baustelle", "unavailable", {})   # 07.10.2026: WLAN-Abriss, Entität kommt mit
+    hass.states.async_set("event.plug1_baustelle", zweiter, {"event_type": "baustelle_taste"})   # dem alten Ereignis zurück
+    await hass.async_block_till_done()
+    assert "sub_c1" not in st.lz["taste_bis"]                            # kein neuer Druck
+    alt = (dt_util.utcnow() - timedelta(hours=13)).isoformat()            # altes Ereignis (z. B. nach einem Neustart)
+    hass.states.async_set("event.plug1_baustelle", "unknown", {})
+    hass.states.async_set("event.plug1_baustelle", alt, {"event_type": "baustelle_taste"})
+    await hass.async_block_till_done()
+    assert "sub_c1" not in st.lz["taste_bis"]                            # zählt nicht
+    hass.states.async_set("event.plug1_baustelle", druck(2), {"event_type": "anderes"})
     await hass.async_block_till_done()
     assert "sub_c1" not in st.lz["taste_bis"]                            # andere Ereignisse zählen nicht
 
     st.e["heizung"]["taste"] = False
     await np.async_runde()
-    hass.states.async_set("event.plug1_baustelle", "2026-09-29T14:54:00+00:00", {"event_type": "baustelle_taste"})
+    hass.states.async_set("event.plug1_baustelle", druck(3), {"event_type": "baustelle_taste"})
     await hass.async_block_till_done()
     assert "sub_c1" not in st.lz["taste_bis"]                            # Taste aus: Drücken wirkt nicht
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=6))   # verzögerte Hand-Prüfung ablaufen lassen

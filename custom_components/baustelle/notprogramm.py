@@ -69,6 +69,7 @@ OHNE_ANTWORT_S = 3
 OBJ_TEMPERATUR, OBJ_FENSTER = 69, 45
 TASTE_MIN = 60                 # Taste am Plug: so lange heizen (wie TASTE_S im Skript)
 TASTE_EREIGNIS = "baustelle_taste"
+TASTE_FRISCH_S = 60   # ein Druck zählt nur, wenn sein Ereignis so frisch ist (07.10.2026: Wiederkehr nach „nicht verfügbar“)
 HAND_NACH_TASTE_S = 5
 HB_MAX_MIN = 15                # so lange wartet das Skript auf das Lebenszeichen (wie HB_MAX_MIN im Skript)
 OHNE_UHRZEIT = 1_000_000_000   # „Notbetrieb seit“ kleiner: begann ohne Uhrzeit (das Skript meldet dann 1)
@@ -189,6 +190,7 @@ class Notprogramm:
         self._skript: tuple[int, str] | None = None
         self.geprueft: datetime | None = None
         self._tasten: dict[str, str] = {}        # Event-Entität des Skripts → Gerät (BSM-018)
+        self._taste_zuletzt: dict[str, datetime] = {}   # zuletzt verarbeiteter Druck je Event-Entität
         self._tasten_abmelden: CALLBACK_TYPE | None = None
         self._hand_timer: CALLBACK_TYPE | None = None
 
@@ -542,11 +544,19 @@ class Notprogramm:
 
     @callback
     def _taste_gedrueckt(self, event: Event[EventStateChangedData]) -> None:
-        neu, alt = event.data["new_state"], event.data["old_state"]
+        neu, alt, eid = event.data["new_state"], event.data["old_state"], event.data["entity_id"]
         if (not self.taste or neu is None or alt is None or neu.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
                 or neu.state == alt.state or neu.attributes.get("event_type") != TASTE_EREIGNIS):
             return
-        if (gid := self._tasten.get(event.data["entity_id"])) is not None and gid in self.st.geraete:
+        # Kommt die Entität nach „nicht verfügbar“ zurück, trägt sie das alte Ereignis wieder – kein neuer Druck
+        # (004-01, 07.10.2026 01:11: WLAN-Abriss löste „1 h heizen“ aus). Zählt nur ein frisches, neueres Ereignis.
+        zeit = dt_util.parse_datetime(neu.state)
+        if zeit is None or abs((dt_util.utcnow() - zeit).total_seconds()) > TASTE_FRISCH_S:
+            return
+        if (vorher := self._taste_zuletzt.get(eid)) is not None and zeit <= vorher:
+            return
+        self._taste_zuletzt[eid] = zeit
+        if (gid := self._tasten.get(eid)) is not None and gid in self.st.geraete:
             self.taste_druecken(self.st.geraete[gid])
 
     @callback

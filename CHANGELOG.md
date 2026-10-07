@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.84] – 2026-10-07
+
+- Taste am Plug: Ein kurzer WLAN-Abriss des Plugs löste „1 h heizen“ aus (004-01, 07.10.2026 01:11) – nach „nicht
+  verfügbar“ kam die Tasten-Entität mit dem alten Druck zurück. Ein Druck zählt jetzt nur, wenn er frisch ist (höchstens
+  60 s alt) und neuer als der zuletzt verarbeitete.
+- Warnung „zieht keinen Strom“: kam die ganze Nacht alle paar Minuten aufs Handy, weil der Radiator am eigenen Thermostat
+  kurz abschaltet. Gezählt wird jetzt, wie lange er wirklich ohne Strom ist, und gewarnt erst nach 15 min (bisher 2 min
+  ab dem Einschalten).
+
 ## [0.8.83] – 2026-10-06
 
 - Seite auf Lit umgestellt, Teil 3 (BSM-022.12, Stufe 3b): Verlauf (Karten, Vergleich, Protokoll mit Suche) und die

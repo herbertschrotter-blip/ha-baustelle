@@ -1051,7 +1051,8 @@ class Steuerung:
             elif g.id not in self._offline_seit:
                 self._offline_seit[g.id] = jetzt
                 _LOGGER.info("%s (%s) ist nicht erreichbar", g.name, g.schalter)
-            leistung = _zahl(self.hass.states.get(g.leistung)) if g.leistung else None
+            l_zustand = self.hass.states.get(g.leistung) if g.leistung else None
+            leistung = _zahl(l_zustand) if g.leistung else None
             an = erreichbar and zustand is not None and zustand.state == STATE_ON
             f = self._je_rolle.get(g.rolle)
             typ, laeuft_seit, zyklen = (
@@ -1062,6 +1063,7 @@ class Steuerung:
                     id=g.id, bereich=g.bereich, typ=typ, name=g.name, erreichbar=erreichbar,
                     offline_seit=self._offline_seit.get(g.id), leistung=leistung, an=an,
                     an_seit=dt_util.as_local(zustand.last_changed) if an and zustand is not None else None,
+                    leistung_seit=dt_util.as_local(l_zustand.last_changed) if l_zustand is not None else None,
                     hand_seit=self.funktion_von(g).hand_seit(g), laeuft_seit=laeuft_seit, zyklen_h=zyklen,
                     selbst_ein_seit=warn_logik.selbst_ein_seit(self._aus_befehle.get(g.id, []), jetzt),
                     notprogramm_seit=self.notprogramm_fehler.get(g.id, (None, ""))[0],   # BSM-019

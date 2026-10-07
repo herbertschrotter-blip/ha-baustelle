@@ -109,7 +109,7 @@ def test_zyklen_oft_ab_zyklen_h():
 
 
 def test_keine_leistung_nur_mit_fuehler_und_unter_soll():
-    h = GeraetZustand(id="h1", bereich="buero", name="Radiator", an=True, an_seit=vor(5), leistung=0.0)
+    h = GeraetZustand(id="h1", bereich="buero", name="Radiator", an=True, an_seit=vor(20), leistung=0.0)
     kalt = ContainerZustand(id="buero", temperatur=18.0, soll=20.0, fuehler=True)
     (w,) = nur(Art.KEINE_LEISTUNG, zustand(h, container=[kalt]))
     assert w.stufe == Stufe.STOERUNG and titel(w) == "Radiator zieht keinen Strom"
@@ -121,6 +121,19 @@ def test_keine_leistung_nur_mit_fuehler_und_unter_soll():
     assert nur(Art.KEINE_LEISTUNG, zustand(zieht, container=[kalt])) == []
     gerade_an = GeraetZustand(id="h1", bereich="buero", an=True, an_seit=vor(1), leistung=0.0)
     assert nur(Art.KEINE_LEISTUNG, zustand(gerade_an, container=[kalt])) == []
+
+
+def test_keine_leistung_pause_des_heizkoerper_thermostats():
+    """004_C_MAN, 07.10.2026: der Radiator schaltet am eigenen Thermostat zeitweise ab (3–7 min 0 W) – das ist keine
+    Störung; erst 15 min ohne Strom (ab dem späteren von „eingeschaltet“ und „Leistungswert gilt seit“) warnt."""
+    kalt = ContainerZustand(id="buero", temperatur=18.0, soll=20.0, fuehler=True)
+    pause = GeraetZustand(id="h1", bereich="buero", name="Radiator", an=True, an_seit=vor(60), leistung=0.0, leistung_seit=vor(7))
+    assert nur(Art.KEINE_LEISTUNG, zustand(pause, container=[kalt])) == []
+    defekt = GeraetZustand(id="h1", bereich="buero", name="Radiator", an=True, an_seit=vor(60), leistung=0.0, leistung_seit=vor(16))
+    (w,) = nur(Art.KEINE_LEISTUNG, zustand(defekt, container=[kalt]))
+    assert w.seit == vor(16)
+    frisch_an = GeraetZustand(id="h1", bereich="buero", name="Radiator", an=True, an_seit=vor(10), leistung=0.0, leistung_seit=vor(120))
+    assert nur(Art.KEINE_LEISTUNG, zustand(frisch_an, container=[kalt])) == []   # erst 10 min an
 
 
 def test_frostgefahr_unter_frost_grenze():
@@ -465,7 +478,7 @@ def test_baustelle_offline():
 def test_warnungen_nach_modus():
     """Szenarien (Herbert 01.10.2026): „zieht keinen Strom“ und „zu kalt“ nur, wenn der Container auf das Soll regelt
     (Thermostat, Bei Bedarf); „auf Hand“ nicht im Modus Hand."""
-    h = GeraetZustand(id="h1", bereich="buero", name="Radiator", an=True, an_seit=vor(5), leistung=0.0)
+    h = GeraetZustand(id="h1", bereich="buero", name="Radiator", an=True, an_seit=vor(20), leistung=0.0)
     for modus, erwartet in (("thermo", 1), ("bedarf", 1), ("plan", 0), ("hand", 0), ("", 1)):
         c = ContainerZustand(id="buero", temperatur=18.0, soll=20.0, fuehler=True, modus=modus)
         assert len(nur(Art.KEINE_LEISTUNG, zustand(h, container=[c]))) == erwartet, modus

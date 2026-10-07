@@ -653,7 +653,7 @@ async def test_heizkoerper_an_zieht_keinen_strom(
     await _zu(b, "arbeitszeit")
     await _automatik(b)
     hass.states.async_set("sensor.hk1_power", "0")
-    await _zu(b, "2026-09-29 10:05:00+02:00")
+    await _zu(b, "2026-09-29 10:20:00+02:00")   # 07.10.2026: Warnung erst nach 15 min ohne Strom (Thermostat-Pausen)
     assert _an(b) and (_c(b)["zustand"], _c(b)["text"]) == ("aus", text)
     assert (("keine_leistung", C1, HK1) in _warn(b)) is warnung
 

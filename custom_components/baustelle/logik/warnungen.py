@@ -25,7 +25,8 @@ Entscheidungen, wo der Bauplan offen ist (im Sinne des Mockups):
 - `offline` gilt je Gerät erst nach `offline_min` (auch für Heizkörper, nicht nur Pumpen). Ist das Gerät das einzige
   im Container, steht wie im Mockup nur „nicht erreichbar“ (Chip „Lager Süd: nicht erreichbar“), sonst mit Gerätename.
 - `tuer_offen` hat im Mockup keinen Schalter; abschaltbar nur über `arten["tuer_offen"] = False`.
-- `keine_leistung`: Heizkörper eingeschaltet, aber unter `keine_leistung_unter_w` seit `keine_leistung_nach_min`.
+- `keine_leistung`: Heizkörper eingeschaltet, aber seit `keine_leistung_nach_min` unter `keine_leistung_unter_w` – gezählt ab
+  dem späteren von „eingeschaltet“ und „Leistungswert gilt seit“, damit Pausen des Heizkörper-Thermostats nicht warnen.
   Nur bei Containern mit Fühler und Temperatur unter Soll – ohne Fühler regelt das Thermostat des Heizkörpers selbst
   („an · Thermostat regelt“), 0 W ist dann normal. Schwelle und Dauer stehen nicht im Bauplan (Standard 5 W / 2 min).
   Ohne Messwert (`leistung is None`, Gerät misst nicht) keine Warnung.
@@ -131,6 +132,7 @@ class GeraetZustand:
     leistung: float | None = None
     an: bool = False
     an_seit: datetime | None = None
+    leistung_seit: datetime | None = None   # seit wann der aktuelle Leistungswert gilt (für `keine_leistung`)
     hand_seit: datetime | None = None
     selbst_ein_seit: datetime | None = None   # FE-0010
     laeuft_seit: datetime | None = None
@@ -190,7 +192,7 @@ class WarnEinstellungen:
     tuer_pause_min: float = 3.0
     tuer_melden_min: float = 10.0
     keine_leistung_unter_w: float = 5.0
-    keine_leistung_nach_min: float = 2.0
+    keine_leistung_nach_min: float = 15.0   # Radiator-Thermostat pausiert 3–7 min (004_C_MAN, 07.10.2026)
     batterie_unter: float = 10.0
     pumpe_laeuft_ab_w: float = 20.0
     trocken_nach_min: float = 1.0
@@ -327,9 +329,9 @@ def _pruefe_geraet(
         and c.temperatur < c.soll
         and g.leistung is not None
         and g.leistung < einst.keine_leistung_unter_w
-        and _minuten(g.an_seit, jetzt) >= einst.keine_leistung_nach_min
+        and _minuten(ohne := _spaeter(g.an_seit, g.leistung_seit), jetzt) >= einst.keine_leistung_nach_min
     ):
-        w.append(_warnung(Art.KEINE_LEISTUNG, g.an_seit or jetzt, g.bereich, g.id, name=g.name))
+        w.append(_warnung(Art.KEINE_LEISTUNG, ohne or jetzt, g.bereich, g.id, name=g.name))
     if (
         g.erreichbar
         and g.notprogramm_seit is not None
@@ -435,6 +437,11 @@ def behalte_seit(neu: Iterable[Warnung], alt: Iterable[Warnung]) -> list[Warnung
     """Beginn schon bekannter Probleme (gleicher Key) aus der letzten Prüfung übernehmen."""
     frueher = {w.key: w.seit for w in alt}
     return [replace(w, seit=min(w.seit, frueher[w.key])) if w.key in frueher else w for w in neu]
+
+
+def _spaeter(a: datetime | None, b: datetime | None) -> datetime | None:
+    """Der spätere von zwei Zeitpunkten (None zählt nicht)."""
+    return max((x for x in (a, b) if x is not None), default=None)
 
 
 def ist_stumm(key: str, stumm: Mapping[str, datetime], jetzt: datetime) -> bool:
