@@ -16,8 +16,9 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.hass_dict import HassKey
 
 from ..const import DOMAIN
-from . import schema as s, stammdaten
+from . import schema as s
 from .mitschreiben import Mitschreiber
+from .schreiber import arbeit, schreibarbeit
 from .verbindung import Datenbank
 
 if TYPE_CHECKING:
@@ -51,7 +52,7 @@ async def async_spiegeln(hass: HomeAssistant, struktur: dict[str, Any]) -> None:
         return
     instanz = {"id": await instance_id.async_get(hass), "name": hass.config.location_name}
     jetzt = dt_util.utcnow()
-    db.schreiber.dazu(lambda v: stammdaten.spiegeln(v, struktur, instanz, jetzt))
+    db.schreiber.dazu(arbeit("spiegeln", struktur, instanz, jetzt))
     await db.schreiber.async_schreiben()
 
 
@@ -61,7 +62,7 @@ async def async_entfernen(hass: HomeAssistant, baustelle_id: str) -> None:
     if db is None:
         return
     jetzt = dt_util.utcnow()
-    db.schreiber.dazu(lambda v: stammdaten.entfernen(v, baustelle_id, jetzt))
+    db.schreiber.dazu(arbeit("entfernen", baustelle_id, jetzt))
     await db.schreiber.async_schreiben()
 
 
@@ -69,7 +70,7 @@ async def async_entfernen(hass: HomeAssistant, baustelle_id: str) -> None:
 def mitschreiber_starten(hass: HomeAssistant, st: Steuerung) -> Mitschreiber | None:
     """Mitschreiben einer Baustelle beginnen (je Minute, Ereignisse); None ohne Datenbank."""
     db = hass.data.get(DATA_DB)
-    if db is None or not db.bereit:
+    if db is None or not (db.bereit or db.postgres):   # Server gerade weg: trotzdem sammeln (Warteschlange, Puffer)
         return None
     m = Mitschreiber(hass, db, st)
     m.start()
@@ -83,7 +84,7 @@ def protokoll_merken(hass: HomeAssistant, baustelle_id: str, zeit: datetime, art
     # sekundengenau wie im Store – sonst erkennt die Übernahme (BSM-008) den Eintrag nicht als schon vorhanden
     zeile = {"zeit": dt_util.as_utc(zeit).replace(microsecond=0), "baustelle_id": baustelle_id, "bereich_id": bereich_id,
              "art": art, "text": text}
-    db.schreiber.dazu(lambda v: v.execute(insert(s.protokoll).values(**zeile)))
+    db.schreiber.dazu(arbeit("einfuegen", "protokoll", [zeile]))
 
 
 def einstellung_merken(hass: HomeAssistant, baustelle_id: str, schluessel: str, wert: Any, benutzer: str | None, *,
@@ -93,7 +94,7 @@ def einstellung_merken(hass: HomeAssistant, baustelle_id: str, schluessel: str, 
         return
     zeile = {"baustelle_id": baustelle_id, "bereich_id": bereich_id, "geraet_id": geraet_id, "schluessel": schluessel,
              "wert": wert, "ab": dt_util.utcnow(), "benutzer": benutzer, "quelle": quelle}
-    db.schreiber.dazu(lambda v: v.execute(insert(s.einstellung).values(**zeile)))
+    db.schreiber.dazu(arbeit("einfuegen", "einstellung", [zeile]))
 
 
 def ereignis_merken(hass: HomeAssistant, baustelle_id: str, art: str, wert: Any, quelle: str, *,
@@ -103,7 +104,7 @@ def ereignis_merken(hass: HomeAssistant, baustelle_id: str, art: str, wert: Any,
         return
     zeile = {"zeit": dt_util.utcnow(), "baustelle_id": baustelle_id, "bereich_id": bereich_id, "geraet_id": geraet_id,
              "art": art, "wert": wert, "quelle": quelle, "grund": None}
-    db.schreiber.dazu(lambda v: v.execute(insert(s.ereignis).values(**zeile)))
+    db.schreiber.dazu(arbeit("einfuegen", "ereignis", [zeile]))
 
 
 def meldungen_merken(hass: HomeAssistant, liste: list[dict[str, Any]], nummern: dict[str, int] | None = None) -> None:
@@ -124,18 +125,7 @@ def meldungen_merken(hass: HomeAssistant, liste: list[dict[str, Any]], nummern: 
     verlauf = list({(z["meldung_id"], z["zeit"]): z for z in verlauf}.values())   # gleiche Sekunde: der letzte gilt
     bilder = [{"meldung_id": m["id"], "nr": i, "datei": name} for m in liste if m.get("id") for i, name in enumerate(m.get("bilder") or [])]
 
-    jetzt = dt_util.utcnow()
-
-    def schreiben(v: Connection) -> None:
-        for tabelle, zeilen in ((s.meldung_bild, bilder), (s.meldung_verlauf, verlauf), (s.meldung, meldungen)):
-            v.execute(delete(tabelle))
-            if zeilen:
-                v.execute(insert(tabelle), zeilen)
-        if nummern is not None:   # Ticket-Zähler je Art (BSM-015: die Datenbank ist Quelle der Meldungen)
-            v.execute(delete(s.zustand).where(s.zustand.c.baustelle_id == INTEGRATION, s.zustand.c.schluessel == "meldungen_nummern"))
-            v.execute(insert(s.zustand).values(baustelle_id=INTEGRATION, schluessel="meldungen_nummern", wert=nummern, geaendert=jetzt))
-
-    db.schreiber.dazu(schreiben)
+    db.schreiber.dazu(arbeit("meldungen", meldungen, verlauf, bilder, nummern, dt_util.utcnow()))
 
 
 # ---------------------------------------------------------------------- Phase 3: Altdaten (BSM-008)
@@ -152,3 +142,16 @@ def uebernahme_planen(hass: HomeAssistant, st: Steuerung, bis: datetime) -> CALL
         await async_fehlende_tage(db, st, alle=neu is not None)   # Tagessummen (BSM-009); nach neuer Übernahme alle Tage
 
     return async_at_started(hass, los)
+
+
+@schreibarbeit("meldungen")
+def meldungen_schreiben(v: Connection, meldungen: list[dict[str, Any]], verlauf: list[dict[str, Any]], bilder: list[dict[str, Any]],
+                        nummern: dict[str, int] | None, jetzt: datetime) -> None:
+    """Alle Meldungen mit Verlauf und Bildern ersetzen, dazu die Ticket-Zähler je Art (BSM-015: Datenbank ist Quelle)."""
+    for tabelle, zeilen in ((s.meldung_bild, bilder), (s.meldung_verlauf, verlauf), (s.meldung, meldungen)):
+        v.execute(delete(tabelle))
+        if zeilen:
+            v.execute(insert(tabelle), zeilen)
+    if nummern is not None:
+        v.execute(delete(s.zustand).where(s.zustand.c.baustelle_id == INTEGRATION, s.zustand.c.schluessel == "meldungen_nummern"))
+        v.execute(insert(s.zustand).values(baustelle_id=INTEGRATION, schluessel="meldungen_nummern", wert=nummern, geaendert=jetzt))

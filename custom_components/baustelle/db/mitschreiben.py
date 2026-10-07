@@ -23,6 +23,7 @@ from homeassistant.util import dt as dt_util
 from ..const import ART_CONTAINER
 from ..logik.minute import BereichSammler, GeraetSammler
 from . import schema as s
+from .schreiber import arbeit, schreibarbeit
 
 if TYPE_CHECKING:
     from ..steuerung import Steuerung
@@ -122,7 +123,7 @@ class Mitschreiber:
     def _messwert(self, gid: str, t: datetime, watt: float | None) -> None:
         """Jeder gemeldete Wert der Leistung (Aufbau 5) – für „Leistung einer Stunde“ auch nach 62 Tagen."""
         zeile = {"geraet_id": gid, "zeit": t, "baustelle_id": self.bid, "leistung_w": watt, "quelle": "ha"}
-        self.db.schreiber.dazu(lambda v: v.execute(insert(s.messwert).values(**zeile)))
+        self.db.schreiber.dazu(arbeit("einfuegen", "messwert", [zeile]))
 
     def _schaltung(self, gid: str, alt: State | None, neu: State | None, t: datetime) -> None:
         vorher, jetzt = _an(alt), _an(neu)
@@ -145,7 +146,7 @@ class Mitschreiber:
                  geraet_id: str | None = None, grund: str | None = None) -> None:
         zeile = {"zeit": t, "baustelle_id": self.bid, "bereich_id": bereich_id, "geraet_id": geraet_id, "art": art,
                  "wert": wert, "quelle": quelle, "grund": grund}
-        self.db.schreiber.dazu(lambda v: v.execute(insert(s.ereignis).values(**zeile)))
+        self.db.schreiber.dazu(arbeit("einfuegen", "ereignis", [zeile]))
 
     # ------------------------------------------------------------------ je Minute
     @callback
@@ -195,26 +196,7 @@ class Mitschreiber:
                   "regen_mm": w.regen_heute, "hoechst_heute": w.aussen_max, "quelle": "ha"}
         zustand = self._zustand_aenderungen(ende)
         lernen = self._lernen(ende) if stunde else []
-        bid = self.bid
-
-        def schreiben(v: Connection) -> None:
-            if geraete:
-                v.execute(insert(s.geraet_minute), geraete)
-            if bereiche:
-                v.execute(insert(s.bereich_minute), bereiche)
-            if geraete or bereiche:
-                v.execute(insert(s.wetter_minute).values(**wetter))
-            for schluessel, wert in zustand:
-                v.execute(delete(s.zustand).where(s.zustand.c.baustelle_id == bid, s.zustand.c.schluessel == schluessel))
-                if wert is not None:
-                    v.execute(insert(s.zustand).values(baustelle_id=bid, schluessel=schluessel, wert=wert, geaendert=ende))
-            for zeile in lernen:
-                gefunden = v.execute(update(s.lernen).where(s.lernen.c.bereich_id == zeile["bereich_id"],
-                                                            s.lernen.c.datum == zeile["datum"]).values(werte=zeile["werte"]))
-                if gefunden.rowcount == 0:
-                    v.execute(insert(s.lernen).values(**zeile))
-
-        self.db.schreiber.dazu(schreiben)
+        self.db.schreiber.dazu(arbeit("minute", self.bid, geraete, bereiche, wetter, [list(z) for z in zustand], lernen, ende))
 
     def _soll(self, bid: str) -> float | None:
         if self.st.bereiche[bid].art != ART_CONTAINER:
@@ -244,3 +226,24 @@ class Mitschreiber:
 
 def _sek(n: int) -> timedelta:
     return timedelta(seconds=n)
+
+
+@schreibarbeit("minute")
+def minute_schreiben(v: Connection, bid: str, geraete: list[dict[str, Any]], bereiche: list[dict[str, Any]],
+                     wetter: dict[str, Any], zustand: list[list[Any]], lernen: list[dict[str, Any]], ende: datetime) -> None:
+    """Eine Minute einer Baustelle: Geräte, Bereiche, Wetter, geänderte Laufzeit, Gelerntes (stündlich)."""
+    if geraete:
+        v.execute(insert(s.geraet_minute), geraete)
+    if bereiche:
+        v.execute(insert(s.bereich_minute), bereiche)
+    if geraete or bereiche:
+        v.execute(insert(s.wetter_minute).values(**wetter))
+    for schluessel, wert in zustand:
+        v.execute(delete(s.zustand).where(s.zustand.c.baustelle_id == bid, s.zustand.c.schluessel == schluessel))
+        if wert is not None:
+            v.execute(insert(s.zustand).values(baustelle_id=bid, schluessel=schluessel, wert=wert, geaendert=ende))
+    for zeile in lernen:
+        gefunden = v.execute(update(s.lernen).where(s.lernen.c.bereich_id == zeile["bereich_id"],
+                                                    s.lernen.c.datum == zeile["datum"]).values(werte=zeile["werte"]))
+        if gefunden.rowcount == 0:
+            v.execute(insert(s.lernen).values(**zeile))

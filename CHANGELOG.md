@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.103] – 2026-10-07
+
+- Datenbank auf einem Server, Schritte 8b und 8c (BSM-026): Ist der Datenbank-Server nicht erreichbar, geht nichts
+  verloren – die Integration sammelt weiter und legt die Schreibvorgänge nach 30 Minuten bzw. beim Neustart in
+  `/config/baustelle/puffer/` ab; sobald der Server wieder da ist, schreibt sie alles in derselben Reihenfolge nach. Ist
+  der Server schon beim Start weg, versucht sie es jede Minute neu.
+- Für Excel und Power BI gibt es die Ansichten `v_tag_firma`, `v_tag_container`, `v_monat_baustelle` und
+  `v_schaltungen` (SQLite und PostgreSQL); auf PostgreSQL darf der Benutzer `baustelle_leser` genau diese lesen.
+
 ## [0.8.102] – 2026-10-07
 
 - Datenbank auf einem Server (BSM-026, Schritt 8a): Mit `baustelle: db_url:` in YAML schreibt die Integration statt in

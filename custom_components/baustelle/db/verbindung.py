@@ -19,9 +19,10 @@ from typing import Any, TypeVar
 from sqlalchemy import Connection, Engine, create_engine, event, make_url
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
-from .migration import migrieren, stand, zeitreihen_einrichten
+from .migration import DatenbankNeuer, leser_rechte, migrieren, stand, zeitreihen_einrichten
 from .umzug import umziehen
 from .schreiber import Schreiber
 
@@ -56,21 +57,37 @@ class Datenbank:
         self.fehler: str | None = None
         self.angehalten = False          # während einer HA-Sicherung (backup.py)
         self.letzte_schreibzeit: datetime | None = None
-        self.schreiber = Schreiber(self)
-        self.abmelden: list[Callable[[], None]] = []   # Zeitgeber (Größe messen)
+        self.schreiber = Schreiber(self, pfad.parent / "puffer" / "arbeiten.jsonl")
+        self.abmelden: list[Callable[[], None]] = []   # Zeitgeber (Größe messen, neu verbinden)
+        self._gestoppt = False
         self.groesse_server: float | None = None   # PostgreSQL: Größe der Datenbank in Byte (pg_database_size)
         self._sperre = threading.Lock()
 
     # ------------------------------------------------------------------ Start/Stopp
     async def async_start(self) -> bool:
+        await self.hass.async_add_executor_job(self.schreiber.puffer_zaehlen)
         try:
             await self.hass.async_add_executor_job(self._start)
         except Exception as err:   # noqa: BLE001 – Datenbank darf die Integration nie anhalten
             self.fehler = f"Start: {err}"
             _LOGGER.warning("Datenbank %s nicht verfügbar: %s", self.ort, err)
+            if self.postgres and not isinstance(err, DatenbankNeuer):   # Server weg: jede Minute neu versuchen
+                self._neu_verbinden()
             return False
         self.fehler = None
+        if self.schreiber.ausgelagert:   # Puffer von vor dem Neustart nachschreiben
+            await self.schreiber.async_schreiben()
         return True
+
+    def _neu_verbinden(self) -> None:
+        async def nochmal(_jetzt: datetime) -> None:
+            if self._gestoppt or self.bereit:
+                return
+            if await self.async_start():
+                _LOGGER.warning("Datenbank %s wieder erreichbar", self.ort)
+                await self.schreiber.async_schreiben()
+
+        self.abmelden.append(async_call_later(self.hass, 60, nochmal))
 
     def _start(self) -> None:
         if self.url is None:
@@ -89,6 +106,7 @@ class Datenbank:
             self.version = migrieren(engine, None)
             with engine.begin() as verbindung:
                 zeitreihen_einrichten(verbindung)
+                leser_rechte(verbindung)
                 if neu and self.pfad.exists():
                     umziehen(self.pfad, verbindung)
         self.engine = engine
@@ -103,9 +121,10 @@ class Datenbank:
         return make_url(self.url).render_as_string(hide_password=True) if self.url else str(self.pfad)
 
     async def async_stop(self) -> None:
+        self._gestoppt = True
         while self.abmelden:
             self.abmelden.pop()()
-        await self.schreiber.async_schreiben()
+        await self.schreiber.async_stoppen()
         if self.engine is not None:
             engine, self.engine = self.engine, None
             await self.hass.async_add_executor_job(engine.dispose)
@@ -181,7 +200,7 @@ class Datenbank:
             "zustand": "fehler" if self.fehler else "angehalten" if self.angehalten else "ok" if self.bereit else "aus",
             "art": "postgresql" if self.postgres else "sqlite", "pfad": self.ort,
             "groesse_mb": round(groesse / 1_000_000, 2) if groesse is not None else None, "schema_version": self.version,
-            "fehler": self.fehler, "warteschlange": len(self.schreiber),
+            "fehler": self.fehler, "warteschlange": len(self.schreiber), "puffer": self.schreiber.ausgelagert,
             "letzte_schreibzeit": self.letzte_schreibzeit.isoformat() if self.letzte_schreibzeit else None,
         }
 

@@ -97,7 +97,10 @@ siehe Auslieferung), dann neu starten.
   für einen gemeinsamen Server (PostgreSQL mit TimescaleDB, mehrere Instanzen, Excel/Power BI) in YAML
   `baustelle: db_url: !secret baustelle_db_url` (z. B. `packages/baustelle.yaml`). Beim ersten Start zieht die
   Integration die SQLite-Datei einmal um, die Datei bleibt liegen. Server einrichten: `tools/db-einrichten.sh`
-  (Bauplan Datenbank §4a).
+  (Bauplan Datenbank §4a). Ist der Server weg, sammelt die Integration weiter und schreibt später nach
+  (`/config/baustelle/puffer/`). Für Excel/Power BI: Benutzer `baustelle_leser`, Ansichten `v_tag_firma`,
+  `v_tag_container`, `v_monat_baustelle`, `v_schaltungen` (Excel: Daten → Daten abrufen → Aus Datenbank → Aus
+  PostgreSQL-Datenbank; Server = Adresse des Pi, Port 5432 im Add-on freigeben).
 
 ## Was die Integration liefert
 

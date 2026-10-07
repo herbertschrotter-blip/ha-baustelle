@@ -20,6 +20,7 @@ from sqlalchemy import Connection, delete, func, insert, select
 from homeassistant.util import dt as dt_util
 
 from . import schema as s
+from .schreiber import schreibarbeit
 
 MERKER = "speicher_db"
 NICHT_LAUFZEIT = {"zaehler", "zaehler_uebernahme", "uebernahme", MERKER}
@@ -52,6 +53,7 @@ def baustelle_laden(v: Connection, bid: str) -> dict[str, Any] | None:
     return daten
 
 
+@schreibarbeit("baustelle_speichern")
 def baustelle_speichern(v: Connection, bid: str, einstellungen: dict[str, Any], zaehler: dict[str, Any] | None,
                         laufzeit: dict[str, Any], quelle: str, merker: bool) -> None:
     """Geänderte Einstellungen (je oberstem Schlüssel), Zähler und Laufzeit schreiben; `merker` setzt „speicher_db“."""

@@ -61,6 +61,8 @@ def leere_datenbank(monkeypatch):
     def weg() -> None:
         for datei in (Path(get_test_config_dir()) / "baustelle").glob("baustelle.db*"):
             datei.unlink()
+        for datei in (Path(get_test_config_dir()) / "baustelle" / "puffer").glob("*"):   # Phase 8b
+            datei.unlink()
     weg()
     if TEST_PG:
         import custom_components.baustelle as integration   # noqa: PLC0415

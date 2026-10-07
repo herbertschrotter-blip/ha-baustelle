@@ -4,6 +4,8 @@ Hypertables, Umzug von der SQLite-Datei. Die PostgreSQL-Tests brauchen BAUSTELLE
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from sqlalchemy import create_engine, insert, select, text
 
 from homeassistant.core import HomeAssistant
@@ -87,3 +89,47 @@ async def test_umzug_von_sqlite(hass: HomeAssistant, freezer) -> None:
     assert umzug["von"] == str(pfad) and umzug["zeilen"]["protokoll"] == 3
     assert any(r["id"] == "alt" for r in zeilen_db(hass, "instanz"))
     assert pfad.stat().st_size == groesse   # SQLite-Datei bleibt unverändert (Rückweg)
+
+
+async def test_ansichten_fuer_excel(hass: HomeAssistant, baustelle) -> None:
+    """Aufbau 7: v_tag_firma, v_tag_container, v_monat_baustelle, v_schaltungen – summieren nur tag_* bzw. lesen ereignis
+    (SQLite und PostgreSQL gleich)."""
+    from datetime import date   # noqa: PLC0415
+
+    await hass.async_block_till_done()
+    db = hass.data[DATA_DB]
+    bid = baustelle.entry_id
+    with db.engine.begin() as v:
+        v.execute(insert(s.firma).values(baustelle_id=bid, id="f-x", name="Trockenbau X", eigen=False))
+        v.execute(insert(s.tag_bereich), [
+            {"bereich_id": "c-a", "datum": date(2026, 9, 30), "baustelle_id": bid, "firma_id": "f-x", "kwh": 10.0, "eur": 3.0},
+            {"bereich_id": "c-b", "datum": date(2026, 9, 30), "baustelle_id": bid, "firma_id": "f-x", "kwh": 5.5, "eur": 1.65},
+            {"bereich_id": "c-a", "datum": date(2026, 10, 1), "baustelle_id": bid, "firma_id": "f-x", "kwh": 2.0, "eur": 0.6}])
+        firma = v.execute(text("SELECT datum, firma, container, kwh, eur FROM v_tag_firma WHERE firma_id = 'f-x' ORDER BY datum")).all()
+        monate = v.execute(text("SELECT monat, kwh FROM v_monat_baustelle WHERE baustelle_id = :b ORDER BY monat"), {"b": bid}).all()
+        container = v.execute(text("SELECT COUNT(*) FROM v_tag_container WHERE firma = 'Trockenbau X'")).scalar()
+        v.execute(text("SELECT zeit, container, geraet, quelle FROM v_schaltungen")).all()
+    assert [(str(z.datum), z.firma, z.container, z.kwh) for z in firma] == [("2026-09-30", "Trockenbau X", 2, 15.5),
+                                                                           ("2026-10-01", "Trockenbau X", 1, 2.0)]
+    assert firma[0].eur == pytest.approx(4.65)
+    assert [(str(z.monat), z.kwh) for z in monate] == [("2026-09-01", 15.5), ("2026-10-01", 2.0)]
+    assert container == 3
+
+
+@nur_postgres
+async def test_leser_nur_ansichten(hass: HomeAssistant, freezer) -> None:
+    """Lese-Benutzer (von tools/db-einrichten.sh angelegt) darf die Ansichten lesen, nicht die Tabellen."""
+    from .conftest import TEST_PG   # noqa: PLC0415
+    admin = create_engine(TEST_PG, isolation_level="AUTOCOMMIT")
+    with admin.connect() as v:
+        if not v.execute(text("SELECT 1 FROM pg_roles WHERE rolname = 'baustelle_leser'")).scalar():
+            v.execute(text("CREATE ROLE baustelle_leser LOGIN"))
+    admin.dispose()
+    entry = await baustelle_anlegen(hass, freezer)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    with hass.data[DATA_DB].engine.connect() as v:
+        recht = {t: v.execute(text("SELECT has_table_privilege('baustelle_leser', :t, 'SELECT')"), {"t": t}).scalar()
+                 for t in ("v_tag_firma", "v_tag_container", "v_monat_baustelle", "v_schaltungen", "tag_bereich", "einstellung")}
+    assert recht == {"v_tag_firma": True, "v_tag_container": True, "v_monat_baustelle": True, "v_schaltungen": True,
+                     "tag_bereich": False, "einstellung": False}

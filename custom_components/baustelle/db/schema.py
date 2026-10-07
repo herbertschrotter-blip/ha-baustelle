@@ -27,7 +27,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Dialect
 
-SCHEMA_VERSION = 6   # 2: JSON als Text; 3: strom_min; 4: sekunden_strom; 5: messwert (BSM-014); 6: Meldung vollständig (BSM-015)
+SCHEMA_VERSION = 7   # 2: JSON als Text; 3: strom_min; 4: sekunden_strom; 5: messwert (BSM-014); 6: Meldung vollständig (BSM-015); 7: Ansichten (BSM-026)
 
 metadata = MetaData()
 
@@ -352,3 +352,35 @@ meldung_bild = Table(
     Column("nr", Integer, primary_key=True),
     Column("datei", String(255), nullable=False),
 )
+
+
+# ---------------------------------------------------------------------- 2.5 Für außerhalb (Excel, Power BI; Aufbau 7)
+# Die Ansichten summieren nur die Tagessummen bzw. lesen die Schaltungen – keine Fachregel (kWh, €, Firma je Tag rechnet
+# die Integration in tag_*). Zeiten in UTC, Tage in der Zeitzone der Baustelle. Monat je Datenbank anders geschrieben.
+LESER = "baustelle_leser"   # PostgreSQL: Benutzer nur mit Leserecht auf die Ansichten (tools/db-einrichten.sh)
+_NAMEN = ("LEFT JOIN baustelle b ON b.id = t.baustelle_id "
+          "LEFT JOIN firma f ON f.baustelle_id = t.baustelle_id AND f.id = t.firma_id")
+
+
+def ansichten(dialekt: str) -> dict[str, str]:
+    """Name → SELECT der Ansicht für `dialekt` (sqlite | postgresql)."""
+    monat = "CAST(date_trunc('month', t.datum) AS date)" if dialekt == "postgresql" else "date(t.datum, 'start of month')"
+    return {
+        "v_tag_container": (
+            "SELECT t.datum, t.baustelle_id, b.titel AS baustelle, t.bereich_id, r.name AS container, t.firma_id, "
+            "f.name AS firma, t.kwh, t.eur, t.heizzeit_min, t.strom_min, t.ohne_kwh, t.temp_mittel, t.aussen_mittel "
+            f"FROM tag_bereich t {_NAMEN} LEFT JOIN bereich r ON r.id = t.bereich_id"),
+        "v_tag_firma": (
+            "SELECT t.datum, t.baustelle_id, b.titel AS baustelle, t.firma_id, f.name AS firma, COUNT(*) AS container, "
+            "SUM(t.kwh) AS kwh, SUM(t.eur) AS eur, SUM(t.heizzeit_min) AS heizzeit_min, SUM(t.ohne_kwh) AS ohne_kwh "
+            f"FROM tag_bereich t {_NAMEN} GROUP BY t.datum, t.baustelle_id, b.titel, t.firma_id, f.name"),
+        "v_monat_baustelle": (
+            f"SELECT {monat} AS monat, t.baustelle_id, b.titel AS baustelle, SUM(t.kwh) AS kwh, SUM(t.eur) AS eur, "
+            "SUM(t.heizzeit_min) AS heizzeit_min, SUM(t.ohne_kwh) AS ohne_kwh "
+            f"FROM tag_bereich t {_NAMEN} GROUP BY {monat}, t.baustelle_id, b.titel"),
+        "v_schaltungen": (
+            "SELECT e.zeit, e.baustelle_id, b.titel AS baustelle, e.bereich_id, r.name AS container, e.geraet_id, "
+            "g.name AS geraet, e.wert, e.quelle, e.grund FROM ereignis e LEFT JOIN baustelle b ON b.id = e.baustelle_id "
+            "LEFT JOIN bereich r ON r.id = e.bereich_id LEFT JOIN geraet g ON g.id = e.geraet_id WHERE e.art = 'schalten'"),
+    }
+

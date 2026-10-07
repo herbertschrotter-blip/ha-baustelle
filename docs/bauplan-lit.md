@@ -365,6 +365,10 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   0.8.99 geprüft (Schnappschuss inhaltlich gleich), danach mit 0.8.100 668/668 gleich. Panel-Test prüft, dass keine
   Weiche zurückkommt. Nebenbei: „Schnell aufheizen“ im Bedarf-Dialog ist wieder `vor-ort` (war seit 3d im Nur-Lesen
   ausgegraut). Normalisierung blendet `kk-frisch` (Hervorhebung, endet nach 2 s) aus.
+- **Korrektur 07.10.2026 (0.8.103):** Der Panel-Test mit `struktur-0.7.json` war seit 0.8.99 rot (zwei Prüfungen suchten
+  noch `data-act="kk-auf"` bzw. `"neu-laden"`); gemeldet hatte ich nur die letzte Zeile der Ausgabe, die zum zweiten Lauf
+  (`struktur-echt.json`) gehört – GitHub zeigte es. Beide auf Lit-Merkmale umgestellt, dazu vier verneinte Prüfungen auf
+  `data-act`, die seit Lit immer wahr waren (`az-weg`, `c-soll` 2×, `lh-h`). Die Seite selbst war nicht betroffen.
 - **Stufe 5, 07.10.2026 (auf 0.8.100):** Rückweg geprobt: 0.8.100 und dann 0.8.99 (Arbeitskopie `git worktree` auf
   6f712b5) mit `HA_CONFIG=<temporärer Ordner>` ausgeliefert, ohne npm/Internet; Manifest, Seite und Verlauf 0.8.99, Seite
   bytegleich mit dem Release, im Ziel nur `baustelle-panel.js` und `changelog.json`. Offline-Bau: `npm ci --offline` mit

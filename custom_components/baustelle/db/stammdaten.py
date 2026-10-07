@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import Connection, Table, and_, delete, insert, update
 
 from . import schema as s
+from .schreiber import schreibarbeit
 
 
 def _minuten(text: Any) -> int | None:
@@ -55,6 +56,7 @@ def _ersetzen(v: Connection, tabelle: Table, baustelle_id: str, zeilen: list[dic
         v.execute(insert(tabelle), zeilen)
 
 
+@schreibarbeit("spiegeln")
 def spiegeln(v: Connection, struktur: Mapping[str, Any], instanz: Mapping[str, str], jetzt: datetime) -> None:
     """Eine Baustelle (Antwort von `daten.struktur`) in die Stammdaten schreiben."""
     b = struktur["baustelle"]
@@ -124,6 +126,7 @@ def spiegeln(v: Connection, struktur: Mapping[str, Any], instanz: Mapping[str, s
     _ersetzen(v, s.ausnahme, bid, ausnahmen)
 
 
+@schreibarbeit("entfernen")
 def entfernen(v: Connection, baustelle_id: str, jetzt: datetime) -> None:
     """Baustelle in HA gelöscht: in der Datenbank nur als entfernt kennzeichnen (Messwerte bleiben)."""
     v.execute(update(s.baustelle).where(s.baustelle.c.id == baustelle_id, s.baustelle.c.entfernt.is_(None)).values(entfernt=jetzt))

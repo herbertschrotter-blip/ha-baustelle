@@ -25,7 +25,8 @@ from homeassistant.util.file import write_utf8_file
 
 from .const import DOMAIN
 from .db import DATA_DB, INTEGRATION, meldungen_merken
-from .db.speicher import OHNE, baustelle_laden, baustelle_speichern, meldungen_laden
+from .db.schreiber import arbeit
+from .db.speicher import OHNE, baustelle_laden, meldungen_laden
 from .logik.arbeitszeit import arbeitszeiten_bereinigen, erste_arbeitszeit
 from .logik.warnungen import Art
 
@@ -279,7 +280,7 @@ class Einstellungen:
         zaehler = json.loads(neu["zaehler"]) if "zaehler" in geaendert else None
         quelle, merker, bid = ("speichern" if self._db_merker else "umstellung"), not self._db_merker, self._entry_id
         db = self._hass.data[DATA_DB]
-        db.schreiber.dazu(lambda v: baustelle_speichern(v, bid, einstellungen, zaehler, laufzeit, quelle, merker))
+        db.schreiber.dazu(arbeit("baustelle_speichern", bid, einstellungen, zaehler, laufzeit, quelle, merker))
         self._hass.async_create_task(db.schreiber.async_schreiben(), "baustelle_einstellungen_datenbank")
         self._db_alt, self._db_merker, self.quelle = neu, True, "datenbank"
 

@@ -14,7 +14,7 @@ from sqlalchemy import Connection, Engine, func, inspect, insert, select, text
 
 from homeassistant.util import dt as dt_util
 
-from .schema import JSON_TABELLEN, SCHEMA_VERSION, metadata, schema_version
+from .schema import JSON_TABELLEN, LESER, SCHEMA_VERSION, ansichten, metadata, schema_version
 
 
 class DatenbankNeuer(Exception):
@@ -62,8 +62,30 @@ def _schritt_6(verbindung: Connection) -> None:
         verbindung.execute(text('ALTER TABLE "meldung" ADD COLUMN daten TEXT'))
 
 
+def ansichten_anlegen(verbindung: Connection) -> None:
+    """Ansichten für Excel/Power BI neu anlegen (bei jeder Änderung ihrer Abfrage wieder aufrufen, neuer Aufbau)."""
+    for name, abfrage in ansichten(verbindung.dialect.name).items():
+        verbindung.execute(text(f'DROP VIEW IF EXISTS "{name}"'))
+        verbindung.execute(text(f'CREATE VIEW "{name}" AS {abfrage}'))   # noqa: S608 – feste Abfragen aus schema.py
+
+
+def _schritt_7(verbindung: Connection) -> None:
+    """Ansichten für außerhalb (BSM-026, Bauplan §2.5)."""
+    ansichten_anlegen(verbindung)
+
+
 SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3, 4: _schritt_4, 5: _schritt_5,
-                                                     6: _schritt_6}
+                                                     6: _schritt_6, 7: _schritt_7}
+
+
+def leser_rechte(verbindung: Connection) -> None:
+    """PostgreSQL: der Lese-Benutzer (falls angelegt) darf genau die Ansichten lesen – bei jedem Start nachgezogen."""
+    if verbindung.dialect.name != "postgresql":
+        return
+    if not verbindung.execute(text("SELECT 1 FROM pg_roles WHERE rolname = :r"), {"r": LESER}).scalar():
+        return
+    for name in ansichten("postgresql"):
+        verbindung.execute(text(f'GRANT SELECT ON "{name}" TO "{LESER}"'))
 
 
 def stand(verbindung: Connection) -> int:
