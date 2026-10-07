@@ -329,6 +329,13 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await text('g b3', '.ev-inhalt button.zeile', 'Polier'); await schritt('g gerät', '.sheet .ge-zeile .bs-ic'); await feld('g gerät name', '.sheet > .feld input', 'Radiator B');
   await feld('g gerät typ', '.sheet .raster-2 .feld:nth-child(1) select', 'Konvektor', 'change'); await schritt('g gerät aktiv', '.sheet > .zeile .sw'); await wenn('g gerät kw', '.sheet .stepper button:nth-child(3)');
   await schritt('g gerät speichern', '.sheet .knopf.amber');
+  // Notprogramm (Stufe 3e, zuletzt): Gruppe und Einzelheiten je Plug
+  await schritt('n', { act: 'tab', v: 'einst' }); await schritt('n gruppe', { act: 'ev-gruppe', v: 'notprogramm' });
+  await alleSel('n plug', '.ev-inhalt .liste:nth-of-type(3) button.zeile', 0);
+  await wenn('n probe 60', '.sheet .seg button:nth-child(2)'); await wenn('n probe ende', '.sheet .knopf.klein');
+  await text('n prüfen sheet', '.sheet > .knopf', 'Jetzt prüfen'); await schritt('n plug zu', '.sheet > .knopf:last-child');
+  await text('n prüfen', '.ev-inhalt button.zeile', 'Jetzt prüfen'); await alleSel('n taste', '.ev-inhalt .liste .zeile .sw', 1); await alleSel('n taste 2', '.ev-inhalt .liste .zeile .sw', 1);
+  await alleSel('n aus', '.ev-inhalt .liste .zeile .sw', 0); await alleSel('n an', '.ev-inhalt .liste .zeile .sw', 0);
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
@@ -360,6 +367,8 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('nur-lesen b nachrichten', { act: 'sheet', s: 'nachrichten' }); await zu('nur-lesen b nachrichten');
   await schritt('nur-lesen g', { act: 'ev-gruppe', v: 'container' }); await text('nur-lesen g b', '.ev-inhalt button.zeile', 'Polier'); await schritt('nur-lesen g b speichern', '.sheet .knopf.amber');
   await wenn('nur-lesen g b gerät', '.sheet .ge-zeile .bs-ic'); await zu('nur-lesen g b');
+  await schritt('nur-lesen n', { act: 'ev-gruppe', v: 'notprogramm' }); await alleSel('nur-lesen n an', '.ev-inhalt .liste .zeile .sw', 0);
+  await alleSel('nur-lesen n plug', '.ev-inhalt .liste:nth-of-type(3) button.zeile', 0); await wenn('nur-lesen n probe', '.sheet .seg button:nth-child(2)'); await zu('nur-lesen n plug');
   aus.toast = { html: panel.letzterToast || '', befehle: [] };
   fs.writeFileSync(ziel, JSON.stringify(aus));
   console.log(`Schnappschuss: ${Object.keys(aus).length} Schritte, ${befehle.length} Befehle → ${ziel}`);

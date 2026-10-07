@@ -31,6 +31,7 @@ import { HEIZUNG_EINBLENDUNGEN } from './ansichten/einblendungen-heizung.js';
 import { einstellungenVorlage } from './ansichten/einstellungen.js';
 import { BAUSTELLE_EINBLENDUNGEN } from './ansichten/einblendungen-baustelle.js';
 import { EINRICHTUNG_EINBLENDUNGEN } from './ansichten/einblendungen-einrichtung.js';
+import { npPlugEinblendung } from './ansichten/notprogramm.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -957,7 +958,7 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN)];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
   static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
@@ -1682,6 +1683,11 @@ class BaustellePanel extends LitElement {
     S.sheet = null; this.neuZeichnen();
     return this.liste('arbeitszeiten', 'speichern', { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage, ...(f.alt_ab !== undefined ? { alt_ab: f.alt_ab } : {}) }, text);
   }
+  /* Notprogramm (src/ansichten/notprogramm.js, BSM-022 3e; BSM-019/021) */
+  npPruefen() { const S = this.s; if (S.npPrueft) return undefined; S.npPrueft = true; this.neuZeichnen();
+    return this.ws({ type: 'baustelle/notprogramm_pruefen', entry_id: this.d.entry }, 'Notprogramm geprüft').finally(() => { S.npPrueft = false; this.neuZeichnen(); }); }
+  npPlugAuf(id) { this.s.sheet = { art: 'np-plug', id }; return this.neuZeichnen(); }
+  npProbe(id, m) { return this.ws({ type: 'baustelle/notprogramm_probe', entry_id: this.d.entry, geraet: id, minuten: m }, m ? `Ausfall-Probe ${m} min gestartet` : 'Ausfall-Probe beendet'); }
   /* Dialoge für Container und Geräte (src/ansichten/einblendungen-einrichtung.js, BSM-022 3e); Rümpfe wie bisher in klick() */
   firmaSpeichern() {
     const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
@@ -2032,6 +2038,7 @@ class BaustellePanel extends LitElement {
     else if (S.sheet && HEIZUNG_EINBLENDUNGEN[S.sheet.art]) sheet = HEIZUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && BAUSTELLE_EINBLENDUNGEN[S.sheet.art]) sheet = BAUSTELLE_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && EINRICHTUNG_EINBLENDUNGEN[S.sheet.art]) sheet = EINRICHTUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
+    else if (S.sheet && S.sheet.art === 'np-plug') sheet = npPlugEinblendung(this, S.sheet);
     else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
     const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
@@ -2951,41 +2958,8 @@ class BaustellePanel extends LitElement {
   npZeit(iso, mitTag = true) { if (!iso) return '–'; const l = this.lokal(iso, this.d.z.zone), t = l.slice(0, 10);
     return mitTag ? `${t === this.d.z.HEUTE ? 'heute' : `${wtag(t)} ${kurzDatum(t)}`} ${l.slice(11, 16)}` : l.slice(11, 16); }
   npVor(iso) { const m = iso ? this.minSeitAb(iso, this.d.z.jetztMs) : null; return m === null ? 'noch nie' : m < 1 ? 'gerade eben' : `vor ${m} min`; }
-  npChip(np) { return { bereit: '<span class="gruen-t">✓ bereit</span>', not: `<span class="amber-t">⚠ Notbetrieb seit ${this.npZeit(np.notbetrieb_seit, false)}</span>`,
-    fehler: `<span class="rot-t">✕ ${esc(np.fehler || 'Fehler')}</span>`, offen: '<span class="leise">noch nicht geprüft</span>', aus: '<span class="leise">aus</span>' }[np.zustand] || ''; }
   npMarke(g) { const np = g.np; if (!np || np.zustand === 'aus') return '';
     return `<span class="np-marke ${np.zustand === 'fehler' ? 'rot' : ''}" title="Notprogramm: ${np.zustand === 'fehler' ? esc(np.fehler || 'Fehler') : np.zustand === 'not' ? 'Notbetrieb' : np.zustand === 'offen' ? 'noch nicht geprüft' : 'bereit'}">🛟</span>`; }
-  npGruppe() {
-    const d = this.d, P = this.npPlugs(), an = !!d.e.notprogramm, fehler = P.filter(x => x.np.zustand === 'fehler').length, not = P.filter(x => x.np.zustand === 'not').length;
-    const kurz = !an ? 'aus' : not ? `${not} im Notbetrieb` : fehler ? `${fehler} mit Fehler` : `${P.length} ${P.length === 1 ? 'Plug' : 'Plugs'} bereit`;
-    const zeile = x => `<button class="zeile" data-act="np-plug" data-id="${esc(x.g.id)}"><div><b>🛟 ${esc(this.name(x.g.schalter) || x.g.n)}</b><div class="leise">${esc(x.b.name)}${an ? ` · im Notbetrieb: ${this.npModus(x.np)}${x.np.tuer ? ' · Tür' : ''}` : ''}${an && x.np.fuehler_fehlt ? ' · <span class="amber-t">Fühler nicht am Plug – im Notbetrieb nur Zeitplan</span>' : ''}</div></div>
-      <span class="ger-z">${this.npChip(x.np)}${an && x.np.bis ? `<div class="leise">Programm bis ${this.npZeit(x.np.bis)}</div>` : ''}</span><span class="chev">›</span></button>`;
-    const html = `<div class="glas-panel liste"><div class="gruppe">Notprogramm in den Plugs</div>
-        <div class="zeile"><div><b>Notprogramm</b><div class="leise">Fällt Home Assistant oder das Netz aus, heizen die Plugs nach dem Programm der nächsten 7 Tage weiter – nach 15 min ohne Lebenszeichen</div></div>${schalter(an, 'np-an')}</div>
-        ${an ? `<div class="zeile"><div><b>Taste am Plug = 1 h heizen</b><div class="leise">Drücken heizt den Container 1 h (mit Fühler bis zum Soll), nochmal drücken beendet – auch ohne Home Assistant. Die Automatik übernimmt danach das Relais (kein Handbetrieb).</div></div>${schalter(d.e.taste, 'np-taste')}</div>` : ''}
-        ${an ? `<button class="zeile" data-act="np-pruefen"><div><span class="blau">${this.s.npPrueft ? '⟳ prüft …' : '⟳ Jetzt prüfen'}</span><div class="leise">Skript, Kopplungen, Programm und Lebenszeichen an allen Plugs – sonst alle 5 min von selbst</div></div><span class="leise">zuletzt ${this.npVor(d.np && d.np.geprueft)}</span></button>` : ''}</div>
-      <div class="glas-panel liste"><div class="gruppe">Heizungs-Plugs · ${P.length}</div>${P.map(zeile).join('') || '<div class="leer">Keine Heizkörper an Shelly-Plugs (Gen2 oder neuer)</div>'}</div>
-      ${an && fehler ? `<div class="glas-panel liste"><div class="zeile"><div><b class="rot-t">⚠ ${fehler === 1 ? 'Ein Plug nimmt' : `${fehler} Plugs nehmen`} das Programm nicht an</b><div class="leise">Fällt Home Assistant jetzt aus, heizt er nach dem zuletzt geladenen Programm bzw. danach nur Frostschutz. Nach 15 min auch unter Warnungen.</div></div></div></div>` : ''}
-      <div class="leise p-fuss">Im Notbetrieb gilt: kein Lernen, keine Heizgrenze, keine Staffelung – Thermostat nur, wenn der Fühler am Plug gekoppelt ist (die Integration koppelt Fühler und Tür des Containers selbst).</div>`;
-    return { k: 'notprogramm', ic: '🛟', t: 'Notprogramm', kurz, html };
-  }
-  npPlug(s, griff, knopf) {
-    const x = this.npPlugs().find(y => y.g.id === s.id); if (!x) return `${griff}<div class="leer">Plug nicht gefunden</div>${knopf('Schließen')}`;
-    const np = x.np, z = (t, w) => `<div class="zeile"><span>${t}</span><span class="leise">${w}</span></div>`;
-    const frost = zahl(np.frost_ein) ? `ein unter ${de(np.frost_ein)} °C, aus ab ${de(np.frost_aus)} °C` : 'aus';
-    return `${griff}<div class="block-kopf"><h3>🛟 ${esc(this.name(x.g.schalter) || x.g.n)}</h3></div><div class="leise" style="padding:0 4px 8px">${esc(x.b.name)}</div>
-      <div class="glas-panel liste">${z('Zustand', this.npChip(np))}${z('Skript', np.version ? `Version ${np.version} · läuft` : '–')}${z('Programm', np.bis ? `gültig bis ${this.npZeit(np.bis)} · geladen` : np.programm ? 'geladen · ohne Heizzeit in den nächsten 7 Tagen' : '–')}
-        ${z('Im Notbetrieb', this.npModus(np))}${z('Frostschutz', frost)}${z('Fühler am Plug', np.fuehler ? `Messwert Nr. ${np.fuehler}` : np.fuehler_fehlt ? '<span class="amber-t">keiner – Zeitplan</span>' : '–')}
-        ${z('Tür am Plug', np.tuer ? `✓ Messwert Nr. ${np.tuer}` : '–')}${z('Letzte Prüfung', this.npVor(np.zuletzt))}</div>
-      <div class="glas-panel liste"><div class="gruppe">Notbetrieb</div>${np.zustand === 'not' ? z('läuft seit', `${this.npZeit(np.notbetrieb_seit)} · Home Assistant meldet sich nicht`) : ''}
-        ${z('zuletzt', np.notbetrieb_zuletzt ? `${this.npZeit(np.notbetrieb_zuletzt[0])} – ${this.npZeit(np.notbetrieb_zuletzt[1], false)}` : 'noch nie (seit dem Start von Home Assistant)')}</div>
-      ${this.d.e.notprogramm ? `<div class="glas-panel liste"><div class="gruppe">Ausfall-Probe</div>
-        <div class="zeile"><div class="leise">Home Assistant schickt dem Plug so lange kein Lebenszeichen und schaltet ihn nicht – nach 15 min übernimmt das Notprogramm. Danach vergleicht HA das Stundenbuch mit der eigenen Messung.</div></div>
-        ${np.probe_bis ? `<div class="zeile"><span class="amber-t">⚗ Probe läuft bis ${this.npZeit(np.probe_bis, false)}</span><button class="knopf klein" data-act="np-probe" data-id="${esc(x.g.id)}" data-min="0">Beenden</button></div>`
-          : `<div class="zeile"><span>Probe starten</span><div class="seg klein">${[30, 60, 120, 180].map(m => `<button data-act="np-probe" data-id="${esc(x.g.id)}" data-min="${m}">${m < 60 ? m + ' min' : m / 60 + ' h'}</button>`).join('')}</div></div>`}
-        ${np.probe_ergebnis ? (e => z('Letzte Probe', `${this.npZeit(e.von)} – ${this.npZeit(e.bis, false)} · Stundenbuch ${de(e.buch_kwh, 2)} kWh, ${e.buch_min} min · HA ${de(e.ha_kwh, 2)} kWh, ${e.ha_min} min`))(np.probe_ergebnis) : ''}</div>` : ''}
-      ${this.d.e.notprogramm ? knopf(this.s.npPrueft ? '⟳ prüft …' : '⟳ Jetzt prüfen', 'np-pruefen') : ''}${knopf('Schließen')}`;
-  }
   /* ---- Auswahllisten aus HA (für die Einrichtungs-Dialoge) ---- */
   entitaeten(filter) {
     const eigene = new Set(this._eigene || []);
@@ -3003,7 +2977,6 @@ class BaustellePanel extends LitElement {
     const s = this.s.sheet, d = this.d, knopf = (t, act = 'zu', art = '') => `<button class="knopf ${art}" data-act="${act}">${t}</button>`;
     const griff = '<div class="griff"></div>';
     if (s.art === 'kk-katalog') return this.kkKatalog(s, griff);   // WU-0014
-    if (s.art === 'np-plug') return this.npPlug(s, griff, knopf);   // BSM-019
     if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
     if (s.art === 'wetter') {
       const a = s.wa || 'std', e = d.e, ws = this.zustand(d.wetterEid), w = d.wetter || {};
@@ -3193,13 +3166,11 @@ class BaustellePanel extends LitElement {
       case 'hz-auf': return this.hzAuf(el.dataset.k);
       case 'modus': { const x = d.bereiche.find(y => y.id === el.dataset.id); return x && this.modusSetzen(x, el.dataset.v); }
       case 'tv': S.tv = el.dataset.v; return neu();
-      case 'np-an': return this.setzen(['heizung', 'notprogramm'], !d.e.notprogramm);   // BSM-019
-      case 'np-probe': { const m = +el.dataset.min;   // BSM-021
-        return this.ws({ type: 'baustelle/notprogramm_probe', entry_id: d.entry, geraet: el.dataset.id, minuten: m }, m ? `Ausfall-Probe ${m} min gestartet` : 'Ausfall-Probe beendet'); }
-      case 'np-taste': return this.setzen(['heizung', 'taste'], !d.e.taste);   // BSM-018
-      case 'np-plug': S.sheet = { art: 'np-plug', id: el.dataset.id }; return neu();
-      case 'np-pruefen': if (S.npPrueft) return; S.npPrueft = true; this.neuZeichnen();
-        return this.ws({ type: 'baustelle/notprogramm_pruefen', entry_id: d.entry }, 'Notprogramm geprüft').finally(() => { S.npPrueft = false; this.neuZeichnen(); });
+      case 'np-an': return this.einstellungUmschalten('notprogramm');   // BSM-019
+      case 'np-probe': return this.npProbe(el.dataset.id, +el.dataset.min);
+      case 'np-taste': return this.einstellungUmschalten('taste');   // BSM-018
+      case 'np-plug': return this.npPlugAuf(el.dataset.id);
+      case 'np-pruefen': return this.npPruefen();
       case 'test-meldung': return this.testMeldung();
       case 'bsz-speichern': return this.zeitraumBsSpeichern();
       case 'aw-bearb': S.awBearb = !S.awBearb; S.awLayout = false; return neu();

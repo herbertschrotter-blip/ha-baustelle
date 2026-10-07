@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.95] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 12 (BSM-022.15, Stufe 3e abgeschlossen): Das Notprogramm – Gruppe in den Einstellungen
+  und Einzelheiten je Plug mit Ausfall-Probe – wird mit Lit gezeichnet. Damit sind die Einstellungen samt allen Dialogen
+  umgestellt. Aussehen und Bedienung bleiben gleich.
+
 ## [0.8.94] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 11 (BSM-022.15, Stufe 3e, dritter Teil): Die Dialoge für Container und Geräte – Firma,

@@ -1136,7 +1136,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       erwarte('FE-0013: gewählte Kategorie mittig (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 700 - (300 - 80) / 2); layout.setzen(null); }
     erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-v="${g}"`)));
     const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'Automatik', 'data-k="frost_aussen"'],
-      notprogramm: ['Notprogramm in den Plugs', 'data-act="np-an"'], container: ['Container und Geräte', 'Je Container'],
+      notprogramm: ['Notprogramm in den Plugs', 'Taste am Plug'], container: ['Container und Geräte', 'Je Container'],
       geraete: ['Schaltgeräte', 'class="zeile ger"'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Neuer Preis ab', 'Staffelung'], firmen: ['Firma hinzufügen'],
       meldungen: ['Test-Nachricht senden', 'data-k="kalt_min"', 'data-k="hand_h"'], bericht: ['Wie oft'], app: ['Erklärungen anzeigen', 'Melden-Knopf', 'Auswertung auf Vorschlag zurücksetzen'],
       dev: ['Meldungen', 'ev-dev-reiter'], ueber: ['Version'] };
@@ -1154,7 +1154,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         erwarte('BSM-019: je Plug Zustand, Programm bis, Hinweis Fühler', h.includes('✓ bereit') && h.includes('Programm bis') && h.includes('Fühler nicht am Plug'));
         await klick({ act: 'np-plug', id: panel.npPlugs()[0].g.id }, 10);
         erwarte('BSM-019: Einzelheiten eines Plugs', ui.innerHTML.includes('Messwert Nr. 202') && ui.innerHTML.includes('Version 3') && ui.innerHTML.includes('zuletzt'));
-        erwarte('BSM-021: Ausfall-Probe in den Einzelheiten', ui.innerHTML.includes('data-act="np-probe"'));
+        erwarte('BSM-021: Ausfall-Probe in den Einzelheiten', ui.innerHTML.includes('Probe starten') && ui.innerHTML.includes('data-min="60"'));
         neu(); await klick({ act: 'np-probe', id: panel.npPlugs()[0].g.id, min: '60' }, 10);
         erwarte('BSM-021: Probe über baustelle/notprogramm_probe', aufrufe.some(m => m.type === 'baustelle/notprogramm_probe' && m.minuten === 60));
         await klick({ act: 'zu' }, 5);

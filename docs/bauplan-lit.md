@@ -51,7 +51,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
 | ☑ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
 | ☑ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
-| ☐ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
+| ☑ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
 | ☐ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
 | ☐ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
 | ☐ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
@@ -306,6 +306,13 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   als Weiterleitung. Test-Merkmale ohne Ereignisweg: `data-f`/`data-i` an Feldern, `data-id` an Zuordnungszeilen,
   `data-zeile`, `data-w`, `data-z`/`data-art`. Nachweis: Schnappschuss um die Dialoge erweitert (476 Schritte), inhaltlich
   gleich (Vergleich blendet jetzt auch `data-*` mit Ziffern aus); Panel-Test über die neuen Merkmale.
+- **3e Notprogramm, 07.10.2026 (0.8.95) – 3e abgeschlossen:** `src/ansichten/notprogramm.js` (Gruppe `npGruppeVorlage`,
+  Einzelheiten `npPlugEinblendung`, Zustands-Chip als Vorlage). Methoden `npPruefen`, `npPlugAuf`, `npProbe`; Schalter über
+  `einstellungUmschalten('notprogramm' | 'taste')`. **Entfallen:** `npGruppe`, `npPlug`, `npChip` (HTML-Text). Die
+  Klick-Fälle `np-*` bleiben bis Stufe 4 als Weiterleitung. Nachweis: Schnappschuss um Gruppe, Plug, Probe, Prüfen,
+  Taste und Schalter erweitert (492 Schritte), inhaltlich gleich bis auf die Klasse `rein` nach einem gesperrten Klick
+  (Nicht-Admin); Panel-Test. Prüfung §3 für 3e: Admin/Nicht-Admin und genau ein Auftrag je Aktion – im Schnappschuss
+  je Schritt die gesendeten Befehle gleich (Admin und Nicht-Admin), dazu B6 und die 3d-Fälle im Browser.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

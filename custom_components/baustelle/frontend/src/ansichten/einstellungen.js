@@ -1,7 +1,7 @@
 // Einstellungen mit Lit (BSM-022 Stufe 3e; WU-0007, Mockup einstellungen-varianten.html Variante 1 „Seitenleiste“).
 // Alle Einstellungen in Gruppen: links die Seitenleiste, auf dem Handy Chips oben. Jede Gruppe ist eine eigene Vorlage
 // (vorher schnitt einstBlock() die Gruppen per Titelsuche aus einem HTML-Text). Die Heizung-Blöcke kommen aus heizung.js,
-// „Entwicklung“ und „Über“ aus dev.js/ueber.js. Das Notprogramm bleibt bis zu seiner Lieferung HTML-Text der Seite.
+// „Entwicklung“ und „Über“ aus dev.js/ueber.js, das Notprogramm aus notprogramm.js.
 import { html, nothing } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { MONATE, de, zahl } from '../hilfen.js';
@@ -12,6 +12,7 @@ import { HZ_BLOECKE } from './heizung.js';
 import { preisListeVorlage } from './einblendungen-baustelle.js';
 import { devVorlage } from './dev.js';
 import { ueberVorlage } from '../ueber.js';
+import { npGruppeVorlage } from './notprogramm.js';
 
 const liste = (titel, inhalt) => html`<div class="glas-panel liste"><div class="gruppe">${titel}</div>${inhalt}</div>`;
 const zeile = (t, x, sub = '') => html`<div class="zeile"><div><b>${t}</b>${sub ? html`<div class="leise">${sub}</div>` : nothing}</div>${x}</div>`;
@@ -133,11 +134,11 @@ function entwicklung(p) {
 function gruppen(p) {
   const d = p.d, e = d.e, M = p.meldungen(), P = d.bereiche.filter(b => b.pumpe), C = d.bereiche.filter(b => !b.pumpe), geraete = d.bereiche.reduce((a, b) => a + b.geraete.length, 0);
   const mAn = ['m_offline', 'm_trocken', 'm_dauer', 'm_zyklen', 'm_leistung', 'm_frost', 'm_selbst', 'm_kalt', 'm_fuehler', 'm_wetter', 'm_hand'].filter(k => e[k]).length;
-  const offen = M === null ? '–' : M.filter(m => p.meldungOffen(m)).length, np = p.npGruppe(), gl = geraeteListe(p);
+  const offen = M === null ? '–' : M.filter(m => p.meldungOffen(m)).length, np = npGruppeVorlage(p), gl = geraeteListe(p);
   return [
     { k: 'baustelle', ic: '🏗', t: 'Baustelle', kurz: `${d.titel} · ${p.bsZeit(d)}`, inhalt: () => baustelle(p) },
     { k: 'heizung', ic: '🔥', t: 'Heizung', kurz: `Automatik ${e.auto ? 'an' : 'aus'} · Soll ${de(e.soll)} °C · Vorheizen ${e.vorheizen} min`, inhalt: () => heizung(p) },
-    { k: np.k, ic: np.ic, t: np.t, kurz: np.kurz, inhalt: () => unsafeHTML(np.html) },   // Notprogramm: HTML-Text bis zur eigenen Lieferung (3e)
+    np,
     { k: 'container', ic: '🏠', t: 'Container & Geräte', kurz: `${C.length} Container · ${P.length} ${P.length === 1 ? 'Schacht' : 'Schächte'} · ${geraete} Geräte`, inhalt: () => container(p) },
     { k: 'geraete', ic: '🔌', t: 'Geräte', kurz: `${gl.n} Geräte${gl.offline ? ` · ${gl.offline} meldet nichts` : ' · alle erreichbar'}`, inhalt: () => gl.inhalt },
     { k: 'pumpen', ic: '💧', t: 'Pumpen', kurz: P.length ? `offline nach ${e.offline_min} min · Trockenlauf unter ${e.trocken_w} W` : 'keine Schächte', inhalt: () => pumpen(p) },
