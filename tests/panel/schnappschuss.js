@@ -143,6 +143,55 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
     if (panel.shadowRoot.querySelector('.ereignis .x')) await schritt(`c ${c} termin weg`, '.ereignis .x');
     await schritt(`c ${c} termin neu`, '.seite .block .zeile .blau'); await schritt(`c ${c} termin neu zu`, { act: 'zu' });
   }
+  // Einblendungen der Container-Ansicht (Stufe 3d): Leistung, Heizzeit, Bei Bedarf, Termin, Lernstand
+  const feld = async (name, sel, wert, art = 'input') => { const x = panel.shadowRoot.querySelector(sel); const ab = befehle.length;
+    if (x) { x.value = wert; x.dispatchEvent(new Event('input', { bubbles: true, composed: true })); if (art === 'change') x.dispatchEvent(new Event('change', { bubbles: true, composed: true })); }
+    else aus[`fehlt ${sel}`] = { html: '', befehle: [] };
+    await ruhe(); aus[name] = { html: ui.innerHTML, befehle: befehle.slice(ab) }; };
+  if (mitF) {
+    await schritt('e c', { act: 'container', id: mitF.id });
+    await schritt('e leistung', '.c-kacheln .c-kachel:nth-child(1)');
+    await schritt('e leistung tag', '.sheet .seg button:nth-child(2)');
+    await schritt('e leistung stunde', '.sheet .seg button:nth-child(1)');
+    await feld('e leistung regler', '.sheet .lh-regler input', '5', 'change');
+    await feld('e leistung regler zu weit', '.sheet .lh-regler input', '23', 'change');
+    await schritt('e leistung früher', '.sheet .zr-nav .zr-pf:first-child');
+    await feld('e leistung regler gestern', '.sheet .lh-regler input', '20', 'change');
+    await schritt('e leistung zu', '.sheet > .knopf');
+    await schritt('e heizzeit', '.c-kacheln .c-kachel:nth-child(4)');
+    await schritt('e heizzeit woche', '.sheet .seg button:nth-child(2)');
+    await schritt('e heizzeit früher', '.sheet .zr-nav .zr-pf:first-child');
+    await schritt('e heizzeit monat', '.sheet .seg button:nth-child(3)');
+    await schritt('e heizzeit zu', '.sheet > .knopf');
+    const pol = panel.d.bereiche.find(x => x.id === mitF.id); pol.modus = 'thermo';
+    pol.lern = { an: true, zyklen: 3, anteil: 38, erwartet: .8, aus_bei: 19.2, zyklus_min: 10, kint: { wert: .57, start: .6, fort: .06 }, kext: { wert: .01, start: .01, fort: 0 },
+      nachlauf: { 'oel|lang|kalt': { grad: 1.2, min: 12, n: 3 } }, treffer: [.3, -.1, .2] };
+    await panel.neuZeichnen(); await schritt('e mit lernen');
+    await schritt('e lernstand', '.seite > .liste .link');
+    await schritt('e lernstand mild', '.sheet .block-kopf .seg button:nth-child(2)');
+    await schritt('e lernstand reset', '.sheet .knopf.rot');
+    await schritt('e lernstand 2', '.seite > .liste .link');
+    await schritt('e lernstand zu', '.sheet .knopf.leise-k');
+    await schritt('e zurück', { act: 'tab', v: 'uebersicht' });
+  }
+  if (bed) {
+    await schritt('e bedarf', { act: 'bedarf-auf', id: bed.id });
+    await schritt('e bedarf schnell', '.sheet .zeile .sw');
+    await schritt('e bedarf 1 h', '.sheet .bedarf-dauer .knopf:nth-child(1)');
+    await schritt('e bedarf 2', { act: 'bedarf-auf', id: bed.id });
+    await schritt('e bedarf abbrechen', '.sheet > .knopf.leise-k');
+    await schritt('e bedarf 3', { act: 'bedarf-auf', id: bed.id });
+    await schritt('e termin', '.sheet button.zeile');
+    await feld('e termin titel', '.sheet .feld input', 'Besprechung Test');
+    await schritt('e termin woche', '.sheet .seg button:nth-child(2)');
+    await schritt('e termin schnell', '.sheet .zeile .sw');
+    await feld('e termin von', '.sheet .raster-2 .feld:nth-child(1) input', '07:30');
+    await schritt('e termin eintragen', '.sheet .knopf.amber');
+    await schritt('e termin 2', { act: 'sheet', s: 'termin', id: bed.id });
+    await feld('e termin titel leer', '.sheet .feld input', '  ');
+    await schritt('e termin eintragen leer', '.sheet .knopf.amber');
+    await schritt('e termin abbrechen', '.sheet .knopf.leise-k');
+  }
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon

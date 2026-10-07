@@ -25,6 +25,7 @@ import { devVorlage } from './ansichten/dev.js';
 import { bsdetailVorlage, verlaufVorlage } from './ansichten/verlauf.js';
 import { pumpenVorlage, schachtVorlage } from './ansichten/pumpen.js';
 import { containerVorlage } from './ansichten/container.js';
+import { CONTAINER_EINBLENDUNGEN } from './ansichten/einblendungen-container.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -957,7 +958,7 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
   static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
@@ -1180,7 +1181,6 @@ class BaustellePanel extends LitElement {
     Promise.resolve().then(() => {
       this._auffrischenGeplant = false;
       const f = this.shadowRoot && this.shadowRoot.activeElement;
-      if (this.leistungTeil()) return;   // WU-0012: Leistung offen – nur deren Daten nachladen
       if (f && ['INPUT', 'TEXTAREA', 'SELECT'].includes(f.tagName) && !f.closest('.lit-bereich') && !(this.s.sheet && LIT_SHEETS.includes(this.s.sheet.art) && f.closest('.sheet'))) { this._wartet = true; return; }   // Lit-Felder: kein Aufschub nötig (2a.2)
       this.neuZeichnen();
     });
@@ -1345,14 +1345,16 @@ class BaustellePanel extends LitElement {
   }
 
   /* AN-0005: Leistung einer Stunde, jeder Messwert der Leistungssensoren (HA-Verlauf), je Gerät und als Summe */
-  leistungInhalt(s) {
-    const d = this.d, b = d.bereiche.find(x => x.id === s.auswahl[0]) || this.b; if (!b) return '';
-    const v = s.v || 0, tag = plusTage(this.z.HEUTE, -v), jetztH = +this.z.JETZT.slice(0, 2), h = Math.min(zahl(s.h) ? s.h : v ? 12 : jetztH, v ? 23 : jetztH);
+  /* Leistung eines Containers (Einblendung, src/ansichten/einblendungen-container.js): eine Stunde oder der ganze Tag aus
+     jedem Messwert der Shellys. Flackerfrei (Herbert 01.10.2026): einmal der ganze Tag, jede Stunde wird daraus nur
+     ausgeschnitten – beim Ziehen kein Laden; solange geladen wird, bleibt der alte Stand stehen (WU-0012) */
+  leistungDaten(s) {
+    const d = this.d, b = d.bereiche.find(x => x.id === s.auswahl[0]) || this.b; if (!b) return null;
+    const v = s.v || 0, tag = plusTage(this.z.HEUTE, -v), jetztH = +this.z.JETZT.slice(0, 2), max = v ? 23 : jetztH, h = Math.min(zahl(s.h) ? s.h : v ? 12 : jetztH, max);
     const ganzerTag = s.lart === 'tag';   // WU-0011: Stunde oder ganzer Tag
     const von = this.zoneMs(tag, ganzerTag ? '00:00' : `${String(h).padStart(2, '0')}:00`, d.z.zone), bis = ganzerTag ? this.zoneMs(plusTage(tag, 1), '00:00', d.z.zone) : von + 36e5;
     const laufend = !v && (ganzerTag || h === jetztH);
     const geraete = b.geraete.filter(g => g.leistung), ids = geraete.map(g => g.leistung);
-    // flackerfrei (Herbert 01.10.2026): einmal der ganze Tag, jede Stunde wird daraus nur ausgeschnitten – beim Ziehen kein Laden
     const tagVon = this.zoneMs(tag, '00:00', d.z.zone), tagBis = this.zoneMs(plusTage(tag, 1), '00:00', d.z.zone);
     const roh = !ids.length ? {} : this._holen(`lh:${d.entry}:${b.id}:${tag}:tag`, () => this._hass.callWS({ type: 'baustelle/verlauf', entry_id: d.entry, start_time: new Date(tagVon).toISOString(),
       end_time: new Date(Math.min(tagBis, d.z.jetztMs)).toISOString(), entity_ids: ids, minimal_response: true, no_attributes: true, significant_changes_only: false }), !v ? 30000 : undefined);
@@ -1361,69 +1363,34 @@ class BaustellePanel extends LitElement {
     // Streifen je Stunde: blau, wo der Container verbraucht hat (HA-Statistik), sonst grau – auch künftige Stunden
     const vb = this.verbrauch(d, b.id, 'Tag', v), farbe = k => (!v && k > jetztH) || !vb || !(vb[k] > 0.001) ? 'rgba(127,127,127,.25)' : 'var(--s1)';
     const grenze = k => Math.max(0, Math.min(100, (k - 0.5) / 23 * 100)).toFixed(2);
-    const spur = `linear-gradient(90deg, ${[...Array(24)].map((_, k) => `${farbe(k)} ${grenze(k)}% ${grenze(k + 1)}%`).join(', ')})`;
-    const regler = ganzerTag ? '' : `<div class="lh-regler" style="--spur:${spur}">
-        <input type="range" min="0" max="23" step="1" value="${h}" data-lh aria-label="Stunde wählen">
-        <div class="lh-skala">${[0, 6, 12, 18, 23].map(k => `<span style="left:${(k / 23 * 100).toFixed(1)}%">${k === 23 ? '23' : hh(k)}</span>`).join('')}</div></div>`;
-    let inhalt;
-    if (!ids.length) inhalt = '<div class="leer">Kein Leistungssensor an den Geräten</div>';
-    else if (roh === undefined) inhalt = this._lhLetzt ? `<div class="lh-laedt">${this._lhLetzt}</div>` : LAEDT;   // WU-0012: alter Stand bleibt stehen
-    else {
-      const ausschnitt = alle => { const vorher = alle.filter(p => p[0] <= von).at(-1), drin = alle.filter(p => p[0] > von && p[0] < bis);
-        return [...(vorher ? [[von, vorher[1]]] : []), ...drin]; };   // Stand zu Beginn der Stunde + alle Messwerte darin
-      const reihen = geraete.map((g, k) => ({ name: g.n, farbe: farben[k % farben.length], punkte: ausschnitt(((roh || {})[g.leistung] || [])
-        .map(x => [zahl(x.lu) ? x.lu * 1000 : Date.parse(x.last_updated || x.last_changed), zahl(x.s ?? x.state) ? Number(x.s ?? x.state) : null]).filter(p => Number.isFinite(p[0])).sort((p, q) => p[0] - q[0])) }));
-      const zeiten = [...new Set(reihen.flatMap(r => r.punkte.map(p => p[0])))].sort((a, b2) => a - b2);
-      const wert = (r, t) => { let w = null; for (const p of r.punkte) { if (p[0] > t) break; w = p[1]; } return w; };
-      const summeR = { name: 'Summe', farbe: 'var(--s1)', summe: true, punkte: zeiten.map(t => [t, reihen.reduce((a, r) => a + (wert(r, t) || 0), 0)]) };
-      const zeige = reihen.length > 1 ? [...reihen, summeR] : reihen.map(r => ({ ...r, farbe: 'var(--s1)', summe: true }));
-      const spitze = Math.max(0, ...summeR.punkte.map(p => p[1]));
-      const mittel = summeR.punkte.length ? summeR.punkte.reduce((a, p, i) => a + p[1] * ((i + 1 < summeR.punkte.length ? summeR.punkte[i + 1][0] : ende) - p[0]), 0) / Math.max(1, ende - summeR.punkte[0][0]) : 0;
-      inhalt = `<div class="kennz"><div><b>${de(mittel / 1000, 2)}</b><span>kW im Mittel</span></div><div><b>${de(spitze / 1000, 2)}</b><span>kW Spitze</span></div><div><b>${reihen.reduce((a, r) => a + r.punkte.length, 0)}</b><span>Messwerte</span></div></div>
-        <div class="chart-wrap">${stufen(`lh-${b.id}-${tag}-${ganzerTag ? 'tag' : h}`, zeige, von, bis, 'W', ganzerTag ? [0, 4, 8, 12, 16, 20, 24].map(k => [von + k * 36e5, hh(k)]) : null)}</div>
-        <div class="legende">${zeige.map(r => `<span><i style="background:${r.farbe}"></i>${esc(r.name)}</span>`).join('')}<span class="leise">jeder Messwert des Shellys${laufend ? ' · bis jetzt' : ''}</span></div>`;
-      this._lhLetzt = inhalt;
-    }
-    return `<div class="block-kopf"><h3>Leistung · ${esc(b.name)}</h3><span class="leise lh-wert">${ganzerTag ? 'ganzer Tag' : `${hh(h)}:00–${hh((h + 1) % 24)}:00`}</span></div>
-      <div class="seg">${[['stunde', 'Stunde'], ['tag', 'Tag']].map(([k, t]) => `<button data-act="lh-art" data-v="${k}" class="${(ganzerTag ? 'tag' : 'stunde') === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-      ${this.zrWahl('sheet', 'Tag', this.zrGrenze())}${regler}<div class="lh-daten">${inhalt}</div>`;
+    const L = { b, h, max, ganzerTag, laufend, hh, wert: ganzerTag ? 'ganzer Tag' : `${hh(h)}:00–${hh((h + 1) % 24)}:00`,
+      spur: `linear-gradient(90deg, ${[...Array(24)].map((_, k) => `${farbe(k)} ${grenze(k)}% ${grenze(k + 1)}%`).join(', ')})`, zustand: 'da' };
+    if (!ids.length) return { ...L, zustand: 'ohne' };
+    if (roh === undefined) return { ...L, zustand: 'laedt', letzt: this._lhLetzt };
+    const ausschnitt = alle => { const vorher = alle.filter(p => p[0] <= von).at(-1), drin = alle.filter(p => p[0] > von && p[0] < bis);
+      return [...(vorher ? [[von, vorher[1]]] : []), ...drin]; };   // Stand zu Beginn der Stunde + alle Messwerte darin
+    const reihen = geraete.map((g, k) => ({ name: g.n, farbe: farben[k % farben.length], punkte: ausschnitt(((roh || {})[g.leistung] || [])
+      .map(x => [zahl(x.lu) ? x.lu * 1000 : Date.parse(x.last_updated || x.last_changed), zahl(x.s ?? x.state) ? Number(x.s ?? x.state) : null]).filter(p => Number.isFinite(p[0])).sort((p, q) => p[0] - q[0])) }));
+    const zeiten = [...new Set(reihen.flatMap(r => r.punkte.map(p => p[0])))].sort((a, b2) => a - b2);
+    const wert = (r, t) => { let w = null; for (const p of r.punkte) { if (p[0] > t) break; w = p[1]; } return w; };
+    const summeR = { name: 'Summe', farbe: 'var(--s1)', summe: true, punkte: zeiten.map(t => [t, reihen.reduce((a, r) => a + (wert(r, t) || 0), 0)]) };
+    const zeige = reihen.length > 1 ? [...reihen, summeR] : reihen.map(r => ({ ...r, farbe: 'var(--s1)', summe: true }));
+    const daten = { laufend, zeige, spitze: Math.max(0, ...summeR.punkte.map(p => p[1])), messwerte: reihen.reduce((a, r) => a + r.punkte.length, 0),
+      mittel: summeR.punkte.length ? summeR.punkte.reduce((a, p, i) => a + p[1] * ((i + 1 < summeR.punkte.length ? summeR.punkte[i + 1][0] : ende) - p[0]), 0) / Math.max(1, ende - summeR.punkte[0][0]) : 0,
+      chart: stufen(`lh-${b.id}-${tag}-${ganzerTag ? 'tag' : h}`, zeige, von, bis, 'W', ganzerTag ? [0, 4, 8, 12, 16, 20, 24].map(k => [von + k * 36e5, hh(k)]) : null) };
+    this._lhLetzt = daten;
+    return { ...L, daten };
   }
-  /* WU-0012: in der Leistungs-Einblendung nur Kopf und Datenteil tauschen (kein Neuzeichnen der ganzen Seite) */
-  leistungTeil() {
-    const s = this.s.sheet, ziel = s && s.art === 'leistung' && this.shadowRoot && this.shadowRoot.querySelector('.lh-daten');
-    if (!ziel || !ziel.isConnected) return false;
-    const neu = document.createElement('div'); neu.innerHTML = this.leistungInhalt(s);
-    const daten = neu.querySelector('.lh-daten'), wert = neu.querySelector('.lh-wert'), alt = this.shadowRoot.querySelector('.lh-wert');
-    if (!daten) return false;
-    ziel.innerHTML = daten.innerHTML;
-    if (wert && alt) alt.textContent = wert.textContent;
-    const rNeu = neu.querySelector('.lh-regler'), rAlt = this.shadowRoot.querySelector('.lh-regler');   // Streifen nachfärben
-    if (rNeu && rAlt && rNeu.getAttribute && rAlt.setAttribute) rAlt.setAttribute('style', rNeu.getAttribute('style') || '');
-    return true;
-  }
-  /* FE-0009: Heizzeit eines Containers (Pumpenschacht: Pumpzeit) je Stunde, Tag oder Monat */
-  heizzeitInhalt(s) {
-    const d = this.d, b = d.bereiche.find(x => x.id === s.auswahl[0]) || this.b; if (!b) return '';
-    const z = s.zeitraum || 'Tag', v = s.v || 0, zr = this.zeitraum(z, v), r = this.heizStunden(d, b, z, v), su = r ? summe(r) : null;
-    const je = { Tag: 'je Stunde', Woche: 'je Tag', Monat: 'je Tag', Jahr: 'je Monat' }[z];
-    // AN-0011: eingeschaltet (Shelly an) und davon tatsächlich geheizt (Strom über „heizt tatsächlich ab“) – zwei Zähler der Integration
-    const sId = !b.pumpe && this.eid(d, b.id, 'heizzeit_strom'), rs = sId ? this.reihe(d, sId, z, v) : null, ss = rs ? summe(rs.map(x => x || 0)) : null;
+  /* FE-0009: Heizzeit eines Containers (Pumpenschacht: Pumpzeit) je Stunde, Tag oder Monat; AN-0011: eingeschaltet
+     (Shelly an) und davon tatsächlich geheizt (Strom über „heizt tatsächlich ab“) – zwei Zähler der Integration */
+  heizzeitDaten(s) {
+    const d = this.d, b = d.bereiche.find(x => x.id === s.auswahl[0]) || this.b; if (!b) return null;
+    const z = s.zeitraum || 'Tag', v = s.v || 0, zr = this.zeitraum(z, v), r = this.heizStunden(d, b, z, v);
+    const sId = !b.pumpe && this.eid(d, b.id, 'heizzeit_strom'), rs = sId ? this.reihe(d, sId, z, v) : null;
     const lab = zr.labels.map((l, i) => z === 'Tag' ? (i % 3 ? '' : l) : z === 'Monat' ? (i % 5 ? '' : l) : l);
-    if (sId) return `<div class="block-kopf"><h3>Heizzeit · ${esc(b.name)}</h3><span class="leise">${this.zrText(z, v)}</span></div>
-      <div class="seg">${['Tag', 'Woche', 'Monat', 'Jahr'].map(x => `<button data-act="vb-zeitraum" data-ziel="sheet" data-v="${x}" class="${x === z ? 'on' : ''}">${x}</button>`).join('')}</div>
-      ${this.zrWahl('sheet', z, this.zrGrenze())}
-      <div class="kennz"><div><b>${zahl(su) ? de(su, 1) : '–'}</b><span>h eingeschaltet</span></div><div><b>${zahl(ss) ? de(ss, 1) : '–'}</b><span>h tatsächlich geheizt</span></div>
-        <div><b>${zahl(su) && su > 0 && zahl(ss) ? `${de(Math.min(100, ss / su * 100), 0)} %` : '–'}</b><span>davon mit Strom</span></div></div>
-      <div class="leise">h ${je} · ${this.zrText(z, v)}</div>
-      <div class="chart-wrap">${r && rs ? flaeche(`hz-c-${b.id}-${z}-${v}`, [{ name: 'tatsächlich geheizt', v: rs.map(x => x || 0), farbe: 'var(--s1)' }], zr.labels, 'h',
-        z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3, { name: 'eingeschaltet', v: r }) : LAEDT}</div>
-      <div class="leise">Eingeschaltet = der Shelly ist an. Tatsächlich geheizt = es fließt Strom (über ${this.d.e.zieht_w} W) – schaltet der Thermostat am Heizkörper ab, ist der Shelly an, geheizt wird aber nicht. Ohne Leistungssensor gilt die Schaltzeit. „Tatsächlich geheizt“ wird ab 0.8.29 gezählt.</div>`;
-    return `<div class="block-kopf"><h3>${b.pumpe ? 'Pumpzeit' : 'Heizzeit'} · ${esc(b.name)}</h3><span class="leise">${this.zrText(z, v)}</span></div>
-      <div class="seg">${['Tag', 'Woche', 'Monat', 'Jahr'].map(x => `<button data-act="vb-zeitraum" data-ziel="sheet" data-v="${x}" class="${x === z ? 'on' : ''}">${x}</button>`).join('')}</div>
-      ${this.zrWahl('sheet', z, this.zrGrenze())}
-      <div class="kennz"><div><b>${zahl(su) ? de(su, 1) : '–'}</b><span>Stunden ${b.pumpe ? 'gepumpt' : 'geheizt'}</span></div><div><b>${r ? de(Math.max(...r, 0), 1) : '–'}</b><span>h am meisten ${je}</span></div></div>
-      <div class="leise">h ${je} · ${this.zrText(z, v)}</div>
-      <div class="chart-wrap">${r ? balken(`hz-c-${b.id}-${z}-${v}`, r, zr.labels.map((l, i) => z === 'Tag' ? (i % 3 ? '' : l) : z === 'Monat' ? (i % 5 ? '' : l) : l), 'h') : LAEDT}</div>`;
+    return { b, z, v, r, rs, strom: !!sId, su: r ? summe(r) : null, ss: rs ? summe(rs.map(x => x || 0)) : null, je: { Tag: 'je Stunde', Woche: 'je Tag', Monat: 'je Tag', Jahr: 'je Monat' }[z], text: this.zrText(z, v),
+      chart: sId ? (r && rs ? flaeche(`hz-c-${b.id}-${z}-${v}`, [{ name: 'tatsächlich geheizt', v: rs.map(x => x || 0), farbe: 'var(--s1)' }], zr.labels, 'h', z === 'Tag' ? 6 : z === 'Monat' ? 7 : z === 'Woche' ? 1 : 3, { name: 'eingeschaltet', v: r }) : null)
+        : r ? balken(`hz-c-${b.id}-${z}-${v}`, r, lab, 'h') : null };
   }
   /* Gemessen: wann zieht ein Gerät Strom (Leistung über „heizt tatsächlich ab“, Standard 50 W) – Verlauf der Leistungssensoren seit Montag */
   messung(d = this.d) {
@@ -1728,6 +1695,18 @@ class BaustellePanel extends LitElement {
     if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
     S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
   }
+  /* Einblendungen der Container-Ansicht (src/ansichten/einblendungen-container.js, BSM-022 3d) */
+  schliessen() { this.s.sheet = null; return this.neuZeichnen(); }
+  zeitraumWahl(ziel, z) { const st = ziel === 'aw' ? this.s.aw : this.s.sheet; if (st.zeitraum !== z) st.v = 0; st.zeitraum = z; this.s.zrKal = null; return this.neuZeichnen(); }
+  lernZuruecksetzen(x) { this.s.sheet = null; this.neuZeichnen(); return this.aktion('lern_reset', { bereich: x.id }, `${x.name}: Lernstand zurückgesetzt`); }
+  terminSpeichern() {
+    const S = this.s, d = this.d, f = S.sheet.form; if (!f.titel.trim() || !f.datum || f.bis <= f.von) return this.toast('Bitte Titel, Tag und Uhrzeit prüfen');
+    if (!d.termineKal) return this.toast('Zuerst einen Kalender für Termine wählen');
+    const ev = { summary: f.titel.trim(), dtstart: `${f.datum}T${f.von}:00`, dtend: `${f.datum}T${f.bis}:00`, description: `baustelle:${f.b}${f.boost ? '\nboost' : ''}` };   // Zuordnung zum Container (api §4)
+    if (f.wieder !== 'einmal') ev.rrule = f.wieder === 'woche' ? 'FREQ=WEEKLY' : 'FREQ=WEEKLY;INTERVAL=2';
+    S.sheet = null; this.neuZeichnen();
+    return this.ws({ type: 'calendar/event/create', entity_id: d.termineKal, event: ev }, `Eingetragen${f.wieder !== 'einmal' ? ` – ${WIEDER[f.wieder]} am ${wtag(f.datum)}` : ''} – heizt ab ${uhr(minu(f.von) - d.e.vorheizen)}`);
+  }
   /* Container (src/ansichten/container.js, BSM-022 3d); Übersicht und Einblendungen nutzen sie über klick() */
   nurAdmin(fn) { return (...x) => this.nurLesen() ? this.toast(NUR_ANSEHEN) : fn(...x); }   // wie NUR_LESEN_SPERRE für Lit-Knöpfe (.nur-admin)
   modusSetzen(x, m) { if (x.modus === m) return undefined; return this.setzen(['bereiche', x.id, 'modus'], m, `${x.name}: ${(MODI.find(q => q[0] === m) || [m, m])[1]}`); }
@@ -1867,6 +1846,7 @@ class BaustellePanel extends LitElement {
     const melden = this.d ? this.d.e.melden : true;
     let sheet = '';
     if (S.sheet && S.sheet.art === 'melden') sheet = meldenVorlage(this, S.sheet.form);
+    else if (S.sheet && CONTAINER_EINBLENDUNGEN[S.sheet.art]) sheet = CONTAINER_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
     const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
@@ -3276,8 +3256,6 @@ class BaustellePanel extends LitElement {
     if (s.art === 'np-plug') return this.npPlug(s, griff, knopf);   // BSM-019
     if (s.art === 'aussehen') return this.symDialog(s, griff, knopf);   // BSM-032
     if (s.art === 'verbrauch') return `${griff}${this.verbrauchInhalt(s, 'sheet', true)}${knopf('Schließen')}`;
-    if (s.art === 'leistung') return `${griff}${this.leistungInhalt(s)}${knopf('Schließen')}`;
-    if (s.art === 'heizzeit-c') return `${griff}${this.heizzeitInhalt(s)}${knopf('Schließen')}`;
     if (s.art === 'hz') { const T = this.hzTeile(), def = HZ_TEILE.find(x => x[0] === s.k) || HZ_TEILE[0];
       const inhalt = s.k === 'heute' ? T.heute + T.wann : s.k === 'az' ? T.az + T.ausn : T[s.k];
       return `${griff}<div class="block-kopf"><h3>${def[2]} ${esc(def[3])}</h3></div>${(inhalt || '').replace(/class="glas-panel block"/g, 'class="block hz-innen"')}${knopf('Schließen')}`; }
@@ -3434,27 +3412,6 @@ class BaustellePanel extends LitElement {
         <div class="leise">${e.bericht_handy ? 'Aufs Handy kommt eine Kurzfassung (Summe, Kosten, Warnungen) mit Knopf „Bericht öffnen“. ' : ''}Die E-Mail geht über einen Mail-Dienst in HA (Google Mail oder SMTP); die Zugangsdaten stehen in secrets.yaml.</div>
         ${knopf('Schließen', 'zu', 'leise-k')}`;
     }
-    if (s.art === 'bedarf') {
-      const b = d.bereiche.find(x => x.id === s.cid); if (!b) { this.s.sheet = null; return ''; }
-      const ende = this.arbeitsende(), warm = b.t !== null ? Math.max(0, Math.round((this.sollVon(b) - b.t) * 4)) : null;
-      return `${griff}<h3>${esc(b.name)} heizen</h3><div class="leise">Jetzt ${b.t !== null ? `${de(b.t)} °C` : 'ohne Fühler'} · wird ${b.t !== null ? `in etwa ${warm} min warm` : 'sofort eingeschaltet'}</div>
-        <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">alle Heizkörper zugleich, Vorrang in der Staffelung</div></div>${schalter(s.boost, 'bedarf-boost')}</div>
-        <div class="bedarf-dauer gross">${[['60', '1 Stunde'], ['120', '2 Stunden'], ...(ende ? [['ende', `bis Arbeitsende (${ende})`]] : []), ['abend', 'bis 19:00']].map(([v, t]) => `<button class="knopf" data-act="bedarf-an" data-id="${b.id}" data-v="${v}">▶ ${t}</button>`).join('')}</div>
-        <button class="zeile" data-act="sheet" data-s="termin" data-id="${b.id}"><span class="blau">Lieber einen Termin eintragen</span><span class="chev">›</span></button>
-        ${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'termin') {
-      const f = s.form, kal = d.termineKal;
-      return `${griff}<h3>Termin eintragen</h3>
-        <label class="feld">Titel<input value="${esc(f.titel)}" placeholder="z. B. Baubesprechung" data-tm="titel"></label>
-        <label class="feld">${f.wieder === 'einmal' ? 'Tag' : 'Ab (Wochentag gilt für die Serie)'}<input type="date" value="${f.datum}" data-tm="datum"></label>
-        <div class="zeile"><span>Wiederholen</span><div class="seg klein">${Object.entries(WIEDER).map(([k, t]) => `<button data-act="tm-wieder" data-v="${k}" class="${f.wieder === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
-        <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">vor dem Termin alle Heizkörper zugleich</div></div>${schalter(f.boost, 'tm-boost')}</div>
-        <div class="raster-2"><label class="feld">von<input type="time" value="${f.von}" data-tm="von"></label><label class="feld">bis<input type="time" value="${f.bis}" data-tm="bis"></label></div>
-        ${f.wieder !== 'einmal' && f.datum ? `<div class="leise">Serie: ${WIEDER[f.wieder]} am ${wtag(f.datum)} ab ${datum(f.datum)}</div>` : ''}
-        <div class="leise">Kommt in den HA-Kalender „${esc(kal ? this.name(kal) : 'Termine')}“ (Serien als Wiederholung im Kalender). Die Heizung startet ${d.e.vorheizen} min vorher (Vorheizen) und hört zum Ende auf.</div>
-        ${knopf('Eintragen', 'termin-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    }
     if (s.art === 'preis-neu') {
       return `${griff}<h3>Neuer Strompreis</h3><label class="feld">gilt ab<input type="date" value="${s.ab}" data-sp="ab"></label>
         <label class="feld">Preis je kWh<input type="number" step="0.01" min="0" value="${s.preis}" data-sp="preis"></label>
@@ -3574,28 +3531,6 @@ class BaustellePanel extends LitElement {
         ${knopf('Speichern', 'gf-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     /* Lernende Regelung (0.8): Lernstand eines Containers (Mockup glas.html, abgenommen 30.09.2026) */
-    if (s.art === 'lernen') {
-      const b = this.b, l = b && b.lern; if (!l) { this.s.sheet = null; return ''; }
-      const kalt = (s.lk || 'kalt') === 'kalt', soll = this.sollVon(b), bd = kalt ? 'kalt' : 'mild';
-      const balkenK = (name, k) => `<div class="zeile"><div><b>${name}</b> ${de(k.wert, 3)} <span class="leise">(Start ${de(k.start, 2)})</span>
-          <div class="lern-fort"><i style="width:${Math.round(k.fort * 100)}%"></i></div></div><span class="leise">${k.fort >= 1 ? 'gelernt' : `${Math.round(k.fort * 50)}/50 Zyklen`}</span></div>`;
-      const zelle = (art, kl) => { const z = (l.nachlauf || {})[`${art}|${kl}|${bd}`];
-        return z && z.n ? `<b>+${de(z.grad)} °C</b><span class="leise">${de(z.min, 0)} min · ${z.n}×</span>` : '<span class="leise">noch nicht gelernt</span>'; };
-      const tr = l.treffer || [], mittel = tr.length ? tr.reduce((x, y) => x + Math.abs(y), 0) / tr.length : null;
-      return `${griff}<div class="block-kopf"><h3>Lernstand · ${esc(b.name)}</h3><span class="leise">${l.zyklen} Heizzyklen gemessen</span></div>
-        ${this.offenText(b) ? `<div class="wa-heute">${this.offenText(b)}. Laufende Messungen sind verworfen; gelernt wird wieder 10 min, nachdem es vorbei ist.</div>` : ''}
-        <div class="gruppe-t">Regelung (TPI, ${l.zyklus_min}-min-Zyklen)</div>
-        ${balkenK('K innen – Trägheit des Raums', l.kint)}${balkenK('K außen – Wärmeverlust nach außen', l.kext)}
-        <div class="leise">Einschaltanteil = K innen × (Soll − innen − Nachlauf) + K außen × (Soll − außen)</div>
-        ${this.aufheizTeil(b)}
-        <div class="block-kopf"><div class="gruppe-t">Nachlauf nach dem Ausschalten</div><div class="seg klein">${[['kalt', 'kalt < 5 °C'], ['mild', 'mild']].map(([k, t]) => `<button data-act="lern-k" data-v="${k}" class="${(s.lk || 'kalt') === k ? 'on' : ''}">${t}</button>`).join('')}</div></div>
-        <div class="lern-tab"><span></span><b>mit Ölradiator</b><b>nur Konvektor</b>
-          ${[['kurz', '< 15 min'], ['mittel', '15–45 min'], ['lang', '> 45 min']].map(([kl, t]) => `<span>${t}</span><div>${zelle('oel', kl)}</div><div>${zelle('konvektor', kl)}</div>`).join('')}</div>
-        <div class="leise">Wie weit die Temperatur nach dem Ausschalten noch steigt und wann die Spitze kommt, je nach Heizdauer davor. Zwei Heizkörper zählen mit ihrer Summe.</div>
-        <div class="gruppe-t">Soll getroffen · letzte Zyklen (Soll ${de(soll)} °C)</div>
-        ${tr.length ? `<div class="lern-treffer">${tr.map(x => `<span class="${Math.abs(x) <= .3 ? 'gut' : ''}">${x >= 0 ? '+' : '−'}${de(Math.abs(x))}</span>`).join('')}<b>Ø ±${de(mittel)} °C</b></div>` : '<div class="leer">Noch keine Messung – der erste Wert kommt nach dem nächsten Ausschalten</div>'}
-        ${knopf('Lernstand zurücksetzen', 'lern-reset', 'rot')}${knopf('Schließen', 'zu', 'leise-k')}`;
-    }
     if (s.art === 'bs-bearbeiten') {
       const e = d.e, o = d.optionen;
       return `${griff}<div class="block-kopf"><h3>Baustelle bearbeiten</h3><span class="leise">${esc(d.titel)}</span></div>
@@ -3710,12 +3645,10 @@ class BaustellePanel extends LitElement {
       case 'sheet': return this.einblenden(el.dataset.s, el.dataset);
       case 'wetterquelle-auf': return this.klick({ target: { closest: () => ({ dataset: { act: 'sheet', s: 'wetterquelle' } }) } });
       case 'wa': S.sheet.wa = el.dataset.v; return neu();
-      case 'lh-h': S.sheet.h = +el.dataset.v; return neu();   // AN-0005: Stunde der Leistung
-      case 'lh-art': S.sheet.lart = el.dataset.v; return neu();   // WU-0011: Stunde | Tag
       case 'oh-basis': S.sheet.ohneBasis = el.dataset.v; return neu();   // WU-0013: Ø je Gerät | je Typ
       case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
       case 'aw-scope': S.awScope = el.dataset.v; S.aw.auswahl = this.quellen(S.aw, 'aw').map(q => q.id); return neu();
-      case 'vb-zeitraum': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; if (st.zeitraum !== el.dataset.v) st.v = 0; st.zeitraum = el.dataset.v; S.zrKal = null; return neu(); }
+      case 'vb-zeitraum': return this.zeitraumWahl(el.dataset.ziel, el.dataset.v);
       case 'zr-schritt': return this.zrSchritt(el.dataset.ziel, +el.dataset.max || 0, +el.dataset.d);
       case 'zr-setz': return this.zrSetzen(el.dataset.ziel, +el.dataset.max || 0, +el.dataset.v);
       case 'zr-kal': return this.zrKalAuf(el.dataset.ziel);
@@ -3725,7 +3658,7 @@ class BaustellePanel extends LitElement {
         else sh.auswahl = sh.auswahl.includes(id) ? sh.auswahl.filter(x => x !== id) : [...sh.auswahl, id];
         return neu(); }
       case 'bereich-einst': S.cid = el.dataset.id; S.sheet = { art: 'bereich' }; return neu();
-      case 'zu': S.sheet = null; return neu();
+      case 'zu': return this.schliessen();
       case 'melden': return this.meldenAuf();
       case 'toast': return this.toast(el.dataset.t);
       case 'auto': return this.setzen(['automatik'], !d.e.auto, !d.e.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind');
@@ -3733,15 +3666,7 @@ class BaustellePanel extends LitElement {
       case 'bedarf-an': return this.bedarfAn(el.dataset.id, el.dataset.v);
       case 'bedarf-aus': return this.bedarfAus(el.dataset.id);
       case 'termin-weg': { const t = d.termine[+el.dataset.i]; return t && this.terminWeg(t); }
-      case 'termin-speichern': { const f = S.sheet.form; if (!f.titel.trim() || !f.datum || f.bis <= f.von) return this.toast('Bitte Titel, Tag und Uhrzeit prüfen');
-        if (!d.termineKal) return this.toast('Zuerst einen Kalender für Termine wählen');
-        const ev = { summary: f.titel.trim(), dtstart: `${f.datum}T${f.von}:00`, dtend: `${f.datum}T${f.bis}:00`, description: `baustelle:${f.b}${f.boost ? '\nboost' : ''}` };   // Zuordnung zum Container (api §4)
-        if (f.wieder !== 'einmal') ev.rrule = f.wieder === 'woche' ? 'FREQ=WEEKLY' : 'FREQ=WEEKLY;INTERVAL=2';
-        S.sheet = null; neu();
-        return this.ws({ type: 'calendar/event/create', entity_id: d.termineKal, event: ev }, `Eingetragen${f.wieder !== 'einmal' ? ` – ${WIEDER[f.wieder]} am ${wtag(f.datum)}` : ''} – heizt ab ${uhr(minu(f.von) - d.e.vorheizen)}`); }
-      case 'bedarf-boost': S.sheet.boost = !S.sheet.boost; return neu();
-      case 'tm-wieder': S.sheet.form.wieder = el.dataset.v; return neu();
-      case 'tm-boost': S.sheet.form.boost = !S.sheet.form.boost; return neu();
+      case 'termin-speichern': return this.terminSpeichern();
       case 'boost': return this.boostUmschalten(d.bereiche.find(y => y.id === el.dataset.id));
       case 'hz-art': S.hzArt = el.dataset.v; return neu();
       case 'hz-tag': S.hzTag = el.dataset.v; if (el.dataset.art) S.hzArt = 'tag'; return neu();
@@ -3837,8 +3762,7 @@ class BaustellePanel extends LitElement {
           return true;
         }, `${f.n.trim()} gespeichert`).then(() => this._laden()); }
       case 'b-lernen': return this.lernenUmschalten(b);
-      case 'lern-k': S.sheet.lk = el.dataset.v; return neu();
-      case 'lern-reset': { const x = b; S.sheet = null; neu(); return this.aktion('lern_reset', { bereich: x.id }, `${x.name}: Lernstand zurückgesetzt`); }
+      case 'lern-reset': return this.lernZuruecksetzen(b);
       case 'b-trocknen': case 'tr-b': return this.trocknenUmschalten(a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b);
       case 'geraet': return this.geraetSchalten(b, +el.dataset.i);
       case 'chart': S.chart = el.dataset.c; return neu();
@@ -3990,20 +3914,12 @@ class BaustellePanel extends LitElement {
   }
   eingabe(ev) {
     const el = ev.target, ds = (el && el.dataset) || {}, sh = this.s.sheet;
-    if (ds.lh !== undefined) {   // AN-0010: beim Ziehen gleich mitladen (kurz entprellt), nur den Datenteil tauschen
-      const max = sh && sh.v ? 23 : +this.z.JETZT.slice(0, 2), h = Math.min(+el.value, max), w = this.shadowRoot && this.shadowRoot.querySelector('.lh-wert');
-      if (w) w.textContent = `${String(h).padStart(2, '0')}:00–${String((h + 1) % 24).padStart(2, '0')}:00`;
-      clearTimeout(this._lhZiehen);
-      this._lhZiehen = setTimeout(() => { if (this.s.sheet && this.s.sheet.art === 'leistung' && this.s.sheet.h !== h) { this.s.sheet.h = h; this.leistungTeil(); } }, 150);
-      return;
-    }
     if (ds.sp && sh && sh.art === 'preis-neu') { sh[ds.sp] = el.value; return; }   // Strompreis ab …
     if (ds.kk === 'q' && sh && sh.art === 'kk-katalog') {   // WU-0014: Treffer neu, Fokus bleibt im Suchfeld
       sh.q = el.value; sh.k = null; const t = this.shadowRoot && this.shadowRoot.querySelector('.kk-treffer'); if (t) t.innerHTML = this.kkTreffer(sh); return;
     }
     if (ds.azn) sh.form[ds.azn] = el.value;
     if (ds.ur) sh.form[ds.ur] = el.value;
-    if (ds.tm) sh.form[ds.tm] = el.value;
     if (ds.au) { sh.form[ds.au] = el.value; if (ds.au === 'datum') this.neuZeichnen(); }
     if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
     if (ds.bf) sh.edit.firma = el.value;
@@ -4026,11 +3942,6 @@ class BaustellePanel extends LitElement {
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
   aenderung(ev) {
     const el = ev.target, k = el && el.dataset && el.dataset.k;
-    if (el && el.dataset && el.dataset.lh !== undefined && this.s.sheet) {   // WU-0011: Regler losgelassen
-      this.s.sheet.h = +el.value;
-      const max = this.s.sheet.v ? 23 : +this.z.JETZT.slice(0, 2); if (+el.value > max) el.value = String(max);   // heute nur bis jetzt
-      return this.leistungTeil() || this.neuZeichnen();   // WU-0012: nur den Datenteil tauschen
-    }
     if (k === 'preis') { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0) return this.setzen(PFAD.preis, v, 'Preis gespeichert'); return this.toast('Bitte einen Preis eingeben'); }
     if (k === 'mail') return this.setzen(PFAD.mail, String(el.value).trim(), 'Gespeichert');
     if (el && el.dataset && el.dataset.sym) return this.symAenderung(el);   // BSM-032

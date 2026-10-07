@@ -13,8 +13,8 @@ export const leerVorlage = p => html`${kopfVorlage('Baustelle', 'KEINE LAUFENDE 
         <button class="zeile" @click=${() => p.einblenden('baustelle-neu')}><span class="blau">+ Neue Baustelle</span></button>
         ${p.alle.length ? html`<button class="zeile" @click=${() => p.gehe('verlauf')}><span>Abgeschlossene Baustellen</span><span class="chev">›</span></button>` : nothing}</div>`;
 
-/** Ein/Aus-Schalter (wie hilfen.schalter, als Vorlage); die Nur-Lesen-Sperre greift über die Klasse `.sw` */
-export const schalterVorlage = (on, fn) => html`<button class="sw ${on ? 'on' : ''}" role="switch" aria-checked=${!!on} @click=${fn}><i></i></button>`;
+/** Ein/Aus-Schalter (wie hilfen.schalter, als Vorlage); die Nur-Lesen-Sperre greift über die Klasse `.sw`, außer `cls` = 'vor-ort' */
+export const schalterVorlage = (on, fn, cls = '') => html`<button class="sw ${on ? 'on' : ''} ${cls}" role="switch" aria-checked=${!!on} @click=${fn}><i></i></button>`;
 
 /** − Wert + für eine Einstellung der Baustelle (wie BaustellePanel.stepper); data-k/data-d nur als Test-Merkmal */
 export const stepperVorlage = (p, k, d, fmt) => html`<span class="stepper"><button data-k=${k} data-d=${-d} @click=${() => p.stufeSchritt(k, -d)}>−</button><b>${fmt(p.d.e[k])}</b><button data-k=${k} data-d=${d} @click=${() => p.stufeSchritt(k, d)}>+</button></span>`;

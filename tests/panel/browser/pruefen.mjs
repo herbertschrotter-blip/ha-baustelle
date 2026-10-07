@@ -463,6 +463,31 @@ await fall('3d Container', browser, async (page, erwarte) => {
   erwarte('Nicht-Admin: Modus ändert nichts', !(await schreibAnzahl(page, ab)).length);
 });
 
+/* Stufe 3d: Einblendungen der Container-Ansicht – Bei Bedarf → Termin: Tippen während neuer Daten (Text, Fokus, Knoten
+   bleiben), Eintragen = genau ein Auftrag; Nicht-Admin: „schnell aufheizen“ bleibt frei (Vor-Ort), Termin gesperrt */
+await fall('3d Einblendungen', browser, async (page, erwarte) => {
+  const bed = await panel(page, D, () => (p.d.bereiche.find(b => b.bedarf) || {}).id);
+  await klick(page, `${D} >>> [data-act="bedarf-auf"][data-id="${bed}"]`); await warte(400);
+  await klick(page, `${D} >>> .sheet .zeile .sw.vor-ort`);
+  erwarte('Bei Bedarf: schnell aufheizen umgeschaltet', await panel(page, D, () => p.s.sheet.boost === true));
+  await klick(page, `${D} >>> .sheet button.zeile`);
+  const titel = `${D} >>> .sheet input[data-tm="titel"]`;
+  await klick(page, titel); await page.keyboard.type('Baubespr');
+  await panel(page, D, async () => { window.__feld = sr.querySelector('.sheet input[data-tm="titel"]'); for (let i = 0; i < 5; i++) { p.cache = {}; await p._laden(); } });
+  await page.keyboard.type('echung');
+  const r = await panel(page, D, () => ({ wert: sr.querySelector('.sheet input[data-tm="titel"]').value, gleich: sr.querySelector('.sheet input[data-tm="titel"]') === window.__feld, fokus: sr.activeElement === window.__feld, form: p.s.sheet.form.titel }));
+  erwarte('Termin: Tippen während neuer Daten – Text, Fokus, Knoten bleiben', r.wert === 'Baubesprechung' && r.gleich && r.fokus && r.form === 'Baubesprechung', JSON.stringify(r));
+  const ab = await aufrufZahl(page); await klick(page, `${D} >>> .sheet .knopf.amber`);
+  const ev = await page.evaluate(ab => window.baustelleBeispiel.TEST.aufrufe.slice(ab).filter(m => m.type === 'calendar/event/create').map(m => m.event.summary), ab);
+  erwarte('Termin eintragen = genau ein Auftrag', JSON.stringify(ev) === '["Baubesprechung"]', JSON.stringify(ev));
+  await panel(page, D, async () => { for (const b of BB.welt) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] }; await p._laden(); await new Promise(x => setTimeout(x, 150)); });
+  await klick(page, `${D} >>> [data-act="bedarf-auf"][data-id="${bed}"]`); await warte(300);
+  const nl = await panel(page, D, () => ({ frei: getComputedStyle(sr.querySelector('.sheet .zeile .sw.vor-ort')).opacity, termin: getComputedStyle(sr.querySelector('.sheet button.zeile')).opacity }));
+  await klick(page, `${D} >>> .sheet button.zeile`);
+  const art = await panel(page, D, () => p.s.sheet && p.s.sheet.art);
+  erwarte('Nicht-Admin: schnell aufheizen frei, Termin ausgegraut und gesperrt', +nl.frei > .9 && +nl.termin < .6 && art === 'bedarf', JSON.stringify({ ...nl, art }));
+});
+
 /* B7 Lebenszyklus: 20 × entfernen/einhängen – Timer, Abos, window-Listener nehmen nicht zu */
 await fall('B7 Lebenszyklus', browser, async (page, erwarte) => {
   const stand = () => page.evaluate(() => ({ paste: window.__z.listener.paste, ort: window.__z.listener['location-changed'], intervalle: window.__z.intervalle.size, abos: window.baustelleBeispiel.TEST.abos }));

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.88] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 6 (BSM-022.14, Stufe 3d, zweiter Teil): Die Einblendungen der Container-Ansicht –
+  Leistung, Heizzeit, Bei Bedarf, Termin und Lernstand – werden mit Lit gezeichnet. Der Regler der Leistung zeigt die
+  Stunde beim Ziehen sofort; steht er heute zu weit rechts, merkt sich die Seite die sichtbare Stunde (vorher die
+  gezogene, die erst am Vortag erschien). Beim Eintragen eines Termins bleiben Text und Cursor stehen, auch wenn neue
+  Daten kommen. Aussehen und Bedienung bleiben sonst gleich.
+
 ## [0.8.87] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 5 (BSM-022.14, Stufe 3d, erster Teil): Die Container-Ansicht (Thermostat-Rad, Gefühl,

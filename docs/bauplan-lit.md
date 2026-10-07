@@ -234,6 +234,19 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Browser-Fall „3d Container“ (je ein Auftrag für Modus, Soll, Aufheizen, Gerät, Trocknen; gewählter Modus sendet nichts;
   Nicht-Admin: ✎ ausgegraut ohne Einblendung, Aufheizen als Vor-Ort-Aktion geht, Modus nicht). Offen in 3d: die
   Einblendungen der Container-Ansicht, dann Heizung.
+- **3d Einblendungen der Container-Ansicht, 07.10.2026 (0.8.88):** `src/ansichten/einblendungen-container.js` (Leistung,
+  Heizzeit, Bei Bedarf, Termin, Lernstand; Zuordnung `CONTAINER_EINBLENDUNGEN`, in `_ui()` neben „Melden“, `LIT_SHEETS`
+  erweitert). In der Seite bleiben die Daten: `leistungDaten` (vorher `leistungInhalt` als HTML), `heizzeitDaten`.
+  Methoden `schliessen`, `zeitraumWahl`, `terminSpeichern`, `lernZuruecksetzen`. **Entfallene Sonderfälle:**
+  `leistungTeil` (Datenteil per `innerHTML` tauschen, Streifen nachfärben), der entprellte Ziehen-Pfad in `eingabe()` und
+  der `change`-Pfad in `aenderung()` für den Regler, `_lhLetzt` als HTML (jetzt Daten), Klick-Fälle `lh-h`, `lh-art`,
+  `tm-wieder`, `tm-boost`, `bedarf-boost`, `lern-k`. Nur-Lesen: `schalterVorlage(…, 'vor-ort')` bleibt frei
+  (`NUR_LESEN_SPERRE` `:not(.vor-ort)`), Termin/Lernstand zurücksetzen über `.nur-admin`. Nachweis: Schnappschuss um die
+  Einblendungen erweitert (198 Schritte), inhaltlich gleich (Vergleich sortiert jetzt die Attribute je Tag); Abweichung:
+  der Regler-Wert als Attribut folgt dem Regler (vorher stand der Startwert), und ein heute zu weit gezogener Regler
+  merkt die sichtbare Stunde. Panel-Test (Regler über echte Ereignisse, WU-0012 über Knotenidentität), Browser-Fall
+  „3d Einblendungen“ (Tippen im Termin während 5 Datenupdates, ein Auftrag, Nicht-Admin), B5 grün. „Aussehen“ zieht mit
+  „Container bearbeiten“ nach 3e.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

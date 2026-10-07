@@ -239,7 +239,7 @@ async function allgemein() {
   if (c.geraete.length) await gesendet('baustelle/aktion', 'Gerät schalten', { act: 'geraet', i: '0' });
   const bb = bedarf();
   await gesendet('baustelle/aktion', 'Bedarf 1 h', { act: 'bedarf-an', id: bb.id, v: '60' });
-  await gesendet('baustelle/aktion', 'Bedarf bis Arbeitsende', { act: 'bedarf-an', id: bb.id, v: 'ende' }, async () => { await klick({ act: 'bedarf-auf', id: bb.id }); await klick({ act: 'bedarf-boost' }); });
+  await gesendet('baustelle/aktion', 'Bedarf bis Arbeitsende', { act: 'bedarf-an', id: bb.id, v: 'ende' }, async () => { await klick({ act: 'bedarf-auf', id: bb.id }); await klick('.sheet .zeile .sw.vor-ort'); });
   await gesendet('baustelle/aktion', 'Bedarf bis 19:00', { act: 'bedarf-an', id: bb.id, v: 'abend' });
   await gesendet('baustelle/aktion', 'Bedarf beenden', { act: 'bedarf-aus', id: bb.id });
   await gesendet('baustelle/aktion', 'Alle jetzt heizen', { act: 'jetzt-an' });
@@ -263,7 +263,7 @@ async function allgemein() {
   if (d().anschluesse.length > 1) await gesendet('baustelle/liste', 'Anschluss löschen', { act: 'an-weg' }, () => klick({ act: 'anschluss-auf', id: d().anschluesse.at(-1).id }));
   if (d().termineKal) {
     const t = await gesendet('calendar/event/create', 'Termin', { act: 'termin-speichern' }, async () => { await klick({ act: 'sheet', s: 'termin', id: bb.id }); eingabe({ tm: 'titel' }, 'Baubesprechung');
-      eingabe({ tm: 'datum' }, plusTageT(d().z.HEUTE, 8)); await klick({ act: 'tm-wieder', v: '2wochen' }); await klick({ act: 'tm-boost' }); });
+      eingabe({ tm: 'datum' }, plusTageT(d().z.HEUTE, 8)); await klick('.sheet .seg [data-v="2wochen"]'); await klick('.sheet .zeile .sw'); });
     erwarte('Termin mit Container in der Beschreibung', t && t.entity_id === d().termineKal && t.event.description.includes(`baustelle:${bb.id}`));
     if (d().termine.length) { const w = await gesendet('calendar/event/delete', 'Termin löschen', { act: 'termin-weg', i: '0' }); erwarte('Termin löschen mit uid', w && w.uid); }
   }
@@ -467,8 +467,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await panel.neuZeichnen(); erwarte('Lernen: Regelungszeile', /Thermostat · lernend/.test(ui.innerHTML) && /aus bei 19,2/.test(ui.innerHTML));
     await klick({ act: 'sheet', s: 'lernen' }); pruefe('Lernstand');
     erwarte('Lernen: Lernstand mit Nachlauf und Treffern', /\+1,2 °C/.test(ui.innerHTML) && /Ø ±0,2 °C/.test(ui.innerHTML) && /3\/50 Zyklen/.test(ui.innerHTML));
-    await klick({ act: 'lern-k', v: 'mild' }); pruefe('Lernstand mild');
-    neu(); await klick({ act: 'lern-reset' }, 20);
+    await klick('.sheet .seg [data-v="mild"]'); pruefe('Lernstand mild');
+    neu(); await klick('.sheet .knopf.rot', 20);
     erwarte('Lernen: zurücksetzen über baustelle/aktion', letzte('baustelle/aktion').some(x => x.aktion === 'lern_reset' && x.bereich === 'polier'));
     pol0().lern = null; }
   /* WU-0002: neue Sensorwerte zeichnen die Container-Ansicht neu – mit Lit bleiben die Knoten stehen (3d); mit offener
@@ -583,7 +583,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await aktion({ act: 'boost', id: 'polier' }, { aktion: 'boost', bereich: 'polier', an: true }, 'Schnell aufheizen');
   await aktion({ act: 'geraet', i: '0' }, { aktion: 'schalten', geraet: 'polier_r1', an: false }, 'Gerät schalten');
   await aktion({ act: 'bedarf-an', id: 'besprechung', v: '60' }, { aktion: 'bedarf', bereich: 'besprechung', minuten: 60, boost: false }, 'Bedarf 1 h');
-  await klick({ act: 'bedarf-auf', id: 'besprechung' }); await klick({ act: 'bedarf-boost' });
+  await klick({ act: 'bedarf-auf', id: 'besprechung' }); await klick('.sheet .zeile .sw.vor-ort');
   await aktion({ act: 'bedarf-an', id: 'besprechung', v: 'ende' }, { aktion: 'bedarf', bereich: 'besprechung', bis: v => Date.parse(v) === Date.parse('2026-09-29T16:30:00+02:00'), boost: true }, 'Bedarf bis Arbeitsende');
   await aktion({ act: 'bedarf-an', id: 'besprechung', v: 'abend' }, { aktion: 'bedarf', bereich: 'besprechung', bis: v => Date.parse(v) === Date.parse('2026-09-29T19:00:00+02:00') }, 'Bedarf bis 19:00');
   await aktion({ act: 'bedarf-aus', id: 'besprechung' }, { aktion: 'bedarf_aus', bereich: 'besprechung' }, 'Bedarf beenden');
@@ -624,7 +624,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     async () => { await klick({ act: 'anschluss-auf' }); eingabe({ an: 'name' }, 'Verteiler West'); await klick({ act: 'an-wert', k: 'ampere', v: '63' }); await klick({ act: 'an-wert', k: 'phasen', v: '1' }); await klick({ act: 'an-res', d: '1' }); await klick({ act: 'an-c', id: 'lager' }); });
   await liste({ act: 'an-weg' }, { liste: 'anschluesse', aktion: 'loeschen' }, { id: 'sued' }, 'Anschluss löschen', () => klick({ act: 'anschluss-auf', id: 'sued' }));
   // Termine und Urlaub: Kalender von HA
-  neu(); await klick({ act: 'sheet', s: 'termin', id: 'besprechung' }); eingabe({ tm: 'titel' }, 'Baubesprechung'); eingabe({ tm: 'datum' }, '2026-10-08'); await klick({ act: 'tm-wieder', v: '2wochen' }); await klick({ act: 'tm-boost' }); await klick({ act: 'termin-speichern' });
+  neu(); await klick({ act: 'sheet', s: 'termin', id: 'besprechung' }); eingabe({ tm: 'titel' }, 'Baubesprechung'); eingabe({ tm: 'datum' }, '2026-10-08'); await klick('.sheet .seg [data-v="2wochen"]'); await klick('.sheet .zeile .sw'); await klick('.sheet .knopf.amber');
   erwarte('Termin → calendar/event/create', (a => a && a.entity_id === 'calendar.besprechungen' && a.event.summary === 'Baubesprechung' && a.event.dtstart === '2026-10-08T09:00:00' && a.event.rrule === 'FREQ=WEEKLY;INTERVAL=2' && /baustelle:besprechung/.test(a.event.description) && /\bboost\b/.test(a.event.description))(letzte('calendar/event/create').at(-1)));
   neu(); await klick({ act: 'termin-weg', i: '0' });
   erwarte('Termin löschen → calendar/event/delete', (a => a && a.entity_id === 'calendar.besprechungen' && a.uid === 'termin-1')(letzte('calendar/event/delete').at(-1)));
@@ -1009,26 +1009,26 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       erwarte(`Streifen je Stunde gefärbt (${teile.length} Abschnitte)`, teile.length === 24 && teile.every(t => /^(var\(--s1\)|rgba\(127,127,127,\.25\)) [\d.]+% [\d.]+%$/.test(t))
         && (jetztH === 23 || teile.slice(jetztH + 1).every(t => t.startsWith('rgba'))));   // künftige Stunden grau
     }
-    erwarte('WU-0011: Schieberegler 0–23 statt Stunden-Knöpfen', /<input type="range" min="0" max="23" step="1" value="\d+" data-lh/.test(ui.innerHTML) && !ui.innerHTML.includes('data-act="lh-h"'));
-    { const st0 = global.setTimeout; let lauf = null; global.setTimeout = f => { lauf = f; return 1; };   // AN-0010: Ziehen lädt gleich mit
-      panel.eingabe({ target: { dataset: { lh: '' }, value: String(Math.max(0, jetztH - 1)) } }); global.setTimeout = st0;
-      erwarte('AN-0010: Ziehen setzt die Stunde nach kurzer Pause', typeof lauf === 'function' && (lauf(), panel.s.sheet.h === Math.max(0, jetztH - 1))); }
-    neu(); panel.aenderung({ target: { dataset: { lh: '' }, value: String(Math.max(0, jetztH - 2)) } }); await ruhe(30);
+    erwarte('WU-0011: Schieberegler 0–23 statt Stunden-Knöpfen', /<input type="range" min="0" max="23" step="1"[^>]*data-lh[^>]*value="\d+"/.test(ui.innerHTML) && !ui.innerHTML.includes('data-act="lh-h"'));
+    // Regler (Lit, 3d): echte input-/change-Ereignisse; der Tag ist schon geladen, jede Stunde wird nur ausgeschnitten
+    const regler = async (v, art = 'change') => { const r = litEl('.sheet input[data-lh]'); r.value = String(v); r.dispatchEvent(new Event(art, { bubbles: true, composed: true })); await ruhe(30); };
+    neu(); await regler(Math.max(0, jetztH - 1), 'input');
+    erwarte('AN-0010: Ziehen setzt die Stunde sofort', panel.s.sheet.h === Math.max(0, jetztH - 1) && ui.innerHTML.includes(`>${String(Math.max(0, jetztH - 1)).padStart(2, '0')}:00–`));
+    neu(); await regler(Math.max(0, jetztH - 2));
     erwarte('AN-0005: andere Stunde wählbar – ohne neue Abfrage (der Tag ist schon da, flackerfrei)', panel.s.sheet.h === Math.max(0, jetztH - 2) && !aufrufe.some(m => m.type === 'baustelle/verlauf')
       && ui.innerHTML.includes(`${String(Math.max(0, jetztH - 2)).padStart(2, '0')}:00–`));
-    panel.aenderung({ target: { dataset: { lh: '' }, value: '23' } }); await ruhe(30);
-    erwarte('WU-0011: künftige Stunden heute nicht wählbar', jetztH === 23 || ui.innerHTML.includes(`>${String(jetztH).padStart(2, '0')}:00–`));
-    { // WU-0012: Regler loslassen tauscht nur Kopf und Datenteil (die Seite wird nicht neu gezeichnet) – echte Knoten
-      const daten = panel.shadowRoot.querySelector('.lh-daten'), wert = panel.shadowRoot.querySelector('.lh-wert'), regler = panel.shadowRoot.querySelector('input[data-lh]');
-      daten.innerHTML = 'ALT'; wert.textContent = 'ALT'; ereignis.feld({ lh: '' }, '0', 'change'); await ruhe(30);
-      erwarte('WU-0012: nur der Datenteil wird getauscht', daten.isConnected && regler && regler.isConnected && daten.innerHTML !== 'ALT'
-        && panel.shadowRoot.querySelector('.lh-wert') === wert && wert.textContent === '00:00–01:00');
-      await panel.neuZeichnen(); await ruhe(); }
-    neu(); await klick({ act: 'lh-art', v: 'tag' }, 30); pruefe('Leistung ganzer Tag');
+    await regler(23);
+    erwarte('WU-0011: künftige Stunden heute nicht wählbar', jetztH === 23 || (ui.innerHTML.includes(`>${String(jetztH).padStart(2, '0')}:00–`) && litEl('.sheet input[data-lh]').value === String(jetztH)));
+    { // WU-0012: Regler loslassen tauscht nur Kopf und Datenteil – Regler, Kopf und Datenbereich bleiben dieselben Knoten
+      const daten = panel.shadowRoot.querySelector('.lh-daten'), wert = panel.shadowRoot.querySelector('.lh-wert'), r0 = panel.shadowRoot.querySelector('input[data-lh]'), vorher = daten.innerHTML;
+      await regler(0);
+      erwarte('WU-0012: nur der Datenteil wird getauscht', daten.isConnected && r0.isConnected && panel.shadowRoot.querySelector('input[data-lh]') === r0 && panel.shadowRoot.querySelector('.lh-daten') === daten
+        && daten.innerHTML !== vorher && panel.shadowRoot.querySelector('.lh-wert') === wert && wert.textContent === '00:00–01:00'); }
+    neu(); await klick('.sheet .seg [data-v="tag"]', 30); pruefe('Leistung ganzer Tag');
     const tagAuf = alleAufrufe.filter(m => m.type === 'baustelle/verlauf' && (m.entity_ids || []).some(e => e.includes('leistung') || e.includes('power'))).at(-1);
     erwarte('WU-0011: ganzer Tag 0–24 Uhr (eine Abfrage für den Tag)', ui.innerHTML.includes('ganzer Tag') && !ui.innerHTML.includes('data-lh') && tagAuf && panel.lokal(Date.parse(tagAuf.start_time), panel.z.zone).slice(11, 16) === '00:00');
-    await klick({ act: 'lh-art', v: 'stunde' }, 30);
-    await klick({ act: 'zr-schritt', ziel: 'sheet', max: '30', d: '1' }, 30); pruefe('Leistung gestern'); erwarte('AN-0005: gestern', ui.innerHTML.includes('<b>Gestern</b>'));
+    await klick('.sheet .seg [data-v="stunde"]', 30);
+    await klick('.sheet .zr-nav .zr-pf:first-child', 30); pruefe('Leistung gestern'); erwarte('AN-0005: gestern', ui.innerHTML.includes('<b>Gestern</b>'));
     await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'verbrauch', id: b.id }, 30); pruefe('Verbrauch mit ohne Automatik');
     if (b.geraete.some(g => g.heizer)) {   // WU-0013
       erwarte('WU-0013: ohne Automatik je Container', ui.innerHTML.includes('kWh ohne Automatik') && ui.innerHTML.includes('gespart') && ui.innerHTML.includes('stroke-dasharray="5 4"') && ui.innerHTML.includes('data-act="oh-basis"'));
