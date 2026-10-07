@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.93] – 2026-10-07
+
+- „Über“ zeigte nach einem Seiten-Update die alte Nummer (z. B. „Version 0.8.85“ und „Neu in 0.8.85“, obwohl im Verlauf
+  schon 0.8.92 stand): angezeigt wurde die Version der Integration, die Home Assistant erst beim Neustart einliest.
+  Jetzt steht dort die Version der Seite; weicht die Integration ab, stehen beide getrennt da – mit dem Hinweis, dass die
+  Integration die neue Nummer beim nächsten Neustart übernimmt.
+
 ## [0.8.92] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 10 (BSM-022.15, Stufe 3e, zweiter Teil): Die Dialoge rund um die Baustelle – Name, Neue

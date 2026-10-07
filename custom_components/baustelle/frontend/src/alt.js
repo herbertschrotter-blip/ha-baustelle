@@ -1015,6 +1015,7 @@ class BaustellePanel extends LitElement {
       .then(c => { this.changelog = Array.isArray(c) ? c : []; if (this.s.view === 'ueber') this.neuZeichnen(); }).catch(() => { this.changelog = []; });
   }
   get version() { return (this.d && this.d.version) || (this._panel && this._panel.config && this._panel.config.version) || '–'; }
+  get seiteVersion() { return SEITE_VERSION; }   // Version dieser Seite (Bundle); version = Integration, gelesen beim Start von HA
 
   /* Der Rahmen steht nach dem ersten Zeichnen (render(), BSM-022 2b) und bleibt; die alten Ansichten melden Klicks und
      Eingaben über data-act an den Shadow Root (bis sie in Stufe 3 Lit-Vorlagen werden) */

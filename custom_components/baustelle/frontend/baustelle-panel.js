@@ -1705,7 +1705,7 @@ var NEU_GEPLANT = [
   "Seite „Über“ und Melden-Knopf"
 ];
 function ueberVorlage(p4, { mitZurueck = true } = {}) {
-  const V2 = p4.version, cl = p4.changelog, offen = p4.s.cl ?? 0, eigen = cl && cl.find((c4) => c4.version === V2);
+  const V2 = p4.seiteVersion, I2 = p4.version, gleich = I2 === V2 || I2 === "–", cl = p4.changelog, offen = p4.s.cl ?? 0, eigen = cl && cl.find((c4) => c4.version === V2);
   const neu = eigen ? eigen.punkte : NEU_GEPLANT;
   const ha = p4.hass && p4.hass.config && p4.hass.config.version || "–";
   const umschalten = (i7) => {
@@ -1715,9 +1715,9 @@ function ueberVorlage(p4, { mitZurueck = true } = {}) {
   return b2`${mitZurueck ? b2`<div class="zurueck-zeile"><button class="glas-panel chip" @click=${() => p4.gehe("einst")}>‹ Einstellungen</button></div>` : A}
       <div class="glas-panel ueber-kopf"><div class="ueber-illu">${o5(bcContainer(BEREICH_FARBEN[0], "heizt"))}</div>
         <div><div class="glas-klein">HOME-ASSISTANT-INTEGRATION</div><div class="glas-titel">Baustelle</div><div class="ueber-v">Version <b>${V2}</b>${eigen ? A : b2` <span class="badge blau-b">in Arbeit</span>`}</div>
-          <div class="leise">Heizung und Pumpen auf der Baustelle · Integration und Seite haben dieselbe Nummer</div></div></div>
+          <div class="leise">Heizung und Pumpen auf der Baustelle · ${gleich ? "Integration und Seite haben dieselbe Nummer" : verNeuer(V2, I2) ? `die Integration läuft noch mit ${I2} und übernimmt ${V2} beim nächsten Neustart von Home Assistant` : `die Integration ist schon auf ${I2} – Seite neu laden`}</div></div></div>
       <div class="glas-panel liste"><div class="gruppe">Dieses System</div>
-        <div class="zeile"><span>Integration / Seite</span><span class="leise">${V2} · baustelle</span></div>
+        ${gleich ? b2`<div class="zeile"><span>Integration / Seite</span><span class="leise">${V2} · baustelle</span></div>` : b2`<div class="zeile"><span>Seite</span><span class="leise">${V2}</span></div><div class="zeile"><span>Integration</span><span class="leise">${I2} · baustelle${verNeuer(V2, I2) ? " · bis zum Neustart" : ""}</span></div>`}
         <div class="zeile"><span>Home Assistant</span><span class="leise">${ha}</span></div>
         <div class="zeile"><span>Quellcode</span><span class="leise">GitHub · herbertschrotter-blip/ha-baustelle (öffentlich, MIT-Lizenz)</span></div>
         <div class="zeile"><span>Baustellen</span><span class="leise">${p4.alle.filter((b3) => b3.aktiv).length} laufend · ${p4.alle.filter((b3) => !b3.aktiv).length} abgeschlossen</span></div></div>
@@ -2883,7 +2883,7 @@ function gruppen(p4) {
     { k: "bericht", ic: "📊", t: "Bericht", kurz: { aus: "aus", woche: "jede Woche", monat: "jeden Monat", beides: "Woche und Monat" }[e6.bericht] || e6.bericht, inhalt: () => bericht2(p4) },
     { k: "app", ic: "🖥", t: "Ansicht", kurz: `Erklärungen ${e6.erklaer ? "an" : "aus"} · Melden-Knopf ${e6.melden ? "an" : "aus"}`, inhalt: () => ansicht(p4) },
     { k: "dev", ic: "🛠", t: "Entwicklung", kurz: `${offen} offene Meldungen · Diagnose`, dev: true, inhalt: () => entwicklung(p4) },
-    { k: "ueber", ic: "ℹ", t: "Über", kurz: `Version ${p4.version}`, inhalt: () => ueberVorlage(p4, { mitZurueck: false }) }
+    { k: "ueber", ic: "ℹ", t: "Über", kurz: `Version ${p4.seiteVersion}`, inhalt: () => ueberVorlage(p4, { mitZurueck: false }) }
   ];
 }
 function einstellungenVorlage(p4) {
@@ -3940,7 +3940,7 @@ var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.92";
+var SEITE_VERSION = "0.8.93";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN)];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS)];
@@ -4050,6 +4050,10 @@ var BaustellePanel = class extends i4 {
   get version() {
     return this.d && this.d.version || this._panel && this._panel.config && this._panel.config.version || "–";
   }
+  get seiteVersion() {
+    return SEITE_VERSION;
+  }
+  // Version dieser Seite (Bundle); version = Integration, gelesen beim Start von HA
   /* Der Rahmen steht nach dem ersten Zeichnen (render(), BSM-022 2b) und bleibt; die alten Ansichten melden Klicks und
      Eingaben über data-act an den Shadow Root (bis sie in Stufe 3 Lit-Vorlagen werden) */
   firstUpdated() {

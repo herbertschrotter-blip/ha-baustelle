@@ -147,7 +147,7 @@ function gruppen(p) {
     { k: 'bericht', ic: '📊', t: 'Bericht', kurz: { aus: 'aus', woche: 'jede Woche', monat: 'jeden Monat', beides: 'Woche und Monat' }[e.bericht] || e.bericht, inhalt: () => bericht(p) },
     { k: 'app', ic: '🖥', t: 'Ansicht', kurz: `Erklärungen ${e.erklaer ? 'an' : 'aus'} · Melden-Knopf ${e.melden ? 'an' : 'aus'}`, inhalt: () => ansicht(p) },
     { k: 'dev', ic: '🛠', t: 'Entwicklung', kurz: `${offen} offene Meldungen · Diagnose`, dev: true, inhalt: () => entwicklung(p) },
-    { k: 'ueber', ic: 'ℹ', t: 'Über', kurz: `Version ${p.version}`, inhalt: () => ueberVorlage(p, { mitZurueck: false }) },
+    { k: 'ueber', ic: 'ℹ', t: 'Über', kurz: `Version ${p.seiteVersion}`, inhalt: () => ueberVorlage(p, { mitZurueck: false }) },
   ];
 }
 

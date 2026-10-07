@@ -182,6 +182,14 @@ async function allgemein() {
     await klick({ act: 'verlauf', v: 'ab' }); pruefe(`${bid} verlauf abgeschlossen`); await klick({ act: 'verlauf', v: 'aktiv' });
     await klick({ act: 'tab', v: 'dev' }, 20); for (const [i, f] of ['offen', 'erledigt', 'alle'].entries()) { await klick(`.seite .seg.klein button:nth-child(${i + 1})`); pruefe(`${bid} dev ${f}`); }
     await klick({ act: 'tab', v: 'ueber' }); await clAuf(1); pruefe(`${bid} über verlauf`);
+    { // 0.8.93: „Über“ zeigt die Version der Seite; läuft die Integration noch mit einer älteren, stehen beide da
+      const V = panel.seiteVersion, h = () => ui.innerHTML.replace(/<!--[^]*?-->/g, ''), alt = panel.d.version;
+      panel.d.version = V; await panel.neuZeichnen();
+      erwarte('Über: gleiche Nummer – eine Zeile', h().includes(`Version <b>${V}</b>`) && h().includes('Integration und Seite haben dieselbe Nummer') && h().includes(`Neu in ${V}`));
+      panel.d.version = '0.0.1'; await panel.neuZeichnen();
+      erwarte('Über: Seite neuer als Integration – beide und Hinweis auf Neustart', h().includes(`Version <b>${V}</b>`) && h().includes(`Neu in ${V}`) && h().includes('<span>Integration</span><span class="leise">0.0.1 · baustelle · bis zum Neustart</span>')
+        && h().includes(`übernimmt ${V} beim nächsten Neustart`));
+      panel.d.version = alt; await panel.neuZeichnen(); }
   }
   for (const bs of fertige) { const id = bs.baustelle.entry_id; await bsOeffnen(id); pruefe(`bsdetail ${id}`); hov(`bsdetail ${id}`);
     erwarte(`bsdetail ${id} zeigt Kennzahlen`, /ABGESCHLOSSEN/.test(ui.innerHTML) && /Verbrauch je Monat/.test(ui.innerHTML));
