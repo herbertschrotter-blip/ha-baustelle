@@ -5,13 +5,13 @@
    Bedienung: baustelle/setzen|aktion|liste|protokoll|meldung(en) (api §2) und die HA-Standardwege
    (Subentry-/Options-Dialoge, calendar/event/*, Diagnose). Gerechnet wird in der Integration, nicht hier.
    ========================================================================================= */
-import { ARTEN, AUSNAHME, FARBE, MODI, TICKET_STATUS, WIEDER } from './tabellen.js';
+import { ARTEN, AUSNAHME, FARBE, MODI, TEXT, TICKET_STATUS, WARTE, WIEDER, illu, kwVon, wertHtml } from './tabellen.js';
 
 import { Himmel, himmelLauf, partikel, phaseAusSonne } from './himmel.js';
 import { CHARTS, balken, flaeche, funke, kkBalken, linie, linien, streu, stufen } from './diagramme.js';
 
 import { MONATE, MONATE_LANG, TAGE, addieren, datum, dauer, de, erkl, esc, knopf2, kurzDatum, kwNr, minu, naechsterTermin, plusTage, schalter, stdMin, summe, tageZwischen, uhr, verNeuer, wtag, zahl, zrInfo, zrVersatz } from './hilfen.js';
-import { BEREICH_FARBEN, ICON_COG, ICON_MELDEN, IC_MINUS, IC_PLUS, IC_POWER, SYMBOL_STANDARD, bcContainer, bcSchacht, sigHtml, sigStufe, wetterIcon } from './symbole.js';
+import { BEREICH_FARBEN, ICON_COG, ICON_MELDEN, IC_MINUS, IC_PLUS, IC_POWER, SYMBOL_STANDARD, bcContainer, sigHtml, sigStufe, wetterIcon } from './symbole.js';
 import { bauen, lokal, minSeitAb, protokollZeile, zoneMs } from './daten.js';
 import { NUR_ANSEHEN, NUR_LESEN_SPERRE, darfSenden, gesperrt, rechteVon } from './rechte.js';
 import { fehlerText, flowFehler, nachricht } from './api.js';
@@ -23,6 +23,7 @@ import { MB_MAX, MB_PX, meldenVorlage } from './melden.js';
 import { ladenVorlage, leerVorlage } from './ansichten/allgemein.js';
 import { devVorlage } from './ansichten/dev.js';
 import { bsdetailVorlage, verlaufVorlage } from './ansichten/verlauf.js';
+import { pumpenVorlage, schachtVorlage } from './ansichten/pumpen.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -866,20 +867,12 @@ const HZ_TEILE = [['heute', 'Heute', '🕖', 'Heute'], ['wann', 'Wann welche Hei
   ['trocknen', '👕 Kleidung trocknen', '👕', 'Kleidung trocknen'], ['container', 'Je Container', '🏠', 'Container'], ['urlaub', 'Urlaub &amp; Feiertage', '🏖', 'Urlaub & Feiertage']];
 /* Abschnitte der Integration → Klassen der Zeitleiste im Mockup */
 const ABSCHNITT = { fruehstart: 'extra', vorheizen: 'vor', nachheizen: 'vor', arbeitszeit: 'heiz', trocknen: 'trock', termin: 'termin', fenster: 'eigen' };
-const WARTE = { anschluss_voll: a => `${a} ausgelastet`, max_gleichzeitig: () => 'höchstens gleichzeitig erreicht', mindestpause: () => 'Mindestpause',
-  rundlauf: () => 'Rundlauf', anlauf: () => 'Anlaufstaffel' };
 /* Wetter der Baustelle (weather.*) → Stimmung des Hintergrunds und Text im Kopf */
 const WETTER_STIMMUNG = { sunny: 'klar', 'clear-night': 'klar', exceptional: 'klar', partlycloudy: 'wolkig', cloudy: 'wolkig', windy: 'wolkig', 'windy-variant': 'wolkig',
   rainy: 'regen', pouring: 'regen', hail: 'regen', lightning: 'gewitter', 'lightning-rainy': 'gewitter', fog: 'nebel', snowy: 'schnee', 'snowy-rainy': 'schnee' };
 const WETTER_TEXT = { sunny: 'Sonnig', 'clear-night': 'Klar', exceptional: 'Unwetter', partlycloudy: 'Heiter', 'partlycloudy-night': 'Heiter', cloudy: 'Bewölkt', windy: 'Windig', 'windy-variant': 'Windig',
   rainy: 'Regen', pouring: 'Starkregen', hail: 'Hagel', lightning: 'Gewitter', 'lightning-rainy': 'Gewitter', fog: 'Nebel', snowy: 'Schnee', 'snowy-rainy': 'Schneeregen' };
 const AKTIV = z => ['heizt', 'trocknen', 'frost', 'laeuft'].includes(z);
-const kwVon = b => zahl(b.kw) ? Number(b.kw) : b.geraete.reduce((s, g) => s + (g.an ? g.kw : 0), 0);
-const wertHtml = b => b.pumpe ? `${zahl(b.zyklen) ? b.zyklen : '–'}<small> Zyklen</small>` : b.t !== null ? `${de(b.t)}<small>°C</small>` : '–';
-const illu = b => b.pumpe ? bcSchacht(b.z === 'laeuft') : bcContainer(BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], b.z === 'pause' || b.z === 'bereit' ? 'aus' : b.z, b);
-const TEXT_MOCKUP = b => b.boost ? '⚡ schnell aufheizen' : ({ heizt: b.bedarf && b.bedarfBis ? `heizt bis ${b.bedarfBis}` : b.t === null ? 'an · Thermostat regelt' : 'heizt · Arbeitszeit',
-  trocknen: 'Kleidung trocknen', aus: 'aus', frost: 'Frostschutz', offline: 'nicht erreichbar', laeuft: 'Pumpe läuft', pause: 'pausiert · Tür offen', bereit: 'bei Bedarf · nur Frostschutz' })[b.z] || '';
-const TEXT = b => b.text || TEXT_MOCKUP(b);
 
 /* Einblendungen: Unterdialoge aus „Baustelle bearbeiten“ kehren beim Schließen dorthin zurück (AN-0002);
    s.leeren() schließt alles (Seitenwechsel, Abschließen) */
@@ -1754,6 +1747,28 @@ class BaustellePanel extends LitElement {
     if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
     S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
   }
+  /* Aktionen der Ansichten (Lit-Vorlagen rufen sie direkt, die alten über klick(); BSM-022 3c) */
+  containerOeffnen(id) { this.s.chart = 'temp'; this.s.cZr = null; return this.gehe('container', id); }
+  einstGruppe(g) { this.s.evGruppe = g; return this.gehe('einst'); }
+  bereichAuto(x) { return this.setzen(['bereiche', x.id, 'auto'], !x.auto); }
+  geraetSchalten(b, i) { const g = b.geraete[i]; return this.aktion('schalten', { geraet: g.id, an: !g.an }, b.auto && this.d.e.auto ? 'Handbetrieb bis zum nächsten Schaltpunkt' : undefined); }
+  stufeSchritt(k, schritt) {   // Stepper einer Einstellung: in den Grenzen, Frostschutz „ein unter“ < „aus über“
+    const e = this.d.e, [min, max] = GRENZEN[k] || [0, 1e9];
+    const wert = Math.min(max, Math.max(min, Math.round((e[k] + schritt) * 100) / 100)); if (wert === e[k]) return undefined;
+    if (k === 'frost_aus' && wert <= e.frost_temp) return this.toast('„aus über“ muss über „ein unter“ liegen');
+    if (k === 'frost_temp' && wert >= e.frost_aus) return this.toast('„ein unter“ muss unter „aus über“ liegen');
+    return this.setzen(PFAD[k], wert);
+  }
+  zrSchritt(ziel, max, schritt) { const st = this.zrSt(ziel); st.v = Math.max(0, Math.min(max, (st.v || 0) + schritt)); this.s.zrKal = null; return this.neuZeichnen(); }
+  zrSetzen(ziel, max, v) { this.zrSt(ziel).v = Math.max(0, Math.min(max, v)); this.s.zrKal = null; return this.neuZeichnen(); }
+  zrKalAuf(ziel) {
+    const S = this.s; if (S.zrKal && S.zrKal.ziel === ziel) { S.zrKal = null; return this.neuZeichnen(); }
+    const st = this.zrSt(ziel), iso = this.zrInfo(st.zeitraum, st.v || 0).iso; S.zrKal = { ziel, j: +iso.slice(0, 4), m: +iso.slice(5, 7) - 1 }; return this.neuZeichnen();
+  }
+  zrKalBlaettern(dd) {
+    const k = this.s.zrKal; if (!k) return undefined; const z = this.zrSt(k.ziel).zeitraum;
+    if (z === 'Tag' || z === 'Woche') { k.m += dd; if (k.m < 0) { k.m = 11; k.j--; } if (k.m > 11) { k.m = 0; k.j++; } } else k.j += dd; return this.neuZeichnen();
+  }
   /* Verlauf (src/ansichten/verlauf.js): Protokoll der Baustelle (vollständig nachgeladen, sonst aus der Struktur) */
   protokollQuelle(d) {
     let quelle = d.protokoll;
@@ -1836,7 +1851,8 @@ class BaustellePanel extends LitElement {
     const tabs = [['uebersicht', 'Übersicht'], ...(this._mitHeizung ? [['heizung', 'Heizung']] : []), ...(this._mitPumpen ? [['pumpen', 'Pumpen']] : []), ['auswertung', 'Auswertung'], ['verlauf', 'Verlauf'], ['einst', '⚙']];
     const aktivTab = S.view === 'container' ? 'uebersicht' : S.view === 'bsdetail' ? 'verlauf' : ['ueber', 'dev'].includes(S.view) ? 'einst' : S.view;
     let seite;
-    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this), verlauf: () => verlaufVorlage(this), bsdetail: () => bsdetailVorlage(this) };   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
+    const LIT = { ueber: () => ueberVorlage(this), dev: () => devVorlage(this), verlauf: () => verlaufVorlage(this), bsdetail: () => bsdetailVorlage(this), pumpen: () => pumpenVorlage(this),   // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
+      ...(S.view === 'container' && this.b && this.b.pumpe ? { container: () => schachtVorlage(this) } : {}) };
     if (!this.roh) seite = ladenVorlage(this.fehler);
     else if (!this.d && !['verlauf', 'bsdetail', 'ueber'].includes(S.view)) seite = leerVorlage(this);
     else seite = LIT[S.view] ? LIT[S.view]() : unsafeHTML(this['v_' + S.view]());
@@ -1967,67 +1983,20 @@ class BaustellePanel extends LitElement {
       kennz = [['Zyklen heute', zyk7 ? zyk7[heuteNr] : '–'], ['Laufzeit', stdMin(pz)], ['Längster Lauf', zahl(laengster) ? `${Math.round(laengster)} min` : '–']];
     } else kennz = [['kWh heute', kwh7 ? de(kwh7[heuteNr]) : '–'], ['Kosten', kwh7 ? `${de(kwh7[heuteNr] * d.e.preis, 2)} €` : '–'], ['Heizzeit', h7 ? `${de(h7[heuteNr])} h` : '–']];
     b.zyklen = zyk7 ? zyk7[heuteNr] : null;
-    return { tabs, c, mitVb, chart, kennz, zr: tagArt ? this.zrWahl('c-Tag', 'Tag', this.zrGrenze()) : this.zrWahl('c-Woche', 'Woche', this.zrGrenze()) };
+    return { tabs, c, mitVb, chart, kennz, zr: tagArt ? ['c-Tag', 'Tag', this.zrGrenze()] : ['c-Woche', 'Woche', this.zrGrenze()] };   // zr: Argumente der Zeitraum-Vorlage
   }
-  kennzHtml(kennz) { return kennz.map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('') + '<span class="kennz-mehr">Verbrauch ›</span>'; }
   /* Neue Sensorwerte: in der Container-Ansicht nur Diagramm und Kennzahlen tauschen (Tooltip und Einblendung bleiben),
      sonst die Ansicht neu zeichnen wie bisher */
   _liveNeu() {
     const wrap = this.root && this.root.querySelector('.c-live .chart-wrap'), knopf = this.root && this.root.querySelector('.c-live-kennz');
     if (this.s.view !== 'container' || !this.b || !wrap || !knopf) return this._auffrischen();
     if (this.s.sheet || (this.root.querySelector('.tip') || { classList: { contains: () => false } }).classList.contains('an')) return;   // später wieder
-    if (this.b.pumpe) { const { chart, kennz } = this.containerLive(this.b); wrap.innerHTML = chart; knopf.innerHTML = this.kennzHtml(kennz); return; }
+    if (this.b.pumpe) return this.neuZeichnen();   // Schacht ist Lit (3c): zeichnet nur, was sich geändert hat
     const { chart, kacheln } = this.containerTeile(this.b);
     wrap.innerHTML = chart; knopf.innerHTML = kacheln;
   }
 
-  v_container() {
-    return this.b.pumpe ? this.v_schacht() : this.v_container_d();
-  }
-  v_schacht() {
-    const d = this.d, b = this.b, tl = this.zeitleiste(b);
-    const { tabs, c, mitVb, chart, kennz, zr } = this.containerLive(b);
-    const soll = this.sollVon(b);
-    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
-        <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
-      <div class="glas-panel c-held ${b.z}" style="--c:${FARBE[b.z]}">
-        <div class="c-illu">${illu(b)}</div>
-        <div class="c-text"><div class="glas-klein">${b.pumpe ? 'PUMPENSCHACHT' : 'CONTAINER'}</div><div class="glas-titel">${esc(b.name)}</div>
-          <div class="c-wert">${wertHtml(b)}</div><div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b))}</div>
-          <div class="c-kw">⚡ ${de(kwVon(b))} kW jetzt</div></div>
-      </div>
-      <button class="glas-panel kennz kennz-knopf c-live-kennz" data-act="sheet" data-s="verbrauch" data-id="${b.id}">${this.kennzHtml(kennz)}</button>
-      <div class="glas-panel block c-live"><div class="seg">${tabs.map(([k, t]) => `<button data-act="chart" data-c="${k}" class="${k === c ? 'on' : ''}">${t}</button>`).join('')}</div>
-        ${c === 'temp' && b.fuehler ? `<div class="chart-optionen"><button class="chip auto-chip ${mitVb ? 'on' : ''}" data-act="temp-vb"><span class="mini-sw"><i></i></span>Verbrauch einblenden</button></div>` : ''}
-        ${zr}<div class="chart-wrap">${chart}</div></div>
-      ${b.bedarf ? this.bedarfBlock(b) : ''}
-      ${b.pumpe || b.bedarf ? '' : `<div class="glas-panel block"><div class="block-kopf"><b>Heute</b><span class="leise">Vorheizen · Arbeitszeit · Nachheizen · Kleidung trocknen</span></div>${tl}
-        <div class="regelung">${b.modus === 'thermo' && b.lern && b.lern.an ? `<b>🧠 Thermostat · lernend</b><span>${b.lern.anteil !== null ? `${b.lern.anteil} % je ${b.lern.zyklus_min} min · ` : ''}Nachlauf +${de(b.lern.erwartet)} °C erwartet → aus bei ${de(b.lern.aus_bei)} °C (Soll ${de(soll)} °C, jetzt ${b.t !== null ? de(b.t) + ' °C' : '–'})</span>`
-          : b.modus === 'thermo' ? `<b>🌡 Thermostat</b><span>regelt in der Heizzeit auf ${de(soll)} °C (jetzt ${b.t !== null ? de(b.t) + ' °C' : '–'})</span>`
-          : b.modus === 'plan' ? `<b>Zeitplan</b><span>Heizung bleibt in der Heizzeit an, der Thermostat am Heizkörper regelt</span>`
-          : b.modus === 'hand' ? `<b>Hand</b><span>die Automatik schaltet diesen Container nicht</span>`
-          : `<b>Aus</b><span>nur Frostschutz (ein unter ${de(d.e.frost_temp)} °C, aus über ${de(d.e.frost_aus)} °C)</span>`}</div></div>`}
-      <div class="glas-panel liste">
-        ${b.tuer ? `<div class="zeile"><div><b>🚪 ${esc(b.tuer.sensor)}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min – Heizung pausiert nach ${d.e.tuer_pause} min, Meldung nach ${d.e.tuer_melden} min` : 'zu'}</div></div><span class="tuer-z ${b.tuer.offen ? 'offen' : ''}">${b.tuer.offen ? 'offen' : 'zu'}</span></div>` : ''}
-        ${b.pumpe ? '' : `<div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">${b.boost ? `läuft – alle Heizkörper an, ${b.fuehler ? `bis ${de(soll)} °C` : `noch ${this.minBis(b.boostBis) ?? d.e.boost_min} min`}` : `alle Heizkörper zugleich, Vorrang in der Staffelung`}</div></div>
-          <button class="chip glas-panel ${b.boost ? 'amber' : ''}" data-act="boost" data-id="${b.id}">${b.boost ? 'Beenden' : 'Start'}</button></div>`}
-        ${b.pumpe ? `<div class="zeile"><span>♨ Automatik für diesen Schacht</span>${schalter(b.auto, 'b-auto')}</div>`
-          : `<div class="zeile modus-z"><div><b>Modus</b><div class="leise">${MODUS_TEXT[b.modus]}</div></div>
-            <div class="seg klein">${MODI.map(([k, t]) => `<button data-act="modus" data-id="${b.id}" data-v="${k}" class="${b.modus === k ? 'on' : ''}" ${k === 'thermo' && !b.fuehler ? 'disabled title="kein Temperaturfühler"' : ''}>${t}</button>`).join('')}</div></div>`}
-        ${b.pumpe || !b.fuehler || !b.lern ? '' : `<div class="zeile"><div><b>🧠 Lernende Regelung</b><div class="leise">${['thermo', 'bedarf'].includes(b.modus) ? 'lernt, wie lange der Raum nach dem Ausschalten nachheizt, und schaltet früher ab' : 'wirkt nur im Modus Thermostat oder Bei Bedarf'}${b.lern.an ? ' · <button class="link" data-act="sheet" data-s="lernen">Lernstand ›</button>' : ''}</div></div>${schalter(b.lern.an, 'b-lernen')}</div>`}
-        ${b.pumpe ? '' : `<div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b.trocknen, 'b-trocknen')}</div>`}
-      </div>
-      <div class="glas-panel block"><div class="block-kopf"><b>${b.pumpe ? 'Pumpen' : 'Geräte'}</b><span class="leise">Schalten = Handbetrieb bis zum nächsten Schaltpunkt</span></div>
-        ${b.geraete.length ? '' : '<div class="leise">Noch kein Gerät</div>'}
-        ${b.geraete.map((g, i) => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">${g.typ === 'Pumpe' ? '💧' : g.typ === 'Steckdose' || g.typ === 'Bautrockner' ? '⏻' : '♨'}</span>
-          <div class="g-t"><b>${esc(g.n)}</b><span class="leise">${g.typ} · ${de(g.kw, 2)} kW${g.hand ? ' · <em class="hand">Hand</em>' : ''}${g.warte ? ` · <em class="warte">wartet – ${esc((WARTE[g.warte.grund] || WARTE.anschluss_voll)(this.anschluss(b.anschluss).name))}${zahl(g.warte.dran_in_min) ? `, dran in ${g.warte.dran_in_min} min` : ''}</em>` : ''}${b.z === 'pause' && g.heizer ? ' · <em class="warte">pausiert – Tür offen</em>' : ''}</span></div>
-          ${b.offline || !g.erreichbar ? '<span class="leise rot-t">offline</span>' : schalter(g.an, 'geraet', `data-i="${i}"`)}</div>`).join('')}
-        <button class="zeile" data-act="sheet" data-s="bereich"><span class="blau">Geräte bearbeiten</span><span class="chev">›</span></button></div>
-      ${b.pumpe ? `<div class="glas-panel liste"><div class="zeile"><span>Trockenlauf (unter ${de(d.e.trocken_w, 0)} W beim Laufen)</span><span class="ok">${d.e.m_trocken ? '● überwacht' : '○ aus'}</span></div>
-        <div class="zeile"><span>Dauerlauf über ${d.e.dauer_min} min</span><span class="ok">${d.e.m_dauer ? '● überwacht' : '○ aus'}</span></div>
-        <div class="zeile"><span>Stromausfall / offline (nach ${de(d.e.offline_min, 0)} min)</span><span class="ok">${d.e.m_offline ? '● überwacht' : '○ aus'}</span></div>
-        <button class="zeile" data-act="tab" data-v="pumpen"><span class="blau">Schwellen im Reiter Pumpen</span><span class="chev">›</span></button></div>` : ''}`;
-  }
+  v_container() { return this.v_container_d(); }   // Pumpenschacht: src/ansichten/pumpen.js (Lit)
 
   /* ============ Container-Ansicht (WU-0004, Mockup glas.html „D mit Thermostat-Rad“, abgenommen 30.09.2026) ============ */
   /* gültiges Soll eines Containers von der Integration (fest oder gleitend, mit + / −), sonst eingestellt */
@@ -2991,30 +2960,6 @@ class BaustellePanel extends LitElement {
         return `<div class="sr-zeile" data-act="sr-auf" data-id="${esc(g.id)}" role="button" tabindex="0"><span class="sr-nr">${i + 1}</span><div class="sr-name"><b>${esc(b.name)} · ${esc(g.n)}</b><div>${stufen}</div></div>${wert}
           <div class="sr-zust"><span class="${zk}">${zt}${x === letzterAn && g.an ? ' · gibt als nächstes ab' : ''}</span> <span class="leise">· antippen: woraus</span></div>${aufHtml}</div>`; }).join('')}</div>`;
   }
-  /* ---- Pumpen (0.7.8, wie 0.6.3 eigener Reiter) ---- */
-  v_pumpen() {
-    const d = this.d, e = d.e, P = d.bereiche.filter(b => b.pumpe), pc = this.s.pchart || 'pumpzeit', st = (k, s, fmt) => this.stepper(k, s, fmt);
-    const heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), pumpen = P.flatMap(b => b.geraete.filter(g => g.rolle === 'pumpe'));
-    const W = d.warnungen.filter(w => !w.stumm && P.some(b => b.id === w.b));
-    const je = P.map(b => ({ b, h7: this.heizStunden(d, b, 'Woche'), z7: this.zyklen(d, b, 'Woche'), v7: this.verbrauch(d, b.id, 'Woche') }));
-    const zyk = je.every(x => x.z7) ? summe(je.map(x => x.z7[heuteNr] || 0)) : null, lauf = je.every(x => x.h7) ? summe(je.map(x => x.h7[heuteNr] || 0)) : null;
-    return `${this.kopf('Pumpen', esc(d.titel))}
-      <div class="glas-panel kennz">${[['Zyklen heute', zahl(zyk) ? zyk : '–'], ['Laufzeit heute', stdMin(lauf)], ['Pumpen an', `${pumpen.filter(g => g.an).length} von ${pumpen.length}`]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('')}</div>
-      ${W.map(w => `<button class="glas-panel warn-zeile ${w.stufe}" data-act="w-hin" data-id="${esc(w.b)}"><b>⚠ ${esc(this.bName(w.b))}: ${esc(w.titel)}</b><span class="leise">${esc(this.seitText(w.seitIso))}${w.hilfe ? ` · ${esc(w.hilfe)}` : ''}</span></button>`).join('')}
-      ${je.map(({ b, h7, z7, v7 }) => { const r = pc === 'zyklen' ? z7 : pc === 'verbrauch' ? v7 : h7;
-        return `<div class="glas-panel block"><div class="block-kopf"><b>${esc(b.name)}</b><button class="chip glas-panel" data-act="container" data-id="${b.id}">öffnen ›</button></div>
-        <div class="p-schacht"><div class="p-illu">${illu(b)}</div><div>${b.geraete.map(g => `<div class="zeile geraet"><span class="g-ic ${g.an ? 'an' : ''}">💧</span><div class="g-t"><b>${esc(g.n)}</b><span class="leise">${!g.erreichbar ? 'offline' : g.an ? `läuft${zahl(g.kwJetzt) ? ` · ${de(g.kwJetzt, 2)} kW` : ''}` : 'aus'}</span></div></div>`).join('') || '<div class="leise">Noch keine Pumpe</div>'}
-          <div class="leise">heute ${z7 ? z7[heuteNr] : '–'} Zyklen · ${stdMin(h7 ? h7[heuteNr] : null)} gelaufen</div></div></div>
-        <div class="seg">${[['pumpzeit', 'Pumpzeit'], ['zyklen', 'Zyklen'], ['verbrauch', 'Verbrauch']].map(([k, t]) => `<button data-act="p-chart" data-v="${k}" class="${k === pc ? 'on' : ''}">${t}</button>`).join('')}</div>
-        <div class="chart-wrap">${r ? balken(`p${pc}-${b.id}`, r, TAGE, pc === 'zyklen' ? 'Zyklen' : pc === 'verbrauch' ? 'kWh' : 'h', pc === 'zyklen' ? 0 : 1) : LAEDT}</div></div>`; }).join('')}
-      <div class="glas-panel block"><div class="block-kopf"><b>Überwachung</b><span class="leise">wann eine Pumpe gemeldet wird</span></div>
-        <div class="zeile"><div><b>Offline</b><div class="leise">Shelly antwortet nicht (Stromausfall?) – melden nach</div></div>${st('offline_min', 1, v => `${de(v, 0)} min`)}</div>
-        <div class="zeile"><div><b>Trockenlauf</b><div class="leise">Pumpe läuft, zieht aber weniger als</div></div>${st('trocken_w', 5, v => `${de(v, 0)} W`)}</div>
-        <div class="zeile"><div><b>Dauerlauf</b><div class="leise">läuft ohne Pause länger als</div></div>${st('dauer_min', 5, v => `${v} min`)}</div>
-        <div class="zeile"><div><b>Schaltet oft</b><div class="leise">mehr Zyklen je Stunde als</div></div>${st('zyklen_h', 1, v => `${v}`)}</div>
-        <button class="zeile" data-act="tab-einst" data-g="meldungen"><span class="blau">Welche Meldungen aufs Handy gehen</span><span class="chev">Einstellungen ›</span></button>
-        ${erkl(e.erklaer, 'Pumpen werden nie geschaltet, nur überwacht. Ein Zyklus ist einmal an und wieder aus. Viele Zyklen je Stunde deuten auf einen hängenden Schwimmer oder steigendes Grundwasser, Trockenlauf auf einen leeren Schacht oder eine verstopfte Pumpe.')}</div>`;
-  }
   /* ---- Auswertung: Leistung heute, Temperaturen, je Gerät, Hochrechnung (0.7.8) ---- */
   leistungHeute() {
     const d = this.d, Q = d.bereiche.map(b => ({ name: b.name, farbe: BEREICH_FARBEN[b.f % BEREICH_FARBEN.length], v: this.verbrauch(d, b.id, 'Tag') }));
@@ -3804,7 +3749,7 @@ class BaustellePanel extends LitElement {
       case 'menue': return this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true }));
       case 'tab': return this.gehe(el.dataset.v);
       case 'neu-laden': return this.neuLaden();
-      case 'container': S.chart = 'temp'; S.cZr = null; return this.gehe('container', el.dataset.id);
+      case 'container': return this.containerOeffnen(el.dataset.id);
       case 'w-hin': return this.gehe('container', el.dataset.id);
       case 'w-stumm': { const w = d.warnungen.find(x => x.id === el.dataset.id); if (!w) return;
         return this.aktion('warnung_stumm', { key: w.key, bis: w.stumm ? null : this.morgenFrueh() }, w.stumm ? 'Wird wieder gemeldet' : 'Stumm bis morgen – bleibt im Protokoll'); }
@@ -3820,12 +3765,10 @@ class BaustellePanel extends LitElement {
       case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
       case 'aw-scope': S.awScope = el.dataset.v; S.aw.auswahl = this.quellen(S.aw, 'aw').map(q => q.id); return neu();
       case 'vb-zeitraum': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; if (st.zeitraum !== el.dataset.v) st.v = 0; st.zeitraum = el.dataset.v; S.zrKal = null; return neu(); }
-      case 'zr-schritt': { const st = this.zrSt(el.dataset.ziel); st.v = Math.max(0, Math.min(+el.dataset.max || 0, (st.v || 0) + +el.dataset.d)); S.zrKal = null; return neu(); }
-      case 'zr-setz': this.zrSt(el.dataset.ziel).v = Math.max(0, Math.min(+el.dataset.max || 0, +el.dataset.v)); S.zrKal = null; return neu();
-      case 'zr-kal': { if (S.zrKal && S.zrKal.ziel === el.dataset.ziel) { S.zrKal = null; return neu(); }
-        const st = this.zrSt(el.dataset.ziel), iso = this.zrInfo(st.zeitraum, st.v || 0).iso; S.zrKal = { ziel: el.dataset.ziel, j: +iso.slice(0, 4), m: +iso.slice(5, 7) - 1 }; return neu(); }
-      case 'zr-kal-nav': { const k = S.zrKal; if (!k) return; const z = this.zrSt(k.ziel).zeitraum, dd = +el.dataset.d;
-        if (z === 'Tag' || z === 'Woche') { k.m += dd; if (k.m < 0) { k.m = 11; k.j--; } if (k.m > 11) { k.m = 0; k.j++; } } else k.j += dd; return neu(); }
+      case 'zr-schritt': return this.zrSchritt(el.dataset.ziel, +el.dataset.max || 0, +el.dataset.d);
+      case 'zr-setz': return this.zrSetzen(el.dataset.ziel, +el.dataset.max || 0, +el.dataset.v);
+      case 'zr-kal': return this.zrKalAuf(el.dataset.ziel);
+      case 'zr-kal-nav': return this.zrKalBlaettern(+el.dataset.d);
       case 'vb-wer': { const sh = el.dataset.ziel === 'aw' ? S.aw : S.sheet, id = el.dataset.id;
         if (!id) sh.auswahl = []; else if (id === '*') sh.auswahl = this.quellen(sh, el.dataset.ziel || 'sheet').map(q => q.id);
         else sh.auswahl = sh.auswahl.includes(id) ? sh.auswahl.filter(x => x !== id) : [...sh.auswahl, id];
@@ -3872,11 +3815,10 @@ class BaustellePanel extends LitElement {
       case 'ausn-dazu': S.sheet = { art: 'ausnahme', form: { datum: el.dataset.d, art: 'arbeit', von: '17:00', bis: '19:00', notiz: '' } }; return neu();
       case 'jetzt-an': return this.aktion('jetzt_heizen', { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`);
       case 'jetzt-aus': return this.aktion('jetzt_heizen', { minuten: null }, 'Zurück zum Plan');
-      case 'b-auto': { const x = el.dataset.id ? d.bereiche.find(y => y.id === el.dataset.id) : b; return x && this.setzen(['bereiche', x.id, 'auto'], !x.auto); }
+      case 'b-auto': { const x = el.dataset.id ? d.bereiche.find(y => y.id === el.dataset.id) : b; return x && this.bereichAuto(x); }
       case 'hz-auf': S.sheet = { art: 'hz', k: el.dataset.k }; return neu();
       case 'modus': { const x = d.bereiche.find(y => y.id === el.dataset.id), m = el.dataset.v; if (!x || x.modus === m) return undefined;
         return this.setzen(['bereiche', x.id, 'modus'], m, `${x.name}: ${(MODI.find(q => q[0] === m) || [m, m])[1]}`); }
-      case 'p-chart': S.pchart = el.dataset.v; return neu();
       case 'tv': S.tv = el.dataset.v; return neu();
       case 'sym-auf': S.sheet = { art: 'aussehen', id: S.cid || (this.b && this.b.id) }; return neu();   // BSM-032
       case 'sym-doppel': case 'sym-farbe': case 'sym-rahmen': case 'sym-wand': case 'sym-lage': case 'sym-weg': case 'sym-neu': case 'sym-standard': return this.symKlick(a, el);
@@ -3955,18 +3897,14 @@ class BaustellePanel extends LitElement {
       case 'lern-k': S.sheet.lk = el.dataset.v; return neu();
       case 'lern-reset': { const x = b; S.sheet = null; neu(); return this.aktion('lern_reset', { bereich: x.id }, `${x.name}: Lernstand zurückgesetzt`); }
       case 'b-trocknen': case 'tr-b': { const x = a === 'tr-b' ? d.bereiche.find(y => y.id === el.dataset.id) : b; return this.setzen(['bereiche', x.id, 'trocknen'], !x.trocknen); }
-      case 'geraet': { const g = b.geraete[+el.dataset.i]; return this.aktion('schalten', { geraet: g.id, an: !g.an }, b.auto && d.e.auto ? 'Handbetrieb bis zum nächsten Schaltpunkt' : undefined); }
+      case 'geraet': return this.geraetSchalten(b, +el.dataset.i);
       case 'chart': S.chart = el.dataset.c; return neu();
       case 'verlauf': S.verlauf = el.dataset.v; return neu();
       case 'basis': return this.setzen(PFAD.basis, el.dataset.v === 'jetzt' ? 'jetzt' : 'tageshoechst');
       case 'e-bool': { const k = el.dataset.k;
         if (ARTEN[k]) return this.setzen(['meldungen_einst', 'arten', ARTEN[k]], !d.e[k]);
         return this.setzen(PFAD[k], !d.e[k]); }
-      case 'st': { const k = el.dataset.k, [min, max] = GRENZEN[k] || [0, 1e9];
-        const wert = Math.min(max, Math.max(min, Math.round((d.e[k] + +el.dataset.d) * 100) / 100)); if (wert === d.e[k]) return undefined;
-        if (k === 'frost_aus' && wert <= d.e.frost_temp) return this.toast('„aus über“ muss über „ein unter“ liegen');
-        if (k === 'frost_temp' && wert >= d.e.frost_aus) return this.toast('„ein unter“ muss unter „aus über“ liegen');
-        return this.setzen(PFAD[k], wert); }
+      case 'st': return this.stufeSchritt(el.dataset.k, +el.dataset.d);
       case 'jc-auto': { const x = d.bereiche.find(y => y.id === el.dataset.id); return this.setzen(['bereiche', x.id, 'auto'], !x.auto); }
       case 'jc-soll': { const x = d.bereiche.find(y => y.id === el.dataset.id), [min, max] = GRENZEN.soll;
         return this.setzen(['bereiche', x.id, 'soll'], Math.min(max, Math.max(min, Math.round(((x.soll ?? d.e.soll) + +el.dataset.d) * 2) / 2))); }
@@ -4015,7 +3953,7 @@ class BaustellePanel extends LitElement {
         return this.liste('anschluesse', 'speichern', { ...(f.id ? { id: f.id } : {}), name: f.name.trim(), ampere: f.ampere, phasen: f.phasen, reserve_kw: f.reserve, container: f.container }, `${f.name.trim()} gespeichert`); }
       case 'an-weg': { const id = S.sheet.form.id, rest = d.anschluesse.find(x => x.id !== id); S.sheet = null; neu();
         return this.liste('anschluesse', 'loeschen', { id }, `Gelöscht – Container hängen jetzt an ${rest ? rest.name : 'keinem Anschluss'}`); }
-      case 'tab-einst': S.evGruppe = el.dataset.g || (S.sheet && S.sheet.art === 'strom' ? 'strom' : S.evGruppe); return this.gehe('einst');
+      case 'tab-einst': return this.einstGruppe(el.dataset.g || (S.sheet && S.sheet.art === 'strom' ? 'strom' : S.evGruppe));
       case 'ev-gruppe': S.evGruppe = el.dataset.v; S.evDev = null; return this.neuZeichnen(true);
       case 'ev-dev': S.evDev = el.dataset.v; return neu();
       case 'b-stufen': return b && this.setzen(['bereiche', b.id, 'stufen'], !b.stufenAn);   // AN-0006

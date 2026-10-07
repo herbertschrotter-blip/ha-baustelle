@@ -83,6 +83,33 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('einst dev werkzeuge', { act: 'ev-dev', v: 'werkzeuge' });
   await schritt('tab dev', { act: 'tab', v: 'dev' });
   for (const [i, f] of ['offen', 'erledigt', 'alle'].entries()) await schritt(`dev ${f}`, `.seite .seg.klein button:nth-child(${i + 1})`);
+  // Pumpen und Pumpenschacht (Stufe 3c)
+  await schritt('pumpen', { act: 'tab', v: 'pumpen' });
+  for (const [i, c] of ['zyklen', 'verbrauch', 'pumpzeit'].entries()) await schritt(`pumpen ${c}`, `.seite .block .seg button:nth-child(${[2, 3, 1][i]})`);
+  await schritt('pumpen stepper +', '.seite .stepper button:nth-child(3)');
+  await schritt('pumpen stepper −', '.seite .stepper button:nth-child(1)');
+  if (panel.shadowRoot.querySelector('.seite .warn-zeile')) await schritt('pumpen warnung', '.seite .warn-zeile');
+  await schritt('pumpen zurück', { act: 'tab', v: 'pumpen' });
+  await schritt('pumpen meldungen', '.seite .block:last-child button.zeile');
+  await schritt('pumpen 2', { act: 'tab', v: 'pumpen' });
+  await schritt('schacht', '.seite .block-kopf .chip');
+  for (const [i, c] of ['zyklen', 'verbrauch', 'pumpzeit'].entries()) await schritt(`schacht ${c}`, `.c-live .seg button:nth-child(${[2, 3, 1][i]})`);
+  await schritt('schacht früher', '.zr-nav .zr-pf:first-child');
+  await schritt('schacht aktuell', '.zr-akt');
+  await schritt('schacht kalender', '.zr-auf');
+  await schritt('schacht kalender zurück', '.zr-kal-kopf .zr-pf:first-child');
+  await schritt('schacht kalender heute', '.zr-kal-fuss .chip');
+  await schritt('schacht kennzahlen', '.c-live-kennz');
+  await schritt('schacht kennzahlen zu', { act: 'zu' });
+  await schritt('schacht bearbeiten', '.zurueck-zeile button:nth-child(2)');
+  await schritt('schacht bearbeiten zu', { act: 'zu' });
+  await schritt('schacht automatik', '.seite .liste .zeile .sw');
+  if (panel.shadowRoot.querySelector('.seite .zeile.geraet .sw')) await schritt('schacht gerät', '.seite .zeile.geraet .sw');
+  await schritt('schacht geräte bearbeiten', '.seite .block:not(.c-live) > button.zeile');
+  await schritt('schacht geräte bearbeiten zu', { act: 'zu' });
+  await schritt('schacht schwellen', '.seite > .liste:last-child button.zeile');
+  await schritt('schacht 2', '.seite .block-kopf .chip');
+  await schritt('schacht übersicht', '.zurueck-zeile button:nth-child(1)');
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
@@ -94,6 +121,10 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('nur-lesen zu', { act: 'zu' });
   await schritt('nur-lesen einst', { act: 'tab', v: 'einst' });
   for (const g of ['heizung', 'container', 'geraete']) await schritt(`nur-lesen einst ${g}`, { act: 'ev-gruppe', v: g });
+  await schritt('nur-lesen pumpen', { act: 'tab', v: 'pumpen' });
+  await schritt('nur-lesen pumpen stepper', '.seite .stepper button:nth-child(3)');
+  await schritt('nur-lesen schacht', '.seite .block-kopf .chip');
+  await schritt('nur-lesen schacht automatik', '.seite .liste .zeile .sw');
   aus.toast = { html: panel.letzterToast || '', befehle: [] };
   fs.writeFileSync(ziel, JSON.stringify(aus));
   console.log(`Schnappschuss: ${Object.keys(aus).length} Schritte, ${befehle.length} Befehle → ${ziel}`);

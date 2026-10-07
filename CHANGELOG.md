@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.86] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 4 (BSM-022.13, Stufe 3c): Reiter Pumpen und Pumpenschacht im Detail werden mit Lit
+  gezeichnet, ebenso die Zeitraum-Wahl ‹ Woche › mit Kalender im Schacht. Neue Messwerte zeichnen im Schacht nur noch
+  das Geänderte neu; Schalter und Diagrammwahl bleiben stehen. Aussehen und Bedienung bleiben gleich.
+
 ## [0.8.85] – 2026-10-07
 
 - Heizung im Takt (Modus Thermostat, lernend): keine Kurzläufe mehr. Heizkörper liefen teils nur 5 s, 33 s oder 1 min

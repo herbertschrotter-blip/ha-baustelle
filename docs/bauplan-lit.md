@@ -49,7 +49,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **2b** | Klasse auf LitElement; Zustand (`s` reaktiv, `neuZeichnen()` → `requestUpdate()`, neue Objektreferenzen), Laden aus Vorlagen heraus, Timer/Abos | nichts | `hass` vor/nach Einhängen; 20 Wiederanschlüsse ohne Mehrfachaufrufe; Menü, Theme, schmal/breit | R auf Pilot |
 | ☑ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
 | ☑ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
-| ☐ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
+| ☑ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
 | ☐ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
 | ☐ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
 | ☐ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
@@ -206,6 +206,19 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Cursor-Rettung der Chronik-Suche in `eingabe()`. Nachweis: Schnappschuss um Verlauf/Detailseite erweitert (86
   Schritte), inhaltlich gleich (Suchfeld: Wert als Eigenschaft statt Attribut); Browser-Fall „3b Verlauf“ (Tippen mit
   Fokus/Cursor, Filter, Sortieren, Detailseite, CSV, zurück).
+- **3c, 07.10.2026 (0.8.86):** `src/ansichten/pumpen.js` (Reiter Pumpen, Pumpenschacht im Detail) und
+  `src/ansichten/zeitraum.js` (‹ Zeitraum › mit Kalender als Vorlage; die alten Ansichten nutzen bis Stufe 4 weiter
+  `zrWahl`), dazu `schalterVorlage`/`stepperVorlage` in `allgemein.js`. Anzeige-Zuordnungen (`TEXT`, `kwVon`, `wertHtml`,
+  `illu`, `WARTE`) nach `tabellen.js`. Aktionen als Methoden, die auch `klick()` nutzt (ein Code, zwei Wege bis Stufe 4):
+  `containerOeffnen`, `einstGruppe`, `bereichAuto`, `geraetSchalten`, `stufeSchritt`, `zrSchritt`, `zrSetzen`,
+  `zrKalAuf`, `zrKalBlaettern`; Klick-Fall `p-chart` entfernt, `v_pumpen`/`v_schacht`/`kennzHtml` entfallen.
+  **Entfallener Sonderfall:** `_liveNeu` tauscht im Schacht kein `innerHTML` mehr in Diagramm und Kennzahlen, sondern
+  zeichnet über Lit nur das Geänderte. Nachweis: Schnappschuss um Pumpen/Schacht erweitert (120 Schritte), inhaltlich
+  gleich (Vergleich normalisiert die Stelle von `disabled`, das Lit ans Tag-Ende setzt); einzige Abweichung: nach einem
+  gesperrten Klick im Nur-Lesen-Modus fehlt die Klasse `rein` der Einstiegsanimation, weil `setzen()` neu zeichnet –
+  gesendet wird in beiden Ständen nichts. Panel-Test (Schacht: Diagramm, Zeitraum, Kalender, Automatik, Pumpe, Wege;
+  verspätete Statistik nach Baustellenwechsel), Browser-Fall „3c Pumpen“ (je ein Auftrag, Schalter bleibt bei neuen
+  Daten derselbe Knoten, verspätete Statistik ändert die neue Baustelle nicht).
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

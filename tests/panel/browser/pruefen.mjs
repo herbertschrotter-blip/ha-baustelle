@@ -394,6 +394,51 @@ await fall('3b Verlauf', browser, async (page, erwarte) => {
   erwarte('zurück in den Verlauf', await panel(page, D, () => p.s.view) === 'verlauf');
 });
 
+/* Stufe 3c: Pumpen und Schacht – Diagramme, Stepper (ein Auftrag), Schacht öffnen, Zeitraum, Automatik und Pumpe schalten
+   (je ein Auftrag), Schalter bleibt bei neuen Daten derselbe Knoten, verspätete Statistik nach Baustellenwechsel */
+await fall('3c Pumpen', browser, async (page, erwarte) => {
+  await klick(page, `${D} >>> nav [data-act="tab"][data-v="pumpen"]`);
+  await klick(page, `${D} >>> .seite .seg [data-pc="zyklen"]`);
+  const pz = await panel(page, D, () => ({ an: sr.querySelector('.seite .seg [data-pc="zyklen"]').classList.contains('on'), svg: !!sr.querySelector('.seite .chart-wrap svg'), s: p.s.pchart }));
+  erwarte('Pumpen: Diagramm Zyklen', pz.an && pz.svg && pz.s === 'zyklen', JSON.stringify(pz));
+  let ab = await aufrufZahl(page);
+  await klick(page, `${D} >>> .stepper [data-k="trocken_w"][data-d="5"]`);
+  erwarte('Stepper Trockenlauf = genau ein Auftrag', JSON.stringify(await schreibAnzahl(page, ab)) === '["baustelle/setzen"]');
+  await klick(page, `${D} >>> .seite .block-kopf .chip[data-id="schacht"]`);
+  const sch = await panel(page, D, () => ({ view: p.s.view, cid: p.s.cid, titel: sr.querySelector('.c-held .glas-titel').textContent }));
+  erwarte('Schacht öffnet', sch.view === 'container' && sch.cid === 'schacht' && !!sch.titel, JSON.stringify(sch));
+  await klick(page, `${D} >>> .c-live .seg [data-c="verbrauch"]`);
+  erwarte('Schacht-Diagramm Verbrauch', await panel(page, D, () => p.s.chart === 'verbrauch' && !!sr.querySelector('.c-live .chart-wrap svg')));
+  await klick(page, `${D} >>> .c-live .zr-auf`);
+  erwarte('Zeitraum-Kalender auf', await panel(page, D, () => !!sr.querySelector('.c-live .zr-kal')));
+  await klick(page, `${D} >>> .c-live .zr-kal-fuss .chip`);
+  erwarte('Kalender zu, aktuelle Woche', await panel(page, D, () => !sr.querySelector('.c-live .zr-kal') && p.zrV('c-Woche') === 0));
+  // neue Daten der Integration: der Schalter bleibt derselbe Knoten (Lit), die Ansicht zeichnet nur Geändertes
+  const knoten = await page.evaluateHandle(sel => document.querySelector(sel).shadowRoot.querySelector('.seite .liste .zeile .sw'), D);
+  await panel(page, D, () => { p.cache = {}; return p._laden(); }); await warte(300);
+  erwarte('Schalter bleibt bei neuen Daten stehen', await page.evaluate((k, sel) => k === document.querySelector(sel).shadowRoot.querySelector('.seite .liste .zeile .sw'), knoten, D));
+  ab = await aufrufZahl(page);
+  await klick(page, `${D} >>> .seite .liste .zeile .sw`);
+  erwarte('Automatik des Schachts = genau ein Auftrag', JSON.stringify(await schreibAnzahl(page, ab)) === '["baustelle/setzen"]');
+  if (await panel(page, D, () => !!sr.querySelector('.seite .zeile.geraet .sw'))) {
+    ab = await aufrufZahl(page); await klick(page, `${D} >>> .seite .zeile.geraet .sw`);
+    erwarte('Pumpe schalten = genau ein Auftrag', JSON.stringify(await schreibAnzahl(page, ab)) === '["baustelle/aktion:schalten"]'); }
+  // verspätete Statistik: kommt erst, wenn schon eine andere Baustelle offen ist
+  const sp = await page.evaluate(async sel => {
+    const p = document.querySelector(sel), BB = window.baustelleBeispiel, warte = ms => new Promise(r => setTimeout(r, ms)), entry = p.d.entry, gehalten = [];
+    const andere = BB.welt.find(x => x.baustelle.entry_id !== entry); if (!andere) return { andere: false };
+    BB.TEST.statistik = (m, r) => m.entry_id === entry ? new Promise(x => gehalten.push(() => x(r))) : r;
+    p.cache = {}; p.gehe('pumpen'); await warte(300);
+    const laedt = p.shadowRoot.querySelector('.ui .seite').textContent.includes('Lädt …');
+    const wahl = document.createElement('button'); wahl.dataset.act = 'bs-wahl'; wahl.dataset.id = andere.baustelle.entry_id; p.klick({ target: wahl }); await warte(300);
+    const vorher = { entry: p.d.entry, view: p.s.view, text: p.shadowRoot.querySelector('.ui .seite').textContent };
+    BB.TEST.statistik = null; for (const g of gehalten) g(); await warte(500);
+    const nachher = { entry: p.d.entry, view: p.s.view, text: p.shadowRoot.querySelector('.ui .seite').textContent };
+    return { andere: true, gehalten: gehalten.length, laedt, gleich: vorher.entry === nachher.entry && vorher.view === nachher.view && vorher.text === nachher.text, neu: nachher.entry === andere.baustelle.entry_id };
+  }, D);
+  erwarte('verspätete Statistik nach Baustellenwechsel ändert die neue Baustelle nicht', sp.andere && sp.gehalten > 0 && sp.laedt && sp.neu && sp.gleich, JSON.stringify(sp));
+});
+
 /* B7 Lebenszyklus: 20 × entfernen/einhängen – Timer, Abos, window-Listener nehmen nicht zu */
 await fall('B7 Lebenszyklus', browser, async (page, erwarte) => {
   const stand = () => page.evaluate(() => ({ paste: window.__z.listener.paste, ort: window.__z.listener['location-changed'], intervalle: window.__z.intervalle.size, abos: window.baustelleBeispiel.TEST.abos }));

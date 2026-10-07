@@ -713,10 +713,48 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     const m = ui.innerHTML.match(/<b>(?:(\d+) h )?(\d+) min<\/b><span>Laufzeit heute/);
     Date.now = echt; panel.cache = {};
     erwarte(`Pumpen: Laufzeit heute plausibel (unter 24 h) – ${m ? m[0].replace(/<[^>]+>/g, ' ') : 'nicht gefunden'}`, m && +(m[1] || 0) < 24); }
-  for (const v of ['zyklen', 'verbrauch', 'pumpzeit']) { await klick({ act: 'p-chart', v }, 20); pruefe('Pumpen ' + v); }
-  neu(); await klick({ act: 'st', k: 'trocken_w', d: '5' }); await klick({ act: 'st', k: 'offline_min', d: '1' });
+  // Pumpen und Schacht mit Lit (BSM-022 3c): Merkmale ohne Ereignisweg – Diagramm data-pc/data-c, Stepper data-k/data-d
+  for (const v of ['zyklen', 'verbrauch', 'pumpzeit']) { await klick(`.seite .seg button[data-pc="${v}"]`, 20); pruefe('Pumpen ' + v);
+    erwarte(`Pumpen: Diagramm ${v} gewählt`, panel.s.pchart === v && !!litEl(`.seite .seg button[data-pc="${v}"].on`)); }
+  neu(); await klick('.stepper button[data-k="trocken_w"][data-d="5"]'); await klick('.stepper button[data-k="offline_min"][data-d="1"]');
   erwarte('Pumpen-Schwellen über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["meldungen_einst","trocken_unter_w"]' && a.wert === 35)
     && letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["meldungen_einst","offline_min"]' && a.wert === 6));
+  { // Pumpenschacht im Detail (Lit, 3c): öffnen, Diagramm, Zeitraum, Automatik, Pumpe schalten, zurück
+    await klick('.seite .block-kopf .chip[data-id="schacht"]', 30);
+    erwarte('3c: Schacht öffnet aus dem Reiter Pumpen', panel.s.view === 'container' && panel.s.cid === 'schacht' && ui.innerHTML.includes('PUMPENSCHACHT') && ui.innerHTML.includes('Automatik für diesen Schacht'));
+    for (const c of ['zyklen', 'verbrauch', 'pumpzeit']) { await klick(`.c-live .seg button[data-c="${c}"]`, 20); erwarte(`3c: Schacht-Diagramm ${c}`, panel.s.chart === c && !!litEl(`.c-live .seg button[data-c="${c}"].on`)); }
+    neu(); await klick('.c-live .zr-nav .zr-pf:first-child', 30);
+    erwarte('3c: Schacht ‹ früher › holt die Vorwoche', panel.zrV('c-Woche') === 1 && letzte('baustelle/statistik').length > 0 && !!litEl('.c-live .zr-akt'));
+    await klick('.c-live .zr-akt', 20); erwarte('3c: Schacht „Aktuell“', panel.zrV('c-Woche') === 0 && !litEl('.c-live .zr-akt'));
+    await klick('.c-live .zr-auf', 10); erwarte('3c: Schacht-Kalender auf', !!litEl('.c-live .zr-kal') && panel.s.zrKal.ziel === 'c-Woche');
+    { const m0 = panel.s.zrKal.m, zur = litEl('.c-live .zr-kal-kopf .zr-pf:first-child'), vor = litEl('.c-live .zr-kal-kopf .zr-pf:last-child');
+      if (!zur.disabled) { await klick('.c-live .zr-kal-kopf .zr-pf:first-child', 10); erwarte('3c: Kalender blättert zurück', panel.s.zrKal.m === (m0 + 11) % 12); }
+      else erwarte('3c: Kalender vor Baustellenbeginn und in der Zukunft gesperrt', vor.disabled && panel.zrMax('Woche', panel.zrGrenze()) < 5); }
+    await klick('.c-live .zr-woche:not([disabled])', 20); erwarte('3c: Woche im Kalender gewählt, Kalender zu', !panel.s.zrKal && !litEl('.c-live .zr-kal'));
+    await klick('.c-live .zr-auf', 10); await klick('.c-live .zr-kal-fuss .chip', 20); erwarte('3c: „Diese Woche“', panel.zrV('c-Woche') === 0 && !panel.s.zrKal);
+    const s0 = panel.d.bereiche.find(b => b.id === 'schacht');
+    neu(); await klick('.seite .liste .zeile .sw', 30); const a = letzte('baustelle/setzen').at(-1);
+    erwarte('3c: Automatik des Schachts über baustelle/setzen', a && a.pfad.join('.') === 'bereiche.schacht.auto' && a.wert === !s0.auto && letzte('baustelle/setzen').length === 1);
+    if (s0.geraete.length) { neu(); const g = s0.geraete[0]; await klick('.seite .zeile.geraet[data-i="0"] .sw', 30); const x = letzte('baustelle/aktion');
+      erwarte('3c: Pumpe schalten = genau ein Auftrag', x.length === 1 && x[0].aktion === 'schalten' && x[0].geraet === g.id && x[0].an === !g.an); }
+    await klick('.c-live-kennz', 20); erwarte('3c: Kennzahlen öffnen den Verbrauch', panel.s.sheet && panel.s.sheet.art === 'verbrauch' && panel.s.sheet.auswahl[0] === 'schacht'); await klick({ act: 'zu' }, 10);
+    await klick('.zurueck-zeile button:nth-child(2)', 20); erwarte('3c: Bearbeiten', panel.s.sheet && panel.s.sheet.art === 'bereich'); await klick({ act: 'zu' }, 10);
+    await klick('.seite > .liste:last-child button.zeile', 20); erwarte('3c: Schwellen führen zum Reiter Pumpen', panel.s.view === 'pumpen');
+    await klick('.seite .block:last-child button.zeile', 20); erwarte('3c: Meldungen führen in die Einstellungen', panel.s.view === 'einst' && panel.s.evGruppe === 'meldungen');
+    // verspätete Antwort nach Baustellenwechsel: die Statistik des Schachts kommt erst, wenn schon eine andere Baustelle offen ist
+    const andere = struktur.find(x => x.baustelle.entry_id !== 'dobl');
+    if (andere) {
+      const ws = hass.callWS, gehalten = [];
+      hass.callWS = m => m.type === 'baustelle/statistik' && m.entry_id === 'dobl' ? new Promise(r => gehalten.push(() => r(ws.call(hass, m)))) : ws.call(hass, m);
+      panel.cache = {}; await klick({ act: 'tab', v: 'pumpen' }, 30);
+      erwarte('3c: Pumpen laden noch (Statistik gehalten)', gehalten.length > 0 && ui.innerHTML.includes('Lädt …'));
+      await klick({ act: 'bs-wahl', id: andere.baustelle.entry_id }, 30); const view = panel.s.view, titel = panel.d.titel;
+      hass.callWS = ws; for (const g of gehalten) g(); await ruhe(40);
+      erwarte('3c: späte Antwort ändert die neue Baustelle nicht', panel.d.entry === andere.baustelle.entry_id && panel.s.view === view && panel.d.titel === titel && !ui.innerHTML.includes('Pumpenschacht Nord'));
+      await klick({ act: 'bs-wahl', id: 'dobl' }, 30); await klick({ act: 'tab', v: 'pumpen' }, 30);
+      erwarte('3c: zurück auf der Baustelle: Pumpen mit den nachgereichten Werten', panel.d.entry === 'dobl' && ui.innerHTML.includes('Pumpenschacht Nord') && !ui.innerHTML.includes('Lädt …')); pruefe('Pumpen nach Wechsel');
+    } else erwarte('3c: zweite Baustelle für den Wechsel vorhanden', false);
+  }
   /* Bauplan Module Phase 5: Reiter nach den Funktionen der Baustelle (api §8 `funktionen`) */
   { const alt = struktur, dobl = () => struktur.find(x => x.baustelle.entry_id === 'dobl');
     const nav = () => (ui.innerHTML.match(/<nav class="glas-nav[^]*?<\/nav>/) || [''])[0];
