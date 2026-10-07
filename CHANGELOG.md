@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.90] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 8 (BSM-022.14, Stufe 3d abgeschlossen): Die Dialoge Heizplan, Arbeitszeit, Neue
+  Arbeitszeit/Arbeitszeit bearbeiten und Ausnahme werden mit Lit gezeichnet. Beim Tippen bleiben Text und Cursor stehen,
+  auch wenn neue Daten kommen. Aussehen und Bedienung bleiben gleich.
+
 ## [0.8.89] – 2026-10-07
 
 - Kleidung trocknen: Die Kachel „Kleidung trocknen“ im Reiter Heizung zeigte den Block „So wird geheizt“, und in den

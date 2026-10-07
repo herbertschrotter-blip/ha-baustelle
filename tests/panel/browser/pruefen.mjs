@@ -491,6 +491,19 @@ await fall('3d Einblendungen', browser, async (page, erwarte) => {
   const ab = await aufrufZahl(page); await klick(page, `${D} >>> .sheet .knopf.amber`);
   const ev = await page.evaluate(ab => window.baustelleBeispiel.TEST.aufrufe.slice(ab).filter(m => m.type === 'calendar/event/create').map(m => m.event.summary), ab);
   erwarte('Termin eintragen = genau ein Auftrag', JSON.stringify(ev) === '["Baubesprechung"]', JSON.stringify(ev));
+  // Neue Arbeitszeit (3d): Name tippen während neuer Daten, Samstag dazu, Speichern = genau ein Auftrag
+  await panel(page, D, () => { p.gehe('heizung'); p.azNeu(p.azJetzt); });
+  const name = `${D} >>> .sheet input[data-f="name"]`;
+  await klick(page, name); await page.keyboard.type('Win');
+  await panel(page, D, async () => { window.__az = sr.querySelector('.sheet input[data-f="name"]'); for (let i = 0; i < 3; i++) { p.cache = {}; await p._laden(); } });
+  await page.keyboard.type('ter');
+  const azr = await panel(page, D, () => ({ wert: sr.querySelector('.sheet input[data-f="name"]').value, gleich: sr.querySelector('.sheet input[data-f="name"]') === window.__az, fokus: sr.activeElement === window.__az }));
+  erwarte('Arbeitszeit: Tippen während neuer Daten – Text, Fokus, Knoten bleiben', azr.wert === 'Winter' && azr.gleich && azr.fokus, JSON.stringify(azr));
+  await panel(page, D, () => sr.querySelectorAll('.sheet .zeile.azn')[5].querySelector('.sw').click()); await warte(120);   // Samstag
+  const ab2 = await aufrufZahl(page); await klick(page, `${D} >>> .sheet .knopf.amber`);
+  const az = await page.evaluate(ab => window.baustelleBeispiel.TEST.aufrufe.slice(ab).filter(m => m.type === 'baustelle/liste').map(m => `${m.liste}:${m.eintrag.name}:${!!m.eintrag.tage['5']}`), ab2);
+  erwarte('Arbeitszeit speichern = genau ein Auftrag (mit Samstag)', JSON.stringify(az) === '["arbeitszeiten:Winter:true"]', JSON.stringify(az));
+  await panel(page, D, () => p.gehe('uebersicht')); await warte(200);
   await panel(page, D, async () => { for (const b of BB.welt) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] }; await p._laden(); await new Promise(x => setTimeout(x, 150)); });
   await klick(page, `${D} >>> [data-act="bedarf-auf"][data-id="${bed}"]`); await warte(300);
   const nl = await panel(page, D, () => ({ frei: getComputedStyle(sr.querySelector('.sheet .zeile .sw.vor-ort')).opacity, termin: getComputedStyle(sr.querySelector('.sheet button.zeile')).opacity }));

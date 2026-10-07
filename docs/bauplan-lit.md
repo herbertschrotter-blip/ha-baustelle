@@ -50,7 +50,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **3a** | Leer-/Lade-/Fehleransichten, dann `dev` | gleiche Hinweise | verzögerte/fehlgeschlagene Antwort, leere Baustelle, Erholung | R je Lieferung |
 | ☑ | **3b** | Verlauf, dann `bsdetail` | gleich | Filter, Suche, Navigation, CSV, abgeschlossene Baustelle | R je Lieferung |
 | ☑ | **3c** | Pumpen mit Details | nichts | Diagramme, Zustände, Aktionen; verspätete Antwort nach Baustellenwechsel | R |
-| ☐ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
+| ☑ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
 | ☐ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
 | ☐ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
 | ☐ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
@@ -264,6 +264,16 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   echtes `change`, Prüfung Trocknen-Block), Browser-Fall „3d Container“ um Heizung erweitert (Modus je Container, Soll,
   Trocknen je ein Auftrag). Browser-Test 112 s – nah am Budget (≤ 120 s), bei 3e Fälle zusammenlegen. Offen in 3d: die
   Dialoge Heizplan, Arbeitszeit, Neue Arbeitszeit, Ausnahme.
+- **3d Dialoge der Heizung, 07.10.2026 (0.8.90) – 3d abgeschlossen:** `src/ansichten/einblendungen-heizung.js`
+  (Heizplan, Arbeitszeit, Neue/Arbeitszeit bearbeiten, Ausnahme; `HEIZUNG_EINBLENDUNGEN`). Formularfelder als Entwurf in
+  `s.form` mit `live()`, Test-Merkmal `data-f` (nicht `data-k`, das die Nur-Lesen-Sperre für Felder trifft); Speichern,
+  Bearbeiten, Löschen über `.nur-admin`. Methoden `jetztHeizen`, `azBearbeiten`, `azWeg`, `ausnahmeSpeichern`,
+  `azSpeichern`. **Entfallen:** die vier Zweige in `sheet()`, Felder `data-au`/`data-azn`/`data-azt` in `eingabe()`,
+  Klick-Fälle `au-art`, `azn-tag`, `azn-wie-mo`, `az-heizung`. Nachweis: Schnappschuss um die Dialoge erweitert (277
+  Schritte, inhaltlich gleich, auch Nicht-Admin); Panel-Test über die neuen Feld-Merkmale; Browser-Fall „3d
+  Einblendungen“ um die neue Arbeitszeit erweitert (Tippen während 3 Datenupdates, Samstag, ein Auftrag). Prüfung §3 für
+  3d: Live-Daten während Dialog/Tooltip (B4, B5, Tippen in Termin und Arbeitszeit), Modi, Soll, Schreibbefehle (je ein
+  Auftrag, Nicht-Admin) – erfüllt.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

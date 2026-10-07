@@ -27,6 +27,7 @@ import { pumpenVorlage, schachtVorlage } from './ansichten/pumpen.js';
 import { containerVorlage } from './ansichten/container.js';
 import { CONTAINER_EINBLENDUNGEN } from './ansichten/einblendungen-container.js';
 import { HZ_BLOECKE, heizungVorlage, hzEinblendung } from './ansichten/heizung.js';
+import { HEIZUNG_EINBLENDUNGEN } from './ansichten/einblendungen-heizung.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -955,7 +956,7 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
   static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
@@ -1655,6 +1656,30 @@ class BaustellePanel extends LitElement {
     if (art === 'name' || art === 'baustelle-neu') { S.sheet = { art, form: { name: art === 'name' && d ? d.titel : '' } }; return neu(); }
     S.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: 'Tag' }; return neu();
   }
+  /* Dialoge der Heizung (src/ansichten/einblendungen-heizung.js, BSM-022 3d) */
+  jetztHeizen(an) { return an ? this.aktion('jetzt_heizen', { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`) : this.aktion('jetzt_heizen', { minuten: null }, 'Zurück zum Plan'); }
+  azBearbeiten(v) { this.s.sheet = { art: 'az-neu', form: { alt_ab: v.ab, ab: v.ab, name: v.auto ? '' : v.name, tage: JSON.parse(JSON.stringify(v.tage)) } }; return this.neuZeichnen(); }   // FE-0002
+  azWeg(x) {
+    if (this.d.arbeitszeiten.length < 2) return this.toast('Die letzte Arbeitszeit bleibt');
+    this.s.sheet = null; this.neuZeichnen(); return this.liste('arbeitszeiten', 'loeschen', { ab: x.ab }, `${x.name} gelöscht`);
+  }
+  ausnahmeSpeichern() {
+    const S = this.s, d = this.d, f = S.sheet.form; if (!f.datum || (f.art !== 'frei' && f.bis <= f.von)) return this.toast('Bitte Tag und Uhrzeit prüfen');
+    S.sheet = null; this.neuZeichnen();
+    const dazu = f.art !== 'frei' && d.ausnahmen.some(a => a.datum === f.datum && a.art !== 'frei');
+    return this.liste('ausnahmen', 'speichern', { datum: f.datum, art: f.art, von: f.von, bis: f.bis, notiz: f.notiz.trim() }, `Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)} ${dazu ? 'dazu – die anderen bleiben' : 'gespeichert'}`);
+  }
+  azSpeichern() {
+    const S = this.s, d = this.d, f = S.sheet.form;
+    if (!f.ab) return this.toast('Bitte ein Startdatum wählen');
+    if (d.arbeitszeiten.some(x => x.ab === f.ab && x.ab !== f.alt_ab && !x.auto)) return this.toast(`Ab ${datum(f.ab)} gibt es schon eine Arbeitszeit`);
+    const tage = Object.fromEntries(TAGE.map((t, k) => [String(k), f.tage[t] ? [...f.tage[t]] : null]));
+    // gilt die neue gleich? – jüngste begonnene; die automatische zählt nicht mehr (FE-0002)
+    const bleiben = d.arbeitszeiten.filter(x => x.ab !== f.alt_ab && !x.auto), gilt = f.ab <= this.z.HEUTE && !bleiben.some(x => x.ab > f.ab && x.ab <= this.z.HEUTE);
+    const text = f.ab > this.z.HEUTE ? `Geplant – gilt ab ${datum(f.ab)}` : gilt ? (f.alt_ab !== undefined ? 'Gespeichert – gilt jetzt' : 'Gilt jetzt – die bisherige bleibt gespeichert') : 'Gespeichert – eine jüngere Arbeitszeit gilt weiter';
+    S.sheet = null; this.neuZeichnen();
+    return this.liste('arbeitszeiten', 'speichern', { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage, ...(f.alt_ab !== undefined ? { alt_ab: f.alt_ab } : {}) }, text);
+  }
   /* Reiter Heizung (src/ansichten/heizung.js, BSM-022 3d); Einstellungen und Einblendungen nutzen sie über klick() */
   automatikUmschalten() { const e = this.d.e; return this.setzen(['automatik'], !e.auto, !e.auto ? 'Automatik ein' : 'Automatik aus – Geräte bleiben, wie sie sind'); }
   hzAuf(k) { this.s.sheet = { art: 'hz', k }; return this.neuZeichnen(); }
@@ -1838,6 +1863,7 @@ class BaustellePanel extends LitElement {
     if (S.sheet && S.sheet.art === 'melden') sheet = meldenVorlage(this, S.sheet.form);
     else if (S.sheet && CONTAINER_EINBLENDUNGEN[S.sheet.art]) sheet = CONTAINER_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'hz') sheet = hzEinblendung(this, S.sheet);
+    else if (S.sheet && HEIZUNG_EINBLENDUNGEN[S.sheet.art]) sheet = HEIZUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
     const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
@@ -3099,24 +3125,6 @@ class BaustellePanel extends LitElement {
       if (!x) return `${griff}<h3>Baustelle löschen</h3><div class="leise">Diese Baustelle gibt es nicht mehr.</div>${knopf('Schließen', 'zu', 'leise-k')}`;
       return `${griff}<h3>„${esc(x.titel)}“ löschen?</h3><div class="leise">Die Baustelle wird aus HA entfernt – mit Containern, Geräten, Einstellungen und Zählern. Sie steht danach auch nicht im Verlauf. Die Messwerte der Shellys bleiben in HA.${x.aktiv ? ' Wer die Werte behalten will, schließt die Baustelle stattdessen ab.' : ''}</div>
         ${knopf('Endgültig löschen', 'bs-loeschen', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
-    if (s.art === 'heizplan') {
-      const az = this.azJetzt;
-      return `${griff}<div class="block-kopf"><h3>Heizplan · diese Woche</h3><span class="leise">${az ? `${esc(az.name)} · seit ${datum(az.ab)}` : 'keine Arbeitszeit'}</span></div>
-        ${d.e.auto ? '' : '<div class="warn-k"><b>Automatik ist aus</b><div class="leise">Der Plan wird gerade nicht ausgeführt.</div></div>'}
-        ${this.heizplanInhalt()}
-        <div class="bedarf-dauer">${d.jetztBis ? `<button class="chip glas-panel amber" data-act="jetzt-aus">■ alle heizen bis ${d.jetztBis} – beenden</button>` : `<button class="chip glas-panel" data-act="jetzt-an">▶ alle jetzt 1 h heizen</button>`}<button class="chip glas-panel" data-act="ausn-neu" data-v="">+ Ausnahme</button></div>
-        ${knopf('Arbeitszeit ändern', 'az-heizung', 'amber')}${knopf('Schließen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'az') {
-      const a = d.arbeitszeiten[s.i]; if (!a) { this.s.sheet = null; return ''; }
-      const geplant = a.ab > this.z.HEUTE, aktuell = a === this.azJetzt;
-      return `${griff}<div class="block-kopf"><h3>${esc(a.name)}</h3><span class="badge ${aktuell ? 'gruen' : geplant ? 'blau-b' : ''}">${aktuell ? 'gilt jetzt' : geplant ? 'geplant' : 'früher'}</span></div>
-        <div class="leise">gilt ab ${datum(a.ab)}</div>
-        ${TAGE.map(t => `<div class="zeile"><b class="tag-n">${t}</b><span>${a.tage[t] ? a.tage[t].join('–') : '<span class="leise">frei</span>'}</span></div>`).join('')}
-        ${a.auto ? '<div class="leise">Automatisch angelegt – wird durch deine erste eigene Arbeitszeit ersetzt.</div>' : ''}
-        ${knopf('Bearbeiten', 'az-bearbeiten', 'amber')}${knopf('Als Vorlage für eine neue', 'az-vorlage')}
-        ${d.arbeitszeiten.length > 1 ? knopf('Löschen', 'az-weg', 'rot') : '<div class="leise">Die letzte Arbeitszeit lässt sich nicht löschen – ohne Arbeitszeit liefe nur der Frostschutz.</div>'}${knopf('Schließen', 'zu', 'leise-k')}`;
-    }
     if (s.art === 'firma') {
       const f = s.form, neu = !f.id, eigen = !neu && this.firma(f.id).eigen;
       // wählbar: Container ohne fremde Firma, dazu die, die schon dieser Firma gehören
@@ -3206,34 +3214,6 @@ class BaustellePanel extends LitElement {
     if (s.art === 'm-bild') {   // WU-0016: Bild einer Meldung groß
       const m = (this.meldungen() || []).find(x => x.id === s.id), u = m && this.mlBild(m, s.i);
       return `${griff}<h3>${esc((m && m.ticket) || 'Meldung')} · Bild ${s.i + 1}</h3>${u ? `<img class="mb-gross" src="${u}" alt="Bild">` : LAEDT}${knopf('Schließen')}`;
-    }
-    if (s.art === 'ausnahme') {
-      const f = s.form, az = this.azJetzt, z = az && az.tage[wtag(f.datum)];
-      return `${griff}<h3>Ausnahme</h3>
-        <label class="feld">Tag<input type="date" value="${f.datum}" data-au="datum"></label>
-        <div class="leise">${wtag(f.datum)} ${kurzDatum(f.datum)} · laut Arbeitszeit ${z ? z.join('–') : 'frei'}</div>
-        <div class="seg">${Object.entries(AUSNAHME).map(([k, t]) => `<button data-act="au-art" data-v="${k}" class="${f.art === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-        ${f.art === 'frei' ? '<div class="leise">An diesem Tag wird nicht geheizt, nur der Frostschutz läuft.</div>'
-          : `<div class="raster-2"><label class="feld">von<input type="time" value="${f.von}" data-au="von"></label><label class="feld">bis<input type="time" value="${f.bis}" data-au="bis"></label></div>
-          <div class="leise">Vorheizen ${d.e.vorheizen} min und Nachheizen ${d.e.nachheizen} min gelten auch hier – geheizt wird ${uhr(minu(f.von) - d.e.vorheizen)}–${uhr(minu(f.bis) + d.e.nachheizen)}.</div>`}
-        ${(() => { const schon = d.ausnahmen.filter(a => a.datum === f.datum); if (!schon.length) return '';   // FE-0012
-          const p = this.planIso(f.datum);
-          return `<div class="am-schon">An diesem Tag schon eingetragen: ${schon.map(a => `<b>${a.art === 'frei' ? 'frei' : `${a.von}–${a.bis}`}</b> ${AUSNAHME[a.art]}`).join(', ')}<br>
-            ${f.art === 'frei' ? '„Frei“ ersetzt alle Zeitfenster dieses Tages.' : 'Das neue Fenster kommt dazu – nichts wird überschrieben. Grenzt es an die Arbeitszeit, verlängert es sie (mit Vor-/Nachheizen); sonst heizt es genau seine Zeit.'}
-            ${p && f.art !== 'frei' ? `<div class="am-strahl" style="margin-left:0">${this.zeitstrahl(p)}</div><div class="leise">bisher: ${this.planFensterText(p)}</div>` : ''}</div>`; })()}
-        <label class="feld">Notiz<input value="${esc(f.notiz)}" placeholder="z. B. Betonieren" data-au="notiz"></label>
-        ${knopf('Speichern', 'au-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'az-neu') {
-      const f = s.form, aendern = f.alt_ab !== undefined;
-      return `${griff}<h3>${aendern ? 'Arbeitszeit bearbeiten' : 'Neue Arbeitszeit'}</h3>
-        <div class="raster-2"><label class="feld">Gilt ab<input type="date" value="${f.ab}" data-azn="ab"></label><label class="feld">Name<input value="${esc(f.name)}" placeholder="z. B. Winter" data-azn="name"></label></div>
-        ${TAGE.map(t => { const z = f.tage[t]; return `<div class="zeile azn"><b class="tag-n">${t}</b>${schalter(!!z, 'azn-tag', `data-t="${t}"`)}
-          ${z ? `<input type="time" value="${z[0]}" data-azt="${t}" data-p="0"><span class="leise">bis</span><input type="time" value="${z[1]}" data-azt="${t}" data-p="1">` : '<span class="leise frei">frei</span>'}</div>`; }).join('')}
-        <button class="zeile" data-act="azn-wie-mo"><span class="blau">Di–Do wie Montag</span></button>
-        <div class="leise">${aendern ? 'Es gilt immer die jüngste Arbeitszeit, die schon begonnen hat.' : 'Die bisherige Arbeitszeit bleibt gespeichert. Liegt das Datum in der Zukunft, gilt die neue automatisch ab diesem Tag.'}
-          ${d.arbeitszeiten.some(x => x.auto) ? ' Die automatisch angelegte Arbeitszeit fällt beim Speichern weg.' : ''}</div>
-        ${knopf('Speichern', 'azn-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'container-neu') {
       const f = s.form, schacht = f.art === 'Pumpenschacht';
@@ -3455,15 +3435,11 @@ class BaustellePanel extends LitElement {
       case 'termin-speichern': return this.terminSpeichern();
       case 'boost': return this.boostUmschalten(d.bereiche.find(y => y.id === el.dataset.id));
       case 'ausn-neu': return this.ausnahmeNeu(el.dataset.v);
-      case 'au-art': S.sheet.form.art = el.dataset.v; return neu();
-      case 'au-speichern': { const f = S.sheet.form; if (!f.datum || (f.art !== 'frei' && f.bis <= f.von)) return this.toast('Bitte Tag und Uhrzeit prüfen');
-        S.sheet = null; neu();
-        const dazu = f.art !== 'frei' && d.ausnahmen.some(a => a.datum === f.datum && a.art !== 'frei');
-        return this.liste('ausnahmen', 'speichern', { datum: f.datum, art: f.art, von: f.von, bis: f.bis, notiz: f.notiz.trim() }, `Ausnahme ${wtag(f.datum)} ${kurzDatum(f.datum)} ${dazu ? 'dazu – die anderen bleiben' : 'gespeichert'}`); }
+      case 'au-speichern': return this.ausnahmeSpeichern();
       case 'ausn-weg': { const x = el.dataset; return this.ausnahmeWeg({ datum: x.d, art: x.art, von: x.von, bis: x.bis }); }
       case 'ausn-dazu': return this.ausnahmeDazu(el.dataset.d);
-      case 'jetzt-an': return this.aktion('jetzt_heizen', { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`);
-      case 'jetzt-aus': return this.aktion('jetzt_heizen', { minuten: null }, 'Zurück zum Plan');
+      case 'jetzt-an': return this.jetztHeizen(true);
+      case 'jetzt-aus': return this.jetztHeizen(false);
       case 'b-auto': { const x = el.dataset.id ? d.bereiche.find(y => y.id === el.dataset.id) : b; return x && this.bereichAuto(x); }
       case 'hz-auf': return this.hzAuf(el.dataset.k);
       case 'modus': { const x = d.bereiche.find(y => y.id === el.dataset.id); return x && this.modusSetzen(x, el.dataset.v); }
@@ -3603,23 +3579,11 @@ class BaustellePanel extends LitElement {
       case 'warm-eigen': { if (!b) return; const vor = el.dataset.k === 'vor', alt = vor ? b.warmVor ?? d.e.warm_vor : b.warmNach ?? d.e.warm_nach;   // AN-0004
         return this.setzen(['bereiche', b.id, vor ? 'warm_vor' : 'warm_nach'], Math.max(0, Math.min(240, alt + +el.dataset.d))); }
       case 'warm-zurueck': return this.setzen(['bereiche', b.id, 'warm_vor'], null).then(() => this.setzen(['bereiche', b.id, 'warm_nach'], null));
-      case 'az-heizung': return this.gehe('heizung');
       case 'az-neu': return this.azNeu(this.azJetzt);
       case 'az-vorlage': return this.azNeu(d.arbeitszeiten[S.sheet.i]);
-      case 'az-bearbeiten': { const v = d.arbeitszeiten[S.sheet.i]; if (!v) return;   // FE-0002
-        S.sheet = { art: 'az-neu', form: { alt_ab: v.ab, ab: v.ab, name: v.auto ? '' : v.name, tage: JSON.parse(JSON.stringify(v.tage)) } }; return neu(); }
-      case 'az-weg': { if (d.arbeitszeiten.length < 2) return this.toast('Die letzte Arbeitszeit bleibt'); const x = d.arbeitszeiten[S.sheet.i]; S.sheet = null; neu(); return this.liste('arbeitszeiten', 'loeschen', { ab: x.ab }, `${x.name} gelöscht`); }
-      case 'azn-tag': { const t = el.dataset.t, f = S.sheet.form; f.tage[t] = f.tage[t] ? null : [...(f.tage.Mo || ['07:00', '16:30'])]; return neu(); }
-      case 'azn-wie-mo': { const f = S.sheet.form; for (const t of ['Di', 'Mi', 'Do']) f.tage[t] = f.tage.Mo ? [...f.tage.Mo] : null; return neu(); }
-      case 'azn-speichern': { const f = S.sheet.form;
-        if (!f.ab) return this.toast('Bitte ein Startdatum wählen');
-        if (d.arbeitszeiten.some(x => x.ab === f.ab && x.ab !== f.alt_ab && !x.auto)) return this.toast(`Ab ${datum(f.ab)} gibt es schon eine Arbeitszeit`);
-        const tage = Object.fromEntries(TAGE.map((t, k) => [String(k), f.tage[t] ? [...f.tage[t]] : null]));
-        // gilt die neue gleich? – jüngste begonnene; die automatische zählt nicht mehr (FE-0002)
-        const bleiben = d.arbeitszeiten.filter(x => x.ab !== f.alt_ab && !x.auto), gilt = f.ab <= this.z.HEUTE && !bleiben.some(x => x.ab > f.ab && x.ab <= this.z.HEUTE);
-        const text = f.ab > this.z.HEUTE ? `Geplant – gilt ab ${datum(f.ab)}` : gilt ? (f.alt_ab !== undefined ? 'Gespeichert – gilt jetzt' : 'Gilt jetzt – die bisherige bleibt gespeichert') : 'Gespeichert – eine jüngere Arbeitszeit gilt weiter';
-        S.sheet = null; neu();
-        return this.liste('arbeitszeiten', 'speichern', { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage, ...(f.alt_ab !== undefined ? { alt_ab: f.alt_ab } : {}) }, text); }
+      case 'az-bearbeiten': { const v = d.arbeitszeiten[S.sheet.i]; return v && this.azBearbeiten(v); }
+      case 'az-weg': return this.azWeg(d.arbeitszeiten[S.sheet.i]);
+      case 'azn-speichern': return this.azSpeichern();
       case 'neu-art': S.sheet.form.art = el.dataset.v; S.sheet.form.typ = el.dataset.v === 'Pumpenschacht' ? 'Pumpe' : 'Ölradiator'; return neu();
       case 'neu-anlegen': { const f = S.sheet.form, name = f.name.trim() || 'Neuer Container', schacht = f.art === 'Pumpenschacht';
         S.sheet = null; neu();
@@ -3688,9 +3652,7 @@ class BaustellePanel extends LitElement {
     if (ds.kk === 'q' && sh && sh.art === 'kk-katalog') {   // WU-0014: Treffer neu, Fokus bleibt im Suchfeld
       sh.q = el.value; sh.k = null; const t = this.shadowRoot && this.shadowRoot.querySelector('.kk-treffer'); if (t) t.innerHTML = this.kkTreffer(sh); return;
     }
-    if (ds.azn) sh.form[ds.azn] = el.value;
     if (ds.ur) sh.form[ds.ur] = el.value;
-    if (ds.au) { sh.form[ds.au] = el.value; if (ds.au === 'datum') this.neuZeichnen(); }
     if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
     if (ds.bf) sh.edit.firma = el.value;
     if (ds.btuer !== undefined) sh.edit.tuer = el.value;
@@ -3701,7 +3663,6 @@ class BaustellePanel extends LitElement {
     if (ds.fn !== undefined) sh.form.name = el.value;
     if (ds.fnc !== undefined) sh.form.neu[+ds.fnc].name = el.value;
     if (ds.b === 'name' && sh && sh.edit) sh.edit.name = el.value;
-    if (ds.azt) sh.form.tage[ds.azt][+ds.p] = el.value;
     if (ds.neu) { sh.form[ds.neu] = el.value; if (ds.neu === 'schalter') this.neuZeichnen(); }   // WU-0008: Heizungsart erst mit Shelly abfragen
     if (ds.wq) sh.form[ds.wq] = el.value;
     if (ds.nm) sh.form.name = el.value;

@@ -212,6 +212,37 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
       await schritt('h urlaub neu', '.sheet .hz-innen > button.zeile:last-of-type'); }
     await schritt(`h ${n} zu`, { act: 'zu' });
   }
+  // Dialoge der Heizung (Stufe 3d): Heizplan, Arbeitszeit, Neue Arbeitszeit, Ausnahme
+  await schritt('d heizplan', { act: 'sheet', s: 'heizplan' });
+  await schritt('d heizplan jetzt', '.sheet .bedarf-dauer .chip:nth-child(1)');
+  await schritt('d heizplan ausnahme', '.sheet .bedarf-dauer .chip:nth-child(2)');
+  await schritt('d ausnahme frei', '.sheet .seg button:nth-child(3)');
+  await schritt('d ausnahme arbeit', '.sheet .seg button:nth-child(1)');
+  await feld('d ausnahme datum', '.sheet .feld input[type="date"]', '2026-10-02');
+  await feld('d ausnahme von', '.sheet .raster-2 .feld:nth-child(1) input', '13:00');
+  await feld('d ausnahme notiz', '.sheet .feld:last-of-type input', 'Betonieren');
+  await schritt('d ausnahme speichern', '.sheet .knopf.amber');
+  await schritt('d ausnahme 2', { act: 'ausn-neu', v: 'frei' });
+  await schritt('d ausnahme abbrechen', '.sheet .knopf.leise-k');
+  await schritt('d heizplan 2', { act: 'sheet', s: 'heizplan' });
+  await schritt('d heizplan arbeitszeit', '.sheet .knopf.amber');
+  await schritt('d az', '.hz-raster .hz-kachel:nth-child(4)');
+  await schritt('d az auf', '.sheet .az-name ~ button.zeile');
+  await schritt('d az vorlage', '.sheet > .knopf:nth-of-type(2)');
+  await schritt('d azn sa', '.sheet .zeile.azn:nth-of-type(8) .sw');   // Mo = 3. div (Griff, Raster davor)
+  await schritt('d azn wie mo', '.sheet > button.zeile');
+  await feld('d azn name', '.sheet .raster-2 .feld:nth-child(2) input', 'Winter');
+  await feld('d azn mo bis', '.sheet .zeile.azn input[data-p="1"]', '17:00');
+  await schritt('d azn speichern', '.sheet .knopf.amber');
+  await schritt('d az 2', '.hz-raster .hz-kachel:nth-child(4)');
+  await schritt('d az 2 auf', '.sheet .az-name ~ button.zeile');
+  await schritt('d az bearbeiten', '.sheet .knopf.amber');
+  await feld('d azn ab leer', '.sheet .raster-2 .feld:nth-child(1) input', '');
+  await schritt('d azn speichern leer', '.sheet .knopf.amber');
+  await schritt('d azn abbrechen', '.sheet .knopf.leise-k');
+  await schritt('d az 3', '.hz-raster .hz-kachel:nth-child(4)');
+  await schritt('d az 3 auf', '.sheet .az-name ~ button.zeile');
+  await schritt('d az löschen', '.sheet .knopf.rot');
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
@@ -233,6 +264,9 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   if (bed) { await schritt('nur-lesen c bedarf', { act: 'container', id: bed.id });
     await schritt('nur-lesen c bedarf termin neu', '.seite .block .zeile .blau'); await schritt('nur-lesen c bedarf 1 h', '.bedarf-dauer .chip:nth-child(1)');
     if (panel.shadowRoot.querySelector('.ereignis .x')) await schritt('nur-lesen c termin weg', '.ereignis .x'); }
+  await schritt('nur-lesen h', { act: 'tab', v: 'heizung' }); await schritt('nur-lesen az', '.hz-raster .hz-kachel:nth-child(4)');
+  await schritt('nur-lesen az auf', '.sheet .az-name ~ button.zeile'); await schritt('nur-lesen az bearbeiten', '.sheet .knopf.amber'); await schritt('nur-lesen az löschen', '.sheet .knopf.rot');
+  await schritt('nur-lesen heizplan', { act: 'sheet', s: 'heizplan' }); await schritt('nur-lesen heizplan jetzt', '.sheet .bedarf-dauer .chip:nth-child(1)');
   aus.toast = { html: panel.letzterToast || '', befehle: [] };
   fs.writeFileSync(ziel, JSON.stringify(aus));
   console.log(`Schnappschuss: ${Object.keys(aus).length} Schritte, ${befehle.length} Befehle → ${ziel}`);

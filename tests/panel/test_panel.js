@@ -247,10 +247,10 @@ async function allgemein() {
   for (const w of d().warnungen) { await gesendet('baustelle/aktion', `Warnung ${w.key}`, { act: 'w-stumm', id: w.id }); await gesendet('baustelle/aktion', `Warnung ${w.key} zurück`, { act: 'w-stumm', id: w.id }); }
   await gesendet('baustelle/aktion', 'Bericht jetzt senden', { act: 'bericht-senden' });
   for (const v of ['heute-laenger', 'morgen-spaeter', 'samstag']) await gesendet('baustelle/liste', `Ausnahme ${v}`, { act: 'au-speichern' }, () => klick({ act: 'ausn-neu', v }));
-  await gesendet('baustelle/liste', 'Freier Tag', { act: 'au-speichern' }, async () => { await klick({ act: 'ausn-neu', v: 'frei' }); eingabe({ au: 'datum' }, plusTageT(d().z.HEUTE, 9)); eingabe({ au: 'notiz' }, 'Zwickeltag'); });
+  await gesendet('baustelle/liste', 'Freier Tag', { act: 'au-speichern' }, async () => { await klick({ act: 'ausn-neu', v: 'frei' }); eingabe({ f: 'datum' }, plusTageT(d().z.HEUTE, 9)); eingabe({ f: 'notiz' }, 'Zwickeltag'); });
   for (const a of d().ausnahmen.slice(0, 1)) await gesendet('baustelle/liste', 'Ausnahme löschen', { act: 'ausn-weg', d: a.datum });
-  await gesendet('baustelle/liste', 'Neue Arbeitszeit', { act: 'azn-speichern' }, async () => { await klick({ act: 'az-neu' }); eingabe({ azn: 'ab' }, plusTageT(d().z.HEUTE, 70)); eingabe({ azn: 'name' }, 'Spät');
-    eingabe({ azt: 'Mo', p: '0' }, '08:00'); eingabe({ azt: 'Mo', p: '1' }, '17:00'); await klick({ act: 'azn-wie-mo' }); });
+  await gesendet('baustelle/liste', 'Neue Arbeitszeit', { act: 'azn-speichern' }, async () => { await klick({ act: 'az-neu' }); eingabe({ f: 'ab' }, plusTageT(d().z.HEUTE, 70)); eingabe({ f: 'name' }, 'Spät');
+    eingabe({ azt: 'Mo', p: '0' }, '08:00'); eingabe({ azt: 'Mo', p: '1' }, '17:00'); await klick('.sheet > button.zeile'); });
   const geplant = d().arbeitszeiten.findIndex(a => a.ab > d().z.HEUTE && !a.auto);   // Index wie in der Einblendung; die automatische ersetzt die Integration (FE-0002)
   if (geplant >= 0) await gesendet('baustelle/liste', 'Geplante Arbeitszeit löschen', { act: 'az-weg' }, () => klick({ act: 'sheet', s: 'az', i: String(geplant) }));
   const fremd = d().firmen.filter(f => !f.eigen && f.id !== 'eigen');
@@ -595,17 +595,17 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await liste({ act: 'au-speichern' }, { liste: 'ausnahmen', aktion: 'speichern' }, { datum: '2026-09-29', art: 'zeiten', von: '07:00', bis: '18:00', notiz: 'heute länger' }, 'Ausnahme speichern', () => klick({ act: 'ausn-neu', v: 'heute-laenger' }));
   await liste({ act: 'au-speichern' }, { liste: 'ausnahmen', aktion: 'speichern' }, { datum: '2026-10-03', art: 'arbeit' }, 'Samstag arbeiten', () => klick({ act: 'ausn-neu', v: 'samstag' }));
   await liste({ act: 'au-speichern' }, { liste: 'ausnahmen', aktion: 'speichern' }, { datum: '2026-10-01', art: 'frei', notiz: 'Zwickeltag' }, 'Freier Tag',
-    async () => { await klick({ act: 'ausn-neu', v: 'frei' }); eingabe({ au: 'datum' }, '2026-10-01'); eingabe({ au: 'notiz' }, 'Zwickeltag'); });
+    async () => { await klick({ act: 'ausn-neu', v: 'frei' }); eingabe({ f: 'datum' }, '2026-10-01'); eingabe({ f: 'notiz' }, 'Zwickeltag'); });
   await liste({ act: 'ausn-weg', d: '2026-09-30' }, { liste: 'ausnahmen', aktion: 'loeschen' }, { datum: '2026-09-30' }, 'Ausnahme löschen');
   await liste({ act: 'azn-speichern' }, { liste: 'arbeitszeiten', aktion: 'speichern' }, { ab: '2026-10-12', name: 'Spät', tage: t => t['0'][0] === '08:00' && t['3'][1] === '17:00' && t['5'] === null }, 'Neue Arbeitszeit',
-    async () => { await klick({ act: 'az-neu' }); eingabe({ azn: 'ab' }, '2026-10-12'); eingabe({ azn: 'name' }, 'Spät'); eingabe({ azt: 'Mo', p: '0' }, '08:00'); eingabe({ azt: 'Mo', p: '1' }, '17:00'); await klick({ act: 'azn-wie-mo' }); });
-  neu(); await klick({ act: 'az-neu' }); eingabe({ azn: 'ab' }, '2026-09-28'); await klick({ act: 'azn-speichern' });
+    async () => { await klick({ act: 'az-neu' }); eingabe({ f: 'ab' }, '2026-10-12'); eingabe({ f: 'name' }, 'Spät'); eingabe({ azt: 'Mo', p: '0' }, '08:00'); eingabe({ azt: 'Mo', p: '1' }, '17:00'); await klick('.sheet > button.zeile'); });
+  neu(); await klick({ act: 'az-neu' }); eingabe({ f: 'ab' }, '2026-09-28'); await klick({ act: 'azn-speichern' });
   erwarte('gleiches Startdatum wird abgelehnt', !letzte('baustelle/liste').length && /schon eine Arbeitszeit/.test(panel.letzterToast));
   await liste({ act: 'az-weg' }, { liste: 'arbeitszeiten', aktion: 'loeschen' }, { ab: '2026-11-02' }, 'Geplante Arbeitszeit löschen', () => klick({ act: 'sheet', s: 'az', i: '3' }));
   /* FE-0002: jede Arbeitszeit bearbeiten (alt_ab), automatische mit Hinweis, die letzte bleibt */
   { const v = panel.d.arbeitszeiten[0];
     await liste({ act: 'azn-speichern' }, { liste: 'arbeitszeiten', aktion: 'speichern' }, { ab: v.ab, alt_ab: v.ab, name: 'Umbenannt' }, 'FE-0002: Arbeitszeit bearbeiten',
-      async () => { await klick({ act: 'sheet', s: 'az', i: '0' }); await klick({ act: 'az-bearbeiten' }); eingabe({ azn: 'name' }, 'Umbenannt'); });
+      async () => { await klick({ act: 'sheet', s: 'az', i: '0' }); await klick({ act: 'az-bearbeiten' }); eingabe({ f: 'name' }, 'Umbenannt'); });
     const alle = panel.d.arbeitszeiten;
     panel.d.arbeitszeiten = [{ ...v, ab: '2026-09-28', auto: true }];
     await klick({ act: 'tab', v: 'heizung' }, 20); await klick({ act: 'hz-auf', k: 'az' }, 20);

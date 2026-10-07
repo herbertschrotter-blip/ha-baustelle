@@ -2188,10 +2188,10 @@ function bedarfEinblendung(p4, s4) {
         ${knopf("Abbrechen", () => p4.schliessen(), "leise-k")}`;
 }
 function terminEinblendung(p4, s4) {
-  const f3 = s4.form, kal = p4.d.termineKal, feld = (k2) => (e6) => {
+  const f3 = s4.form, kal = p4.d.termineKal, feld2 = (k2) => (e6) => {
     f3[k2] = e6.target.value;
   };
-  const eingabe = (k2, typ = A, ph = A) => b2`<input type=${typ} value=${f3[k2]} .value=${l3(f3[k2])} placeholder=${ph} data-tm=${k2} @input=${feld(k2)}>`;
+  const eingabe = (k2, typ = A, ph = A) => b2`<input type=${typ} value=${f3[k2]} .value=${l3(f3[k2])} placeholder=${ph} data-tm=${k2} @input=${feld2(k2)}>`;
   return b2`${GRIFF}<h3>Termin eintragen</h3>
         <label class="feld">Titel${eingabe("titel", A, "z. B. Baubesprechung")}</label>
         <label class="feld">${f3.wieder === "einmal" ? "Tag" : "Ab (Wochentag gilt für die Serie)"}${eingabe("datum", "date")}</label>
@@ -2500,6 +2500,78 @@ function hzEinblendung(p4, s4) {
   const inhalt = k2 === "heute" ? b2`${heute(p4, cls)}${wann(p4, cls)}` : k2 === "az" ? b2`${arbeitszeit(p4, cls)}${ausnahmen(p4, cls)}` : HZ_BLOECKE[k2](p4, cls);
   return b2`<div class="griff"></div><div class="block-kopf"><h3>${sym} ${titel}</h3></div>${inhalt}<button class="knopf" @click=${() => p4.schliessen()}>Schließen</button>`;
 }
+
+// src/ansichten/einblendungen-heizung.js
+var GRIFF2 = b2`<div class="griff"></div>`;
+var knopf2 = (t5, fn, art = "") => b2`<button class="knopf ${art}" @click=${fn}>${t5}</button>`;
+var feld = (ziel, k2, typ, attr, nach) => b2`<input type=${typ || A} value=${ziel[k2]} .value=${l3(ziel[k2])} placeholder=${attr.ph || A} data-f=${attr.marke || k2} @input=${(e6) => {
+  ziel[k2] = e6.target.value;
+  if (nach) nach();
+}}>`;
+function heizplanEinblendung(p4) {
+  const d3 = p4.d, az = p4.azJetzt;
+  return b2`${GRIFF2}<div class="block-kopf"><h3>Heizplan · diese Woche</h3><span class="leise">${az ? `${az.name} · seit ${datum(az.ab)}` : "keine Arbeitszeit"}</span></div>
+        ${d3.e.auto ? A : b2`<div class="warn-k"><b>Automatik ist aus</b><div class="leise">Der Plan wird gerade nicht ausgeführt.</div></div>`}
+        ${o5(p4.heizplanInhalt())}
+        <div class="bedarf-dauer">${d3.jetztBis ? b2`<button class="chip glas-panel amber" @click=${() => p4.jetztHeizen(false)}>■ alle heizen bis ${d3.jetztBis} – beenden</button>` : b2`<button class="chip glas-panel" @click=${() => p4.jetztHeizen(true)}>▶ alle jetzt 1 h heizen</button>`}<button class="chip glas-panel" @click=${() => p4.ausnahmeNeu("")}>+ Ausnahme</button></div>
+        ${knopf2("Arbeitszeit ändern", () => p4.gehe("heizung"), "amber")}${knopf2("Schließen", () => p4.schliessen(), "leise-k")}`;
+}
+function arbeitszeitEinblendung(p4, s4) {
+  const d3 = p4.d, a3 = d3.arbeitszeiten[s4.i];
+  if (!a3) {
+    p4.s.sheet = null;
+    return A;
+  }
+  const geplant = a3.ab > p4.z.HEUTE, aktuell = a3 === p4.azJetzt;
+  return b2`${GRIFF2}<div class="block-kopf"><h3>${a3.name}</h3><span class="badge ${aktuell ? "gruen" : geplant ? "blau-b" : ""}">${aktuell ? "gilt jetzt" : geplant ? "geplant" : "früher"}</span></div>
+        <div class="leise">gilt ab ${datum(a3.ab)}</div>
+        ${TAGE.map((t5) => b2`<div class="zeile"><b class="tag-n">${t5}</b><span>${a3.tage[t5] ? a3.tage[t5].join("–") : b2`<span class="leise">frei</span>`}</span></div>`)}
+        ${a3.auto ? b2`<div class="leise">Automatisch angelegt – wird durch deine erste eigene Arbeitszeit ersetzt.</div>` : A}
+        ${knopf2("Bearbeiten", p4.nurAdmin(() => p4.azBearbeiten(a3)), "amber nur-admin")}${knopf2("Als Vorlage für eine neue", () => p4.azNeu(a3))}
+        ${d3.arbeitszeiten.length > 1 ? knopf2("Löschen", p4.nurAdmin(() => p4.azWeg(a3)), "rot nur-admin") : b2`<div class="leise">Die letzte Arbeitszeit lässt sich nicht löschen – ohne Arbeitszeit liefe nur der Frostschutz.</div>`}${knopf2("Schließen", () => p4.schliessen(), "leise-k")}`;
+}
+function ausnahmeEinblendung(p4, s4) {
+  const d3 = p4.d, f3 = s4.form, az = p4.azJetzt, z2 = az && az.tage[wtag(f3.datum)];
+  const schon = d3.ausnahmen.filter((a3) => a3.datum === f3.datum), pl = schon.length ? p4.planIso(f3.datum) : null;
+  return b2`${GRIFF2}<h3>Ausnahme</h3>
+        <label class="feld">Tag${feld(f3, "datum", "date", { marke: "datum" }, () => p4.neuZeichnen())}</label>
+        <div class="leise">${wtag(f3.datum)} ${kurzDatum(f3.datum)} · laut Arbeitszeit ${z2 ? z2.join("–") : "frei"}</div>
+        <div class="seg">${Object.entries(AUSNAHME).map(([k2, t5]) => b2`<button data-v=${k2} class=${f3.art === k2 ? "on" : ""} @click=${() => {
+    f3.art = k2;
+    p4.neuZeichnen();
+  }}>${t5}</button>`)}</div>
+        ${f3.art === "frei" ? b2`<div class="leise">An diesem Tag wird nicht geheizt, nur der Frostschutz läuft.</div>` : b2`<div class="raster-2"><label class="feld">von${feld(f3, "von", "time", {})}</label><label class="feld">bis${feld(f3, "bis", "time", {})}</label></div>
+          <div class="leise">Vorheizen ${d3.e.vorheizen} min und Nachheizen ${d3.e.nachheizen} min gelten auch hier – geheizt wird ${uhr(minu(f3.von) - d3.e.vorheizen)}–${uhr(minu(f3.bis) + d3.e.nachheizen)}.</div>`}
+        ${!schon.length ? A : b2`<div class="am-schon">An diesem Tag schon eingetragen: ${schon.map((a3, i7) => b2`${i7 ? ", " : ""}<b>${a3.art === "frei" ? "frei" : `${a3.von}–${a3.bis}`}</b> ${AUSNAHME[a3.art]}`)}<br>
+            ${f3.art === "frei" ? "„Frei“ ersetzt alle Zeitfenster dieses Tages." : "Das neue Fenster kommt dazu – nichts wird überschrieben. Grenzt es an die Arbeitszeit, verlängert es sie (mit Vor-/Nachheizen); sonst heizt es genau seine Zeit."}
+            ${pl && f3.art !== "frei" ? b2`<div class="am-strahl" style="margin-left:0">${o5(p4.zeitstrahl(pl))}</div><div class="leise">bisher: ${p4.planFensterText(pl)}</div>` : A}</div>`}
+        <label class="feld">Notiz${feld(f3, "notiz", null, { ph: "z. B. Betonieren" })}</label>
+        ${knopf2("Speichern", p4.nurAdmin(() => p4.ausnahmeSpeichern()), "amber nur-admin")}${knopf2("Abbrechen", () => p4.schliessen(), "leise-k")}`;
+}
+function arbeitszeitNeuEinblendung(p4, s4) {
+  const d3 = p4.d, f3 = s4.form, aendern = f3.alt_ab !== void 0, neu = () => p4.neuZeichnen();
+  const zeit = (t5, i7) => b2`<input type="time" value=${f3.tage[t5][i7]} .value=${l3(f3.tage[t5][i7])} data-azt=${t5} data-p=${i7} @input=${(e6) => {
+    f3.tage[t5][i7] = e6.target.value;
+  }}>`;
+  return b2`${GRIFF2}<h3>${aendern ? "Arbeitszeit bearbeiten" : "Neue Arbeitszeit"}</h3>
+        <div class="raster-2"><label class="feld">Gilt ab${feld(f3, "ab", "date", {})}</label><label class="feld">Name${feld(f3, "name", null, { ph: "z. B. Winter" })}</label></div>
+        ${TAGE.map((t5) => {
+    const z2 = f3.tage[t5];
+    return b2`<div class="zeile azn"><b class="tag-n">${t5}</b>${schalterVorlage(!!z2, () => {
+      f3.tage[t5] = f3.tage[t5] ? null : [...f3.tage.Mo || ["07:00", "16:30"]];
+      neu();
+    })}
+          ${z2 ? b2`${zeit(t5, 0)}<span class="leise">bis</span>${zeit(t5, 1)}` : b2`<span class="leise frei">frei</span>`}</div>`;
+  })}
+        <button class="zeile" @click=${() => {
+    for (const t5 of ["Di", "Mi", "Do"]) f3.tage[t5] = f3.tage.Mo ? [...f3.tage.Mo] : null;
+    neu();
+  }}><span class="blau">Di–Do wie Montag</span></button>
+        <div class="leise">${aendern ? "Es gilt immer die jüngste Arbeitszeit, die schon begonnen hat." : "Die bisherige Arbeitszeit bleibt gespeichert. Liegt das Datum in der Zukunft, gilt die neue automatisch ab diesem Tag."}
+          ${d3.arbeitszeiten.some((x2) => x2.auto) ? " Die automatisch angelegte Arbeitszeit fällt beim Speichern weg." : ""}</div>
+        ${knopf2("Speichern", p4.nurAdmin(() => p4.azSpeichern()), "amber nur-admin")}${knopf2("Abbrechen", () => p4.schliessen(), "leise-k")}`;
+}
+var HEIZUNG_EINBLENDUNGEN = { heizplan: heizplanEinblendung, az: arbeitszeitEinblendung, ausnahme: ausnahmeEinblendung, "az-neu": arbeitszeitNeuEinblendung };
 
 // src/alt.js
 var CSS = `/* Wetter */
@@ -3565,8 +3637,8 @@ var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.89";
-var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz"];
+var SEITE_VERSION = "0.8.90";
+var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS)];
   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
@@ -4667,6 +4739,40 @@ var BaustellePanel = class extends i4 {
     S3.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: "Tag" };
     return neu();
   }
+  /* Dialoge der Heizung (src/ansichten/einblendungen-heizung.js, BSM-022 3d) */
+  jetztHeizen(an) {
+    return an ? this.aktion("jetzt_heizen", { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`) : this.aktion("jetzt_heizen", { minuten: null }, "Zurück zum Plan");
+  }
+  azBearbeiten(v2) {
+    this.s.sheet = { art: "az-neu", form: { alt_ab: v2.ab, ab: v2.ab, name: v2.auto ? "" : v2.name, tage: JSON.parse(JSON.stringify(v2.tage)) } };
+    return this.neuZeichnen();
+  }
+  // FE-0002
+  azWeg(x2) {
+    if (this.d.arbeitszeiten.length < 2) return this.toast("Die letzte Arbeitszeit bleibt");
+    this.s.sheet = null;
+    this.neuZeichnen();
+    return this.liste("arbeitszeiten", "loeschen", { ab: x2.ab }, `${x2.name} gelöscht`);
+  }
+  ausnahmeSpeichern() {
+    const S3 = this.s, d3 = this.d, f3 = S3.sheet.form;
+    if (!f3.datum || f3.art !== "frei" && f3.bis <= f3.von) return this.toast("Bitte Tag und Uhrzeit prüfen");
+    S3.sheet = null;
+    this.neuZeichnen();
+    const dazu = f3.art !== "frei" && d3.ausnahmen.some((a3) => a3.datum === f3.datum && a3.art !== "frei");
+    return this.liste("ausnahmen", "speichern", { datum: f3.datum, art: f3.art, von: f3.von, bis: f3.bis, notiz: f3.notiz.trim() }, `Ausnahme ${wtag(f3.datum)} ${kurzDatum(f3.datum)} ${dazu ? "dazu – die anderen bleiben" : "gespeichert"}`);
+  }
+  azSpeichern() {
+    const S3 = this.s, d3 = this.d, f3 = S3.sheet.form;
+    if (!f3.ab) return this.toast("Bitte ein Startdatum wählen");
+    if (d3.arbeitszeiten.some((x2) => x2.ab === f3.ab && x2.ab !== f3.alt_ab && !x2.auto)) return this.toast(`Ab ${datum(f3.ab)} gibt es schon eine Arbeitszeit`);
+    const tage = Object.fromEntries(TAGE.map((t5, k2) => [String(k2), f3.tage[t5] ? [...f3.tage[t5]] : null]));
+    const bleiben = d3.arbeitszeiten.filter((x2) => x2.ab !== f3.alt_ab && !x2.auto), gilt = f3.ab <= this.z.HEUTE && !bleiben.some((x2) => x2.ab > f3.ab && x2.ab <= this.z.HEUTE);
+    const text = f3.ab > this.z.HEUTE ? `Geplant – gilt ab ${datum(f3.ab)}` : gilt ? f3.alt_ab !== void 0 ? "Gespeichert – gilt jetzt" : "Gilt jetzt – die bisherige bleibt gespeichert" : "Gespeichert – eine jüngere Arbeitszeit gilt weiter";
+    S3.sheet = null;
+    this.neuZeichnen();
+    return this.liste("arbeitszeiten", "speichern", { ab: f3.ab, name: f3.name.trim() || `ab ${datum(f3.ab)}`, tage, ...f3.alt_ab !== void 0 ? { alt_ab: f3.alt_ab } : {} }, text);
+  }
   /* Reiter Heizung (src/ansichten/heizung.js, BSM-022 3d); Einstellungen und Einblendungen nutzen sie über klick() */
   automatikUmschalten() {
     const e6 = this.d.e;
@@ -5032,6 +5138,7 @@ var BaustellePanel = class extends i4 {
     if (S3.sheet && S3.sheet.art === "melden") sheet = meldenVorlage(this, S3.sheet.form);
     else if (S3.sheet && CONTAINER_EINBLENDUNGEN[S3.sheet.art]) sheet = CONTAINER_EINBLENDUNGEN[S3.sheet.art](this, S3.sheet);
     else if (S3.sheet && S3.sheet.art === "hz") sheet = hzEinblendung(this, S3.sheet);
+    else if (S3.sheet && HEIZUNG_EINBLENDUNGEN[S3.sheet.art]) sheet = HEIZUNG_EINBLENDUNGEN[S3.sheet.art](this, S3.sheet);
     else if (S3.sheet) {
       try {
         sheet = o5(this.sheet());
@@ -6838,28 +6945,6 @@ var BaustellePanel = class extends i4 {
       return `${griff}<h3>„${esc(x2.titel)}“ löschen?</h3><div class="leise">Die Baustelle wird aus HA entfernt – mit Containern, Geräten, Einstellungen und Zählern. Sie steht danach auch nicht im Verlauf. Die Messwerte der Shellys bleiben in HA.${x2.aktiv ? " Wer die Werte behalten will, schließt die Baustelle stattdessen ab." : ""}</div>
         ${knopf3("Endgültig löschen", "bs-loeschen", "rot")}${knopf3("Abbrechen", "zu", "leise-k")}`;
     }
-    if (s4.art === "heizplan") {
-      const az = this.azJetzt;
-      return `${griff}<div class="block-kopf"><h3>Heizplan · diese Woche</h3><span class="leise">${az ? `${esc(az.name)} · seit ${datum(az.ab)}` : "keine Arbeitszeit"}</span></div>
-        ${d3.e.auto ? "" : '<div class="warn-k"><b>Automatik ist aus</b><div class="leise">Der Plan wird gerade nicht ausgeführt.</div></div>'}
-        ${this.heizplanInhalt()}
-        <div class="bedarf-dauer">${d3.jetztBis ? `<button class="chip glas-panel amber" data-act="jetzt-aus">■ alle heizen bis ${d3.jetztBis} – beenden</button>` : `<button class="chip glas-panel" data-act="jetzt-an">▶ alle jetzt 1 h heizen</button>`}<button class="chip glas-panel" data-act="ausn-neu" data-v="">+ Ausnahme</button></div>
-        ${knopf3("Arbeitszeit ändern", "az-heizung", "amber")}${knopf3("Schließen", "zu", "leise-k")}`;
-    }
-    if (s4.art === "az") {
-      const a3 = d3.arbeitszeiten[s4.i];
-      if (!a3) {
-        this.s.sheet = null;
-        return "";
-      }
-      const geplant = a3.ab > this.z.HEUTE, aktuell = a3 === this.azJetzt;
-      return `${griff}<div class="block-kopf"><h3>${esc(a3.name)}</h3><span class="badge ${aktuell ? "gruen" : geplant ? "blau-b" : ""}">${aktuell ? "gilt jetzt" : geplant ? "geplant" : "früher"}</span></div>
-        <div class="leise">gilt ab ${datum(a3.ab)}</div>
-        ${TAGE.map((t5) => `<div class="zeile"><b class="tag-n">${t5}</b><span>${a3.tage[t5] ? a3.tage[t5].join("–") : '<span class="leise">frei</span>'}</span></div>`).join("")}
-        ${a3.auto ? '<div class="leise">Automatisch angelegt – wird durch deine erste eigene Arbeitszeit ersetzt.</div>' : ""}
-        ${knopf3("Bearbeiten", "az-bearbeiten", "amber")}${knopf3("Als Vorlage für eine neue", "az-vorlage")}
-        ${d3.arbeitszeiten.length > 1 ? knopf3("Löschen", "az-weg", "rot") : '<div class="leise">Die letzte Arbeitszeit lässt sich nicht löschen – ohne Arbeitszeit liefe nur der Frostschutz.</div>'}${knopf3("Schließen", "zu", "leise-k")}`;
-    }
     if (s4.art === "firma") {
       const f3 = s4.form, neu = !f3.id, eigen = !neu && this.firma(f3.id).eigen;
       const frei = d3.bereiche.filter((b3) => (b3.firma || "eigen") === "eigen" || !neu && b3.firma === f3.id);
@@ -6947,39 +7032,6 @@ var BaustellePanel = class extends i4 {
     if (s4.art === "m-bild") {
       const m3 = (this.meldungen() || []).find((x2) => x2.id === s4.id), u3 = m3 && this.mlBild(m3, s4.i);
       return `${griff}<h3>${esc(m3 && m3.ticket || "Meldung")} · Bild ${s4.i + 1}</h3>${u3 ? `<img class="mb-gross" src="${u3}" alt="Bild">` : LAEDT5}${knopf3("Schließen")}`;
-    }
-    if (s4.art === "ausnahme") {
-      const f3 = s4.form, az = this.azJetzt, z2 = az && az.tage[wtag(f3.datum)];
-      return `${griff}<h3>Ausnahme</h3>
-        <label class="feld">Tag<input type="date" value="${f3.datum}" data-au="datum"></label>
-        <div class="leise">${wtag(f3.datum)} ${kurzDatum(f3.datum)} · laut Arbeitszeit ${z2 ? z2.join("–") : "frei"}</div>
-        <div class="seg">${Object.entries(AUSNAHME).map(([k2, t5]) => `<button data-act="au-art" data-v="${k2}" class="${f3.art === k2 ? "on" : ""}">${t5}</button>`).join("")}</div>
-        ${f3.art === "frei" ? '<div class="leise">An diesem Tag wird nicht geheizt, nur der Frostschutz läuft.</div>' : `<div class="raster-2"><label class="feld">von<input type="time" value="${f3.von}" data-au="von"></label><label class="feld">bis<input type="time" value="${f3.bis}" data-au="bis"></label></div>
-          <div class="leise">Vorheizen ${d3.e.vorheizen} min und Nachheizen ${d3.e.nachheizen} min gelten auch hier – geheizt wird ${uhr(minu(f3.von) - d3.e.vorheizen)}–${uhr(minu(f3.bis) + d3.e.nachheizen)}.</div>`}
-        ${(() => {
-        const schon = d3.ausnahmen.filter((a3) => a3.datum === f3.datum);
-        if (!schon.length) return "";
-        const p4 = this.planIso(f3.datum);
-        return `<div class="am-schon">An diesem Tag schon eingetragen: ${schon.map((a3) => `<b>${a3.art === "frei" ? "frei" : `${a3.von}–${a3.bis}`}</b> ${AUSNAHME[a3.art]}`).join(", ")}<br>
-            ${f3.art === "frei" ? "„Frei“ ersetzt alle Zeitfenster dieses Tages." : "Das neue Fenster kommt dazu – nichts wird überschrieben. Grenzt es an die Arbeitszeit, verlängert es sie (mit Vor-/Nachheizen); sonst heizt es genau seine Zeit."}
-            ${p4 && f3.art !== "frei" ? `<div class="am-strahl" style="margin-left:0">${this.zeitstrahl(p4)}</div><div class="leise">bisher: ${this.planFensterText(p4)}</div>` : ""}</div>`;
-      })()}
-        <label class="feld">Notiz<input value="${esc(f3.notiz)}" placeholder="z. B. Betonieren" data-au="notiz"></label>
-        ${knopf3("Speichern", "au-speichern", "amber")}${knopf3("Abbrechen", "zu", "leise-k")}`;
-    }
-    if (s4.art === "az-neu") {
-      const f3 = s4.form, aendern = f3.alt_ab !== void 0;
-      return `${griff}<h3>${aendern ? "Arbeitszeit bearbeiten" : "Neue Arbeitszeit"}</h3>
-        <div class="raster-2"><label class="feld">Gilt ab<input type="date" value="${f3.ab}" data-azn="ab"></label><label class="feld">Name<input value="${esc(f3.name)}" placeholder="z. B. Winter" data-azn="name"></label></div>
-        ${TAGE.map((t5) => {
-        const z2 = f3.tage[t5];
-        return `<div class="zeile azn"><b class="tag-n">${t5}</b>${schalter(!!z2, "azn-tag", `data-t="${t5}"`)}
-          ${z2 ? `<input type="time" value="${z2[0]}" data-azt="${t5}" data-p="0"><span class="leise">bis</span><input type="time" value="${z2[1]}" data-azt="${t5}" data-p="1">` : '<span class="leise frei">frei</span>'}</div>`;
-      }).join("")}
-        <button class="zeile" data-act="azn-wie-mo"><span class="blau">Di–Do wie Montag</span></button>
-        <div class="leise">${aendern ? "Es gilt immer die jüngste Arbeitszeit, die schon begonnen hat." : "Die bisherige Arbeitszeit bleibt gespeichert. Liegt das Datum in der Zukunft, gilt die neue automatisch ab diesem Tag."}
-          ${d3.arbeitszeiten.some((x2) => x2.auto) ? " Die automatisch angelegte Arbeitszeit fällt beim Speichern weg." : ""}</div>
-        ${knopf3("Speichern", "azn-speichern", "amber")}${knopf3("Abbrechen", "zu", "leise-k")}`;
     }
     if (s4.art === "container-neu") {
       const f3 = s4.form, schacht = f3.art === "Pumpenschacht";
@@ -7332,17 +7384,8 @@ var BaustellePanel = class extends i4 {
         return this.boostUmschalten(d3.bereiche.find((y3) => y3.id === el.dataset.id));
       case "ausn-neu":
         return this.ausnahmeNeu(el.dataset.v);
-      case "au-art":
-        S3.sheet.form.art = el.dataset.v;
-        return neu();
-      case "au-speichern": {
-        const f3 = S3.sheet.form;
-        if (!f3.datum || f3.art !== "frei" && f3.bis <= f3.von) return this.toast("Bitte Tag und Uhrzeit prüfen");
-        S3.sheet = null;
-        neu();
-        const dazu = f3.art !== "frei" && d3.ausnahmen.some((a4) => a4.datum === f3.datum && a4.art !== "frei");
-        return this.liste("ausnahmen", "speichern", { datum: f3.datum, art: f3.art, von: f3.von, bis: f3.bis, notiz: f3.notiz.trim() }, `Ausnahme ${wtag(f3.datum)} ${kurzDatum(f3.datum)} ${dazu ? "dazu – die anderen bleiben" : "gespeichert"}`);
-      }
+      case "au-speichern":
+        return this.ausnahmeSpeichern();
       case "ausn-weg": {
         const x2 = el.dataset;
         return this.ausnahmeWeg({ datum: x2.d, art: x2.art, von: x2.von, bis: x2.bis });
@@ -7350,9 +7393,9 @@ var BaustellePanel = class extends i4 {
       case "ausn-dazu":
         return this.ausnahmeDazu(el.dataset.d);
       case "jetzt-an":
-        return this.aktion("jetzt_heizen", { minuten: 60 }, `Alle heizen bis ${uhr(minu(this.z.JETZT) + 60)}`);
+        return this.jetztHeizen(true);
       case "jetzt-aus":
-        return this.aktion("jetzt_heizen", { minuten: null }, "Zurück zum Plan");
+        return this.jetztHeizen(false);
       case "b-auto": {
         const x2 = el.dataset.id ? d3.bereiche.find((y3) => y3.id === el.dataset.id) : b3;
         return x2 && this.bereichAuto(x2);
@@ -7802,46 +7845,18 @@ var BaustellePanel = class extends i4 {
       }
       case "warm-zurueck":
         return this.setzen(["bereiche", b3.id, "warm_vor"], null).then(() => this.setzen(["bereiche", b3.id, "warm_nach"], null));
-      case "az-heizung":
-        return this.gehe("heizung");
       case "az-neu":
         return this.azNeu(this.azJetzt);
       case "az-vorlage":
         return this.azNeu(d3.arbeitszeiten[S3.sheet.i]);
       case "az-bearbeiten": {
         const v2 = d3.arbeitszeiten[S3.sheet.i];
-        if (!v2) return;
-        S3.sheet = { art: "az-neu", form: { alt_ab: v2.ab, ab: v2.ab, name: v2.auto ? "" : v2.name, tage: JSON.parse(JSON.stringify(v2.tage)) } };
-        return neu();
+        return v2 && this.azBearbeiten(v2);
       }
-      case "az-weg": {
-        if (d3.arbeitszeiten.length < 2) return this.toast("Die letzte Arbeitszeit bleibt");
-        const x2 = d3.arbeitszeiten[S3.sheet.i];
-        S3.sheet = null;
-        neu();
-        return this.liste("arbeitszeiten", "loeschen", { ab: x2.ab }, `${x2.name} gelöscht`);
-      }
-      case "azn-tag": {
-        const t5 = el.dataset.t, f3 = S3.sheet.form;
-        f3.tage[t5] = f3.tage[t5] ? null : [...f3.tage.Mo || ["07:00", "16:30"]];
-        return neu();
-      }
-      case "azn-wie-mo": {
-        const f3 = S3.sheet.form;
-        for (const t5 of ["Di", "Mi", "Do"]) f3.tage[t5] = f3.tage.Mo ? [...f3.tage.Mo] : null;
-        return neu();
-      }
-      case "azn-speichern": {
-        const f3 = S3.sheet.form;
-        if (!f3.ab) return this.toast("Bitte ein Startdatum wählen");
-        if (d3.arbeitszeiten.some((x2) => x2.ab === f3.ab && x2.ab !== f3.alt_ab && !x2.auto)) return this.toast(`Ab ${datum(f3.ab)} gibt es schon eine Arbeitszeit`);
-        const tage = Object.fromEntries(TAGE.map((t5, k2) => [String(k2), f3.tage[t5] ? [...f3.tage[t5]] : null]));
-        const bleiben = d3.arbeitszeiten.filter((x2) => x2.ab !== f3.alt_ab && !x2.auto), gilt = f3.ab <= this.z.HEUTE && !bleiben.some((x2) => x2.ab > f3.ab && x2.ab <= this.z.HEUTE);
-        const text = f3.ab > this.z.HEUTE ? `Geplant – gilt ab ${datum(f3.ab)}` : gilt ? f3.alt_ab !== void 0 ? "Gespeichert – gilt jetzt" : "Gilt jetzt – die bisherige bleibt gespeichert" : "Gespeichert – eine jüngere Arbeitszeit gilt weiter";
-        S3.sheet = null;
-        neu();
-        return this.liste("arbeitszeiten", "speichern", { ab: f3.ab, name: f3.name.trim() || `ab ${datum(f3.ab)}`, tage, ...f3.alt_ab !== void 0 ? { alt_ab: f3.alt_ab } : {} }, text);
-      }
+      case "az-weg":
+        return this.azWeg(d3.arbeitszeiten[S3.sheet.i]);
+      case "azn-speichern":
+        return this.azSpeichern();
       case "neu-art":
         S3.sheet.form.art = el.dataset.v;
         S3.sheet.form.typ = el.dataset.v === "Pumpenschacht" ? "Pumpe" : "Ölradiator";
@@ -7985,12 +8000,7 @@ var BaustellePanel = class extends i4 {
       if (t5) t5.innerHTML = this.kkTreffer(sh);
       return;
     }
-    if (ds.azn) sh.form[ds.azn] = el.value;
     if (ds.ur) sh.form[ds.ur] = el.value;
-    if (ds.au) {
-      sh.form[ds.au] = el.value;
-      if (ds.au === "datum") this.neuZeichnen();
-    }
     if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
     if (ds.bf) sh.edit.firma = el.value;
     if (ds.btuer !== void 0) sh.edit.tuer = el.value;
@@ -8004,7 +8014,6 @@ var BaustellePanel = class extends i4 {
     if (ds.fn !== void 0) sh.form.name = el.value;
     if (ds.fnc !== void 0) sh.form.neu[+ds.fnc].name = el.value;
     if (ds.b === "name" && sh && sh.edit) sh.edit.name = el.value;
-    if (ds.azt) sh.form.tage[ds.azt][+ds.p] = el.value;
     if (ds.neu) {
       sh.form[ds.neu] = el.value;
       if (ds.neu === "schalter") this.neuZeichnen();
