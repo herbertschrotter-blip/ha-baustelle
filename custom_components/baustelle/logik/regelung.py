@@ -166,7 +166,7 @@ def _regeln(lage: LageContainer, soll: float) -> bool:
     """Auf `soll` regeln: lernend nach TPI (logik/lernen), sonst Hysterese wie der Generische Thermostat."""
     assert lage.temperatur is not None
     if lage.tpi is not None:
-        return tpi_ein(tpi_anteil(lage.temperatur, soll, lage.tpi), lage.tpi.minute_im_zyklus)
+        return tpi_ein(tpi_anteil(lage.temperatur, soll, lage.tpi), lage.tpi.minute_im_zyklus, lage.heizt_gerade)
     return thermostat(lage.temperatur, soll, lage.toleranz, lage.heizt_gerade)
 
 

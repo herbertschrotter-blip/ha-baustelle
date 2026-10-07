@@ -38,9 +38,20 @@ def test_tpi_anteil_mit_nachlauf_und_aussen():
 
 
 def test_tpi_ein_je_zyklus():
-    assert [tpi_ein(0.4, m) for m in range(10)] == [True] * 4 + [False] * 6
+    assert [tpi_ein(0.4, m, heizt_gerade=True) for m in range(10)] == [True] * 4 + [False] * 6   # läuft: bis Fensterende
+    assert [tpi_ein(0.4, m) for m in range(10)] == [True] * 3 + [False] * 7   # neu ein nur mit ≥ 2 min Rest
     assert not any(tpi_ein(0.15, m) for m in range(10))     # unter 2 min: gar nicht
     assert all(tpi_ein(0.85, m) for m in range(10))         # über 8 min: durchgehend
+
+
+def test_tpi_ein_keine_kurzen_laeufe():
+    """07.10.2026 (003-01 ein 07:16:55, aus 07:17:00; 002-01 33 s): kein Start kurz vor Fensterende, und ein laufender
+    Heizkörper hält zu Beginn des Zyklus mindestens 2 min, auch wenn der Anteil inzwischen geschrumpft ist."""
+    assert not tpi_ein(0.23, 1)                             # 2,3 min Fenster, Minute 1: nur 1,3 min Rest – nicht starten
+    assert tpi_ein(0.23, 0)                                 # zu Beginn: 2,3 min
+    assert tpi_ein(0.12, 1, heizt_gerade=True)              # Anteil auf 12 % gefallen: läuft noch die 2. Minute
+    assert not tpi_ein(0.12, 2, heizt_gerade=True)          # danach aus
+    assert not tpi_ein(0.0, 1, heizt_gerade=True)           # keine Wärme mehr nötig: sofort aus
 
 
 def test_klassen_und_baender():

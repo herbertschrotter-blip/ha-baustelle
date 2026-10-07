@@ -87,14 +87,20 @@ def tpi_anteil(innen: float, soll: float, t: Tpi) -> float:
     return max(0.0, min(1.0, wert))
 
 
-def tpi_ein(anteil: float, minute_im_zyklus: int) -> bool:
-    """Ein zu Beginn des Zyklus für `anteil × ZYKLUS_MIN` Minuten; sehr kurze Pulse bzw. Pausen entfallen."""
-    dauer = anteil * ZYKLUS_MIN
-    if dauer < MIN_EIN_MIN:
-        return False
+def tpi_ein(anteil: float, minute_im_zyklus: int, heizt_gerade: bool = False) -> bool:
+    """Ein zu Beginn des Zyklus für `anteil × ZYKLUS_MIN` Minuten; sehr kurze Pulse bzw. Pausen entfallen.
+
+    Kurze Läufe vermeiden (07.10.2026: 5 s, 33 s, 1 min im Protokoll): neu einschalten nur, wenn im Fenster noch
+    mindestens `MIN_EIN_MIN` Minuten bleiben (sonst ein Start kurz vor der vollen Minute oder nach Staffelung/Pause);
+    läuft er schon, bleibt er im Fenster an – zu Beginn des Zyklus mindestens `MIN_EIN_MIN`, auch wenn der Anteil
+    inzwischen geschrumpft ist (solange noch Wärme fehlt).
+    """
+    dauer, m = anteil * ZYKLUS_MIN, minute_im_zyklus % ZYKLUS_MIN
     if dauer > ZYKLUS_MIN - MIN_EIN_MIN:
         return True
-    return minute_im_zyklus % ZYKLUS_MIN < dauer
+    if heizt_gerade:
+        return m < dauer or (anteil > 0 and m < MIN_EIN_MIN)
+    return dauer >= MIN_EIN_MIN and dauer - m >= MIN_EIN_MIN
 
 
 def klasse(ein_minuten: float) -> str:

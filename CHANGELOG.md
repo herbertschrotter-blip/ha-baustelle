@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.85] – 2026-10-07
+
+- Heizung im Takt (Modus Thermostat, lernend): keine Kurzläufe mehr. Heizkörper liefen teils nur 5 s, 33 s oder 1 min
+  (002-01, 003-01 am 07.10.2026), weil die Regelung kurz vor dem Ende ihres Fensters einschaltete oder ein Start durch
+  Staffelung/Pause spät kam. Eingeschaltet wird jetzt nur, wenn noch mindestens 2 min im Fenster bleiben; ein laufender
+  Heizkörper hält zu Beginn des Takts mindestens 2 min.
+
 ## [0.8.84] – 2026-10-07
 
 - Taste am Plug: Ein kurzer WLAN-Abriss des Plugs löste „1 h heizen“ aus (004-01, 07.10.2026 01:11) – nach „nicht
