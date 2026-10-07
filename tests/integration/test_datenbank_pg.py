@@ -14,7 +14,7 @@ from homeassistant.setup import async_setup_component
 from custom_components.baustelle.const import DOMAIN
 from custom_components.baustelle.db import DATA_DB, DATEI
 from custom_components.baustelle.db import schema as s
-from custom_components.baustelle.db.migration import ZEITREIHEN, migrieren
+from custom_components.baustelle.db.migration import ZEITREIHEN, ansichten_anlegen, migrieren
 from custom_components.baustelle.db.verbindung import Datenbank, url_pruefen
 
 from .conftest import baustelle_anlegen, nur_postgres, pg_frisch, zeilen_db
@@ -133,3 +133,123 @@ async def test_leser_nur_ansichten(hass: HomeAssistant, freezer) -> None:
                  for t in ("v_tag_firma", "v_tag_container", "v_monat_baustelle", "v_schaltungen", "tag_bereich", "einstellung")}
     assert recht == {"v_tag_firma": True, "v_tag_container": True, "v_monat_baustelle": True, "v_schaltungen": True,
                      "tag_bereich": False, "einstellung": False}
+
+
+@nur_postgres
+async def test_zwei_instanzen_und_rueckweg(hass: HomeAssistant, baustelle, tmp_path) -> None:
+    """8d: eine zweite Instanz zieht in dieselbe Datenbank um – Meldungen und Ticket-Zähler je Instanz, Protokoll mit
+    neuen Nummern, nichts von der ersten geht verloren; Rückweg kopiert nur die Daten der zweiten Instanz."""
+    from custom_components.baustelle.db.schreiber import arbeit   # noqa: PLC0415
+    from custom_components.baustelle.db.speicher import meldungen_laden   # noqa: PLC0415
+    from custom_components.baustelle.db.umzug import zurueck   # noqa: PLC0415
+
+    await hass.async_block_till_done()
+    a = hass.data[DATA_DB]
+    zeit = datetime(2026, 10, 1, 6, 0, tzinfo=UTC)
+    meldung = {"id": "m-a", "ticket": "FE-0001", "art": "fehler", "status": "neu", "text": "von A", "zeit": zeit,
+               "baustelle_id": baustelle.entry_id, "daten": {"id": "m-a", "ticket": "FE-0001", "text": "von A"}}
+    a.schreiber.dazu(arbeit("meldungen", a.instanz_id, [meldung], [], [], {"fehler": 1}, zeit))
+    a.schreiber.dazu(arbeit("einfuegen", "protokoll", [{"zeit": zeit, "baustelle_id": baustelle.entry_id, "art": "einstellung", "text": "A1"}]))
+    assert await a.schreiber.async_schreiben()
+
+    pfad_b = tmp_path / "b" / "baustelle.db"
+    pfad_b.parent.mkdir()
+    engine = create_engine(f"sqlite:///{pfad_b}")
+    migrieren(engine, pfad_b)
+    with engine.begin() as v:
+        v.execute(insert(s.instanz).values(id="inst-b", name="Pi 2", angelegt=zeit))
+        v.execute(insert(s.baustelle).values(id="b-zwei", instanz_id="inst-b", titel="Zweite", status="aktiv", angelegt=zeit))
+        v.execute(insert(s.protokoll), [{"id": i, "zeit": zeit, "baustelle_id": "b-zwei", "art": "einstellung", "text": f"B{i}"}
+                                        for i in (1, 2, 3)])
+        v.execute(insert(s.meldung).values(id="m-b", ticket="FE-0001", art="fehler", status="neu", text="von B", zeit=zeit,
+                                           baustelle_id="b-zwei", daten={"id": "m-b", "ticket": "FE-0001", "text": "von B"}))
+        v.execute(insert(s.zustand).values(baustelle_id="_integration", schluessel="meldungen_nummern", wert={"fehler": 1}, geaendert=zeit))
+    engine.dispose()
+    b = Datenbank(hass, pfad_b, a.url)
+    b.instanz_id = "inst-b"
+    assert await b.async_start(), b.fehler
+    try:
+        with a.engine.connect() as v:
+            liste_a, nummern_a = meldungen_laden(v, a.instanz_id)
+            liste_b, nummern_b = meldungen_laden(v, "inst-b")
+            texte = sorted(r.text for r in v.execute(select(s.protokoll.c.text)))
+        assert [m["text"] for m in liste_a] == ["von A"] and [m["text"] for m in liste_b] == ["von B"]
+        assert nummern_a == {"fehler": 1} and nummern_b == {"fehler": 1}
+        assert {"A1", "B1", "B2", "B3"} <= set(texte)
+        # A ersetzt seine Meldungen – die von B bleiben
+        a.schreiber.dazu(arbeit("meldungen", a.instanz_id, [{**meldung, "status": "angenommen"}], [], [], {"fehler": 1}, zeit))
+        assert await a.schreiber.async_schreiben()
+        with a.engine.connect() as v:
+            assert [m["text"] for m in meldungen_laden(v, "inst-b")[0]] == ["von B"]
+            ziel = tmp_path / "rueckweg.db"
+            zahlen = zurueck(v, ziel, "inst-b")
+        assert zahlen["baustelle"] == 1 and zahlen["meldung"] == 1 and zahlen["protokoll"] == 3
+        rueck = create_engine(f"sqlite:///{ziel}")
+        with rueck.connect() as v:
+            assert [r.id for r in v.execute(select(s.baustelle))] == ["b-zwei"]
+            assert sorted(r.text for r in v.execute(select(s.protokoll))) == ["B1", "B2", "B3"]
+            assert {r.baustelle_id for r in v.execute(select(s.zustand))} <= {"inst-b", "b-zwei"}
+        rueck.dispose()
+    finally:
+        await b.async_stop()
+
+
+async def test_aufbau_8_mit_vorhandenen_meldungen(hass: HomeAssistant, freezer) -> None:
+    """Aufbau 7 → 8 mit Daten (wie auf dem Pilot): Meldungen bleiben, bekommen die Instanz, Ticket-Zähler zieht unter die
+    ID der Instanz; Ticketnummern sind danach nur je Instanz eindeutig (SQLite: Tabelle neu angelegt, PostgreSQL: ALTER)."""
+    from sqlalchemy import MetaData, Table   # noqa: PLC0415
+    from sqlalchemy import Column as Spalte   # noqa: PLC0415
+
+    from custom_components.baustelle.db.speicher import meldungen_laden   # noqa: PLC0415
+
+    from .conftest import TEST_PG, pg_url   # noqa: PLC0415
+    pfad = Path(hass.config.path(DATEI))
+    pfad.parent.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(pg_url() if TEST_PG else f"sqlite:///{pfad}")
+    alt = MetaData()
+    for t in s.metadata.sorted_tables:   # Aufbau 7: meldung ohne instanz_id/reihe, Ticket über alle eindeutig
+        if t.name != "meldung":
+            t.to_metadata(alt)
+            continue
+        Table("meldung", alt, *[Spalte(c.name, c.type, primary_key=c.primary_key, nullable=c.nullable, unique=c.name == "ticket")
+                                for c in t.columns if c.name not in ("instanz_id", "reihe")])
+    alt.create_all(engine)
+    zeit = datetime(2026, 9, 30, 8, 0, tzinfo=UTC)
+    with engine.begin() as v:
+        ansichten_anlegen(v)   # gehört zu Aufbau 7
+        v.execute(insert(s.schema_version), [{"version": n, "angewendet": zeit} for n in range(1, 8)])
+        v.execute(text("INSERT INTO meldung (id, ticket, art, status, text, zeit, daten) VALUES "
+                       "('m1', 'FE-0001', 'fehler', 'neu', 'alt', :z, :d)"), {"z": zeit, "d": '{"id": "m1", "ticket": "FE-0001", "text": "alt"}'})
+        v.execute(insert(s.zustand).values(baustelle_id="_integration", schluessel="meldungen_nummern", wert={"fehler": 1}, geaendert=zeit))
+    engine.dispose()
+
+    entry = await baustelle_anlegen(hass, freezer)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    db = hass.data[DATA_DB]
+    assert db.bereit and db.version == 8, db.fehler
+    with db.engine.begin() as v:
+        liste, nummern = meldungen_laden(v, db.instanz_id)
+        assert [m["text"] for m in liste] == ["alt"] and nummern == {"fehler": 1}
+        assert not v.execute(select(s.zustand).where(s.zustand.c.baustelle_id == "_integration")).first()
+        v.execute(insert(s.meldung).values(id="m2", ticket="FE-0001", art="fehler", status="neu", zeit=zeit, instanz_id="andere"))
+    if not TEST_PG:
+        assert pfad.with_name("baustelle.db.vor-8").exists()
+
+
+async def test_dienst_rueckweg(hass: HomeAssistant, baustelle) -> None:
+    """Dienst baustelle.datenbank_rueckweg: ohne PostgreSQL verständlicher Fehler, mit PostgreSQL eine neue SQLite-Datei."""
+    from homeassistant.exceptions import ServiceValidationError   # noqa: PLC0415
+
+    from .conftest import TEST_PG   # noqa: PLC0415
+    await hass.async_block_till_done()
+    if not TEST_PG:
+        with pytest.raises(ServiceValidationError):
+            await hass.services.async_call(DOMAIN, "datenbank_rueckweg", {}, blocking=True, return_response=True)
+        return
+    antwort = await hass.services.async_call(DOMAIN, "datenbank_rueckweg", {}, blocking=True, return_response=True)
+    datei = Path(antwort["datei"])
+    try:
+        assert datei.exists() and antwort["zeilen"]["baustelle"] == 1 and antwort["zeilen"]["bereich"] >= 3
+    finally:
+        datei.unlink(missing_ok=True)

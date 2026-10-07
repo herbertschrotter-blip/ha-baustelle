@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.104] – 2026-10-07
+
+- Datenbank auf einem Server, Schritt 8d (BSM-026): Mehrere Home-Assistant-Instanzen können in dieselbe Datenbank
+  schreiben – Meldungen und Ticketnummern gelten je Instanz, keine Instanz überschreibt die Meldungen einer anderen;
+  eine weitere Instanz zieht ihre SQLite-Daten beim ersten Start dazu. Neuer Dienst `baustelle.datenbank_rueckweg`
+  (nur Admins): kopiert die Daten dieser Instanz zurück in eine SQLite-Datei.
+- Meldungen mit derselben Sekunde stehen jetzt sicher in der richtigen Reihenfolge (vorher nur zufällig).
+
 ## [0.8.103] – 2026-10-07
 
 - Datenbank auf einem Server, Schritte 8b und 8c (BSM-026): Ist der Datenbank-Server nicht erreichbar, geht nichts

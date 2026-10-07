@@ -27,7 +27,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Dialect
 
-SCHEMA_VERSION = 7   # 2: JSON als Text; 3: strom_min; 4: sekunden_strom; 5: messwert (BSM-014); 6: Meldung vollständig (BSM-015); 7: Ansichten (BSM-026)
+SCHEMA_VERSION = 8   # 8: Meldungen je Instanz (BSM-026 8d); 2: JSON als Text; 3: strom_min; 4: sekunden_strom; 5: messwert (BSM-014); 6: Meldung vollständig (BSM-015); 7: Ansichten (BSM-026)
 
 metadata = MetaData()
 
@@ -322,7 +322,7 @@ protokoll = Table(
 meldung = Table(
     "meldung", metadata,
     Column("id", String(ID), primary_key=True),
-    Column("ticket", String(20), unique=True),
+    Column("ticket", String(20)),                        # je Instanz eindeutig (Aufbau 8, ux_meldung_ticket)
     Column("art", String(20), nullable=False),
     Column("status", String(20), nullable=False),
     Column("text", Text),
@@ -333,6 +333,9 @@ meldung = Table(
     Column("baustelle_id", String(ID)),
     _zeit("zeit", nullable=False),
     Column("daten", JSONWERT),   # Aufbau 6: die ganze Meldung (kein Feld geht verloren, BSM-015)
+    Column("instanz_id", String(ID)),   # Aufbau 8: mehrere Instanzen in einer Datenbank (BSM-026)
+    Column("reihe", Integer),           # Aufbau 8: Stelle in der Liste (neueste zuerst) bei gleicher Sekunde
+    Index("ux_meldung_ticket", "instanz_id", "ticket", unique=True),
 )
 
 meldung_verlauf = Table(

@@ -83,12 +83,14 @@ def protokoll_lesen(v: Connection, bid: str, arten: set[str] | None, vor: dateti
         select(p.c.zeit, p.c.art, p.c.bereich_id, p.c.text).where(*bedingung).order_by(p.c.zeit.desc(), p.c.id.desc()).limit(limit))]
 
 
-def meldungen_laden(v: Connection, integration: str) -> tuple[list[dict[str, Any]], dict[str, int]] | None:
-    """Meldungen (vollständig, neueste zuerst) und Ticket-Zähler; None, solange die Datenbank nicht Quelle ist."""
+def meldungen_laden(v: Connection, instanz: str) -> tuple[list[dict[str, Any]], dict[str, int]] | None:
+    """Meldungen dieser Instanz (vollständig, neueste zuerst) und Ticket-Zähler; None, solange die Datenbank nicht Quelle
+    ist."""
     m = s.meldung
-    nummern = v.execute(select(s.zustand.c.wert).where(s.zustand.c.baustelle_id == integration,
+    nummern = v.execute(select(s.zustand.c.wert).where(s.zustand.c.baustelle_id == instanz,
                                                        s.zustand.c.schluessel == "meldungen_nummern")).scalar()
     if nummern is None:
         return None
-    liste = [dict(r.daten) for r in v.execute(select(m.c.daten).where(m.c.daten.is_not(None)).order_by(m.c.zeit.desc()))]
+    liste = [dict(r.daten) for r in v.execute(select(m.c.daten).where(m.c.daten.is_not(None), m.c.instanz_id == instanz)
+                                              .order_by(m.c.zeit.desc(), m.c.reihe))]
     return liste, {k: int(w) for k, w in dict(nummern).items()}

@@ -383,11 +383,18 @@
     "notprogramm_pruefen": {
       "name": "Notprogramm jetzt prüfen",
       "description": "Skript, Kopplungen, Programm und Lebenszeichen auf allen Heizungs-Plugs sofort prüfen und aktualisieren (sonst alle 5 min)."
+    },
+    "datenbank_rueckweg": {
+      "name": "Datenbank-Rückweg (PostgreSQL → SQLite)",
+      "description": "Kopiert die Daten dieser Home-Assistant-Instanz aus PostgreSQL in eine neue SQLite-Datei unter /config/baustelle/. Danach db_url entfernen, die Datei als baustelle.db einsetzen und neu starten."
     }
   },
   "exceptions": {
     "ticket_fehlt": {
       "message": "Ticket {ticket} gibt es nicht."
+    },
+    "rueckweg": {
+      "message": "Rückweg nicht möglich: {grund}"
     }
   }
 }

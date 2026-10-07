@@ -24,7 +24,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.file import write_utf8_file
 
 from .const import DOMAIN
-from .db import DATA_DB, INTEGRATION, meldungen_merken
+from .db import DATA_DB, instanz_von, meldungen_merken
 from .db.schreiber import arbeit
 from .db.speicher import OHNE, baustelle_laden, meldungen_laden
 from .logik.arbeitszeit import arbeitszeiten_bereinigen, erste_arbeitszeit
@@ -374,7 +374,8 @@ class Meldungen:
         if not self._geladen:
             aus_db = None
             if (db := self._hass.data.get(DATA_DB)) is not None and db.bereit:   # BSM-015: Datenbank ist Quelle
-                aus_db = await db.async_ausfuehren(lambda v: meldungen_laden(v, INTEGRATION))
+                instanz = instanz_von(db)
+                aus_db = await db.async_ausfuehren(lambda v: meldungen_laden(v, instanz))
             if aus_db is not None:
                 self.liste, self.nummern = aus_db
             else:   # erster Start mit 0.8.61 bzw. Datenbank nicht lesbar: Store

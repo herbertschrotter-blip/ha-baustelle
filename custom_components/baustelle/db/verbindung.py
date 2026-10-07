@@ -22,8 +22,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
-from .migration import DatenbankNeuer, leser_rechte, migrieren, stand, zeitreihen_einrichten
-from .umzug import umziehen
+from .migration import DatenbankNeuer, instanz_uebernehmen, leser_rechte, migrieren, stand, zeitreihen_einrichten
+from .umzug import umgezogen, umziehen
 from .schreiber import Schreiber
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ class Datenbank:
         self.hass = hass
         self.pfad = pfad   # SQLite-Datei (Standard; bei PostgreSQL Quelle des Umzugs)
         self.url = url_pruefen(url) if url else None
+        self.instanz_id: str | None = None   # HA-Instanz (setzt async_datenbank_starten); trennt Meldungen und Merker
         self.engine: Engine | None = None
         self.version: int | None = None
         self.fehler: str | None = None
@@ -96,6 +97,9 @@ class Datenbank:
             event.listen(engine, "connect", _sqlite_einstellen)
             with self._sperre:
                 self.version = migrieren(engine, self.pfad)
+                if self.instanz_id:
+                    with engine.begin() as verbindung:
+                        instanz_uebernehmen(verbindung, self.instanz_id)
             self.engine = engine
             return
         # PostgreSQL: Zeiten immer in UTC; tote Verbindungen vor der Nutzung erkennen (Server neu gestartet)
@@ -107,8 +111,11 @@ class Datenbank:
             with engine.begin() as verbindung:
                 zeitreihen_einrichten(verbindung)
                 leser_rechte(verbindung)
-                if neu and self.pfad.exists():
-                    umziehen(self.pfad, verbindung)
+                if self.instanz_id:
+                    instanz_uebernehmen(verbindung, self.instanz_id)
+                # Umzug je Instanz: neue Datenbank, oder eine weitere Instanz kommt in eine schon belegte dazu
+                if self.pfad.exists() and self.instanz_id and not umgezogen(verbindung, self.instanz_id):
+                    umziehen(self.pfad, verbindung, self.instanz_id, nummern_behalten=neu)
         self.engine = engine
 
     @property

@@ -16,7 +16,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er, 
 
 from .const import ALTE_PLATTFORMEN, CONF_REGEN_SENSOR, CONF_TEMP_SENSOR, CONF_WETTER, DOMAIN, PLATFORMS
 from .daten import struktur
-from .db import async_datenbank_starten, async_entfernen as async_db_entfernen, async_spiegeln, mitschreiber_starten, uebernahme_planen
+from .db import async_datenbank_starten, async_rueckweg, async_entfernen as async_db_entfernen, async_spiegeln, mitschreiber_starten, uebernahme_planen
 from .einstellungen import STATUS_TEXT, TICKET_STATUS, Einstellungen
 from .entity import HERSTELLER, MODELL
 from .notprogramm import DATA_NOTPROGRAMM, Notprogramm
@@ -64,6 +64,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             await np.async_runde()
 
     async_register_admin_service(hass, DOMAIN, "notprogramm_pruefen", notprogramm_pruefen)   # nur Admins (Bauplan §8)
+
+    async def datenbank_rueckweg(_call: ServiceCall) -> ServiceResponse:
+        """BSM-026 8d: Daten dieser Instanz aus PostgreSQL in eine neue SQLite-Datei (Rückweg ohne db_url)."""
+        try:
+            return await async_rueckweg(hass)
+        except (ValueError, FileExistsError) as err:
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="rueckweg",
+                                         translation_placeholders={"grund": str(err)}) from err
+
+    async_register_admin_service(hass, DOMAIN, "datenbank_rueckweg", datenbank_rueckweg,
+                                 supports_response=SupportsResponse.ONLY)
     hass.services.async_register(
         DOMAIN, "ticket", ticket,
         schema=vol.Schema({

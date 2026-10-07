@@ -383,11 +383,18 @@
     "notprogramm_pruefen": {
       "name": "Check emergency program now",
       "description": "Check and update script, pairings, program and heartbeat on all heating plugs right away (otherwise every 5 min)."
+    },
+    "datenbank_rueckweg": {
+      "name": "Database way back (PostgreSQL → SQLite)",
+      "description": "Copies this Home Assistant instance's data from PostgreSQL into a new SQLite file under /config/baustelle/. Then remove db_url, put the file in place as baustelle.db and restart."
     }
   },
   "exceptions": {
     "ticket_fehlt": {
       "message": "Ticket {ticket} does not exist."
+    },
+    "rueckweg": {
+      "message": "Way back not possible: {grund}"
     }
   }
 }

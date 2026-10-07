@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Connection, delete, insert
+from sqlalchemy import Connection, delete, insert, select
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
 from homeassistant.helpers import instance_id
@@ -19,13 +19,19 @@ from ..const import DOMAIN
 from . import schema as s
 from .mitschreiben import Mitschreiber
 from .schreiber import arbeit, schreibarbeit
+from .umzug import zurueck
 from .verbindung import Datenbank
 
 if TYPE_CHECKING:
     from ..steuerung import Steuerung
 
 DATA_DB: HassKey[Datenbank] = HassKey(f"{DOMAIN}_datenbank")
-INTEGRATION = "_integration"   # baustelle_id für Daten der ganzen Integration (Ticket-Zähler)
+INTEGRATION = "_integration"   # bis Aufbau 7: baustelle_id für Daten der ganzen Integration (jetzt die ID der Instanz)
+
+
+def instanz_von(db: Datenbank) -> str:
+    """Schlüssel für Daten der ganzen Integration dieser HA-Instanz (Ticket-Zähler, Merker; BSM-026 8d)."""
+    return db.instanz_id or INTEGRATION
 DATEI = "baustelle/baustelle.db"
 
 
@@ -33,6 +39,7 @@ async def async_datenbank_starten(hass: HomeAssistant, url: str | None = None) -
     """Datenbank öffnen und Aufbau nachziehen (einmal je HA-Start); ein Fehler hält die Integration nicht an. Ohne
     `url` die SQLite-Datei, mit `url` (YAML `baustelle: db_url:`, Phase 8) PostgreSQL – beim ersten Start mit Umzug."""
     db = Datenbank(hass, Path(hass.config.path(DATEI)), url)
+    db.instanz_id = await instance_id.async_get(hass)
     await db.async_start()
     hass.data[DATA_DB] = db
     if db.postgres:   # Größe für Diagnose-Sensor: beim Start und alle 15 min (eine Abfrage)
@@ -125,7 +132,7 @@ def meldungen_merken(hass: HomeAssistant, liste: list[dict[str, Any]], nummern: 
     verlauf = list({(z["meldung_id"], z["zeit"]): z for z in verlauf}.values())   # gleiche Sekunde: der letzte gilt
     bilder = [{"meldung_id": m["id"], "nr": i, "datei": name} for m in liste if m.get("id") for i, name in enumerate(m.get("bilder") or [])]
 
-    db.schreiber.dazu(arbeit("meldungen", meldungen, verlauf, bilder, nummern, dt_util.utcnow()))
+    db.schreiber.dazu(arbeit("meldungen", instanz_von(db), meldungen, verlauf, bilder, nummern, dt_util.utcnow()))
 
 
 # ---------------------------------------------------------------------- Phase 3: Altdaten (BSM-008)
@@ -145,13 +152,34 @@ def uebernahme_planen(hass: HomeAssistant, st: Steuerung, bis: datetime) -> CALL
 
 
 @schreibarbeit("meldungen")
-def meldungen_schreiben(v: Connection, meldungen: list[dict[str, Any]], verlauf: list[dict[str, Any]], bilder: list[dict[str, Any]],
-                        nummern: dict[str, int] | None, jetzt: datetime) -> None:
-    """Alle Meldungen mit Verlauf und Bildern ersetzen, dazu die Ticket-Zähler je Art (BSM-015: Datenbank ist Quelle)."""
-    for tabelle, zeilen in ((s.meldung_bild, bilder), (s.meldung_verlauf, verlauf), (s.meldung, meldungen)):
-        v.execute(delete(tabelle))
+def meldungen_schreiben(v: Connection, instanz: str, meldungen: list[dict[str, Any]], verlauf: list[dict[str, Any]],
+                        bilder: list[dict[str, Any]], nummern: dict[str, int] | None, jetzt: datetime) -> None:
+    """Alle Meldungen dieser Instanz mit Verlauf und Bildern ersetzen, dazu ihre Ticket-Zähler je Art (BSM-015: Datenbank
+    ist Quelle; BSM-026 8d: Meldungen anderer Instanzen in derselben Datenbank bleiben unberührt)."""
+    eigene = select(s.meldung.c.id).where(s.meldung.c.instanz_id == instanz).scalar_subquery()
+    v.execute(delete(s.meldung_bild).where(s.meldung_bild.c.meldung_id.in_(eigene)))
+    v.execute(delete(s.meldung_verlauf).where(s.meldung_verlauf.c.meldung_id.in_(eigene)))
+    v.execute(delete(s.meldung).where(s.meldung.c.instanz_id == instanz))
+    eigene_zeilen = [{**m, "instanz_id": instanz, "reihe": i} for i, m in enumerate(meldungen)]
+    for tabelle, zeilen in ((s.meldung, eigene_zeilen), (s.meldung_verlauf, verlauf), (s.meldung_bild, bilder)):
         if zeilen:
             v.execute(insert(tabelle), zeilen)
     if nummern is not None:
-        v.execute(delete(s.zustand).where(s.zustand.c.baustelle_id == INTEGRATION, s.zustand.c.schluessel == "meldungen_nummern"))
-        v.execute(insert(s.zustand).values(baustelle_id=INTEGRATION, schluessel="meldungen_nummern", wert=nummern, geaendert=jetzt))
+        v.execute(delete(s.zustand).where(s.zustand.c.baustelle_id == instanz, s.zustand.c.schluessel == "meldungen_nummern"))
+        v.execute(insert(s.zustand).values(baustelle_id=instanz, schluessel="meldungen_nummern", wert=nummern, geaendert=jetzt))
+
+
+async def async_rueckweg(hass: HomeAssistant) -> dict[str, Any]:
+    """Rückweg PostgreSQL → SQLite (BSM-026 8d): neue Datei `baustelle/baustelle-aus-postgres-<Zeit>.db` mit den Daten
+    dieser Instanz; die laufende Datenbank bleibt unverändert."""
+    db = hass.data.get(DATA_DB)
+    if db is None or not db.postgres or db.engine is None or not db.instanz_id:
+        raise ValueError("nur mit erreichbarem PostgreSQL (db_url)")
+    await db.schreiber.async_schreiben()
+    ziel = Path(hass.config.path("baustelle", f"baustelle-aus-postgres-{dt_util.now().strftime('%Y%m%d-%H%M%S')}.db"))
+    instanz = db.instanz_id
+    zahlen = await db.async_ausfuehren(lambda v: zurueck(v, ziel, instanz))
+    if zahlen is None:
+        raise ValueError(db.fehler or "Kopie fehlgeschlagen")
+    return {"datei": str(ziel), "zeilen": zahlen}
+

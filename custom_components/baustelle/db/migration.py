@@ -10,10 +10,11 @@ from collections.abc import Callable
 from pathlib import Path
 import shutil
 
-from sqlalchemy import Connection, Engine, func, inspect, insert, select, text
+from sqlalchemy import Connection, Engine, MetaData, delete, func, inspect, insert, select, text, update
 
 from homeassistant.util import dt as dt_util
 
+from . import schema as s
 from .schema import JSON_TABELLEN, LESER, SCHEMA_VERSION, ansichten, metadata, schema_version
 
 
@@ -74,8 +75,45 @@ def _schritt_7(verbindung: Connection) -> None:
     ansichten_anlegen(verbindung)
 
 
+def _schritt_8(verbindung: Connection) -> None:
+    """Meldungen je Instanz (BSM-026 8d): Spalte instanz_id, Ticketnummer nur je Instanz eindeutig. SQLite kann eine
+    UNIQUE-Bedingung nicht entfernen – dort wird die Tabelle neu angelegt und umkopiert."""
+    if "instanz_id" in {c["name"] for c in inspect(verbindung).get_columns("meldung")}:
+        verbindung.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS ux_meldung_ticket ON meldung (instanz_id, ticket)'))
+        return
+    if verbindung.dialect.name == "postgresql":
+        verbindung.execute(text('ALTER TABLE "meldung" DROP CONSTRAINT IF EXISTS "meldung_ticket_key"'))
+        verbindung.execute(text('ALTER TABLE "meldung" ADD COLUMN "instanz_id" VARCHAR(64)'))
+        verbindung.execute(text('ALTER TABLE "meldung" ADD COLUMN "reihe" INTEGER'))
+    else:
+        alt = [c["name"] for c in inspect(verbindung).get_columns("meldung")]
+        neu = s.meldung.to_metadata(MetaData(), name="meldung_neu")
+        for i in list(neu.indexes):   # Index erst nach dem Umbenennen (Namen sind je Datenbank eindeutig)
+            neu.indexes.discard(i)
+        neu.create(verbindung)
+        spalten = ", ".join(f'"{c}"' for c in alt)
+        verbindung.execute(text(f'INSERT INTO "meldung_neu" ({spalten}) SELECT {spalten} FROM "meldung"'))   # noqa: S608
+        verbindung.execute(text('DROP TABLE "meldung"'))
+        verbindung.execute(text('ALTER TABLE "meldung_neu" RENAME TO "meldung"'))
+    verbindung.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS ux_meldung_ticket ON meldung (instanz_id, ticket)'))
+
+
 SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3, 4: _schritt_4, 5: _schritt_5,
-                                                     6: _schritt_6, 7: _schritt_7}
+                                                     6: _schritt_6, 7: _schritt_7, 8: _schritt_8}
+
+
+ALT_INTEGRATION = "_integration"   # bis Aufbau 7: Daten der ganzen Integration (Ticket-Zähler, Merker) ohne Instanz
+
+
+def instanz_uebernehmen(verbindung: Connection, instanz_id: str) -> None:
+    """Daten ohne Instanz (aus der Zeit mit einer Instanz je Datenbank) gehören der Instanz, die sie zuerst sieht:
+    Meldungen ohne instanz_id und `zustand` unter `_integration` (ein vorhandener eigener Schlüssel gewinnt)."""
+    verbindung.execute(update(s.meldung).where(s.meldung.c.instanz_id.is_(None)).values(instanz_id=instanz_id))
+    z = s.zustand
+    eigene = {r[0] for r in verbindung.execute(select(z.c.schluessel).where(z.c.baustelle_id == instanz_id))}
+    if eigene:
+        verbindung.execute(delete(z).where(z.c.baustelle_id == ALT_INTEGRATION, z.c.schluessel.in_(eigene)))
+    verbindung.execute(update(z).where(z.c.baustelle_id == ALT_INTEGRATION).values(baustelle_id=instanz_id))
 
 
 def leser_rechte(verbindung: Connection) -> None:
@@ -84,8 +122,10 @@ def leser_rechte(verbindung: Connection) -> None:
         return
     if not verbindung.execute(text("SELECT 1 FROM pg_roles WHERE rolname = :r"), {"r": LESER}).scalar():
         return
+    vorhanden = {r[0] for r in verbindung.execute(text("SELECT viewname FROM pg_views WHERE schemaname = current_schema()"))}
     for name in ansichten("postgresql"):
-        verbindung.execute(text(f'GRANT SELECT ON "{name}" TO "{LESER}"'))
+        if name in vorhanden:   # fehlt eine Ansicht, darf das den Start nicht verhindern
+            verbindung.execute(text(f'GRANT SELECT ON "{name}" TO "{LESER}"'))
 
 
 def stand(verbindung: Connection) -> int:
