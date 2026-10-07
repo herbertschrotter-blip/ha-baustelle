@@ -110,6 +110,39 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('schacht schwellen', '.seite > .liste:last-child button.zeile');
   await schritt('schacht 2', '.seite .block-kopf .chip');
   await schritt('schacht übersicht', '.zurueck-zeile button:nth-child(1)');
+  // Container (Stufe 3d): mit Fühler und Lernen, dann bei Bedarf
+  const B = panel.d.bereiche, mitF = B.find(b => !b.pumpe && b.fuehler && b.lern) || B.find(b => !b.pumpe && b.fuehler), bed = B.find(b => b.bedarf);
+  if (mitF) {
+    const c = mitF.id;
+    await schritt(`c ${c}`, { act: 'container', id: c });
+    for (const [i, v] of ['woche', 'stunden', 'heute'].entries()) await schritt(`c ${c} ${v}`, `.c-live .block-kopf .seg button:nth-child(${i === 2 ? 1 : i + 2})`);
+    await schritt(`c ${c} tag früher`, '.c-live .zr-nav .zr-pf:first-child');
+    await schritt(`c ${c} tag kalender`, '.c-live .zr-auf');
+    await schritt(`c ${c} tag kalender heute`, '.c-live .zr-kal-fuss .chip');
+    await schritt(`c ${c} soll +`, '.c-rad-pm .c-pm:nth-child(2)');
+    await schritt(`c ${c} gefühl`, '.sg-gefuehl button:nth-child(1)');
+    if (panel.shadowRoot.querySelector('.sg-versch .chip')) await schritt(`c ${c} gleitend`, '.sg-versch .chip');
+    await schritt(`c ${c} modus hand`, '.c-d-knoepfe .seg button:nth-child(4)');
+    await schritt(`c ${c} boost`, '.c-d-knoepfe > .chip');
+    for (const n of [1, 2, 3, 4]) { await schritt(`c ${c} kachel ${n}`, `.c-kacheln .c-kachel:nth-child(${n})`); await schritt(`c ${c} kachel ${n} zu`, { act: 'zu' }); }
+    await schritt(`c ${c} gerät aktiv`, '.c-chip .c-aktiv .sw');
+    await schritt(`c ${c} gerät power`, '.c-chip .c-power:not([disabled])');
+    await schritt(`c ${c} gerät bearbeiten`, '.c-chip .bs-ic'); await schritt(`c ${c} gerät bearbeiten zu`, { act: 'zu' });
+    if (panel.shadowRoot.querySelector('.c-chip .link')) await schritt(`c ${c} gerät automatik`, '.c-chip .link');
+    await schritt(`c ${c} trocknen`, '.seite > .liste .zeile:last-child .sw');
+    if (mitF.lern) { await schritt(`c ${c} lernen`, '.seite > .liste .zeile:not(:last-child) .sw');
+      if (panel.shadowRoot.querySelector('.seite > .liste .link')) { await schritt(`c ${c} lernstand`, '.seite > .liste .link'); await schritt(`c ${c} lernstand zu`, { act: 'zu' }); } }
+    await schritt(`c ${c} bearbeiten`, '.zurueck-zeile button:nth-child(2)'); await schritt(`c ${c} bearbeiten zu`, { act: 'zu' });
+    await schritt(`c ${c} zurück`, '.zurueck-zeile button:nth-child(1)');
+  }
+  if (bed) {
+    const c = bed.id;
+    await schritt(`c ${c}`, { act: 'container', id: c });
+    await schritt(`c ${c} 1 h`, '.bedarf-dauer .chip:nth-child(1)');
+    if (panel.shadowRoot.querySelector('.bedarf-an .chip')) await schritt(`c ${c} beenden`, '.bedarf-an .chip');
+    if (panel.shadowRoot.querySelector('.ereignis .x')) await schritt(`c ${c} termin weg`, '.ereignis .x');
+    await schritt(`c ${c} termin neu`, '.seite .block .zeile .blau'); await schritt(`c ${c} termin neu zu`, { act: 'zu' });
+  }
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
@@ -125,6 +158,12 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('nur-lesen pumpen stepper', '.seite .stepper button:nth-child(3)');
   await schritt('nur-lesen schacht', '.seite .block-kopf .chip');
   await schritt('nur-lesen schacht automatik', '.seite .liste .zeile .sw');
+  if (mitF) { await schritt('nur-lesen c', { act: 'container', id: mitF.id });
+    await schritt('nur-lesen c gerät bearbeiten', '.c-chip .bs-ic'); await schritt('nur-lesen c boost', '.c-d-knoepfe > .chip');
+    await schritt('nur-lesen c modus', '.c-d-knoepfe .seg button:nth-child(4)'); await schritt('nur-lesen c gefühl', '.sg-gefuehl button:nth-child(1)'); }
+  if (bed) { await schritt('nur-lesen c bedarf', { act: 'container', id: bed.id });
+    await schritt('nur-lesen c bedarf termin neu', '.seite .block .zeile .blau'); await schritt('nur-lesen c bedarf 1 h', '.bedarf-dauer .chip:nth-child(1)');
+    if (panel.shadowRoot.querySelector('.ereignis .x')) await schritt('nur-lesen c termin weg', '.ereignis .x'); }
   aus.toast = { html: panel.letzterToast || '', befehle: [] };
   fs.writeFileSync(ziel, JSON.stringify(aus));
   console.log(`Schnappschuss: ${Object.keys(aus).length} Schritte, ${befehle.length} Befehle → ${ziel}`);

@@ -5,7 +5,7 @@
    Was vor Ort trotzdem geht, liefert die Integration (`rechte.aktionen`); VOR_ORT ordnet die Knöpfe diesen Aktionen zu. */
 export const NUR_ANSEHEN = 'Nur ansehen – ändern dürfen nur Admins';
 export const NUR_LESEN_SPERRE = ['.sw:not(.ml-stand):not([data-act="bedarf-boost"]):not([data-act="kk-dia-w"]):not([data-act="aw-an"])', '[data-act$="-speichern"]', '[data-act$="-weg"]', '[data-act$="-bearbeiten"]', '[data-act="lern-reset"]',
-  '[data-act="abschliessen"]', '[data-act="neu-anlegen"]', '[data-act="wetterquelle-auf"]', 'input[data-k]', 'select[data-jm]',
+  '[data-act="abschliessen"]', '[data-act="neu-anlegen"]', '.nur-admin', '[data-act="wetterquelle-auf"]', 'input[data-k]', 'select[data-jm]',
   ...['termin', 'urlaub', 'container-neu', 'wetterquelle', 'bs-loeschen', 'zeitraum-bs', 'name', 'baustelle-neu'].map(x => `[data-act="sheet"][data-s="${x}"]`)];
 export const VOR_ORT = { 'w-stumm': 'warnung_stumm', 'sg-gefuehl': 'gefuehl', 'bedarf-auf': 'bedarf', 'bedarf-an': 'bedarf', 'bedarf-aus': 'bedarf_aus',
   boost: 'boost', 'jetzt-an': 'jetzt_heizen', 'jetzt-aus': 'jetzt_heizen' };

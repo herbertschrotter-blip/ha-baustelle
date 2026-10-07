@@ -156,7 +156,7 @@ async function allgemein() {
       erwarte(`${bid} ${b.id}: Name und Geräte`, h.includes(b.name) && b.geraete.every(g => h.includes(g.n.replace(/&/g, '&amp;'))));
       if (b.bedarf) { const T = d.termine.filter(t => t.b === b.id), H = d.z.HEUTE, offen = t => t.datum > H || (t.datum === H && t.bis > d.z.JETZT);
         const zeilen = new Set(T.filter(t => t.rrule || offen(t)).map(t => (t.rrule && t.uid) || JSON.stringify(t))).size;
-        erwarte(`${bid} ${b.id}: eine Zeile je Termin-Serie (${zeilen})`, (h.match(/data-act="termin-weg"/g) || []).length === zeilen);
+        erwarte(`${bid} ${b.id}: eine Zeile je Termin-Serie (${zeilen})`, (h.match(/<button class="x nur-admin"/g) || []).length === zeilen);   // ✕ je Serie (Lit, 3d)
         for (const m of h.matchAll(/nächster \S+ (\d\d)\.(\d\d)\./g)) erwarte(`${bid} ${b.id}: „nächster“ liegt nicht in der Vergangenheit`, `${H.slice(0, 4)}-${m[2]}-${m[1]}` >= H); }
       for (const c of b.pumpe ? ['pumpzeit', 'zyklen', 'verbrauch'] : ['temp', 'verbrauch', 'heizzeit']) { await klick({ act: 'chart', c }, 30); pruefe(`${bid} ${b.id} ${c}`); hov(`${bid} ${b.id} ${c}`); }
       if (!b.pumpe && b.fuehler) { await klick({ act: 'chart', c: 'temp' }); await klick({ act: 'temp-vb' }); pruefe(`${bid} ${b.id} ohne Verbrauch`); await klick({ act: 'temp-vb' }); }
@@ -448,19 +448,19 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'vb-zeitraum', ziel: 'aw', v: 'Monat' }, 20);
     /* Container: Diagramm für frühere Tage */
     const cid = panel.d.bereiche.find(b => !b.pumpe).id; await klick({ act: 'container', id: cid }, 20);
-    erwarte('FE-0008: Container zeigt ‹ Heute ›', ui.innerHTML.includes('data-act="zr-schritt" data-ziel="c-Tag"'));
-    n0 = alleAufrufe.length; await klick({ act: 'zr-schritt', ziel: 'c-Tag', max: '30', d: '1' }, 30);
+    erwarte('FE-0008: Container zeigt ‹ Heute ›', ui.innerHTML.includes('class="zr-zeile" data-ziel="c-Tag"'));
+    n0 = alleAufrufe.length; await klick('.c-live .zr-nav .zr-pf:first-child', 30);
     erwarte('FE-0008: Container gestern holt die Statistik von gestern', seit(n0).some(m => m.type === 'baustelle/statistik' && m.period === 'hour' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === plusTageT(h, -1))
       && ui.innerHTML.includes('<b>Gestern</b>'));
-    await klick({ act: 'cvd', v: 'woche' }, 20); n0 = alleAufrufe.length; await klick({ act: 'zr-schritt', ziel: 'c-Woche', max: '30', d: '1' }, 30);
+    await klick('.c-live .seg [data-v="woche"]', 20); n0 = alleAufrufe.length; await klick('.c-live .zr-nav .zr-pf:first-child', 30);
     erwarte('FE-0008: Container Vorwoche', seit(n0).some(m => m.type === 'baustelle/statistik' && panel.lokal(Date.parse(m.start_time), panel.z.zone).slice(0, 10) === plusTageT(mo, -7)) && ui.innerHTML.includes('<b>Vorwoche</b>'));
-    await klick({ act: 'cvd', v: 'heute' }, 10); await klick({ act: 'tab', v: 'uebersicht' }, 10); }
+    await klick('.c-live .seg [data-v="heute"]', 10); await klick({ act: 'tab', v: 'uebersicht' }, 10); }
   /* 0.8: lernende Regelung – Schalter, Regelungszeile, Lernstand, Setzen und Zurücksetzen */
   { await klick({ act: 'container', id: 'polier' }, 20);
     const pol0 = () => panel.d.bereiche.find(x => x.id === 'polier'); let pol = pol0(); pol.modus = 'thermo';
     const lern0 = pol.lern = { an: false, zyklen: 0, kint: { wert: .6, start: .6, fort: 0 }, kext: { wert: .01, start: .01, fort: 0 }, nachlauf: {}, treffer: [], anteil: null, erwartet: 0, aus_bei: 20, zyklus_min: 10 };
-    await panel.neuZeichnen(); erwarte('Lernen: Schalter bei Container mit Fühler', ui.innerHTML.includes('Lernende Regelung') && ui.innerHTML.includes('data-act="b-lernen"'));
-    neu(); await klick({ act: 'b-lernen' }, 20);
+    await panel.neuZeichnen(); erwarte('Lernen: Schalter bei Container mit Fühler', /Lernende Regelung[^]*?class="sw /.test(ui.innerHTML));
+    neu(); await klick('.seite > .liste .zeile:not(:last-child) .sw', 20);
     erwarte('Lernen: Schalter setzt bereiche.polier.lernen', letzte('baustelle/setzen').some(x => JSON.stringify(x.pfad) === '["bereiche","polier","lernen"]' && x.wert === true));
     pol = pol0(); pol.modus = 'thermo'; pol.lern = Object.assign({ ...lern0 }, { an: true, zyklen: 3, anteil: 38, erwartet: .8, aus_bei: 19.2, kint: { wert: .57, start: .6, fort: .06 },
       nachlauf: { 'oel|lang|kalt': { grad: 1.2, min: 12, n: 3 } }, treffer: [.3, -.1, .2] });
@@ -471,13 +471,15 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     neu(); await klick({ act: 'lern-reset' }, 20);
     erwarte('Lernen: zurücksetzen über baustelle/aktion', letzte('baustelle/aktion').some(x => x.aktion === 'lern_reset' && x.bereich === 'polier'));
     pol0().lern = null; }
-  /* WU-0002: neue Sensorwerte tauschen in der Container-Ansicht nur Diagramm und Kennzahlen */
+  /* WU-0002: neue Sensorwerte zeichnen die Container-Ansicht neu – mit Lit bleiben die Knoten stehen (3d); mit offener
+     Einblendung erst später */
   { await klick({ act: 'container', id: 'polier' }, 20);
-    const wrap = panel.root.querySelector('.c-live .chart-wrap'), knopf = panel.root.querySelector('.c-live-kennz'), vorher = ui.innerHTML;
-    wrap.innerHTML = 'ALT'; knopf.innerHTML = 'ALT'; panel.s.sheet = null; panel._liveNeu();
-    erwarte('WU-0002: nur Diagramm und Kennzahlen getauscht', wrap.innerHTML !== 'ALT' && /kWh heute/.test(knopf.innerHTML) && ui.innerHTML === vorher);
-    panel.s.sheet = { art: 'verbrauch' }; wrap.innerHTML = 'ALT'; panel._liveNeu(); erwarte('WU-0002: mit offener Einblendung nichts tauschen', wrap.innerHTML === 'ALT');
-    panel.s.sheet = null; }
+    const knoten = [...panel.root.querySelectorAll('.c-d-held, .c-live .seg button, .c-chip .c-power, .c-live-kennz .c-kachel')], zeichne = panel.neuZeichnen; let n = 0;
+    panel.neuZeichnen = (...x) => { n++; return zeichne.apply(panel, x); };
+    panel.s.sheet = null; panel._liveNeu(); await panel.updateComplete;
+    erwarte('WU-0002: neu gezeichnet, Knoten bleiben', n === 1 && knoten.length > 5 && knoten.every(k => k.isConnected) && /kWh heute/.test(panel.root.querySelector('.c-live-kennz').innerHTML));
+    panel.s.sheet = { art: 'verbrauch' }; n = 0; panel._liveNeu(); erwarte('WU-0002: mit offener Einblendung nichts neu zeichnen', n === 0);
+    panel.neuZeichnen = zeichne; panel.s.sheet = null; await panel.neuZeichnen(); }
   erwarte('Changelog geladen', Array.isArray(panel.changelog) && panel.changelog.length === 2);
 
   if (!REFERENZ) await allgemein(); else {
@@ -768,7 +770,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     pruefe('nur Heizung');
     struktur = alt; panel.cache = {}; await panel._laden(); await ruhe(20); }
   await klick({ act: 'container', id: 'polier' }, 30);
-  erwarte('Container: Modus-Auswahl statt Automatik-Schalter', ui.innerHTML.includes('data-act="modus"') && !ui.innerHTML.includes('Automatik für diesen Container'));
+  erwarte('Container: Modus-Auswahl statt Automatik-Schalter', /class="c-d-knoepfe"><div class="seg klein"><button data-v="plan"/.test(ui.innerHTML.replace(/<!--[^]*?-->/g, '')) && !ui.innerHTML.includes('Automatik für diesen Container'));
   neu(); await klick({ act: 'modus', id: 'polier', v: 'plan' });
   erwarte('Modus über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["bereiche","polier","modus"]' && a.wert === 'plan'));
   await klick({ act: 'container', id: 'magazin' }, 20);
@@ -780,11 +782,11 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'cvd', v: 'heute' });
   { await klick({ act: 'container', id: 'polier' }, 20); const pol = () => panel.d.bereiche.find(x => x.id === 'polier');
     pol().modus = 'thermo'; await panel.neuZeichnen(); pruefe('Container D Thermostat');
-    erwarte('WU-0004: Thermostat-Rad mit Soll ±', ui.innerHTML.includes('class="c-rad"') && ui.innerHTML.includes('data-act="c-soll"') && /Soll \d/.test(ui.innerHTML));
+    erwarte('WU-0004: Thermostat-Rad mit Soll ±', ui.innerHTML.includes('class="c-rad"') && ui.innerHTML.includes('class="c-pm"') && /Soll \d/.test(ui.innerHTML));
     neu(); await klick({ act: 'c-soll', d: '0.5' }, 20);
     erwarte('WU-0004: Soll + über baustelle/setzen', letzte('baustelle/setzen').some(x => JSON.stringify(x.pfad) === '["bereiche","polier","soll"]' && Number.isFinite(x.wert)));
     pol().modus = 'plan'; await panel.neuZeichnen(); erwarte('WU-0004: im Zeitplan nur Ist, kein Soll ±', ui.innerHTML.includes('class="c-rad"') && !ui.innerHTML.includes('data-act="c-soll"') && /Zeitplan – der Heizkörperthermostat regelt/.test(ui.innerHTML));
-    erwarte('WU-0004: Geräte-Chips mit ⏻, aktiv, ✎', ['data-act="geraet"', 'data-act="g-aktiv"', 'data-act="g-bearbeiten"'].every(t => ui.innerHTML.includes(t)));
+    erwarte('WU-0004: Geräte-Chips mit ⏻, aktiv, ✎', ['class="c-power', 'class="c-aktiv"', 'class="bs-ic nur-admin"'].every(t => ui.innerHTML.includes(t)));
     neu(); await klick({ act: 'g-aktiv', i: '0' }, 20);
     erwarte('WU-0004: aktiv über baustelle/aktion', letzte('baustelle/aktion').some(x => x.aktion === 'aktiv' && x.geraet === pol().geraete[0].id && x.an === false));
     await klick({ act: 'g-bearbeiten', i: '0' }); pruefe('Gerät bearbeiten');
@@ -884,7 +886,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'container', id: b.id }, 20); erwarte('FE-0014: eigenes Soll unter dem Rad erklärt', ui.innerHTML.includes('Soll gleitend 21,7 °C +1,0 eigenes Soll = 22,7 °C'));
       b.sollJ = { wert: 22.21, versch: 0.5, versch_bis: '2026-09-30T03:00:00+02:00', eigen: null };
       await klick({ act: 'container', id: b.id }, 20); pruefe('Container Soll gleitend');
-      erwarte('Container: Gefühl, Verschiebung, gültiges Soll im Rad', ['data-act="sg-gefuehl"', '↺ gleitend', 'bis morgen früh', 'Soll 22,2'].every(t => ui.innerHTML.includes(t)));
+      erwarte('Container: Gefühl, Verschiebung, gültiges Soll im Rad', ['class="sg-gefuehl"', '↺ gleitend', 'bis morgen früh', 'Soll 22,2'].every(t => ui.innerHTML.includes(t)));
       neu(); await klick({ act: 'c-soll', d: '0.5' }); await klick({ act: 'sg-gefuehl', v: '-1' }); await klick({ act: 'sg-zurueck', id: b.id });
       const A = letzte('baustelle/aktion').map(a => a.aktion);
       erwarte('Container: + / − verschiebt, Gefühl, zurück (' + A.join(', ') + ')', A.includes('soll_versch') && A.includes('gefuehl') && A.includes('soll_versch_weg')
@@ -998,7 +1000,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'zu' }, 10); } }
   /* FE-0009 / AN-0005: jede Kachel der Container-Ansicht öffnet ihr eigenes Diagramm */
   { const b = panel.d.bereiche.find(x => !x.pumpe && x.geraete.some(g => g.leistung)); await klick({ act: 'container', id: b.id }, 20);
-    const kacheln = [...ui.innerHTML.matchAll(/class="glas-panel c-kachel" data-act="sheet" data-s="([^"]+)"( data-t="eur")?/g)].map(m => m[1] + (m[2] ? ':eur' : ''));
+    const kacheln = [...ui.innerHTML.replace(/<!--[^]*?-->/g, '').matchAll(/class="glas-panel c-kachel" data-s="([^"]+)"><span>([^<]+)/g)].map(m => m[1] + (m[2] === '€' ? ':eur' : ''));
     erwarte(`FE-0009: vier verschiedene Kacheln (${kacheln.join(', ')})`, kacheln.join(',') === 'leistung,verbrauch,verbrauch:eur,heizzeit-c');
     await klick({ act: 'sheet', s: 'leistung', id: b.id }, 30); pruefe('Leistung einer Stunde');
     const jetztH = +panel.z.JETZT.slice(0, 2);

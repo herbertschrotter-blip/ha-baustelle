@@ -22,9 +22,7 @@ if (!CHROME) { console.error('Chromium nicht gefunden (CHROME_PFAD setzen)'); pr
 if (BILDER) mkdirSync(BILDER, { recursive: true });
 
 /* Heute bekannte Fehler (bauplan-lit §1) – werden in eigenen Stufen behoben und dann hier gestrichen */
-const BEKANNT = {
-  'B4 Rest bleibt': 'neue Statistik kommt über _holen → _auffrischen und zeichnet die ganze Seite neu; nur ohne Nachladen tauscht _liveNeu Diagramm/Kennzahlen (Lit-Stufe 3d)',
-};
+const BEKANNT = {};   // B4 „Rest bleibt“ in 3d behoben (Container mit Lit)
 
 const html = readFileSync(join(REPO, 'mockups', 'glas.html'));
 const server = createServer((q, r) => { if (q.url === '/favicon.ico') { r.writeHead(204); r.end(); } else if (['/', '/glas.html'].includes(q.url.split('?')[0])) { r.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); r.end(html); } else { r.writeHead(404); r.end(); } });
@@ -183,12 +181,13 @@ await fall('B3 Scrollschutz', browser, async (page, erwarte) => {
   erwarte('Chipleiste: Position bleibt (±1 px)', cvor > 0 && Math.abs(cnach - cvor) <= 1, `vor ${cvor}, nach ${cnach}, verarbeitet ${neu3}`);
 });
 
-/* B4 Container live: (1) neue 5-Minuten-Statistik → Kennzahlen neu, Position bleibt, Rest bleibt;
+/* B4 Container live: (1) neue 5-Minuten-Statistik → Kennzahlen neu, Position bleibt, Rest bleibt (seit 3d: dieselben Knoten,
+   Lit zeichnet nur Geändertes);
    (2) neuer Sensorwert bei offener Einblendung → angekommen, aber Diagramm unverändert (heutige Unterdrückung) */
 await fall('B4 Container live', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`); await warte(400);
   await page.mouse.move(900, 600); await page.mouse.wheel({ deltaY: 200 }); await ruhig(page, D, '.scroll', 'scrollTop');
-  const merken = () => panel(page, D, () => { window.__rest = sr.querySelector('.c-text'); window.__wrap = sr.querySelector('.c-live .chart-wrap');
+  const merken = () => panel(page, D, () => { window.__rest = [sr.querySelector('.c-d-info'), sr.querySelector('.c-d-knoepfe .seg button'), sr.querySelector('.c-chip .c-power'), sr.querySelector('.c-live .seg button')]; window.__wrap = sr.querySelector('.c-live .chart-wrap');
     return { w: window.__wrap.innerHTML, k: sr.querySelector('.c-live-kennz').textContent, scroll: sr.querySelector('.scroll').scrollTop, lg: p._liveGezeichnet || 0 }; });
   const zustand = (statistik) => panel(page, D, () => {
     if (a0) BB.TEST.statistik = (m, r) => { if (m.period !== '5minute') return r; for (const id in r) r[id] = r[id].map(x => x.change != null ? { ...x, change: x.change + 2 } : x); return r; };
@@ -199,12 +198,12 @@ await fall('B4 Container live', browser, async (page, erwarte) => {
   await panel(page, D, () => { window.__render = 0; const r = p.neuZeichnen.bind(p); p.neuZeichnen = (...a) => { window.__render++; return r(...a); }; });
   const vor = await merken(); const n = await zustand(true); await warte(600);
   const r = await panel(page, D, () => ({ w: sr.querySelector('.c-live .chart-wrap').innerHTML, k: sr.querySelector('.c-live-kennz').textContent, scroll: sr.querySelector('.scroll').scrollTop,
-    render: window.__render, stat: BB.TEST.aufrufe.filter(m => m.type === 'baustelle/statistik' && m.period === '5minute').length }));
+    render: window.__render, rest: window.__rest.every(x => x && x.isConnected && sr.contains(x)), stat: BB.TEST.aufrufe.filter(m => m.type === 'baustelle/statistik' && m.period === '5minute').length }));
   await panel(page, D, () => { BB.TEST.statistik = null; });
   erwarte('neue Statistik: Kennzahlen neu, Position bleibt', n > 0 && r.k !== vor.k && Math.abs(r.scroll - vor.scroll) <= 1, `${vor.k.slice(0, 40)} → ${r.k.slice(0, 40)}, Scroll ${vor.scroll}→${r.scroll}`);
-  erwarte('B4 Rest bleibt', r.render === 0, `render ${r.render}× (ganze Seite neu), 5-Minuten-Abfragen ${r.stat}`);
+  erwarte('B4 Rest bleibt', r.rest, `Knoten ${r.rest ? 'bleiben' : 'ersetzt'}, neuZeichnen ${r.render}×, 5-Minuten-Abfragen ${r.stat}`);
   // (2) Einblendung offen, nur Sensorwert
-  await klick(page, `${D} >>> [data-act="sheet"][data-s="leistung"]`); await warte(400);
+  await klick(page, `${D} >>> .c-kachel[data-s="leistung"]`); await warte(400);
   const vor2 = await merken(); await zustand(false); await warte(400);
   const r2 = await panel(page, D, () => ({ w: sr.querySelector('.c-live .chart-wrap').innerHTML, lg: p._liveGezeichnet || 0 }));
   erwarte('offene Einblendung: Wert angekommen, Diagramm unverändert', r2.lg > vor2.lg && r2.w === vor2.w, `liveGezeichnet ${vor2.lg}→${r2.lg}, gleich ${r2.w === vor2.w}`);
@@ -213,7 +212,7 @@ await fall('B4 Container live', browser, async (page, erwarte) => {
 /* B5 Leistung: Regler mit der Tastatur, Daten kommen verzögert; Datenteil neu, Regler/Fokus/Scroll bleiben */
 await fall('B5 Leistung', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`); await warte(200);
-  await klick(page, `${D} >>> [data-act="sheet"][data-s="leistung"]`); await warte(400);
+  await klick(page, `${D} >>> .c-kachel[data-s="leistung"]`); await warte(400);
   const regler = `${D} >>> input[data-lh]`;
   await page.waitForSelector(regler, { visible: true });
   const vor = await panel(page, D, () => { window.__regler = sr.querySelector('input[data-lh]'); window.__daten = sr.querySelector('.lh-daten');
@@ -437,6 +436,31 @@ await fall('3c Pumpen', browser, async (page, erwarte) => {
     return { andere: true, gehalten: gehalten.length, laedt, gleich: vorher.entry === nachher.entry && vorher.view === nachher.view && vorher.text === nachher.text, neu: nachher.entry === andere.baustelle.entry_id };
   }, D);
   erwarte('verspätete Statistik nach Baustellenwechsel ändert die neue Baustelle nicht', sp.andere && sp.gehalten > 0 && sp.laedt && sp.neu && sp.gleich, JSON.stringify(sp));
+});
+
+/* Stufe 3d: Container – Modus, Soll, Schnell aufheizen, Gerät schalten, Trocknen je genau ein Auftrag; Diagrammwahl;
+   Nicht-Admin: ✎ und Termin gesperrt (ausgegraut, Hinweis, keine Einblendung), Schnell aufheizen geht (Vor-Ort) */
+await fall('3d Container', browser, async (page, erwarte) => {
+  await klick(page, `${D} >>> [data-act="container"][data-id="polier"]`); await warte(300);
+  const einer = async (sel, soll, text) => { const ab = await aufrufZahl(page); await klick(page, `${D} >>> ${sel}`); await warte(150);
+    const a = await schreibAnzahl(page, ab); erwarte(`${text} = genau ein Auftrag`, JSON.stringify(a) === JSON.stringify([soll]), a.join(', ')); };
+  await einer('.c-d-knoepfe .seg button:not(.on):not([disabled])', 'baustelle/setzen', 'Modus wechseln');
+  const ab0 = await aufrufZahl(page); await klick(page, `${D} >>> .c-d-knoepfe .seg button.on`);
+  erwarte('gewählter Modus sendet nichts', !(await schreibAnzahl(page, ab0)).length);
+  await einer('.c-rad-pm .c-pm[data-d="0.5"]', 'baustelle/setzen', 'Soll +');
+  await einer('.c-d-knoepfe > .chip', 'baustelle/aktion:boost', 'Schnell aufheizen');
+  await einer('.c-chip[data-i="0"] .c-power', 'baustelle/aktion:schalten', 'Gerät schalten');
+  await einer('.seite > .liste .zeile:last-child .sw', 'baustelle/setzen', 'Kleidung trocknen');
+  await klick(page, `${D} >>> .c-live .seg [data-v="woche"]`);
+  erwarte('Diagramm Woche', await panel(page, D, () => p.s.cvd === 'woche' && !!sr.querySelector('.c-live .chart-wrap svg')));
+  await panel(page, D, async () => { for (const b of BB.welt) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] }; await p._laden(); await new Promise(r => setTimeout(r, 150)); });
+  let ab = await aufrufZahl(page);
+  await klick(page, `${D} >>> .c-chip .bs-ic`);
+  const nl = await panel(page, D, () => ({ sheet: p.s.sheet, toast: sr.querySelector('.toast').textContent, grau: getComputedStyle(sr.querySelector('.c-chip .bs-ic')).opacity }));
+  erwarte('Nicht-Admin: ✎ ausgegraut, Hinweis, keine Einblendung', !nl.sheet && /ansehen/i.test(nl.toast) && +nl.grau < .6 && !(await schreibAnzahl(page, ab)).length, JSON.stringify(nl));
+  await einer('.c-d-knoepfe > .chip', 'baustelle/aktion:boost', 'Nicht-Admin: Schnell aufheizen (Vor-Ort)');
+  ab = await aufrufZahl(page); await klick(page, `${D} >>> .c-d-knoepfe .seg [data-v="hand"]`);
+  erwarte('Nicht-Admin: Modus ändert nichts', !(await schreibAnzahl(page, ab)).length);
 });
 
 /* B7 Lebenszyklus: 20 × entfernen/einhängen – Timer, Abos, window-Listener nehmen nicht zu */

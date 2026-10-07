@@ -219,6 +219,21 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   gesendet wird in beiden Ständen nichts. Panel-Test (Schacht: Diagramm, Zeitraum, Kalender, Automatik, Pumpe, Wege;
   verspätete Statistik nach Baustellenwechsel), Browser-Fall „3c Pumpen“ (je ein Auftrag, Schalter bleibt bei neuen
   Daten derselbe Knoten, verspätete Statistik ändert die neue Baustelle nicht).
+- **3d Container-Ansicht, 07.10.2026 (0.8.87):** `src/ansichten/container.js` (Kopf mit Modus/Aufheizen, Rad mit − +,
+  Gefühl, Kacheln, Bei Bedarf mit Terminen, Geräte-Chips, Diagramm mit Zeitraum, Lernen/Trocknen). In der Seite bleiben
+  Daten und SVG: `cRadSvg` (vorher `cRad` samt Knöpfen), `cTag`, `containerTeile` (nur noch Diagramm). Aktionen als
+  Methoden (`modusSetzen`, `boostUmschalten`, `sollSchritt`, `gefuehl`, `sollZurueck`, `geraetAktiv`, `geraetAutomatik`,
+  `geraetBearbeiten`, `lernenUmschalten`, `trocknenUmschalten`, `bedarfAn`, `bedarfAus`, `terminWeg`); die Klick-Fälle
+  rufen sie für Übersicht und Einblendungen weiter auf. **Nur-Lesen ohne `data-act`:** Lit-Knöpfe, die nur Admins
+  bedienen, tragen `.nur-admin` (in `NUR_LESEN_SPERRE` ausgegraut) und laufen über `nurAdmin(fn)` (Hinweis statt Aktion).
+  **Entfallene Sonderfälle:** `cGeraete`, `cGefuehl`, `cOhneFuehler`, `bedarfBlock`, `v_container(_d)`; `_liveNeu` tauscht
+  kein `innerHTML` mehr, sondern zeichnet über Lit neu (mit offener Einblendung oder Tooltip weiter erst später).
+  **Befund B4 behoben:** neue Statistik zeichnet nur Geändertes, die Knoten bleiben (Browser-Fall B4 prüft jetzt
+  Knotenidentität statt Aufrufzahl). Nachweis: Schnappschuss um die Container-Bedienung erweitert (161 Schritte,
+  inhaltlich gleich, auch Nicht-Admin); Panel-Test (WU-0002, FE-0008, FE-0009, WU-0004, Lernen auf Lit-Merkmale);
+  Browser-Fall „3d Container“ (je ein Auftrag für Modus, Soll, Aufheizen, Gerät, Trocknen; gewählter Modus sendet nichts;
+  Nicht-Admin: ✎ ausgegraut ohne Einblendung, Aufheizen als Vor-Ort-Aktion geht, Modus nicht). Offen in 3d: die
+  Einblendungen der Container-Ansicht, dann Heizung.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.87",
+    "datum": "2026-10-07",
+    "punkte": [
+      "Seite auf Lit umgestellt, Teil 5 (BSM-022.14, Stufe 3d, erster Teil): Die Container-Ansicht (Thermostat-Rad, Gefühl, Kacheln, Bei Bedarf mit Terminen, Geräte, Diagramme) wird mit Lit gezeichnet. Neue Messwerte zeichnen nur noch das Geänderte neu – Knöpfe, Diagrammwahl und Scrollposition bleiben stehen (vorher wurde die ganze Seite neu aufgebaut). Für Nicht-Admins bleiben „Gerät bearbeiten“, „Termin eintragen“ und „Termin löschen“ gesperrt wie bisher. Aussehen und Bedienung bleiben gleich."
+    ]
+  },
+  {
     "version": "0.8.86",
     "datum": "2026-10-07",
     "punkte": [

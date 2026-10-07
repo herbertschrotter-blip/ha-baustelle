@@ -819,7 +819,7 @@ function bauen(r5, hass, ersatzZone) {
   const ebAlle = e0.bereiche || {}, cAlle = lz.container || {}, gAlle = lz.geraete || {};
   const bereiche = (r5.bereiche || []).map((b3, i7) => {
     const eb = ebAlle[b3.id] || {}, c4 = cAlle[b3.id] || {}, pumpe = b3.art === "pumpenschacht";
-    const geraete = (r5.geraete || []).filter((g2) => g2.bereich === b3.id).map((g2) => {
+    const geraete2 = (r5.geraete || []).filter((g2) => g2.bereich === b3.id).map((g2) => {
       const x2 = gAlle[g2.id] || {};
       return {
         id: g2.id,
@@ -847,7 +847,7 @@ function bauen(r5, hass, ersatzZone) {
       };
     });
     let zst = c4.zustand in FARBE ? c4.zustand : pumpe ? "aus" : "aus";
-    const offline = zst === "offline" || geraete.length > 0 && geraete.every((g2) => !g2.erreichbar);
+    const offline = zst === "offline" || geraete2.length > 0 && geraete2.every((g2) => !g2.erreichbar);
     if (offline) zst = "offline";
     const tuerS = eb.tuer && hass && hass.states[eb.tuer];
     const tuer = eb.tuer ? { eid: eb.tuer, sensor: tuerS && tuerS.attributes.friendly_name || eb.tuer, offen: c4.tuer && c4.tuer.offen ? Math.max(1, minSeitAb(c4.tuer.seit, jetztMs) ?? 1) : 0 } : void 0;
@@ -863,7 +863,7 @@ function bauen(r5, hass, ersatzZone) {
       t: zahl(c4.temperatur) ? Number(c4.temperatur) : null,
       kw: zahl(c4.kw) ? Number(c4.kw) : null,
       text: c4.text || "",
-      geraete,
+      geraete: geraete2,
       auto: eb.auto !== false,
       trocknen: !!eb.trocknen,
       stufenAn: !!eb.stufen,
@@ -985,6 +985,7 @@ var NUR_LESEN_SPERRE = [
   '[data-act="lern-reset"]',
   '[data-act="abschliessen"]',
   '[data-act="neu-anlegen"]',
+  ".nur-admin",
   '[data-act="wetterquelle-auf"]',
   "input[data-k]",
   "select[data-jm]",
@@ -2040,6 +2041,86 @@ function schachtVorlage(p4) {
         <div class="zeile"><span>Dauerlauf über ${d3.e.dauer_min} min</span><span class="ok">${d3.e.m_dauer ? "● überwacht" : "○ aus"}</span></div>
         <div class="zeile"><span>Stromausfall / offline (nach ${de(d3.e.offline_min, 0)} min)</span><span class="ok">${d3.e.m_offline ? "● überwacht" : "○ aus"}</span></div>
         <button class="zeile" @click=${() => p4.gehe("pumpen")}><span class="blau">Schwellen im Reiter Pumpen</span><span class="chev">›</span></button></div>`;
+}
+
+// src/ansichten/container.js
+var OHNE_SOLL = { plan: "Zeitplan – der Heizkörperthermostat regelt", hand: "Hand – kein Soll", aus: "Aus – nur Frostschutz" };
+function rad(p4, b3) {
+  const mitSoll = p4.sollAktiv(b3);
+  return b2`<div class="c-rad">${o5(p4.cRadSvg(b3))}
+      ${mitSoll ? b2`<div class="c-rad-pm"><button class="c-pm" data-d="-0.5" aria-label="Soll niedriger" @click=${() => p4.sollSchritt(b3, -0.5)}>${o5(IC_MINUS)}</button><button class="c-pm" data-d="0.5" aria-label="Soll höher" @click=${() => p4.sollSchritt(b3, 0.5)}>${o5(IC_PLUS)}</button></div>` : b2`<div class="leise c-ohne-t">${OHNE_SOLL[b3.modus] || ""}</div>`}</div>`;
+}
+function gefuehl(p4, b3) {
+  if (!p4.sollAktiv(b3)) return A;
+  const S3 = b3.sollJ || {}, gl = p4.d.e.soll_art === "gleitend", G = p4.d.sollG;
+  const knopf = (v2, t5) => b2`<button data-v=${v2} @click=${() => p4.gefuehl(b3, v2)}>${t5}</button>`;
+  return b2`<div class="sg-box"><div class="sg-gefuehl">${knopf(-1, "🥶 zu kalt")}${knopf(0, "👍 passt")}${knopf(1, "🥵 zu warm")}</div>
+      ${gl && S3.versch ? b2`<div class="sg-versch"><span>gleitend ${G ? de(G.soll, 1) : "–"} °C <b>${S3.versch > 0 ? "+" : "−"}${de(Math.abs(S3.versch), 1)}</b> · bis morgen früh</span><button class="glas-panel chip" @click=${() => p4.sollZurueck(b3)}>↺ gleitend</button></div>` : A}
+      <div class="sg-gefuehl-t">${gl ? S3.versch ? "+ / − lernt mit wie „zu kalt“ / „zu warm“" : `Soll gleitend ${G ? de(G.soll, 1) : "–"} °C${zahl(S3.eigen) && S3.eigen ? ` ${S3.eigen > 0 ? "+" : "−"}${de(Math.abs(S3.eigen), 1)} eigenes Soll = ${de(p4.sollVon(b3), 1)} °C` : ""} – dein Gefühl hilft beim Lernen` : "hilft beim gleitenden Soll (Heizung › Regeln)"}</div></div>`;
+}
+var ohneFuehler = (b3) => b2`<div class="c-ohne glas-panel"><small>LEISTUNG JETZT</small><b>${de(kwVon(b3))}<small> kW</small></b><span class="leise">kein Fühler – der Heizkörperthermostat regelt</span></div>`;
+function kacheln(p4, b3) {
+  const d3 = p4.d, heuteNr = TAGE.indexOf(p4.z.HEUTE_TAG), kwh7 = p4.verbrauch(d3, b3.id, "Woche"), h7 = p4.heizStunden(d3, b3, "Woche");
+  const kwh = kwh7 ? kwh7[heuteNr] : null, h3 = h7 ? h7[heuteNr] : null;
+  return [["⚡", de(kwVon(b3)), "kW jetzt", "leistung"], ["🔋", zahl(kwh) ? de(kwh) : "–", "kWh heute", "verbrauch"], ["€", zahl(kwh) ? de(kwh * d3.e.preis, 2) : "–", "Kosten heute", "verbrauch", "eur"], ["⏱", zahl(h3) ? de(h3) : "–", "h Heizzeit", "heizzeit-c"]].map(([i7, v2, t5, s4, art]) => b2`<button class="glas-panel c-kachel" data-s=${s4} @click=${() => p4.einblenden(s4, art ? { id: b3.id, t: art } : { id: b3.id })}><span>${i7}</span><b>${v2}</b><small>${t5}</small></button>`);
+}
+function bedarf(p4, b3) {
+  const H2 = p4.z.HEUTE, offen = (t5) => t5.datum > H2 || t5.datum === H2 && t5.bis > p4.z.JETZT, serien = /* @__PURE__ */ new Map();
+  for (const t5 of p4.d.termine.filter((t6) => t6.b === b3.id)) {
+    const k2 = t5.rrule && t5.uid ? t5.uid : t5, alt = serien.get(k2);
+    if (!alt || !offen(alt) && offen(t5)) serien.set(k2, t5);
+  }
+  const T2 = [...serien.values()].filter((t5) => t5.wieder !== "einmal" || offen(t5)).map((t5) => ({ t: t5, n: t5.wieder === "einmal" || offen(t5) ? t5.datum : naechsterTermin(t5, plusTage(H2, 1)) })).sort((x2, y3) => (x2.n || "9").localeCompare(y3.n || "9"));
+  const vor = (m3) => uhr(minu(m3) - p4.d.e.vorheizen), ende = p4.arbeitsende(), kal = p4.d.termineKal;
+  return b2`<div class="glas-panel block"><div class="block-kopf"><b>Nur bei Bedarf</b><span class="leise">heizt nicht nach der Arbeitszeit · sonst nur Frostschutz</span></div>
+      ${b3.bedarfBis ? b2`<div class="bedarf-an"><b>♨ heizt bis ${b3.bedarfBis}${b3.boost ? " · ⚡ schnell" : ""}</b><button class="chip glas-panel" @click=${() => p4.bedarfAus(b3.id)}>Beenden</button></div>` : b2`<div class="bedarf-dauer">${[["60", "1 h"], ["120", "2 h"], ...ende ? [["ende", "bis Arbeitsende"]] : []].map(([v2, t5]) => b2`<button class="chip glas-panel" data-v=${v2} @click=${() => p4.bedarfAn(b3.id, v2)}>▶ ${t5}</button>`)}</div>`}
+      <div class="gruppe-t">Termine · ${kal ? `Kalender „${p4.name(kal)}“` : "kein Kalender gewählt"}</div>
+      ${T2.length ? T2.map(({ t: t5, n: n4 }) => b2`<div class="zeile ereignis"><span class="zeit t-wann">${t5.wieder === "einmal" ? `${wtag(t5.datum)} ${kurzDatum(t5.datum)}` : t5.wieder === "woche" ? `jeden ${wtag(t5.datum)}` : `jeden 2. ${wtag(t5.datum)}`}</span>
+          <div><b>${t5.von}–${t5.bis}</b> ${t5.titel}${t5.wieder !== "einmal" ? b2` <span class="badge">${WIEDER[t5.wieder]}</span>` : A}<div class="leise">${n4 && t5.wieder !== "einmal" ? `nächster ${wtag(n4)} ${kurzDatum(n4)} · ` : ""}heizt ab ${vor(t5.von)}${t5.boost ? " · ⚡ schnell" : ""}</div></div>
+          <button class="x nur-admin" title="Termin löschen" @click=${p4.nurAdmin(() => p4.terminWeg(t5))}>✕</button></div>`) : b2`<div class="leise">Keine Termine</div>`}
+      <button class="zeile nur-admin" @click=${p4.nurAdmin(() => p4.einblenden(kal ? "termin" : "wetterquelle", { id: b3.id }))}><span class="blau">${kal ? "+ Termin eintragen" : "Kalender für Termine wählen"}</span></button></div>`;
+}
+function geraete(p4, b3) {
+  const d3 = p4.d;
+  return b3.geraete.map((g2, i7) => {
+    const off = b3.offline || !g2.erreichbar, an = g2.an && g2.aktiv;
+    const st = b3.stufen && b3.stufen.an ? b3.stufen.zusatz.includes(g2.id) ? b3.stufen.zusatz_an ? b2` · <em class="warte">Zusatz – ${b3.stufen.text}</em>` : " · Zusatz – wartet, einer reicht" : " · Haupt" : "";
+    const info = !g2.aktiv ? "inaktiv – die Automatik lässt es aus" : off ? b2`<span class="rot-t">offline</span>` : b2`${g2.typ} · ${an ? de(zahl(g2.kwJetzt) ? g2.kwJetzt : g2.kw, 2) + " kW" : "aus"}${st}`;
+    return b2`<div class="c-chip glas-panel ${an ? "an" : ""} ${g2.aktiv ? "" : "inaktiv"}" data-i=${i7}>
+        <span class="c-chip-t">${g2.typ === "Steckdose" || g2.typ === "Bautrockner" ? "⏻" : "♨"} <b>${g2.n}</b><small>${info}${g2.hand && g2.aktiv ? b2` · <em class="hand">✋ Hand</em>` : A}${g2.warte && g2.aktiv ? b2` · <em class="warte">wartet – ${(d3.anschluesse.find((a3) => a3.id === b3.anschluss) || {}).name || "Anschluss"} ausgelastet</em>` : A}</small>
+          ${g2.hand && g2.aktiv ? b2`<button class="link" @click=${() => p4.geraetAutomatik(b3, i7)}>Automatik übernehmen</button>` : A}</span>
+        <button class="c-power ${an ? "an" : ""}" ?disabled=${!g2.aktiv || off} aria-label="${g2.n} ${g2.an ? "ausschalten" : "einschalten"}" title="${g2.an ? "Ausschalten" : "Einschalten"} (Handbetrieb)" @click=${() => p4.geraetSchalten(b3, i7)}>${o5(IC_POWER)}</button>
+        <label class="c-aktiv" title="Gerät aktiv – aus: die Automatik schaltet es nicht, keine Warnungen">${schalterVorlage(g2.aktiv, () => p4.geraetAktiv(b3, i7))}<small>aktiv</small></label>
+        <button class="bs-ic nur-admin" title="Gerät bearbeiten" aria-label="${g2.n} bearbeiten" @click=${p4.nurAdmin(() => p4.geraetBearbeiten(b3, i7))}>✎</button></div>`;
+  });
+}
+function containerVorlage(p4) {
+  const d3 = p4.d, b3 = p4.b, { c: c4, chart } = p4.containerTeile(b3), vT = p4.zrV("c-Tag");
+  return b2`<div class="zurueck-zeile"><button class="glas-panel chip" @click=${() => p4.gehe("uebersicht")}>‹ Übersicht</button>
+        <button class="glas-panel chip" @click=${() => p4.einblenden("bereich")}>Bearbeiten</button></div>
+      <div class="glas-panel c-d-held ${b3.z}" style="--c:${FARBE[b3.z]}">
+        <div class="c-d-info"><div><div class="glas-klein">CONTAINER</div><div class="glas-titel">${b3.name}</div>
+          <div class="glas-status"><span class="glas-dot"></span>${TEXT(b3)}</div><div class="leise">${p4.cRegelText(b3)}</div></div>
+          <div class="c-d-knoepfe"><div class="seg klein">${MODI.map(([k2, t5]) => b2`<button data-v=${k2} class=${b3.modus === k2 ? "on" : ""} ?disabled=${k2 === "thermo" && !b3.fuehler} title=${k2 === "thermo" && !b3.fuehler ? "kein Temperaturfühler" : A} @click=${() => p4.modusSetzen(b3, k2)}>${t5}</button>`)}</div>
+            <button class="glas-panel chip ${b3.boost ? "amber" : ""}" @click=${() => p4.boostUmschalten(b3)}>⚡ ${b3.boost ? "Aufheizen beenden" : "Schnell aufheizen"}</button></div></div>
+        <div class="c-kern">${b3.fuehler && b3.t !== null ? b2`${rad(p4, b3)}${gefuehl(p4, b3)}` : ohneFuehler(b3)}</div>
+      </div>
+      <div class="c-kacheln c-live-kennz">${kacheln(p4, b3)}</div>
+      ${b3.bedarf ? bedarf(p4, b3) : A}
+      <div class="glas-panel block c-live"><div class="block-kopf"><div class="seg klein">${[["heute", vT ? "Tag" : "Heute"], ["woche", "Woche"], ["stunden", "Heizzeit"]].map(([k2, t5]) => b2`<button data-v=${k2} class=${k2 === c4 ? "on" : ""} @click=${() => {
+    p4.s.cvd = k2;
+    p4.neuZeichnen();
+  }}>${t5}</button>`)}</div>
+        <span class="leise">${c4 === "heute" ? vT ? "Temperatur und Verbrauch je Stunde" : p4.heuteText(b3) : c4 === "woche" ? "kWh je Tag" : "Stunden geheizt je Tag"}</span></div>
+        ${c4 === "heute" ? zeitraumVorlage(p4, "c-Tag", "Tag", p4.zrGrenze()) : zeitraumVorlage(p4, "c-Woche", "Woche", p4.zrGrenze())}
+        <div class="chart-wrap">${o5(chart)}</div></div>
+      <div class="glas-panel block"><div class="block-kopf"><b>Geräte</b><span class="leise">⏻ = Handbetrieb · aktiv aus = die Automatik lässt es aus</span></div>
+        ${b3.geraete.length ? b2`<div class="c-chips">${geraete(p4, b3)}</div>` : b2`<div class="leise">Noch kein Gerät</div>`}</div>
+      <div class="glas-panel liste">
+        ${b3.tuer ? b2`<div class="zeile"><div><b>🚪 ${b3.tuer.sensor}</b><div class="leise">${b3.tuer.offen ? `offen seit ${b3.tuer.offen} min – Heizung pausiert nach ${d3.e.tuer_pause} min, Meldung nach ${d3.e.tuer_melden} min` : "zu"}</div></div></div>` : A}
+        ${!b3.fuehler || !b3.lern ? A : b2`<div class="zeile"><div><b>🧠 Lernende Regelung</b><div class="leise">${["thermo", "bedarf"].includes(b3.modus) ? "lernt, wie lange der Raum nach dem Ausschalten nachheizt, und schaltet früher ab" : "wirkt nur im Modus Thermostat oder Bei Bedarf"}${b3.lern.an ? b2` · <button class="link" @click=${() => p4.einblenden("lernen")}>Lernstand ›</button>` : A}</div></div>${schalterVorlage(b3.lern.an, () => p4.lernenUmschalten(b3))}</div>`}
+        <div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalterVorlage(b3.trocknen, () => p4.trocknenUmschalten(b3))}</div>
+      </div>`;
 }
 
 // src/alt.js
@@ -3117,7 +3198,7 @@ var KK_SPEICHER = "baustelle-kacheln-uebersicht";
 var KK_START = [{ k: "b-kosten", st: "M" }, { k: "b-gespart", st: "M" }, { k: "h-wann", st: "M" }];
 var KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.86";
+var SEITE_VERSION = "0.8.87";
 var LIT_SHEETS = ["melden"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS)];
@@ -3751,7 +3832,7 @@ var BaustellePanel = class extends i4 {
     const ganzerTag = s4.lart === "tag";
     const von = this.zoneMs(tag, ganzerTag ? "00:00" : `${String(h3).padStart(2, "0")}:00`, d3.z.zone), bis = ganzerTag ? this.zoneMs(plusTage(tag, 1), "00:00", d3.z.zone) : von + 36e5;
     const laufend = !v2 && (ganzerTag || h3 === jetztH);
-    const geraete = b3.geraete.filter((g2) => g2.leistung), ids = geraete.map((g2) => g2.leistung);
+    const geraete2 = b3.geraete.filter((g2) => g2.leistung), ids = geraete2.map((g2) => g2.leistung);
     const tagVon = this.zoneMs(tag, "00:00", d3.z.zone), tagBis = this.zoneMs(plusTage(tag, 1), "00:00", d3.z.zone);
     const roh = !ids.length ? {} : this._holen(`lh:${d3.entry}:${b3.id}:${tag}:tag`, () => this._hass.callWS({
       type: "baustelle/verlauf",
@@ -3779,7 +3860,7 @@ var BaustellePanel = class extends i4 {
         const vorher = alle.filter((p4) => p4[0] <= von).at(-1), drin = alle.filter((p4) => p4[0] > von && p4[0] < bis);
         return [...vorher ? [[von, vorher[1]]] : [], ...drin];
       };
-      const reihen = geraete.map((g2, k2) => ({ name: g2.n, farbe: farben[k2 % farben.length], punkte: ausschnitt(((roh || {})[g2.leistung] || []).map((x2) => [zahl(x2.lu) ? x2.lu * 1e3 : Date.parse(x2.last_updated || x2.last_changed), zahl(x2.s ?? x2.state) ? Number(x2.s ?? x2.state) : null]).filter((p4) => Number.isFinite(p4[0])).sort((p4, q) => p4[0] - q[0])) }));
+      const reihen = geraete2.map((g2, k2) => ({ name: g2.n, farbe: farben[k2 % farben.length], punkte: ausschnitt(((roh || {})[g2.leistung] || []).map((x2) => [zahl(x2.lu) ? x2.lu * 1e3 : Date.parse(x2.last_updated || x2.last_changed), zahl(x2.s ?? x2.state) ? Number(x2.s ?? x2.state) : null]).filter((p4) => Number.isFinite(p4[0])).sort((p4, q) => p4[0] - q[0])) }));
       const zeiten = [...new Set(reihen.flatMap((r5) => r5.punkte.map((p4) => p4[0])))].sort((a3, b22) => a3 - b22);
       const wert = (r5, t5) => {
         let w2 = null;
@@ -3848,9 +3929,9 @@ var BaustellePanel = class extends i4 {
   }
   /* Gemessen: wann zieht ein Gerät Strom (Leistung über „heizt tatsächlich ab“, Standard 50 W) – Verlauf der Leistungssensoren seit Montag */
   messung(d3 = this.d) {
-    const geraete = d3.bereiche.flatMap((b3) => b3.geraete.map((g2) => ({ b: b3, g: g2, eid: g2.leistung || g2.schalter }))).filter((x2) => x2.eid);
-    if (!geraete.length) return {};
-    const ids = [...new Set(geraete.map((x2) => x2.eid))].sort(), start = this.zoneMs(d3.z.WOCHE_ISO[0], "00:00", d3.z.zone);
+    const geraete2 = d3.bereiche.flatMap((b3) => b3.geraete.map((g2) => ({ b: b3, g: g2, eid: g2.leistung || g2.schalter }))).filter((x2) => x2.eid);
+    if (!geraete2.length) return {};
+    const ids = [...new Set(geraete2.map((x2) => x2.eid))].sort(), start = this.zoneMs(d3.z.WOCHE_ISO[0], "00:00", d3.z.zone);
     const roh = this._holen(`h:${d3.entry}:${d3.z.HEUTE}:${d3.z.JETZT.slice(0, 4)}`, () => this._hass.callWS({
       type: "baustelle/verlauf",
       entry_id: d3.entry,
@@ -3863,7 +3944,7 @@ var BaustellePanel = class extends i4 {
     }), 6e5);
     if (roh === void 0) return null;
     const tagStart = d3.z.WOCHE_ISO.map((t5) => this.zoneMs(t5, "00:00", d3.z.zone)), ende = d3.z.jetztMs, erg = {};
-    for (const { g: g2, eid } of geraete) {
+    for (const { g: g2, eid } of geraete2) {
       const liste = ((roh || {})[eid] || []).map((x2) => ({ s: x2.s ?? x2.state, t: zahl(x2.lu) ? x2.lu * 1e3 : zahl(x2.lc) ? x2.lc * 1e3 : Date.parse(x2.last_updated || x2.last_changed) })).filter((x2) => Number.isFinite(x2.t)).sort((a3, b3) => a3.t - b3.t);
       const tage = TAGE.map(() => ({ an: [], off: [] }));
       liste.forEach((x2, i7) => {
@@ -4036,23 +4117,6 @@ var BaustellePanel = class extends i4 {
   arbeitsende() {
     const p4 = this.planTag(this.z.HEUTE_TAG);
     return p4 ? uhr(p4.b) : null;
-  }
-  bedarfBlock(b3) {
-    const H2 = this.z.HEUTE, offen = (t5) => t5.datum > H2 || t5.datum === H2 && t5.bis > this.z.JETZT, serien = /* @__PURE__ */ new Map();
-    for (const t5 of this.d.termine.filter((t6) => t6.b === b3.id)) {
-      const k2 = t5.rrule && t5.uid ? t5.uid : t5, alt = serien.get(k2);
-      if (!alt || !offen(alt) && offen(t5)) serien.set(k2, t5);
-    }
-    const T2 = [...serien.values()].filter((t5) => t5.wieder !== "einmal" || offen(t5)).map((t5) => ({ t: t5, n: t5.wieder === "einmal" || offen(t5) ? t5.datum : naechsterTermin(t5, plusTage(H2, 1)) })).sort((x2, y3) => (x2.n || "9").localeCompare(y3.n || "9"));
-    const vor = (m3) => uhr(minu(m3) - this.d.e.vorheizen), ende = this.arbeitsende();
-    const kal = this.d.termineKal;
-    return `<div class="glas-panel block"><div class="block-kopf"><b>Nur bei Bedarf</b><span class="leise">heizt nicht nach der Arbeitszeit · sonst nur Frostschutz</span></div>
-      ${b3.bedarfBis ? `<div class="bedarf-an"><b>♨ heizt bis ${b3.bedarfBis}${b3.boost ? " · ⚡ schnell" : ""}</b><button class="chip glas-panel" data-act="bedarf-aus" data-id="${b3.id}">Beenden</button></div>` : `<div class="bedarf-dauer">${[["60", "1 h"], ["120", "2 h"], ...ende ? [["ende", "bis Arbeitsende"]] : []].map(([v2, t5]) => `<button class="chip glas-panel" data-act="bedarf-an" data-id="${b3.id}" data-v="${v2}">▶ ${t5}</button>`).join("")}</div>`}
-      <div class="gruppe-t">Termine · ${kal ? `Kalender „${esc(this.name(kal))}“` : "kein Kalender gewählt"}</div>
-      ${T2.length ? T2.map(({ t: t5, n: n4 }) => `<div class="zeile ereignis"><span class="zeit t-wann">${t5.wieder === "einmal" ? `${wtag(t5.datum)} ${kurzDatum(t5.datum)}` : t5.wieder === "woche" ? `jeden ${wtag(t5.datum)}` : `jeden 2. ${wtag(t5.datum)}`}</span>
-          <div><b>${t5.von}–${t5.bis}</b> ${esc(t5.titel)}${t5.wieder !== "einmal" ? ` <span class="badge">${WIEDER[t5.wieder]}</span>` : ""}<div class="leise">${n4 && t5.wieder !== "einmal" ? `nächster ${wtag(n4)} ${kurzDatum(n4)} · ` : ""}heizt ab ${vor(t5.von)}${t5.boost ? " · ⚡ schnell" : ""}</div></div>
-          <button class="x" data-act="termin-weg" data-i="${this.d.termine.indexOf(t5)}" title="Termin löschen">✕</button></div>`).join("") : '<div class="leise">Keine Termine</div>'}
-      <button class="zeile" data-act="sheet" data-s="${kal ? "termin" : "wetterquelle"}" data-id="${b3.id}"><span class="blau">${kal ? "+ Termin eintragen" : "Kalender für Termine wählen"}</span></button></div>`;
   }
   /* Heizzeiten eines Containers an einem Tag der Woche: Abschnitte der Integration [von, bis, art] in Minuten */
   heizzeiten(b3, t5) {
@@ -4293,6 +4357,63 @@ var BaustellePanel = class extends i4 {
     S3.sheet = { art, t: el.dataset.t, i: +el.dataset.i, auswahl: el.dataset.id ? [el.dataset.id] : [], zeitraum: "Tag" };
     return neu();
   }
+  /* Container (src/ansichten/container.js, BSM-022 3d); Übersicht und Einblendungen nutzen sie über klick() */
+  nurAdmin(fn) {
+    return (...x2) => this.nurLesen() ? this.toast(NUR_ANSEHEN) : fn(...x2);
+  }
+  // wie NUR_LESEN_SPERRE für Lit-Knöpfe (.nur-admin)
+  modusSetzen(x2, m3) {
+    if (x2.modus === m3) return void 0;
+    return this.setzen(["bereiche", x2.id, "modus"], m3, `${x2.name}: ${(MODI.find((q) => q[0] === m3) || [m3, m3])[1]}`);
+  }
+  boostUmschalten(x2) {
+    return this.aktion("boost", { bereich: x2.id, an: !x2.boost }, !x2.boost ? `${x2.name}: schnell aufheizen` : `${x2.name}: normal weiter`);
+  }
+  sollSchritt(x2, dd) {
+    if (this.d.e.soll_art === "gleitend") return this.aktion("soll_versch", { bereich: x2.id, d: dd }, `Soll heute ${dd > 0 ? "wärmer" : "kühler"} – ab morgen früh wieder gleitend · als „${dd > 0 ? "zu kalt" : "zu warm"}“ gemerkt`);
+    return this.setzen(["bereiche", x2.id, "soll"], Math.max(5, Math.min(30, (x2.soll ?? this.d.e.soll) + dd)));
+  }
+  gefuehl(x2, v2) {
+    return this.aktion("gefuehl", { bereich: x2.id, wert: v2 }, v2 === 0 ? "Gemerkt: passt" : `Gemerkt: ${v2 < 0 ? "zu kalt" : "zu warm"} – das Soll lernt mit`);
+  }
+  sollZurueck(x2) {
+    return this.aktion("soll_versch_weg", { bereich: x2.id }, "Zurück auf gleitendes Soll");
+  }
+  geraetAktiv(b3, i7) {
+    const g2 = b3.geraete[i7];
+    return this.aktion("aktiv", { geraet: g2.id, an: !g2.aktiv }, g2.aktiv ? `${g2.n} inaktiv – die Automatik lässt es aus` : `${g2.n} wieder aktiv`);
+  }
+  geraetAutomatik(b3, i7) {
+    const g2 = b3.geraete[i7];
+    return this.aktion("automatik", { geraet: g2.id }, `${g2.n}: Automatik übernimmt`);
+  }
+  geraetBearbeiten(b3, i7) {
+    const g2 = b3.geraete[i7];
+    this.s.sheet = { art: "geraet-edit", i: i7, form: { n: g2.n, schalter: g2.schalter, typ: g2.typ, bereich: b3.id, leistung: g2.leistungEigen || "", energie: g2.energieEigen || "", aktiv: g2.aktiv } };
+    return this.neuZeichnen();
+  }
+  lernenUmschalten(x2) {
+    return this.setzen(["bereiche", x2.id, "lernen"], !(x2.lern && x2.lern.an));
+  }
+  trocknenUmschalten(x2) {
+    return this.setzen(["bereiche", x2.id, "trocknen"], !x2.trocknen);
+  }
+  bedarfAn(id, v2) {
+    const S3 = this.s, x2 = this.d.bereiche.find((y3) => y3.id === id), boost = !!(S3.sheet && S3.sheet.art === "bedarf" && S3.sheet.boost);
+    const felder = v2 === "ende" ? { bis: this.isoHeute(this.arbeitsende() || "16:30") } : v2 === "abend" ? { bis: this.isoHeute("19:00") } : { minuten: +v2 };
+    const bisText = v2 === "ende" ? this.arbeitsende() : v2 === "abend" ? "19:00" : uhr(minu(this.z.JETZT) + +v2);
+    S3.sheet = null;
+    this.neuZeichnen();
+    return this.aktion("bedarf", { bereich: x2.id, ...felder, boost }, `${x2.name} heizt bis ${bisText}`);
+  }
+  bedarfAus(id) {
+    const x2 = this.d.bereiche.find((y3) => y3.id === id);
+    return this.aktion("bedarf_aus", { bereich: x2.id }, `${x2.name} aus – nur Frostschutz`);
+  }
+  terminWeg(t5) {
+    if (!t5.uid) return this.toast("Dieser Kalender nennt keine Kennung – Termin bitte im Kalender löschen");
+    return this.ws({ type: "calendar/event/delete", entity_id: this.d.termineKal, uid: t5.uid }, `Termin „${t5.titel}“ gelöscht`);
+  }
   /* Aktionen der Ansichten (Lit-Vorlagen rufen sie direkt, die alten über klick(); BSM-022 3c) */
   containerOeffnen(id) {
     this.s.chart = "temp";
@@ -4506,7 +4627,7 @@ var BaustellePanel = class extends i4 {
       bsdetail: () => bsdetailVorlage(this),
       pumpen: () => pumpenVorlage(this),
       // Ansichten, die schon Lit-Vorlagen sind (BSM-022 3a ff.)
-      ...S3.view === "container" && this.b && this.b.pumpe ? { container: () => schachtVorlage(this) } : {}
+      container: () => this.b.pumpe ? schachtVorlage(this) : containerVorlage(this)
     };
     if (!this.roh) seite = ladenVorlage(this.fehler);
     else if (!this.d && !["verlauf", "bsdetail", "ueber"].includes(S3.view)) seite = leerVorlage(this);
@@ -4670,22 +4791,16 @@ var BaustellePanel = class extends i4 {
     b3.zyklen = zyk7 ? zyk7[heuteNr] : null;
     return { tabs, c: c4, mitVb, chart, kennz, zr: tagArt ? ["c-Tag", "Tag", this.zrGrenze()] : ["c-Woche", "Woche", this.zrGrenze()] };
   }
-  /* Neue Sensorwerte: in der Container-Ansicht nur Diagramm und Kennzahlen tauschen (Tooltip und Einblendung bleiben),
-     sonst die Ansicht neu zeichnen wie bisher */
+  /* Neue Sensorwerte: in der Container-Ansicht neu zeichnen (Lit tauscht nur Diagramm und Kennzahlen), außer eine
+     Einblendung oder ein Tooltip ist offen – dann später wieder; sonst die Ansicht neu zeichnen wie bisher */
   _liveNeu() {
     const wrap = this.root && this.root.querySelector(".c-live .chart-wrap"), knopf = this.root && this.root.querySelector(".c-live-kennz");
     if (this.s.view !== "container" || !this.b || !wrap || !knopf) return this._auffrischen();
     if (this.s.sheet || (this.root.querySelector(".tip") || { classList: { contains: () => false } }).classList.contains("an")) return;
-    if (this.b.pumpe) return this.neuZeichnen();
-    const { chart, kacheln } = this.containerTeile(this.b);
-    wrap.innerHTML = chart;
-    knopf.innerHTML = kacheln;
+    this.neuZeichnen();
   }
-  v_container() {
-    return this.v_container_d();
-  }
-  // Pumpenschacht: src/ansichten/pumpen.js (Lit)
-  /* ============ Container-Ansicht (WU-0004, Mockup glas.html „D mit Thermostat-Rad“, abgenommen 30.09.2026) ============ */
+  /* ============ Container-Ansicht (WU-0004, Mockup glas.html „D mit Thermostat-Rad“, abgenommen 30.09.2026) ============
+     Vorlage: src/ansichten/container.js (Lit, BSM-022 3d); hier Soll, Regeltext, Rad und Diagramme als Daten/SVG */
   /* gültiges Soll eines Containers von der Integration (fest oder gleitend, mit + / −), sonst eingestellt */
   sollVon(b3) {
     return b3.sollJ && zahl(b3.sollJ.wert) ? b3.sollJ.wert : b3.soll ?? this.d.e.soll;
@@ -4705,8 +4820,8 @@ var BaustellePanel = class extends i4 {
       aus: "Aus – nur Frostschutz"
     }[b3.modus] || "";
   }
-  /* Thermostat-Rad: Strichkranz 5–30 °C, zwischen Ist und Soll farbig, Soll-Knopf, − + in der Öffnung unten */
-  cRad(b3) {
+  /* Thermostat-Rad (SVG): Strichkranz 5–30 °C, zwischen Ist und Soll farbig, Soll-Knopf; − + setzt die Vorlage darunter */
+  cRadSvg(b3) {
     const mitSoll = this.sollAktiv(b3), soll = this.sollVon(b3), t5 = b3.t, dd = t5 - soll;
     const farbe = !mitSoll ? "var(--ink)" : dd > 0.5 ? "#ff9f0a" : dd < -0.5 ? "#64a8ff" : "#30d158";
     const w2 = (x2) => Math.max(0, Math.min(1, (x2 - 5) / 25)), R2 = 78, ang = (f3) => (135 + 270 * f3) * Math.PI / 180;
@@ -4715,25 +4830,12 @@ var BaustellePanel = class extends i4 {
       const f3 = i7 / 60, a3 = ang(f3), an = f3 >= von - 1e-3 && f3 <= bis + 1e-3, lang = i7 % 10 === 0;
       return `<line x1="${(100 + (R2 - (lang ? 14 : 9)) * Math.cos(a3)).toFixed(1)}" y1="${(100 + (R2 - (lang ? 14 : 9)) * Math.sin(a3)).toFixed(1)}" x2="${(100 + R2 * Math.cos(a3)).toFixed(1)}" y2="${(100 + R2 * Math.sin(a3)).toFixed(1)}" stroke="${an ? farbe : "var(--ink2)"}" stroke-width="${an ? 3 : 1.6}" stroke-linecap="round" opacity="${an ? 1 : 0.35}"/>`;
     }).join("");
-    const ks = ang(w2(soll)), ohne = { plan: "Zeitplan – der Heizkörperthermostat regelt", hand: "Hand – kein Soll", aus: "Aus – nur Frostschutz" }[b3.modus] || "";
-    return `<div class="c-rad"><svg viewBox="0 0 200 200" role="img" aria-label="Ist ${de(t5)} °C${mitSoll ? `, Soll ${de(soll)} °C` : ""}"><defs><radialGradient id="cRadG" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="rgba(255,255,255,.16)"/><stop offset="1" stop-color="rgba(255,255,255,.02)"/></radialGradient></defs>
+    const ks = ang(w2(soll));
+    return `<svg viewBox="0 0 200 200" role="img" aria-label="Ist ${de(t5)} °C${mitSoll ? `, Soll ${de(soll)} °C` : ""}"><defs><radialGradient id="cRadG" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="rgba(255,255,255,.16)"/><stop offset="1" stop-color="rgba(255,255,255,.02)"/></radialGradient></defs>
       <circle cx="100" cy="100" r="${R2 - 20}" fill="url(#cRadG)" stroke="var(--panel-rand)"/>${striche}
       ${mitSoll ? `<circle cx="${(100 + R2 * Math.cos(ks)).toFixed(1)}" cy="${(100 + R2 * Math.sin(ks)).toFixed(1)}" r="8" fill="#fff" stroke="${farbe}" stroke-width="3"/>` : ""}
       <text x="100" y="80" text-anchor="middle" class="c-rad-k">IST</text><text x="100" y="112" text-anchor="middle" class="c-rad-t">${de(t5)}°</text>
-      ${mitSoll ? `<text x="100" y="134" text-anchor="middle" class="c-rad-s" fill="${farbe}">Soll ${de(soll)}°</text>` : ""}</svg>
-      ${mitSoll ? `<div class="c-rad-pm"><button class="c-pm" data-act="c-soll" data-d="-0.5" aria-label="Soll niedriger">${IC_MINUS}</button><button class="c-pm" data-act="c-soll" data-d="0.5" aria-label="Soll höher">${IC_PLUS}</button></div>` : `<div class="leise c-ohne-t">${ohne}</div>`}</div>`;
-  }
-  /* Soll gleitend (Herbert 01.10.2026, Mockup soll-gleitend.html): Gefühl unter dem Rad, Verschiebung mit „↺ gleitend“ */
-  cGefuehl(b3) {
-    if (!this.sollAktiv(b3)) return "";
-    const S3 = b3.sollJ || {}, gl = this.d.e.soll_art === "gleitend", G = this.d.sollG;
-    const knopf = (v2, t5) => `<button data-act="sg-gefuehl" data-v="${v2}">${t5}</button>`;
-    return `<div class="sg-box"><div class="sg-gefuehl">${knopf(-1, "🥶 zu kalt")}${knopf(0, "👍 passt")}${knopf(1, "🥵 zu warm")}</div>
-      ${gl && S3.versch ? `<div class="sg-versch"><span>gleitend ${G ? de(G.soll, 1) : "–"} °C <b>${S3.versch > 0 ? "+" : "−"}${de(Math.abs(S3.versch), 1)}</b> · bis morgen früh</span><button class="glas-panel chip" data-act="sg-zurueck" data-id="${b3.id}">↺ gleitend</button></div>` : ""}
-      <div class="sg-gefuehl-t">${gl ? S3.versch ? "+ / − lernt mit wie „zu kalt“ / „zu warm“" : `Soll gleitend ${G ? de(G.soll, 1) : "–"} °C${zahl(S3.eigen) && S3.eigen ? ` ${S3.eigen > 0 ? "+" : "−"}${de(Math.abs(S3.eigen), 1)} eigenes Soll = ${de(this.sollVon(b3), 1)} °C` : ""} – dein Gefühl hilft beim Lernen` : "hilft beim gleitenden Soll (Heizung › Regeln)"}</div></div>`;
-  }
-  cOhneFuehler(b3) {
-    return `<div class="c-ohne glas-panel"><small>LEISTUNG JETZT</small><b>${de(kwVon(b3))}<small> kW</small></b><span class="leise">kein Fühler – der Heizkörperthermostat regelt</span></div>`;
+      ${mitSoll ? `<text x="100" y="134" text-anchor="middle" class="c-rad-s" fill="${farbe}">Soll ${de(soll)}°</text>` : ""}</svg>`;
   }
   /* Tagesdiagramm: Heizzeit als Band, innen/außen, Soll gestrichelt, geheizte Stunden als Balken, Jetzt-Marke */
   cTag(b3, vs = 0) {
@@ -4755,55 +4857,12 @@ var BaustellePanel = class extends i4 {
       ${bars}${vs ? "" : `<line x1="${x2(jetzt).toFixed(1)}" x2="${x2(jetzt).toFixed(1)}" y1="${T2}" y2="${H2 - B2 + 28}" stroke="var(--ink)" opacity=".5"/>`}${stunden}</svg>
       <div class="c-legende">${b3.fuehler ? '<span><i style="background:#ff9f0a"></i>innen</span>' : ""}<span><i style="background:var(--ink2)"></i>außen</span>${mitSoll ? '<span><i class="gestr"></i>Soll</span>' : ""}<span><i style="background:var(--amber);opacity:.4"></i>Heizzeit</span><span><i style="background:${farbe}"></i>geheizt (kWh je Stunde)</span></div>`;
   }
-  /* Diagramm und Kacheln – auch für das Live-Tauschen neuer Sensorwerte (WU-0002) */
+  /* Diagramm der Container-Ansicht (WU-0002) */
   containerTeile(b3) {
-    const d3 = this.d, heuteNr = TAGE.indexOf(this.z.HEUTE_TAG), kwh7 = this.verbrauch(d3, b3.id, "Woche"), h7 = this.heizStunden(d3, b3, "Woche");
-    const c4 = ["heute", "woche", "stunden"].includes(this.s.cvd) ? this.s.cvd : "heute";
-    const vT = this.zrV("c-Tag"), vW = this.zrV("c-Woche"), kwhW = vW ? this.verbrauch(d3, b3.id, "Woche", vW) : kwh7, hW = vW ? this.heizStunden(d3, b3, "Woche", vW) : h7;
+    const d3 = this.d, c4 = ["heute", "woche", "stunden"].includes(this.s.cvd) ? this.s.cvd : "heute";
+    const vT = this.zrV("c-Tag"), vW = this.zrV("c-Woche"), kwhW = this.verbrauch(d3, b3.id, "Woche", vW), hW = this.heizStunden(d3, b3, "Woche", vW);
     const chart = c4 === "heute" ? this.cTag(b3, vT) : c4 === "woche" ? kwhW ? balken("cw-" + b3.id, kwhW, TAGE, "kWh") : LAEDT3 : hW ? balken("ch-" + b3.id, hW, TAGE, "h") : LAEDT3;
-    const kwh = kwh7 ? kwh7[heuteNr] : null, h3 = h7 ? h7[heuteNr] : null;
-    const kacheln = [["⚡", de(kwVon(b3)), "kW jetzt", "leistung"], ["🔋", zahl(kwh) ? de(kwh) : "–", "kWh heute", "verbrauch"], ["€", zahl(kwh) ? de(kwh * d3.e.preis, 2) : "–", "Kosten heute", 'verbrauch" data-t="eur'], ["⏱", zahl(h3) ? de(h3) : "–", "h Heizzeit", "heizzeit-c"]].map(([i7, v2, t5, s4]) => `<button class="glas-panel c-kachel" data-act="sheet" data-s="${s4}" data-id="${b3.id}"><span>${i7}</span><b>${v2}</b><small>${t5}</small></button>`).join("");
-    return { c: c4, chart, kacheln };
-  }
-  /* Geräte-Chips: Ein/Aus (Handbetrieb), Schalter „aktiv“, ✎ Gerät bearbeiten */
-  cGeraete(b3) {
-    const d3 = this.d;
-    return b3.geraete.map((g2, i7) => {
-      const off = b3.offline || !g2.erreichbar, an = g2.an && g2.aktiv;
-      const st = b3.stufen && b3.stufen.an ? b3.stufen.zusatz.includes(g2.id) ? b3.stufen.zusatz_an ? ` · <em class="warte">Zusatz – ${esc(b3.stufen.text)}</em>` : " · Zusatz – wartet, einer reicht" : " · Haupt" : "";
-      const info = !g2.aktiv ? "inaktiv – die Automatik lässt es aus" : off ? '<span class="rot-t">offline</span>' : `${g2.typ} · ${an ? de(zahl(g2.kwJetzt) ? g2.kwJetzt : g2.kw, 2) + " kW" : "aus"}${st}`;
-      return `<div class="c-chip glas-panel ${an ? "an" : ""} ${g2.aktiv ? "" : "inaktiv"}">
-        <span class="c-chip-t">${g2.typ === "Steckdose" || g2.typ === "Bautrockner" ? "⏻" : "♨"} <b>${esc(g2.n)}</b><small>${info}${g2.hand && g2.aktiv ? ' · <em class="hand">✋ Hand</em>' : ""}${g2.warte && g2.aktiv ? ` · <em class="warte">wartet – ${esc((d3.anschluesse.find((a3) => a3.id === b3.anschluss) || {}).name || "Anschluss")} ausgelastet</em>` : ""}</small>
-          ${g2.hand && g2.aktiv ? `<button class="link" data-act="g-automatik" data-i="${i7}">Automatik übernehmen</button>` : ""}</span>
-        <button class="c-power ${an ? "an" : ""}" data-act="geraet" data-i="${i7}" ${!g2.aktiv || off ? "disabled" : ""} aria-label="${esc(g2.n)} ${g2.an ? "ausschalten" : "einschalten"}" title="${g2.an ? "Ausschalten" : "Einschalten"} (Handbetrieb)">${IC_POWER}</button>
-        <label class="c-aktiv" title="Gerät aktiv – aus: die Automatik schaltet es nicht, keine Warnungen">${schalter(g2.aktiv, "g-aktiv", `data-i="${i7}"`)}<small>aktiv</small></label>
-        <button class="bs-ic" data-act="g-bearbeiten" data-i="${i7}" title="Gerät bearbeiten" aria-label="${esc(g2.n)} bearbeiten">✎</button></div>`;
-    }).join("");
-  }
-  v_container_d() {
-    const d3 = this.d, b3 = this.b, { c: c4, chart, kacheln } = this.containerTeile(b3);
-    return `<div class="zurueck-zeile"><button class="glas-panel chip" data-act="tab" data-v="uebersicht">‹ Übersicht</button>
-        <button class="glas-panel chip" data-act="sheet" data-s="bereich">Bearbeiten</button></div>
-      <div class="glas-panel c-d-held ${b3.z}" style="--c:${FARBE[b3.z]}">
-        <div class="c-d-info"><div><div class="glas-klein">CONTAINER</div><div class="glas-titel">${esc(b3.name)}</div>
-          <div class="glas-status"><span class="glas-dot"></span>${esc(TEXT(b3))}</div><div class="leise">${esc(this.cRegelText(b3))}</div></div>
-          <div class="c-d-knoepfe"><div class="seg klein">${MODI.map(([k2, t5]) => `<button data-act="modus" data-id="${b3.id}" data-v="${k2}" class="${b3.modus === k2 ? "on" : ""}" ${k2 === "thermo" && !b3.fuehler ? 'disabled title="kein Temperaturfühler"' : ""}>${t5}</button>`).join("")}</div>
-            <button class="glas-panel chip ${b3.boost ? "amber" : ""}" data-act="boost" data-id="${b3.id}">⚡ ${b3.boost ? "Aufheizen beenden" : "Schnell aufheizen"}</button></div></div>
-        <div class="c-kern">${b3.fuehler && b3.t !== null ? this.cRad(b3) + this.cGefuehl(b3) : this.cOhneFuehler(b3)}</div>
-      </div>
-      <div class="c-kacheln c-live-kennz">${kacheln}</div>
-      ${b3.bedarf ? this.bedarfBlock(b3) : ""}
-      <div class="glas-panel block c-live"><div class="block-kopf"><div class="seg klein">${[["heute", this.zrV("c-Tag") ? "Tag" : "Heute"], ["woche", "Woche"], ["stunden", "Heizzeit"]].map(([k2, t5]) => `<button data-act="cvd" data-v="${k2}" class="${k2 === c4 ? "on" : ""}">${t5}</button>`).join("")}</div>
-        <span class="leise">${c4 === "heute" ? this.zrV("c-Tag") ? "Temperatur und Verbrauch je Stunde" : this.heuteText(b3) : c4 === "woche" ? "kWh je Tag" : "Stunden geheizt je Tag"}</span></div>
-        ${c4 === "heute" ? this.zrWahl("c-Tag", "Tag", this.zrGrenze()) : this.zrWahl("c-Woche", "Woche", this.zrGrenze())}
-        <div class="chart-wrap">${chart}</div></div>
-      <div class="glas-panel block"><div class="block-kopf"><b>Geräte</b><span class="leise">⏻ = Handbetrieb · aktiv aus = die Automatik lässt es aus</span></div>
-        ${b3.geraete.length ? `<div class="c-chips">${this.cGeraete(b3)}</div>` : '<div class="leise">Noch kein Gerät</div>'}</div>
-      <div class="glas-panel liste">
-        ${b3.tuer ? `<div class="zeile"><div><b>🚪 ${esc(b3.tuer.sensor)}</b><div class="leise">${b3.tuer.offen ? `offen seit ${b3.tuer.offen} min – Heizung pausiert nach ${d3.e.tuer_pause} min, Meldung nach ${d3.e.tuer_melden} min` : "zu"}</div></div></div>` : ""}
-        ${!b3.fuehler || !b3.lern ? "" : `<div class="zeile"><div><b>🧠 Lernende Regelung</b><div class="leise">${["thermo", "bedarf"].includes(b3.modus) ? "lernt, wie lange der Raum nach dem Ausschalten nachheizt, und schaltet früher ab" : "wirkt nur im Modus Thermostat oder Bei Bedarf"}${b3.lern.an ? ' · <button class="link" data-act="sheet" data-s="lernen">Lernstand ›</button>' : ""}</div></div>${schalter(b3.lern.an, "b-lernen")}</div>`}
-        <div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalter(b3.trocknen, "b-trocknen")}</div>
-      </div>`;
+    return { c: c4, chart };
   }
   heuteText(b3) {
     const seg = this.heizzeiten(b3, this.z.HEUTE_TAG);
@@ -6368,7 +6427,7 @@ var BaustellePanel = class extends i4 {
     const knopf = (t5, wert, act, extra = "") => `<button class="zeile" data-act="${act}" ${extra}><span>${t5}</span><span class="leise">${wert} ›</span></button>`;
     const liste = (titel, inhalt) => `<div class="glas-panel liste"><div class="gruppe">${titel}</div>${inhalt}</div>`;
     const nm = (x2) => x2 ? esc(this.name(x2)) : "–", wq = 'data-s="wetterquelle"', tk = o6.termine_kalender || e6.termine_kalender;
-    const pumpen = d3.bereiche.filter((b3) => b3.pumpe), cont = d3.bereiche.filter((b3) => !b3.pumpe), geraete = d3.bereiche.reduce((a3, b3) => a3 + b3.geraete.length, 0);
+    const pumpen = d3.bereiche.filter((b3) => b3.pumpe), cont = d3.bereiche.filter((b3) => !b3.pumpe), geraete2 = d3.bereiche.reduce((a3, b3) => a3 + b3.geraete.length, 0);
     const mAn = ["m_offline", "m_trocken", "m_dauer", "m_zyklen", "m_leistung", "m_frost", "m_selbst", "m_kalt", "m_fuehler", "m_wetter", "m_hand"].filter((k2) => e6[k2]).length;
     const offen = M2 === null ? "–" : M2.filter((m3) => this.meldungOffen(m3)).length, ohneKopf = (h3) => h3.slice(Math.max(0, h3.indexOf('<div class="glas-panel')));
     const dev = (this.s.evDev || "meldungen") === "meldungen";
@@ -6382,7 +6441,7 @@ var BaustellePanel = class extends i4 {
         html: liste("Automatik", zeile("Automatik", schalter(e6.auto, "auto"), "die Integration schaltet die Heizungen nach Plan und Regeln")) + (hz.regeln || "") + (hz.trocknen || "") + (hz.urlaub || "") + liste("Zeiten", knopf("Arbeitszeit", "ändern, neue ab Datum", "hz-auf", 'data-k="az"') + knopf("Ausnahmen", "einmalig", "hz-auf", 'data-k="ausn"') + knopf("Heizplan · diese Woche", "ansehen", "hz-auf", 'data-k="plan"'))
       },
       this.npGruppe(),
-      { k: "container", ic: "🏠", t: "Container & Geräte", kurz: `${cont.length} Container · ${pumpen.length} ${pumpen.length === 1 ? "Schacht" : "Schächte"} · ${geraete} Geräte`, html: this.einstBlock("Container und Geräte") + (hz.container || "") },
+      { k: "container", ic: "🏠", t: "Container & Geräte", kurz: `${cont.length} Container · ${pumpen.length} ${pumpen.length === 1 ? "Schacht" : "Schächte"} · ${geraete2} Geräte`, html: this.einstBlock("Container und Geräte") + (hz.container || "") },
       (() => {
         const gl = this.geraeteListe();
         return { k: "geraete", ic: "🔌", t: "Geräte", kurz: `${gl.n} Geräte${gl.offline ? ` · ${gl.offline} meldet nichts` : " · alle erreichbar"}`, html: gl.html };
@@ -7140,23 +7199,13 @@ var BaustellePanel = class extends i4 {
       case "bedarf-auf":
         S3.sheet = { art: "bedarf", cid: el.dataset.id, boost: false };
         return neu();
-      case "bedarf-an": {
-        const x2 = d3.bereiche.find((y3) => y3.id === el.dataset.id), v2 = el.dataset.v, boost = !!(S3.sheet && S3.sheet.art === "bedarf" && S3.sheet.boost);
-        const felder = v2 === "ende" ? { bis: this.isoHeute(this.arbeitsende() || "16:30") } : v2 === "abend" ? { bis: this.isoHeute("19:00") } : { minuten: +v2 };
-        const bisText = v2 === "ende" ? this.arbeitsende() : v2 === "abend" ? "19:00" : uhr(minu(this.z.JETZT) + +v2);
-        S3.sheet = null;
-        neu();
-        return this.aktion("bedarf", { bereich: x2.id, ...felder, boost }, `${x2.name} heizt bis ${bisText}`);
-      }
-      case "bedarf-aus": {
-        const x2 = d3.bereiche.find((y3) => y3.id === el.dataset.id);
-        return this.aktion("bedarf_aus", { bereich: x2.id }, `${x2.name} aus – nur Frostschutz`);
-      }
+      case "bedarf-an":
+        return this.bedarfAn(el.dataset.id, el.dataset.v);
+      case "bedarf-aus":
+        return this.bedarfAus(el.dataset.id);
       case "termin-weg": {
         const t5 = d3.termine[+el.dataset.i];
-        if (!t5) return;
-        if (!t5.uid) return this.toast("Dieser Kalender nennt keine Kennung – Termin bitte im Kalender löschen");
-        return this.ws({ type: "calendar/event/delete", entity_id: d3.termineKal, uid: t5.uid }, `Termin „${t5.titel}“ gelöscht`);
+        return t5 && this.terminWeg(t5);
       }
       case "termin-speichern": {
         const f3 = S3.sheet.form;
@@ -7177,10 +7226,8 @@ var BaustellePanel = class extends i4 {
       case "tm-boost":
         S3.sheet.form.boost = !S3.sheet.form.boost;
         return neu();
-      case "boost": {
-        const x2 = d3.bereiche.find((y3) => y3.id === el.dataset.id);
-        return this.aktion("boost", { bereich: x2.id, an: !x2.boost }, !x2.boost ? `${x2.name}: schnell aufheizen` : `${x2.name}: normal weiter`);
-      }
+      case "boost":
+        return this.boostUmschalten(d3.bereiche.find((y3) => y3.id === el.dataset.id));
       case "hz-art":
         S3.hzArt = el.dataset.v;
         return neu();
@@ -7230,9 +7277,8 @@ var BaustellePanel = class extends i4 {
         S3.sheet = { art: "hz", k: el.dataset.k };
         return neu();
       case "modus": {
-        const x2 = d3.bereiche.find((y3) => y3.id === el.dataset.id), m3 = el.dataset.v;
-        if (!x2 || x2.modus === m3) return void 0;
-        return this.setzen(["bereiche", x2.id, "modus"], m3, `${x2.name}: ${(MODI.find((q) => q[0] === m3) || [m3, m3])[1]}`);
+        const x2 = d3.bereiche.find((y3) => y3.id === el.dataset.id);
+        return x2 && this.modusSetzen(x2, el.dataset.v);
       }
       case "tv":
         S3.tv = el.dataset.v;
@@ -7399,12 +7445,10 @@ var BaustellePanel = class extends i4 {
       case "kk-layout":
         S3.kkLayout = !S3.kkLayout;
         return neu();
-      case "sg-gefuehl": {
-        const v2 = +el.dataset.v;
-        return this.aktion("gefuehl", { bereich: b3.id, wert: v2 }, v2 === 0 ? "Gemerkt: passt" : `Gemerkt: ${v2 < 0 ? "zu kalt" : "zu warm"} – das Soll lernt mit`);
-      }
+      case "sg-gefuehl":
+        return this.gefuehl(b3, +el.dataset.v);
       case "sg-zurueck":
-        return this.aktion("soll_versch_weg", { bereich: el.dataset.id }, "Zurück auf gleitendes Soll");
+        return this.sollZurueck({ id: el.dataset.id });
       case "sg-vergessen":
         return this.aktion("gefuehl_vergessen", {}, "Gelerntes Gefühl vergessen – es gilt der Startwert nach draußen");
       case "sr-auf": {
@@ -7454,30 +7498,16 @@ var BaustellePanel = class extends i4 {
         S3.sheet = { art: "aw-detail", k: el.dataset.k };
         return neu();
       case "c-soll":
-        if (d3.e.soll_art === "gleitend") {
-          const dd = +el.dataset.d;
-          return this.aktion("soll_versch", { bereich: b3.id, d: dd }, `Soll heute ${dd > 0 ? "wärmer" : "kühler"} – ab morgen früh wieder gleitend · als „${dd > 0 ? "zu kalt" : "zu warm"}“ gemerkt`);
-        }
-        {
-          const x2 = b3, soll = Math.max(5, Math.min(30, (x2.soll ?? d3.e.soll) + +el.dataset.d));
-          return this.setzen(["bereiche", x2.id, "soll"], soll);
-        }
+        return this.sollSchritt(b3, +el.dataset.d);
       case "cvd":
         S3.cvd = el.dataset.v;
         return neu();
-      case "g-aktiv": {
-        const g2 = b3.geraete[+el.dataset.i];
-        return this.aktion("aktiv", { geraet: g2.id, an: !g2.aktiv }, g2.aktiv ? `${g2.n} inaktiv – die Automatik lässt es aus` : `${g2.n} wieder aktiv`);
-      }
-      case "g-automatik": {
-        const g2 = b3.geraete[+el.dataset.i];
-        return this.aktion("automatik", { geraet: g2.id }, `${g2.n}: Automatik übernimmt`);
-      }
-      case "g-bearbeiten": {
-        const g2 = b3.geraete[+el.dataset.i];
-        S3.sheet = { art: "geraet-edit", i: +el.dataset.i, form: { n: g2.n, schalter: g2.schalter, typ: g2.typ, bereich: b3.id, leistung: g2.leistungEigen || "", energie: g2.energieEigen || "", aktiv: g2.aktiv } };
-        return neu();
-      }
+      case "g-aktiv":
+        return this.geraetAktiv(b3, +el.dataset.i);
+      case "g-automatik":
+        return this.geraetAutomatik(b3, +el.dataset.i);
+      case "g-bearbeiten":
+        return this.geraetBearbeiten(b3, +el.dataset.i);
       case "gf-aktiv":
         S3.sheet.form.aktiv = !S3.sheet.form.aktiv;
         return neu();
@@ -7501,7 +7531,7 @@ var BaustellePanel = class extends i4 {
         }, `${f3.n.trim()} gespeichert`).then(() => this._laden());
       }
       case "b-lernen":
-        return this.setzen(["bereiche", b3.id, "lernen"], !(b3.lern && b3.lern.an));
+        return this.lernenUmschalten(b3);
       case "lern-k":
         S3.sheet.lk = el.dataset.v;
         return neu();
@@ -7512,10 +7542,8 @@ var BaustellePanel = class extends i4 {
         return this.aktion("lern_reset", { bereich: x2.id }, `${x2.name}: Lernstand zurückgesetzt`);
       }
       case "b-trocknen":
-      case "tr-b": {
-        const x2 = a3 === "tr-b" ? d3.bereiche.find((y3) => y3.id === el.dataset.id) : b3;
-        return this.setzen(["bereiche", x2.id, "trocknen"], !x2.trocknen);
-      }
+      case "tr-b":
+        return this.trocknenUmschalten(a3 === "tr-b" ? d3.bereiche.find((y3) => y3.id === el.dataset.id) : b3);
       case "geraet":
         return this.geraetSchalten(b3, +el.dataset.i);
       case "chart":
