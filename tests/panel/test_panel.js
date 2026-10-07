@@ -269,8 +269,8 @@ async function allgemein() {
     if (d().termine.length) { const w = await gesendet('calendar/event/delete', 'Termin löschen', { act: 'termin-weg', i: '0' }); erwarte('Termin löschen mit uid', w && w.uid); }
   }
   if (d().optionen.urlaub_kalender) {
-    await gesendet('calendar/event/create', 'Urlaub', { act: 'urlaub-speichern' }, async () => { await klick({ act: 'sheet', s: 'urlaub' }); eingabe({ ur: 'name' }, 'Semesterferien');
-      eingabe({ ur: 'von' }, plusTageT(d().z.HEUTE, 140)); eingabe({ ur: 'bis' }, plusTageT(d().z.HEUTE, 144)); });
+    await gesendet('calendar/event/create', 'Urlaub', { act: 'urlaub-speichern' }, async () => { await klick({ act: 'sheet', s: 'urlaub' }); eingabe({ f: 'name' }, 'Semesterferien');
+      eingabe({ f: 'von' }, plusTageT(d().z.HEUTE, 140)); eingabe({ f: 'bis' }, plusTageT(d().z.HEUTE, 144)); });
     await klick({ act: 'tab', v: 'heizung' }, 30);
     if ((panel.urlaube() || []).length) { const u = await gesendet('calendar/event/delete', 'Urlaub löschen', { act: 'urlaub-weg', i: '0' }); erwarte('Urlaub löschen mit uid', u && u.uid); }
   }
@@ -337,9 +337,9 @@ async function allgemein() {
     if (REFERENZ) { await klick({ act: 'tab', v: 'uebersicht' }, 20);
       erwarte('BSM-032: Doppelcontainer, offene Tür und gekipptes Fenster im Symbol', ui.innerHTML.includes('viewBox="0 0 200 131"') && ui.innerHTML.includes('l-7 ') && ui.innerHTML.includes('class="bc-licht"')); }
   }
-  neu(); await klick({ act: 'sheet', s: 'wetterquelle' }); eingabe({ wq: 'termine_kalender' }, d().termineKal || ''); await klick({ act: 'wetterquelle-speichern' }, 40);
-  neu(); await klick({ act: 'sheet', s: 'name' }); eingabe({ nm: 'name' }, d().titel); await gesendet('config_entries/update', 'Name', { act: 'name-speichern' });
-  await klick({ act: 'sheet', s: 'nachrichten' }); await klick({ act: 'n-knopf', t: 'Bis morgen stumm' }); pruefe('Nachrichten-Knopf');
+  neu(); await klick({ act: 'sheet', s: 'wetterquelle' }); eingabe({ f: 'termine_kalender' }, d().termineKal || ''); await klick({ act: 'wetterquelle-speichern' }, 40);
+  neu(); await klick({ act: 'sheet', s: 'name' }); eingabe({ f: 'name' }, d().titel); await gesendet('config_entries/update', 'Name', { act: 'name-speichern' });
+  await klick({ act: 'sheet', s: 'nachrichten' }); if (litEl('.sheet .noti-knoepfe button')) await klick('.sheet .noti-knoepfe button:nth-child(2)'); pruefe('Nachrichten-Knopf');
   const wOff = d().warnungen.find(w => w.art === 'offline' && w.b), hand = d().bereiche.flatMap(b => b.geraete.map(g => ({ b, g }))).find(x => x.g.hand);
   if (wOff) erwarte('Nachricht „nicht erreichbar“ mit dem Container der Warnung', ui.innerHTML.includes(`⚠ ${d().bereiche.find(b => b.id === wOff.b).name} nicht erreichbar`));
   if (hand) erwarte('Nachricht „auf Hand“ mit dem Gerät, das auf Hand steht', ui.innerHTML.includes(`✋ ${hand.g.n} ${hand.b.name} seit`));
@@ -635,7 +635,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Termin → calendar/event/create', (a => a && a.entity_id === 'calendar.besprechungen' && a.event.summary === 'Baubesprechung' && a.event.dtstart === '2026-10-08T09:00:00' && a.event.rrule === 'FREQ=WEEKLY;INTERVAL=2' && /baustelle:besprechung/.test(a.event.description) && /\bboost\b/.test(a.event.description))(letzte('calendar/event/create').at(-1)));
   neu(); await klick({ act: 'termin-weg', i: '0' });
   erwarte('Termin löschen → calendar/event/delete', (a => a && a.entity_id === 'calendar.besprechungen' && a.uid === 'termin-1')(letzte('calendar/event/delete').at(-1)));
-  neu(); await klick({ act: 'sheet', s: 'urlaub' }); eingabe({ ur: 'name' }, 'Semesterferien'); eingabe({ ur: 'von' }, '2027-02-15'); eingabe({ ur: 'bis' }, '2027-02-19'); await klick({ act: 'urlaub-speichern' });
+  neu(); await klick({ act: 'sheet', s: 'urlaub' }); eingabe({ f: 'name' }, 'Semesterferien'); eingabe({ f: 'von' }, '2027-02-15'); eingabe({ f: 'bis' }, '2027-02-19'); await klick({ act: 'urlaub-speichern' });
   erwarte('Urlaub → calendar/event/create (ganztägig, Ende exklusiv)', (a => a && a.entity_id === 'calendar.baustelle_urlaub' && a.event.dtstart === '2027-02-15' && a.event.dtend === '2027-02-20')(letzte('calendar/event/create').at(-1)));
   await klick({ act: 'tab', v: 'heizung' }, 30); neu(); await klick({ act: 'urlaub-weg', i: '0' });
   erwarte('Urlaub löschen', (a => a && a.uid === 'urlaub-1')(letzte('calendar/event/delete').at(-1)));
@@ -677,13 +677,13 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Bearbeiten: Gerät hinzufügen', api.some(a => a[2] && a[2].schalter === 'switch.heizung_04' && a[2].bereich === 'mannschaft'));
   await klick({ act: 'container', id: 'lager' }, 20); neu(); await klick({ act: 'sheet', s: 'bereich' }); await klick({ act: 'b-weg' }, 40);
   erwarte('Container entfernen', ['lager_r', 'lager'].every(id => letzte('config_entries/subentries/delete').some(a => a.subentry_id === id)));
-  neu(); await klick({ act: 'sheet', s: 'wetterquelle' }); eingabe({ wq: 'regen_sensor' }, 'sensor.regen_dobl'); eingabe({ wq: 'termine_kalender' }, 'calendar.baustelle_urlaub'); await klick({ act: 'wetterquelle-speichern' }, 40);
+  neu(); await klick({ act: 'sheet', s: 'wetterquelle' }); eingabe({ f: 'regen_sensor' }, 'sensor.regen_dobl'); eingabe({ f: 'termine_kalender' }, 'calendar.baustelle_urlaub'); await klick({ act: 'wetterquelle-speichern' }, 40);
   const opt = api.find(a => /options\/flow\/F/.test(a[1]));
   erwarte('Wetter über den Options-Dialog', opt && opt[2].wetter === 'weather.dobl' && opt[2].regen_sensor === 'sensor.regen_dobl' && opt[2].status === 'aktiv');
   erwarte('Termine-Kalender über baustelle/setzen', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === '["termine_kalender"]' && a.wert === 'calendar.baustelle_urlaub'));
-  neu(); await klick({ act: 'sheet', s: 'name' }); eingabe({ nm: 'name' }, 'ÖWG Dobl'); await klick({ act: 'name-speichern' });
+  neu(); await klick({ act: 'sheet', s: 'name' }); eingabe({ f: 'name' }, 'ÖWG Dobl'); await klick({ act: 'name-speichern' });
   erwarte('Name über config_entries/update', (a => a && a.entry_id === 'dobl' && a.title === 'ÖWG Dobl')(letzte('config_entries/update').at(-1)));
-  neu(); await klick({ act: 'sheet', s: 'baustelle-neu' }); eingabe({ nm: 'name' }, 'Wohnbau Kalsdorf'); await klick({ act: 'baustelle-anlegen' }, 30);
+  neu(); await klick({ act: 'sheet', s: 'baustelle-neu' }); eingabe({ f: 'name' }, 'Wohnbau Kalsdorf'); await klick({ act: 'baustelle-anlegen' }, 30);
   erwarte('Neue Baustelle über den Config-Dialog', api.some(a => a[1] === 'config/config_entries/flow' && a[2].handler === 'baustelle') && api.some(a => /config_entries\/flow\/F/.test(a[1]) && a[2].name === 'Wohnbau Kalsdorf') && api.some(a => a[0] === 'DELETE'));
   neu(); await klick({ act: 'sheet', s: 'abschliessen' }); await klick({ act: 'abschliessen' }, 30);
   erwarte('Abschließen über den Options-Dialog', api.some(a => /options\/flow\/F/.test(a[1]) && a[2].status === 'abgeschlossen'));
@@ -824,7 +824,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   /* Strompreis mit „gilt ab“ und Preis simulieren (Herbert 04.10.2026) */
   { panel.s.evGruppe = 'strom'; await klick({ act: 'tab', v: 'einst' }, 10); pruefe('Strompreis-Liste');
     erwarte('Strompreis: Liste mit „gilt jetzt“ und „Neuer Preis ab“', ui.innerHTML.includes('Neuer Preis ab') && ui.innerHTML.includes('gilt jetzt'));
-    await klick({ act: 'sp-neu' }); pruefe('Neuer Strompreis'); eingabe({ sp: 'preis' }, '0,19'); neu(); await klick({ act: 'sp-speichern' }, 10);
+    await klick({ act: 'sp-neu' }); pruefe('Neuer Strompreis'); eingabe({ f: 'preis' }, '0,19'); neu(); await klick({ act: 'sp-speichern' }, 10);
     erwarte('Strompreis speichern über baustelle/liste', letzte('baustelle/liste').some(a => a.liste === 'preise' && a.aktion === 'speichern' && a.eintrag.preis === 0.19 && a.eintrag.ab));
     panel.s.awSim = false; await klick({ act: 'tab', v: 'auswertung' }, 20); neu(); await klick({ act: 'sp-aw' }, 20); pruefe('Auswertung simuliert');
     erwarte('Simulieren: Band und Auswertung mit Preis', ui.innerHTML.includes('Simuliert: alle €') && letzte('baustelle/auswertung').some(a => typeof a.preis === 'number'));
@@ -1169,10 +1169,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   neu(); await klick({ act: 'test-meldung' }, 20);
   erwarte('Test-Nachricht über baustelle/aktion', letzte('baustelle/aktion').some(a => a.aktion === 'test_meldung'));
   await klick({ act: 'sheet', s: 'zeitraum-bs' }); pruefe('Beginn, Ende, Heizperiode');
-  eingabe({ bsz: 'ende' }, '2027-05-28'); eingabe({ hp: '1' }, '3'); neu(); await klick({ act: 'bsz-speichern' }, 30);
+  eingabe({ f: 'ende' }, '2027-05-28'); eingabe({ f: 'hp1' }, '3'); neu(); await klick({ act: 'bsz-speichern' }, 30);
   { const o = api.find(a => /options\/flow\/F/.test(a[1]));
     erwarte('Beginn/Ende/Heizperiode über den Options-Dialog', o && o[2].ende === '2027-05-28' && o[2].heizperiode_bis === '3' && o[2].heizperiode_von === '10' && o[2].status === 'aktiv'); }
-  { await klick({ act: 'sheet', s: 'zeitraum-bs' }); eingabe({ bsz: 'beginn' }, ''); neu(); await klick({ act: 'bsz-speichern' }, 30);
+  { await klick({ act: 'sheet', s: 'zeitraum-bs' }); eingabe({ f: 'beginn' }, ''); neu(); await klick({ act: 'bsz-speichern' }, 30);
     const o = api.find(a => /options\/flow\/F/.test(a[1]));
     erwarte('AN-0002: Beginn leer → ohne Beginn gespeichert (Tag der Anlage)', o && !('beginn' in o[2])); }
   neu(); await klick({ act: 'e-bool', k: 'erklaer' });
@@ -1211,7 +1211,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await klick({ act: 'sheet', s: 'bs-loeschen', id: 'lieboch' }); await klick({ act: 'bs-loeschen' }, 30);
   erwarte('Löschen entfernt den Eintrag wie Geräte & Dienste', api.some(a => a[0] === 'DELETE' && a[1] === 'config/config_entries/entry/lieboch'));
   erwarte('Löschen der offenen Detailseite führt zur Übersicht', panel.s.view === 'uebersicht');
-  await klick({ act: 'sheet', s: 'nachrichten' }); await klick({ act: 'n-knopf', t: 'Bis morgen stumm' }); pruefe('Nachrichten-Knopf');
+  await klick({ act: 'sheet', s: 'nachrichten' }); if (litEl('.sheet .noti-knoepfe button')) await klick('.sheet .noti-knoepfe button:nth-child(2)'); pruefe('Nachrichten-Knopf');
   erwarte('keine direkten HA-Dienste', true);
 
   /* Treue zum Mockup (mockups/quelle/glas-app.js) an Stellen, die leicht abweichen */

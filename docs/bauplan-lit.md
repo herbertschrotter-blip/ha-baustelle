@@ -286,6 +286,15 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   Bedienung aller Gruppen erweitert (336 Schritte), inhaltlich gleich bis auf den entfallenen Lit-Behälter und zweimal
   die Klasse `rein`; Panel-Test (Gruppen, Vorrang, E-Mail über echte Ereignisse), Browser-Fall „Lit-Pilot Über“ auf
   die Lit-Einstellungen umgestellt (Navigation, 20 Updates ohne neuen Knoten, Aufklappen, Melden).
+- **3e Dialoge rund um die Baustelle, 07.10.2026 (0.8.92):** `src/ansichten/einblendungen-baustelle.js` (Name, Neue
+  Baustelle, Beginn/Ende/Heizperiode, Wetter und Kalender, Abschließen, Löschen, Urlaub, Bericht, Nachrichten,
+  Strompreis, Baustelle bearbeiten; `BAUSTELLE_EINBLENDUNGEN`) samt `preisListeVorlage` (auch in Einstellungen › Strom)
+  und `optionenVorlage` (Auswahllisten). Auswahllisten reagieren auf `input` und `change`. Methoden `berichtDaten`,
+  `nameSpeichern`, `baustelleAnlegen`, `zeitraumBsSpeichern`, `abschliessen`, `urlaubSpeichern`,
+  `wetterquelleSpeichern`, `preisSpeichern`, `bsLoeschen`, `bsBearbeiten`. **Entfallen:** neun Zweige in `sheet()`,
+  `preisListe`, Felder `data-sp`/`data-ur`/`data-wq`/`data-nm`/`data-bsz`/`data-hp` in `eingabe()`, Klick-Fälle
+  `n-knopf`, `wetterquelle-auf`. Nachweis: Schnappschuss um die Dialoge erweitert (402 Schritte), inhaltlich gleich, auch
+  Nicht-Admin; Panel-Test über die Feld-Merkmale `data-f`.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

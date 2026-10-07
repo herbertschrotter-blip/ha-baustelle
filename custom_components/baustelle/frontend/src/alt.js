@@ -29,6 +29,7 @@ import { CONTAINER_EINBLENDUNGEN } from './ansichten/einblendungen-container.js'
 import { HZ_BLOECKE, heizungVorlage, hzEinblendung } from './ansichten/heizung.js';
 import { HEIZUNG_EINBLENDUNGEN } from './ansichten/einblendungen-heizung.js';
 import { einstellungenVorlage } from './ansichten/einstellungen.js';
+import { BAUSTELLE_EINBLENDUNGEN } from './ansichten/einblendungen-baustelle.js';
 
 const CSS = `/* Wetter */
 .wetter .wjetzt { display: flex; align-items: center; gap: 14px; }
@@ -955,7 +956,7 @@ const KK_JEDES = { Tag: 6, Woche: 1, Monat: 7, Jahr: 3 };
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN)];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
   static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
@@ -1679,6 +1680,57 @@ class BaustellePanel extends LitElement {
     S.sheet = null; this.neuZeichnen();
     return this.liste('arbeitszeiten', 'speichern', { ab: f.ab, name: f.name.trim() || `ab ${datum(f.ab)}`, tage, ...(f.alt_ab !== undefined ? { alt_ab: f.alt_ab } : {}) }, text);
   }
+  /* Dialoge rund um die Baustelle (src/ansichten/einblendungen-baustelle.js, BSM-022 3e) */
+  berichtDaten() {   // Inhalt des Beispielberichts von der Integration; undefined = lädt, null = nicht verfügbar
+    const d = this.d, e = d.e, art = e.bericht === 'monat' ? 'monat' : 'woche';
+    return !d.geladen ? null : this._holen(`b:${d.entry}:${art}:${d.z.HEUTE}:${e.bericht_mail}:${e.bericht_csv}:${e.mail}`, () => this._hass.callWS({ type: 'baustelle/bericht', entry_id: d.entry, art }), 120000);
+  }
+  nameSpeichern() { const S = this.s, n = S.sheet.form.name.trim(); if (!n) return this.toast('Bitte einen Namen eingeben'); S.sheet = null; this.neuZeichnen();
+    return this.ws({ type: 'config_entries/update', entry_id: this.d.entry, title: n }, 'Gespeichert'); }
+  baustelleAnlegen() {
+    const S = this.s, n = S.sheet.form.name.trim(); if (!n) return this.toast('Bitte einen Namen eingeben'); S.sheet = null; this.neuZeichnen();
+    const heute = this.d ? this.z.HEUTE : new Date().toISOString().slice(0, 10);
+    return this.einrichten(() => this.dialog('config/config_entries/flow', { handler: 'baustelle', show_advanced_options: false }, { name: n, beginn: heute, heizung: true, pumpen: true }), `${n} angelegt – jetzt Container anlegen`)
+      .then(r => { if (r && r.next_flow) this._hass.callApi('DELETE', `config/config_entries/subentries/flow/${r.next_flow[1]}`).catch(() => {});
+        if (r && r.result && r.result.entry_id) { this.bid = r.result.entry_id; this._merken(); } this._laden(); });
+  }
+  zeitraumBsSpeichern() {
+    const S = this.s, d = this.d, f = S.sheet.form; if (f.ende && f.ende < (f.beginn || (d.beginnAuto ? d.beginn : ''))) return this.toast('Bitte Beginn und Ende prüfen');
+    S.sheet = null; this.neuZeichnen();
+    return this.einrichten(() => this.optionenSpeichern(d, { beginn: f.beginn || null, ende: f.ende || null, heizperiode_von: String(f.hp[0]), heizperiode_bis: String(f.hp[1]) }), 'Gespeichert').then(() => this._laden());
+  }
+  abschliessen() { const d = this.d; this.s.leeren(); this.neuZeichnen();
+    return this.einrichten(() => this.optionenSpeichern(d, { status: 'abgeschlossen' }), 'Abgeschlossen – steht jetzt im Verlauf').then(() => this._laden()); }
+  urlaubSpeichern() {
+    const S = this.s, d = this.d, f = S.sheet.form; if (!f.von || !f.bis || f.bis < f.von) return this.toast('Bitte Von und Bis prüfen');
+    S.sheet = null; this.neuZeichnen(); delete this.cache['k:' + d.optionen.urlaub_kalender];
+    return this.ws({ type: 'calendar/event/create', entity_id: d.optionen.urlaub_kalender, event: { summary: f.name.trim() || 'Urlaub', dtstart: f.von, dtend: plusTage(f.bis, 1) } }, 'Eingetragen – in der Zeit nur Frostschutz');
+  }
+  wetterquelleSpeichern() {
+    const S = this.s, d = this.d, f = S.sheet.form; S.sheet = null; this.neuZeichnen();
+    return this.einrichten(async () => {
+      const r = await this.optionenSpeichern(d, { wetter: f.wetter, temp_sensor: f.temp_sensor, regen_sensor: f.regen_sensor, urlaub_kalender: f.urlaub_kalender, feiertag_kalender: f.feiertag_kalender });
+      if (this.flowFehler(r)) return r;
+      if ((f.termine_kalender || null) !== (d.termineKal || null)) await this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: ['termine_kalender'], wert: f.termine_kalender || null });
+      return r;
+    }, 'Gespeichert').then(() => { this.cache = {}; this._aboFuer = null; this._laden(); });
+  }
+  preisSpeichern() {
+    const S = this.s, f = S.sheet, p = parseFloat(String(f.preis).replace(',', '.')); if (!f.ab || !zahl(p) || p < 0) return this.toast('Bitte Datum und Preis prüfen');
+    S.sheet = null; this.neuZeichnen(); this.cache = {}; return this.liste('preise', 'speichern', { ab: f.ab, preis: p }, `Strompreis ${de(p, 2)} € ab ${datum(f.ab)} gespeichert`);
+  }
+  bsLoeschen() {
+    const S = this.s, d = this.d, x = this.alle.find(y => y.entry === S.sheet.id); S.sheet = null; if (!x) return this.neuZeichnen();
+    const weg = (d && d.entry === x.entry) || (S.view === 'bsdetail' && S.bs === x.entry); this.neuZeichnen();
+    return this.einrichten(() => this._hass.callApi('DELETE', `config/config_entries/entry/${x.entry}`), `${x.titel} gelöscht`)
+      .then(r => { if (!r) return; this._rohText = null; return this._laden().then(() => { if (weg) this.gehe('uebersicht'); }); });
+  }
+  bsBearbeiten(id) {   // aktiv → „Baustelle bearbeiten“ (AN-0002), abgeschlossen → Detailseite (wieder aktiv setzen)
+    const S = this.s, x = this.alle.find(y => y.entry === id); if (!x) return undefined;
+    if (!x.aktiv) { S.bs = x.entry; return this.gehe('bsdetail'); }
+    if (x.entry !== this.bid) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); S.aw = null; }
+    S.sheet = { art: 'bs-bearbeiten' }; return this.neuZeichnen();
+  }
   /* Einstellungen (src/ansichten/einstellungen.js, BSM-022 3e); Übersicht und Einblendungen nutzen sie über klick() */
   einstGruppeWahl(k) { this.s.evGruppe = k; this.s.evDev = null; return this.neuZeichnen(true); }
   bereichEinst(id) { this.s.cid = id; this.s.sheet = { art: 'bereich' }; return this.neuZeichnen(); }
@@ -1877,6 +1929,7 @@ class BaustellePanel extends LitElement {
     else if (S.sheet && CONTAINER_EINBLENDUNGEN[S.sheet.art]) sheet = CONTAINER_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'hz') sheet = hzEinblendung(this, S.sheet);
     else if (S.sheet && HEIZUNG_EINBLENDUNGEN[S.sheet.art]) sheet = HEIZUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
+    else if (S.sheet && BAUSTELLE_EINBLENDUNGEN[S.sheet.art]) sheet = BAUSTELLE_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet) { try { sheet = unsafeHTML(this.sheet()); } catch (e) { S.sheet = null; sheet = ''; } }
     const kopf = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ''}
       <nav class="glas-nav glas-panel ${tabs.length > 5 ? 'sechs' : ''}">${tabs.map(([k, t]) => `<button data-act="tab" data-v="${k}" class="${k === aktivTab ? 'on' : ''} ${k === 'einst' ? 'nav-ic' : ''}" ${k === 'einst' ? 'aria-label="Einstellungen" title="Einstellungen"' : ''}>${k === 'einst' ? ICON_COG : t}</button>`).join('')}</nav>
@@ -2670,16 +2723,6 @@ class BaustellePanel extends LitElement {
   }
   /* Strompreis mit „gilt ab“ (Herbert 04.10.2026, Mockup strompreis.html): Liste wie die Arbeitszeit; die Integration
      rechnet jeden Tag mit dem Preis, der damals galt */
-  /* Strompreise im Dialog „Baustelle bearbeiten“ (bis 3e; die Einstellungen zeigen sie über einstellungen.js) */
-  preisListe() {
-    const e = this.d.e, H = this.z.HEUTE, L = (e.preise.length ? e.preise : [{ ab: null, preis: e.preis }]).slice().sort((a, b) => String(b.ab).localeCompare(String(a.ab)));
-    const jetzt = L.find(x => !x.ab || x.ab <= H);
-    return `<div class="gruppe-t">Strompreis</div>${L.map((x, i) => { const bis = i && L[i - 1].ab ? plusTage(L[i - 1].ab, -1) : null;
-      return `<div class="sp-zeile"><b>${de(x.preis, 2)} €/kWh</b><span class="leise">${x === jetzt ? '<span class="badge gruen">gilt jetzt</span> ' : x.ab > H ? '<span class="badge blau-b">geplant</span> ' : ''}${x.ab && x.ab > '2000-01-01' ? `ab ${datum(x.ab)}` : 'bisher'}${bis ? ` bis ${datum(bis)}` : ''}</span>
-        ${L.length > 1 && x.ab ? `<button class="x" data-act="sp-weg" data-ab="${x.ab}" title="Preis löschen">✕</button>` : ''}</div>`; }).join('')}
-      <button class="zeile" data-act="sp-neu"><span class="blau">+ Neuer Preis ab …</span></button>
-      <div class="leise">Auswertung, Abrechnung nach Firma und CSV rechnen jeden Tag mit dem Preis, der an dem Tag galt. Ein neuer Preis ändert nichts an Vergangenem.</div>`;
-  }
   /* Rangliste der Staffelung (Herbert 01.10.2026, Mockup staffel-rang.html): Reihenfolge und Bedarf in °C rechnet die
      Integration (laufzeit.staffel.rang, laufzeit.container.<id>.bedarf) – die Seite zeigt nur an */
   stromRang(L, zustand) {
@@ -2963,10 +3006,6 @@ class BaustellePanel extends LitElement {
     if (s.art === 'baustellen') return `${griff}<h3>Baustelle wählen</h3>${this.alle.map(b => `<div class="zeile bs-zeile"><button class="bs-wahl" data-act="bs-wahl" data-id="${esc(b.entry)}"><span>${esc(b.titel)}${d && b.entry === d.entry ? ' ✓' : ''}</span><span class="badge ${b.aktiv ? 'gruen' : ''}">${b.aktiv ? 'aktiv' : 'abgeschlossen'}</span></button>
         <button class="bs-ic" data-act="bs-bearbeiten" data-id="${esc(b.entry)}" title="Bearbeiten" aria-label="${esc(b.titel)} bearbeiten">✎</button><button class="x" data-act="sheet" data-s="bs-loeschen" data-id="${esc(b.entry)}" title="Löschen" aria-label="${esc(b.titel)} löschen">✕</button></div>`).join('')}
       <button class="zeile" data-act="sheet" data-s="baustelle-neu"><span class="blau">+ Neue Baustelle</span></button>`;
-    if (s.art === 'bs-loeschen') { const x = this.alle.find(y => y.entry === s.id);
-      if (!x) return `${griff}<h3>Baustelle löschen</h3><div class="leise">Diese Baustelle gibt es nicht mehr.</div>${knopf('Schließen', 'zu', 'leise-k')}`;
-      return `${griff}<h3>„${esc(x.titel)}“ löschen?</h3><div class="leise">Die Baustelle wird aus HA entfernt – mit Containern, Geräten, Einstellungen und Zählern. Sie steht danach auch nicht im Verlauf. Die Messwerte der Shellys bleiben in HA.${x.aktiv ? ' Wer die Werte behalten will, schließt die Baustelle stattdessen ab.' : ''}</div>
-        ${knopf('Endgültig löschen', 'bs-loeschen', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
     if (s.art === 'firma') {
       const f = s.form, neu = !f.id, eigen = !neu && this.firma(f.id).eigen;
       // wählbar: Container ohne fremde Firma, dazu die, die schon dieser Firma gehören
@@ -3014,44 +3053,6 @@ class BaustellePanel extends LitElement {
         ${d.bereiche.map(b => `<div class="zeile"><span>${esc(b.name)} <span class="leise">${f.container.includes(b.id) ? '' : '· ' + esc(this.anschluss(b.anschluss).name)}</span></span>${schalter(f.container.includes(b.id), 'an-c', `data-id="${b.id}"`)}</div>`).join('')}
         <div class="leise">Ein Container hängt an genau einem Anschluss.</div>
         ${knopf('Speichern', 'an-speichern', 'amber')}${!neu && d.anschluesse.length > 1 ? knopf('Anschluss löschen', 'an-weg', 'rot') : ''}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'nachrichten') {
-      // Beispiele mit echten Containern: bevorzugt der, auf den es gerade passt (offline, Tür offen, Gerät auf Hand)
-      const B = d.bereiche, c = k => (B[k] || B[0] || { name: 'Container', id: '' });
-      const wOff = d.warnungen.find(w => w.art === 'offline' && w.b), GB = B.flatMap(b => b.geraete.map(g => ({ b, g })));
-      const off = (wOff && B.find(b => b.id === wOff.b)) || B.find(b => b.offline) || c(0);   // Container der Warnung „nicht erreichbar“
-      const pumpe = B.find(b => b.pumpe), steck = GB.find(x => x.g.hand && !x.g.heizer) || GB.find(x => x.g.hand) || GB.find(x => !x.g.heizer && x.g.rolle !== 'pumpe');
-      const n = (ic, titel, text, knoepfe, b) => `<div class="noti"><div class="noti-kopf"><span class="noti-app">🏗 Home Assistant · jetzt</span></div><b>${ic} ${esc(titel)}</b><div>${esc(text)}</div>
-        ${d.e.knoepfe ? `<div class="noti-knoepfe">${knoepfe.map(k => `<button data-act="n-knopf" data-t="${k}" data-b="${b || ''}">${k}</button>`).join('')}</div>` : ''}</div>`;
-      const tuer = B.find(b => b.tuer && b.tuer.offen) || B.find(b => b.tuer) || c(0), p = this.planTag(TAGE[(TAGE.indexOf(this.z.HEUTE_TAG) + 1) % 7]);
-      const frueh = p ? p.vor - d.e.frueh_min : null;   // Frühstart; „Noch früher“ startet 30 min davor (Integration: laufzeit.frueher)
-      return `${griff}<h3>Nachrichten aufs Handy</h3><div class="leise">So kommen sie in der Home-Assistant-App an. ${d.e.knoepfe ? 'Tippe einen Knopf zum Ausprobieren.' : 'Knöpfe sind ausgeschaltet.'}</div>
-        ${n('⚠', `${off.name} nicht erreichbar`, 'Seit 10:42 keine Antwort – Stromausfall oder Stecker gezogen?', ['Zum Container', 'Bis morgen stumm'], off.id)}
-        ${n('🚪', `${tuer.name}: Tür seit ${d.e.tuer_melden} min offen`, 'Die Heizung ist pausiert und heizt wieder, sobald die Tür zu ist.', ['Trotzdem heizen', '1 h stumm'], tuer.id)}
-        ${n('❄', 'Morgen −4 °C', `Vorheizen startet schon um ${p ? uhr(frueh) : '05:30'}. Arbeitsbeginn ${p ? uhr(p.a) : '07:00'}.`, ['Morgen nicht heizen', `Noch früher (${p ? uhr(frueh - 30) : '05:00'})`])}
-        ${n('✋', `${steck ? `${steck.g.n} ${steck.b.name}` : (pumpe ? pumpe.name : c(0).name)} seit ${d.e.hand_h} h auf Hand`, 'Von Hand eingeschaltet und nicht zurückgestellt.', ['Automatik übernehmen', 'So lassen'], steck ? steck.b.id : c(0).id)}
-        <div class="leise">Die Knöpfe sind Aktionen der HA-App (mobile_app). Ein Tipp löst die Aktion aus und landet im Protokoll.</div>${knopf('Schließen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'bericht') {
-      // Inhalt kommt von der Integration (baustelle/bericht) – dieselben Zahlen und Texte, die der Bericht verschickt
-      const e = d.e, art = e.bericht === 'monat' ? 'monat' : 'woche';
-      const v = !d.geladen ? null : this._holen(`b:${d.entry}:${art}:${d.z.HEUTE}:${e.bericht_mail}:${e.bericht_csv}:${e.mail}`, () => this._hass.callWS({ type: 'baustelle/bericht', entry_id: d.entry, art }), 120000);
-      if (!v) return `${griff}<h3>Bericht · Beispiel</h3>${v === undefined ? LAEDT : '<div class="leer">Bericht nicht verfügbar</div>'}${knopf('Schließen', 'zu', 'leise-k')}`;
-      return `${griff}<h3>Bericht · Beispiel</h3>
-        <div class="mail"><div class="mail-kopf"><div><span class="leise">An</span> ${v.mail_an ? esc(v.mail_an) : '—'}</div><div><span class="leise">Betreff</span> ${esc(v.betreff)}</div>
-          ${v.anhang ? `<div class="mail-anhang">📎 ${esc(v.anhang)}</div>` : ''}</div>
-          <div class="mail-inhalt"><b>${esc(v.summe)}</b> ${v.vergleich ? `<span class="leise">${esc(v.vergleich)}</span>` : ''}
-            <div class="mail-t">Je Firma</div>${(v.firmen || []).map(f => `<div class="mail-z"><span>${esc(f.name)}</span><span>${de(f.kwh, 0)} kWh · ${de(f.eur, 2)} €</span></div>`).join('') || '<div class="mail-z"><span>–</span></div>'}
-            <div class="mail-t">Je Container</div>${(v.container || []).map(c => `<div class="mail-z"><span>${esc(c.name)}</span><span>${de(c.kwh, 0)} kWh</span></div>`).join('')}
-            <div class="mail-t">Heizung</div><div class="mail-z"><span>Heiztage</span><span>${zahl(v.heiztage) ? v.heiztage : '–'}</span></div><div class="mail-z"><span>gespart durch Automatik</span><span>${zahl(v.gespart_eur) ? `${de(v.gespart_eur, 0)} €` : '–'}</span></div>
-            <div class="mail-t">Offene Warnungen</div>${(v.warnungen || []).map(w => `<div class="mail-z"><span>${esc(w.bereich ? `${w.bereich}: ${w.titel}` : w.titel)}</span></div>`).join('') || '<div class="mail-z"><span>keine</span></div>'}</div></div>
-        <div class="leise">${e.bericht_handy ? 'Aufs Handy kommt eine Kurzfassung (Summe, Kosten, Warnungen) mit Knopf „Bericht öffnen“. ' : ''}Die E-Mail geht über einen Mail-Dienst in HA (Google Mail oder SMTP); die Zugangsdaten stehen in secrets.yaml.</div>
-        ${knopf('Schließen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'preis-neu') {
-      return `${griff}<h3>Neuer Strompreis</h3><label class="feld">gilt ab<input type="date" value="${s.ab}" data-sp="ab"></label>
-        <label class="feld">Preis je kWh<input type="number" step="0.01" min="0" value="${s.preis}" data-sp="preis"></label>
-        <div class="leise">Bis zu diesem Tag gilt weiter der bisherige Preis – Vergangenes bleibt, wie es war.</div>${knopf('Speichern', 'sp-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     if (s.art === 'm-bild') {   // WU-0016: Bild einer Meldung groß
       const m = (this.meldungen() || []).find(x => x.id === s.id), u = m && this.mlBild(m, s.i);
@@ -3104,15 +3105,6 @@ class BaustellePanel extends LitElement {
         <div class="leise">Der Heizkörpertyp gilt nur für den Vergleich Ölradiator/Konvektor. Entfernte Geräte behalten ihre Werte im Verlauf.</div>
         ${knopf('Speichern', 'b-speichern', 'amber')}${knopf('Container entfernen', 'b-weg', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
-    if (s.art === 'zeitraum-bs') { const f = s.form;
-      const mon = i => `<select data-hp="${i}">${MONATE.map((m, k) => `<option value="${k + 1}" ${f.hp[i] === k + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select>`;
-      return `${griff}<h3>Beginn, Ende, Heizperiode</h3>
-      <div class="raster-2"><label class="feld">Beginn<input type="date" value="${esc(f.beginn)}" data-bsz="beginn"></label><label class="feld">Ende (geplant)<input type="date" value="${esc(f.ende)}" data-bsz="ende"></label></div>
-      <div class="leise">Gezählt wird ab Beginn. <b>Beginn leer</b> = automatisch der Tag, an dem die Baustelle angelegt wurde${this.d.beginnAuto && this.d.beginn ? ` (${datum(this.d.beginn)})` : ''}.
-        <b>Ende leer</b> = offen; beim Abschließen wird immer der Tag des Abschließens eingetragen – ein geplantes Ende dient nur der Hochrechnung.</div>
-      <div class="raster-2"><label class="feld">Heizperiode von${mon(0)}</label><label class="feld">bis${mon(1)}</label></div>
-      <div class="leise">Die Auswertung rechnet Verbrauch und Kosten auf die Heizperiode hoch – bis zum Ende der Baustelle, wenn es früher liegt.</div>
-      ${knopf('Speichern', 'bsz-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`; }
     /* AN-0002: ✎ im Dialog „Baustellen“ – nur die Daten dieser Baustelle; Staffelung, Bericht, Meldungen und App bleiben unter Einstellungen */
     if (s.art === 'aw-detail') {   // WU-0005: Details einer Kachel/Karte der Auswertung
       const T = this._awTeile, html = T ? this.awStueck(s.k, T.B, T.A, T.z) : '';
@@ -3139,48 +3131,6 @@ class BaustellePanel extends LitElement {
         ${knopf('Speichern', 'gf-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
     }
     /* Lernende Regelung (0.8): Lernstand eines Containers (Mockup glas.html, abgenommen 30.09.2026) */
-    if (s.art === 'bs-bearbeiten') {
-      const e = d.e, o = d.optionen;
-      return `${griff}<div class="block-kopf"><h3>Baustelle bearbeiten</h3><span class="leise">${esc(d.titel)}</span></div>
-        <div class="gruppe-t">Baustelle</div>
-        <button class="zeile" data-act="sheet" data-s="name"><span>Name</span><span class="leise">${esc(d.titel)} ›</span></button>
-        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Beginn und Ende</span><span class="leise">${this.bsZeit(d)} ›</span></button>
-        <button class="zeile" data-act="sheet" data-s="zeitraum-bs"><span>Heizperiode</span><span class="leise">${MONATE[d.hp[0] - 1]} – ${MONATE[d.hp[1] - 1]} ›</span></button>
-        <div class="gruppe-t">Ort</div>
-        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Wetter</span><span class="leise">${o.wetter ? esc(this.name(o.wetter)) : 'keins gewählt'} ›</span></button>
-        <button class="zeile" data-act="sheet" data-s="wetterquelle"><span>Außentemperatur</span><span class="leise">${o.temp_sensor ? esc(this.name(o.temp_sensor)) : 'aus der Vorhersage'} ›</span></button>
-        <div class="gruppe-t">Container und Geräte · ${d.bereiche.length}</div>
-        ${d.bereiche.map(b => `<button class="zeile" data-act="bereich-einst" data-id="${b.id}"><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${esc(b.name)}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`).join('')}
-        <button class="zeile" data-act="sheet" data-s="container-neu"><span class="blau">+ Container oder Schacht</span></button>
-        <div class="gruppe-t">Strom und Abrechnung</div>
-        ${this.preisListe()}
-        ${d.firmen.map(f => { const n = d.bereiche.filter(b => (b.firma || 'eigen') === f.id).length;
-          return `<button class="zeile" data-act="firma-auf" data-id="${esc(f.id)}"><span>${esc(f.name)}${f.eigen ? ' <span class="badge">eigene</span>' : ''}</span><span class="leise">${n} Container ›</span></button>`; }).join('')}
-        <button class="zeile" data-act="firma-auf"><span class="blau">+ Firma hinzufügen</span></button>
-        ${d.aktiv ? '<button class="zeile" data-act="sheet" data-s="abschliessen"><span>Baustelle abschließen</span><span class="leise">kommt in den Verlauf ›</span></button>' : ''}
-        <div class="leise p-fuss">Staffelung, Bericht, Meldungen und App stehen unter Einstellungen.</div>
-        <button class="zeile" data-act="tab" data-v="einst"><span class="blau">Alle Einstellungen</span><span class="chev">›</span></button>
-        ${knopf('Fertig', 'zu', 'amber')}`;
-    }
-    if (s.art === 'abschliessen') return `${griff}<h3>Baustelle abschließen?</h3><div class="leise">Die Heizung wird abgeschaltet. Als Ende wird heute (${datum(this.z.HEUTE)}) eingetragen. Werte und Diagramme bleiben im Verlauf, gelöscht wird nichts.</div>${knopf('Abschließen', 'abschliessen', 'rot')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    if (s.art === 'urlaub') {
-      if (!d.optionen.urlaub_kalender) return `${griff}<h3>Urlaub eintragen</h3><div class="leise">Zuerst einen Kalender für den Urlaub wählen.</div>${knopf('Kalender wählen', 'wetterquelle-auf', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-      return `${griff}<h3>Urlaub eintragen</h3><label class="feld">Name<input value="${esc(s.form.name)}" placeholder="z. B. Semesterferien" data-ur="name"></label>
-      <div class="raster-2"><label class="feld">Von<input type="date" value="${s.form.von}" data-ur="von"></label><label class="feld">Bis<input type="date" value="${s.form.bis}" data-ur="bis"></label></div>
-      <div class="leise">Wird in den Kalender „${esc(this.name(d.optionen.urlaub_kalender))}“ eingetragen; in der Zeit läuft nur der Frostschutz.</div>${knopf('Eintragen', 'urlaub-speichern', 'amber')}${knopf('Abbrechen', 'zu', 'leise-k')}`;
-    }
-    if (s.art === 'wetterquelle') {
-      const f = s.form, kal = this.entitaeten(x => x.entity_id.startsWith('calendar.'));
-      return `${griff}<h3>Wetter</h3>
-        <label class="feld">Wetter<select data-wq="wetter">${this.optionen(this.entitaeten(x => x.entity_id.startsWith('weather.')), f.wetter, '– keins –')}</select></label>
-        <label class="feld">Außentemperatur<select data-wq="temp_sensor">${this.optionen(this.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'temperature'), f.temp_sensor, 'aus der Vorhersage')}</select></label>
-        <label class="feld">Regenmenge<select data-wq="regen_sensor">${this.optionen(this.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'precipitation'), f.regen_sensor, 'aus der Vorhersage')}</select></label>
-        <div class="gruppe-t">Kalender</div>
-        <label class="feld">Urlaub<select data-wq="urlaub_kalender">${this.optionen(kal, f.urlaub_kalender, '– keiner –')}</select></label>
-        <label class="feld">Feiertage<select data-wq="feiertag_kalender">${this.optionen(kal, f.feiertag_kalender, '– keiner –')}</select></label>
-        <label class="feld">Termine (Container nur bei Bedarf)<select data-wq="termine_kalender">${this.optionen(kal, f.termine_kalender, '– keiner –')}</select></label>
-        ${knopf('Speichern', 'wetterquelle-speichern', 'amber')}`;
-    }
     return `${griff}<h3>${{ name: 'Name', 'baustelle-neu': 'Neue Baustelle' }[s.art] || ''}</h3>
       <label class="feld">Name<input value="${esc(s.form ? s.form.name : '')}" placeholder="z. B. Wohnbau Kalsdorf" data-nm="name"></label>
       ${knopf('Speichern', s.art === 'name' ? 'name-speichern' : 'baustelle-anlegen', 'amber')}`;
@@ -3251,7 +3201,6 @@ class BaustellePanel extends LitElement {
       case 'pfilter': S.pfilter = el.dataset.v; S.pmehr = false; return neu();
       case 'pmehr': S.pmehr = true; return neu();
       case 'sheet': return this.einblenden(el.dataset.s, el.dataset);
-      case 'wetterquelle-auf': return this.klick({ target: { closest: () => ({ dataset: { act: 'sheet', s: 'wetterquelle' } }) } });
       case 'wa': S.sheet.wa = el.dataset.v; return neu();
       case 'oh-basis': S.sheet.ohneBasis = el.dataset.v; return neu();   // WU-0013: Ø je Gerät | je Typ
       case 'vb-gruppe': { const st = el.dataset.ziel === 'aw' ? S.aw : S.sheet; st.gruppe = el.dataset.v; st.auswahl = this.quellen(st, el.dataset.ziel).map(q => q.id); return neu(); }
@@ -3296,9 +3245,7 @@ class BaustellePanel extends LitElement {
       case 'np-pruefen': if (S.npPrueft) return; S.npPrueft = true; this.neuZeichnen();
         return this.ws({ type: 'baustelle/notprogramm_pruefen', entry_id: d.entry }, 'Notprogramm geprüft').finally(() => { S.npPrueft = false; this.neuZeichnen(); });
       case 'test-meldung': return this.testMeldung();
-      case 'bsz-speichern': { const f = S.sheet.form; if (f.ende && f.ende < (f.beginn || (d.beginnAuto ? d.beginn : ''))) return this.toast('Bitte Beginn und Ende prüfen');
-        S.sheet = null; neu();
-        return this.einrichten(() => this.optionenSpeichern(d, { beginn: f.beginn || null, ende: f.ende || null, heizperiode_von: String(f.hp[0]), heizperiode_bis: String(f.hp[1]) }), 'Gespeichert').then(() => this._laden()); }
+      case 'bsz-speichern': return this.zeitraumBsSpeichern();
       case 'aw-bearb': S.awBearb = !S.awBearb; S.awLayout = false; return neu();
       case 'aw-layout': S.awLayout = !S.awLayout; S.awBearb = false; return neu();
       case 'aw-an': { const x = this.awAuswahl()[+el.dataset.i]; x.an = !x.an; this.awMerken(); return neu(); }
@@ -3320,8 +3267,7 @@ class BaustellePanel extends LitElement {
         return neu(); }
       case 'vg-zr': S.sheet.zr = el.dataset.v; return neu();
       case 'sp-neu': return this.preisNeu();
-      case 'sp-speichern': { const f = S.sheet, p = parseFloat(String(f.preis).replace(',', '.')); if (!f.ab || !zahl(p) || p < 0) return this.toast('Bitte Datum und Preis prüfen');
-        S.sheet = null; neu(); this.cache = {}; return this.liste('preise', 'speichern', { ab: f.ab, preis: p }, `Strompreis ${de(p, 2)} € ab ${datum(f.ab)} gespeichert`); }
+      case 'sp-speichern': return this.preisSpeichern();
       case 'sp-weg': return this.preisWeg(el.dataset.ab);
       case 'sp-sim': { S.simPreis = Math.max(0, Math.round((this.simPreis() + +el.dataset.d) * 100) / 100); try { localStorage.setItem('baustelle-sim-preis', String(S.simPreis)); } catch (e) { /* egal */ } return neu(); }
       case 'sp-aw': S.awSim = !S.awSim; return neu();
@@ -3368,19 +3314,11 @@ class BaustellePanel extends LitElement {
       case 'jc-auto': { const x = d.bereiche.find(y => y.id === el.dataset.id); return this.setzen(['bereiche', x.id, 'auto'], !x.auto); }
       case 'jc-soll': return this.containerSoll(d.bereiche.find(y => y.id === el.dataset.id), +el.dataset.d);
       case 'urlaub-weg': { const u = (this.urlaube() || [])[+el.dataset.i]; return u && this.urlaubWeg(u); }
-      case 'urlaub-speichern': { const f = S.sheet.form; if (!f.von || !f.bis || f.bis < f.von) return this.toast('Bitte Von und Bis prüfen');
-        S.sheet = null; neu(); delete this.cache['k:' + d.optionen.urlaub_kalender];
-        return this.ws({ type: 'calendar/event/create', entity_id: d.optionen.urlaub_kalender, event: { summary: f.name.trim() || 'Urlaub', dtstart: f.von, dtend: plusTage(f.bis, 1) } }, 'Eingetragen – in der Zeit nur Frostschutz'); }
+      case 'urlaub-speichern': return this.urlaubSpeichern();
       case 'vgl': S.vglArt = el.dataset.v; return neu();
       case 'bs-wahl': return this.baustelleOeffnen(el.dataset.id);
-      case 'bs-bearbeiten': { const x = this.alle.find(y => y.entry === el.dataset.id); if (!x) return;   // aktiv → „Baustelle bearbeiten“ (AN-0002), abgeschlossen → Detailseite (wieder aktiv setzen)
-        if (!x.aktiv) { S.bs = x.entry; return this.gehe('bsdetail'); }
-        if (x.entry !== this.bid) { this.bid = x.entry; this._merken(); this._neuBauen(); this._vorhersageAbo(); this._stimmung(true); S.aw = null; }
-        S.sheet = { art: 'bs-bearbeiten' }; return neu(); }
-      case 'bs-loeschen': { const x = this.alle.find(y => y.entry === S.sheet.id); S.sheet = null; if (!x) return neu();
-        const weg = (d && d.entry === x.entry) || (S.view === 'bsdetail' && S.bs === x.entry); neu();
-        return this.einrichten(() => this._hass.callApi('DELETE', `config/config_entries/entry/${x.entry}`), `${x.titel} gelöscht`)
-          .then(r => { if (!r) return; this._rohText = null; return this._laden().then(() => { if (weg) this.gehe('uebersicht'); }); }); }
+      case 'bs-bearbeiten': return this.bsBearbeiten(el.dataset.id);
+      case 'bs-loeschen': return this.bsLoeschen();
       case 'csv': return this.csv(el.dataset.art);
       case 'firma-auf': return this.firmaAuf(el.dataset.id);
       case 'firma-c': { const c = S.sheet.form.container, id = el.dataset.id; S.sheet.form.container = c.includes(id) ? c.filter(x => x !== id) : [...c, id]; return neu(); }
@@ -3397,7 +3335,6 @@ class BaustellePanel extends LitElement {
       case 'fc-art': S.sheet.form.neu[+el.dataset.i].art = el.dataset.v; return neu();
       case 'firma-weg': { const id = S.sheet.form.id; S.sheet = null; neu(); return this.liste('firmen', 'loeschen', { id }, 'Firma gelöscht – Container gehören wieder der eigenen Firma'); }
       case 'e-wert': return this.einstellungWert(el.dataset.k, el.dataset.v);
-      case 'n-knopf': return this.toast(`„${el.dataset.t}“ – so reagierst du direkt aus der Nachricht`);
       case 'bericht-senden': return this.berichtSenden();
       case 'anschluss-auf': return this.anschlussAuf(el.dataset.id);
       case 'an-wert': S.sheet.form[el.dataset.k] = +el.dataset.v; return neu();
@@ -3465,32 +3402,18 @@ class BaustellePanel extends LitElement {
           for (const g of x.geraete) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
           await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: x.id }); return true;
         }, `${x.name} entfernt – Werte bleiben im Verlauf`).then(() => this._laden()); }
-      case 'abschliessen': S.leeren(); neu();
-        return this.einrichten(() => this.optionenSpeichern(d, { status: 'abgeschlossen' }), 'Abgeschlossen – steht jetzt im Verlauf').then(() => this._laden());
-      case 'name-speichern': { const n = S.sheet.form.name.trim(); if (!n) return this.toast('Bitte einen Namen eingeben'); S.sheet = null; neu();
-        return this.ws({ type: 'config_entries/update', entry_id: d.entry, title: n }, 'Gespeichert'); }
-      case 'baustelle-anlegen': { const n = S.sheet.form.name.trim(); if (!n) return this.toast('Bitte einen Namen eingeben'); S.sheet = null; neu();
-        const heute = this.d ? this.z.HEUTE : new Date().toISOString().slice(0, 10);
-        return this.einrichten(() => this.dialog('config/config_entries/flow', { handler: 'baustelle', show_advanced_options: false }, { name: n, beginn: heute, heizung: true, pumpen: true }), `${n} angelegt – jetzt Container anlegen`)
-          .then(r => { if (r && r.next_flow) this._hass.callApi('DELETE', `config/config_entries/subentries/flow/${r.next_flow[1]}`).catch(() => {});
-            if (r && r.result && r.result.entry_id) { this.bid = r.result.entry_id; this._merken(); } this._laden(); }); }
-      case 'wetterquelle-speichern': { const f = S.sheet.form; S.sheet = null; neu();
-        return this.einrichten(async () => {
-          const r = await this.optionenSpeichern(d, { wetter: f.wetter, temp_sensor: f.temp_sensor, regen_sensor: f.regen_sensor, urlaub_kalender: f.urlaub_kalender, feiertag_kalender: f.feiertag_kalender });
-          if (this.flowFehler(r)) return r;
-          if ((f.termine_kalender || null) !== (d.termineKal || null)) await this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: ['termine_kalender'], wert: f.termine_kalender || null });
-          return r;
-        }, 'Gespeichert').then(() => { this.cache = {}; this._aboFuer = null; this._laden(); }); }
+      case 'abschliessen': return this.abschliessen();
+      case 'name-speichern': return this.nameSpeichern();
+      case 'baustelle-anlegen': return this.baustelleAnlegen();
+      case 'wetterquelle-speichern': return this.wetterquelleSpeichern();
     }
     return undefined;
   }
   eingabe(ev) {
     const el = ev.target, ds = (el && el.dataset) || {}, sh = this.s.sheet;
-    if (ds.sp && sh && sh.art === 'preis-neu') { sh[ds.sp] = el.value; return; }   // Strompreis ab …
     if (ds.kk === 'q' && sh && sh.art === 'kk-katalog') {   // WU-0014: Treffer neu, Fokus bleibt im Suchfeld
       sh.q = el.value; sh.k = null; const t = this.shadowRoot && this.shadowRoot.querySelector('.kk-treffer'); if (t) t.innerHTML = this.kkTreffer(sh); return;
     }
-    if (ds.ur) sh.form[ds.ur] = el.value;
     if (ds.ge) sh.edit.geraete[+ds.i][ds.ge] = el.value;
     if (ds.bf) sh.edit.firma = el.value;
     if (ds.btuer !== undefined) sh.edit.tuer = el.value;
@@ -3502,11 +3425,7 @@ class BaustellePanel extends LitElement {
     if (ds.fnc !== undefined) sh.form.neu[+ds.fnc].name = el.value;
     if (ds.b === 'name' && sh && sh.edit) sh.edit.name = el.value;
     if (ds.neu) { sh.form[ds.neu] = el.value; if (ds.neu === 'schalter') this.neuZeichnen(); }   // WU-0008: Heizungsart erst mit Shelly abfragen
-    if (ds.wq) sh.form[ds.wq] = el.value;
-    if (ds.nm) sh.form.name = el.value;
-    if (ds.bsz) sh.form[ds.bsz] = el.value;
     if (ds.gf) sh.form[ds.gf] = el.value;
-    if (ds.hp) sh.form.hp[+ds.hp] = +el.value;
   }
   /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
   aenderung(ev) {

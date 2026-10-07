@@ -269,6 +269,34 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await gruppe('app'); await schritt('e3 erklär', '.ev-inhalt .liste .sw'); await schritt('e3 erklär 2', '.ev-inhalt .liste .sw'); await text('e3 vorlage', '.ev-inhalt button.zeile', 'Vorschlag');
   await schritt('e3 dev', { act: 'ev-gruppe', v: 'dev' }); await text('e3 dev werkzeuge', '.ev-dev-reiter button', 'Werkzeuge'); await text('e3 dev meldungen', '.ev-dev-reiter button', 'Meldungen');
   await schritt('e3 über', { act: 'ev-gruppe', v: 'ueber' });
+  // Dialoge rund um die Baustelle (Stufe 3e): Name, Neue Baustelle, Beginn/Ende, Wetter, Abschließen, Urlaub, Bericht,
+  // Nachrichten, Strompreis, Löschen, Baustelle bearbeiten
+  const auswahl = async (name, sel, wert) => feld(name, sel, wert, 'change');
+  await schritt('b', { act: 'tab', v: 'einst' }); await schritt('b gruppe', { act: 'ev-gruppe', v: 'baustelle' });
+  await text('b name', '.ev-inhalt button.zeile', 'Name'); await feld('b name leer', '.sheet .feld input', '  '); await schritt('b name speichern leer', '.sheet .knopf.amber');
+  await feld('b name tippen', '.sheet .feld input', 'ÖWG Dobl Neu'); await schritt('b name speichern', '.sheet .knopf.amber');
+  await text('b neu', '.ev-inhalt button.zeile', 'Neue Baustelle'); await feld('b neu tippen', '.sheet .feld input', 'Test'); await zu('b neu');
+  await text('b zeitraum', '.ev-inhalt button.zeile', 'Beginn und Ende'); await feld('b zeitraum beginn', '.sheet .raster-2 .feld:nth-child(1) input', '2026-09-01');
+  await auswahl('b zeitraum hp', '.sheet select', '11'); await schritt('b zeitraum speichern', '.sheet .knopf.amber');
+  await text('b zeitraum 2', '.ev-inhalt button.zeile', 'Heizperiode'); await feld('b zeitraum ende früh', '.sheet .raster-2 .feld:nth-child(2) input', '2020-01-01'); await schritt('b zeitraum falsch', '.sheet .knopf.amber'); await zu('b zeitraum 2');
+  await text('b wetter', '.ev-inhalt button.zeile', 'Wetter'); await auswahl('b wetter wahl', '.sheet select', ''); await schritt('b wetter speichern', '.sheet .knopf.amber');
+  await text('b abschliessen', '.ev-inhalt button.zeile', 'abschließen'); await schritt('b abschliessen abbrechen', '.sheet .knopf.leise-k');
+  await schritt('b bericht g', { act: 'ev-gruppe', v: 'bericht' }); await text('b bericht', '.ev-inhalt button.zeile', 'Beispiel ansehen'); await zu('b bericht');
+  await schritt('b nachrichten g', { act: 'ev-gruppe', v: 'meldungen' }); await text('b nachrichten', '.ev-inhalt button.zeile', 'Beispiele ansehen');
+  await wenn('b nachrichten knopf', '.sheet .noti-knoepfe button'); await schritt('b nachrichten zu', '.sheet .knopf.leise-k');
+  await schritt('b strom g', { act: 'ev-gruppe', v: 'strom' }); await text('b preis', '.ev-inhalt button.zeile', 'Neuer Preis'); await feld('b preis tippen', '.sheet .feld:nth-of-type(2) input', '0,29');
+  await schritt('b preis speichern', '.sheet .knopf.amber'); await text('b preis 2', '.ev-inhalt button.zeile', 'Neuer Preis'); await feld('b preis falsch', '.sheet .feld:nth-of-type(2) input', 'x'); await schritt('b preis speichern falsch', '.sheet .knopf.amber'); await schritt('b preis abbrechen', '.sheet .knopf.leise-k');
+  await wenn('b preis weg', '.ev-inhalt .sp-zeile .x');
+  await schritt('b urlaub', { act: 'sheet', s: 'urlaub' }); await feld('b urlaub name', '.sheet .feld input', 'Ferien'); await feld('b urlaub bis', '.sheet .raster-2 .feld:nth-child(2) input', '2026-10-01');
+  await schritt('b urlaub falsch', '.sheet .knopf.amber'); await feld('b urlaub bis 2', '.sheet .raster-2 .feld:nth-child(2) input', '2026-10-20'); await schritt('b urlaub eintragen', '.sheet .knopf.amber');
+  const andere = panel.alle.find(x => x.entry !== panel.d.entry);
+  if (andere) { await schritt('b löschen', { act: 'sheet', s: 'bs-loeschen', id: andere.entry }); await schritt('b löschen abbrechen', '.sheet .knopf.leise-k'); }
+  await schritt('b löschen weg', { act: 'sheet', s: 'bs-loeschen', id: 'gibt-es-nicht' }); await zu('b löschen weg');
+  await schritt('b bearbeiten', { act: 'bs-bearbeiten', id: panel.d.entry }); await text('b bearbeiten firma', '.sheet button.zeile', 'Firma hinzufügen'); await zu('b bearbeiten firma');
+  await schritt('b bearbeiten 2', { act: 'bs-bearbeiten', id: panel.d.entry }); await text('b bearbeiten container', '.sheet button.zeile', 'Poliercontainer'); await zu('b bearbeiten container');
+  await schritt('b bearbeiten 3', { act: 'bs-bearbeiten', id: panel.d.entry }); await text('b bearbeiten preis', '.sheet button.zeile', 'Neuer Preis'); await zu('b bearbeiten preis');
+  await schritt('b bearbeiten 4', { act: 'bs-bearbeiten', id: panel.d.entry }); await text('b bearbeiten alle', '.sheet button.zeile', 'Alle Einstellungen');
+  await schritt('b bearbeiten 5', { act: 'bs-bearbeiten', id: panel.d.entry }); await schritt('b bearbeiten fertig', '.sheet .knopf.amber');
   await schritt('tab uebersicht 3', { act: 'tab', v: 'uebersicht' });
   await schritt('automatik', { act: 'auto' });
   // Nicht-Admin (Bauplan 0.7 §8): gesperrte Schalter senden nichts, Vor-Ort-Aktionen schon
@@ -296,6 +324,8 @@ const ruhe = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise(r
   await schritt('nur-lesen e3', { act: 'tab', v: 'einst' }); await schritt('nur-lesen e3 strom', { act: 'ev-gruppe', v: 'strom' });
   await text('nur-lesen e3 preis neu', '.ev-inhalt button.zeile', 'Neuer Preis'); await schritt('nur-lesen e3 staffel', '.ev-inhalt .liste > .zeile .sw');
   await schritt('nur-lesen e3 bericht', { act: 'ev-gruppe', v: 'bericht' }); await feld('nur-lesen e3 mail', '.ev-inhalt input[type="email"]', 'x@example.org', 'change');
+  await schritt('nur-lesen b bearbeiten', { act: 'bs-bearbeiten', id: panel.d.entry }); await text('nur-lesen b bearbeiten name', '.sheet button.zeile', 'Name'); await zu('nur-lesen b bearbeiten');
+  await schritt('nur-lesen b nachrichten', { act: 'sheet', s: 'nachrichten' }); await zu('nur-lesen b nachrichten');
   aus.toast = { html: panel.letzterToast || '', befehle: [] };
   fs.writeFileSync(ziel, JSON.stringify(aus));
   console.log(`Schnappschuss: ${Object.keys(aus).length} Schritte, ${befehle.length} Befehle → ${ziel}`);

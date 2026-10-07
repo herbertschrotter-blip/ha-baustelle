@@ -4,11 +4,12 @@
 // „Entwicklung“ und „Über“ aus dev.js/ueber.js. Das Notprogramm bleibt bis zu seiner Lieferung HTML-Text der Seite.
 import { html, nothing } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { MONATE, datum, de, plusTage, zahl } from '../hilfen.js';
+import { MONATE, de, zahl } from '../hilfen.js';
 import { BEREICH_FARBEN, sigHtml } from '../symbole.js';
 import { WETTER_TEXT } from '../tabellen.js';
 import { kopfVorlage, schalterVorlage, stepperVorlage } from './allgemein.js';
 import { HZ_BLOECKE } from './heizung.js';
+import { preisListeVorlage } from './einblendungen-baustelle.js';
 import { devVorlage } from './dev.js';
 import { ueberVorlage } from '../ueber.js';
 
@@ -68,14 +69,9 @@ function pumpen(p) {
 }
 
 function strom(p) {
-  const d = p.d, e = d.e, H = p.z.HEUTE, st = (k, s, fmt) => stepperVorlage(p, k, s, fmt);
-  const L = (e.preise.length ? e.preise : [{ ab: null, preis: e.preis }]).slice().sort((a, b) => String(b.ab).localeCompare(String(a.ab))), jetzt = L.find(x => !x.ab || x.ab <= H);
+  const d = p.d, e = d.e, st = (k, s, fmt) => stepperVorlage(p, k, s, fmt);
   return html`<div class="glas-panel liste"><div class="gruppe">Strom</div>
-        <div class="gruppe-t">Strompreis</div>${L.map((x, i) => { const bis = i && L[i - 1].ab ? plusTage(L[i - 1].ab, -1) : null;
-      return html`<div class="sp-zeile"><b>${de(x.preis, 2)} €/kWh</b><span class="leise">${x === jetzt ? html`<span class="badge gruen">gilt jetzt</span> ` : x.ab > H ? html`<span class="badge blau-b">geplant</span> ` : nothing}${x.ab && x.ab > '2000-01-01' ? `ab ${datum(x.ab)}` : 'bisher'}${bis ? ` bis ${datum(bis)}` : ''}</span>
-        ${L.length > 1 && x.ab ? html`<button class="x nur-admin" title="Preis löschen" @click=${p.nurAdmin(() => p.preisWeg(x.ab))}>✕</button>` : nothing}</div>`; })}
-      <button class="zeile" @click=${() => p.preisNeu()}><span class="blau">+ Neuer Preis ab …</span></button>
-      <div class="leise">Auswertung, Abrechnung nach Firma und CSV rechnen jeden Tag mit dem Preis, der an dem Tag galt. Ein neuer Preis ändert nichts an Vergangenem.</div>
+        ${preisListeVorlage(p)}
         <div class="zeile"><div><b>⚡ Staffelung</b><div class="leise">verteilt die Heizungen auf den freien Strom – geschaltet werden nur Heizungen</div></div>${schalterVorlage(e.staffel, () => p.einstellungUmschalten('staffel'))}</div>
         ${e.staffel ? html`<div class="gruppe-t gt-einzug">Anschlüsse</div>
         ${d.anschluesse.map(a => html`<button class="zeile unter" data-id=${a.id} @click=${() => p.anschlussAuf(a.id)}><div><b>${a.name}</b><div class="leise">${a.phasen === 3 ? '3 × ' : ''}${a.ampere} A · Reserve ${de(a.reserve)} kW · ${d.bereiche.filter(b => b.anschluss === a.id).map(b => b.name).join(', ') || 'keine Container'}</div></div><span class="chev">›</span></button>`)}

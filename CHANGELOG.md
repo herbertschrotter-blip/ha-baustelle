@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.92] – 2026-10-07
+
+- Seite auf Lit umgestellt, Teil 10 (BSM-022.15, Stufe 3e, zweiter Teil): Die Dialoge rund um die Baustelle – Name, Neue
+  Baustelle, Beginn/Ende/Heizperiode, Wetter und Kalender, Abschließen, Löschen, Urlaub, Bericht, Nachrichten,
+  Strompreis und „Baustelle bearbeiten“ – werden mit Lit gezeichnet. Aussehen und Bedienung bleiben gleich.
+
 ## [0.8.91] – 2026-10-07
 
 - Seite auf Lit umgestellt, Teil 9 (BSM-022.15, Stufe 3e, erster Teil): Die Einstellungen – Seitenleiste bzw. Chips und
