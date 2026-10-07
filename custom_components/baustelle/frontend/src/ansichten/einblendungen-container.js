@@ -71,7 +71,7 @@ export function terminEinblendung(p, s) {
         <label class="feld">Titel${eingabe('titel', nothing, 'z. B. Baubesprechung')}</label>
         <label class="feld">${f.wieder === 'einmal' ? 'Tag' : 'Ab (Wochentag gilt für die Serie)'}${eingabe('datum', 'date')}</label>
         <div class="zeile"><span>Wiederholen</span><div class="seg klein">${Object.entries(WIEDER).map(([k, t]) => html`<button data-v=${k} class=${f.wieder === k ? 'on' : ''} @click=${() => { f.wieder = k; p.neuZeichnen(); }}>${t}</button>`)}</div></div>
-        <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">vor dem Termin alle Heizkörper zugleich</div></div>${schalterVorlage(f.boost, () => { f.boost = !f.boost; p.neuZeichnen(); })}</div>
+        <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">vor dem Termin alle Heizkörper zugleich</div></div>${schalterVorlage(f.boost, () => { f.boost = !f.boost; p.neuZeichnen(); }, 'vor-ort')}</div>
         <div class="raster-2"><label class="feld">von${eingabe('von', 'time')}</label><label class="feld">bis${eingabe('bis', 'time')}</label></div>
         ${f.wieder !== 'einmal' && f.datum ? html`<div class="leise">Serie: ${WIEDER[f.wieder]} am ${wtag(f.datum)} ab ${datum(f.datum)}</div>` : nothing}
         <div class="leise">Kommt in den HA-Kalender „${kal ? p.name(kal) : 'Termine'}“ (Serien als Wiederholung im Kalender). Die Heizung startet ${p.d.e.vorheizen} min vorher (Vorheizen) und hört zum Ende auf.</div>

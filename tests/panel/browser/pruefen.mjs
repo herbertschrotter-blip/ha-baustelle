@@ -58,7 +58,7 @@ async function seite(browser, himmel = 'css') {
   page.on('console', m => { if (m.type() === 'error') fehler.push('console: ' + m.text()); });
   await page.evaluateOnNewDocument(vorbereitung, himmel);
   await page.goto(URL_, { waitUntil: 'load' });   // kein networkidle: der Himmel läuft
-  await page.waitForFunction(sel => { const p = document.querySelector(sel); return p && p.d && p.shadowRoot.querySelector('[data-act="tab"]') && !p.shadowRoot.textContent.includes('Lädt …'); },
+  await page.waitForFunction(sel => { const p = document.querySelector(sel); return p && p.d && p.shadowRoot.querySelector('nav button[data-v]') && !p.shadowRoot.textContent.includes('Lädt …'); },
     { timeout: 30000 }, D);
   return { page, fehler };
 }
@@ -96,7 +96,7 @@ const chromeVersion = await (async () => { const b = await puppeteer.launch(STAR
 
 /* B1 Start: Ladezustand endet, Ansicht und Version sichtbar */
 await fall('B1 Start', browser, async (page, erwarte) => {
-  const r = await panel(page, D, () => ({ version: p.version, tabs: sr.querySelectorAll('nav [data-act="tab"]').length, himmel: !!p.himmel, phase: p.bg.dataset.phase,
+  const r = await panel(page, D, () => ({ version: p.version, tabs: sr.querySelectorAll('nav button[data-v]').length, himmel: !!p.himmel, phase: p.bg.dataset.phase,
     name: p.d && p.d.name, sichtbar: !!sr.querySelector('.seite') && sr.querySelector('.seite').getBoundingClientRect().height > 100 }));
   const leiste = await page.$eval('.bar b', e => e.textContent);
   erwarte('Ansicht sichtbar, Reiter da', r.sichtbar && r.tabs >= 5, JSON.stringify(r));
@@ -107,7 +107,7 @@ await fall('B1 Start', browser, async (page, erwarte) => {
 
 /* Start mit WebGL und mit erzwungenem Ausfall */
 await fall('Start mit Ausfall des WebGL', browser, async (page, erwarte) => {
-  const r = await panel(page, D, () => ({ himmel: !!p.himmel, phase: p.bg.dataset.phase, tabs: sr.querySelectorAll('nav [data-act="tab"]').length }));
+  const r = await panel(page, D, () => ({ himmel: !!p.himmel, phase: p.bg.dataset.phase, tabs: sr.querySelectorAll('nav button[data-v]').length }));
   erwarte('Seite läuft mit CSS-Himmel weiter', !r.himmel && r.phase && r.tabs >= 5, JSON.stringify(r));
 }, 'ausfall');
 if (process.env.BAUSTELLE_WEBGL !== '1') {
@@ -129,7 +129,7 @@ if (process.env.BAUSTELLE_WEBGL !== '1') {
 
 /* B2 Eingabeschutz: Melde-Text bleibt bei neuer Strukturantwort; nach dem Fokuswechsel sind die neuen Daten sichtbar */
 await fall('B2 Eingabeschutz', browser, async (page, erwarte) => {
-  await klick(page, `${D} >>> button.melden-knopf[data-act="melden"]`);
+  await klick(page, `${D} >>> button.melden-knopf`);
   const ta = `${D} >>> textarea[name="ml-text"]`;
   await klick(page, ta); await page.keyboard.type('Heizung schaltet nicht');
   await bild(page, 'b2-eingabe');
@@ -171,7 +171,7 @@ await fall('B3 Scrollschutz', browser, async (page, erwarte) => {
   erwarte('Einblendung: Position bleibt (±1 px)', svor.top > 20 && Math.abs(snach - svor.top) <= 1 && neu2, `vor ${JSON.stringify(svor)}, nach ${snach}, verarbeitet ${neu2}, unter der Maus ${unter}, Kasten ${JSON.stringify(sbox)}`);
   await klick(page, `${D} >>> .schleier.an`);
   // Chipleiste der Einstellungen (Handy)
-  await klick(page, `${T} >>> nav [data-act="tab"][data-v="einst"]`);
+  await klick(page, `${T} >>> nav button[data-v="einst"]`);
   await klick(page, `${T} >>> .ev-chips [data-v="firmen"]`); await warte(200);
   const box = await (await page.$(`${T} >>> .ev-chips`)).boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel({ deltaX: 30 });
@@ -248,7 +248,7 @@ await fall('B6 Befehle/Rechte', browser, async (page, erwarte) => {
 /* Lit-Pilot „Über“ (Stufe 2a.1): Lit-Bereich übersteht Navigation und Neuzeichnen des alten Renderers; Aufklappen
    zeichnet nur den Lit-Bereich */
 await fall('Lit-Pilot Über', browser, async (page, erwarte) => {
-  await klick(page, `${D} >>> nav [data-act="tab"][data-v="einst"]`);
+  await klick(page, `${D} >>> nav button[data-v="einst"]`);
   // seit 3e sind die ganzen Einstellungen Lit (kein Lit-Bereich im alten Renderer mehr): Gruppenwechsel zeichnen „Über“ neu
   await klick(page, `${D} >>> .ev-nav [data-v="ueber"]`); await warte(200);
   const merken = () => panel(page, D, () => { window.__lit = sr.querySelector('.ev-inhalt .ueber-kopf'); return !!window.__lit; });
@@ -279,7 +279,7 @@ await fall('Lit-Pilot Über', browser, async (page, erwarte) => {
 
 /* Lit-Pilot Melde-Dialog (Stufe 2a.2): Tippen während Updates, Bild einfügen/entfernen, Abbrechen, Senden = ein Auftrag */
 await fall('Lit-Pilot Melden', browser, async (page, erwarte) => {
-  await klick(page, `${D} >>> button.melden-knopf[data-act="melden"]`);
+  await klick(page, `${D} >>> button.melden-knopf`);
   const ta = `${D} >>> textarea[name="ml-text"]`;
   await klick(page, ta);
   let ok = 0; const text = 'Heizung im Polier schaltet zu spät';
@@ -301,7 +301,7 @@ await fall('Lit-Pilot Melden', browser, async (page, erwarte) => {
   erwarte('✕ entfernt das Bild', await panel(page, D, () => sr.querySelectorAll('.sheet .mb-bild').length) === 0);
   await klick(page, `${D} >>> .sheet .ml-zurueck`);
   erwarte('Abbrechen schließt den Dialog', await panel(page, D, () => !p.s.sheet));
-  await klick(page, `${D} >>> button.melden-knopf[data-act="melden"]`);
+  await klick(page, `${D} >>> button.melden-knopf`);
   await klick(page, ta); await page.keyboard.type('Knopf zu klein');
   const ab = await aufrufZahl(page);
   await klick(page, `${D} >>> .sheet .ml-senden`); await warte(300);
@@ -313,7 +313,7 @@ await fall('Lit-Pilot Melden', browser, async (page, erwarte) => {
 await fall('2b LitElement', browser, async (page, erwarte) => {
   const r = await page.evaluate(async () => {
     const BB = window.baustelleBeispiel, da = document.querySelector('#desktop'), warte = ms => new Promise(x => setTimeout(x, ms)), erg = {};
-    const fertig = async el => { for (let i = 0; i < 50 && !(el.shadowRoot && el.shadowRoot.querySelector('nav [data-act="tab"]') && el.d); i++) await warte(50); return !!(el.shadowRoot && el.shadowRoot.querySelector('nav [data-act="tab"]')); };
+    const fertig = async el => { for (let i = 0; i < 50 && !(el.shadowRoot && el.shadowRoot.querySelector('nav button[data-v]') && el.d); i++) await warte(50); return !!(el.shadowRoot && el.shadowRoot.querySelector('nav button[data-v]')); };
     const alt = da.querySelector('baustelle-panel'), hass = alt.hass; alt.remove();
     const a = document.createElement('baustelle-panel'); a.panel = alt.panel; a.narrow = false; a.hass = hass; da.appendChild(a); erg.vorher = await fertig(a); a.remove();
     const b = document.createElement('baustelle-panel'); b.panel = alt.panel; b.narrow = false; da.appendChild(b); await warte(100); b.hass = hass; erg.nachher = await fertig(b);
@@ -367,7 +367,7 @@ await fall('3a Laden/Fehler/Leer', browser, async (page, erwarte) => {
 /* Stufe 3b: Verlauf – Suche ohne Fokus-Rettung (Tippen, Treffer neu), Filter, Vergleich sortieren, abgeschlossene
    Baustelle öffnen, CSV, zurück */
 await fall('3b Verlauf', browser, async (page, erwarte) => {
-  await klick(page, `${D} >>> nav [data-act="tab"][data-v="verlauf"]`);
+  await klick(page, `${D} >>> nav button[data-v="verlauf"]`);
   await klick(page, `${D} >>> [data-vr="prot"]`);
   const suche = `${D} >>> .vl-suche`;
   await klick(page, suche); await page.keyboard.type('zzzz');
@@ -396,7 +396,7 @@ await fall('3b Verlauf', browser, async (page, erwarte) => {
 /* Stufe 3c: Pumpen und Schacht – Diagramme, Stepper (ein Auftrag), Schacht öffnen, Zeitraum, Automatik und Pumpe schalten
    (je ein Auftrag), Schalter bleibt bei neuen Daten derselbe Knoten, verspätete Statistik nach Baustellenwechsel */
 await fall('3c Pumpen', browser, async (page, erwarte) => {
-  await klick(page, `${D} >>> nav [data-act="tab"][data-v="pumpen"]`);
+  await klick(page, `${D} >>> nav button[data-v="pumpen"]`);
   await klick(page, `${D} >>> .seite .seg [data-pc="zyklen"]`);
   const pz = await panel(page, D, () => ({ an: sr.querySelector('.seite .seg [data-pc="zyklen"]').classList.contains('on'), svg: !!sr.querySelector('.seite .chart-wrap svg'), s: p.s.pchart }));
   erwarte('Pumpen: Diagramm Zyklen', pz.an && pz.svg && pz.s === 'zyklen', JSON.stringify(pz));
@@ -429,7 +429,7 @@ await fall('3c Pumpen', browser, async (page, erwarte) => {
     BB.TEST.statistik = (m, r) => m.entry_id === entry ? new Promise(x => gehalten.push(() => x(r))) : r;
     p.cache = {}; p.gehe('pumpen'); await warte(300);
     const laedt = p.shadowRoot.querySelector('.ui .seite').textContent.includes('Lädt …');
-    const wahl = document.createElement('button'); wahl.dataset.act = 'bs-wahl'; wahl.dataset.id = andere.baustelle.entry_id; p.klick({ target: wahl }); await warte(300);
+    p.baustelleOeffnen(andere.baustelle.entry_id); await warte(300);
     const vorher = { entry: p.d.entry, view: p.s.view, text: p.shadowRoot.querySelector('.ui .seite').textContent };
     BB.TEST.statistik = null; for (const g of gehalten) g(); await warte(500);
     const nachher = { entry: p.d.entry, view: p.s.view, text: p.shadowRoot.querySelector('.ui .seite').textContent };
@@ -454,7 +454,7 @@ await fall('3d Container', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> .c-live .seg [data-v="woche"]`);
   erwarte('Diagramm Woche', await panel(page, D, () => p.s.cvd === 'woche' && !!sr.querySelector('.c-live .chart-wrap svg')));
   // Reiter Heizung (3d): Block als Einblendung, Modus je Container (Auswahlliste), Regler – je genau ein Auftrag
-  await klick(page, `${D} >>> nav [data-act="tab"][data-v="heizung"]`);
+  await klick(page, `${D} >>> nav button[data-v="heizung"]`);
   await klick(page, `${D} >>> .hz-raster .hz-kachel[data-k="container"]`);
   { const ab = await aufrufZahl(page); await page.select(`${D} >>> .sheet .jc[data-id="polier"] .jc-modus`, 'hand'); await warte(200);
     const a = await schreibAnzahl(page, ab); erwarte('Heizung: Modus je Container = genau ein Auftrag', JSON.stringify(a) === '["baustelle/setzen"]', a.join(', ')); }
@@ -463,7 +463,7 @@ await fall('3d Container', browser, async (page, erwarte) => {
   await klick(page, `${D} >>> .hz-raster .hz-kachel[data-k="trocknen"]`);
   await einer('.sheet .stepper button[data-k="tr_mm"][data-d="0.5"]', 'baustelle/setzen', 'Heizung: Kleidung trocknen ab Regen +');
   await klick(page, `${D} >>> .sheet > .knopf`);
-  await klick(page, `${D} >>> nav [data-act="tab"][data-v="uebersicht"]`); await klick(page, `${D} >>> .glas-k[data-id="polier"]`);
+  await klick(page, `${D} >>> nav button[data-v="uebersicht"]`); await klick(page, `${D} >>> .glas-k[data-id="polier"]`);
   await panel(page, D, async () => { for (const b of BB.welt) b.rechte = { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] }; await p._laden(); await new Promise(r => setTimeout(r, 150)); });
   let ab = await aufrufZahl(page);
   await klick(page, `${D} >>> .c-chip .bs-ic`);

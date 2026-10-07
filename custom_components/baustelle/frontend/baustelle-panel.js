@@ -1081,38 +1081,10 @@ function bauen(r5, hass, ersatzZone) {
 
 // src/rechte.js
 var NUR_ANSEHEN = "Nur ansehen – ändern dürfen nur Admins";
-var NUR_LESEN_SPERRE = [
-  '.sw:not(.ml-stand):not(.vor-ort):not([data-act="bedarf-boost"]):not([data-act="kk-dia-w"]):not([data-act="aw-an"])',
-  '[data-act$="-speichern"]',
-  '[data-act$="-weg"]',
-  '[data-act$="-bearbeiten"]',
-  '[data-act="lern-reset"]',
-  '[data-act="abschliessen"]',
-  '[data-act="neu-anlegen"]',
-  ".nur-admin",
-  '[data-act="wetterquelle-auf"]',
-  "input[data-k]",
-  "select[data-jm]",
-  ...["termin", "urlaub", "container-neu", "wetterquelle", "bs-loeschen", "zeitraum-bs", "name", "baustelle-neu"].map((x2) => `[data-act="sheet"][data-s="${x2}"]`)
-];
-var VOR_ORT = {
-  "w-stumm": "warnung_stumm",
-  "sg-gefuehl": "gefuehl",
-  "bedarf-auf": "bedarf",
-  "bedarf-an": "bedarf",
-  "bedarf-aus": "bedarf_aus",
-  boost: "boost",
-  "jetzt-an": "jetzt_heizen",
-  "jetzt-aus": "jetzt_heizen"
-};
+var NUR_LESEN_SPERRE = [".sw:not(.ml-stand):not(.vor-ort)", ".nur-admin"];
 function rechteVon(roh2) {
   const r5 = (roh2 || [])[0];
   return r5 && r5.rechte || { aendern: true, aktionen: [] };
-}
-function gesperrt(el, rechte) {
-  if (!!rechte.aendern || !el || !el.matches) return false;
-  const a3 = VOR_ORT[el.dataset && el.dataset.act];
-  return a3 ? !rechte.aktionen.includes(a3) : NUR_LESEN_SPERRE.some((x2) => el.matches(x2));
 }
 function darfSenden(msg, rechte) {
   if (!!rechte.aendern || msg.type === "baustelle/meldung") return true;
@@ -2306,7 +2278,7 @@ function terminEinblendung(p4, s4) {
         <div class="zeile"><div><b>⚡ Schnell aufheizen</b><div class="leise">vor dem Termin alle Heizkörper zugleich</div></div>${schalterVorlage(f3.boost, () => {
     f3.boost = !f3.boost;
     p4.neuZeichnen();
-  })}</div>
+  }, "vor-ort")}</div>
         <div class="raster-2"><label class="feld">von${eingabe("von", "time")}</label><label class="feld">bis${eingabe("bis", "time")}</label></div>
         ${f3.wieder !== "einmal" && f3.datum ? b2`<div class="leise">Serie: ${WIEDER[f3.wieder]} am ${wtag(f3.datum)} ab ${datum(f3.datum)}</div>` : A}
         <div class="leise">Kommt in den HA-Kalender „${kal ? p4.name(kal) : "Termine"}“ (Serien als Wiederholung im Kalender). Die Heizung startet ${p4.d.e.vorheizen} min vorher (Vorheizen) und hört zum Ende auf.</div>
@@ -4886,7 +4858,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.99";
+var SEITE_VERSION = "0.8.100";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS)];
@@ -5000,17 +4972,14 @@ var BaustellePanel = class extends i4 {
     return SEITE_VERSION;
   }
   // Version dieser Seite (Bundle); version = Integration, gelesen beim Start von HA
-  /* Der Rahmen steht nach dem ersten Zeichnen (render(), BSM-022 2b) und bleibt; die alten Ansichten melden Klicks und
-     Eingaben über data-act an den Shadow Root (bis sie in Stufe 3 Lit-Vorlagen werden) */
+  /* Der Rahmen steht nach dem ersten Zeichnen (render(), BSM-022 2b) und bleibt. Klicks und Eingaben hängen an den
+     Lit-Vorlagen (@click/@input/@change); hier nur Zeiger (Tooltip der Diagramme, Ziehen im Raster) und Fokus */
   firstUpdated() {
     const sr = this.renderRoot;
     this.wurzel = sr.querySelector(".wurzel");
     this.root = sr.querySelector(".app");
     this.bg = sr.querySelector(".glas-bg");
     this.ui = sr.querySelector(".ui");
-    sr.addEventListener("click", (e6) => this.klick(e6));
-    sr.addEventListener("input", (e6) => this.eingabe(e6));
-    sr.addEventListener("change", (e6) => this.aenderung(e6));
     sr.addEventListener("pointermove", (e6) => this.hover(e6));
     sr.addEventListener("pointerdown", (e6) => this.zugStart(e6));
     sr.addEventListener("pointerleave", () => this.tip(null));
@@ -5089,19 +5058,16 @@ var BaustellePanel = class extends i4 {
   nurLesen() {
     return !this.rechte().aendern;
   }
-  gesperrt(el) {
-    return gesperrt(el, this.rechte());
-  }
   darfSenden(msg) {
     return darfSenden(msg, this.rechte());
   }
   nurLesenHinweis() {
-    if (!this.roh || !this.nurLesen()) return "";
-    return `<div class="glas-panel neu-version nur-lesen-hinweis"><span>👁 ${NUR_ANSEHEN} <span class="leise">· jetzt heizen, Gefühl und Warnungen stumm gehen trotzdem</span></span></div>`;
+    if (!this.roh || !this.nurLesen()) return A;
+    return b2`<div class="glas-panel neu-version nur-lesen-hinweis"><span>👁 ${NUR_ANSEHEN} <span class="leise">· jetzt heizen, Gefühl und Warnungen stumm gehen trotzdem</span></span></div>`;
   }
   versionHinweis() {
-    if (!this.neueVersion) return "";
-    return `<div class="glas-panel neu-version"><span>Neue Version ${esc(this.neueVersion)} – bitte neu laden <span class="leise">(geladen ist ${SEITE_VERSION})</span></span><button class="chip" data-act="neu-laden">Neu laden</button></div>`;
+    if (!this.neueVersion) return A;
+    return b2`<div class="glas-panel neu-version"><span>Neue Version ${this.neueVersion} – bitte neu laden <span class="leise">(geladen ist ${SEITE_VERSION})</span></span><button class="chip" @click=${() => this.neuLaden()}>Neu laden</button></div>`;
   }
   async neuLaden() {
     this.toast("Lädt neu …");
@@ -5204,21 +5170,10 @@ var BaustellePanel = class extends i4 {
   zoneMs(tag, zeit = "00:00", zone = this.d && this.d.z.zone) {
     return zoneMs(tag, zeit, zone);
   }
-  isoUhr(iso) {
-    return iso ? this.lokal(iso).slice(11, 16) : null;
-  }
   seitText(iso) {
     if (!iso) return "";
     const l4 = this.lokal(iso);
     return l4.slice(0, 10) === this.z.HEUTE ? `seit ${l4.slice(11, 16)}` : `seit ${wtag(l4)} ${kurzDatum(l4)}`;
-  }
-  tagText(l4) {
-    const t5 = l4.slice(0, 10);
-    return t5 === this.z.HEUTE ? "Heute" : t5 === plusTage(this.z.HEUTE, -1) ? "Gestern" : `${wtag(t5)} ${kurzDatum(t5)}`;
-  }
-  minSeit(iso) {
-    const ms = Date.parse(iso);
-    return Number.isFinite(ms) ? Math.max(0, Math.round((this.jetztMs() - ms) / 6e4)) : null;
   }
   jetztMs() {
     return this.d ? this.d.z.jetztMs : Date.now();
@@ -5860,7 +5815,7 @@ var BaustellePanel = class extends i4 {
     const l4 = this.lokal(m3.zeit);
     return l4 ? `${wtag(l4)} ${kurzDatum(l4)} ${l4.slice(11, 16)}` : "–";
   }
-  /* Einblendung öffnen (data-act="sheet" und Lit-Vorlagen); ds wie dataset des Knopfs (id, t, …) */
+  /* Einblendung öffnen (aus den Lit-Vorlagen); ds mit Angaben zur Einblendung (id, t, …) */
   einblenden(art, ds = {}) {
     const S3 = this.s, d3 = this.d, b3 = this.b, el = { dataset: { s: art, ...ds } }, neu = () => this.neuZeichnen();
     if (art === "termin") {
@@ -6786,8 +6741,7 @@ var BaustellePanel = class extends i4 {
   render() {
     return b2`<div class="wurzel"><div class="app"><div class="glas-bg"><i class="k1"></i><i class="k2"></i><i class="k3"></i><div class="dunst"></div><div class="partikel"></div></div><div class="ui">${this._ui()}</div></div></div>`;
   }
-  /* Inhalt: Lit-Teile direkt (Über, Melden); noch nicht umgestellte Ansichten als HTML-Text (unsafeHTML ersetzt sie nur,
-     wenn sich der Text ändert) */
+  /* Inhalt: Ansicht, Navigation, Einblendung und Melden-Knopf als Lit-Vorlagen (BSM-022) */
   _ui() {
     const neu = !!this._neu, S3 = this.s;
     const tabs = [["uebersicht", "Übersicht"], ...this._mitHeizung ? [["heizung", "Heizung"]] : [], ...this._mitPumpen ? [["pumpen", "Pumpen"]] : [], ["auswertung", "Auswertung"], ["verlauf", "Verlauf"], ["einst", "⚙"]];
@@ -6808,7 +6762,7 @@ var BaustellePanel = class extends i4 {
     };
     if (!this.roh) seite = ladenVorlage(this.fehler);
     else if (!this.d && !["verlauf", "bsdetail", "ueber"].includes(S3.view)) seite = leerVorlage(this);
-    else seite = LIT[S3.view] ? LIT[S3.view]() : o5(this["v_" + S3.view]());
+    else seite = (LIT[S3.view] || LIT.uebersicht)();
     const melden = this.d ? this.d.e.melden : true;
     let sheet = "";
     if (S3.sheet && S3.sheet.art === "melden") sheet = meldenVorlage(this, S3.sheet.form);
@@ -6821,24 +6775,14 @@ var BaustellePanel = class extends i4 {
     else if (S3.sheet && S3.sheet.art === "kk-katalog") sheet = katalogEinblendung(this, S3.sheet);
     else if (S3.sheet && S3.sheet.art === "aw-detail") sheet = awDetailEinblendung(this, S3.sheet);
     else if (S3.sheet && UEBERSICHT_EINBLENDUNGEN[S3.sheet.art]) sheet = UEBERSICHT_EINBLENDUNGEN[S3.sheet.art](this, S3.sheet);
-    else if (S3.sheet) {
-      try {
-        sheet = o5(this.sheet());
-      } catch (e6) {
-        S3.sheet = null;
-        sheet = "";
-      }
-    }
-    const kopf4 = `${this._narrow ? '<button class="menue-knopf glas-panel" data-act="menue" aria-label="Seitenleiste" title="Seitenleiste">☰</button>' : ""}
-      <nav class="glas-nav glas-panel ${tabs.length > 5 ? "sechs" : ""}">${tabs.map(([k2, t5]) => `<button data-act="tab" data-v="${k2}" class="${k2 === aktivTab ? "on" : ""} ${k2 === "einst" ? "nav-ic" : ""}" ${k2 === "einst" ? 'aria-label="Einstellungen" title="Einstellungen"' : ""}>${k2 === "einst" ? ICON_COG : t5}</button>`).join("")}</nav>
-      <div class="schleier ${S3.sheet ? "an" : ""}" data-act="zu"></div>`;
-    const imSheet = melden && this.roh && S3.sheet && S3.sheet.art !== "melden" ? `<button class="melden-knopf im-sheet" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : "";
-    const knopf8 = melden && this.roh && !S3.sheet ? `<button class="melden-knopf glas-panel" data-act="melden" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden">${ICON_MELDEN}</button>` : "";
-    return b2`<div class="scroll">${i6(`${S3.view}:${S3.cid || ""}`, b2`<div class="seite ${neu ? "rein" : ""}">${o5(this.versionHinweis() + this.nurLesenHinweis())}${seite}</div>`)}</div>
-      ${o5(kopf4)}
-      <div class="sheet glas-panel ${S3.sheet ? "an" : ""}">${o5(imSheet)}${sheet}</div>
+    const meldenKnopf = (cls, fn) => b2`<button class="melden-knopf ${cls}" title="Fehler, Wunsch oder Anregung melden" aria-label="Melden" @click=${fn}>${o5(ICON_MELDEN)}</button>`;
+    return b2`<div class="scroll">${i6(`${S3.view}:${S3.cid || ""}`, b2`<div class="seite ${neu ? "rein" : ""}">${this.versionHinweis()}${this.nurLesenHinweis()}${seite}</div>`)}</div>
+      ${this._narrow ? b2`<button class="menue-knopf glas-panel" aria-label="Seitenleiste" title="Seitenleiste" @click=${() => this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }))}>☰</button>` : A}
+      <nav class="glas-nav glas-panel ${tabs.length > 5 ? "sechs" : ""}">${tabs.map(([k2, t5]) => k2 === "einst" ? b2`<button data-v=${k2} class="${k2 === aktivTab ? "on" : ""} nav-ic" aria-label="Einstellungen" title="Einstellungen" @click=${() => this.gehe(k2)}>${o5(ICON_COG)}</button>` : b2`<button data-v=${k2} class="${k2 === aktivTab ? "on" : ""}" @click=${() => this.gehe(k2)}>${t5}</button>`)}</nav>
+      <div class="schleier ${S3.sheet ? "an" : ""}" @click=${() => this.schliessen()}></div>
+      <div class="sheet glas-panel ${S3.sheet ? "an" : ""}">${melden && this.roh && S3.sheet && S3.sheet.art !== "melden" ? meldenKnopf("im-sheet", () => this.meldenAuf()) : A}${sheet}</div>
       <div class="tip"></div><div class="toast glas-panel"></div>
-      ${o5(knopf8)}`;
+      ${melden && this.roh && !S3.sheet ? meldenKnopf("glas-panel", () => this.meldenAuf()) : A}`;
   }
   updated() {
     if (!this.ui) return;
@@ -6858,9 +6802,6 @@ var BaustellePanel = class extends i4 {
   /* Lit-Teile neu zeichnen (Über, Melden) – unveränderte alte Ansichten bleiben dabei stehen */
   litNeu() {
     this.requestUpdate();
-  }
-  kopf(titel, klein, rechts = "") {
-    return `<div class="glas-kopf glas-panel"><div><div class="glas-klein">${klein}</div><div class="glas-titel">${titel}</div></div>${rechts}</div>`;
   }
   wetterJetzt() {
     const d3 = this.d, s4 = this.zustand(d3.wetterEid), w2 = d3.wetter || {};
@@ -6907,7 +6848,7 @@ var BaustellePanel = class extends i4 {
     const kwhW = vW ? this.verbrauch(d3, b3.id, "Woche", vW) : kwh7, hW = vW ? this.heizStunden(d3, b3, "Woche", vW) : h7, zykW = b3.pumpe && vW ? this.zyklen(d3, b3, "Woche", vW) : zyk7;
     let chart;
     if (c4 === "temp") {
-      if (!b3.fuehler) chart = '<div class="leer">Kein Temperaturfühler zugeordnet · <button class="link" data-act="sheet" data-s="bereich">zuordnen</button></div>';
+      if (!b3.fuehler) chart = '<div class="leer">Kein Temperaturfühler zugeordnet</div>';
       else {
         const st = this.statistik("Tag", vT);
         if (!st) chart = LAEDT8;
@@ -7012,21 +6953,7 @@ var BaustellePanel = class extends i4 {
     const seg = this.heizzeiten(b3, this.z.HEUTE_TAG);
     return seg.length ? `Heizzeit ${uhr(seg[0][0])}–${uhr(Math.max(...seg.map((q) => q[1])))}` : this.freiText(this.z.HEUTE) || "heute keine Heizzeit";
   }
-  minBis(iso) {
-    const ms = Date.parse(iso);
-    return Number.isFinite(ms) ? Math.max(0, Math.round((ms - this.jetztMs()) / 6e4)) : null;
-  }
-  zeitleiste(b3) {
-    const seg = this.heizzeiten(b3, this.z.HEUTE_TAG), p4 = this.planTag(this.z.HEUTE_TAG);
-    const gruende = p4 ? p4.gruende.filter((_2, k2) => b3.trocknen || !["trocknen", "frueher_nach_regen"].includes(p4.codes[k2])) : [];
-    return `<div class="tl">${this.zeitstrahlSeg(seg, true)}<div class="tl-achse">${["04", "08", "12", "16", "20"].map((h3) => `<span>${h3}</span>`).join("")}</div></div>
-      ${p4 ? `<div class="leise">Arbeitszeit ${uhr(p4.a)}–${uhr(p4.b)}${seg.length ? ` · heizt ${uhr(seg[0][0])}–${uhr(Math.max(...seg.map((q) => q[1])))}` : b3.auto ? "" : " · Automatik aus"}${gruende.length ? " · " + gruende.map(esc).join(" · ") : ""}</div>` : `<div class="leise">${this.freiText(this.z.HEUTE)}</div>`}`;
-  }
   /* ---- Heizung ---- */
-  stepper(k2, d3, fmt) {
-    const e6 = this.d.e;
-    return `<span class="stepper"><button data-act="st" data-k="${k2}" data-d="${-d3}">−</button><b>${fmt(e6[k2])}</b><button data-act="st" data-k="${k2}" data-d="${d3}">+</button></span>`;
-  }
   feiertage() {
     const k2 = this._kalender(this.d.optionen.feiertag_kalender);
     return k2 === null ? null : k2.filter((f3) => f3.von > this.z.HEUTE).sort((a3, b3) => a3.von.localeCompare(b3.von));
@@ -7707,28 +7634,6 @@ var BaustellePanel = class extends i4 {
     const max = Math.max(1, ...werte), bw = w2 / werte.length;
     return `<svg class="vl-funke" viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none">${werte.map((v2, i7) => `<rect x="${(i7 * bw + 1).toFixed(1)}" y="${(h3 - v2 / max * h3).toFixed(1)}" width="${Math.max(0, bw - 2).toFixed(1)}" height="${(v2 / max * h3).toFixed(1)}" rx="1.5" fill="${farbe}" opacity="${v2 > 0.5 ? 0.9 : 0.15}"/>`).join("")}</svg>`;
   }
-  protokoll() {
-    const f3 = this.s.pfilter || "alle", ART2 = { warnung: ["⚠", "var(--rot)"], ok: ["✓", "#30d158"], schalten: ["⏻", "var(--amber)"], wetter: ["☁", "var(--blau)"], nachricht: ["✉", "var(--ink2)"], einstellung: ["⚙", "var(--ink2)"] };
-    const passt = (e6) => f3 === "alle" || e6[2] === f3 || f3 === "warnung" && e6[2] === "ok" || f3 === "schalten" && e6[2] === "einstellung";
-    let quelle = this.d.protokoll;
-    if ((f3 !== "alle" || this.s.pmehr) && this.d.geladen) {
-      const r5 = this._holen("p:" + this.d.entry, () => this._hass.callWS({ type: "baustelle/protokoll", entry_id: this.d.entry, filter: "alle", vor: null, limit: 200 }), 6e4);
-      quelle = r5 === void 0 ? null : (Array.isArray(r5) ? r5 : r5 && r5.eintraege || []).map((p4) => this.protokollZeile(p4, this.z));
-    }
-    const kopf4 = `<div class="block-kopf"><b>Protokoll</b><span class="leise">bleibt mit der Baustelle gespeichert · auch im HA-Logbuch</span></div>
-      <div class="vb-wer">${[["alle", "Alle"], ["warnung", "Warnungen"], ["schalten", "Schalten"], ["wetter", "Wetter"], ["nachricht", "Nachrichten"]].map(([k2, t5]) => `<button data-act="pfilter" data-v="${k2}" class="${f3 === k2 ? "on" : ""}">${t5}</button>`).join("")}</div>`;
-    if (quelle === null) return `<div class="glas-panel block">${kopf4}${LAEDT8}</div>`;
-    let liste2 = quelle.filter(passt);
-    const mehr = !this.s.pmehr && (liste2.length > 12 || f3 === "alle" && quelle.length >= 20);
-    if (mehr) liste2 = liste2.slice(0, 12);
-    let tag = "";
-    return `<div class="glas-panel block">${kopf4}
-      ${liste2.length ? liste2.map((e6) => {
-      const [ic, farbe] = ART2[e6[2]] || ["•", "var(--ink2)"], kopfT = e6[0] !== tag ? `<div class="p-tag">${tag = e6[0]}</div>` : "";
-      return `${kopfT}<div class="zeile ereignis"><span class="zeit">${e6[1]}</span><span class="p-ic" style="color:${farbe}">${ic}</span><div>${e6[3] ? `<b>${esc(this.bName(e6[3]))}</b> ` : ""}<span class="${e6[3] ? "leise" : ""}">${esc(e6[4])}</span></div></div>`;
-    }).join("") : '<div class="leer">Keine Einträge</div>'}
-      ${mehr ? '<button class="zeile" data-act="pmehr"><span class="blau">Ältere Einträge laden</span></button>' : ""}</div>`;
-  }
   /* BSM-032: Container-Symbol – Aussehen bearbeiten; die Integration prüft und liefert den Zustand aus den Sensoren */
   symKonfig(b3) {
     const x2 = this.s.sheet && this.s.sheet.sym;
@@ -7771,17 +7676,7 @@ var BaustellePanel = class extends i4 {
     const belegt = new Set(this.alle.filter((x2) => x2.aktiv).flatMap((x2) => x2.bereiche.flatMap((b3) => b3.geraete.map((g2) => g2.schalter))));
     return this.entitaeten((s4) => s4.entity_id.startsWith("switch.") && (!belegt.has(s4.entity_id) || s4.entity_id === auch));
   }
-  optionen(liste2, aktuell, leer) {
-    return (leer ? `<option value="">${leer}</option>` : "") + liste2.map(([v2, n4]) => `<option value="${esc(v2)}" ${v2 === aktuell ? "selected" : ""}>${esc(n4)}</option>`).join("");
-  }
   /* ---- Einblendungen von unten ---- */
-  sheet() {
-    const s4 = this.s.sheet, d3 = this.d, knopf8 = (t5, act = "zu", art = "") => `<button class="knopf ${art}" data-act="${act}">${t5}</button>`;
-    const griff = '<div class="griff"></div>';
-    return `${griff}<h3>${{ name: "Name", "baustelle-neu": "Neue Baustelle" }[s4.art] || ""}</h3>
-      <label class="feld">Name<input value="${esc(s4.form ? s4.form.name : "")}" placeholder="z. B. Wohnbau Kalsdorf" data-nm="name"></label>
-      ${knopf8("Speichern", s4.art === "name" ? "name-speichern" : "baustelle-anlegen", "amber")}`;
-  }
   fehlerText(e6) {
     return fehlerText(e6);
   }
@@ -7886,268 +7781,6 @@ var BaustellePanel = class extends i4 {
   // „bis morgen stumm“ = morgen 07:00
   isoHeute(hhmm) {
     return new Date(this.zoneMs(this.z.HEUTE, hhmm, this.z.zone)).toISOString();
-  }
-  /* ---- Aktionen ---- */
-  klick(ev) {
-    const el = ev.target && ev.target.closest && ev.target.closest("[data-act]");
-    if (!el) return;
-    if (this.gesperrt(el)) return this.toast(NUR_ANSEHEN);
-    const a3 = el.dataset.act, d3 = this.d, b3 = this.b, S3 = this.s;
-    const neu = () => this.neuZeichnen();
-    switch (a3) {
-      case "menue":
-        return this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
-      case "tab":
-        return this.gehe(el.dataset.v);
-      case "neu-laden":
-        return this.neuLaden();
-      case "container":
-        return this.containerOeffnen(el.dataset.id);
-      case "w-stumm":
-        return this.warnungStumm(el.dataset.id);
-      case "pfilter":
-        S3.pfilter = el.dataset.v;
-        S3.pmehr = false;
-        return neu();
-      case "pmehr":
-        S3.pmehr = true;
-        return neu();
-      case "sheet":
-        return this.einblenden(el.dataset.s, el.dataset);
-      case "vb-gruppe":
-        return this.vbGruppe(el.dataset.ziel, el.dataset.v);
-      case "vb-zeitraum":
-        return this.zeitraumWahl(el.dataset.ziel, el.dataset.v);
-      case "zr-schritt":
-        return this.zrSchritt(el.dataset.ziel, +el.dataset.max || 0, +el.dataset.d);
-      case "zr-setz":
-        return this.zrSetzen(el.dataset.ziel, +el.dataset.max || 0, +el.dataset.v);
-      case "zr-kal":
-        return this.zrKalAuf(el.dataset.ziel);
-      case "zr-kal-nav":
-        return this.zrKalBlaettern(+el.dataset.d);
-      case "vb-wer":
-        return this.vbWer(el.dataset.ziel, el.dataset.id);
-      case "bereich-einst":
-        return this.bereichEinst(el.dataset.id);
-      case "zu":
-        return this.schliessen();
-      case "melden":
-        return this.meldenAuf();
-      case "toast":
-        return this.toast(el.dataset.t);
-      case "auto":
-        return this.automatikUmschalten();
-      case "bedarf-auf":
-        return this.bedarfAuf(el.dataset.id);
-      case "bedarf-an":
-        return this.bedarfAn(el.dataset.id, el.dataset.v);
-      case "bedarf-aus":
-        return this.bedarfAus(el.dataset.id);
-      case "termin-weg": {
-        const t5 = d3.termine[+el.dataset.i];
-        return t5 && this.terminWeg(t5);
-      }
-      case "termin-speichern":
-        return this.terminSpeichern();
-      case "firma-speichern":
-        return this.firmaSpeichern();
-      case "firma-weg":
-        return this.firmaWeg();
-      case "an-speichern":
-        return this.anschlussSpeichern();
-      case "an-weg":
-        return this.anschlussWeg();
-      case "neu-anlegen":
-        return this.containerAnlegen();
-      case "b-speichern":
-        return this.bereichSpeichern();
-      case "b-weg":
-        return this.bereichWeg();
-      case "gf-speichern":
-        return this.geraetSpeichern();
-      case "boost":
-        return this.boostUmschalten(d3.bereiche.find((y3) => y3.id === el.dataset.id));
-      case "ausn-neu":
-        return this.ausnahmeNeu(el.dataset.v);
-      case "au-speichern":
-        return this.ausnahmeSpeichern();
-      case "ausn-weg": {
-        const x2 = el.dataset;
-        return this.ausnahmeWeg({ datum: x2.d, art: x2.art, von: x2.von, bis: x2.bis });
-      }
-      case "ausn-dazu":
-        return this.ausnahmeDazu(el.dataset.d);
-      case "jetzt-an":
-        return this.jetztHeizen(true);
-      case "jetzt-aus":
-        return this.jetztHeizen(false);
-      case "b-auto": {
-        const x2 = el.dataset.id ? d3.bereiche.find((y3) => y3.id === el.dataset.id) : b3;
-        return x2 && this.bereichAuto(x2);
-      }
-      case "hz-auf":
-        return this.hzAuf(el.dataset.k);
-      case "modus": {
-        const x2 = d3.bereiche.find((y3) => y3.id === el.dataset.id);
-        return x2 && this.modusSetzen(x2, el.dataset.v);
-      }
-      case "np-an":
-        return this.einstellungUmschalten("notprogramm");
-      // BSM-019
-      case "np-probe":
-        return this.npProbe(el.dataset.id, +el.dataset.min);
-      case "np-taste":
-        return this.einstellungUmschalten("taste");
-      // BSM-018
-      case "np-plug":
-        return this.npPlugAuf(el.dataset.id);
-      case "np-pruefen":
-        return this.npPruefen();
-      case "test-meldung":
-        return this.testMeldung();
-      case "bsz-speichern":
-        return this.zeitraumBsSpeichern();
-      case "aw-an":
-        return this.awAn(+el.dataset.i);
-      case "aw-weg":
-        return this.kkWeg(el.dataset.ort || "aw", +el.dataset.i);
-      case "kk-plus":
-        return this.kkPlus(el.dataset.ort);
-      case "sp-neu":
-        return this.preisNeu();
-      case "sp-speichern":
-        return this.preisSpeichern();
-      case "sp-weg":
-        return this.preisWeg(el.dataset.ab);
-      case "sp-sim":
-        return this.spSim(+el.dataset.d);
-      case "vg-art-k":
-        return this.vgArtUm(el.dataset.ort, +el.dataset.i);
-      case "kk-layout":
-        return this.kkLayoutUm();
-      case "sg-gefuehl":
-        return this.gefuehl(b3, +el.dataset.v);
-      case "sg-zurueck":
-        return this.sollZurueck({ id: el.dataset.id });
-      case "sg-vergessen":
-        return this.gefuehlVergessen();
-      case "kk-dia":
-        return this.kkDiaUm(el.dataset.ort, +el.dataset.i);
-      case "kk-auf":
-        return this.kkAufI(el.dataset.ort, +el.dataset.i);
-      case "aw-stufe":
-        return this.awStufeWahl(+el.dataset.i, el.dataset.v);
-      case "aw-hoch":
-      case "aw-runter":
-        return this.awVerschieben(+el.dataset.i, +el.dataset.i + (a3 === "aw-hoch" ? -1 : 1));
-      case "aw-vorlage":
-        return this.awVorlageWahl(el.dataset.v);
-      case "c-soll":
-        return this.sollSchritt(b3, +el.dataset.d);
-      case "cvd":
-        S3.cvd = el.dataset.v;
-        return neu();
-      case "g-aktiv":
-        return this.geraetAktiv(b3, +el.dataset.i);
-      case "g-automatik":
-        return this.geraetAutomatik(b3, +el.dataset.i);
-      case "g-bearbeiten":
-        return this.geraetBearbeiten(b3, +el.dataset.i);
-      case "b-lernen":
-        return this.lernenUmschalten(b3);
-      case "lern-reset":
-        return this.lernZuruecksetzen(b3);
-      case "b-trocknen":
-      case "tr-b":
-        return this.trocknenUmschalten(a3 === "tr-b" ? d3.bereiche.find((y3) => y3.id === el.dataset.id) : b3);
-      case "geraet":
-        return this.geraetSchalten(b3, +el.dataset.i);
-      case "chart":
-        S3.chart = el.dataset.c;
-        return neu();
-      case "verlauf":
-        S3.verlauf = el.dataset.v;
-        return neu();
-      case "basis":
-        return this.heizgrenzeBasis(el.dataset.v);
-      case "e-bool":
-        return this.einstellungUmschalten(el.dataset.k);
-      case "st":
-        return this.stufeSchritt(el.dataset.k, +el.dataset.d);
-      case "jc-auto": {
-        const x2 = d3.bereiche.find((y3) => y3.id === el.dataset.id);
-        return this.setzen(["bereiche", x2.id, "auto"], !x2.auto);
-      }
-      case "jc-soll":
-        return this.containerSoll(d3.bereiche.find((y3) => y3.id === el.dataset.id), +el.dataset.d);
-      case "urlaub-weg": {
-        const u3 = (this.urlaube() || [])[+el.dataset.i];
-        return u3 && this.urlaubWeg(u3);
-      }
-      case "urlaub-speichern":
-        return this.urlaubSpeichern();
-      case "vgl":
-        S3.vglArt = el.dataset.v;
-        return neu();
-      case "bs-wahl":
-        return this.baustelleOeffnen(el.dataset.id);
-      case "bs-bearbeiten":
-        return this.bsBearbeiten(el.dataset.id);
-      case "bs-loeschen":
-        return this.bsLoeschen();
-      case "csv":
-        return this.csv(el.dataset.art);
-      case "firma-auf":
-        return this.firmaAuf(el.dataset.id);
-      case "e-wert":
-        return this.einstellungWert(el.dataset.k, el.dataset.v);
-      case "bericht-senden":
-        return this.berichtSenden();
-      case "anschluss-auf":
-        return this.anschlussAuf(el.dataset.id);
-      case "tab-einst":
-        return this.einstGruppe(el.dataset.g || (S3.sheet && S3.sheet.art === "strom" ? "strom" : S3.evGruppe));
-      case "ev-gruppe":
-        return this.einstGruppeWahl(el.dataset.v);
-      case "az-neu":
-        return this.azNeu(this.azJetzt);
-      case "az-vorlage":
-        return this.azNeu(d3.arbeitszeiten[S3.sheet.i]);
-      case "az-bearbeiten": {
-        const v2 = d3.arbeitszeiten[S3.sheet.i];
-        return v2 && this.azBearbeiten(v2);
-      }
-      case "az-weg":
-        return this.azWeg(d3.arbeitszeiten[S3.sheet.i]);
-      case "azn-speichern":
-        return this.azSpeichern();
-      case "temp-vb":
-        S3.tempVb = S3.tempVb === false;
-        return neu();
-      case "abschliessen":
-        return this.abschliessen();
-      case "name-speichern":
-        return this.nameSpeichern();
-      case "baustelle-anlegen":
-        return this.baustelleAnlegen();
-      case "wetterquelle-speichern":
-        return this.wetterquelleSpeichern();
-    }
-    return void 0;
-  }
-  eingabe(ev) {
-    const el = ev.target, ds = el && el.dataset || {}, sh = this.s.sheet;
-  }
-  /* Felder, die direkt speichern: erst beim Verlassen (change), nicht bei jedem Tastendruck */
-  aenderung(ev) {
-    const el = ev.target, k2 = el && el.dataset && el.dataset.k;
-    if (k2 === "preis") {
-      const v2 = parseFloat(String(el.value).replace(",", "."));
-      if (Number.isFinite(v2) && v2 >= 0) return this.setzen(PFAD.preis, v2, "Preis gespeichert");
-      return this.toast("Bitte einen Preis eingeben");
-    }
-    return void 0;
   }
   hover(ev) {
     const svg2 = ev.target && ev.target.closest && ev.target.closest("svg.chart");

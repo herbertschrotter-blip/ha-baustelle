@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.8.100",
+    "datum": "2026-10-07",
+    "punkte": [
+      "Im Nur-Lesen-Modus war der Schalter „Schnell aufheizen“ im Dialog „Bei Bedarf heizen“ ausgegraut, obwohl er vor Ort erlaubt ist. Jetzt ist er wieder frei.",
+      "Seite auf Lit umgestellt, Teil 17 (BSM-022.17, Stufe 4): Navigation, Melden-Knopf, Hinweise „Neue Version“ und „Nur ansehen“ werden mit Lit gezeichnet. Die alte Weiche für Klicks und Eingaben (`data-act`) und ungenutzte alte Zeichenwege sind entfernt; die Seite ist rund 16 KB kleiner. Aussehen und Bedienung bleiben gleich."
+    ]
+  },
+  {
     "version": "0.8.99",
     "datum": "2026-10-07",
     "punkte": [

@@ -52,6 +52,7 @@ const passt = (el, ds) => { const soll = Object.entries(ds).filter(([, v]) => v 
 /** Helfer für echte Ereignisse in der Seite. Ein Klick trifft das Element mit genau diesen data-Attributen; gibt es keins
  *  (Testfall greift einer Ansicht vor), wird ein unsichtbarer Knopf in `.ui` eingesetzt und geklickt – die Zählung zeigt,
  *  wie viele Klicks auf echte Elemente gingen. Felder (input/select) bekommen keinen Klick, sondern den Knopf. */
+const { aktion } = require('./aktionen.js');
 function helfer(panel) {
   const zahl = { echt: 0, ersatz: 0, fehlend: {} };
   const finden = ds => {
@@ -66,6 +67,7 @@ function helfer(panel) {
   return {
     zahl,
     klick(ds) {
+      if (ds.act) { zahl.ersatz++; const k = JSON.stringify(Object.fromEntries(Object.entries(ds).filter(([k]) => ['act', 'v', 's'].includes(k)))); zahl.fehlend[k] = (zahl.fehlend[k] || 0) + 1; return aktion(panel, ds); }   // Stufe 4: keine data-act-Weiche mehr (aktionen.js)
       let el = finden(ds), weg = false;
       if (el && !/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) zahl.echt++; else { el = ersatz(ds); weg = true; zahl.ersatz++; const k = JSON.stringify(Object.fromEntries(Object.entries(ds).filter(([k]) => ['act', 'v', 's'].includes(k)))); zahl.fehlend[k] = (zahl.fehlend[k] || 0) + 1; }
       el.dispatchEvent(new global.MouseEvent('click', { bubbles: true, composed: true, cancelable: true }));

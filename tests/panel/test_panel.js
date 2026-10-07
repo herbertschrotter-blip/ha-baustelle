@@ -8,7 +8,7 @@
 //   läuft er zusätzlich dagegen – dort allgemein: jede Baustelle, jeder Container, jede Einblendung und Aktion.
 //   BAUSTELLE_AUFRUFE=<datei>: alle gesendeten WebSocket-Befehle als JSON dorthin schreiben (test_abgleich.py schickt sie
 //   danach an die echte Integration).
-//   BAUSTELLE_KLICKS=<datei>: Klicks, die kein Element der Ansicht trafen (Ersatzknopf), je data-act als JSON.
+//   BAUSTELLE_KLICKS=<datei>: Testschritte { act, … }, die über die Testtabelle (aktionen.js) liefen, je act als JSON.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -244,7 +244,7 @@ async function allgemein() {
   neu(); for (let i = 0; i < 120; i++) { await klick({ act: 'st', k: 'boost_min', d: '-5' }, 2); await klick({ act: 'st', k: 'soll', d: '0.5' }, 2); }
   erwarte('Stepper bleiben in den Grenzen der Integration', letzte('baustelle/setzen').every(a => a.wert >= 5 && a.wert <= 30 || a.pfad[1] === 'boost_min' && a.wert >= 5)
     && d().e.boost_min === 5 && d().e.soll === 30);
-  neu(); panel.aenderung({ target: { dataset: { k: 'preis' }, value: '0,31' } }); await ruhe(); erwarte('Preis', letzte('baustelle/setzen').length === 1);
+  neu(); panel.setzen(['preis'], 0.31); await ruhe(); erwarte('Preis', letzte('baustelle/setzen').length === 1);
   { await klick({ act: 'tab', v: 'einst' }, 10); await klick('.ev-nav button[data-v="bericht"], .ev-chips button[data-v="bericht"]', 10); const m = litEl('.ev-inhalt input[type="email"]');   // Lit (3e): echtes change
     if (m) { neu(); m.value = ' bau@example.at '; m.dispatchEvent(new Event('change', { bubbles: true, composed: true })); await ruhe(); erwarte('Mail', letzte('baustelle/setzen').length === 1); } }
   const c = C()[0];
@@ -390,8 +390,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('leere Liste → „Neue Baustelle“', /\+ Neue Baustelle/.test(ui.innerHTML)); pruefe('leer');
   struktur = alt; await panel._laden(); await ruhe(30);
   erwarte('WebGL fehlt → CSS-Hintergrund', panel.himmel === null && panel.bg.dataset.phase === 'tag' && panel.bg.dataset.wetter === 'regen');
-  erwarte('Seitenleisten-Knopf auf dem Handy', /data-act="menue"/.test(ui.innerHTML));
-  await klick({ act: 'menue' }); erwarte('hass-toggle-menu', events.includes('hass-toggle-menu'));
+  erwarte('Seitenleisten-Knopf auf dem Handy', !!litEl('.menue-knopf'));
+  await klick('.menue-knopf'); erwarte('hass-toggle-menu', events.includes('hass-toggle-menu'));
   erwarte('Dunkel nach Theme', !panel.wurzel.classList.contains('hell'));
   panel.hass = { ...hass, themes: { darkMode: false }, states: { ...states, 'sun.sun': { state: 'below_horizon', attributes: { elevation: -20 } } } }; await ruhe();
   erwarte('Hell nach Theme, Nacht nach sun.sun', panel.wurzel.classList.contains('hell') && panel.bg.dataset.phase === 'nacht');
@@ -594,7 +594,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   await setzen({ act: 'jc-auto', id: 'lager' }, ['bereiche', 'lager', 'auto'], false, 'Je Container Auto');
   await setzen({ act: 'tr-b', id: 'magazin' }, ['bereiche', 'magazin', 'trocknen'], true, 'Je Container Trocknen');
   await setzen({ act: 'jc-soll', id: 'polier', d: '0.5' }, ['bereiche', 'polier', 'soll'], 21, 'Je Container Soll');
-  neu(); panel.aenderung({ target: { dataset: { k: 'preis' }, value: '0,31' } }); await ruhe();
+  neu(); panel.setzen(['preis'], 0.31); await ruhe();
   erwarte('Preis speichern', (a => a && JSON.stringify(a.pfad) === '["preis"]' && a.wert === 0.31)(letzte('baustelle/setzen').at(-1)));
   { await klick({ act: 'tab', v: 'einst' }, 10); await klick('.ev-nav button[data-v="bericht"], .ev-chips button[data-v="bericht"]', 10); const m = litEl('.ev-inhalt input[type="email"]');
     neu(); if (m) { m.value = ' bau@example.at '; m.dispatchEvent(new Event('change', { bubbles: true, composed: true })); await ruhe(); }
@@ -1301,24 +1301,20 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
 
   /* Bauplan 0.7 §8: Nicht-Admin sieht nur an – Hinweis, Schalter gesperrt, nichts Änderndes gesendet; vor Ort erlaubt bleibt */
   { const vorher = struktur, b0 = vorher[0];
-    // einfacher Ersatz für Element.matches (Klasse, Tag, [a="v"], [a$="v"], :not([a="v"]))
-    // echte Elemente (happy-dom): matches() wie im Browser; Klick über das echte Ereignis in .ui
-    const el = (ds, cls = '', tag = 'button') => { const x = document.createElement(tag); x.className = cls; for (const [k, v] of Object.entries(ds)) x.dataset[k] = v; return x; };
-    const klickEl = async (e, n) => { e.hidden = true; panel.shadowRoot.querySelector('.ui').appendChild(e); e.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true })); e.remove(); await ruhe(n); };
+    // Aktionen über die Testtabelle (aktionen.js, Nur-Lesen wie früher am Knopf); Ausgrauen prüft der Browser-Test
     struktur = vorher.map(x => ({ ...x, rechte: { aendern: false, aktionen: ['gefuehl', 'warnung_stumm', 'jetzt_heizen', 'boost', 'bedarf', 'bedarf_aus'] } }));
     global.location = { search: `?baustelle=${b0.baustelle.entry_id}` }; panel.cache = {}; await panel._laden(); panel._adresse(); await ruhe(30);
     await klick({ act: 'tab', v: 'uebersicht' }, 30);
     let h = pruefe('nur ansehen');
     erwarte('§8: Hinweis „Nur ansehen“ für Nicht-Admins', h.includes('nur-lesen-hinweis') && h.includes('Nur ansehen'));
     erwarte('§8: Wurzel mit Klasse nur-lesen', panel.ui.classList.contains('nur-lesen'));
-    neu(); await klickEl(el({ act: 'e-bool', k: 'fruehstart' }, 'sw'));
+    neu(); await klick({ act: 'e-bool', k: 'fruehstart' });
     erwarte('§8: Schalter gesperrt, nichts gesendet', !letzte('baustelle/setzen').length && panel.letzterToast === 'Nur ansehen – ändern dürfen nur Admins');
-    neu(); await klickEl(el({ act: 'az-speichern' })); await klickEl(el({ act: 'sheet', s: 'termin' }));
+    neu(); await klick({ act: 'az-speichern' }); await klick({ act: 'sheet', s: 'termin' });
     erwarte('§8: Speichern und Bearbeiten-Fenster gesperrt', !aufrufe.length && !(panel.s.sheet && panel.s.sheet.art === 'termin'));
-    erwarte('§8: Schalter, die nur in der Seite wirken, bleiben frei', !panel.gesperrt(el({}, 'sw ml-stand')) && !panel.gesperrt(el({ act: 'bedarf-boost' }, 'sw')));
     neu(); panel.setzen(['heizung', 'fruehstart'], false); await panel.aktion('lern_reset', { bereich: 'polier' }); await ruhe();
     erwarte('§8: Änderungen gar nicht erst gesendet (setzen, Aktion nur für Admins)', !letzte('baustelle/setzen').length && !letzte('baustelle/aktion').length);
-    neu(); await klickEl(el({ act: 'boost', id: 'polier' }));
+    neu(); await klick({ act: 'boost', id: 'polier' });
     erwarte('§8: vor Ort erlaubt – schnell aufheizen geht', letzte('baustelle/aktion').some(x => x.aktion === 'boost'));
     neu(); panel.letzterToast = ''; struktur = vorher; panel.cache = {}; await panel._laden(); await ruhe(30);
     h = pruefe('wieder Admin');
@@ -1356,9 +1352,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   const mockup = path.join(__dirname, '..', '..', 'mockups', 'glas.html');
   erwarte('Master-Mockup aktuell (node mockups/quelle/glas.js)', fs.existsSync(mockup) && fs.readFileSync(mockup, 'utf8').includes(quelle.replace(/<\/script/gi, '<\\/script').trim()));
   if (process.env.BAUSTELLE_AUFRUFE) fs.writeFileSync(process.env.BAUSTELLE_AUFRUFE, JSON.stringify(alleAufrufe, null, 1));
+  erwarte('Stufe 4: keine data-act-Weiche mehr (ein Ereignisweg)', !ui.innerHTML.includes('data-act=') && typeof panel.klick !== 'function' && typeof panel.eingabe !== 'function' && typeof panel.sheet !== 'function');
   if (fehler.length) { console.log(fehler.slice(0, 40).join('\n')); console.log(`${fehler.length} Fehler`); process.exit(1); }
   if (process.env.BAUSTELLE_KLICKS) fs.writeFileSync(process.env.BAUSTELLE_KLICKS, JSON.stringify(ereignis.zahl.fehlend, null, 1));
-  console.log(`Klicks: ${ereignis.zahl.echt} auf Elemente der Seite, ${ereignis.zahl.ersatz} über Ersatzknopf (Element in der Ansicht nicht vorhanden)`);
+  console.log(`Klicks: ${ereignis.zahl.echt} auf Elemente der Seite, ${ereignis.zahl.ersatz} als { act } über die Testtabelle (tests/panel/aktionen.js)`);
   console.log(`Panel-Test grün (${REFERENZ ? 'Beispiel wie im Mockup' : 'echte Antwort der Integration'}): alle Ansichten, Einblendungen und Aktionen geprüft (${alleAufrufe.length} WS-Aufrufe).`);
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

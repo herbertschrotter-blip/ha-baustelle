@@ -53,7 +53,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **3d** | Container, dann Heizung | nichts | Live-Daten während Dialog/Tooltip; Modi, Soll, Schreibbefehle | R je Lieferung |
 | ☑ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
 | ☑ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
-| ☐ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
+| ☑ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
 | ☐ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
 
 **Gleiche Ausgabe** (1a–1c): `node tests/panel/schnappschuss.js <bundle> vorher.json` vor dem Umbau, danach erneut und
@@ -352,6 +352,19 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   `?ansicht=` prüfte auf `v_<ansicht>` und öffnete seit 3b–3f nur noch die Übersicht. Nachweis: Schnappschuss um die
   Auswertung erweitert (673 Schritte), inhaltlich gleich bis auf einen zeitabhängigen Schritt (`kk-frisch` erlischt nach
   2 s); Panel-Test auf Selektoren (`AW`), Browser-Test grün (124 s, knapp über dem Richtwert 120 s).
+- **Stufe 4, 07.10.2026 (0.8.100):** Rahmen in Lit: Navigation (`nav button[data-v]`), Seitenleisten-Knopf, Schleier,
+  Melden-Knopf (auch im Dialog), Hinweise „Neue Version“ und „Nur ansehen“. **Entfernt:** die Alt-Weiche (`klick`,
+  `eingabe`, `aenderung` samt Zuhörern am Shadow Root), `sheet()` (letzter Rückfall), der Rückfall `v_<ansicht>` in
+  `_ui`, `gesperrt`/`VOR_ORT` und alle `data-act`-Einträge in `NUR_LESEN_SPERRE` (bleibt `.sw:not(.ml-stand):not(.vor-ort)`,
+  `.nur-admin` – nur fürs Ausgrauen), ungenutzte Zeichenwege (`kopf`, `zeitleiste`, `stepper`, `protokoll`, `optionen`,
+  `isoUhr`, `minBis`, `minSeit`, `tagText`), `knopf2`/`schalter` aus hilfen.js, drei Importe. Im Bundle kein `data-act`
+  mehr; ein Renderer und ein Ereignisweg je Teilbaum. `unsafeHTML` bleibt nur für SVG-Diagramme und Symbole (§5; in
+  alt.js noch 2×: Symbole in Navigation/Melden, 48× in den Vorlagen für Diagramme, Grafiken und Wettersymbole). Bundle
+  600 → 584 KB, alt.js 2.758 → 2.580 Zeilen. Tests: ältere Schritte `{ act, … }` laufen über die Testtabelle
+  `tests/panel/aktionen.js` (übersetzt in die Panel-Methoden, Nur-Lesen wie früher am Knopf); gegen die alte Weiche mit
+  0.8.99 geprüft (Schnappschuss inhaltlich gleich), danach mit 0.8.100 668/668 gleich. Panel-Test prüft, dass keine
+  Weiche zurückkommt. Nebenbei: „Schnell aufheizen“ im Bedarf-Dialog ist wieder `vor-ort` (war seit 3d im Nur-Lesen
+  ausgegraut). Normalisierung blendet `kk-frisch` (Hervorhebung, endet nach 2 s) aus.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
   Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner

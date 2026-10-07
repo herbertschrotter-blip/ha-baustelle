@@ -62,9 +62,7 @@ export const addieren = arr => arr.length ? arr.reduce((a, w) => a.map((v, i) =>
 /* Erklärtexte „ⓘ“ (abschaltbar unter Einstellungen › App) */
 export const erkl = (an, text) => an ? `<div class="erkl">ⓘ ${text}</div>` : '';
 
-export const knopf2 = (t, act, text) => `<button class="knopf leise-k" data-act="${act}" data-t="${esc(text)}">${t}</button>`;
 
-export const schalter = (on, act, extra = '') => `<button class="sw ${on ? 'on' : ''}" data-act="${act}" ${extra} role="switch" aria-checked="${!!on}"><i></i></button>`;
 
 /* Versionen vergleichen: 0.7.10 > 0.7.9 */
 export const verNeuer = (a, b) => { const x = String(a || '').split('.').map(Number), y = String(b || '').split('.').map(Number);
