@@ -18,6 +18,29 @@ Auswertung waren noch alt“).
 - Der frühere Nachbau (`quelle/archiv/glas-app.js`, `glas.css`) und die Quellen von `heizung-varianten.html` liegen im
   Archiv; die Abnahmen unten beziehen sich auf diese Stände.
 
+## Vorschläge bauen (Rahmen)
+
+Seit der Lit-Seite (BSM-022) hängen Vorschläge über den Rahmen `quelle/rahmen.js` in die echte Seite; das
+Vorschlags-Skript baut nur den Inhalt. Erstes Beispiel: `quelle/inventar.js` → `inventar.html` (BSM-031.04).
+
+- Anlegen: `mockups/quelle/<thema>.js` mit `require('./rahmen').bauen({ datei: '<thema>.html', titel, leiste, auswahl,
+  browser, faelle })`. `browser(R)` läuft nur im Browser und hängt Inhalte ein: `R.gruppe` (Einstellungen-Gruppe),
+  `R.reiter` (Reiter oben), `R.abschnitt` (vor/nach einer Ansicht, z. B. Container), `R.einblendung` (Sheet der Seite,
+  `breit` für Desktop), `R.stil` (CSS nur mit den Variablen der Seite), `R.vorfuehren` (Umschalter der Leiste:
+  Variante, Lage, zeigen …). Vorlagen mit `R.html` wie in Lit (`@click`, `.value`, `?selected`). Die volle API steht
+  oben in `rahmen.js`.
+- Bauen: `node mockups/quelle/<thema>.js` (nach `glas.js`, der Rahmen liest `glas.html`) · prüfen:
+  `node mockups/quelle/vorschau/pruefen.cjs mockups/<thema>.html`.
+- Bilder und Browser-Prüfung: `node mockups/quelle/<thema>.js --bilder <ordner>` – Chromium stellt jeden Fall aus
+  `faelle` über die Leiste ein (optional `klick`: Knöpfe antippen, nur Desktop; `scroll`: Element nach oben), speichert
+  Desktop und 390 px und meldet Konsolenfehler und waagrechtes Überlaufen (Überlaufen der Seite selbst, das auch in
+  `glas.html` auftritt, steht in `BEKANNT_SEITE`).
+- **Der Rahmen wird bei jedem neuen Mockup mitgepflegt:** Was ein Mockup neu braucht (eine weitere Einhängestelle, ein
+  Prüfschritt, eine Hilfe), kommt in den Rahmen, nicht in die Einzeldatei. Ändert sich der Aufbau der Seite oder von
+  `glas.js`, meldet der Rahmen die Stelle, die er nicht mehr findet.
+- Die älteren Vorschläge in `quelle/archiv/` stammen aus der Zeit vor Lit (sie ersetzen Methoden, die es nicht mehr
+  gibt); ihre HTML-Dateien bleiben als Stand der Abnahme.
+
 ## Abnahmen
 
 | Datei | Umfang | Stand |
@@ -63,6 +86,7 @@ Auswertung waren noch alt“).
 | `container-symbol.html`, `container-zustaende.html` (BSM-032) | Container-Symbol anpassbar (Quelle `quelle/archiv/container-symbol.js`, `container-zustaende.js`, Zeichner `container-zeichner.js`): Einzel oder Doppel (Naht in Dach und Seite), Türen 1–2 und Fenster 1–4 an Front oder Seite in fünf Lagen, Farbe; Container bearbeiten › 🏠 Aussehen mit Vorschau, Sensoren je Tür/Fenster und Licht-Quelle; Zustand im Symbol aus drei Versionen je Zustand gewählt: **Tür offen A** (Öffnung, Türblatt außen), **Fenster gekippt A** (dunkler Spalt oben), **Fenster offen B** (Flügel nach außen), **Licht an A** (Fenster hellgelb) | **Abgenommen von Herbert am 06.10.2026** (Versionen gewählt, „so bauen“), eingebaut in 0.8.68 |
 | `notprogramm.html` (BSM-019) | Notprogramm anzeigen und prüfen (Quelle `quelle/archiv/notprogramm.js`): neue Gruppe **Einstellungen › 🛟 Notprogramm** mit Schalter, „⟳ Jetzt prüfen“ (zuletzt vor …) und je Heizungs-Plug Zustand (✓ bereit / ⚠ Notbetrieb seit … / ✕ Fehler), was im Notbetrieb gilt (Thermostat mit Soll, Zeitplan, Tür), Programm gültig bis, Hinweis „Fühler nicht am Plug“; Warnbox bei Fehler (nach 15 min auch unter Warnungen); Einzelheiten je Plug (Skript, Programm, Frostschutz, Fühler/Tür am Plug, letzte Prüfung, letzter Notbetrieb); 🛟 an den Heizungs-Plugs in Einstellungen › Geräte | **Abgenommen von Herbert am 05.10.2026** („so bauen“), eingebaut in 0.8.66 |
 | `containergroesse.html` (AN-0014) | Größe je Container (Einzel ≈ 13,5 m² / Doppel ≈ 28 m² / m² frei, Höhe 2,30 m) in „Container bearbeiten“; Startwert der lernenden Regelung aus der Größe; kWh/m² in „Wer verbraucht was“ und „kWh je Gradstunde und m²“ beim Ölradiator/Konvektor | **Abgenommen von Herbert am 04.10.2026**, eingebaut in 0.8.47 |
+| `inventar.html` (BSM-031.04) | Container-Inventar in vier Varianten auf der echten Seite (Quelle `quelle/inventar.js`, erster Vorschlag mit dem Rahmen): **1** Einstellungen › 📦 Inventar, Vorschau als Tabelle · **2** eigener Reiter Inventar mit Container-Kacheln, Vorschau als Karten je Gerät · **3** im Container (Inventar-Kopf, Ausrüstung, Geschichte, Suche über ⌕), Vorschau aufklappbar mit Zählern · **4** Assistent Art → Nummer → Ausrüstung → Vorschau, Vorher/Nachher; je Variante Liste, Container, Anlegen eigen/fremd, Zuordnen, Vorschau alt → neu (Konflikt, Plug offline, teilweise, Rückgängig); deutsche Kürzel | Vorschlag vom 08.10.2026, **Auswahl durch Herbert offen** |
 
 Bewusst offen bzw. für den Bau festgelegt:
 - Animationen und Zeitleiste im Zeitplan brauchen eine eigene Karte; erste Stufe mit eingebauten Karten
