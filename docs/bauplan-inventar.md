@@ -122,7 +122,7 @@ kurz an (Verweise werden getauscht) und schaltet danach wie vorher.
 |---|---|---|---|
 | ☐ | .02 Datenbank | Aufbau 9: Tabellen §2, `firma.kuerzel`, Verknüpfung, `v_inventar`; Umzug/Rückweg ziehen mit | nichts |
 | ☐ | .03 Regeln | `logik/inventar.py`: Kürzel, Namen, Entity-IDs, Labels, Nummernvergabe, Konflikte – mit Tests | nichts |
-| ☐ | .04 Mockup | Variantendatei neben `mockups/glas.html`: Inventar-Liste, Container anlegen, Gerät zuordnen, Vorschau, Rückgängig | Mockup zur Abnahme |
+| ☑ | .04 Mockup | `mockups/inventar.html` – **Variante 1 abgenommen 08.10.2026**: Einstellungen › 📦 Inventar (Liste, Container, Anlegen eigen/fremd, Zuordnen), Vorschau als Tabelle Was/Alt/Neu/Zustand, Übernehmen, Nachholen, Rückgängig | Mockup |
 | ☐ | .05 API | WebSocket-Befehle `baustelle/inventar*` (lesen für alle, ändern nur Admins), `docs/api-0.7.md` | nichts |
 | ☐ | .06 Umbenennen | Ausführen, Protokoll, teilweise/nachholen, Rückgängig (§6); Integrationstests mit Plug-Attrappe | nichts |
 | ☐ | .07 Seite | Inventar, Dialoge, Vorschau nach dem abgenommenen Mockup | neue Ansicht |
@@ -135,6 +135,11 @@ kurz an (Verweise werden getauscht) und schaltet danach wie vorher.
 - **Ausrüstung ohne Schalter** (Fühler, Tür, Fenster): erkennt die Integration über das HA-Gerät; Bautrockner und Pumpe
   ohne Shelly kommen erst mit einem Schalter ins Inventar.
 - **Kennung:** MAC aus dem HA-Gerät (Shelly, BTHome); steht nur in der Datenbank, nie im Repo oder in Beispieldaten.
+
+- **Aus dem Mockup (08.10.2026), beim Bau klären:** Name des Bereichs (Anzeigename im Unter-Eintrag bleibt, Inventarname
+  daneben – so im Mockup angenommen); Bautrockner als `NNN-GG_C_BTR_<Art>`; Endungen am Plug `_Leistung`, `_Energie`;
+  BTHome-Batterie als eigener Messwert oder nicht; nimmt Shelly `-` und `_` im Gerätenamen an; zählt „N Änderungen offen“
+  auch Labels und BTHome-Schritte.
 
 ## 9. Tests
 
