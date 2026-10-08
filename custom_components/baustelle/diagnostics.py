@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from . import BaustelleConfigEntry
 from .const import CONF_EMPFAENGER
 from .daten import struktur
-from .db import DATA_DB
+from .db import DATA_DB, async_stand
 from .notprogramm import DATA_NOTPROGRAMM
 
 GESCHWAERZT = {CONF_EMPFAENGER}
@@ -28,4 +28,5 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: Baustel
         from .db.tage import async_abgleich   # noqa: PLC0415
         heute = dt_util.now().date()
         daten["datenbank"]["abgleich"] = await async_abgleich(hass, db, entry.runtime_data, heute - timedelta(days=13), heute)
+        daten["datenbank"]["stand"] = await async_stand(hass, entry.entry_id)   # BSM-027: Zeilen, Zeitraum, Merker
     return daten

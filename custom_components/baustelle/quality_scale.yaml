@@ -1,10 +1,10 @@
 # Qualitätsskala von Home Assistant (developers.home-assistant.io/docs/core/integration-quality-scale/rules)
-# Stand 0.7.22 (30.09.2026). Jede Regel: done, todo oder exempt (mit Grund).
+# Stand 0.8.105 (08.10.2026). Jede Regel: done, todo oder exempt (mit Grund).
 rules:
   # Bronze
   action-setup:
     status: done
-    comment: Aktion baustelle.ticket wird in async_setup angemeldet, nicht je Baustelle.
+    comment: Aktionen baustelle.ticket, notprogramm_pruefen und datenbank_rueckweg werden in async_setup angemeldet, nicht je Baustelle.
   appropriate-polling:
     status: done
     comment: Keine Abfrage im Takt; Entitäten schreiben nach jeder Auswertung (should_poll False). Wetter alle 30 min, Kalender alle 15 min.
@@ -22,10 +22,10 @@ rules:
     comment: Einrichtung, Optionen, Umbenennen und Subentries (Bereich, Shelly) über die Oberfläche, mit data_description.
   dependency-transparency:
     status: done
-    comment: Keine Bibliotheken (requirements leer).
+    comment: Eine Bibliothek, fest angeheftet – psycopg[binary] (PostgreSQL-Treiber, BSM-026); quelloffen auf PyPI.
   docs-actions:
     status: done
-    comment: README, Abschnitt Aktionen (baustelle.ticket).
+    comment: README (Was die Integration liefert) und docs/api-datenbank.md §4 – alle drei Aktionen.
   docs-high-level-description:
     status: done
   docs-installation-instructions:
@@ -96,7 +96,7 @@ rules:
     comment: Gerät je Baustelle und je Bereich; Entitäten eines Shelly hängen an dessen Gerät.
   diagnostics:
     status: done
-    comment: Empfänger und Mail-Adressen geschwärzt.
+    comment: Empfänger und Mail-Adressen geschwärzt; Datenbank-Adresse ohne Passwort, Stand der Datenbank je Baustelle (BSM-027).
   discovery-update-info:
     status: exempt
     comment: Keine Geräte-Erkennung (siehe discovery).

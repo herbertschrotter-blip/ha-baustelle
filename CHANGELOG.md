@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.105] – 2026-10-08
+
+- Betriebsanleitung für eine zweite Person (BSM-027): `docs/betrieb.md` – einspielen, sichern, wiederherstellen (ganzes
+  System, nur Datenbank, frühere Version, zurück auf SQLite) und was bei Störungen zu tun ist (Plug weg, Notbetrieb, VPN,
+  Strom, Datenbank). Für Excel, Power BI und eigene Abfragen: `docs/api-datenbank.md`.
+- Der Diagnose-Download zeigt jetzt den Stand der Datenbank je Baustelle (Zeilen je Tabelle, erste und letzte Minute,
+  Ticket-Zähler) – so sieht man auf einen Blick, ob mitgeschrieben wird.
+
 ## [0.8.104] – 2026-10-07
 
 - Datenbank auf einem Server, Schritt 8d (BSM-026): Mehrere Home-Assistant-Instanzen können in dieselbe Datenbank

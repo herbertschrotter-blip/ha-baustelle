@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.8.105",
+    "datum": "2026-10-08",
+    "punkte": [
+      "Betriebsanleitung für eine zweite Person (BSM-027): `docs/betrieb.md` – einspielen, sichern, wiederherstellen (ganzes System, nur Datenbank, frühere Version, zurück auf SQLite) und was bei Störungen zu tun ist (Plug weg, Notbetrieb, VPN, Strom, Datenbank). Für Excel, Power BI und eigene Abfragen: `docs/api-datenbank.md`.",
+      "Der Diagnose-Download zeigt jetzt den Stand der Datenbank je Baustelle (Zeilen je Tabelle, erste und letzte Minute, Ticket-Zähler) – so sieht man auf einen Blick, ob mitgeschrieben wird."
+    ]
+  },
+  {
     "version": "0.8.104",
     "datum": "2026-10-07",
     "punkte": [

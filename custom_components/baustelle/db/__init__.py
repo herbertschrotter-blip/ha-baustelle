@@ -183,3 +183,24 @@ async def async_rueckweg(hass: HomeAssistant) -> dict[str, Any]:
         raise ValueError(db.fehler or "Kopie fehlgeschlagen")
     return {"datei": str(ziel), "zeilen": zahlen}
 
+
+def _stand(v: Connection, bid: str, instanz: str) -> dict[str, Any]:
+    """Datenbank-Stand einer Baustelle für die Diagnose (BSM-027): Zeilen je Tabelle, Zeitraum der Minuten, Merker."""
+    from sqlalchemy import func   # noqa: PLC0415
+    zeilen = {t.name: int(v.execute(select(func.count()).select_from(t).where(t.c.baustelle_id == bid)).scalar() or 0)
+              for t in s.metadata.sorted_tables if "baustelle_id" in t.c and t.name != "meldung"}
+    gm = s.geraet_minute
+    von, bis = v.execute(select(func.min(gm.c.zeit), func.max(gm.c.zeit)).where(gm.c.baustelle_id == bid)).one()
+    merker = {r.schluessel: r.wert for r in v.execute(select(s.zustand.c.schluessel, s.zustand.c.wert).where(
+        s.zustand.c.baustelle_id == instanz, s.zustand.c.schluessel.in_(("umzug", "meldungen_nummern"))))}
+    return {"instanz": instanz, "zeilen": zeilen, "minuten_von": von.isoformat() if von else None,
+            "minuten_bis": bis.isoformat() if bis else None, **merker}
+
+
+async def async_stand(hass: HomeAssistant, bid: str) -> dict[str, Any] | None:
+    db = hass.data.get(DATA_DB)
+    if db is None or not db.bereit:
+        return None
+    instanz = instanz_von(db)
+    return await db.async_ausfuehren(lambda v: _stand(v, bid, instanz))
+

@@ -70,8 +70,8 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe H – Betrieb in der Firma
 
-- [ ] **H1** (BSM-026) Datenbank Phase 8: zentral PostgreSQL + TimescaleDB, Puffer bei Verbindungsverlust, Ansichten und Lesebenutzer für Excel/Power BI, mehrere Instanzen
-- [ ] **H2** (BSM-027) Datenbank Phase 9 und Betriebsanleitung: einspielen, sichern, wiederherstellen, Störung; api-Doku auf die Datenbank
+- [ ] **H1** (BSM-026) Datenbank Phase 8: zentral PostgreSQL + TimescaleDB, Puffer bei Verbindungsverlust, Ansichten und Lesebenutzer für Excel/Power BI, mehrere Instanzen – gebaut 0.8.102–0.8.104 (07.10.2026); offen: Server einrichten (Herbert), Excel-Probe, Datenschutz bestätigen
+- [ ] **H2** (BSM-027) Datenbank Phase 9 und Betriebsanleitung: einspielen, sichern, wiederherstellen, Störung; api-Doku auf die Datenbank – geschrieben 0.8.105 (`docs/betrieb.md`, `docs/api-datenbank.md`); offen: mit Herbert durchspielen
 - [ ] **H3** (BSM-028) Zweite Person einarbeiten (Code, Abläufe, Tickets)
 - [ ] **H4** (BSM-029) Präsentation für den Chef: Platzhalter füllen (Anzahl Heizkörper der Firma, zweite Baustelle)
 

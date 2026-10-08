@@ -111,6 +111,10 @@ siehe Auslieferung), dann neu starten.
   Zyklen und „läuft“.
 - **Aktion** `baustelle.ticket`: Ticket aus dem Melden-Knopf ändern (`ticket`, optional `status`, `notiz`, `version`,
   `commit`, `von`); unbekanntes Ticket → Fehler.
+- **Aktionen nur für Admins:** `baustelle.notprogramm_pruefen` (Notprogramm aller Plugs jetzt prüfen),
+  `baustelle.datenbank_rueckweg` (Daten dieser Instanz aus PostgreSQL in eine neue SQLite-Datei).
+- **Daten für außerhalb:** Ansichten für Excel/Power BI und Tabellen der Datenbank – `docs/api-datenbank.md`.
+- **Betrieb** (einspielen, sichern, wiederherstellen, Störungen) für eine zweite Person: `docs/betrieb.md`.
 - **Geräte:** Shellys oder jeder andere Schalter in HA (`switch.*`); Messwerte aus Leistungs-/Energiesensoren (W, kWh).
   Fühler: Temperatursensor oder Thermostat (`climate`).
 - **Aktualisierung:** ohne Abfrage im Takt – bei jeder Zustandsänderung der zugeordneten Entitäten, mindestens jede

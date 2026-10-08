@@ -292,6 +292,9 @@ async def test_tagessummen_viertelstuendlich(hass: HomeAssistant, baustelle, fre
     from custom_components.baustelle.diagnostics import async_get_config_entry_diagnostics  # noqa: PLC0415
     diag = await async_get_config_entry_diagnostics(hass, baustelle)
     assert any(z["bereich"] == "Container 1" and z["datenbank_kwh"] for z in diag["datenbank"]["abgleich"])
+    stand = diag["datenbank"]["stand"]   # BSM-027: Datenbank-Stand der Baustelle
+    assert stand["zeilen"]["geraet_minute"] > 0 and stand["zeilen"]["tag_bereich"] >= 1 and stand["minuten_von"] <= stand["minuten_bis"]
+    assert stand["instanz"] and "zeilen" in stand and diag["datenbank"]["schema_version"] == SCHEMA_VERSION
 
 
 # ---------------------------------------------------------------------- Phase 5: Statistik aus der Datenbank (BSM-014)

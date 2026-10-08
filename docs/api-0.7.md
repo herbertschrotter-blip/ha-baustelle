@@ -1,5 +1,8 @@
 # Schnittstelle Seite ↔ Integration (0.7.0)
 
+> Seit 0.8.61 liegen alle Daten in der eigenen Datenbank (nicht mehr im Store bzw. in der HA-Statistik). Was außerhalb der
+> Seite mit den Daten arbeitet (Excel, Power BI, Ansichten, Aktionen, Diagnose): `docs/api-datenbank.md`.
+
 Vertrag zwischen `frontend/baustelle-panel.js` und der Integration. Gehört zu `docs/bauplan-0.7.md`. Beide Seiten
 testen dagegen: `tests/panel/struktur-0.7.json` ist ein vollständiges Beispiel dieser Struktur (Werte wie im Mockup);
 `tests/integration/test_api.py` prüft, dass die echte Antwort dieselben Schlüssel und Typen hat.
