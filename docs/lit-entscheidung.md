@@ -60,12 +60,12 @@ Herbert prüft nach dem Neustart je auf S23 Ultra (HA-App) und in Microsoft Edge
 
 | Prüfung | S23 | Edge |
 |---|---|---|
-| Reiter wechseln, ☰ öffnet die Seitenleiste (Handy), Melden-Knopf öffnet „Melden“ | ☐ | ☐ |
-| Übersicht: Container öffnen, Automatik-Chip, Warnungen, Strom- und Wetter-Einblendung, Kachel antippen | ☐ | ☐ |
-| Container und Heizung: Modus, Soll ±, Termin anlegen, Bedarf „jetzt heizen“, Arbeitszeit bearbeiten | ☐ | ☐ |
-| Auswertung: Zeitraum und Kalender, Anpassen (Stufe, Reihenfolge), Layout (Ziehen, ✕), Preis simulieren, CSV | ☐ | ☐ |
-| Verlauf und Einstellungen: Filter, Baustelle öffnen, Dialoge mit Eingabe (Android-Tastatur bleibt offen) | ☐ | ☐ |
-| Darstellung: Himmel/Hintergrund, Diagramm-Tooltip, Scrollposition bleibt bei Aktualisierung | ☐ | ☐ |
+| Reiter wechseln, ☰ öffnet die Seitenleiste (Handy), Melden-Knopf öffnet „Melden“ | ☑ | ☑ |
+| Übersicht: Container öffnen, Automatik-Chip, Warnungen, Strom- und Wetter-Einblendung, Kachel antippen | ☑ | ☑ |
+| Container und Heizung: Modus, Soll ±, Termin anlegen, Bedarf „jetzt heizen“, Arbeitszeit bearbeiten | ☑ | ☑ |
+| Auswertung: Zeitraum und Kalender, Anpassen (Stufe, Reihenfolge), Layout (Ziehen, ✕), Preis simulieren, CSV | ☑ | ☑ |
+| Verlauf und Einstellungen: Filter, Baustelle öffnen, Dialoge mit Eingabe (Android-Tastatur bleibt offen) | ☑ | ☑ |
+| Darstellung: Himmel/Hintergrund, Diagramm-Tooltip, Scrollposition bleibt bei Aktualisierung | ☑ | ☑ |
 
-Ergebnis: ☐ abgenommen – danach BSM-022.18 auf shipped und Bauplan §3 Stufe 5 ☑.
+Ergebnis: ☑ abgenommen am 08.10.2026 auf 0.8.105 (Herbert: „alles ok“, S23 Ultra und Edge) – BSM-022.18 shipped, Bauplan §3 Stufe 5 ☑.
 

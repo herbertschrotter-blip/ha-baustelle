@@ -54,7 +54,7 @@ Version/Bedienung prüfen; fertige Artefakte auf dem Pi, ohne npm/Internet; zuer
 | ☑ | **3e** | Einstellungen nach Dialogfamilien, Notprogramm zuletzt | nichts | Admin/Nicht-Admin; genau ein Auftrag je Aktion | R je Familie |
 | ☑ | **3f** | Übersicht, dann Auswertung in Teilansichten | nichts | Fachwerte/CSV gleich; Auswahl, Sortieren, Layout, Zeiträume | R je Teilansicht |
 | ☑ | **4** | übrige Einblendungen/Diagramme, dann Alt-Weiche und Übergangs-HTML entfernen | nichts | Inventar vollständig; keine Alt-Renderer, keine doppelten Ereigniswege | R je Einheit |
-| ◐ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
+| ☑ | **5** | Doku, Abnahmeprotokoll, Rückweg-Probe, Abschluss | nichts | volle Prüfung; S23-/Edge-Abnahme; Offline-Auslieferung und Rückweg erprobt | R |
 
 **Gleiche Ausgabe** (1a–1c): `node tests/panel/schnappschuss.js <bundle> vorher.json` vor dem Umbau, danach erneut und
 `--vergleich vorher.json nachher.json` – HTML jeder Ansicht/Einblendung und die WS-Befehle müssen gleich sein.
@@ -376,10 +376,10 @@ Neuladen aktiv (`?v=`-URL, Changelog-Hinweis, `neuLaden()`); „ohne HA-Neustart
   gebaute Seite bytegleich mit der ausgelieferten. Browser-Test: weiches Scrollen abgeschaltet
   (`--disable-smooth-scrolling`), B3 zweimal in Folge grün, Laufzeit 112–120 s (Budget 120 s). Rückweg in README
   (Auslieferung, Punkt 5). Grundprüfung grün (logik 670, Integration 363, Panel beide Strukturen, Notprogramm 20/20,
-  seite-gebaut, Browser 17). **Offen:** Abnahme durch Herbert auf S23 Ultra (HA-App) und in Edge
-  (`docs/lit-entscheidung.md`, Abschnitt „Abnahme der ganzen Seite“).
+  seite-gebaut, Browser 17). **Abgenommen** am 08.10.2026 auf 0.8.105 durch Herbert auf S23 Ultra (HA-App) und in Edge
+  (`docs/lit-entscheidung.md`, Abschnitt „Abnahme der ganzen Seite“). BSM-022 fertig.
 - **Entscheidungsbogen:** `docs/lit-entscheidung.md` (Nachweise zu §5, Leistung `tests/panel/browser/leistung.mjs`,
-  Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); offen: Abnahme S23/Edge und Herberts Entscheidung.
+  Rückweg auf 1c geprobt, Aufwandsschätzung je Familie); Abnahme S23/Edge 08.10.2026 erledigt.
 - **npm offline, 06.10.2026:** `npm ci --offline --cache /config/projekte/.npm-cache-baustelle` in einem temporären Ordner
   ohne Netzzugriff durch npm, `@esbuild/linux-arm64` enthalten, kleiner Build grün; package-lock.json sha256
   `1696ce4356818f04…` (mit Lit, happy-dom, puppeteer-core erneut geprobt: `6025c468e9cf6de0…`), Node v22.23.2, npm 10.9.1, linux/arm64. Neu vorbereiten bei anderem Lockfile, Node/npm,
