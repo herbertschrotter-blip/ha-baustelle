@@ -5,8 +5,8 @@ und Verbrauch, wenn er von Baustelle zu Baustelle wandert; ein Gerät behält se
 wechselt. Namen und Labels in HA, am Plug und in den BTHome-Kopplungen bildet die Integration selbst nach dem Schema –
 mit Vorschau, ein Klick übernimmt, rückgängig möglich. Fremdcontainer bekommen Firmenkürzel und Nummer je Baustelle.
 
-Stand: Plan vom 08.10.2026 (BSM-031.01, Sitzung „ha-baustelle Teil 5“), noch nichts gebaut. Entscheidungen Herberts vom
-05.10.2026 (Aufgabe BSM-031) und 08.10.2026 (§1). Etappe I im Fahrplan, Unteraufgaben BSM-031.01–.10.
+Stand: Plan vom 08.10.2026, Kürzel deutsch nach Herbert am selben Tag (BSM-031.01, Sitzung „ha-baustelle Teil 5“), noch nichts gebaut. Entscheidungen Herberts vom
+05.10.2026 (Aufgabe BSM-031) und 08.10.2026 (§1; geht vor, wo es abweicht). Etappe I im Fahrplan, Unteraufgaben BSM-031.01–.10.
 
 ## 1. Entscheidungen
 
@@ -15,10 +15,11 @@ Stand: Plan vom 08.10.2026 (BSM-031.01, Sitzung „ha-baustelle Teil 5“), noch
 | Eigene Container | Inventar in der Datenbank; Nummer NNN **für die ganze Firma** (08.10.): eine Folge in der gemeinsamen Datenbank, mit SQLite nur je HA-Instanz. Die Nummer gilt für immer und wird nie neu vergeben |
 | Ausrüstung | Inventar mit eigener ID und Status `aktiv` / `verliehen` / `defekt` (löst „inaktiv“ aus WU-0004 ab); GG zählt je Container fortlaufend |
 | Fremdcontainer | `<FIRMA>-NN`, NN je Baustelle und Firma; keine Inventarnummer; verlässt er die Baustelle, scheidet er aus, seine Daten bleiben bei der Baustelle |
-| Kürzel | englisch, eine Tabelle an einer Stelle (§3), erweiterbar; HZ bleibt; Bautrockner **DRYR** (08.10.) |
+| Kürzel | **deutsch** (08.10., ändert die englischen vom 05.10.): Containerarten POL, MAN, BES, BUE, LAG, MAT, SAN, TRO; Geräte wie im heutigen Schema PLUG, HZ, TEMP, DOOR, neu FEN, PUMP, BTR. Eine Tabelle an einer Stelle (§3), erweiterbar |
 | Endungen, Labels | deutsch wie bisher (§4, §5) |
 | Umbenennen | **alles samt Entity-IDs** (08.10.): HA-Gerät, Entitätsnamen, Entity-IDs, Plug-Name, BTHome-Kopplungen, Labels – mit Vorschau, ein Klick, Protokoll, rückgängig |
-| Bestand | über dieselbe Vorschau umstellen: `001_C_POL` → `001_C_FOR`, `002–004_C_MAN` → `_CRW`; Nummern bleiben |
+| Bestand | Kürzel und Nummern bleiben (`001_C_POL`, `002–004_C_MAN`); über dieselbe Vorschau werden nur alte Namen und Entity-IDs (`switch.heizung_03`, `hz03_…`, `tursensor_01_…`) aufs Schema gebracht |
+| Pumpenschächte | vorerst nicht im Inventar, behalten ihre Namen (08.10.) |
 | Aufkleber | Name und QR-Code (öffnet die Seite des Containers) – später (BSM-031.10) |
 
 ## 2. Datenmodell (Datenbank, Aufbau 9)
@@ -50,14 +51,14 @@ Baustellen** dazu und wird mit den Unter-Einträgen verknüpft:
 
 | Containerart | Kürzel | Label |
 |---|---|---|
-| Polier | FOR | Polier |
-| Mannschaft | CRW | Mannschaft |
-| Besprechung | MTG | Besprechung |
-| Büro | OFF | Büro |
-| Lager | STO | Lager |
+| Polier | POL | Polier |
+| Mannschaft | MAN | Mannschaft |
+| Besprechung | BES | Besprechung |
+| Büro | BUE | Büro |
+| Lager | LAG | Lager |
 | Material | MAT | Material |
 | Sanitär | SAN | Sanitär |
-| Trocken | DRY | Trocken |
+| Trocken | TRO | Trocken |
 
 | Gerät | Kürzel | Label (Gerätetyp) |
 |---|---|---|
@@ -65,9 +66,9 @@ Baustellen** dazu und wird mit den Unter-Einträgen verknüpft:
 | Heizkörper | HZ | Heizkörper |
 | Temperaturfühler | TEMP | Shelly H&Temp Sensor |
 | Türkontakt | DOOR | Shelly Door Sensor |
-| Fensterkontakt | WIN | Shelly Door Sensor |
+| Fensterkontakt | FEN | Shelly Door Sensor |
 | Pumpe | PUMP | Pumpe |
-| Bautrockner | DRYR | Bautrockner |
+| Bautrockner | BTR | Bautrockner |
 
 Neue Kürzel kommen nur hier dazu (mit Test); Seite und Datenbank lesen die Tabelle von der Integration.
 
@@ -75,18 +76,18 @@ Neue Kürzel kommen nur hier dazu (mit Test); Seite und Datenbank lesen die Tabe
 
 | Was | Eigen | Fremd |
 |---|---|---|
-| Container | `NNN_C_<Art>` – `002_C_CRW` | `<FIRMA>-NN_C_<Art>` – `STRA-01_C_CRW` |
-| Plug | `NNN-GG_C_PLUG_<Art>` – `002-01_C_PLUG_CRW` | `STRA-01-01_C_PLUG_CRW` |
-| Heizkörper (Gerät der Integration) | `NNN-GG_C_HZ_<Art>_<Typ><Nr>` – `002-01_C_HZ_CRW_Konvektor01` | `STRA-01-01_C_HZ_CRW_Konvektor01` |
-| Fühler, Tür, Fenster | `NNN_C_TEMP_<Art>`, `NNN_C_DOOR_<Art>`, `NNN_C_WIN_<Art>` | `STRA-01_C_TEMP_CRW` |
+| Container | `NNN_C_<Art>` – `002_C_MAN` | `<FIRMA>-NN_C_<Art>` – `STRA-01_C_MAN` |
+| Plug | `NNN-GG_C_PLUG_<Art>` – `002-01_C_PLUG_MAN` | `STRA-01-01_C_PLUG_MAN` |
+| Heizkörper (Gerät der Integration) | `NNN-GG_C_HZ_<Art>_<Typ><Nr>` – `002-01_C_HZ_MAN_Konvektor01` | `STRA-01-01_C_HZ_MAN_Konvektor01` |
+| Fühler, Tür, Fenster | `NNN_C_TEMP_<Art>`, `NNN_C_DOOR_<Art>`, `NNN_C_FEN_<Art>` | `STRA-01_C_TEMP_MAN` |
 | Messwerte | `<Gerätename>_Temperatur`, `_Feuchte`, `_Batterie`, `_Tuer`, `_Drehung`, `_Lichtstufe`, `_Licht` | ebenso |
 | Entity-ID | Name klein, `-` → `_`: `switch.002_01_c_plug_crw`, `sensor.002_c_temp_crw_temperatur` | `switch.stra_01_01_c_plug_crw` |
 
 - `<Typ>` = `Konvektor` bzw. `Radiator` (Typ des Geräts), `<Nr>` zweistellig je Typ im Container.
-- Mehrere Fühler/Türen im selben Container: ab dem zweiten mit Nummer (`NNN_C_DOOR_CRW_2`) – selten, Regel im Test.
+- Mehrere Fühler/Türen im selben Container: ab dem zweiten mit Nummer (`NNN_C_DOOR_MAN_2`) – selten, Regel im Test.
 - Ist eine Entity-ID schon vergeben (fremde Entität), hängt HA nichts an: Die Vorschau zeigt den Konflikt, der Schritt
   bleibt aus, bis er gelöst ist.
-- Pumpenschächte bleiben vorerst ohne Inventar (§8).
+- Pumpenschächte bleiben ohne Inventar (§1); die Regeln lassen Platz für eine weitere Art.
 
 ## 5. Labelregeln
 
@@ -126,13 +127,11 @@ kurz an (Verweise werden getauscht) und schaltet danach wie vorher.
 | ☐ | .06 Umbenennen | Ausführen, Protokoll, teilweise/nachholen, Rückgängig (§6); Integrationstests mit Plug-Attrappe | nichts |
 | ☐ | .07 Seite | Inventar, Dialoge, Vorschau nach dem abgenommenen Mockup | neue Ansicht |
 | ☐ | .08 Status | aktiv/verliehen/defekt statt „inaktiv“; verliehen/defekt = Automatik lässt aus wie bisher | Status am Gerät |
-| ☐ | .09 Bestand | vorher Sicherung; 001 → FOR, 002–004 → CRW über die Vorschau; danach regelt die Integration unverändert | neue Namen |
+| ☐ | .09 Bestand | vorher Sicherung; Container 001–004 ins Inventar übernehmen (Nummern und Kürzel bleiben), alte Namen und Entity-IDs über die Vorschau angleichen; danach regelt die Integration unverändert | neue Entity-IDs |
 | ☐ | .10 Aufkleber | Name und QR-Code (später) | – |
 
 ## 8. Offen
 
-- **Pumpenschächte:** ins Inventar (eigene Art, z. B. `PIT`) oder bei den heutigen Namen lassen? Bis zur Klärung ohne
-  Inventar; die Regeln (§4) lassen Platz für eine weitere Art.
 - **Ausrüstung ohne Schalter** (Fühler, Tür, Fenster): erkennt die Integration über das HA-Gerät; Bautrockner und Pumpe
   ohne Shelly kommen erst mit einem Schalter ins Inventar.
 - **Kennung:** MAC aus dem HA-Gerät (Shelly, BTHome); steht nur in der Datenbank, nie im Repo oder in Beispieldaten.

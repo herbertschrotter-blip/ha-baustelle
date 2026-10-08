@@ -77,8 +77,7 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe I – Container-Inventar (BSM-031, Herbert 05.10.2026)
 
-Eigene Container und Ausrüstung als Inventar mit ID und Geschichte; Namen (englische Kürzel FOR/CRW/…, HZ bleibt,
-Endungen deutsch) und Labels automatisch beim Zuordnen mit Vorschau; Fremdcontainer als `<FIRMA>-NN_C_<Art>`, scheiden
+Eigene Container und Ausrüstung als Inventar mit ID und Geschichte; Namen (deutsche Kürzel POL/MAN/…, Endungen deutsch) und Labels automatisch beim Zuordnen mit Vorschau; Fremdcontainer als `<FIRMA>-NN_C_<Art>`, scheiden
 nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 
 - [ ] **I1** (BSM-031.01) Bauplan und Kürzeltabelle – geschrieben 08.10.2026 (`docs/bauplan-inventar.md`), Abnahme durch Herbert offen
@@ -89,7 +88,7 @@ nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 - [ ] **I6** (BSM-031.06) Umbenennen ausführen (HA, Plug, BTHome, Labels, Verweise)
 - [ ] **I7** (BSM-031.07) Seite: Inventar, Dialoge, Vorschau
 - [ ] **I8** (BSM-031.08) Status statt „inaktiv“
-- [ ] **I9** (BSM-031.09) Bestand umstellen (POL → FOR, MAN → CRW)
+- [ ] **I9** (BSM-031.09) Bestand übernehmen (Kürzel bleiben, alte Namen und Entity-IDs angleichen)
 - [ ] **I10** (BSM-031.10) Aufkleber mit Name und QR-Code (später)
 - [x] **I11** (BSM-032) Container-Symbol anpassbar: Doppelcontainer, Türen 1–2 und Fenster 1–4 mit Lage, Farbe; echter Zustand (Tür offen/zu, Fenster gekippt, Licht an/aus) – erledigt 0.8.68, eingespielt 06.10.2026
 
