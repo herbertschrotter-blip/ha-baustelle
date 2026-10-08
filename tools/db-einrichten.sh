@@ -14,6 +14,11 @@ SLUG=77b2833f_timescaledb
 HOST=77b2833f-timescaledb
 API="http://supervisor/addons/$SLUG"
 
+# Passwörter werden verdeckt am Terminal abgefragt – mit „! …“ in Claude Code gibt es keines
+if ! (: </dev/tty) 2>/dev/null; then
+  echo "Kein Terminal: bitte in einem eigenen Terminal-Fenster starten (tmux: Strg+b, c)."; exit 1
+fi
+
 command -v psql >/dev/null 2>&1 || apk add --no-cache postgresql17-client >/dev/null
 
 zustand=$(curl -s -H "Authorization: Bearer $SUPERVISOR_TOKEN" "$API/info" | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['state'])")
@@ -34,7 +39,9 @@ frage() {   # $1 = Text; Passwort zweimal, ohne Anzeige
 }
 
 # Anmeldung als postgres: zuerst das Standard-Passwort des Add-ons, sonst das bisherige erfragen
+# (nach dem Start meldet pg_isready schon bereit, bevor die Anmeldung geht – bis 30 s warten)
 export PGPASSWORD=homeassistant
+i=0; until psql -h "$HOST" -U postgres -d postgres -tAc "SELECT 1" >/dev/null 2>&1 || [ $i -ge 15 ]; do sleep 2; i=$((i + 1)); done
 if ! psql -h "$HOST" -U postgres -d postgres -tAc "SELECT 1" >/dev/null 2>&1; then
   printf 'Bisheriges Passwort von postgres: ' >/dev/tty; stty -echo </dev/tty; read -r PGPASSWORD </dev/tty; stty echo </dev/tty; echo >/dev/tty
   export PGPASSWORD
