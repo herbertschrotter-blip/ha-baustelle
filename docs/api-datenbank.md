@@ -31,8 +31,13 @@ Sie summieren nur, was die Integration fertig rechnet (kWh, € und Firma je Tag
 | `v_schaltungen` | Schaltvorgang | `zeit`, `baustelle_id`, `baustelle`, `bereich_id`, `container`, `geraet_id`, `geraet`, `wert` (`{"an": true/false}`), `quelle` (automatik, ha, hand, notprogramm, …), `grund` |
 
 `heizzeit_min` = Minuten mit eingeschaltetem Heizkörper, `strom_min` = davon mit Stromfluss. `ohne_kwh` („ohne
-Automatik“) ist derzeit leer – dieser Wert kommt noch aus der HA-Statistik (Bauplan Datenbank Phase 6, offen). Excel: Daten → Daten abrufen → Aus Datenbank → Aus
-PostgreSQL-Datenbank (Server = Adresse des Pi, Datenbank `baustelle`, Benutzer `baustelle_leser`).
+Automatik“) ist derzeit leer – dieser Wert kommt noch aus der HA-Statistik (Bauplan Datenbank Phase 6, offen).
+
+Excel (am 08.10.2026 erprobt): ODBC-Treiber **psqlODBC** in der Bit-Version von Office installieren, unter
+„ODBC-Datenquellen“ eine Benutzer-DSN „PostgreSQL Unicode“ anlegen (Server = Adresse des Pi, Port 5432 im Add-on
+freigegeben, Datenbank `baustelle`, Benutzer `baustelle_leser`; Knopf **Test** prüft Verbindung und Passwort), dann
+Daten → Daten abrufen → Aus anderen Quellen → Aus ODBC. Der Weg „Aus PostgreSQL-Datenbank“ braucht den Treiber Npgsql
+4.0.x im GAC und lief auf Herberts PC trotz Installation nicht.
 
 ## 3. Tabellen (Überblick)
 

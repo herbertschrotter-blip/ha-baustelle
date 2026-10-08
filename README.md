@@ -99,8 +99,8 @@ siehe Auslieferung), dann neu starten.
   Integration die SQLite-Datei einmal um, die Datei bleibt liegen. Server einrichten: `tools/db-einrichten.sh`
   (Bauplan Datenbank §4a). Ist der Server weg, sammelt die Integration weiter und schreibt später nach
   (`/config/baustelle/puffer/`). Für Excel/Power BI: Benutzer `baustelle_leser`, Ansichten `v_tag_firma`,
-  `v_tag_container`, `v_monat_baustelle`, `v_schaltungen` (Excel: Daten → Daten abrufen → Aus Datenbank → Aus
-  PostgreSQL-Datenbank; Server = Adresse des Pi, Port 5432 im Add-on freigeben).
+  `v_tag_container`, `v_monat_baustelle`, `v_schaltungen` (Excel über den ODBC-Treiber psqlODBC: Daten → Daten abrufen → Aus anderen
+  Quellen → Aus ODBC; Server = Adresse des Pi, Port 5432 im Add-on freigeben – `docs/api-datenbank.md` §2).
 
 ## Was die Integration liefert
 
