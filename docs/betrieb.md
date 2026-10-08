@@ -15,7 +15,7 @@ was bei Störungen zu tun ist (BSM-027). Stand 0.8.105 (08.10.2026). Technische 
 | Datenbank | Standard: Datei `/config/baustelle/baustelle.db` (SQLite). Mit `db_url` in `/config/packages/baustelle.yaml`: Server im Add-on „TimescaleDB“ (PostgreSQL) |
 | Puffer bei Datenbank-Ausfall | `/config/baustelle/puffer/arbeiten.jsonl` (leer bzw. fehlt im Normalbetrieb) |
 | Meldungen (Melden-Knopf) | in der Datenbank; lesbar als `/config/baustelle/meldungen.md` und `.json` |
-| Sicherungen | Einstellungen → System → Sicherungen; automatisch jede Nacht um 03:00, verschlüsselt |
+| Sicherungen | Einstellungen → System → Backups; automatisch jede Nacht um 03:00, verschlüsselt |
 | Notprogramm | Skript in jedem Heizungs-Plug (Shelly Plug S Gen3); übernimmt, wenn HA 15 min nichts schickt |
 
 **Werkzeug für die Kommandozeile:** Add-on „Terminal“ in HA (Seitenleiste). Alle Befehle unten dort eingeben.
@@ -48,9 +48,10 @@ nach `/config` kopieren, Konfiguration prüfen, HA neu starten.
     Zwischenzeit anfällt, wird danach geschrieben.
   - PostgreSQL: Das Add-on „TimescaleDB“ macht vor jeder Sicherung einen vollständigen Abzug (`pg_dumpall`), der in der
     Sicherung liegt.
-- **Von Hand:** Einstellungen → System → Sicherungen → **Jetzt sichern** (dieselben Einstellungen wie nachts).
-- **Schlüssel:** Die Sicherungen sind verschlüsselt. Ohne den Schlüssel (Einstellungen → System → Sicherungen → ⋮ →
-  Verschlüsselungsschlüssel) lässt sich keine Sicherung zurückspielen – Herbert verwahrt ihn außerhalb des Pi.
+- **Von Hand:** Einstellungen → System → Backups → **Jetzt sichern** (dieselben Einstellungen wie nachts).
+- **Schlüssel:** Die Sicherungen sind verschlüsselt. Ohne den Schlüssel (Einstellungen → System → Backups → Backup-Einstellungen →
+  Verschlüsselungsschlüssel, dort auch „Notfallkit herunterladen“) lässt sich keine Sicherung zurückspielen – Herbert
+  verwahrt ihn außerhalb des Pi (geprüft 08.10.2026).
 - **Kopien neben der Datenbank:** Vor jedem Umbau der Datenbank bleibt eine Kopie `baustelle.db.vor-<Nummer>` liegen
   (z. B. `vor-8`), vor der Übernahme der Altdaten `baustelle.db.vor-uebernahme`.
 
@@ -62,7 +63,7 @@ auch das Add-on TimescaleDB mit seinen Daten. Die Plugs heizen in der Zwischenze
 
 **B – Nur die Datenbank der Baustelle** (Datei kaputt, Sensor „Datenbank“ zeigt `fehler`):
 
-- SQLite: Einstellungen → System → Sicherungen → die Sicherung wählen → **Wiederherstellen** → nur „Home Assistant“
+- SQLite: Einstellungen → System → Backups → die Sicherung wählen → **Wiederherstellen** → nur „Home Assistant“
   (Einstellungen und Dateien). Schneller, wenn der Fehler nach einem Umbau kam: im Terminal
   ```
   cd /config/baustelle
