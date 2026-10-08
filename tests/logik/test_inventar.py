@@ -77,3 +77,49 @@ def test_konflikte():
     assert konflikte(neu, belegt) == {}                     # b wird frei, x bleibt gleich
     assert konflikte({"sensor.a": "sensor.fremd"}, {"sensor.a", "sensor.fremd"}) == {"sensor.a": "sensor.fremd"}
     assert konflikte({"sensor.a": "sensor.z", "sensor.b": "sensor.z"}, set()) == {"sensor.b": "sensor.z"}
+
+
+def _plug(**mehr):
+    return {"gg": 1, "geraet_id": "sub_g1", "name": "Heizung 02", "rolle": "heizkoerper", "typ": "konvektor",
+            "geraet": {"id": "dev1", "name": "Heizung 02"}, "schalter": {"entity_id": "switch.mannschaft_k", "name": "Heizung 02"},
+            "entitaeten": [{"entity_id": "sensor.mannschaft_k_leistung", "name": "Heizung 02 Leistung", "klasse": "power"},
+                           {"entity_id": "sensor.mannschaft_k_energie", "name": "Heizung 02 Energie", "klasse": "energy"},
+                           {"entity_id": "sensor.mannschaft_k_rssi", "name": "RSSI", "klasse": "signal_strength"}],
+            "plug_name": "heizung-02", "bthome": [{"nr": 200, "name": "BLU_1A2B", "neu": "002_C_TEMP_MAN"}],
+            "labels": ["Container"], **mehr}
+
+
+def test_vorschau_plug_und_sensor():
+    from logik.inventar import vorschau
+    eingabe = {"art": "MAN", "praefix": praefix(nr=2), "plugs": [_plug()], "sensoren": [{
+        "typ": "TEMP", "geraet": {"id": "dev2", "name": "BLU H&T"},
+        "entitaeten": [{"entity_id": "sensor.blu_temperatur", "name": "Temperatur", "klasse": "temperature"},
+                       {"entity_id": "sensor.blu_batterie", "name": "Batterie", "klasse": "battery"}], "labels": []}]}
+    v = vorschau(eingabe, belegt={"switch.mannschaft_k", "sensor.mannschaft_k_leistung"})
+    neu = {(s["was"], s["alt"]): s["neu"] for s in v["schritte"]}
+    assert neu[("HA-Gerät", "Heizung 02")] == "002-01_C_PLUG_MAN"
+    assert neu[("Entity-ID", "switch.mannschaft_k")] == "switch.002_01_c_plug_man"
+    assert neu[("Entity-ID", "sensor.mannschaft_k_leistung")] == "sensor.002_01_c_plug_man_leistung"
+    assert neu[("Heizkörper (Integration)", "Heizung 02")] == "002-01_C_HZ_MAN_Konvektor01"
+    assert neu[("Plug-Name", "heizung-02")] == "002-01_C_PLUG_MAN"
+    assert neu[("BTHome-Kopplung", "BLU_1A2B")] == "002_C_TEMP_MAN"
+    assert neu[("Entity-ID", "sensor.blu_temperatur")] == "sensor.002_c_temp_man_temperatur"
+    assert neu[("HA-Gerät", "BLU H&T")] == "002_C_TEMP_MAN"
+    assert not any(s["alt"] == "sensor.mannschaft_k_rssi" for s in v["schritte"])   # unbekannte Messwerte bleiben
+    assert sorted(s["neu"] for s in v["schritte"] if s["ziel"] == "label") == \
+        ["Container", "Mannschaft", "Mannschaft", "Shelly H&Temp Sensor", "Shelly Plug"]
+    assert v["konflikte"] == {} and v["zaehler"]["konflikt"] == 0
+    assert {s["gruppe"] for s in v["schritte"]} == {"002-01_C_PLUG_MAN", "002_C_TEMP_MAN"}
+
+
+def test_vorschau_schon_nach_schema_und_konflikt():
+    from logik.inventar import vorschau
+    fertig = _plug(geraet={"id": "dev1", "name": "002-01_C_PLUG_MAN"},
+                   schalter={"entity_id": "switch.002_01_c_plug_man", "name": "002-01_C_PLUG_MAN"}, entitaeten=[], bthome=[],
+                   plug_name="002-01_C_PLUG_MAN", name="002-01_C_HZ_MAN_Konvektor01",
+                   labels=["Container", "Mannschaft", "Shelly Plug"])
+    v = vorschau({"art": "MAN", "praefix": "002", "plugs": [fertig]}, belegt={"switch.002_01_c_plug_man"})
+    assert v["zaehler"]["aendern"] == 0 and v["zaehler"]["neu"] == 0
+    fremd = vorschau({"art": "MAN", "praefix": "002", "plugs": [_plug(entitaeten=[], bthome=[])]},
+                     belegt={"switch.mannschaft_k", "switch.002_01_c_plug_man"})   # Ziel-ID gehört einer fremden Entität
+    assert fremd["konflikte"] == {"switch.mannschaft_k": "switch.002_01_c_plug_man"} and fremd["zaehler"]["konflikt"] == 1

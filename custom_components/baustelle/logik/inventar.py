@@ -187,3 +187,83 @@ def aufbereiten(roh: Mapping[str, Any]) -> dict[str, Any]:
         "arten": CONTAINER_ARTEN, "geraete": GERAETE,
         "naechste_nr": naechste(c.get("nr") for c in roh.get("container") or []),
     }
+
+
+# ---------------------------------------------------------------------- Vorschau der Umbenennung (BSM-031.06a, §6)
+# Endung je Messwert (device_class); Leistung/Energie am Plug so angenommen (Bauplan Inventar §8, offen)
+ENDUNG_JE_KLASSE: dict[str, str] = {
+    "temperature": "Temperatur", "humidity": "Feuchte", "battery": "Batterie", "door": "Tuer", "window": "Tuer",
+    "opening": "Tuer", "illuminance": "Licht", "power": "Leistung", "energy": "Energie",
+}
+
+
+def _schritt(ziel: str, ref: str, was: str, alt: str | None, neu: str | None) -> dict[str, Any]:
+    zustand = "gleich" if alt == neu else ("neu" if not alt else "aendern")
+    return {"ziel": ziel, "ref": ref, "was": was, "alt": alt, "neu": neu, "zustand": zustand}
+
+
+def _entitaet(e: Mapping[str, Any], name: str) -> list[dict[str, Any]]:
+    """Name und Entity-ID einer Entität (`entity_id`, `name`) auf `name` bringen."""
+    domain = str(e["entity_id"]).split(".", 1)[0]
+    return [_schritt("entitaet_name", e["entity_id"], "Name", e.get("name"), name),
+            _schritt("entitaet_id", e["entity_id"], "Entity-ID", e["entity_id"], entity_id(domain, name))]
+
+
+def _messwerte(geraet: str, entitaeten: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    aus: list[dict[str, Any]] = []
+    for e in entitaeten:
+        if endung := ENDUNG_JE_KLASSE.get(str(e.get("klasse") or "")):
+            aus += _entitaet(e, messwert_name(geraet, endung))
+    return aus
+
+
+def _labels(ref: str, soll: list[str], ist: Iterable[str]) -> list[dict[str, Any]]:
+    vorhanden = set(ist)
+    return [_schritt("label", ref, "Label", None, label) for label in soll if label not in vorhanden]
+
+
+def vorschau(eingabe: Mapping[str, Any], belegt: Iterable[str] = ()) -> dict[str, Any]:
+    """Schritte alt → neu für einen Container (Bauplan Inventar §6) – rechnet nur, ändert nichts.
+
+    `eingabe`: `art`, `praefix` (aus `praefix`), `firma` (Name, nur fremd), `plugs` [{`gg`, `geraet_id` (Unter-Eintrag),
+    `name`, `rolle`, `typ`, `geraet` {id, name}, `schalter` {entity_id, name}, `entitaeten` [{entity_id, name, klasse}],
+    `plug_name`, `bthome` [{nr, name, neu}], `labels`}], `sensoren` [{`typ` TEMP/DOOR/FEN, `geraet`, `entitaeten`,
+    `labels`}]. `belegt`: alle Entity-IDs in HA (für Konflikte).
+    Ergebnis: `schritte` (je mit `gruppe`), `konflikte` {alt: neu}, `zaehler` {aendern, neu, gleich, konflikt}."""
+    art, p, firma = eingabe["art"], eingabe["praefix"], eingabe.get("firma")
+    schritte: list[dict[str, Any]] = []
+    for pl in sorted(eingabe.get("plugs") or [], key=lambda x: x.get("gg") or 0):
+        gruppe = geraet_name(p, art, "PLUG", pl["gg"])
+        teil: list[dict[str, Any]] = []
+        if pl.get("geraet"):
+            teil.append(_schritt("geraet", pl["geraet"]["id"], "HA-Gerät", pl["geraet"].get("name"), gruppe))
+            teil += _labels(pl["geraet"]["id"], labels(art, "PLUG", firma), pl.get("labels") or [])
+        if pl.get("schalter"):
+            teil += _entitaet(pl["schalter"], gruppe)
+        teil += _messwerte(gruppe, pl.get("entitaeten") or [])
+        if pl.get("plug_name") is not None:
+            teil.append(_schritt("plug", pl["geraet_id"], "Plug-Name", pl.get("plug_name"), gruppe))
+        if pl.get("rolle") in ("heizkoerper", "bautrockner"):
+            typ = "BTR" if pl.get("rolle") == "bautrockner" else "HZ"
+            teil.append(_schritt("unter_eintrag", pl["geraet_id"], "Heizkörper (Integration)", pl.get("name"),
+                                 geraet_name(p, art, typ, pl["gg"], heiztyp=pl.get("typ"))))
+        for k in pl.get("bthome") or []:
+            teil.append(_schritt("bthome", f'{pl["geraet_id"]}:{k["nr"]}', "BTHome-Kopplung", k.get("name"), k.get("neu")))
+        schritte += [{**s, "gruppe": gruppe} for s in teil]
+    anzahl: dict[str, int] = {}
+    for se in eingabe.get("sensoren") or []:
+        anzahl[se["typ"]] = anzahl.get(se["typ"], 0) + 1
+        gruppe = geraet_name(p, art, se["typ"], nr=anzahl[se["typ"]])
+        teil = []
+        if se.get("geraet"):
+            teil.append(_schritt("geraet", se["geraet"]["id"], "HA-Gerät", se["geraet"].get("name"), gruppe))
+            teil += _labels(se["geraet"]["id"], labels(art, se["typ"], firma), se.get("labels") or [])
+        teil += _messwerte(gruppe, se.get("entitaeten") or [])
+        schritte += [{**s, "gruppe": gruppe} for s in teil]
+    neu_ids = {s["alt"]: s["neu"] for s in schritte if s["ziel"] == "entitaet_id" and s["alt"] != s["neu"]}
+    konfl = konflikte(neu_ids, belegt)
+    for s in schritte:
+        if s["ziel"] == "entitaet_id" and s["alt"] in konfl:
+            s["zustand"] = "konflikt"
+    zaehler = {z: sum(1 for s in schritte if s["zustand"] == z) for z in ("aendern", "neu", "gleich", "konflikt")}
+    return {"schritte": schritte, "konflikte": konfl, "zaehler": zaehler}

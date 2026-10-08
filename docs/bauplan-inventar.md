@@ -124,7 +124,7 @@ kurz an (Verweise werden getauscht) und schaltet danach wie vorher.
 | ☐ | .03 Regeln | `logik/inventar.py`: Kürzel, Namen, Entity-IDs, Labels, Nummernvergabe, Konflikte – mit Tests | nichts |
 | ☑ | .04 Mockup | `mockups/inventar.html` – **Variante 1 abgenommen 08.10.2026**: Einstellungen › 📦 Inventar (Liste, Container, Anlegen eigen/fremd, Zuordnen), Vorschau als Tabelle Was/Alt/Neu/Zustand, Übernehmen, Nachholen, Rückgängig | Mockup |
 | ☑ | .05 API | 0.8.107: `baustelle/inventar` (lesen, aufbereitet mit Namen) und `baustelle/inventar_aendern` (Container anlegen eigen/fremd, Status, Firmenkürzel; nur Admins), `docs/api-0.7.md` §10 | nichts |
-| ☐ | .06 Umbenennen | Ausführen, Protokoll, teilweise/nachholen, Rückgängig (§6); Integrationstests mit Plug-Attrappe | nichts |
+| ◐ | .06 Umbenennen | **06a ☑ 0.8.108**: Vorschau `baustelle/inventar_vorschau` (logik `vorschau`, liest HA-Register, ändert nichts); BTHome-Namen an den Plugs zieht die Kopplungspflege aus den HA-Gerätenamen nach (kein eigener Schritt). Offen: 06b Ausführen in HA, 06c Plug-Name, teilweise/nachholen, 06d Rückgängig | nichts |
 | ☐ | .07 Seite | Inventar, Dialoge, Vorschau nach dem abgenommenen Mockup | neue Ansicht |
 | ☐ | .08 Status | aktiv/verliehen/defekt statt „inaktiv“; verliehen/defekt = Automatik lässt aus wie bisher | Status am Gerät |
 | ☐ | .09 Bestand | vorher Sicherung; Container 001–004 ins Inventar übernehmen (Nummern und Kürzel bleiben), alte Namen und Entity-IDs über die Vorschau angleichen; danach regelt die Integration unverändert | neue Entity-IDs |

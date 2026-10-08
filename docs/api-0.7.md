@@ -413,5 +413,11 @@ naechste_nr, aendern}`
 | `ausruestung_status` | `ausruestung_id`, `status` (aktiv/verliehen/defekt) | `{ok}` |
 | `firma_kuerzel` | `entry_id`, `firma_id`, `kuerzel` (2–5 Buchstaben) | `{ok}` |
 
-Falsche Eingaben (Kürzel, Status, fehlende Felder) → `invalid_format`, ohne die Datenbank zu berühren. Ausrüstung zuordnen
-mit Vorschau und Umbenennen kommt mit BSM-031.06.
+Falsche Eingaben (Kürzel, Status, fehlende Felder) → `invalid_format`, ohne die Datenbank zu berühren.
+
+**`baustelle/inventar_vorschau`** (alle Benutzer, 0.8.108, BSM-031.06a), `container_id` → `{schritte, konflikte, zaehler,
+hinweis}` – **ändert nichts**. Für einen Container mit Bereich auf einer geladenen Baustelle (sonst `not_found`):
+je Schritt `gruppe` (Name des Geräts nach dem Schema), `ziel` (`geraet`, `entitaet_name`, `entitaet_id`, `plug`,
+`unter_eintrag`, `label`), `ref`, `was`, `alt`, `neu`, `zustand` (`gleich`, `aendern`, `neu`, `konflikt`). GG der Plugs:
+vorhandene aus dem Inventar, sonst fortlaufend nach Namen. Die Namen der BTHome-Kopplungen an den Plugs zieht die
+Kopplungspflege (BSM-030) aus den HA-Gerätenamen selbst nach. Übernehmen und Rückgängig folgen (06b–06d).

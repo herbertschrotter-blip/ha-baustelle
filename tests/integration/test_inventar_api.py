@@ -96,3 +96,27 @@ async def test_nur_admins_aendern(hass: HomeAssistant, baustelle, hass_ws_client
                             art="POL")
     assert lesen["success"] and lesen["result"]["aendern"] is False
     assert not aendern["success"] and aendern["error"]["code"] == "unauthorized"
+
+
+async def test_vorschau_aendert_nichts(hass: HomeAssistant, baustelle, hass_ws_client) -> None:
+    """BSM-031.06a: Vorschau für einen Container mit Bereich – Schritte alt → neu, in HA ändert sich nichts."""
+    from homeassistant.helpers import entity_registry as er   # noqa: PLC0415
+
+    from .conftest import C1   # noqa: PLC0415
+    await hass.async_block_till_done()
+    ws = await hass_ws_client(hass)
+    vorher = dict(er.async_get(hass).entities)
+    c = (await _senden(ws, 1, type="baustelle/inventar_aendern", aktion="container_anlegen", entry_id=baustelle.entry_id,
+                       art="MAN", bereich_id=C1))["result"]
+    v = await _senden(ws, 2, type="baustelle/inventar_vorschau", container_id=c["id"])
+    assert v["success"], v
+    schritte = v["result"]["schritte"]
+    ids = {s["alt"]: s["neu"] for s in schritte if s["ziel"] == "entitaet_id"}
+    assert ids["switch.hk1"] == "switch.001_01_c_plug_man"
+    assert {s["gruppe"] for s in schritte} >= {"001-01_C_PLUG_MAN"}
+    assert any(s["ziel"] == "unter_eintrag" and s["neu"].startswith("001-01_C_HZ_MAN_") for s in schritte)
+    assert dict(er.async_get(hass).entities) == vorher
+    ohne = await _senden(ws, 3, type="baustelle/inventar_aendern", aktion="container_anlegen", entry_id=baustelle.entry_id,
+                         art="LAG")
+    keine = await _senden(ws, 4, type="baustelle/inventar_vorschau", container_id=ohne["result"]["id"])
+    assert not keine["success"] and keine["error"]["code"] == "not_found"

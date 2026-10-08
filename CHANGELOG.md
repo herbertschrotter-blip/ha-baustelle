@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.108] – 2026-10-08
+
+- Container-Inventar, Schritt 3 (BSM-031.06a): Vorschau der Umbenennung – für einen Container zeigt die Integration,
+  wie HA-Gerät, Entitäten samt Entity-IDs, Plug-Name, Heizkörper und Labels nach dem Schema heißen würden, mit
+  Konflikten (Entity-ID schon vergeben). Die Vorschau ändert nichts; Übernehmen kommt im nächsten Schritt.
+
 ## [0.8.107] – 2026-10-08
 
 - Container-Inventar, Schritt 2 (BSM-031.05): Schnittstelle für die Seite – das Inventar lesen (Container mit Namen nach
