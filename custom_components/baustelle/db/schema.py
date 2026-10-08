@@ -27,7 +27,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Dialect
 
-SCHEMA_VERSION = 8   # 8: Meldungen je Instanz (BSM-026 8d); 2: JSON als Text; 3: strom_min; 4: sekunden_strom; 5: messwert (BSM-014); 6: Meldung vollständig (BSM-015); 7: Ansichten (BSM-026)
+SCHEMA_VERSION = 9   # 9: Inventar (BSM-031); 8: Meldungen je Instanz (BSM-026 8d); 2: JSON als Text; 3: strom_min; 4: sekunden_strom; 5: messwert (BSM-014); 6: Meldung vollständig (BSM-015); 7: Ansichten (BSM-026)
 
 metadata = MetaData()
 
@@ -96,6 +96,7 @@ bereich = Table(
     Column("fuehler", String(255)),
     Column("tuer", String(255)),
     Column("anschluss_id", String(ID)),
+    Column("container_id", String(ID)),   # Aufbau 9: Inventar-Container (BSM-031), leer = noch nicht im Inventar
     _zeit("angelegt", nullable=False),
     _zeit("entfernt"),
 )
@@ -112,6 +113,7 @@ geraet = Table(
     Column("leistung", String(255)),
     Column("energie", String(255)),
     Column("nenn_kw", Float),
+    Column("ausruestung_id", String(ID)),   # Aufbau 9: Inventar-Ausrüstung (BSM-031), leer = noch nicht im Inventar
     _zeit("angelegt", nullable=False),
     _zeit("entfernt"),
 )
@@ -133,8 +135,69 @@ firma = Table(
     Column("id", String(ID), primary_key=True),
     Column("name", String(200), nullable=False),
     Column("eigen", Boolean, nullable=False, default=False),
+    Column("kuerzel", String(5)),   # Aufbau 9: Firmenkürzel für Fremdcontainer (BSM-031), Pflicht ab dem ersten Fremdcontainer
     _zeit("entfernt"),
 )
+
+# ---------------------------------------------------------------------- Inventar (Aufbau 9, BSM-031, Bauplan Inventar §2)
+# Über den Baustellen: eigene Container (Nummer für die ganze Firma) und Fremdcontainer, Ausrüstung, Einsätze mit
+# von/bis (die Geschichte) und Umbenennungen (Schritte alt → neu, für Rückgängig). Namen bildet logik/inventar.py.
+container = Table(
+    "container", metadata,
+    Column("id", String(ID), primary_key=True),
+    Column("nr", Integer),                       # NNN, nur eigene; nie neu vergeben
+    Column("art", String(10), nullable=False),   # Kürzel (POL, MAN, …)
+    Column("firma_kuerzel", String(5)),          # nur fremde
+    Column("fremd_nr", Integer),                 # NN je Baustelle und Firma, nur fremde
+    Column("status", String(20), nullable=False, default="aktiv"),   # aktiv | ausgeschieden
+    Column("notiz", Text),
+    _zeit("angelegt", nullable=False),
+    Index("ux_container_nr", "nr", unique=True),   # leer (fremd) darf mehrfach vorkommen
+)
+
+container_einsatz = Table(
+    "container_einsatz", metadata,
+    Column("container_id", String(ID), primary_key=True),
+    _zeit("von", primary_key=True),
+    _zeit("bis"),
+    Column("baustelle_id", String(ID), nullable=False, index=True),
+    Column("bereich_id", String(ID)),
+    Column("instanz_id", String(ID)),
+)
+
+ausruestung = Table(
+    "ausruestung", metadata,
+    Column("id", String(ID), primary_key=True),
+    Column("typ", String(10), nullable=False),   # Kürzel (PLUG, HZ, TEMP, …)
+    Column("modell", String(200)),
+    Column("kennung", String(255)),              # MAC bzw. HA-Gerät – nur hier, nie im Repo
+    Column("status", String(20), nullable=False, default="aktiv"),   # aktiv | verliehen | defekt
+    Column("notiz", Text),
+    _zeit("angelegt", nullable=False),
+    Index("ux_ausruestung_kennung", "kennung", unique=True),
+)
+
+ausruestung_einsatz = Table(
+    "ausruestung_einsatz", metadata,
+    Column("ausruestung_id", String(ID), primary_key=True),
+    _zeit("von", primary_key=True),
+    _zeit("bis"),
+    Column("container_id", String(ID), nullable=False, index=True),
+    Column("gg", Integer),                        # Gerätenummer im Container
+    Column("geraet_id", String(ID)),              # Unter-Eintrag, falls geschaltet
+)
+
+umbenennung = Table(
+    "umbenennung", metadata,
+    Column("id", NUMMER, primary_key=True, autoincrement=True),
+    _zeit("zeit", nullable=False),
+    Column("benutzer", String(ID)),
+    Column("container_id", String(ID), index=True),
+    Column("schritte", JSONWERT),                 # je Ziel alt → neu, Ergebnis
+    Column("status", String(20), nullable=False),   # ausgefuehrt | teilweise | zurueck
+)
+
+INVENTAR = ("container", "container_einsatz", "ausruestung", "ausruestung_einsatz", "umbenennung")
 
 zuordnung = Table(
     "zuordnung", metadata,
@@ -381,6 +444,12 @@ def ansichten(dialekt: str) -> dict[str, str]:
             f"SELECT {monat} AS monat, t.baustelle_id, b.titel AS baustelle, SUM(t.kwh) AS kwh, SUM(t.eur) AS eur, "
             "SUM(t.heizzeit_min) AS heizzeit_min, SUM(t.ohne_kwh) AS ohne_kwh "
             f"FROM tag_bereich t {_NAMEN} GROUP BY {monat}, t.baustelle_id, b.titel"),
+        "v_inventar": (
+            "SELECT c.id, c.nr, c.art, c.firma_kuerzel, c.fremd_nr, c.status, e.baustelle_id, b.titel AS baustelle, "
+            "e.bereich_id, r.name AS bereich, e.von AS seit, (SELECT COUNT(*) FROM ausruestung_einsatz a "
+            "WHERE a.container_id = c.id AND a.bis IS NULL) AS ausruestung FROM container c "
+            "LEFT JOIN container_einsatz e ON e.container_id = c.id AND e.bis IS NULL "
+            "LEFT JOIN baustelle b ON b.id = e.baustelle_id LEFT JOIN bereich r ON r.id = e.bereich_id"),
         "v_schaltungen": (
             "SELECT e.zeit, e.baustelle_id, b.titel AS baustelle, e.bereich_id, r.name AS container, e.geraet_id, "
             "g.name AS geraet, e.wert, e.quelle, e.grund FROM ereignis e LEFT JOIN baustelle b ON b.id = e.baustelle_id "

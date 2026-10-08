@@ -130,9 +130,10 @@ async def test_leser_nur_ansichten(hass: HomeAssistant, freezer) -> None:
     await hass.async_block_till_done()
     with hass.data[DATA_DB].engine.connect() as v:
         recht = {t: v.execute(text("SELECT has_table_privilege('baustelle_leser', :t, 'SELECT')"), {"t": t}).scalar()
-                 for t in ("v_tag_firma", "v_tag_container", "v_monat_baustelle", "v_schaltungen", "tag_bereich", "einstellung")}
+                 for t in ("v_tag_firma", "v_tag_container", "v_monat_baustelle", "v_schaltungen", "v_inventar", "tag_bereich",
+                           "einstellung", "container")}
     assert recht == {"v_tag_firma": True, "v_tag_container": True, "v_monat_baustelle": True, "v_schaltungen": True,
-                     "tag_bereich": False, "einstellung": False}
+                     "v_inventar": True, "tag_bereich": False, "einstellung": False, "container": False}
 
 
 @nur_postgres
@@ -164,7 +165,16 @@ async def test_zwei_instanzen_und_rueckweg(hass: HomeAssistant, baustelle, tmp_p
         v.execute(insert(s.meldung).values(id="m-b", ticket="FE-0001", art="fehler", status="neu", text="von B", zeit=zeit,
                                            baustelle_id="b-zwei", daten={"id": "m-b", "ticket": "FE-0001", "text": "von B"}))
         v.execute(insert(s.zustand).values(baustelle_id="_integration", schluessel="meldungen_nummern", wert={"fehler": 1}, geaendert=zeit))
+        # Inventar (BSM-031): ein Container von B mit Ausrüstung und einer Umbenennung
+        v.execute(insert(s.container).values(id="c-b", nr=7, art="MAN", status="aktiv", angelegt=zeit))
+        v.execute(insert(s.container_einsatz).values(container_id="c-b", von=zeit, baustelle_id="b-zwei"))
+        v.execute(insert(s.ausruestung).values(id="a-b", typ="PLUG", kennung="dev-b", status="aktiv", angelegt=zeit))
+        v.execute(insert(s.ausruestung_einsatz).values(ausruestung_id="a-b", von=zeit, container_id="c-b", gg=1))
+        v.execute(insert(s.umbenennung).values(zeit=zeit, container_id="c-b", schritte=[], status="ausgefuehrt"))
     engine.dispose()
+    with a.engine.begin() as v:   # und einer von A, der beim Rückweg von B nicht mit darf
+        v.execute(insert(s.container).values(id="c-a", nr=1, art="POL", status="aktiv", angelegt=zeit))
+        v.execute(insert(s.container_einsatz).values(container_id="c-a", von=zeit, baustelle_id=baustelle.entry_id))
     b = Datenbank(hass, pfad_b, a.url)
     b.instanz_id = "inst-b"
     assert await b.async_start(), b.fehler
@@ -184,9 +194,12 @@ async def test_zwei_instanzen_und_rueckweg(hass: HomeAssistant, baustelle, tmp_p
             ziel = tmp_path / "rueckweg.db"
             zahlen = zurueck(v, ziel, "inst-b")
         assert zahlen["baustelle"] == 1 and zahlen["meldung"] == 1 and zahlen["protokoll"] == 3
+        assert (zahlen["container"], zahlen["container_einsatz"], zahlen["ausruestung"], zahlen["ausruestung_einsatz"],
+                zahlen["umbenennung"]) == (1, 1, 1, 1, 1)
         rueck = create_engine(f"sqlite:///{ziel}")
         with rueck.connect() as v:
             assert [r.id for r in v.execute(select(s.baustelle))] == ["b-zwei"]
+            assert [r.id for r in v.execute(select(s.container))] == ["c-b"]
             assert sorted(r.text for r in v.execute(select(s.protokoll))) == ["B1", "B2", "B3"]
             assert {r.baustelle_id for r in v.execute(select(s.zustand))} <= {"inst-b", "b-zwei"}
         rueck.dispose()
@@ -227,14 +240,14 @@ async def test_aufbau_8_mit_vorhandenen_meldungen(hass: HomeAssistant, freezer) 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     db = hass.data[DATA_DB]
-    assert db.bereit and db.version == 8, db.fehler
+    assert db.bereit and db.version == s.SCHEMA_VERSION, db.fehler
     with db.engine.begin() as v:
         liste, nummern = meldungen_laden(v, db.instanz_id)
         assert [m["text"] for m in liste] == ["alt"] and nummern == {"fehler": 1}
         assert not v.execute(select(s.zustand).where(s.zustand.c.baustelle_id == "_integration")).first()
         v.execute(insert(s.meldung).values(id="m2", ticket="FE-0001", art="fehler", status="neu", zeit=zeit, instanz_id="andere"))
     if not TEST_PG:
-        assert pfad.with_name("baustelle.db.vor-8").exists()
+        assert pfad.with_name(f"baustelle.db.vor-{s.SCHEMA_VERSION}").exists()
 
 
 async def test_dienst_rueckweg(hass: HomeAssistant, baustelle) -> None:

@@ -102,6 +102,9 @@ def _nur_instanz(instanz_id: str) -> Callable[[Table], Any]:
     """WHERE je Tabelle: nur die Daten der Instanz (Baustellen der Instanz, ihre Meldungen und Merker)."""
     baustellen = select(s.baustelle.c.id).where(s.baustelle.c.instanz_id == instanz_id).scalar_subquery()
     meldungen = select(s.meldung.c.id).where(s.meldung.c.instanz_id == instanz_id).scalar_subquery()
+    # Inventar (BSM-031): Container, die je auf einer Baustelle der Instanz standen, mit ihrer Ausrüstung
+    container = select(s.container_einsatz.c.container_id).where(s.container_einsatz.c.baustelle_id.in_(baustellen))
+    ausruestung = select(s.ausruestung_einsatz.c.ausruestung_id).where(s.ausruestung_einsatz.c.container_id.in_(container))
 
     def auswahl(t: Table) -> Any:
         if t.name == "instanz":
@@ -112,6 +115,12 @@ def _nur_instanz(instanz_id: str) -> Callable[[Table], Any]:
             return t.c.instanz_id == instanz_id
         if t.name in ("meldung_verlauf", "meldung_bild"):
             return t.c.meldung_id.in_(meldungen)
+        if t.name == "container":
+            return t.c.id.in_(container)
+        if t.name in ("ausruestung_einsatz", "umbenennung"):
+            return t.c.container_id.in_(container)
+        if t.name == "ausruestung":
+            return t.c.id.in_(ausruestung)
         if "baustelle_id" in t.c:
             return t.c.baustelle_id.in_(baustellen) | (t.c.baustelle_id == instanz_id)
         return False   # unbekannte Tabelle ohne Zuordnung: lieber auslassen als fremde Daten kopieren

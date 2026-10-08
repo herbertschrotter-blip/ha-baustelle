@@ -73,6 +73,10 @@ Jede Zeile mit Messwerten trägt `baustelle_id`, damit Abfragen über Instanzen 
 | `arbeitszeit` | `baustelle_id`, `ab`, `name`, `wochentag` (0 = Mo), `von`, `bis` (Minuten, leer = frei) | (`baustelle_id`, `ab`, `wochentag`) |
 | `ausnahme` | `baustelle_id`, `datum`, `art` (arbeit/zeiten/frei), `von`, `bis`, `notiz` | (`baustelle_id`, `datum`, `von`) |
 
+**Aufbau 9 (BSM-031.02):** Inventar über den Baustellen – `container`, `container_einsatz`, `ausruestung`,
+`ausruestung_einsatz`, `umbenennung`; dazu `bereich.container_id`, `geraet.ausruestung_id`, `firma.kuerzel` und die
+Ansicht `v_inventar`. Einzelheiten in `bauplan-inventar.md` §2.
+
 Container, Geräte und Baustellen legt weiter HA an (Config-/Subentry-Flows – das verlangt HA); die Datenbank spiegelt
 sie bei jedem Start und jeder Änderung. Entfernt wird nie gelöscht, sondern `entfernt` gesetzt – alte Messwerte bleiben
 zuordenbar. Termine und Urlaub bleiben in den HA-Kalendern (dort gepflegt); Wetter kommt von HA.

@@ -28,6 +28,7 @@ Sie summieren nur, was die Integration fertig rechnet (kWh, € und Firma je Tag
 | `v_tag_firma` | Tag, Baustelle, Firma | `datum`, `baustelle_id`, `baustelle`, `firma_id`, `firma`, `container` (Anzahl), `kwh`, `eur`, `heizzeit_min`, `ohne_kwh` |
 | `v_tag_container` | Tag, Container | `datum`, `baustelle_id`, `baustelle`, `bereich_id`, `container`, `firma_id`, `firma`, `kwh`, `eur`, `heizzeit_min`, `strom_min`, `ohne_kwh`, `temp_mittel`, `aussen_mittel` |
 | `v_monat_baustelle` | Monat, Baustelle | `monat` (erster Tag), `baustelle_id`, `baustelle`, `kwh`, `eur`, `heizzeit_min`, `ohne_kwh` |
+| `v_inventar` | Container (Aufbau 9) | `id`, `nr` (eigen), `art` (Kürzel), `firma_kuerzel`, `fremd_nr` (fremd), `status`, aktueller Einsatz `baustelle_id`, `baustelle`, `bereich_id`, `bereich`, `seit`; `ausruestung` (Anzahl Geräte gerade drin) – den Namen nach dem Schema bildet die Integration |
 | `v_schaltungen` | Schaltvorgang | `zeit`, `baustelle_id`, `baustelle`, `bereich_id`, `container`, `geraet_id`, `geraet`, `wert` (`{"an": true/false}`), `quelle` (automatik, ha, hand, notprogramm, …), `grund` |
 
 `heizzeit_min` = Minuten mit eingeschaltetem Heizkörper, `strom_min` = davon mit Stromfluss. `ohne_kwh` („ohne
@@ -46,7 +47,9 @@ Stammdaten `instanz`, `baustelle`, `bereich`, `geraet`, `anschluss`, `firma`, `z
 `zustand` (Laufzeit, Zähler, Merker); Messwerte `geraet_minute`, `bereich_minute`, `wetter_minute`, `messwert` (jede
 gemeldete Leistung), `ereignis` (Schaltungen, Tür, Bedienung vor Ort – ohne Person); Auswertung `tag_geraet`,
 `tag_bereich`, `lernen`; `protokoll`; Meldungen `meldung` (mit `instanz_id`, Ticket je Instanz eindeutig),
-`meldung_verlauf`, `meldung_bild`. Auf PostgreSQL sind `*_minute`, `messwert` und `ereignis` TimescaleDB-Hypertables.
+`meldung_verlauf`, `meldung_bild`; Inventar (Aufbau 9, BSM-031) `container`, `container_einsatz`, `ausruestung`,
+`ausruestung_einsatz`, `umbenennung` (über den Baustellen; `bereich.container_id`, `geraet.ausruestung_id`,
+`firma.kuerzel` verknüpfen). Auf PostgreSQL sind `*_minute`, `messwert` und `ereignis` TimescaleDB-Hypertables.
 Schreiben darf nur die Integration; der Aufbau kann sich mit einer neuen Version ändern (Nummer in `schema_version`) –
 für dauerhafte Abfragen die Ansichten nehmen.
 

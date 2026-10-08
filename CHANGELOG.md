@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.106] – 2026-10-08
+
+- Container-Inventar, Schritt 1 (BSM-031.02): Die Datenbank kann jetzt eigene Container und Fremdcontainer mit ihren
+  Einsätzen auf den Baustellen und die Ausrüstung mit Status und Geschichte speichern, dazu jede Umbenennung zum
+  Rückgängigmachen (Aufbau 9). Für Excel neu die Ansicht `v_inventar`. Dazu die Regeln für Namen,
+  Entity-IDs, Labels und Nummern nach dem Schema mit deutschen Kürzeln (BSM-031.03). Noch ohne Bedienung – die Seite
+  dazu kommt mit den nächsten Schritten.
+
 ## [0.8.105] – 2026-10-08
 
 - Betriebsanleitung für eine zweite Person (BSM-027): `docs/betrieb.md` – einspielen, sichern, wiederherstellen (ganzes

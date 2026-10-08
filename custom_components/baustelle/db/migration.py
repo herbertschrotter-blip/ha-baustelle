@@ -15,7 +15,7 @@ from sqlalchemy import Connection, Engine, MetaData, delete, func, inspect, inse
 from homeassistant.util import dt as dt_util
 
 from . import schema as s
-from .schema import JSON_TABELLEN, LESER, SCHEMA_VERSION, ansichten, metadata, schema_version
+from .schema import INVENTAR, JSON_TABELLEN, LESER, SCHEMA_VERSION, ansichten, metadata, schema_version
 
 
 class DatenbankNeuer(Exception):
@@ -98,8 +98,18 @@ def _schritt_8(verbindung: Connection) -> None:
     verbindung.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS ux_meldung_ticket ON meldung (instanz_id, ticket)'))
 
 
+def _schritt_9(verbindung: Connection) -> None:
+    """Inventar (BSM-031): neue Tabellen, Verweise an Bereich und Gerät, Firmenkürzel, Ansicht v_inventar."""
+    metadata.create_all(verbindung, tables=[metadata.tables[n] for n in INVENTAR], checkfirst=True)
+    for tabelle, spalte, typ in (("bereich", "container_id", "VARCHAR(64)"), ("geraet", "ausruestung_id", "VARCHAR(64)"),
+                                 ("firma", "kuerzel", "VARCHAR(5)")):
+        if spalte not in {c["name"] for c in inspect(verbindung).get_columns(tabelle)}:
+            verbindung.execute(text(f'ALTER TABLE "{tabelle}" ADD COLUMN "{spalte}" {typ}'))
+    ansichten_anlegen(verbindung)
+
+
 SCHRITTE: dict[int, Callable[[Connection], None]] = {1: _schritt_1, 2: _schritt_2, 3: _schritt_3, 4: _schritt_4, 5: _schritt_5,
-                                                     6: _schritt_6, 7: _schritt_7, 8: _schritt_8}
+                                                     6: _schritt_6, 7: _schritt_7, 8: _schritt_8, 9: _schritt_9}
 
 
 ALT_INTEGRATION = "_integration"   # bis Aufbau 7: Daten der ganzen Integration (Ticket-Zähler, Merker) ohne Instanz
