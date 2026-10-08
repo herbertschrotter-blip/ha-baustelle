@@ -81,7 +81,7 @@ Eigene Container und Ausrüstung als Inventar mit ID und Geschichte; Namen (engl
 Endungen deutsch) und Labels automatisch beim Zuordnen mit Vorschau; Fremdcontainer als `<FIRMA>-NN_C_<Art>`, scheiden
 nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 
-- [ ] **I1** (BSM-031.01) Bauplan und Kürzeltabelle
+- [ ] **I1** (BSM-031.01) Bauplan und Kürzeltabelle – geschrieben 08.10.2026 (`docs/bauplan-inventar.md`), Abnahme durch Herbert offen
 - [ ] **I2** (BSM-031.02) Datenbank: Inventar für Container und Ausrüstung
 - [ ] **I3** (BSM-031.03) Namens- und Labelregeln in `logik/`
 - [ ] **I4** (BSM-031.04) Mockup: Container anlegen, Ausrüstung zuordnen, Vorschau
