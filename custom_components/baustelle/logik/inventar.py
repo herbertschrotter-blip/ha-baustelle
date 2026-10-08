@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping
+from typing import Any
 
 # Die eine Kürzeltabelle (§3) – neue Kürzel nur hier, mit Test
 CONTAINER_ARTEN: dict[str, str] = {
@@ -126,3 +127,63 @@ def konflikte(neu: Mapping[str, str], belegt: Iterable[str]) -> dict[str, str]:
             aus[alt] = ziel
         gesehen.add(ziel)
     return aus
+
+
+def _aktuell(einsaetze: list[dict[str, Any]], schluessel: str, wert: str) -> dict[str, Any] | None:
+    laufend = [e for e in einsaetze if e.get(schluessel) == wert and not e.get("bis")]
+    return laufend[-1] if laufend else None
+
+
+def aufbereiten(roh: Mapping[str, Any]) -> dict[str, Any]:
+    """Inventar für die Seite (BSM-031.05): Container mit Namen, Labels, aktuellem Einsatz, Geschichte und Ausrüstung
+    mit Namen; freie Ausrüstung; Bereiche ohne Container; Firmen; Kürzeltabelle und nächste Nummer. `roh` aus
+    `db/inventar.lesen`. Die Seite rechnet nichts davon nach."""
+    einsaetze: list[dict[str, Any]] = list(roh.get("einsaetze") or [])
+    a_einsaetze: list[dict[str, Any]] = list(roh.get("ausruestung_einsaetze") or [])
+    heiztyp = {g["id"]: g.get("typ") for g in roh.get("geraete") or []}
+    firmen_namen = {f.get("kuerzel"): f["name"] for f in roh.get("firmen") or [] if f.get("kuerzel")}
+    ausruestung = {a["id"]: a for a in roh.get("ausruestung") or []}
+    container_aus: list[dict[str, Any]] = []
+    belegt: set[str] = set()
+    for c in roh.get("container") or []:
+        fremd = bool(c.get("firma_kuerzel"))
+        try:
+            p = praefix(nr=c.get("nr"), firma=c.get("firma_kuerzel"), fremd_nr=c.get("fremd_nr"))
+            name = container_name(c["art"], nr=c.get("nr"), firma=c.get("firma_kuerzel"), fremd_nr=c.get("fremd_nr"))
+        except InventarFehler:
+            p, name = "", c["id"]
+        geraete: list[dict[str, Any]] = []
+        zaehler: dict[str, int] = {}
+        for e in a_einsaetze:
+            if e.get("container_id") != c["id"] or e.get("bis") or (a := ausruestung.get(e["ausruestung_id"])) is None:
+                continue
+            belegt.add(a["id"])
+            typ = a["typ"]
+            zaehler[typ] = zaehler.get(typ, 0) + 1
+            try:
+                gname = geraet_name(p, c["art"], typ, e.get("gg"), heiztyp=heiztyp.get(e.get("geraet_id") or ""),
+                                    nr=zaehler[typ]) if p else None
+            except InventarFehler:
+                gname = None
+            geraete.append({"id": a["id"], "typ": typ, "typ_label": GERAETE.get(typ, typ), "name": gname, "gg": e.get("gg"),
+                            "status": a.get("status"), "modell": a.get("modell"), "geraet_id": e.get("geraet_id"), "seit": e["von"]})
+        geraete.sort(key=lambda g: (g["gg"] is None, g["gg"] or 0, g["typ"]))
+        container_aus.append({
+            "id": c["id"], "name": name, "nr": c.get("nr"), "art": c["art"], "art_label": CONTAINER_ARTEN.get(c["art"], c["art"]),
+            "eigen": not fremd, "firma_kuerzel": c.get("firma_kuerzel"), "fremd_nr": c.get("fremd_nr"), "status": c.get("status"),
+            "labels": labels(c["art"], firma=firmen_namen.get(c.get("firma_kuerzel"))) if c["art"] in CONTAINER_ARTEN else [],
+            "einsatz": _aktuell(einsaetze, "container_id", c["id"]),
+            "geschichte": [e for e in einsaetze if e.get("container_id") == c["id"]],
+            "ausruestung": geraete,
+        })
+    container_aus.sort(key=lambda c: (not c["eigen"], c["nr"] or 0, c["firma_kuerzel"] or "", c["fremd_nr"] or 0))
+    frei = [{"id": a["id"], "typ": a["typ"], "typ_label": GERAETE.get(a["typ"], a["typ"]), "status": a.get("status"),
+             "modell": a.get("modell")} for a in ausruestung.values() if a["id"] not in belegt]
+    return {
+        "container": container_aus,
+        "ausruestung_frei": sorted(frei, key=lambda a: (a["typ"], a["id"])),
+        "bereiche_ohne": list(roh.get("bereiche_ohne") or []),
+        "firmen": list(roh.get("firmen") or []),
+        "arten": CONTAINER_ARTEN, "geraete": GERAETE,
+        "naechste_nr": naechste(c.get("nr") for c in roh.get("container") or []),
+    }

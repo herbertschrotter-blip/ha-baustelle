@@ -123,7 +123,7 @@ kurz an (Verweise werden getauscht) und schaltet danach wie vorher.
 | ☑ | .02 Datenbank | Aufbau 9 in 0.8.106: Tabellen §2, `firma.kuerzel`, Verknüpfung, `v_inventar` (Leser darf sie lesen); Umzug kopiert alles, Rückweg die Container, die je auf einer Baustelle der Instanz standen, mit Ausrüstung und Umbenennungen (freie Ausrüstung ohne Container bleibt in PostgreSQL) | nichts |
 | ☐ | .03 Regeln | `logik/inventar.py`: Kürzel, Namen, Entity-IDs, Labels, Nummernvergabe, Konflikte – mit Tests | nichts |
 | ☑ | .04 Mockup | `mockups/inventar.html` – **Variante 1 abgenommen 08.10.2026**: Einstellungen › 📦 Inventar (Liste, Container, Anlegen eigen/fremd, Zuordnen), Vorschau als Tabelle Was/Alt/Neu/Zustand, Übernehmen, Nachholen, Rückgängig | Mockup |
-| ☐ | .05 API | WebSocket-Befehle `baustelle/inventar*` (lesen für alle, ändern nur Admins), `docs/api-0.7.md` | nichts |
+| ☑ | .05 API | 0.8.107: `baustelle/inventar` (lesen, aufbereitet mit Namen) und `baustelle/inventar_aendern` (Container anlegen eigen/fremd, Status, Firmenkürzel; nur Admins), `docs/api-0.7.md` §10 | nichts |
 | ☐ | .06 Umbenennen | Ausführen, Protokoll, teilweise/nachholen, Rückgängig (§6); Integrationstests mit Plug-Attrappe | nichts |
 | ☐ | .07 Seite | Inventar, Dialoge, Vorschau nach dem abgenommenen Mockup | neue Ansicht |
 | ☐ | .08 Status | aktiv/verliehen/defekt statt „inaktiv“; verliehen/defekt = Automatik lässt aus wie bisher | Status am Gerät |

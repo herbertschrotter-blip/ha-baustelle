@@ -5,15 +5,16 @@ schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und 
 Vorlage der Oberfläche ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`);
 Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
-## Funktionen (Stand 0.7.24)
+## Funktionen (Stand 0.8.107)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (auch direkt von der Seite aus). Ein Shelly gehört nur
   einer aktiven Baustelle; Leistungs- und Energiesensor werden am Shelly automatisch gefunden.
 - **Alle Einstellungen auf der Seite „Baustelle“**: Arbeitszeiten mit Startdatum und Einmal-Ausnahmen, Vor-/Nachheizen,
   Kleidung trocknen, Kälte-Frühstart, Heizgrenze, Frostschutz, Solltemperatur, je Container Automatik/Trocknen/Soll/
-  nur bei Bedarf, Türkontakt, Stromanschlüsse und Staffelung, Firmen, Meldungen, Bericht. Gespeichert im Store der
-  Integration (`.storage/`, in der Sicherung). Als Entitäten bleiben der Automatik-Schalter und die Sensoren.
+  nur bei Bedarf, Türkontakt, Stromanschlüsse und Staffelung, Firmen, Meldungen, Bericht, Notprogramm, Aussehen der
+  Container. Jede Änderung mit Benutzer und Zeit in der eigenen Datenbank (die Store-Datei unter `.storage/` bleibt nur
+  als Kopie). Als Entitäten bleiben der Automatik-Schalter und die Sensoren.
 - **Heizung**: in der Arbeitszeit (plus Vor-/Nachheizen, nach Regen länger) – mit Fühler auf Soll, ohne Fühler an und der
   Heizkörperthermostat regelt; Staffelung je Anschluss (nur Heizkörper werden geschaltet); Bedarfs-Container über
   Schalter oder Termine aus einem Kalender; schnell aufheizen; „alle jetzt heizen“; Tür offen pausiert.
@@ -21,6 +22,15 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
   mit Knöpfen, Wochen-/Monatsbericht per Handy und E-Mail (CSV-Anhang nur mit dem SMTP-Dienst).
 - **Verbrauch und Kosten**: Zähler je Baustelle und Container wie bisher (bleiben beim Umstieg erhalten), Auswertung je
   Container, Firma und über alle laufenden Baustellen, Abrechnung als CSV, Vergleich Ölradiator/Konvektor.
+- **Eigene Datenbank**: alle Daten (Einstellungen, Minutenwerte, jede Schaltung, Tagessummen, Protokoll, Meldungen) für
+  immer – SQLite auf dem Pi oder ein gemeinsamer PostgreSQL-Server mit TimescaleDB für mehrere Instanzen, mit Puffer bei
+  Ausfall und Ansichten für Excel/Power BI (Einrichtung unten, Betrieb `docs/betrieb.md`).
+- **Notprogramm in den Plugs**: Fällt HA, Internet oder VPN aus, heizen die Shelly-Plugs nach dem übertragenen Programm
+  der nächsten 7 Tage weiter (Fühler und Tür am Plug, Frostschutz, Taste = 1 h heizen); danach trägt die Integration das
+  Stundenbuch nach.
+- **Container-Inventar** (im Aufbau, BSM-031): eigene Container mit fester Nummer für die ganze Firma und Fremdcontainer
+  mit Firmenkürzel, Ausrüstung mit Status und Geschichte, Namen nach dem Schema (`002_C_MAN`, `002-01_C_PLUG_MAN`,
+  deutsche Kürzel). Datenbank und Schnittstelle sind da, die Seite folgt (`docs/bauplan-inventar.md`).
 
 ## Aufbau
 
@@ -47,12 +57,17 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   logik/                       Fachlogik ohne HA-Code (je Thema ein Modul)
   funktionen/                  basis.py (Schnittstelle), heizung/ (Paket: soll, plan, lernregelung, bedarf, hand,
                                anzeige, zaehlen), pumpen.py; FUNKTIONEN in __init__.py
+  db/                          eigene Datenbank: Aufbau und Umbau (schema, migration), Schreiber mit Puffer, Umzug und
+                               Rückweg SQLite ↔ PostgreSQL, Lesen für Auswertung, Protokoll, Meldungen, Inventar
+  inventar.py                  WebSocket-Befehle fürs Container-Inventar (Namen aus logik/inventar.py)
+  notprogramm.py, shelly/      Notprogramm: Skript notprogramm.js in die Plugs bringen, Programm, Kopplungen, Nachtrag
+  backup.py                    Datenbank während der HA-Sicherung anhalten bzw. abziehen
   steuerung.py                 Kern: Zustand, Ereignisse, Auswertung, Protokoll, Status; leitet weiter an kern/
   kern/                        Einrichtung, Wetter, Kalender, Staffelung, Schalten, Warnungen, Zähler (BSM-023)
   auswertung.py                Langzeitstatistik holen und logik/auswertung rechnen lassen (Seite, Bericht, CSV)
   nachrichten.py               Handy-Nachrichten mit Knöpfen, Frühstart-Hinweis, Wochen-/Monatsbericht
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät
-  einstellungen.py             Einstellungen, Protokoll, Meldungen (Store v2 unter .storage/, in der Sicherung)
+  einstellungen.py             Einstellungen, Protokoll, Meldungen (aus der Datenbank; Store unter .storage/ als Kopie)
   frontend/baustelle-panel.js  eigene Seite (Web-Component, gebaut mit esbuild aus frontend/src – nicht von Hand ändern)
   frontend/src/                Quelle der Seite (wird nicht ausgeliefert)
   frontend/bauen.mjs           baut die Seite (package.json: esbuild; node_modules nicht im Repo)
@@ -75,8 +90,13 @@ Quelle der Wahrheit ist dieses Repo (`/config/projekte/ha-baustelle`). `/config`
 
 1. HACS → Integrationen → ⋮ → **Benutzerdefinierte Repositories** → `https://github.com/herbertschrotter-blip/ha-baustelle`,
    Kategorie **Integration**.
-2. **Baustelle** herunterladen, Home Assistant neu starten (ab 2026.9).
+2. **Baustelle** herunterladen, Home Assistant neu starten (ab 2026.9). Die Abhängigkeit `psycopg` (für PostgreSQL)
+   installiert HA beim ersten Start selbst.
 3. Einstellungen → Geräte & Dienste → **Integration hinzufügen** → Baustelle.
+4. Ohne weitere Angabe legt die Integration ihre Datenbank als `/config/baustelle/baustelle.db` an. Für einen
+   gemeinsamen Server siehe Einrichtung → Datenbank.
+5. Seite **Baustelle** in der Seitenleiste öffnen; nach einem Update die Seite einmal neu laden (unter ⚙ → Über steht
+   die Version).
 
 Ohne HACS: Ordner `custom_components/baustelle` nach `/config/custom_components/` kopieren (hier: `tools/deploy.sh`,
 siehe Auslieferung), dann neu starten.
@@ -92,14 +112,19 @@ siehe Auslieferung), dann neu starten.
 - **Konfigurieren** (Optionen): Status aktiv/abgeschlossen, Beginn/Ende, Funktionen, Wetter, Außentemperatur, Regen,
   Kalender für Feiertage und Urlaub, Empfänger der Meldungen, Heizperiode (Monate).
 - **Neu konfigurieren:** Baustelle umbenennen; Container und Shellys über ihren Unter-Eintrag.
-- Alles Übrige (Arbeitszeiten, Regeln, Anschlüsse, Firmen, Bericht, Automatik) auf der Seite **Baustelle**.
+- Alles Übrige auf der Seite **Baustelle** unter ⚙ Einstellungen (Seitenleiste mit Gruppen): Baustelle (Beginn, Preise,
+  Arbeitszeiten, Ausnahmen), Heizung (Regeln, Vor-/Nachheizen, Heizgrenze, Frostschutz, Soll), Container und Geräte,
+  Stromanschlüsse und Staffelung, Firmen (mit Kürzel für Fremdcontainer), Meldungen und Bericht, Notprogramm, Automatik.
+  Ändern dürfen nur Admins; vor Ort ohne Admin: Gefühl am Rad, jetzt heizen, Warnung stumm, Melden.
+- **Container-Inventar** (ab 0.8.106, Seite folgt): eigene Container bekommen eine Nummer für die ganze Firma, fremde
+  `<FIRMA>-NN`; das Firmenkürzel (2–5 Buchstaben) wird bei der Firma hinterlegt.
 - **Datenbank** (für die ganze Instanz, wie beim Recorder): ohne Angabe die SQLite-Datei `/config/baustelle/baustelle.db`;
   für einen gemeinsamen Server (PostgreSQL mit TimescaleDB, mehrere Instanzen, Excel/Power BI) in YAML
   `baustelle: db_url: !secret baustelle_db_url` (z. B. `packages/baustelle.yaml`). Beim ersten Start zieht die
   Integration die SQLite-Datei einmal um, die Datei bleibt liegen. Server einrichten: `tools/db-einrichten.sh`
   (Bauplan Datenbank §4a). Ist der Server weg, sammelt die Integration weiter und schreibt später nach
   (`/config/baustelle/puffer/`). Für Excel/Power BI: Benutzer `baustelle_leser`, Ansichten `v_tag_firma`,
-  `v_tag_container`, `v_monat_baustelle`, `v_schaltungen` (Excel über den ODBC-Treiber psqlODBC: Daten → Daten abrufen → Aus anderen
+  `v_tag_container`, `v_monat_baustelle`, `v_schaltungen`, `v_inventar` (Excel über den ODBC-Treiber psqlODBC: Daten → Daten abrufen → Aus anderen
   Quellen → Aus ODBC; Server = Adresse des Pi, Port 5432 im Add-on freigeben – `docs/api-datenbank.md` §2).
 
 ## Was die Integration liefert
@@ -109,6 +134,8 @@ siehe Auslieferung), dann neu starten.
   Ersparnis und Hochrechnung, Wetterwerte (Diagnose; Tageshöchst, Früh-Prognose und Regen zunächst aus), Erreichbar
   (Diagnose). Je Container Grund, Leistung, Energie, Kosten, Heizzeit; je Shelly Problem, Ø Leistung, bei Pumpen Pumpzeit,
   Zyklen und „läuft“.
+- **WebSocket-Befehle** für die Seite und eigene Werkzeuge: `docs/api-0.7.md` (Struktur, Einstellungen, Auswertung,
+  Abrechnung, Protokoll, Meldungen, Statistik, Inventar §10).
 - **Aktion** `baustelle.ticket`: Ticket aus dem Melden-Knopf ändern (`ticket`, optional `status`, `notiz`, `version`,
   `commit`, `von`); unbekanntes Ticket → Fehler.
 - **Aktionen nur für Admins:** `baustelle.notprogramm_pruefen` (Notprogramm aller Plugs jetzt prüfen),

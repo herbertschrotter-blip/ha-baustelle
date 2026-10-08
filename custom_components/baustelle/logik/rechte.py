@@ -10,7 +10,8 @@ from __future__ import annotations
 from typing import Any
 
 AKTIONEN_ALLE = ("gefuehl", "warnung_stumm", "jetzt_heizen", "boost", "bedarf", "bedarf_aus")
-LESEN = ("struktur", "auswertung", "abrechnung", "ohne", "bericht", "protokoll", "meldungen", "statistik", "verlauf")
+LESEN = ("struktur", "auswertung", "abrechnung", "ohne", "bericht", "protokoll", "meldungen", "statistik", "verlauf",
+         "inventar")
 MELDUNG_ALLE = ("neu", "bild")
 
 

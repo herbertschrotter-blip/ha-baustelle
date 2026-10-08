@@ -386,3 +386,32 @@ Datenbank nicht kennt (`<entry>_energie_ohne_automatik`, `<entry>_ersparnis`) ko
 `history/history_during_period` mit `minimal_response` – `{entity_id: [{s, lu}]}`, erster Eintrag = Zustand zu Beginn –
 aus der eigenen Datenbank: Leistungssensoren der Geräte aus jedem gespeicherten Messwert (`messwert`), Schalter ohne
 Leistungsmessung aus den Minuten; andere Entitäten aus dem HA-Verlauf.
+
+## 10. Container-Inventar (0.8.107, BSM-031.05, Bauplan Inventar)
+
+Das Inventar liegt in der Datenbank über allen Baustellen (Aufbau 9). Ohne erreichbare Datenbank antworten beide Befehle
+mit Fehler `nicht_bereit`. Namen, Labels und Nummern bildet die Integration (`logik/inventar.py`), die Seite zeigt sie nur.
+
+**`baustelle/inventar`** (alle Benutzer) → `{container, ausruestung_frei, bereiche_ohne, firmen, arten, geraete,
+naechste_nr, aendern}`
+
+- `container[]`: `id`, `name` (`002_C_MAN`, `STRA-01_C_MAN`), `nr`, `art`, `art_label`, `eigen`, `firma_kuerzel`,
+  `fremd_nr`, `status` (aktiv/ausgeschieden), `labels`, `einsatz` (aktueller: `baustelle_id`, `bereich_id`, `von`; sonst
+  `null`), `geschichte` (alle Einsätze mit `von`/`bis`), `ausruestung[]` (`id`, `typ`, `typ_label`, `name`
+  (`002-01_C_PLUG_MAN`), `gg`, `status`, `modell`, `geraet_id`, `seit`)
+- `ausruestung_frei[]`: Ausrüstung ohne Container; `bereiche_ohne[]`: Container-Bereiche der Baustellen ohne
+  Inventar-Container (`id`, `baustelle_id`, `name`); `firmen[]` mit `kuerzel`
+- `arten`, `geraete`: die Kürzeltabelle mit deutschen Labels; `naechste_nr`: nächste Nummer für einen eigenen Container;
+  `aendern`: darf der Benutzer ändern (Admin)
+
+**`baustelle/inventar_aendern`** (nur Admins, sonst `unauthorized`), `aktion`:
+
+| aktion | Felder | Ergebnis |
+|---|---|---|
+| `container_anlegen` | `entry_id`, `art`, optional `firma_kuerzel` (fremd), `bereich_id` (verknüpfen) | `{id, art, nr, firma_kuerzel, fremd_nr}` – Nummer automatisch (eigen: ganze Datenbank, fremd: je Baustelle und Firma) |
+| `container_status` | `container_id`, `status` (aktiv/ausgeschieden) | `{ok}`; ausgeschieden beendet den Einsatz und löst den Bereich |
+| `ausruestung_status` | `ausruestung_id`, `status` (aktiv/verliehen/defekt) | `{ok}` |
+| `firma_kuerzel` | `entry_id`, `firma_id`, `kuerzel` (2–5 Buchstaben) | `{ok}` |
+
+Falsche Eingaben (Kürzel, Status, fehlende Felder) → `invalid_format`, ohne die Datenbank zu berühren. Ausrüstung zuordnen
+mit Vorschau und Umbenennen kommt mit BSM-031.06.

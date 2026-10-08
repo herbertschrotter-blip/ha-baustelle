@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.107] – 2026-10-08
+
+- Container-Inventar, Schritt 2 (BSM-031.05): Schnittstelle für die Seite – das Inventar lesen (Container mit Namen nach
+  dem Schema, Einsätzen und Ausrüstung) und als Admin Container anlegen (eigene mit fortlaufender Nummer, fremde mit
+  Firmenkürzel), ausscheiden lassen, den Status der Ausrüstung setzen und Firmenkürzel vergeben. Noch ohne Seite.
+
 ## [0.8.106] – 2026-10-08
 
 - Container-Inventar, Schritt 1 (BSM-031.02): Die Datenbank kann jetzt eigene Container und Fremdcontainer mit ihren
