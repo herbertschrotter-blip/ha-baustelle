@@ -83,7 +83,7 @@ nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 - [ ] **I1** (BSM-031.01) Bauplan und Kürzeltabelle – geschrieben 08.10.2026 (`docs/bauplan-inventar.md`), Abnahme durch Herbert offen
 - [ ] **I2** (BSM-031.02) Datenbank: Inventar für Container und Ausrüstung
 - [ ] **I3** (BSM-031.03) Namens- und Labelregeln in `logik/`
-- [ ] **I4** (BSM-031.04) Mockup: Container anlegen, Ausrüstung zuordnen, Vorschau
+- [x] **I4** (BSM-031.04) Mockup: Container anlegen, Ausrüstung zuordnen, Vorschau – abgenommen 08.10.2026, Variante 1 (`mockups/inventar.html`)
 - [ ] **I5** (BSM-031.05) WebSocket-API Inventar und Rechte
 - [ ] **I6** (BSM-031.06) Umbenennen ausführen (HA, Plug, BTHome, Labels, Verweise)
 - [ ] **I7** (BSM-031.07) Seite: Inventar, Dialoge, Vorschau
@@ -91,6 +91,7 @@ nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 - [ ] **I9** (BSM-031.09) Bestand übernehmen (Kürzel bleiben, alte Namen und Entity-IDs angleichen)
 - [ ] **I10** (BSM-031.10) Aufkleber mit Name und QR-Code (später)
 - [x] **I11** (BSM-032) Container-Symbol anpassbar: Doppelcontainer, Türen 1–2 und Fenster 1–4 mit Lage, Farbe; echter Zustand (Tür offen/zu, Fenster gekippt, Licht an/aus) – erledigt 0.8.68, eingespielt 06.10.2026
+- [ ] **I12** (BSM-031.11) Container-Ansicht am Handy zu breit (Kopf +19 px, „zu kalt / passt / zu warm“ bis +284 px) – gefunden beim Inventar-Mockup 08.10.2026
 
 ## Etappe J – Realistische Hochrechnung und Ersparnis (BSM-033, Herbert 07.10.2026)
 
