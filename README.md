@@ -5,7 +5,7 @@ schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und 
 Vorlage der Oberfläche ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`);
 Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
-## Funktionen (Stand 0.8.112)
+## Funktionen (Stand 0.8.113)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (auch direkt von der Seite aus). Ein Shelly gehört nur
@@ -32,7 +32,7 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
   mit Firmenkürzel, Ausrüstung mit Status und Geschichte, Namen nach dem Schema (`002_C_MAN`, `002-01_C_PLUG_MAN`,
   deutsche Kürzel). Datenbank und Schnittstelle sind da, Umbenennen nach dem Schema samt Entity-IDs geht über die
   Schnittstelle (Vorschau, Übernehmen, auch den Namen im Plug, Nachholen, Rückgängig), Geräte aus HA zuordnen samt Verdrahtung,
-  Status verliehen/defekt; die Seite folgt (`docs/bauplan-inventar.md`).
+  Status verliehen/defekt – auf der Seite unter Einstellungen › 📦 Inventar (`docs/bauplan-inventar.md`).
 
 ## Aufbau
 
@@ -120,7 +120,7 @@ siehe Auslieferung), dann neu starten.
   Arbeitszeiten, Ausnahmen), Heizung (Regeln, Vor-/Nachheizen, Heizgrenze, Frostschutz, Soll), Container und Geräte,
   Stromanschlüsse und Staffelung, Firmen (mit Kürzel für Fremdcontainer), Meldungen und Bericht, Notprogramm, Automatik.
   Ändern dürfen nur Admins; vor Ort ohne Admin: Gefühl am Rad, jetzt heizen, Warnung stumm, Melden.
-- **Container-Inventar** (ab 0.8.106, Seite folgt): eigene Container bekommen eine Nummer für die ganze Firma, fremde
+- **Container-Inventar** (ab 0.8.106, Seite unter ⚙ › 📦 Inventar ab 0.8.113): eigene Container bekommen eine Nummer für die ganze Firma, fremde
   `<FIRMA>-NN`; das Firmenkürzel (2–5 Buchstaben) wird bei der Firma hinterlegt.
 - **Datenbank** (für die ganze Instanz, wie beim Recorder): ohne Angabe die SQLite-Datei `/config/baustelle/baustelle.db`;
   für einen gemeinsamen Server (PostgreSQL mit TimescaleDB, mehrere Instanzen, Excel/Power BI) in YAML

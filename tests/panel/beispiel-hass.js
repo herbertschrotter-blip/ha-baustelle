@@ -129,6 +129,96 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
       rangliste: b.bereiche.filter(c => c.art !== 'pumpenschacht').map((c, i) => ({ bereich: c.id, name: c.name, baustelle: b.baustelle.titel, kwh: 40 - i * 5, heizzeit: 20 - i, eur: (40 - i * 5) * preis, kwh_h: (40 - i * 5) / (20 - i), anteil: 0 })),
       erkenntnisse: kwh ? [{ art: 'gespart', eur: kwh * 2 * preis, prozent: 66.7 }, { art: 'groesster', bereich: b.bereiche[0].id, name: b.bereiche[0].name, kwh: 40, anteil: 38 }, { art: 'wetter', kwh_je_grad: 7.2, eur_je_grad: 2, null0: 15.5 }, { art: 'mehr', prozent: 18 }] : [] };
   }
+
+  /* BSM-031.07: Container-Inventar wie die Integration (baustelle/inventar = logik/inventar.aufbereiten, Vorschau,
+     Umbenennen, Rückgängig, Kandidaten) – Beispiel über der ersten Baustelle; Befehle ändern den Stand wie echt */
+  const ARTEN = { POL: 'Polier', MAN: 'Mannschaft', BES: 'Besprechung', BUE: 'Büro', LAG: 'Lager', MAT: 'Material', SAN: 'Sanitär', TRO: 'Trocken' };
+  const GERAETE = { PLUG: 'Shelly Plug', HZ: 'Heizkörper', TEMP: 'Shelly H&Temp Sensor', DOOR: 'Shelly Door Sensor', FEN: 'Shelly Door Sensor', PUMP: 'Pumpe', BTR: 'Bautrockner' };
+  let inv = null, umb = null;
+  function inventar() {
+    if (inv) return inv;
+    const b = welt()[0], bs = b.baustelle.entry_id, C = b.bereiche.filter(x => x.art === 'container'), c1 = C[0] ? C[0].id : null;
+    const g1 = b.geraete.find(g => g.bereich === c1), e = (cid, bid, von, bis = null, bau = bs) => ({ container_id: cid, baustelle_id: bau, bereich_id: bid, instanz_id: 'i1', von, bis });
+    const jetzt = e('c1', c1, '2026-09-01T06:00:00+00:00');
+    inv = { container: [
+      { id: 'c1', name: '001_C_POL', nr: 1, art: 'POL', art_label: 'Polier', eigen: true, firma_kuerzel: null, fremd_nr: null, status: 'aktiv', labels: ['Container', 'Polier'],
+        einsatz: jetzt, geschichte: [e('c1', null, '2026-03-09T06:00:00+00:00', '2026-08-28T15:00:00+00:00', 'wundschuh'), jetzt],
+        ausruestung: [{ id: 'a1', typ: 'PLUG', typ_label: 'Shelly Plug', name: '001-01_C_PLUG_POL', gg: 1, status: 'aktiv', modell: 'Shelly Plug S Gen3', geraet_id: g1 ? g1.id : null, seit: jetzt.von },
+          { id: 'a2', typ: 'TEMP', typ_label: 'Shelly H&Temp Sensor', name: '001_C_TEMP_POL', gg: null, status: 'aktiv', modell: 'Shelly H&T Gen3', geraet_id: null, seit: jetzt.von }] },
+      { id: 'f1', name: 'STRA-01_C_MAN', nr: null, art: 'MAN', art_label: 'Mannschaft', eigen: false, firma_kuerzel: 'STRA', fremd_nr: 1, status: 'aktiv', labels: ['Container', 'Mannschaft', 'Strabag AG'],
+        einsatz: e('f1', null, '2026-09-22T06:00:00+00:00'), geschichte: [e('f1', null, '2026-09-22T06:00:00+00:00')], ausruestung: [] },
+      { id: 'x1', name: '002_C_LAG', nr: 2, art: 'LAG', art_label: 'Lager', eigen: true, firma_kuerzel: null, fremd_nr: null, status: 'ausgeschieden', labels: ['Container', 'Lager'],
+        einsatz: null, geschichte: [e('x1', null, '2026-06-02T06:00:00+00:00', '2026-09-30T15:00:00+00:00')], ausruestung: [] }],
+      ausruestung_frei: [{ id: 'a9', typ: 'DOOR', typ_label: 'Shelly Door Sensor', status: 'defekt', modell: 'Shelly BLU Door/Window' }],
+      bereiche_ohne: C.slice(1).map(x => ({ id: x.id, baustelle_id: bs, name: x.name })),
+      firmen: [{ baustelle_id: bs, id: 'f-stra', name: 'Strabag AG', kuerzel: 'STRA', eigen: false }, { baustelle_id: bs, id: 'f-hube', name: 'Elektro Huber GmbH', kuerzel: null, eigen: false }],
+      arten: ARTEN, geraete: GERAETE, naechste_nr: 3, aendern: true };
+    return inv;
+  }
+  const kopie = x => JSON.parse(JSON.stringify(x));
+  const nichtGefunden = t => { throw { code: 'not_found', message: t }; };
+  function invVorschau(cid) {
+    const c = inventar().container.find(x => x.id === cid);
+    if (!c || !c.einsatz || !c.einsatz.bereich_id) nichtGefunden('Container ohne Bereich auf einer geladenen Baustelle');
+    const g = '001-01_C_PLUG_POL', t = '001_C_TEMP_POL', fertig = umb && umb.status === 'ausgefuehrt';
+    const s = (gruppe, ziel, ref, was, alt, neu, zustand) => ({ gruppe, ziel, ref, was, alt, neu, zustand: fertig && ziel !== 'plug' ? 'gleich' : zustand });
+    const schritte = [s(g, 'geraet', 'dev1', 'HA-Gerät', 'Heizung 01', g, 'aendern'), s(g, 'label', 'dev1', 'Label', null, 'Container', 'neu'), s(g, 'label', 'dev1', 'Label', 'Lager', null, 'aendern'),
+      s(g, 'entitaet_name', 'switch.heizung_01', 'Name', null, g, 'neu'), s(g, 'entitaet_id', 'switch.heizung_01', 'Entity-ID', 'switch.heizung_01', 'switch.001_01_c_plug_pol', 'aendern'),
+      s(g, 'plug', 'g1', 'Plug-Name', 'heizung-01', g, fertig ? 'gleich' : 'aendern'), s(g, 'unter_eintrag', 'g1', 'Heizkörper (Integration)', 'Radiator 1', '001-01_C_HZ_POL_Radiator01', 'aendern'),
+      s(t, 'geraet', 'dev2', 'HA-Gerät', 'BLU H&T', t, 'aendern'), s(t, 'entitaet_id', 'sensor.polier_temperatur', 'Entity-ID', 'sensor.polier_temperatur', 'sensor.001_c_temp_pol_temperatur', 'aendern')];
+    const z = k => schritte.filter(x => x.zustand === k).length;
+    return { schritte, konflikte: {}, zaehler: { aendern: z('aendern'), neu: z('neu'), gleich: z('gleich'), konflikt: 0 },
+      verweise: fertig ? [] : [{ art: 'Automation', name: 'Polier morgens vorheizen', alt: 'switch.heizung_01', neu: 'switch.001_01_c_plug_pol' }],
+      hinweis: 'BTHome-Namen an den Plugs zieht die Kopplungspflege nach' };
+  }
+  function invUmbenennen(cid) {   // erst teilweise (Plug offline), dann nachgeholt – wie die Integration
+    const v = invVorschau(cid), offen = v.schritte.filter(x => x.zustand !== 'gleich');
+    if (!offen.length) return { id: null, status: 'nichts', schritte: v.schritte, geaendert: [] };
+    const nach = !!umb && umb.status === 'teilweise', erg = v.schritte.map(x => ({ ...x, ergebnis: x.zustand === 'gleich' ? 'gleich' : x.ziel === 'plug' && !nach ? 'fehler' : 'ok',
+      ...(x.ziel === 'plug' && !nach ? { fehler: 'nicht erreichbar' } : {}) }));
+    umb = { id: 1, status: nach ? 'ausgefuehrt' : 'teilweise', schritte: erg };
+    return { id: 1, status: umb.status, schritte: erg, geaendert: ['Unter-Eintrag 001-01_C_HZ_POL_Radiator01'], nachgeholt: nach };
+  }
+  function invRueck(m) {
+    if (!umb || !['ausgefuehrt', 'teilweise'].includes(umb.status)) nichtGefunden('Keine Umbenennung, die sich zurücknehmen lässt (nur die jüngste je Container)');
+    const umkehr = umb.schritte.map((x, nr) => ({ ...x, nr })).filter(x => x.ergebnis === 'ok').reverse()
+      .map(({ ergebnis, fehler, ...x }) => ({ ...x, ref: x.ziel === 'entitaet_id' || x.ziel === 'entitaet_name' ? 'switch.001_01_c_plug_pol' : x.ref, alt: x.neu, neu: x.alt, zustand: 'aendern' }));
+    if (m.vorschau) return { id: 1, schritte: umkehr, konflikte: {} };
+    umb = { ...umb, status: 'zurueck' };
+    return { id: 1, status: 'zurueck', schritte: umkehr.map(x => ({ ...x, ergebnis: 'ok' })) };
+  }
+  function invAendern(m) {
+    const I = inventar(), c = I.container.find(x => x.id === m.container_id), alle = [...I.container.flatMap(x => x.ausruestung), ...I.ausruestung_frei];
+    switch (m.aktion) {
+      case 'container_anlegen': {
+        const id = 'n' + I.container.length, nr = m.firma_kuerzel ? null : m.nr || I.naechste_nr, fnr = m.firma_kuerzel ? 1 + I.container.filter(x => x.firma_kuerzel === m.firma_kuerzel).length : null;
+        const name = m.firma_kuerzel ? `${m.firma_kuerzel}-${String(fnr).padStart(2, '0')}_C_${m.art}` : `${String(nr).padStart(3, '0')}_C_${m.art}`;
+        const einsatz = { container_id: id, baustelle_id: m.entry_id, bereich_id: m.bereich_id || null, instanz_id: 'i1', von: '2026-09-29T14:20:00+00:00', bis: null };
+        I.container.push({ id, name, nr, art: m.art, art_label: ARTEN[m.art], eigen: !m.firma_kuerzel, firma_kuerzel: m.firma_kuerzel || null, fremd_nr: fnr, status: 'aktiv',
+          labels: ['Container', ARTEN[m.art]], einsatz, geschichte: [einsatz], ausruestung: [] });
+        if (!m.firma_kuerzel) I.naechste_nr = Math.max(I.naechste_nr, nr + 1);
+        I.bereiche_ohne = I.bereiche_ohne.filter(x => x.id !== m.bereich_id);
+        return { id, art: m.art, nr, firma_kuerzel: m.firma_kuerzel || null, fremd_nr: fnr, ...(m.bereich_id ? { ausruestung: [] } : {}) };
+      }
+      case 'container_status': if (!c) nichtGefunden('nicht gefunden'); c.status = m.status; if (m.status === 'ausgeschieden') { c.einsatz = null; c.geschichte.forEach(x => { x.bis = x.bis || '2026-09-29T14:20:00+00:00'; }); } return { ok: true };
+      case 'ausruestung_status': { const a = alle.find(x => x.id === m.ausruestung_id); if (!a) nichtGefunden('nicht gefunden'); a.status = m.status; return { ok: true }; }
+      case 'ausruestung_entfernen': { const k = I.container.find(x => x.ausruestung.some(a => a.id === m.ausruestung_id)); if (!k) nichtGefunden('keine laufende Zuordnung');
+        const a = k.ausruestung.find(x => x.id === m.ausruestung_id); k.ausruestung = k.ausruestung.filter(x => x !== a); I.ausruestung_frei.push({ id: a.id, typ: a.typ, typ_label: a.typ_label, status: a.status, modell: a.modell }); return { ok: true }; }
+      case 'ausruestung_zuordnen': { const k = invKandidaten().find(x => x.device_id === m.device_id); if (!c || !k) nichtGefunden('Container oder Gerät nicht gefunden');
+        const gg = k.typ === 'PLUG' ? 1 + Math.max(0, ...c.ausruestung.map(a => a.gg || 0)) : null;
+        c.ausruestung.push({ id: 'z' + m.device_id, typ: k.typ, typ_label: GERAETE[k.typ], name: null, gg, status: 'aktiv', modell: k.modell, geraet_id: null, seit: '2026-09-29T14:20:00+00:00' });
+        return { id: 'z' + m.device_id, gg, neu: true, typ: k.typ, verdrahtet: k.typ === 'PLUG' ? 'Shelly im Bereich angelegt' : null }; }
+      case 'firma_kuerzel': { const f = I.firmen.find(x => x.id === m.firma_id); if (!f) nichtGefunden('nicht gefunden'); f.kuerzel = String(m.kuerzel).toUpperCase(); return { ok: true }; }
+      default: return { ok: true };
+    }
+  }
+  function invKandidaten() {
+    const belegt = new Set(inventar().container.flatMap(c => c.ausruestung.map(a => a.id)));
+    return [{ device_id: 'd9', name: 'Plug Lager 09', modell: 'Shelly Plug S Gen3', typ: 'PLUG', ausruestung_id: null, status: null, entity_id: 'switch.plug_lager_09', verwendet: null },
+      { device_id: 'd8', name: 'Shelly H&T Gen3', modell: 'Shelly H&T Gen3', typ: 'TEMP', ausruestung_id: null, status: null, entity_id: 'sensor.shelly_h_t_gen3_temperatur', verwendet: null },
+      { device_id: 'd7', name: 'Shelly BLU Door/Window', modell: 'Shelly BLU Door/Window', typ: 'DOOR', ausruestung_id: 'a9', status: 'defekt', entity_id: 'binary_sensor.tuer_lager', verwendet: null }]
+      .filter(k => !belegt.has('z' + k.device_id));
+  }
   const hass = {
     states, themes: { darkMode: true }, config: { version: '2026.9.4' }, language: 'de',
     connection: { subscribeMessage: (cb, msg) => { cb({ type: msg.forecast_type, forecast: vorhersage(msg.forecast_type) }); return Promise.resolve(() => {}); } },
@@ -157,6 +247,12 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
         case 'auth/sign_path': return { path: `${m.path}?authSig=abc` };
         case 'baustelle/setzen': { const b = welt().find(x => x.baustelle.entry_id === m.entry_id); let o = b.einstellungen;   // wie die Integration: Wert bleibt gespeichert
           for (const k of m.pfad.slice(0, -1)) o = o[k] ||= {}; o[m.pfad.at(-1)] = m.wert; return { ok: true }; }
+        case 'baustelle/inventar': return kopie(inventar());
+        case 'baustelle/inventar_vorschau': return kopie(invVorschau(m.container_id));
+        case 'baustelle/inventar_umbenennen': return kopie(invUmbenennen(m.container_id));
+        case 'baustelle/inventar_rueckgaengig': return kopie(invRueck(m));
+        case 'baustelle/inventar_kandidaten': return { geraete: kopie(invKandidaten()) };
+        case 'baustelle/inventar_aendern': return kopie(invAendern(m));
         default: return { ok: true };
       }
     },

@@ -33,6 +33,7 @@ import { einstellungenVorlage } from './ansichten/einstellungen.js';
 import { BAUSTELLE_EINBLENDUNGEN } from './ansichten/einblendungen-baustelle.js';
 import { EINRICHTUNG_EINBLENDUNGEN } from './ansichten/einblendungen-einrichtung.js';
 import { npPlugEinblendung } from './ansichten/notprogramm.js';
+import { INVENTAR_EINBLENDUNGEN, INV_BREIT, INV_CSS } from './ansichten/inventar.js';
 import { uebersichtVorlage } from './ansichten/uebersicht.js';
 import { katalogEinblendung } from './ansichten/kacheln.js';
 import { UEBERSICHT_EINBLENDUNGEN } from './ansichten/einblendungen-uebersicht.js';
@@ -898,9 +899,9 @@ function einblendungen(s) {
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', 'kk-katalog', ...Object.keys(UEBERSICHT_EINBLENDUNGEN), 'aw-detail'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', ...Object.keys(INVENTAR_EINBLENDUNGEN), 'kk-katalog', ...Object.keys(UEBERSICHT_EINBLENDUNGEN), 'aw-detail'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
-  static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
+  static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS), unsafeCSS(INV_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
     super();
     this.s = einblendungen({ view: 'uebersicht', cid: null, sheet: null, chart: 'temp', verlauf: 'aktiv' });
@@ -1601,6 +1602,43 @@ class BaustellePanel extends LitElement {
   npPruefen() { const S = this.s; if (S.npPrueft) return undefined; S.npPrueft = true; this.neuZeichnen();
     return this.ws({ type: 'baustelle/notprogramm_pruefen', entry_id: this.d.entry }, 'Notprogramm geprüft').finally(() => { S.npPrueft = false; this.neuZeichnen(); }); }
   npPlugAuf(id) { this.s.sheet = { art: 'np-plug', id }; return this.neuZeichnen(); }
+  /* Container-Inventar (src/ansichten/inventar.js, BSM-031.07): Daten und Schritte kommen von der Integration */
+  invDaten() { return this._holen('inv', () => this._hass.callWS({ type: 'baustelle/inventar' }), 60000); }
+  invFehler(k = 'inv') { const c = this.cache[k]; return c && c.fehler; }
+  invVorschau(id) { return this._holen('invv:' + id, () => this._hass.callWS({ type: 'baustelle/inventar_vorschau', container_id: id }), 30000); }
+  invRueckVorschau(id) { return this._holen('invr:' + id, () => this._hass.callWS({ type: 'baustelle/inventar_rueckgaengig', container_id: id, vorschau: true }), 30000); }
+  invKandidaten() { const r = this._holen('invk', () => this._hass.callWS({ type: 'baustelle/inventar_kandidaten' }), 30000); return r && r.geraete; }
+  invNeu() { for (const k of Object.keys(this.cache)) if (k === 'inv' || k === 'invk' || k.startsWith('invv:') || k.startsWith('invr:')) delete this.cache[k]; }
+  invAuf(sheet) { this.s.sheet = sheet; return this.neuZeichnen(); }
+  async invSenden(felder, text, schliessen = false) {
+    try {
+      const r = await this._hass.callWS({ type: 'baustelle/inventar_aendern', ...felder });
+      this.invNeu(); if (text) this.toast(text); if (schliessen) this.s.sheet = null; this.neuZeichnen(); return r || { ok: true };
+    } catch (e) { this.toast(this.fehlerText(e)); return null; }
+  }
+  async invAnlegen(f, fi) {
+    if (!f.eigen && !fi) return this.toast('Bitte eine Firma wählen');
+    if (!f.eigen && !fi.kuerzel && !(await this.invSenden({ aktion: 'firma_kuerzel', entry_id: this.d.entry, firma_id: fi.id, kuerzel: f.kuerzel || '' }))) return;
+    const kz = f.eigen ? null : fi.kuerzel || (f.kuerzel || '').trim().toUpperCase();
+    const r = await this.invSenden({ aktion: 'container_anlegen', entry_id: this.d.entry, art: f.art, ...(kz ? { firma_kuerzel: kz } : {}),
+      ...(f.bereich_id ? { bereich_id: f.bereich_id } : {}), ...(f.eigen && f.bereich_id && +f.nr ? { nr: +f.nr } : {}) }, 'Container angelegt');
+    if (r) this.invAuf(f.bereich_id ? { art: 'inv-vorschau', id: r.id } : { art: 'inv-container', id: r.id });
+  }
+  async invZuordnen(c, s) {
+    const k = (this.invKandidaten() || []).find(x => x.device_id === s.wahl); if (!k) return this.toast('Bitte ein Gerät wählen');
+    const r = await this.invSenden({ aktion: 'ausruestung_zuordnen', container_id: c.id, device_id: k.device_id, ...(k.typ === 'PLUG' ? { haengt: s.haengt || 'konvektor' } : {}) },
+      `${k.name} zugeordnet`);
+    if (r) this.invAuf({ art: 'inv-vorschau', id: c.id });
+  }
+  async invAusfuehren(s) {
+    try {
+      const r = await this._hass.callWS(s.rueck ? { type: 'baustelle/inventar_rueckgaengig', container_id: s.id } : { type: 'baustelle/inventar_umbenennen', container_id: s.id });
+      this.invNeu();
+      if (r.status === 'nichts') { this.toast('Schon alles nach Schema'); return this.invAuf({ art: 'inv-container', id: s.id }); }
+      this.toast({ ausgefuehrt: 'Umbenannt', teilweise: 'Teilweise umbenannt – Rest folgt', zurueck: 'Zurückgenommen', zurueck_teilweise: 'Teilweise zurückgenommen' }[r.status] || r.status);
+      return this.invAuf({ ...s, ergebnis: r });
+    } catch (e) { this.toast(this.fehlerText(e)); }
+  }
   npProbe(id, m) { return this.ws({ type: 'baustelle/notprogramm_probe', entry_id: this.d.entry, geraet: id, minuten: m }, m ? `Ausfall-Probe ${m} min gestartet` : 'Ausfall-Probe beendet'); }
   /* Dialoge für Container und Geräte (src/ansichten/einblendungen-einrichtung.js, BSM-022 3e); Rümpfe wie bisher in klick() */
   firmaSpeichern() {
@@ -1956,6 +1994,7 @@ class BaustellePanel extends LitElement {
     else if (S.sheet && BAUSTELLE_EINBLENDUNGEN[S.sheet.art]) sheet = BAUSTELLE_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && EINRICHTUNG_EINBLENDUNGEN[S.sheet.art]) sheet = EINRICHTUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'np-plug') sheet = npPlugEinblendung(this, S.sheet);
+    else if (S.sheet && INVENTAR_EINBLENDUNGEN[S.sheet.art]) sheet = INVENTAR_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'kk-katalog') sheet = katalogEinblendung(this, S.sheet);
     else if (S.sheet && S.sheet.art === 'aw-detail') sheet = awDetailEinblendung(this, S.sheet);
     else if (S.sheet && UEBERSICHT_EINBLENDUNGEN[S.sheet.art]) sheet = UEBERSICHT_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
@@ -1966,7 +2005,7 @@ class BaustellePanel extends LitElement {
         ? html`<button data-v=${k} class="${k === aktivTab ? 'on' : ''} nav-ic" aria-label="Einstellungen" title="Einstellungen" @click=${() => this.gehe(k)}>${unsafeHTML(ICON_COG)}</button>`
         : html`<button data-v=${k} class="${k === aktivTab ? 'on' : ''}" @click=${() => this.gehe(k)}>${t}</button>`)}</nav>
       <div class="schleier ${S.sheet ? 'an' : ''}" @click=${() => this.schliessen()}></div>
-      <div class="sheet glas-panel ${S.sheet ? 'an' : ''}">${melden && this.roh && S.sheet && S.sheet.art !== 'melden' ? meldenKnopf('im-sheet', () => this.meldenAuf()) : nothing}${sheet}</div>
+      <div class="sheet glas-panel ${S.sheet ? 'an' : ''}${S.sheet && INV_BREIT.includes(S.sheet.art) ? ' breit' : ''}">${melden && this.roh && S.sheet && S.sheet.art !== 'melden' ? meldenKnopf('im-sheet', () => this.meldenAuf()) : nothing}${sheet}</div>
       <div class="tip"></div><div class="toast glas-panel"></div>
       ${melden && this.roh && !S.sheet ? meldenKnopf('glas-panel', () => this.meldenAuf()) : nothing}`;
   }

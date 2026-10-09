@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.113] – 2026-10-09
+
+- Container-Inventar auf der Seite (BSM-031.07, Teil 2; Mockup Variante 1): Einstellungen › 📦 Inventar mit Liste
+  (Alle/Eigen/Fremd/Ausgeschieden), Container mit Einsatz, Ausrüstung und Geschichte, Container anlegen (eigen oder
+  fremd, Bestand der Baustelle mit bisheriger Nummer übernehmen), Gerät aus Home Assistant zuordnen („Was hängt
+  dran?“), Status der Ausrüstung (aktiv/verliehen/defekt, BSM-031.08) und Ausscheiden. „Namen prüfen“ zeigt die
+  Vorschau als Tabelle Was/Alt/Neu/Zustand samt Automationen mit alten Entity-IDs; Übernehmen, Nachholen und
+  Rückgängig gehen von dort. Ändern dürfen nur Admins.
+
 ## [0.8.112] – 2026-10-09
 
 - Container-Inventar, Schritt 7 (BSM-031.07, Teil 1): Die Integration kann jetzt Geräte aus Home Assistant ins Inventar

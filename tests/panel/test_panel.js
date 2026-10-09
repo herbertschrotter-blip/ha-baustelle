@@ -1141,7 +1141,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'ev-gruppe', v: 'strom' }, 10); erwarte('FE-0013: Position bleibt (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 200);
       links = 700; await klick({ act: 'ev-gruppe', v: 'ueber' }, 10);
       erwarte('FE-0013: gewählte Kategorie mittig (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 700 - (300 - 80) / 2); layout.setzen(null); }
-    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-v="${g}"`)));
+    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'inventar', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-v="${g}"`)));
     const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'Automatik', 'data-k="frost_aussen"'],
       notprogramm: ['Notprogramm in den Plugs', 'Taste am Plug'], container: ['Container und Geräte', 'Je Container'],
       geraete: ['Schaltgeräte', 'class="zeile ger"'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Neuer Preis ab', 'Staffelung'], firmen: ['Firma hinzufügen'],
@@ -1173,6 +1173,42 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'np-an' }, 10);
       if (panel.d.e.notprogramm) { neu(); await klick({ act: 'np-taste' }, 10);
         erwarte('BSM-018: Taste am Plug über baustelle/setzen', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === 'heizung.taste')); await klick({ act: 'np-taste' }, 10); } }
+    { const h = await gruppe('inventar');   // BSM-031.07/.08: Container-Inventar (Mockup inventar.html, Variante 1)
+      erwarte('BSM-031.07: Inventar über baustelle/inventar, Liste mit Filter', alleAufrufe.some(m => m.type === 'baustelle/inventar') && h.includes('inv-filter') && h.includes('001_C_POL') && h.includes('STRA-01_C_MAN'));
+      await klick('.inv-filter button[data-v="ausgeschieden"]', 10);
+      erwarte('BSM-031.07: Filter Ausgeschieden', ui.innerHTML.includes('002_C_LAG') && !ui.innerHTML.includes('STRA-01_C_MAN'));
+      await klick('.inv-filter button[data-v="alle"]', 10);
+      if (REFERENZ) {
+        erwarte('BSM-031.07: Bestand der Baustelle zum Übernehmen', ui.innerHTML.includes('Noch nicht im Inventar'));
+        await klick('.inv-c[data-id="c1"]', 20);
+        erwarte('BSM-031.07: Container mit Einsatz, Ausrüstung, Geschichte', ['001-01_C_PLUG_POL', 'Geschichte', 'Einsatz', 'GG 01'].every(t => ui.innerHTML.includes(t)));
+        neu(); await klick('.sheet .inv-st', 10);
+        erwarte('BSM-031.08: Status der Ausrüstung über inventar_aendern', aufrufe.some(m => m.type === 'baustelle/inventar_aendern' && m.aktion === 'ausruestung_status' && m.status === 'verliehen'));
+        await klick('.inv-c[data-id="c1"]', 20); await klick('.sheet [data-k="pruefen"]', 30);
+        let v = ui.innerHTML;
+        erwarte('BSM-031.07: Vorschau als Tabelle Was/Alt/Neu/Zustand, breit', v.includes('inv-th') && v.includes('switch.001_01_c_plug_pol') && /class="sheet glas-panel an breit"/.test(v));
+        erwarte('BSM-031.07: Vorschau nennt alte Entity-IDs in Automationen', v.includes('Polier morgens vorheizen') && v.includes('alte Entity-IDs'));
+        neu(); await klick('.sheet [data-k="ausfuehren"]', 30); v = ui.innerHTML;
+        erwarte('BSM-031.06b: Übernehmen über inventar_umbenennen', aufrufe.some(m => m.type === 'baustelle/inventar_umbenennen' && m.container_id === 'c1'));
+        erwarte('BSM-031.06c: teilweise – Plug offen, Nachholen angeboten', v.includes('Teilweise erledigt') && v.includes('nicht erreichbar') && v.includes('data-k="ausfuehren"'));
+        await klick('.sheet [data-k="ausfuehren"]', 30);
+        erwarte('BSM-031.06c: Nachholen erledigt', ui.innerHTML.includes('Erledigt') && !ui.innerHTML.includes('Teilweise erledigt'));
+        await klick('.inv-c[data-id="c1"]', 20); neu(); await klick('.sheet [data-k="rueck"]', 30);
+        erwarte('BSM-031.06d: Rückgängig mit Vorschau', aufrufe.some(m => m.type === 'baustelle/inventar_rueckgaengig' && m.vorschau === true) && ui.innerHTML.includes('Umbenennung zurücknehmen'));
+        await klick('.sheet [data-k="ausfuehren"]', 30);
+        erwarte('BSM-031.06d: Zurückgenommen', aufrufe.some(m => m.type === 'baustelle/inventar_rueckgaengig' && !m.vorschau) && ui.innerHTML.includes('Zurückgenommen'));
+        await klick('.inv-c[data-id="c1"]', 20); await klick('.sheet [data-k="zuordnen-auf"]', 30);
+        erwarte('BSM-031.07: Zuordnen zeigt Geräte aus HA', aufrufe.some(m => m.type === 'baustelle/inventar_kandidaten') && ui.innerHTML.includes('Plug Lager 09') && ui.innerHTML.includes('defekt – nicht zuordenbar'));
+        await klick('.sheet .zeile[data-id="d9"]', 10); await klick('.sheet .inv-seg button[data-v="radiator"]', 10); neu(); await klick('.sheet [data-k="zuordnen"]', 30);
+        erwarte('BSM-031.07: Zuordnen über inventar_aendern mit „was hängt dran“', aufrufe.some(m => m.type === 'baustelle/inventar_aendern' && m.aktion === 'ausruestung_zuordnen' && m.device_id === 'd9' && m.haengt === 'radiator'));
+        await klick({ act: 'zu' }, 5); await gruppe('inventar'); await klick('.inv-bestand', 20);
+        await klick('.sheet .inv-art[data-v="SAN"]', 10); eingabe('.sheet .inv-nr', '4'); neu(); await klick('.sheet [data-k="anlegen"]', 30);
+        erwarte('BSM-031.07: Bestand übernehmen mit eigener Nummer', aufrufe.some(m => m.type === 'baustelle/inventar_aendern' && m.aktion === 'container_anlegen' && m.art === 'SAN' && m.nr === 4 && m.bereich_id));
+        await klick({ act: 'zu' }, 5); await gruppe('inventar'); await klick('[data-k="neu"]', 20);
+        await klick('.sheet .inv-seg button:nth-child(2)', 10); neu(); await klick('.sheet [data-k="anlegen"]', 20);
+        erwarte('BSM-031.07: Fremdcontainer braucht Firma', !aufrufe.some(m => m.aktion === 'container_anlegen'));
+        await klick({ act: 'zu' }, 5);
+      } }
     await gruppe('dev'); await klick('.ev-dev-reiter button[data-v="werkzeuge"]', 20);
     erwarte('WU-0007: Entwicklung › Werkzeuge', ui.innerHTML.includes('Diagnose herunterladen') && !ui.innerHTML.includes('Melden-Knopf in jedem Fenster'));
     await gruppe('meldungen'); neu(); const k0 = panel.d.e.kalt_min; await klick({ act: 'st', k: 'kalt_min', d: '15' }, 10);

@@ -281,11 +281,13 @@ async def echte_baustelle(hass: HomeAssistant, freezer, hass_ws_client, hass_sto
 
     nr = {"id": 0}
 
-    async def rufe(typ: str, **felder) -> Any:
+    async def rufe(typ: str, _erlaubt: tuple[str, ...] = (), **felder) -> Any:
         nr["id"] += 1
         await ws.send_json({"id": nr["id"], "type": typ, **felder})
         antwort = await ws.receive_json()
         await hass.async_block_till_done()
+        if not antwort["success"] and antwort["error"]["code"] in _erlaubt:
+            return None
         assert antwort["success"], (typ, felder, antwort)
         return antwort["result"]
 
@@ -546,8 +548,11 @@ async def test_seite_gegen_echte_struktur(hass: HomeAssistant, echte_baustelle) 
             _ohne_ausfuehren(hass, m, fehler)
             continue
         typ = m.pop("type")
+        # Inventar (BSM-031.07): die Seite nennt Container/Ausrüstung aus dem Beispiel-Inventar des Node-Tests – die echte
+        # Integration kennt sie nicht (not_found); geprüft wird, dass jeder Befehl dem Schema entspricht
+        erlaubt = ("not_found",) if typ.startswith("baustelle/inventar") else ()
         try:
-            await rufe(typ, **dialoge._ersetzen(m))
+            await rufe(typ, _erlaubt=erlaubt, **dialoge._ersetzen(m))
             geschickt += 1
         except AssertionError as err:
             fehler.append(str(err))

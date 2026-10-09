@@ -136,8 +136,11 @@ async def ws_inventar_aendern(hass: HomeAssistant, connection: websocket_api.Act
             return db_inventar.firma_kuerzel(v, msg["entry_id"], msg["firma_id"], msg["kuerzel"])
 
     ergebnis = await db.async_ausfuehren(arbeit)
-    if ergebnis is None or ergebnis is False:
-        connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, db.fehler or "nicht gefunden")
+    if ergebnis is None:
+        connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, db.fehler or "Datenbank")
+        return
+    if ergebnis is False:   # Container, Ausrüstung oder Firma gibt es nicht
+        connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "nicht gefunden")
         return
     if aktion == "container_anlegen" and msg.get("bereich_id"):   # Bestand des Bereichs kommt mit (Shellys, Fühler, Tür)
         ergebnis["ausruestung"] = await async_bestand(hass, db, ergebnis["id"], msg["bereich_id"], msg["entry_id"])

@@ -415,7 +415,8 @@ naechste_nr, aendern}`
 | `ausruestung_zuordnen` (0.8.112) | `container_id`, `device_id` (HA-Gerät), optional `typ` (sonst erkannt), `haengt` bei Plugs (`konvektor`, `radiator`, `bautrockner`, `nichts`) | `{id, gg, neu, typ, verdrahtet}` – Ausrüstung per Kennung (MAC, sonst HA-Gerät; nur in der Datenbank), neuer Einsatz, GG bei PLUG/PUMP/BTR die nächste im Container. Steht der Container mit Bereich auf einer geladenen Baustelle, hängt die Integration das Gerät dort ein: Shelly als Unter-Eintrag (Rolle/Typ aus `haengt`, vorhandener wird angepasst), Fühler bzw. Tür am Bereich, wenn dort noch keiner steht (`verdrahtet` sagt, was geschah). Defekt, in einem anderen Container oder Shelly einer anderen aktiven Baustelle → `invalid_format`; schon in diesem Container → `neu: false` |
 | `ausruestung_entfernen` (0.8.112) | `ausruestung_id` | `{ok}`; der laufende Einsatz endet, die Ausrüstung ist frei (in HA bleibt alles, wie es ist) |
 
-Falsche Eingaben (Kürzel, Status, Nummer vergeben, fehlende Felder) → `invalid_format`, ohne die Datenbank zu berühren.
+Falsche Eingaben (Kürzel, Status, Nummer vergeben, fehlende Felder) → `invalid_format`, ohne die Datenbank zu berühren;
+unbekannter Container, Ausrüstung oder Firma → `not_found` (ab 0.8.113, vorher `invalid_format`).
 
 **`baustelle/inventar_kandidaten`** (alle Benutzer, 0.8.112) → `{geraete: [{device_id, name, modell, typ, ausruestung_id,
 status, entity_id, verwendet}]}`: HA-Geräte, die als Ausrüstung taugen (Shelly mit Schalter → PLUG, Temperatur → TEMP,
