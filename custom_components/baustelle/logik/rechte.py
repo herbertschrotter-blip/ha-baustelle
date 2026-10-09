@@ -11,7 +11,7 @@ from typing import Any
 
 AKTIONEN_ALLE = ("gefuehl", "warnung_stumm", "jetzt_heizen", "boost", "bedarf", "bedarf_aus")
 LESEN = ("struktur", "auswertung", "abrechnung", "ohne", "bericht", "protokoll", "meldungen", "statistik", "verlauf",
-         "inventar", "inventar_vorschau")
+         "inventar", "inventar_vorschau", "inventar_kandidaten")
 MELDUNG_ALLE = ("neu", "bild")
 
 

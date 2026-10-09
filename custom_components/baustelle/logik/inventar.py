@@ -383,3 +383,36 @@ def zurueck_eintragen(schritte: Iterable[Mapping[str, Any]], umkehr: Iterable[Ma
             ziel["zurueck_fehler"] = u["fehler"]
     fertig = all(s.get("zurueck") in ERGEBNIS_ERLEDIGT for s in aus if s.get("ergebnis") == "ok")
     return aus, "zurueck" if fertig else "zurueck_teilweise"
+
+
+# ---------------------------------------------------------------------- Ausrüstung zuordnen (BSM-031.07, §2, §8)
+MIT_GG = ("PLUG", "PUMP", "BTR")   # bekommen eine Gerätenummer im Container
+HAENGT: dict[str, tuple[str, str]] = {   # „Was hängt an diesem Plug?“ → (Rolle, Typ) des Unter-Eintrags
+    "konvektor": ("heizkoerper", "konvektor"), "radiator": ("heizkoerper", "oelradiator"),
+    "bautrockner": ("bautrockner", "konvektor"), "nichts": ("steckdose", "konvektor"),
+}
+
+
+def typ_vorschlag(*, schalter: bool, klassen: Iterable[str]) -> str | None:
+    """Gerätetyp eines HA-Geräts für das Inventar: Shelly mit Schalter → PLUG; mit Temperatur → TEMP; Tür → DOOR;
+    Fenster → FEN; sonst keiner (taugt nicht als Ausrüstung)."""
+    k = set(klassen)
+    if schalter:
+        return "PLUG"
+    if "temperature" in k:
+        return "TEMP"
+    if k & {"door", "opening", "garage_door"}:
+        return "DOOR"
+    if "window" in k:
+        return "FEN"
+    return None
+
+
+def nummer_frei(nr: int, vorhanden: Iterable[int | None]) -> int:
+    """Eine bestimmte Nummer für einen eigenen Container (Bestand übernehmen, §1: Nummern bleiben) – nur, wenn sie nie
+    vergeben war. Sonst `InventarFehler`."""
+    if nr < 1 or nr > 999:
+        raise InventarFehler("Nummer 1 bis 999")
+    if nr in set(vorhanden):
+        raise InventarFehler(f"Nummer {nr:03d} ist schon vergeben – eine Nummer gilt für immer")
+    return nr

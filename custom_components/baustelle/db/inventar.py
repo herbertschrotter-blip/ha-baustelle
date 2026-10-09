@@ -9,7 +9,7 @@ from typing import Any
 
 from sqlalchemy import Connection, and_, func, insert, select, update
 
-from ..logik.inventar import STATUS_AUSRUESTUNG, firmenkuerzel_pruefen, naechste
+from ..logik.inventar import MIT_GG, STATUS_AUSRUESTUNG, firmenkuerzel_pruefen, naechste, nummer_frei
 from . import schema as s
 
 
@@ -37,9 +37,10 @@ def lesen(v: Connection) -> dict[str, Any]:
 
 
 def container_anlegen(v: Connection, *, art: str, baustelle_id: str, instanz_id: str | None, jetzt: datetime,
-                      firma_kuerzel: str | None = None, bereich_id: str | None = None) -> dict[str, Any]:
-    """Neuer Container mit erstem Einsatz auf `baustelle_id`. Eigen: nächste Nummer der ganzen Datenbank; fremd
-    (`firma_kuerzel`): nächste Nummer dieser Firma auf dieser Baustelle. Mit `bereich_id` wird der Bereich verknüpft."""
+                      firma_kuerzel: str | None = None, bereich_id: str | None = None, nr: int | None = None) -> dict[str, Any]:
+    """Neuer Container mit erstem Einsatz auf `baustelle_id`. Eigen: nächste Nummer der ganzen Datenbank oder `nr`
+    (Bestand: nur eine nie vergebene); fremd (`firma_kuerzel`): nächste Nummer dieser Firma auf dieser Baustelle. Mit
+    `bereich_id` wird der Bereich verknüpft."""
     cid = uuid.uuid4().hex
     werte: dict[str, Any]
     if firma_kuerzel:
@@ -49,7 +50,8 @@ def container_anlegen(v: Connection, *, art: str, baustelle_id: str, instanz_id:
             s.container.c.firma_kuerzel == kuerzel, s.container.c.id.in_(auf_baustelle))).scalars()
         werte = {"nr": None, "firma_kuerzel": kuerzel, "fremd_nr": naechste(vorhanden)}
     else:
-        werte = {"nr": naechste(v.execute(select(s.container.c.nr)).scalars()), "firma_kuerzel": None, "fremd_nr": None}
+        alle = list(v.execute(select(s.container.c.nr)).scalars())
+        werte = {"nr": nummer_frei(nr, alle) if nr else naechste(alle), "firma_kuerzel": None, "fremd_nr": None}
     v.execute(insert(s.container).values(id=cid, art=art, status="aktiv", angelegt=jetzt, **werte))
     v.execute(insert(s.container_einsatz).values(container_id=cid, von=jetzt, baustelle_id=baustelle_id,
                                                  bereich_id=bereich_id, instanz_id=instanz_id))
@@ -115,3 +117,37 @@ def umbenennungen_offen(v: Connection) -> list[str]:
     return list(v.execute(select(s.umbenennung.c.container_id)
                           .join(juengste, s.umbenennung.c.id == juengste.c.nr)
                           .where(s.umbenennung.c.status == "teilweise")).scalars())
+
+
+def ausruestung_zuordnen(v: Connection, *, kennung: str, typ: str, modell: str | None, container_id: str,
+                         geraet_id: str | None, jetzt: datetime) -> dict[str, Any]:
+    """Ausrüstung (per `kennung`, sonst neu) einem Container zuordnen: neuer Einsatz, bei PLUG/PUMP/BTR mit der nächsten
+    Gerätenummer im Container. Steckt sie schon in diesem Container, bleibt alles (mit `geraet_id` nachgetragen); steckt
+    sie in einem anderen, `ValueError` – erst dort beenden."""
+    a = v.execute(select(s.ausruestung).where(s.ausruestung.c.kennung == kennung)).first()
+    if a is None:
+        aid = uuid.uuid4().hex
+        v.execute(insert(s.ausruestung).values(id=aid, typ=typ, modell=modell, kennung=kennung, status="aktiv", angelegt=jetzt))
+    else:
+        aid = a.id
+        if a.status == "defekt":
+            raise ValueError("Ausrüstung ist defekt – nicht zuordenbar")
+    lfd = s.ausruestung_einsatz
+    laufend = v.execute(select(lfd).where(lfd.c.ausruestung_id == aid, lfd.c.bis.is_(None))).first()
+    if laufend is not None:
+        if laufend.container_id != container_id:
+            raise ValueError("Ausrüstung steckt schon in einem anderen Container")
+        if geraet_id and laufend.geraet_id != geraet_id:
+            v.execute(update(lfd).where(lfd.c.ausruestung_id == aid, lfd.c.von == laufend.von).values(geraet_id=geraet_id))
+        return {"id": aid, "gg": laufend.gg, "neu": False}
+    gg = None
+    if typ in MIT_GG:
+        gg = naechste(v.execute(select(lfd.c.gg).where(lfd.c.container_id == container_id, lfd.c.bis.is_(None))).scalars())
+    v.execute(insert(lfd).values(ausruestung_id=aid, von=jetzt, container_id=container_id, gg=gg, geraet_id=geraet_id))
+    return {"id": aid, "gg": gg, "neu": True}
+
+
+def ausruestung_entfernen(v: Connection, aid: str, jetzt: datetime) -> bool:
+    """Laufenden Einsatz einer Ausrüstung beenden (sie wird frei); ihre Geschichte bleibt."""
+    lfd = s.ausruestung_einsatz
+    return bool(v.execute(update(lfd).where(lfd.c.ausruestung_id == aid, lfd.c.bis.is_(None)).values(bis=jetzt)).rowcount)

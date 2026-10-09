@@ -408,12 +408,19 @@ naechste_nr, aendern}`
 
 | aktion | Felder | Ergebnis |
 |---|---|---|
-| `container_anlegen` | `entry_id`, `art`, optional `firma_kuerzel` (fremd), `bereich_id` (verknüpfen) | `{id, art, nr, firma_kuerzel, fremd_nr}` – Nummer automatisch (eigen: ganze Datenbank, fremd: je Baustelle und Firma) |
+| `container_anlegen` | `entry_id`, `art`, optional `firma_kuerzel` (fremd), `bereich_id` (verknüpfen), `nr` (nur eigen, 0.8.112: feste Nummer für den Bestand – nur eine nie vergebene) | `{id, art, nr, firma_kuerzel, fremd_nr}` – Nummer sonst automatisch (eigen: ganze Datenbank, fremd: je Baustelle und Firma); mit `bereich_id` zusätzlich `ausruestung` [{id, typ, gg, neu}]: Shellys des Bereichs (GG nach Namen), Fühler und Tür kommen ins Inventar |
 | `container_status` | `container_id`, `status` (aktiv/ausgeschieden) | `{ok}`; ausgeschieden beendet den Einsatz und löst den Bereich |
-| `ausruestung_status` | `ausruestung_id`, `status` (aktiv/verliehen/defekt) | `{ok}` |
+| `ausruestung_status` | `ausruestung_id`, `status` (aktiv/verliehen/defekt) | `{ok}`; ab 0.8.112 (BSM-031.08): steckt sie als Shelly in einer geladenen Baustelle, lässt die Automatik das Gerät bei verliehen/defekt aus (wie „inaktiv“, WU-0004), bei aktiv ist es wieder dabei |
 | `firma_kuerzel` | `entry_id`, `firma_id`, `kuerzel` (2–5 Buchstaben) | `{ok}` |
+| `ausruestung_zuordnen` (0.8.112) | `container_id`, `device_id` (HA-Gerät), optional `typ` (sonst erkannt), `haengt` bei Plugs (`konvektor`, `radiator`, `bautrockner`, `nichts`) | `{id, gg, neu, typ, verdrahtet}` – Ausrüstung per Kennung (MAC, sonst HA-Gerät; nur in der Datenbank), neuer Einsatz, GG bei PLUG/PUMP/BTR die nächste im Container. Steht der Container mit Bereich auf einer geladenen Baustelle, hängt die Integration das Gerät dort ein: Shelly als Unter-Eintrag (Rolle/Typ aus `haengt`, vorhandener wird angepasst), Fühler bzw. Tür am Bereich, wenn dort noch keiner steht (`verdrahtet` sagt, was geschah). Defekt, in einem anderen Container oder Shelly einer anderen aktiven Baustelle → `invalid_format`; schon in diesem Container → `neu: false` |
+| `ausruestung_entfernen` (0.8.112) | `ausruestung_id` | `{ok}`; der laufende Einsatz endet, die Ausrüstung ist frei (in HA bleibt alles, wie es ist) |
 
-Falsche Eingaben (Kürzel, Status, fehlende Felder) → `invalid_format`, ohne die Datenbank zu berühren.
+Falsche Eingaben (Kürzel, Status, Nummer vergeben, fehlende Felder) → `invalid_format`, ohne die Datenbank zu berühren.
+
+**`baustelle/inventar_kandidaten`** (alle Benutzer, 0.8.112) → `{geraete: [{device_id, name, modell, typ, ausruestung_id,
+status, entity_id, verwendet}]}`: HA-Geräte, die als Ausrüstung taugen (Shelly mit Schalter → PLUG, Temperatur → TEMP,
+Tür → DOOR, Fenster → FEN) und in keinem Container stecken; `ausruestung_id`/`status`, wenn schon als freie Ausrüstung
+bekannt; `verwendet` = „Baustelle › Bereich“, wenn eine Baustelle das Gerät heute nutzt.
 
 **`baustelle/inventar_vorschau`** (alle Benutzer, 0.8.108, BSM-031.06a), `container_id` → `{schritte, konflikte, zaehler,
 hinweis}` – **ändert nichts**. Für einen Container mit Bereich auf einer geladenen Baustelle (sonst `not_found`):
@@ -423,6 +430,8 @@ vorhandene aus dem Inventar, sonst fortlaufend nach Namen. Die Namen der BTHome-
 Kopplungspflege (BSM-030) aus den HA-Gerätenamen selbst nach. Am Shelly-Gerät zählen nur Schalter, Leistung und
 Energie, mit denen die Integration rechnet; eigene Entitäten der Integration und weitere Messwerte derselben Endung
 bleiben, wie sie sind. Eigene Labels (Bauplan Inventar §5), die nicht mehr passen, stehen als Schritt mit `neu: null`.
+Ab 0.8.112 dazu `verweise` [{art (Automation/Skript/Dashboard), name, alt, neu}]: eigene Automationen, Skripte und
+Dashboards, die eine Entity-ID nennen, die sich ändern würde – HA passt sie nicht an (Bauplan §6.2).
 
 **`baustelle/inventar_umbenennen`** (nur Admins, sonst `unauthorized`; 0.8.109, BSM-031.06b), `container_id` →
 `{id, status, schritte, geaendert, nachgeholt}`. Bildet die Vorschau selbst neu (übernimmt nie die der Seite); bei einem Konflikt

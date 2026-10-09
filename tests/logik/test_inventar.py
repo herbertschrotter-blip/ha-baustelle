@@ -226,3 +226,18 @@ def test_rueckgaengig_umkehr_und_eintragen():
     assert [u["nr"] for u in rest] == [6]   # nochmal: nur der Plug
     fertig, stand = zurueck_eintragen(neu, [{**rest[0], "ergebnis": "ok"}])
     assert stand == "zurueck" and "zurueck_fehler" not in fertig[6]
+
+
+def test_zuordnen_regeln():
+    from logik.inventar import HAENGT, nummer_frei, typ_vorschlag
+    assert typ_vorschlag(schalter=True, klassen=["power", "energy"]) == "PLUG"
+    assert typ_vorschlag(schalter=False, klassen=["temperature", "humidity", "battery"]) == "TEMP"
+    assert typ_vorschlag(schalter=False, klassen=["door", "battery"]) == "DOOR"
+    assert typ_vorschlag(schalter=False, klassen=["window"]) == "FEN"
+    assert typ_vorschlag(schalter=False, klassen=["battery"]) is None
+    assert HAENGT["radiator"] == ("heizkoerper", "oelradiator") and HAENGT["bautrockner"][0] == "bautrockner"
+    assert nummer_frei(4, [1, 2]) == 4
+    with pytest.raises(InventarFehler):
+        nummer_frei(2, [1, 2])
+    with pytest.raises(InventarFehler):
+        nummer_frei(0, [])

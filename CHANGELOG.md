@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.112] – 2026-10-09
+
+- Container-Inventar, Schritt 7 (BSM-031.07, Teil 1): Die Integration kann jetzt Geräte aus Home Assistant ins Inventar
+  aufnehmen und einem Container zuordnen. Ein neuer Shelly wird dabei gleich als Gerät im Container angelegt (Konvektor,
+  Radiator, Bautrockner oder nichts), Fühler und Tür werden am Container eingetragen. Legt man einen Container mit
+  Bereich an, kommt dessen Ausrüstung mit, und für den Bestand lässt sich die bisherige Nummer behalten. Die Vorschau
+  nennt Automationen, Skripte und Dashboards, die noch alte Entity-IDs verwenden.
+- Status der Ausrüstung (BSM-031.08): „verliehen“ und „defekt“ lassen ein Gerät bei der Automatik aus, wie bisher
+  „inaktiv“; „aktiv“ nimmt es wieder auf. Die Seite dazu kommt mit dem nächsten Schritt.
+
 ## [0.8.111] – 2026-10-09
 
 - Container-Inventar, Schritt 6 (BSM-031.06d): Eine Umbenennung lässt sich zurücknehmen – die jüngste je Container, mit

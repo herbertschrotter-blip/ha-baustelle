@@ -18,12 +18,15 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN
 from .db import DATA_DB
 from .db import inventar as db_inventar
+from .inventar_geraete import async_bestand, async_verweise, async_zuordnen, kandidaten, status_uebernehmen
 from .logik.inventar import (
-    CONTAINER_ARTEN, STATUS_AUSRUESTUNG, InventarFehler, aufbereiten, firmenkuerzel_pruefen, praefix, vorschau,
+    CONTAINER_ARTEN, GERAETE, HAENGT, STATUS_AUSRUESTUNG, InventarFehler, aufbereiten, firmenkuerzel_pruefen, nummer_frei,
+    praefix, vorschau,
 )
 from .logik.rechte import darf
 
-AKTIONEN = ("container_anlegen", "container_status", "ausruestung_status", "firma_kuerzel")
+AKTIONEN = ("container_anlegen", "container_status", "ausruestung_status", "firma_kuerzel", "ausruestung_zuordnen",
+            "ausruestung_entfernen")
 
 
 def _db(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> Any:
@@ -60,10 +63,15 @@ async def ws_inventar(hass: HomeAssistant, connection: websocket_api.ActiveConne
     vol.Optional("firma_id"): str,
     vol.Optional("kuerzel"): str,
     vol.Optional("status"): vol.In(["aktiv", "ausgeschieden", *STATUS_AUSRUESTUNG]),
+    vol.Optional("nr"): vol.All(int, vol.Range(min=1, max=999)),
+    vol.Optional("device_id"): str,
+    vol.Optional("typ"): vol.In(list(GERAETE)),
+    vol.Optional("haengt"): vol.In(list(HAENGT)),
 })
 @websocket_api.async_response
 async def ws_inventar_aendern(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
-    """Container anlegen (eigen oder fremd, optional mit Bereich), Status setzen, Firmenkürzel – nur Admins."""
+    """Container anlegen (eigen oder fremd, optional mit Bereich – dann kommt dessen Ausrüstung mit – und eigener Nummer
+    für den Bestand), Status setzen, Firmenkürzel, Ausrüstung zuordnen oder entfernen – nur Admins."""
     if not darf(bool(connection.user and connection.user.is_admin), "inventar_aendern"):
         connection.send_error(msg["id"], websocket_api.ERR_UNAUTHORIZED, "Nur Admins dürfen ändern")
         return
@@ -78,6 +86,11 @@ async def ws_inventar_aendern(hass: HomeAssistant, connection: websocket_api.Act
             raise InventarFehler("Container: Status aktiv oder ausgeschieden")
         if aktion == "ausruestung_status" and msg.get("status") not in STATUS_AUSRUESTUNG:
             raise InventarFehler("Ausrüstung: Status aktiv, verliehen oder defekt")
+        if aktion == "container_anlegen" and msg.get("nr"):
+            if msg.get("firma_kuerzel"):
+                raise InventarFehler("Eine feste Nummer gibt es nur für eigene Container")
+            roh = await db.async_ausfuehren(db_inventar.lesen)
+            nummer_frei(msg["nr"], [c.get("nr") for c in (roh or {}).get("container") or []])
     except InventarFehler as err:
         connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, str(err))
         return
@@ -99,7 +112,10 @@ async def ws_inventar_aendern(hass: HomeAssistant, connection: websocket_api.Act
         def arbeit(v: Any) -> Any:
             return db_inventar.container_anlegen(v, art=msg["art"], baustelle_id=msg["entry_id"], instanz_id=db.instanz_id,
                                                  jetzt=jetzt, firma_kuerzel=msg.get("firma_kuerzel"),
-                                                 bereich_id=msg.get("bereich_id"))
+                                                 bereich_id=msg.get("bereich_id"), nr=msg.get("nr"))
+    elif aktion in ("ausruestung_zuordnen", "ausruestung_entfernen"):
+        await _ausruestung(hass, connection, msg, db)
+        return
     elif aktion == "container_status":
         if fehlt("container_id", "status"):
             return
@@ -123,7 +139,48 @@ async def ws_inventar_aendern(hass: HomeAssistant, connection: websocket_api.Act
     if ergebnis is None or ergebnis is False:
         connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, db.fehler or "nicht gefunden")
         return
+    if aktion == "container_anlegen" and msg.get("bereich_id"):   # Bestand des Bereichs kommt mit (Shellys, Fühler, Tür)
+        ergebnis["ausruestung"] = await async_bestand(hass, db, ergebnis["id"], msg["bereich_id"], msg["entry_id"])
+    if aktion == "ausruestung_status" and (roh := await db.async_ausfuehren(db_inventar.lesen)) is not None:
+        status_uebernehmen(hass, roh, msg["ausruestung_id"], msg["status"])   # BSM-031.08: verliehen/defekt = Automatik lässt aus
     connection.send_result(msg["id"], ergebnis if isinstance(ergebnis, dict) else {"ok": True})
+
+
+async def _ausruestung(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any], db: Any) -> None:
+    """Ausrüstung zuordnen (HA-Gerät → Container, mit Verdrahtung) bzw. entfernen (Einsatz endet, sie wird frei)."""
+    if msg["aktion"] == "ausruestung_entfernen":
+        if not msg.get("ausruestung_id"):
+            connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, "ausruestung_entfernen braucht ausruestung_id")
+            return
+        ok = await db.async_ausfuehren(lambda v: db_inventar.ausruestung_entfernen(v, msg["ausruestung_id"], dt_util.utcnow()))
+        if not ok:
+            connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, db.fehler or "keine laufende Zuordnung")
+            return
+        connection.send_result(msg["id"], {"ok": True})
+        return
+    if not msg.get("container_id") or not msg.get("device_id"):
+        connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, "ausruestung_zuordnen braucht container_id, device_id")
+        return
+    roh = await db.async_ausfuehren(db_inventar.lesen)
+    try:
+        ergebnis = await async_zuordnen(hass, db, roh or {}, msg["container_id"], msg["device_id"], msg.get("typ"), msg.get("haengt"))
+    except LookupError as err:
+        connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, str(err))
+        return
+    except ValueError as err:
+        connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, str(err))
+        return
+    connection.send_result(msg["id"], ergebnis)
+
+
+@websocket_api.websocket_command({vol.Required("type"): "baustelle/inventar_kandidaten"})
+@websocket_api.async_response
+async def ws_inventar_kandidaten(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """HA-Geräte, die als Ausrüstung taugen und frei sind (Zuordnen-Dialog der Seite)."""
+    if (db := _db(hass, connection, msg)) is None:
+        return
+    roh = await db.async_ausfuehren(db_inventar.lesen)
+    connection.send_result(msg["id"], {"geraete": kandidaten(hass, roh or {})})
 
 
 def _geraet(hass: HomeAssistant, entity_id: str | None) -> tuple[dict[str, Any] | None, list[dict[str, Any]], list[str]]:
@@ -196,7 +253,10 @@ async def ws_inventar_vorschau(hass: HomeAssistant, connection: websocket_api.Ac
     if (ergebnis := await async_vorschau(hass, db, msg["container_id"])) is None:
         connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Container ohne Bereich auf einer geladenen Baustelle")
         return
-    connection.send_result(msg["id"], {**ergebnis[1], "hinweis": "BTHome-Namen an den Plugs zieht die Kopplungspflege nach"})
+    v = ergebnis[1]
+    ids = {s["alt"]: s["neu"] for s in v["schritte"] if s["ziel"] == "entitaet_id" and s["alt"] != s["neu"]}
+    connection.send_result(msg["id"], {**v, "verweise": await async_verweise(hass, ids),
+                                       "hinweis": "BTHome-Namen an den Plugs zieht die Kopplungspflege nach"})
 
 
-BEFEHLE = (ws_inventar, ws_inventar_aendern, ws_inventar_vorschau)
+BEFEHLE = (ws_inventar, ws_inventar_aendern, ws_inventar_vorschau, ws_inventar_kandidaten)

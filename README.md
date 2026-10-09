@@ -5,7 +5,7 @@ schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und 
 Vorlage der Oberfläche ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`);
 Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
-## Funktionen (Stand 0.8.111)
+## Funktionen (Stand 0.8.112)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (auch direkt von der Seite aus). Ein Shelly gehört nur
@@ -31,7 +31,8 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 - **Container-Inventar** (im Aufbau, BSM-031): eigene Container mit fester Nummer für die ganze Firma und Fremdcontainer
   mit Firmenkürzel, Ausrüstung mit Status und Geschichte, Namen nach dem Schema (`002_C_MAN`, `002-01_C_PLUG_MAN`,
   deutsche Kürzel). Datenbank und Schnittstelle sind da, Umbenennen nach dem Schema samt Entity-IDs geht über die
-  Schnittstelle (Vorschau, Übernehmen, auch den Namen im Plug, Nachholen, Rückgängig); die Seite folgt (`docs/bauplan-inventar.md`).
+  Schnittstelle (Vorschau, Übernehmen, auch den Namen im Plug, Nachholen, Rückgängig), Geräte aus HA zuordnen samt Verdrahtung,
+  Status verliehen/defekt; die Seite folgt (`docs/bauplan-inventar.md`).
 
 ## Aufbau
 
@@ -61,6 +62,7 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   db/                          eigene Datenbank: Aufbau und Umbau (schema, migration), Schreiber mit Puffer, Umzug und
                                Rückweg SQLite ↔ PostgreSQL, Lesen für Auswertung, Protokoll, Meldungen, Inventar
   inventar.py                  WebSocket-Befehle fürs Container-Inventar (Namen aus logik/inventar.py)
+  inventar_geraete.py          Ausrüstung aus HA: Kandidaten, Zuordnen mit Verdrahtung, Bestand, Status, Verweise
   umbenennen.py                Umbenennen nach dem Schema ausführen (Register, Labels, eigene Verweise, Plug-Name, Nachholen, Rückgängig)
   notprogramm.py, shelly/      Notprogramm: Skript notprogramm.js in die Plugs bringen, Programm, Kopplungen, Nachtrag
   backup.py                    Datenbank während der HA-Sicherung anhalten bzw. abziehen

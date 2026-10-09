@@ -2,7 +2,7 @@
 
 Alle offenen Punkte in einer Reihenfolge zum Abhaken: eigene Datenbank (`bauplan-datenbank.md`), Notprogramm in den
 Shellys (`bauplan-0.7.md` §9) und die Schwachstellen aus der Bewertung vom 04.10.2026 (`bauplan-0.7.md` §7).
-Stand 09.10.2026 (0.8.111). Jeder Schritt ist eine Aufgabe in ClickUp (Liste „BSM Baustrommanager“, Nummer in Klammern, Tag `etappe-a` … `etappe-h`); abgehakt wird hier und dort.
+Stand 09.10.2026 (0.8.112). Jeder Schritt ist eine Aufgabe in ClickUp (Liste „BSM Baustrommanager“, Nummer in Klammern, Tag `etappe-a` … `etappe-h`); abgehakt wird hier und dort.
 
 **Erledigt vorher:** Berechtigungen (0.8.49), GitHub-Prüfläufe grün (0.8.50), WU-0018/FE-0021/FE-0022 (Ticket-Fenster).
 
@@ -86,8 +86,8 @@ nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 - [x] **I4** (BSM-031.04) Mockup: Container anlegen, Ausrüstung zuordnen, Vorschau – abgenommen 08.10.2026, Variante 1 (`mockups/inventar.html`)
 - [x] **I5** (BSM-031.05) WebSocket-API Inventar und Rechte – 0.8.107
 - [x] **I6** (BSM-031.06) Umbenennen ausführen (HA, Plug, BTHome, Labels, Verweise) – 06a Vorschau in 0.8.108, 06b Ausführen in HA in 0.8.109, 06c Plug-Name/Nachholen in 0.8.110, 06d Rückgängig in 0.8.111
-- [ ] **I7** (BSM-031.07) Seite: Inventar, Dialoge, Vorschau
-- [ ] **I8** (BSM-031.08) Status statt „inaktiv“
+- [ ] **I7** (BSM-031.07) Seite: Inventar, Dialoge, Vorschau – Teil 1 Schnittstelle (Zuordnen, Bestand, Verweise) in 0.8.112; offen Teil 2 Seite
+- [ ] **I8** (BSM-031.08) Status statt „inaktiv“ – Schnittstelle in 0.8.112, Anzeige mit I7
 - [ ] **I9** (BSM-031.09) Bestand übernehmen (Kürzel bleiben, alte Namen und Entity-IDs angleichen)
 - [ ] **I10** (BSM-031.10) Aufkleber mit Name und QR-Code (später)
 - [x] **I11** (BSM-032) Container-Symbol anpassbar: Doppelcontainer, Türen 1–2 und Fenster 1–4 mit Lage, Farbe; echter Zustand (Tür offen/zu, Fenster gekippt, Licht an/aus) – erledigt 0.8.68, eingespielt 06.10.2026
