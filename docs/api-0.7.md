@@ -420,4 +420,18 @@ hinweis}` – **ändert nichts**. Für einen Container mit Bereich auf einer gel
 je Schritt `gruppe` (Name des Geräts nach dem Schema), `ziel` (`geraet`, `entitaet_name`, `entitaet_id`, `plug`,
 `unter_eintrag`, `label`), `ref`, `was`, `alt`, `neu`, `zustand` (`gleich`, `aendern`, `neu`, `konflikt`). GG der Plugs:
 vorhandene aus dem Inventar, sonst fortlaufend nach Namen. Die Namen der BTHome-Kopplungen an den Plugs zieht die
-Kopplungspflege (BSM-030) aus den HA-Gerätenamen selbst nach. Übernehmen und Rückgängig folgen (06b–06d).
+Kopplungspflege (BSM-030) aus den HA-Gerätenamen selbst nach. Am Shelly-Gerät zählen nur Schalter, Leistung und
+Energie, mit denen die Integration rechnet; eigene Entitäten der Integration und weitere Messwerte derselben Endung
+bleiben, wie sie sind. Eigene Labels (Bauplan Inventar §5), die nicht mehr passen, stehen als Schritt mit `neu: null`.
+
+**`baustelle/inventar_umbenennen`** (nur Admins, sonst `unauthorized`; 0.8.109, BSM-031.06b), `container_id` →
+`{id, status, schritte, geaendert}`. Bildet die Vorschau selbst neu (übernimmt nie die der Seite); bei einem Konflikt
+Fehler `konflikt` (Nachricht nennt alt → neu) und **nichts** ändert sich, ohne Bereich `not_found`. Sonst in fester
+Reihenfolge: Entitätsregister (Name und Entity-ID), HA-Gerät (`name_by_user`), Labels (fehlende anlegen, nur eigene
+entfernen), dann die eigenen Verweise (Unter-Einträge: Schalter, Leistung, Energie, Fühler, Name des Heizkörpers;
+Optionen; Einstellungen der Bereiche wie Tür und Symbol). Die Steuerung der Baustelle hält dabei an und lädt danach
+einmal neu. Je Schritt `ergebnis`: `ok`, `gleich`, `fehler` (mit `fehler`) oder `offen` (Plug-Name, BTHome – 06c).
+`status`: `ausgefuehrt`, `teilweise` (etwas fehlgeschlagen oder offen) oder `nichts` (in HA schon alles nach Schema;
+dann kein Eintrag). `id` = Zeile in der Tabelle `umbenennung` (mit allen Schritten, für Nachholen und Rückgängig),
+`geaendert` = welche eigenen Verweise angepasst wurden. Im Protokoll der Baustelle eine Zeile „Umbenannt nach Schema
+(NNN_C_ART): …“. Rückgängig folgt (06d).

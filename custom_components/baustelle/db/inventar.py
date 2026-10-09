@@ -83,3 +83,13 @@ def firma_kuerzel(v: Connection, baustelle_id: str, firma_id: str, kuerzel: str)
     k = firmenkuerzel_pruefen(kuerzel)
     return bool(v.execute(update(s.firma).where(s.firma.c.baustelle_id == baustelle_id, s.firma.c.id == firma_id)
                           .values(kuerzel=k)).rowcount)
+
+
+def umbenennung_merken(v: Connection, *, container_id: str, benutzer: str | None, jetzt: datetime,
+                       schritte: list[dict[str, Any]], status: str) -> int:
+    """Eine Umbenennung mit allen Schritten (alt → neu, Ergebnis) für Nachholen und Rückgängig (§6); liefert die Nummer."""
+    r = v.execute(insert(s.umbenennung).values(zeit=jetzt, benutzer=benutzer, container_id=container_id,
+                                               schritte=schritte, status=status))
+    schluessel = r.inserted_primary_key
+    assert schluessel is not None
+    return int(schluessel[0])

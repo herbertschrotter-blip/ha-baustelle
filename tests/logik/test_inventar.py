@@ -123,3 +123,45 @@ def test_vorschau_schon_nach_schema_und_konflikt():
     fremd = vorschau({"art": "MAN", "praefix": "002", "plugs": [_plug(entitaeten=[], bthome=[])]},
                      belegt={"switch.mannschaft_k", "switch.002_01_c_plug_man"})   # Ziel-ID gehört einer fremden Entität
     assert fremd["konflikte"] == {"switch.mannschaft_k": "switch.002_01_c_plug_man"} and fremd["zaehler"]["konflikt"] == 1
+
+
+def test_vorschau_eigene_labels_weg_und_je_endung_ein_messwert():
+    from logik.inventar import vorschau
+    pl = _plug(entitaeten=[{"entity_id": "sensor.k_leistung", "name": "Leistung", "klasse": "power"},
+                           {"entity_id": "sensor.k_leistung_2", "name": "Leistung 2", "klasse": "power"}],
+               bthome=[], labels=["Container", "Lager", "Herberts Liste"])
+    v = vorschau({"art": "MAN", "praefix": "002", "plugs": [pl]}, belegt=set())
+    labels = {(s["alt"], s["neu"]) for s in v["schritte"] if s["ziel"] == "label"}
+    assert labels == {(None, "Mannschaft"), (None, "Shelly Plug"), ("Lager", None)}   # fremdes Label bleibt
+    ids = {s["alt"]: s["neu"] for s in v["schritte"] if s["ziel"] == "entitaet_id"}
+    assert ids["sensor.k_leistung"] == "sensor.002_01_c_plug_man_leistung" and "sensor.k_leistung_2" not in ids
+    assert v["konflikte"] == {}
+
+
+def test_ausfuehrbar_reihenfolge_und_zusammengefasst():
+    from logik.inventar import ausfuehrbar, vorschau
+    v = vorschau({"art": "MAN", "praefix": "002", "plugs": [_plug(labels=["Lager"])]}, belegt=set())
+    plan = ausfuehrbar(v["schritte"])
+    arten = [p["art"] for p in plan]
+    assert arten == sorted(arten, key=("entitaet", "geraet", "label", "unter_eintrag").index)
+    schalter = next(p for p in plan if p["ref"] == "switch.mannschaft_k")
+    assert (schalter["name"], schalter["entity_id"]) == ("002-01_C_PLUG_MAN", "switch.002_01_c_plug_man")
+    label = next(p for p in plan if p["art"] == "label")
+    assert label["dazu"] == ["Container", "Mannschaft", "Shelly Plug"] and label["weg"] == ["Lager"]
+    assert next(p for p in plan if p["art"] == "unter_eintrag")["name"] == "002-01_C_HZ_MAN_Konvektor01"
+    assert not any(p["art"] in ("plug", "bthome") for p in plan)   # macht nicht HA (06c)
+
+
+def test_verweise_tauschen_und_status():
+    from logik.inventar import ids_getauscht, status, verweise_tauschen
+    schritte = [{"ziel": "entitaet_id", "alt": "switch.a", "neu": "switch.b", "ergebnis": "ok"},
+                {"ziel": "entitaet_id", "alt": "sensor.c", "neu": "sensor.d", "ergebnis": "fehler"},
+                {"ziel": "entitaet_name", "alt": None, "neu": "B", "ergebnis": "ok"}]
+    ids = ids_getauscht(schritte)
+    assert ids == {"switch.a": "switch.b"}
+    einst = {"tuer": "switch.a", "soll": 20, "symbol": {"tueren": [{"wand": "front", "sensor": "switch.a"}], "licht": None}}
+    assert verweise_tauschen(einst, ids) == {"tuer": "switch.b", "soll": 20,
+                                             "symbol": {"tueren": [{"wand": "front", "sensor": "switch.b"}], "licht": None}}
+    assert status(schritte) == "teilweise"
+    assert status([{"ergebnis": "ok"}, {"ergebnis": "gleich"}]) == "ausgefuehrt"
+    assert status([{"ergebnis": "ok"}, {"ergebnis": "offen"}]) == "teilweise"   # Plug-Name kommt mit 06c

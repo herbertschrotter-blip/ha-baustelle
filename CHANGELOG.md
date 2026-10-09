@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.109] – 2026-10-09
+
+- Container-Inventar, Schritt 4 (BSM-031.06b): Umbenennen übernehmen – als Admin bringt die Integration HA-Gerät,
+  Entitäten samt Entity-IDs, Labels und den Heizkörper eines Containers auf das Schema und passt ihre eigenen Verweise
+  (Shelly, Leistung, Energie, Fühler, Tür, Symbol) mit an. Verlauf und Langzeitstatistik zieht HA mit. Bei einem
+  Konflikt ändert sie nichts. Jede Umbenennung steht im Protokoll und mit allen Schritten in der Datenbank. Den Namen im
+  Plug selbst setzt der nächste Schritt. Noch ohne Knopf auf der Seite.
+
 ## [0.8.108] – 2026-10-08
 
 - Container-Inventar, Schritt 3 (BSM-031.06a): Vorschau der Umbenennung – für einen Container zeigt die Integration,

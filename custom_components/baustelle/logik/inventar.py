@@ -210,16 +210,23 @@ def _entitaet(e: Mapping[str, Any], name: str) -> list[dict[str, Any]]:
 
 
 def _messwerte(geraet: str, entitaeten: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Je Endung nur die erste Entität (zwei gleiche Namen gingen nicht; weitere bleiben, wie sie sind)."""
     aus: list[dict[str, Any]] = []
+    vergeben: set[str] = set()
     for e in entitaeten:
-        if endung := ENDUNG_JE_KLASSE.get(str(e.get("klasse") or "")):
+        if (endung := ENDUNG_JE_KLASSE.get(str(e.get("klasse") or ""))) and endung not in vergeben:
+            vergeben.add(endung)
             aus += _entitaet(e, messwert_name(geraet, endung))
     return aus
 
 
 def _labels(ref: str, soll: list[str], ist: Iterable[str]) -> list[dict[str, Any]]:
-    vorhanden = set(ist)
-    return [_schritt("label", ref, "Label", None, label) for label in soll if label not in vorhanden]
+    """Fehlende Labels dazu; eigene Labels (§5), die nicht mehr passen (andere Art), weg – fremde bleiben."""
+    vorhanden = list(dict.fromkeys(ist))
+    dazu = [_schritt("label", ref, "Label", None, label) for label in soll if label not in vorhanden]
+    weg = [_schritt("label", ref, "Label", label, None) for label in vorhanden
+           if label in eigene_labels() and label not in soll]
+    return dazu + weg
 
 
 def vorschau(eingabe: Mapping[str, Any], belegt: Iterable[str] = ()) -> dict[str, Any]:
@@ -267,3 +274,52 @@ def vorschau(eingabe: Mapping[str, Any], belegt: Iterable[str] = ()) -> dict[str
             s["zustand"] = "konflikt"
     zaehler = {z: sum(1 for s in schritte if s["zustand"] == z) for z in ("aendern", "neu", "gleich", "konflikt")}
     return {"schritte": schritte, "konflikte": konfl, "zaehler": zaehler}
+
+
+# ---------------------------------------------------------------------- Umbenennen ausführen (BSM-031.06b, §6)
+ERGEBNIS_ERLEDIGT = ("ok", "gleich")
+
+
+def ausfuehrbar(schritte: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Was in HA zu tun ist, nach Ziel zusammengefasst und in der festen Reihenfolge (§6.3): je Entität Name und
+    Entity-ID in einem Schritt, dann HA-Gerät, Labels, Unter-Eintrag. Plug-Name und BTHome macht nicht HA (06c)."""
+    reihenfolge = ("entitaet", "geraet", "label", "unter_eintrag")
+    aus: dict[tuple[str, str], dict[str, Any]] = {}
+    for s in schritte:
+        if s["zustand"] in ("gleich", "konflikt") or s["ziel"] in ("plug", "bthome"):
+            continue
+        art = "entitaet" if s["ziel"] in ("entitaet_name", "entitaet_id") else s["ziel"]
+        eintrag = aus.setdefault((art, s["ref"]), {"art": art, "ref": s["ref"], "dazu": [], "weg": []})
+        if s["ziel"] == "entitaet_name":
+            eintrag["name"] = s["neu"]
+        elif s["ziel"] == "entitaet_id":
+            eintrag["entity_id"] = s["neu"]
+        elif art == "label":
+            (eintrag["dazu"] if s["neu"] else eintrag["weg"]).append(s["neu"] or s["alt"])
+        else:
+            eintrag["name"] = s["neu"]
+    return sorted(aus.values(), key=lambda e: reihenfolge.index(e["art"]))
+
+
+def ids_getauscht(schritte: Iterable[Mapping[str, Any]]) -> dict[str, str]:
+    """{alte Entity-ID: neue} der erledigten Schritte – für die eigenen Verweise der Integration."""
+    return {s["alt"]: s["neu"] for s in schritte
+            if s["ziel"] == "entitaet_id" and s.get("ergebnis") == "ok" and s["alt"] != s["neu"]}
+
+
+def verweise_tauschen(wert: Any, ids: Mapping[str, str]) -> Any:
+    """Entity-IDs in Einstellungen und Unter-Einträgen (auch verschachtelt, z. B. Symbol mit Tür- und Fenstersensoren)
+    durch die neuen ersetzen; alles andere bleibt."""
+    if isinstance(wert, str):
+        return ids.get(wert, wert)
+    if isinstance(wert, Mapping):
+        return {k: verweise_tauschen(w, ids) for k, w in wert.items()}
+    if isinstance(wert, list):
+        return [verweise_tauschen(w, ids) for w in wert]
+    return wert
+
+
+def status(schritte: Iterable[Mapping[str, Any]]) -> str:
+    """`ausgefuehrt`, wenn jeder Schritt erledigt ist; sonst `teilweise` (fehlgeschlagen oder noch offen, z. B. der
+    Plug-Name) – die fehlenden lassen sich nachholen (§6.5)."""
+    return "ausgefuehrt" if all(s.get("ergebnis") in ERGEBNIS_ERLEDIGT for s in schritte) else "teilweise"

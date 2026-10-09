@@ -116,6 +116,7 @@ class Steuerung:
         self._in_auswertung = False
         self._nochmal = False
         self._gestoppt = False
+        self.neu_laden_folgt = False   # BSM-031.06b: Umbenennen lädt am Ende einmal neu, nicht je geändertem Unter-Eintrag
         self._beobachtet: set[str] = set()
         # Funktionen der Baustelle (funktionen/): Bereiche je Art, Geräte je Rolle gehören genau einer Funktion
         self.funktionen: list[Funktion] = [f(self) for f in FUNKTIONEN]

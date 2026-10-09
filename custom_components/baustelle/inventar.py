@@ -127,7 +127,8 @@ async def ws_inventar_aendern(hass: HomeAssistant, connection: websocket_api.Act
 
 
 def _geraet(hass: HomeAssistant, entity_id: str | None) -> tuple[dict[str, Any] | None, list[dict[str, Any]], list[str]]:
-    """HA-Gerät hinter einer Entität: ({id, name}, Entitäten des Geräts mit Klasse, Label-Namen)."""
+    """HA-Gerät hinter einer Entität: ({id, name}, Entitäten des Geräts mit Klasse, Label-Namen). Eigene Entitäten der
+    Integration (hängen am Shelly-Gerät, z. B. „Ø Leistung“) behalten ihre Namen und fehlen hier."""
     ents, devs, labs = er.async_get(hass), dr.async_get(hass), lr.async_get(hass)
     eintrag = ents.async_get(entity_id or "")
     geraet = devs.async_get(eintrag.device_id) if eintrag is not None and eintrag.device_id else None
@@ -135,7 +136,7 @@ def _geraet(hass: HomeAssistant, entity_id: str | None) -> tuple[dict[str, Any] 
         return None, [], []
     entitaeten = [{"entity_id": e.entity_id, "name": e.name or e.original_name,
                    "klasse": e.device_class or e.original_device_class}
-                  for e in er.async_entries_for_device(ents, geraet.id) if e.disabled_by is None]
+                  for e in er.async_entries_for_device(ents, geraet.id) if e.disabled_by is None and e.platform != DOMAIN]
     namen = [lab.name for i in geraet.labels if (lab := labs.async_get_label(i)) is not None]
     return {"id": geraet.id, "name": geraet.name_by_user or geraet.name, "original": geraet.name}, entitaeten, namen
 
@@ -161,8 +162,9 @@ def vorschau_eingabe(hass: HomeAssistant, roh: dict[str, Any], container_id: str
             gg = naechstes
         geraet, entitaeten, namen = _geraet(hass, g.schalter)
         schalter = next((e for e in entitaeten if e["entity_id"] == g.schalter), None) or {"entity_id": g.schalter, "name": None}
+        messwerte = [e for e in entitaeten if e["entity_id"] in (g.leistung, g.energie)]   # nur die, mit denen sie zählt
         plugs.append({"gg": gg, "geraet_id": g.id, "name": g.name, "rolle": g.rolle, "typ": g.typ, "geraet": geraet,
-                      "schalter": schalter, "entitaeten": [e for e in entitaeten if e["entity_id"] != g.schalter],
+                      "schalter": schalter, "entitaeten": messwerte,
                       "plug_name": geraet["original"] if geraet else None, "labels": namen})
     sensoren = []
     for typ, entity_id in (("TEMP", st.bereiche[bid].fuehler), ("DOOR", st.einstellungen.bereich(bid).get("tuer"))):
@@ -171,7 +173,18 @@ def vorschau_eingabe(hass: HomeAssistant, roh: dict[str, Any], container_id: str
             sensoren.append({"typ": typ, "geraet": geraet, "entitaeten": entitaeten, "labels": namen})
     firma = next((f["name"] for f in roh["firmen"] if c.get("firma_kuerzel") and f.get("kuerzel") == c["firma_kuerzel"]), None)
     return {"art": c["art"], "firma": firma, "plugs": plugs, "sensoren": sensoren,
+            "baustelle_id": einsatz["baustelle_id"], "bereich_id": bid,
             "praefix": praefix(nr=c.get("nr"), firma=c.get("firma_kuerzel"), fremd_nr=c.get("fremd_nr"))}
+
+
+async def async_vorschau(hass: HomeAssistant, db: Any, container_id: str) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """(Eingabe, Vorschau) eines Containers mit Bereich auf einer geladenen Baustelle, sonst None – auch fürs Ausführen."""
+    roh = await db.async_ausfuehren(db_inventar.lesen)
+    eingabe = vorschau_eingabe(hass, roh, container_id) if roh is not None else None
+    if eingabe is None:
+        return None
+    belegt = set(er.async_get(hass).entities) | set(hass.states.async_entity_ids())
+    return eingabe, vorschau(eingabe, belegt)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "baustelle/inventar_vorschau", vol.Required("container_id"): str})
@@ -180,14 +193,10 @@ async def ws_inventar_vorschau(hass: HomeAssistant, connection: websocket_api.Ac
     """Vorschau alt → neu für einen Container (BSM-031.06a) – ändert nichts."""
     if (db := _db(hass, connection, msg)) is None:
         return
-    roh = await db.async_ausfuehren(db_inventar.lesen)
-    eingabe = vorschau_eingabe(hass, roh, msg["container_id"]) if roh is not None else None
-    if eingabe is None:
+    if (ergebnis := await async_vorschau(hass, db, msg["container_id"])) is None:
         connection.send_error(msg["id"], websocket_api.ERR_NOT_FOUND, "Container ohne Bereich auf einer geladenen Baustelle")
         return
-    belegt = set(er.async_get(hass).entities) | set(hass.states.async_entity_ids())
-    connection.send_result(msg["id"], {**vorschau(eingabe, belegt),
-                                       "hinweis": "BTHome-Namen an den Plugs zieht die Kopplungspflege nach"})
+    connection.send_result(msg["id"], {**ergebnis[1], "hinweis": "BTHome-Namen an den Plugs zieht die Kopplungspflege nach"})
 
 
 BEFEHLE = (ws_inventar, ws_inventar_aendern, ws_inventar_vorschau)

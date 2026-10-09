@@ -204,4 +204,6 @@ async def async_remove_config_entry_device(
 
 
 async def _neu_laden(hass: HomeAssistant, entry: BaustelleConfigEntry) -> None:
+    if getattr(entry, "runtime_data", None) is not None and entry.runtime_data.neu_laden_folgt:
+        return   # Umbenennen (umbenennen.py) ändert mehrere Unter-Einträge und lädt danach selbst einmal neu
     hass.config_entries.async_schedule_reload(entry.entry_id)
