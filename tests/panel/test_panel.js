@@ -311,7 +311,8 @@ async function allgemein() {
     erwarte('WU-0008: mit Shelly fragt der Dialog, welche Heizung daran hängt', ui.innerHTML.includes('Welche Heizung hängt an diesem Shelly?') && ui.innerHTML.includes('data-f="typ"'));
     eingabe({ f: 'typ' }, 'Konvektor');
     await klick({ act: 'neu-anlegen' }, 40);
-    erwarte('Neuer Container über die Subentry-Dialoge', api.filter(a => a[1] === 'config/config_entries/subentries/flow').length === 2);
+    erwarte('Neuer Container: Bereich über den Subentry-Dialog, Shelly über baustelle/geraet', api.filter(a => a[1] === 'config/config_entries/subentries/flow').length === 1
+      && letzte('baustelle/geraet').some(m => m.aktion === 'speichern' && m.schritte[0].aktion === 'anlegen' && m.schritte[0].schalter === frei[0]));
   }
   const x = C().find(b => b.tuer) || C()[0], an = d().anschluesse.find(a => a.id !== x.anschluss) || d().anschluesse[0], fi = d().firmen.find(f => f.id !== x.firma);
   await klick({ act: 'container', id: x.id }, 20); neu(); await klick({ act: 'sheet', s: 'bereich' });
@@ -321,9 +322,11 @@ async function allgemein() {
   if (x.geraete.length > 1) await klick(`.sheet .ge-zeile[data-i=\"${String(x.geraete.length - 1)}\"] .x`);
   if (frei[1]) { await klick('.sheet > button.zeile'); eingabe({ f: 'schalter', i: String(x.geraete.length) }, frei[1]); eingabe({ f: 'n', i: String(x.geraete.length) }, 'Heizung neu'); }
   await klick({ act: 'b-speichern' }, 60);
+  const schritte = letzte('baustelle/geraet').flatMap(m => m.schritte || []);
   if (hk >= 0 && !x.geraete[hk].leistungEigen) erwarte('BSM-034.01: Speichern schreibt automatisch gefundene Sensoren nicht fest',
-    !api.some(a => a[2] && a[2].schalter === x.geraete[hk].schalter && (a[2].leistung || a[2].energie)));
-  erwarte('Bearbeiten: Name, Gerät ändern/hinzufügen über Subentry-Dialoge', api.some(a => a[2] && a[2].subentry_id === x.id) && (!frei[1] || api.some(a => a[2] && a[2].schalter === frei[1])));
+    !schritte.some(s => s.schalter === x.geraete[hk].schalter && (s.leistung || s.energie)));
+  erwarte('Bearbeiten: Name über Subentry-Dialog, Geräte ändern/hinzufügen über baustelle/geraet (BSM-034.02)', api.some(a => a[2] && a[2].subentry_id === x.id)
+    && (hk < 0 || schritte.some(s => s.aktion === 'aendern' && s.geraet === x.geraete[hk].id)) && (!frei[1] || schritte.some(s => s.aktion === 'anlegen' && s.schalter === frei[1])));
   erwarte('Bearbeiten: Tür, Anschluss, Bedarf über baustelle/setzen', ['tuer', 'bedarf'].every(k => letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', x.id, k]))));
   if (an.id !== x.anschluss) erwarte('Bearbeiten: Anschluss', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', x.id, 'anschluss'])));
   if (x.groesse) {   // AN-0014: Größe – Doppel speichert die Fläche der Integration, m² frei den eingetragenen Wert
@@ -706,10 +709,9 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   // Einrichtungs-Dialoge von HA
   neu(); await klick({ act: 'sheet', s: 'container-neu' }); eingabe({ f: 'name' }, 'Lager Ost'); eingabe({ f: 'schalter' }, 'switch.heizung_03'); await ruhe(); eingabe({ f: 'typ' }, 'Konvektor'); eingabe({ f: 'fuehler' }, 'sensor.polier_temperatur');
   await klick({ act: 'neu-anlegen' }, 40);
-  const bFlow = api.find(a => a[1].endsWith('subentries/flow/F1')), gStart = api.find(a => a[1] === 'config/config_entries/subentries/flow' && JSON.stringify(a[2].handler) === '["dobl","geraet"]');
-  const gDaten = gStart && api.find(a => a[1].endsWith('subentries/flow/F' + (api.indexOf(gStart) + 1)));
+  const bFlow = api.find(a => a[1].endsWith('subentries/flow/F1')), gDaten = letzte('baustelle/geraet').flatMap(m => m.schritte || []).find(s => s.aktion === 'anlegen');
   erwarte('Neuer Container: Bereich-Dialog', bFlow && bFlow[2].name === 'Lager Ost' && bFlow[2].art === 'container' && bFlow[2].fuehler === 'sensor.polier_temperatur');
-  erwarte('Neuer Container: Geräte-Dialog', gDaten && gDaten[2].schalter === 'switch.heizung_03' && gDaten[2].rolle === 'heizkoerper' && gDaten[2].typ === 'konvektor' && /^neu-/.test(gDaten[2].bereich));
+  erwarte('Neuer Container: Shelly über baustelle/geraet', gDaten && gDaten.schalter === 'switch.heizung_03' && gDaten.rolle === 'heizkoerper' && gDaten.typ === 'konvektor' && /^neu-/.test(gDaten.bereich));
   await klick({ act: 'container', id: 'mannschaft' }, 20); neu(); await klick({ act: 'sheet', s: 'bereich' });
   eingabe({ f: 'name' }, 'Mannschaft 1'); eingabe({ f: 'tuer' }, 'binary_sensor.tuer_mannschaft'); eingabe({ f: 'firma' }, 'huber'); eingabe({ f: 'anschluss' }, 'sued');
   await klick(`.sheet .ge-zeile[data-i=\"${'2'}\"] .x`); await klick('.sheet > button.zeile'); eingabe({ f: 'schalter', i: '3' }, 'switch.heizung_04'); eingabe({ f: 'n', i: '3' }, 'Heizung 04');
@@ -719,11 +721,14 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
   erwarte('Bearbeiten: Name über Subentry-Dialog (reconfigure)', api.some(a => a[2] && a[2].subentry_id === 'mannschaft' && JSON.stringify(a[2].handler) === '["dobl","bereich"]'));
   erwarte('Bearbeiten: Tür, Anschluss, Bedarf', ['tuer', 'anschluss', 'bedarf'].every(k => sp.some(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', 'mannschaft', k]))));
   erwarte('Bearbeiten: Firma „ab jetzt“', letzte('baustelle/liste').some(a => a.liste === 'firmen' && a.eintrag.id === 'huber' && a.eintrag.container.includes('mannschaft')));
-  erwarte('Bearbeiten: Gerät entfernen', letzte('config_entries/subentries/delete').some(a => a.subentry_id === 'mannschaft_t'));
-  erwarte('Bearbeiten: Gerät ändern (reconfigure)', api.some(a => a[2] && a[2].subentry_id === 'mannschaft_k'));
-  erwarte('Bearbeiten: Gerät hinzufügen', api.some(a => a[2] && a[2].schalter === 'switch.heizung_04' && a[2].bereich === 'mannschaft'));
+  { const sr = letzte('baustelle/geraet').flatMap(m => m.schritte || []);
+    erwarte('Bearbeiten: Gerät entfernen über baustelle/geraet', sr.some(s => s.aktion === 'entfernen' && s.geraet === 'mannschaft_t') && !letzte('config_entries/subentries/delete').length);
+    erwarte('Bearbeiten: Gerät ändern über baustelle/geraet', sr.some(s => s.aktion === 'aendern' && s.geraet === 'mannschaft_k' && s.typ === 'oelradiator'));
+    erwarte('Bearbeiten: Gerät hinzufügen über baustelle/geraet', sr.some(s => s.aktion === 'anlegen' && s.schalter === 'switch.heizung_04' && s.bereich === 'mannschaft'));
+    erwarte('Bearbeiten: alle Geräte in einem Aufruf', letzte('baustelle/geraet').length === 1); }
   await klick({ act: 'container', id: 'lager' }, 20); neu(); await klick({ act: 'sheet', s: 'bereich' }); await klick({ act: 'b-weg' }, 40);
-  erwarte('Container entfernen', ['lager_r', 'lager'].every(id => letzte('config_entries/subentries/delete').some(a => a.subentry_id === id)));
+  erwarte('Container entfernen: Geräte über baustelle/geraet (Inventar), Container über den Subentry',
+    letzte('baustelle/geraet').some(m => m.schritte.some(s => s.aktion === 'entfernen' && s.geraet === 'lager_r')) && letzte('config_entries/subentries/delete').some(a => a.subentry_id === 'lager'));
   neu(); await klick({ act: 'sheet', s: 'wetterquelle' }); eingabe({ f: 'regen_sensor' }, 'sensor.regen_dobl'); eingabe({ f: 'termine_kalender' }, 'calendar.baustelle_urlaub'); await klick({ act: 'wetterquelle-speichern' }, 40);
   const opt = api.find(a => /options\/flow\/F/.test(a[1]));
   erwarte('Wetter über den Options-Dialog', opt && opt[2].wetter === 'weather.dobl' && opt[2].regen_sensor === 'sensor.regen_dobl' && opt[2].status === 'aktiv');
@@ -854,8 +859,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       g0.status = vorher; g0.aktiv = vorher === 'aktiv'; await panel.neuZeichnen(); }
     await klick({ act: 'g-bearbeiten', i: '0' });
     neu(); eingabe({ f: 'n' }, 'Radiator Nord'); await klick({ act: 'gf-speichern' }, 30);
-    { const o = api.find(a => /subentries\/flow/.test(a[1]) && a[2] && a[2].subentry_id); const f = api.find(a => /subentries\/flow\/F/.test(a[1]));
-      erwarte('WU-0004: Gerät bearbeiten über den Subentry-Dialog', o && JSON.stringify(o[2].handler) === '["dobl","geraet"]' && f && f[2].name === 'Radiator Nord'); }
+    { const s = letzte('baustelle/geraet').flatMap(m => m.schritte || []).find(x => x.aktion === 'aendern');
+      erwarte('WU-0004/BSM-034.02: Gerät bearbeiten über baustelle/geraet', s && s.name === 'Radiator Nord' && s.geraet && !api.some(a => /subentries\/flow/.test(a[1]))); }
     await klick({ act: 'sheet', s: 'bereich' }); erwarte('WU-0004: ✎ je Gerät in Bearbeiten', ui.innerHTML.includes('class="bs-ic nur-admin"'));
     await klick({ act: 'g-bearbeiten', i: '0' }); await klick({ act: 'zu' }); erwarte('WU-0004: zurück zu Bearbeiten', panel.s.sheet && panel.s.sheet.art === 'bereich');
     await klick({ act: 'zu' }); }

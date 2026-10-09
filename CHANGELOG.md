@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.117] – 2026-10-09
+
+- Geräte über eine Stelle (BSM-034.02, Lieferung 2): Anlegen, Ändern, Verschieben und Entfernen von Shellys auf der Seite
+  (Bearbeiten, ✎ Gerät, Container anlegen, Container entfernen) gehen über die Integration statt über die HA-Dialoge.
+  Alle Änderungen eines Dialogs in einem Aufruf: erst geprüft (dieselben Regeln wie der HA-Dialog, auch beim Zuordnen
+  im Inventar – z. B. keine Pumpe in einen Container), dann am Stück und danach einmal neu geladen. Das Inventar zieht
+  mit: Entfernen gibt die Ausrüstung frei, Verschieben beendet den Einsatz im alten Container und beginnt einen im
+  neuen. Verständliche Fehlermeldungen statt Dialog-Fehler.
+
 ## [0.8.116] – 2026-10-09
 
 - Ein Status je Gerät (BSM-034.02, Lieferung 1): aktiv, inaktiv, verliehen oder defekt – an einer Stelle in der

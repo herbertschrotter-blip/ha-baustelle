@@ -160,6 +160,35 @@ def status_fuer_geraet(v: Connection, geraet_id: str, status: str) -> bool:
     return bool(v.execute(update(s.ausruestung).where(s.ausruestung.c.id.in_(ids)).values(status=status)).rowcount)
 
 
+def container_von_bereich(v: Connection, bereich_id: str) -> str | None:
+    """Container, mit dem der Bereich verknüpft ist (Inventar), sonst None."""
+    return v.execute(select(s.bereich.c.container_id).where(s.bereich.c.id == bereich_id)).scalar()
+
+
+def geraet_entfernt(v: Connection, geraet_id: str, jetzt: datetime) -> int:
+    """Gerät (Unter-Eintrag) gelöscht: laufenden Einsatz seiner Ausrüstung beenden – sie wird frei (BSM-034.02)."""
+    lfd = s.ausruestung_einsatz
+    return v.execute(update(lfd).where(lfd.c.geraet_id == geraet_id, lfd.c.bis.is_(None)).values(bis=jetzt)).rowcount
+
+
+def geraet_im_container(v: Connection, *, kennung: str, modell: str | None, container_id: str | None, geraet_id: str,
+                        jetzt: datetime) -> dict[str, Any] | None:
+    """Gerät (Shelly) steckt jetzt im Bereich mit `container_id` (None = Bereich ohne Inventar): ein laufender Einsatz in
+    einem anderen Container endet, im neuen beginnt einer (PLUG, nächste GG). Defekte Ausrüstung bleibt draußen.
+    Was HA sagt, gilt – der Abgleich (BSM-034.04) zieht das Inventar nach, nicht umgekehrt."""
+    lfd = s.ausruestung_einsatz
+    a = v.execute(select(s.ausruestung).where(s.ausruestung.c.kennung == kennung)).first()
+    if a is not None:
+        v.execute(update(lfd).where(lfd.c.ausruestung_id == a.id, lfd.c.bis.is_(None),
+                                    lfd.c.container_id != (container_id or "")).values(bis=jetzt))
+    v.execute(update(lfd).where(lfd.c.geraet_id == geraet_id, lfd.c.bis.is_(None),
+                                lfd.c.container_id != (container_id or "")).values(bis=jetzt))
+    if container_id is None or (a is not None and a.status == "defekt"):
+        return None
+    return ausruestung_zuordnen(v, kennung=kennung, typ="PLUG", modell=modell, container_id=container_id,
+                                geraet_id=geraet_id, jetzt=jetzt)
+
+
 def ausruestung_entfernen(v: Connection, aid: str, jetzt: datetime) -> bool:
     """Laufenden Einsatz einer Ausrüstung beenden (sie wird frei); ihre Geschichte bleibt."""
     lfd = s.ausruestung_einsatz

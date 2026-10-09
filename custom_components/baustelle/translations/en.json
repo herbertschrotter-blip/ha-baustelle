@@ -156,6 +156,8 @@
         "schalter_vergeben": "This Shelly is already assigned here.",
         "schalter_andere_baustelle": "This Shelly belongs to another active site.",
         "kein_bereich": "Add a container or area first.",
+        "kein_name": "Please enter a name.",
+        "kein_schalter": "Please choose a switch.",
         "rolle_passt_nicht": "Pumps go into a pump shaft, everything else into a container."
       },
       "abort": {

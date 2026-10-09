@@ -49,7 +49,6 @@ from .const import (
     CONF_WETTER,
     DOMAIN,
     ROLLE_HEIZKOERPER,
-    ROLLE_PUMPE,
     ROLLEN,
     STATUS_ABGESCHLOSSEN,
     STATUS_AKTIV,
@@ -58,7 +57,7 @@ from .const import (
     TYP_KONVEKTOR,
     TYPEN,
 )
-from .logik import zeitraum
+from .logik import geraete as geraete_logik, zeitraum
 
 MONATE = [str(m) for m in range(1, 13)]
 
@@ -91,6 +90,18 @@ def _eigene_entitaeten(hass: HomeAssistant) -> list[str]:
 def _empfaenger(hass: HomeAssistant) -> list[str]:
     """Benachrichtigungsdienste, z. B. mobile_app_<handy> der Companion App."""
     return sorted(s for s in hass.services.async_services_for_domain("notify") if s != "send_message")
+
+
+def geraet_pruefen(hass: HomeAssistant, entry: ConfigEntry, schalter: str, rolle: str, bereich_id: str,
+                   eigene_id: str | None, name: str = "x") -> str | None:
+    """Fehlerschlüssel für einen Shelly in einem Bereich dieser Baustelle (logik/geraete.pruefen) oder None."""
+    bereich = entry.subentries.get(bereich_id)
+    return geraete_logik.pruefen(
+        schalter=schalter, rolle=rolle, name=name,
+        bereich_art=bereich.data[CONF_ART] if bereich is not None and bereich.subentry_type == SUB_BEREICH else None,
+        vergeben_hier=any(s.subentry_type == SUB_GERAET and s.data.get(CONF_SCHALTER) == schalter and s.subentry_id != eigene_id
+                          for s in entry.subentries.values()),
+        andere_baustelle=schalter in geraete_anderer_baustellen(hass, entry.entry_id))
 
 
 def geraete_anderer_baustellen(hass: HomeAssistant, ausser_entry_id: str) -> set[str]:
@@ -290,21 +301,9 @@ class GeraetSubentryFlow(ConfigSubentryFlow):
         )
 
     def _pruefen(self, user_input: dict[str, Any], eigene_id: str | None) -> str | None:
-        entry = self._get_entry()
-        schalter = user_input[CONF_SCHALTER]
-        if schalter in geraete_anderer_baustellen(self.hass, entry.entry_id):
-            return "schalter_andere_baustelle"
-        if any(
-            s.subentry_type == SUB_GERAET and s.data[CONF_SCHALTER] == schalter and s.subentry_id != eigene_id
-            for s in entry.subentries.values()
-        ):
-            return "schalter_vergeben"
-        bereich = entry.subentries.get(user_input[CONF_BEREICH])
-        if bereich is None:
-            return "kein_bereich"
-        if (bereich.data[CONF_ART] == ART_PUMPENSCHACHT) != (user_input[CONF_ROLLE] == ROLLE_PUMPE):
-            return "rolle_passt_nicht"
-        return None
+        """Regeln aus logik/geraete.pruefen (dieselben wie auf der Seite, BSM-034.02)."""
+        return geraet_pruefen(self.hass, self._get_entry(), user_input[CONF_SCHALTER], user_input[CONF_ROLLE],
+                              user_input[CONF_BEREICH], eigene_id, user_input[CONF_NAME])
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         if not self._bereiche():

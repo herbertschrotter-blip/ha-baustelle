@@ -526,16 +526,17 @@ async def test_seite_gegen_echte_struktur(hass: HomeAssistant, echte_baustelle) 
     for erwartet in ("baustelle/setzen", "baustelle/liste", "baustelle/aktion", "baustelle/protokoll",
                      "baustelle/bericht", "baustelle/auswertung", "baustelle/abrechnung", "baustelle/meldung", "baustelle/meldungen", "calendar/event/create",
                      "calendar/event/delete", "auth/sign_path", "config_entries/update",
-                     "config_entries/subentries/delete", "rest"):
+                     "baustelle/geraet", "rest"):
         assert erwartet in typen, f"Seite sendet {erwartet} nicht (gesendet: {sorted(typen)})"
     fehler: list[str] = []
     geschickt = 0
     assert await async_setup_component(hass, "config", {})  # WebSocket config_entries/* und die Dialoge
     dialoge = Dialoge(hass)
     # Kennungen, die der Node-Test neuen Containern gibt („neu-<n>“), in der Reihenfolge ihres Auftretens
-    dialoge._neue_ids = list(dict.fromkeys(
-        v for m in aufrufe if m["type"] == "rest" and isinstance(m.get("daten"), dict)
-        for v in [m["daten"].get("bereich")] if isinstance(v, str) and v.startswith("neu-")))
+    dialoge._neue_ids = list(dict.fromkeys(   # Geräte neuer Container: über baustelle/geraet (BSM-034.02), früher REST
+        v for m in aufrufe
+        for d in ([m["daten"]] if m["type"] == "rest" and isinstance(m.get("daten"), dict) else m.get("schritte") or [])
+        for v in [d.get("bereich")] if isinstance(v, str) and v.startswith("neu-")))
     for m in aufrufe:
         m = {k: v for k, v in m.items() if k not in ("id",)}
         if m.get("entry_id") == "leer" and m["type"] in ("baustelle/auswertung", "baustelle/abrechnung"):

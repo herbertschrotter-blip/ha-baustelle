@@ -63,11 +63,12 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
                                Rückweg SQLite ↔ PostgreSQL, Lesen für Auswertung, Protokoll, Meldungen, Inventar
   inventar.py                  WebSocket-Befehle fürs Container-Inventar (Namen aus logik/inventar.py)
   inventar_geraete.py          Ausrüstung aus HA: Kandidaten, Zuordnen mit Verdrahtung, Bestand, Status, Verweise
+  geraete.py                   WebSocket-Befehl baustelle/geraet: Status, Geräte anlegen/ändern/entfernen (über kern/geraete)
   umbenennen.py                Umbenennen nach dem Schema ausführen (Register, Labels, eigene Verweise, Plug-Name, Nachholen, Rückgängig)
   notprogramm.py, shelly/      Notprogramm: Skript notprogramm.js in die Plugs bringen, Programm, Kopplungen, Nachtrag
   backup.py                    Datenbank während der HA-Sicherung anhalten bzw. abziehen
   steuerung.py                 Kern: Zustand, Ereignisse, Auswertung, Protokoll, Status; leitet weiter an kern/
-  kern/                        Einrichtung, Wetter, Kalender, Staffelung, Schalten, Warnungen, Zähler (BSM-023)
+  kern/                        Einrichtung, Wetter, Kalender, Staffelung, Schalten, Warnungen, Zähler (BSM-023), Geräte (BSM-034)
   auswertung.py                Langzeitstatistik holen und logik/auswertung rechnen lassen (Seite, Bericht, CSV)
   nachrichten.py               Handy-Nachrichten mit Knöpfen, Frühstart-Hinweis, Wochen-/Monatsbericht
   config_flow.py               Einrichtung, Optionen, Subentries Bereich/Gerät

@@ -1676,7 +1676,7 @@ class BaustellePanel extends LitElement {
       const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'bereich'] }, this.bereichDaten(name, schacht ? 'pumpenschacht' : 'container', f.fuehler));
       if (this.flowFehler(r) || !f.schalter) return r;
       const [bid] = await this.neueIds([name]); if (!bid) return r;
-      return this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'] }, this.geraetDaten(bid, { n: schacht ? 'Pumpe 1' : '', typ: f.typ, schalter: f.schalter }));
+      return this.geraeteSpeichern([{ aktion: 'anlegen', ...this.geraetDaten(bid, { n: schacht ? 'Pumpe 1' : '', typ: f.typ, schalter: f.schalter }) }]);
     }, `${name} angelegt`).then(() => this._laden());
   }
   bereichSpeichern() {
@@ -1684,6 +1684,11 @@ class BaustellePanel extends LitElement {
     const e = S.sheet.edit, x = b; S.sheet = null; neu();
     return this.einrichten(async () => {
       const eb = { ...((d.r.einstellungen.bereiche || {})[x.id] || {}) }, pfad = k => ['bereiche', x.id, k];
+      // Geräte zuerst, alle in einem Aufruf über die Integration (kern/geraete, BSM-034.02): geprüft, Inventar zieht mit
+      const schritte = e.geraete.flatMap(g => g.weg && !g.neu ? [{ aktion: 'entfernen', geraet: g.id }]
+        : g.neu && !g.weg && g.schalter ? [{ aktion: 'anlegen', ...this.geraetDaten(x.id, g) }]
+        : !g.neu && !g.weg && (g.n !== g.alt.n || g.typ !== g.alt.typ) ? [{ aktion: 'aendern', geraet: g.id, ...this.geraetDaten(x.id, g) }] : []);
+      if (schritte.length) await this.geraeteSpeichern(schritte);
       if (e.name.trim() && (e.name.trim() !== x.name || (e.fuehler || '') !== (x.fuehler || ''))) {
         const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'bereich'], subentry_id: x.id }, this.bereichDaten(e.name.trim(), x.art || 'container', e.fuehler));
         if (this.flowFehler(r)) return r; }
@@ -1700,11 +1705,6 @@ class BaustellePanel extends LitElement {
         if (x.firma !== 'eigen') await this._hass.callWS({ type: 'baustelle/liste', entry_id: d.entry, liste: 'firmen', aktion: 'speichern', eintrag: { id: x.firma, name: this.firma(x.firma).name, container: d.bereiche.filter(y => y.firma === x.firma && y.id !== x.id).map(y => y.id) } });
         if (e.firma !== 'eigen') await this._hass.callWS({ type: 'baustelle/liste', entry_id: d.entry, liste: 'firmen', aktion: 'speichern', eintrag: { id: e.firma, name: this.firma(e.firma).name, container: [...d.bereiche.filter(y => y.firma === e.firma).map(y => y.id), x.id] } });
       }
-      for (const g of e.geraete) {
-        if (g.weg && !g.neu) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
-        else if (g.neu && !g.weg && g.schalter) { const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'] }, this.geraetDaten(x.id, g)); if (this.flowFehler(r)) return r; }
-        else if (!g.neu && !g.weg && (g.n !== g.alt.n || g.typ !== g.alt.typ)) { const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id }, this.geraetDaten(x.id, g)); if (this.flowFehler(r)) return r; }
-      }
       return true;
     }, e.geraete.some(g => g.weg && !g.neu) ? `Gespeichert · ${e.geraete.filter(g => g.weg && !g.neu).length} entfernt – Werte bleiben im Verlauf` : 'Gespeichert').then(() => this._laden());
   }
@@ -1712,7 +1712,7 @@ class BaustellePanel extends LitElement {
     const S = this.s, d = this.d, b = this.b, neu = () => this.neuZeichnen();
     const x = b; S.sheet = null; this.gehe('uebersicht');
     return this.einrichten(async () => {
-      for (const g of x.geraete) await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: g.id });
+      if (x.geraete.length) await this.geraeteSpeichern(x.geraete.map(g => ({ aktion: 'entfernen', geraet: g.id })));   // Inventar: Einsätze enden
       await this._hass.callWS({ type: 'config_entries/subentries/delete', entry_id: d.entry, subentry_id: x.id }); return true;
     }, `${x.name} entfernt – Werte bleiben im Verlauf`).then(() => this._laden());
   }
@@ -1723,9 +1723,8 @@ class BaustellePanel extends LitElement {
     const geaendert = f.n.trim() !== g.n || f.schalter !== g.schalter || f.typ !== g.typ || f.bereich !== x.id || f.leistung !== (g.leistungEigen || '') || f.energie !== (g.energieEigen || '');
     return this.einrichten(async () => {
       if (geaendert) {
-        const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id },
-          this.geraetDaten(f.bereich, { n: f.n.trim(), typ: f.typ, schalter: f.schalter, leistung: f.leistung || undefined, energie: f.energie || undefined }));
-        if (this.flowFehler(r)) return r; }
+        await this.geraeteSpeichern([{ aktion: 'aendern', geraet: g.id, ...this.geraetDaten(f.bereich, { n: f.n.trim(), typ: f.typ, schalter: f.schalter }),
+          leistung: f.leistung || null, energie: f.energie || null }]); }   // leer = automatisch
       if (f.status !== g.status) { await this._hass.callWS({ type: 'baustelle/geraet', entry_id: d.entry, geraet: g.id, aktion: 'status', status: f.status }); this.invNeu(); }   // BSM-034.02
       const call = (k, w) => this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: ['geraete', g.id, k], wert: w });
       if (f.nennKw !== (g.nennKwEigen ?? null)) await call('nenn_kw', f.nennKw);   // BSM-034.01: erst bei „Speichern“
@@ -2571,6 +2570,8 @@ class BaustellePanel extends LitElement {
   geraetDaten(bid, g) { const [rolle, typ] = TYP_ROLLE[g.typ] || TYP_ROLLE.Ölradiator;
     return { bereich: bid, schalter: g.schalter, name: (g.n || '').trim() || this.name(g.schalter) || g.typ, rolle, typ: typ === 'oelradiator' && rolle !== 'heizkoerper' ? 'konvektor' : typ,
       ...(g.leistung ? { leistung: g.leistung } : {}), ...(g.energie ? { energie: g.energie } : {}) }; }
+  /* Geräte anlegen, ändern, verschieben, entfernen: ein Aufruf, die Integration prüft und lädt danach einmal neu (BSM-034.02) */
+  async geraeteSpeichern(schritte) { const r = await this._hass.callWS({ type: 'baustelle/geraet', entry_id: this.d.entry, aktion: 'speichern', schritte }); this.invNeu(); return r; }
   async bereichAnlegen(name, schacht) {
     const r = await this.dialog('config/config_entries/subentries/flow', { handler: [this.d.entry, 'bereich'] }, this.bereichDaten(name, schacht ? 'pumpenschacht' : 'container'));
     const f = this.flowFehler(r); if (f) throw new Error(f);

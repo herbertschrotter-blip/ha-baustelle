@@ -23,6 +23,8 @@ from .const import (
     CONF_BEREICH, CONF_FUEHLER, CONF_ROLLE, CONF_SCHALTER, CONF_TYP, DOMAIN, STATUS_AKTIV, SUB_BEREICH, SUB_GERAET,
 )
 from .db import inventar as db_inventar
+from .kern import geraete as k_geraete
+from .logik.geraete import FEHLER_TEXT
 from .logik.inventar import HAENGT, typ_vorschlag
 
 if TYPE_CHECKING:
@@ -121,6 +123,13 @@ def _verdrahten(hass: HomeAssistant, st: Steuerung, bid: str, geraet: dr.DeviceE
                 raise ValueError(f"Shelly gehört zur Baustelle {andere.entry.title}")
         rolle, heiztyp = HAENGT.get(haengt or "konvektor", HAENGT["konvektor"])
         sub = next((x for x in st.entry.subentries.values() if x.subentry_type == SUB_GERAET and x.data.get(CONF_SCHALTER) == schalter), None)
+        try:   # dieselben Regeln wie HA-Dialog und Seite (BSM-034.02, z. B. keine Heizung in den Pumpenschacht)
+            k_geraete.plan(hass, st, [{"aktion": "aendern", "geraet": sub.subentry_id, CONF_BEREICH: bid,
+                                       **({CONF_ROLLE: rolle, CONF_TYP: heiztyp} if haengt else {})} if sub is not None else
+                                      {"aktion": "anlegen", CONF_BEREICH: bid, CONF_SCHALTER: schalter, CONF_ROLLE: rolle,
+                                       CONF_TYP: heiztyp, "name": geraet.name_by_user or geraet.name or schalter}])
+        except k_geraete.GeraetFehler as err:
+            raise ValueError(FEHLER_TEXT.get(err.schluessel, err.schluessel)) from err
         if sub is not None:
             data = {**sub.data, CONF_BEREICH: bid, **({CONF_ROLLE: rolle, CONF_TYP: heiztyp} if haengt else {})}
             hass.config_entries.async_update_subentry(st.entry, sub, data=data)

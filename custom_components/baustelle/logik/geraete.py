@@ -30,6 +30,39 @@ def schaltet(status: str) -> bool:
     return status == "aktiv"
 
 
+FEHLER_TEXT = {   # wie translations (config_subentries.geraet.error), für die Seite
+    "kein_schalter": "Bitte einen Schalter wählen.",
+    "schalter_andere_baustelle": "Dieser Shelly gehört einer anderen aktiven Baustelle. Die erst abschließen.",
+    "schalter_vergeben": "Dieser Shelly ist in dieser Baustelle schon zugeordnet.",
+    "kein_bereich": "Zuerst einen Container oder Bereich anlegen.",
+    "rolle_passt_nicht": "Pumpen gehören in einen Pumpenschacht, alles andere in einen Container.",
+    "kein_name": "Bitte einen Namen eingeben.",
+    "kein_geraet": "Gerät nicht gefunden – die Seite neu laden.",
+}
+
+
+def pruefen(*, schalter: str, rolle: str, bereich_art: str | None, vergeben_hier: bool, andere_baustelle: bool,
+            name: str = "x") -> str | None:
+    """Darf dieser Shelly mit dieser Rolle in diesen Bereich? Fehlerschlüssel (wie im HA-Dialog, translations) oder None.
+
+    Ein Schalter gehört nur einer aktiven Baustelle und dort nur einem Gerät; eine Pumpe nur in einen Pumpenschacht und
+    in einen Pumpenschacht nur Pumpen (BSM-034.02: dieselbe Regel für HA-Dialog, Seite und Inventar).
+    """
+    if not schalter.startswith("switch."):
+        return "kein_schalter"
+    if andere_baustelle:
+        return "schalter_andere_baustelle"
+    if vergeben_hier:
+        return "schalter_vergeben"
+    if bereich_art is None:
+        return "kein_bereich"
+    if (bereich_art == "pumpenschacht") != (rolle == "pumpe"):
+        return "rolle_passt_nicht"
+    if not name.strip():
+        return "kein_name"
+    return None
+
+
 def status_protokoll(name: str, status: str) -> str:
     return f"{name}: {STATUS_TEXT.get(status, status)}" + ("" if schaltet(status) else " – die Automatik lässt es aus")
 

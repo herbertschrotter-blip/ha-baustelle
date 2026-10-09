@@ -112,7 +112,7 @@ Inventar hängt nur in einer Richtung daran. Ziel: ein Besitzer je Eigenschaft, 
 Änderung, ein Abgleich (`docs/bauplan-geraete.md`).
 
 - [x] **K1** (BSM-034.01, 0.8.115) Sofort-Fehler: Notprogramm entfernter Plugs, Ausrüstung beim Ausscheiden frei, Sensoren nicht festschreiben, ✎ an Pumpen, Reste löschen, alles erst bei „Speichern“ (Bestand-Typ war kein Fehler)
-- [ ] **K2** (BSM-034.02) Baustein `kern/geraete` und ein Status je Gerät, Abgleich mit dem Inventar in beide Richtungen
+- [x] **K2** (BSM-034.02, 0.8.116/0.8.117) Baustein `kern/geraete` und ein Status je Gerät, Abgleich mit dem Inventar in beide Richtungen; Geräte der Seite über `baustelle/geraet`
 - [ ] **K3** (BSM-034.03) Sensoren je Container vereinheitlichen (Fühler, Türen, Fenster, Licht)
 - [ ] **K4** (BSM-034.04) Abgleich Inventar ↔ HA beim Start, täglich, nach jeder Änderung
 - [ ] **K5** (BSM-034.05) Seite: Geräte und Inventar zusammenführen (erst Mockup)

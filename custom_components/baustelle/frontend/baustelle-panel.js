@@ -5062,7 +5062,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.116";
+var SEITE_VERSION = "0.8.117";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", ...Object.keys(INVENTAR_EINBLENDUNGEN), "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS), r(INV_CSS)];
@@ -6412,7 +6412,7 @@ var BaustellePanel = class extends i4 {
       if (this.flowFehler(r5) || !f3.schalter) return r5;
       const [bid] = await this.neueIds([name2]);
       if (!bid) return r5;
-      return this.dialog("config/config_entries/subentries/flow", { handler: [d3.entry, "geraet"] }, this.geraetDaten(bid, { n: schacht ? "Pumpe 1" : "", typ: f3.typ, schalter: f3.schalter }));
+      return this.geraeteSpeichern([{ aktion: "anlegen", ...this.geraetDaten(bid, { n: schacht ? "Pumpe 1" : "", typ: f3.typ, schalter: f3.schalter }) }]);
     }, `${name2} angelegt`).then(() => this._laden());
   }
   bereichSpeichern() {
@@ -6422,6 +6422,8 @@ var BaustellePanel = class extends i4 {
     neu();
     return this.einrichten(async () => {
       const eb = { ...(d3.r.einstellungen.bereiche || {})[x2.id] || {} }, pfad = (k2) => ["bereiche", x2.id, k2];
+      const schritte = e6.geraete.flatMap((g2) => g2.weg && !g2.neu ? [{ aktion: "entfernen", geraet: g2.id }] : g2.neu && !g2.weg && g2.schalter ? [{ aktion: "anlegen", ...this.geraetDaten(x2.id, g2) }] : !g2.neu && !g2.weg && (g2.n !== g2.alt.n || g2.typ !== g2.alt.typ) ? [{ aktion: "aendern", geraet: g2.id, ...this.geraetDaten(x2.id, g2) }] : []);
+      if (schritte.length) await this.geraeteSpeichern(schritte);
       if (e6.name.trim() && (e6.name.trim() !== x2.name || (e6.fuehler || "") !== (x2.fuehler || ""))) {
         const r5 = await this.dialog("config/config_entries/subentries/flow", { handler: [d3.entry, "bereich"], subentry_id: x2.id }, this.bereichDaten(e6.name.trim(), x2.art || "container", e6.fuehler));
         if (this.flowFehler(r5)) return r5;
@@ -6441,16 +6443,6 @@ var BaustellePanel = class extends i4 {
         if (x2.firma !== "eigen") await this._hass.callWS({ type: "baustelle/liste", entry_id: d3.entry, liste: "firmen", aktion: "speichern", eintrag: { id: x2.firma, name: this.firma(x2.firma).name, container: d3.bereiche.filter((y3) => y3.firma === x2.firma && y3.id !== x2.id).map((y3) => y3.id) } });
         if (e6.firma !== "eigen") await this._hass.callWS({ type: "baustelle/liste", entry_id: d3.entry, liste: "firmen", aktion: "speichern", eintrag: { id: e6.firma, name: this.firma(e6.firma).name, container: [...d3.bereiche.filter((y3) => y3.firma === e6.firma).map((y3) => y3.id), x2.id] } });
       }
-      for (const g2 of e6.geraete) {
-        if (g2.weg && !g2.neu) await this._hass.callWS({ type: "config_entries/subentries/delete", entry_id: d3.entry, subentry_id: g2.id });
-        else if (g2.neu && !g2.weg && g2.schalter) {
-          const r5 = await this.dialog("config/config_entries/subentries/flow", { handler: [d3.entry, "geraet"] }, this.geraetDaten(x2.id, g2));
-          if (this.flowFehler(r5)) return r5;
-        } else if (!g2.neu && !g2.weg && (g2.n !== g2.alt.n || g2.typ !== g2.alt.typ)) {
-          const r5 = await this.dialog("config/config_entries/subentries/flow", { handler: [d3.entry, "geraet"], subentry_id: g2.id }, this.geraetDaten(x2.id, g2));
-          if (this.flowFehler(r5)) return r5;
-        }
-      }
       return true;
     }, e6.geraete.some((g2) => g2.weg && !g2.neu) ? `Gespeichert · ${e6.geraete.filter((g2) => g2.weg && !g2.neu).length} entfernt – Werte bleiben im Verlauf` : "Gespeichert").then(() => this._laden());
   }
@@ -6460,7 +6452,7 @@ var BaustellePanel = class extends i4 {
     S3.sheet = null;
     this.gehe("uebersicht");
     return this.einrichten(async () => {
-      for (const g2 of x2.geraete) await this._hass.callWS({ type: "config_entries/subentries/delete", entry_id: d3.entry, subentry_id: g2.id });
+      if (x2.geraete.length) await this.geraeteSpeichern(x2.geraete.map((g2) => ({ aktion: "entfernen", geraet: g2.id })));
       await this._hass.callWS({ type: "config_entries/subentries/delete", entry_id: d3.entry, subentry_id: x2.id });
       return true;
     }, `${x2.name} entfernt – Werte bleiben im Verlauf`).then(() => this._laden());
@@ -6474,12 +6466,13 @@ var BaustellePanel = class extends i4 {
     const geaendert = f3.n.trim() !== g2.n || f3.schalter !== g2.schalter || f3.typ !== g2.typ || f3.bereich !== x2.id || f3.leistung !== (g2.leistungEigen || "") || f3.energie !== (g2.energieEigen || "");
     return this.einrichten(async () => {
       if (geaendert) {
-        const r5 = await this.dialog(
-          "config/config_entries/subentries/flow",
-          { handler: [d3.entry, "geraet"], subentry_id: g2.id },
-          this.geraetDaten(f3.bereich, { n: f3.n.trim(), typ: f3.typ, schalter: f3.schalter, leistung: f3.leistung || void 0, energie: f3.energie || void 0 })
-        );
-        if (this.flowFehler(r5)) return r5;
+        await this.geraeteSpeichern([{
+          aktion: "aendern",
+          geraet: g2.id,
+          ...this.geraetDaten(f3.bereich, { n: f3.n.trim(), typ: f3.typ, schalter: f3.schalter }),
+          leistung: f3.leistung || null,
+          energie: f3.energie || null
+        }]);
       }
       if (f3.status !== g2.status) {
         await this._hass.callWS({ type: "baustelle/geraet", entry_id: d3.entry, geraet: g2.id, aktion: "status", status: f3.status });
@@ -8090,6 +8083,12 @@ var BaustellePanel = class extends i4 {
       ...g2.leistung ? { leistung: g2.leistung } : {},
       ...g2.energie ? { energie: g2.energie } : {}
     };
+  }
+  /* Geräte anlegen, ändern, verschieben, entfernen: ein Aufruf, die Integration prüft und lädt danach einmal neu (BSM-034.02) */
+  async geraeteSpeichern(schritte) {
+    const r5 = await this._hass.callWS({ type: "baustelle/geraet", entry_id: this.d.entry, aktion: "speichern", schritte });
+    this.invNeu();
+    return r5;
   }
   async bereichAnlegen(name2, schacht) {
     const r5 = await this.dialog("config/config_entries/subentries/flow", { handler: [this.d.entry, "bereich"] }, this.bereichDaten(name2, schacht ? "pumpenschacht" : "container"));

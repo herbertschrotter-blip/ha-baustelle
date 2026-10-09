@@ -1,6 +1,6 @@
 """Status und Reste gelöschter Geräte und Container (logik/geraete, BSM-034.01, .02)."""
 
-from logik.geraete import STATUS, hinweise_reste, reste_entfernen, schaltet, status_protokoll, status_von
+from logik.geraete import FEHLER_TEXT, STATUS, hinweise_reste, pruefen, reste_entfernen, schaltet, status_protokoll, status_von
 from logik.inventar import STATUS_AUSRUESTUNG
 
 
@@ -37,3 +37,20 @@ def test_hinweise_reste() -> None:
     ids = ["ohne_leistung_E_g1", "ohne_leistung_E_weg", "fehlt_E_switch.a", "fehlt_E_switch.alt",
            "ohne_leistung_F_weg", "fehlt_F_switch.alt", "entitaet_fehlt_x"]
     assert hinweise_reste(ids, "E", ["g1"], ["switch.a"]) == ["ohne_leistung_E_weg", "fehlt_E_switch.alt"]
+
+
+def test_pruefen_wie_der_ha_dialog() -> None:
+    """BSM-034.02: eine Regel für HA-Dialog, Seite und Inventar."""
+    ok = {"schalter": "switch.a", "rolle": "heizkoerper", "bereich_art": "container", "vergeben_hier": False,
+          "andere_baustelle": False, "name": "HK"}
+    assert pruefen(**ok) is None
+    assert pruefen(**{**ok, "schalter": "light.a"}) == "kein_schalter"
+    assert pruefen(**{**ok, "andere_baustelle": True, "vergeben_hier": True}) == "schalter_andere_baustelle"
+    assert pruefen(**{**ok, "vergeben_hier": True}) == "schalter_vergeben"
+    assert pruefen(**{**ok, "bereich_art": None}) == "kein_bereich"
+    assert pruefen(**{**ok, "rolle": "pumpe"}) == "rolle_passt_nicht"
+    assert pruefen(**{**ok, "bereich_art": "pumpenschacht"}) == "rolle_passt_nicht"
+    assert pruefen(**{**ok, "bereich_art": "pumpenschacht", "rolle": "pumpe"}) is None
+    assert pruefen(**{**ok, "name": "  "}) == "kein_name"
+    assert {"kein_schalter", "schalter_andere_baustelle", "schalter_vergeben", "kein_bereich", "rolle_passt_nicht",
+            "kein_name"} <= set(FEHLER_TEXT)

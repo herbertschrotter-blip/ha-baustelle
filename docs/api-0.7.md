@@ -95,8 +95,9 @@ Fehler `unauthorized` („Nur Admins dürfen ändern“). Auch ohne Admin gehen 
 | `baustelle/meldung` | `aktion: neu\|status\|loeschen`, `meldung` bzw. `meldung_id` oder `meldung: {id, status}` (`status: offen\|erledigt`) | Meldung speichern/ändern. **Nicht** `id` auf oberster Ebene senden – das ist die Nummer der WebSocket-Nachricht. `neu` antwortet `{ok, id}` |
 
 Unverändert über HA-Standard:
-- Container/Geräte anlegen, ändern, entfernen: Subentry-Dialoge (REST `config/config_entries/subentries/flow`,
-  WS `config_entries/subentries/delete`).
+- Container anlegen, ändern, entfernen: Subentry-Dialoge (REST `config/config_entries/subentries/flow`,
+  WS `config_entries/subentries/delete`). Geräte ab 0.8.117 über `baustelle/geraet` `speichern` (§11); die HA-Dialoge
+  unter Geräte & Dienste bleiben und prüfen nach denselben Regeln.
 - Baustelle anlegen/abschließen: Config-/Options-Flow.
 - Termine: WS `calendar/event/create|update|delete` am Kalender `termine_kalender` (Serien per `rrule`).
 - Wetter-Vorhersage: `weather/subscribe_forecast`; Tageszeit: `sun.sun`.
@@ -258,7 +259,7 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   nicht, es zählt nicht in der Staffelung, keine Warnungen; gespeichert unter `einstellungen.geraete.<id>.status` (bis
   0.8.115 `aktiv: false`, wird weiter als „inaktiv“ gelesen), sichtbar in `laufzeit.geraete.<id>.status` und `.aktiv`. `geraete[]` hat zusätzlich
   `leistung_eigen`/`energie_eigen` (selbst gewählter Sensor, sonst `null` = am Shelly automatisch erkannt).
-  Gerät bearbeiten: Subentry-Dialog `geraet` mit `subentry_id` (Bereich, Schalter, Name, Rolle, Typ, Sensoren).
+  Gerät bearbeiten: ab 0.8.117 `baustelle/geraet` `speichern` mit Schritt `aendern` (§11), vorher Subentry-Dialog `geraet`.
 - `baustelle/setzen`: `erklaer` (Erklärtexte der Seite), `heizung.frost_immer` (0.7.9: Frostschutz auch bei
   ausgeschalteter Automatik – dann schaltet nur der Frostschutz; Standard aus), `heizung.notprogramm` (0.8.63, BSM-017:
   Notprogramm in den Plugs – Skript und Programm einspielen, Lebenszeichen alle 5 min; Standard aus, Ausschalten hält
@@ -475,5 +476,7 @@ Eine Stelle für Änderungen an Geräten (`kern/geraete`, Bauplan Geräte §4). 
 |---|---|---|
 | `status` | `status`: aktiv / inaktiv / verliehen / defekt | ein Feld je Gerät (`logik/geraete`): nur „aktiv“ schaltet die Automatik, zählt in der Staffelung und meldet Warnungen; beim Wechsel weg von aktiv einmal ausschalten und Handbetrieb beenden. Protokoll „<Name>: verliehen – die Automatik lässt es aus“, Einstellung in der Datenbank (`geraet.status`); steckt das Gerät als Ausrüstung im Inventar, bekommt sie denselben Status. Umgekehrt setzt `inventar_aendern` `ausruestung_status` das Gerät (§10) |
 
-Unbekannte Baustelle oder Gerät → `not_found`; falscher Status → `invalid_format`. Zuordnen, Entfernen, Verschieben und
-Rolle/Typ folgen in Lieferung 2 (bis dahin die Subentry-Dialoge, §7).
+| `speichern` (0.8.117) | `schritte`: Liste aus `{aktion: anlegen, bereich, schalter, name, rolle, typ, leistung?, energie?}`, `{aktion: aendern, geraet, …nur geänderte Felder}`, `{aktion: entfernen, geraet}`; `leistung`/`energie` leer oder `null` = automatisch | Erst alle Schritte prüfen (`logik/geraete.pruefen`: Schalter, nur eine aktive Baustelle und ein Gerät, Bereich vorhanden, Pumpe ⇔ Pumpenschacht, Name) – spätere Schritte sehen die früheren; ein Fehler → nichts geändert, Fehlercode = Schlüssel (`schalter_vergeben`, `rolle_passt_nicht`, …), Meldung deutsch. Dann am Stück: Inventar (Entfernen beendet den Einsatz der Ausrüstung; Anlegen oder Verschieben in einen Bereich mit Container beginnt dort einen als PLUG, ein Einsatz in einem anderen Container endet), Unter-Einträge, Protokoll („… angelegt in …“, „… nach … verschoben“, „… entfernt – Werte bleiben im Verlauf“); danach einmal neu geladen, die Antwort `{ok, neu: [ids]}` kommt erst danach |
+
+Unbekannte Baustelle oder Gerät → `not_found`; falscher Status → `invalid_format`. Lädt die Baustelle gerade neu, wartet
+der Befehl bis zu 15 s. Das Zuordnen im Inventar (§10) prüft nach denselben Regeln.
