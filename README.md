@@ -5,7 +5,7 @@ schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und 
 Vorlage der Oberfläche ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`);
 Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
-## Funktionen (Stand 0.8.113)
+## Funktionen (Stand 0.8.114)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (auch direkt von der Seite aus). Ein Shelly gehört nur
@@ -222,7 +222,7 @@ uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
 
 Panel- und Browser-Test brauchen einmalig `npm --prefix custom_components/baustelle/frontend ci` (happy-dom,
 puppeteer-core). Der Panel-Test läuft im DOM von happy-dom (`tests/panel/umgebung.js`); der Browser-Test bedient das
-Master-Mockup in Chromium 136 (B1–B7, Ausgangsprotokoll `docs/lit-ausgangsprotokoll.md`), ohne Verbindung zu HA.
+Master-Mockup in Chromium 136 (B1–B8, B8 = Container am Handy nicht zu breit; Ausgangsprotokoll `docs/lit-ausgangsprotokoll.md`), ohne Verbindung zu HA.
 Umbauten ohne Verhaltensänderung belegt `tests/panel/schnappschuss.js` (HTML und Befehle vorher/nachher vergleichen).
 
 Qualitätsskala von Home Assistant: `custom_components/baustelle/quality_scale.yaml` (jede Regel mit Stand und Grund).

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.114] – 2026-10-09
+
+- Container-Ansicht am Handy (BSM-031.11): Das Thermostat-Rad und die Knöpfe „zu kalt / passt / zu warm“ lagen bei
+  schmaler Seite (Handy, HA mit offener Seitenleiste) rechts außerhalb des Bildschirms; jetzt stehen sie unter Name und
+  Status, die Kacheln zweispaltig. Die Modus-Leiste (Zeitplan … Aus) scrollt in sich, statt den Kopf zu verbreitern.
+
 ## [0.8.113] – 2026-10-09
 
 - Container-Inventar auf der Seite (BSM-031.07, Teil 2; Mockup Variante 1): Einstellungen › 📦 Inventar mit Liste

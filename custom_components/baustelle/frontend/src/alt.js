@@ -585,8 +585,9 @@ ${NUR_LESEN_SPERRE.map(x => `.nur-lesen ${x}`).join(', ')} { opacity: .45; filte
 .lern-treffer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; margin: 6px 0 10px; }
 .lern-treffer span { padding: 2px 8px; border-radius: 8px; background: rgba(255,152,0,.18); } .lern-treffer span.gut { background: rgba(76,175,80,.2); }
 /* Container-Ansicht (WU-0004): Kopf mit Thermostat-Rad, Kacheln, Tagesdiagramm, Geräte-Chips */
-.c-d-held { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 16px; margin-bottom: 12px; }
-.c-d-info { display: flex; flex-direction: column; gap: 14px; } .c-d-knoepfe { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.c-d-held { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 16px; margin-bottom: 12px; }
+.c-d-info { display: flex; flex-direction: column; gap: 14px; min-width: 0; } .c-d-knoepfe { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; max-width: 100%; }
+.c-d-knoepfe .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }   /* BSM-031.11: fünf Modi am Handy – die Leiste scrollt, statt den Kopf zu verbreitern */
 .c-rad { position: relative; width: 210px; margin: 0 auto; }   /* WU-0018: mittig über „zu kalt / passt / zu warm“ */ .c-rad svg { width: 210px; height: 210px; display: block; }
 .c-rad-k { font-size: 11px; letter-spacing: 2px; fill: var(--ink2); } .c-rad-t { font-size: 38px; font-weight: 700; fill: var(--ink); } .c-rad-s { font-size: 13px; font-weight: 600; }
 .c-rad-pm { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; gap: 36px; }
@@ -606,7 +607,7 @@ ${NUR_LESEN_SPERRE.map(x => `.nur-lesen ${x}`).join(', ')} { opacity: .45; filte
 .c-chip.an { box-shadow: inset 0 0 0 1px var(--amber); } .c-chip.inaktiv { opacity: .55; }
 .c-power { width: 42px; height: 42px; color: var(--ink2); } .c-power.an { background: var(--amber); color: #fff; border-color: transparent; box-shadow: 0 0 14px rgba(255,159,10,.55); }
 .c-power:disabled { opacity: .35; cursor: not-allowed; } .c-aktiv { display: flex; flex-direction: column; align-items: center; gap: 2px; } .c-aktiv small { font-size: 10px; color: var(--ink2); }
-@media (max-width: 700px) { .c-d-held { grid-template-columns: 1fr; } .c-kern { justify-self: center; } .c-kacheln { grid-template-columns: repeat(2, 1fr); } }
+@container (max-width: 700px) { .c-d-held { grid-template-columns: minmax(0, 1fr); } .c-kern { justify-self: center; } .c-kacheln { grid-template-columns: repeat(2, 1fr); } }   /* BSM-031.11: Breite der Seite, nicht des Fensters (HA mit Seitenleiste, Mockup-Rahmen) */
 /* Verlauf (WU-0006): Reiter, Archiv-Karten, Vergleich, Chronik */
 .vl-reiter { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; } .vl-reiter .seg { margin: 0; }
 .vl-archiv { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }

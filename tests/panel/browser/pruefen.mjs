@@ -543,6 +543,21 @@ await fall('B7 Lebenszyklus', browser, async (page, erwarte) => {
   erwarte('B7 neue Elemente', nach2.paste === vor2.paste && nach2.ort === vor2.ort, `${JSON.stringify(vor2)} → ${JSON.stringify(nach2)}`);
 });
 
+/* B8 Container am Handy (BSM-031.11): nichts ragt rechts aus der Seite – das Rad, „zu kalt / passt / zu warm“ und die
+   Kacheln stehen untereinander; nur die Modus-Leiste darf in sich scrollen (wie die Chipleisten) */
+await fall('B8 Container am Handy', browser, async (page, erwarte) => {
+  const ids = await panel(page, T, () => p.d.bereiche.filter(b => !b.pumpe).map(b => b.id));
+  for (const id of ids) {
+    await panel(page, T, () => p.containerOeffnen(a0), id); await warte(600);
+    const raus = await panel(page, T, () => { const sc = sr.querySelector('.scroll'), re = sc.getBoundingClientRect().right;
+      return [...sc.querySelectorAll('*')].filter(x => x.getBoundingClientRect().right > re + 1 && !x.closest('svg, .c-d-knoepfe .seg, .chips, [class*=leiste]')
+        && ![...x.children].some(k => k.getBoundingClientRect().right > re + 1)).slice(0, 3)
+        .map(x => `${x.tagName.toLowerCase()}.${String(x.className).trim()} +${Math.round(x.getBoundingClientRect().right - re)}px`); });
+    const rad = await panel(page, T, () => { const k = sr.querySelector('.c-kern'), sc = sr.querySelector('.scroll'); return !k || k.getBoundingClientRect().right <= sc.getBoundingClientRect().right + 1; });
+    erwarte(`${id}: nichts ragt hinaus, Rad sichtbar`, !raus.length && rad, raus.join(', '));
+  }
+});
+
 server.close();
 const gesamt = Date.now() - t0;
 let rot = 0; const bekannteTreffer = [];

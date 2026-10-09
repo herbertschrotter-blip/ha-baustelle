@@ -129,9 +129,9 @@ window.RAHMEN._leiste(rWerte());`);
 }
 
 /* Bilder und Prüfung im Browser: je Fall Desktop und 390 px, Konsolenfehler, waagrechtes Überlaufen */
-// Bekanntes Überlaufen der echten Seite (auch in glas.html), nicht vom Vorschlag: Chipleisten mit eigenem Scrollen;
-// Container-Kopf am Handy 19 px zu breit (.c-d-info, Seite 0.8.105)
-const BEKANNT_SEITE = ['.ev-chips', '.chips', '[class*=leiste]', '.c-d-info', '.sg-box', 'svg *'];   // Container-Kopf am Handy (Info, Gefühl-Knöpfe, Zierrat im Thermostat-Rad)
+// Bekanntes Überlaufen der echten Seite (auch in glas.html), nicht vom Vorschlag: Leisten mit eigenem Scrollen (Chips, Modus-Leiste
+// im Container-Kopf). Der Container-Kopf am Handy ist seit BSM-031.11 (0.8.114) nicht mehr zu breit.
+const BEKANNT_SEITE = ['.ev-chips', '.chips', '[class*=leiste]', '.c-d-knoepfe .seg', 'svg *'];   // Zierrat im Thermostat-Rad (svg)
 async function bilder(datei, ordner, faelle) {
   const { createServer } = require('http'), FRONTEND = path.join(repo, 'custom_components', 'baustelle', 'frontend');
   const puppeteer = require(require.resolve('puppeteer-core', { paths: [FRONTEND] }));

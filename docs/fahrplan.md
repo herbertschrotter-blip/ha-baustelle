@@ -2,7 +2,7 @@
 
 Alle offenen Punkte in einer Reihenfolge zum Abhaken: eigene Datenbank (`bauplan-datenbank.md`), Notprogramm in den
 Shellys (`bauplan-0.7.md` §9) und die Schwachstellen aus der Bewertung vom 04.10.2026 (`bauplan-0.7.md` §7).
-Stand 09.10.2026 (0.8.113). Jeder Schritt ist eine Aufgabe in ClickUp (Liste „BSM Baustrommanager“, Nummer in Klammern, Tag `etappe-a` … `etappe-h`); abgehakt wird hier und dort.
+Stand 09.10.2026 (0.8.114). Jeder Schritt ist eine Aufgabe in ClickUp (Liste „BSM Baustrommanager“, Nummer in Klammern, Tag `etappe-a` … `etappe-h`); abgehakt wird hier und dort.
 
 **Erledigt vorher:** Berechtigungen (0.8.49), GitHub-Prüfläufe grün (0.8.50), WU-0018/FE-0021/FE-0022 (Ticket-Fenster).
 
@@ -91,7 +91,7 @@ nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 - [x] **I9** (BSM-031.09) Bestand übernehmen (Kürzel bleiben, alte Namen und Entity-IDs angleichen) – 09.10.2026 von Herbert über die Seite (001–004)
 - [ ] **I10** (BSM-031.10) Aufkleber mit Name und QR-Code (später)
 - [x] **I11** (BSM-032) Container-Symbol anpassbar: Doppelcontainer, Türen 1–2 und Fenster 1–4 mit Lage, Farbe; echter Zustand (Tür offen/zu, Fenster gekippt, Licht an/aus) – erledigt 0.8.68, eingespielt 06.10.2026
-- [ ] **I12** (BSM-031.11) Container-Ansicht am Handy zu breit (Kopf +19 px, „zu kalt / passt / zu warm“ bis +284 px) – gefunden beim Inventar-Mockup 08.10.2026
+- [x] **I12** (BSM-031.11) Container-Ansicht am Handy zu breit (Kopf +19 px, „zu kalt / passt / zu warm“ bis +284 px) – gefunden beim Inventar-Mockup 08.10.2026; behoben 0.8.114 (Kopf stapelt nach Breite der Seite statt des Fensters, Browser-Fall B8)
 
 ## Etappe J – Realistische Hochrechnung und Ersparnis (BSM-033, Herbert 07.10.2026)
 
