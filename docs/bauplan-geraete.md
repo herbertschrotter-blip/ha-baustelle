@@ -84,13 +84,14 @@ mit Test; die Seite rechnet nichts. Jede Änderung schreibt Protokoll und Datenb
 | ☐ | .04 Abgleich | beim Start, täglich und nach jeder Änderung: Inventar ↔ HA, offene Einsätze, Reste gelöschter Geräte, Notprogramm abschalten; Abweichungen im Inventar („2 Geräte ohne Inventar“) | Hinweis im Inventar |
 | ☐ | .05 Seite zusammenführen | **erst Mockup**: Gruppe „Geräte“ mit Reitern Übersicht/Inventar, ein Gerätedialog statt drei (überall gleich sofort oder überall erst bei Speichern), einheitliche Symbole und Zähler, Gerätewarnungen sichtbar, Batterie/Signal im Container | neue Ansicht |
 
-## 6. Offen (vor .02 bzw. .05 mit Herbert klären)
+## 6. Entscheidungen (Herbert, 09.10.2026)
 
-- Status „inaktiv“ (ohne Inventar) und „verliehen/defekt“ (Inventar) als ein Feld – oder „inaktiv“ nur für Geräte
-  ohne Inventar?
-- Gerätedialog: alles sofort speichern (wie Schalter) oder alles erst bei „Speichern“?
-- Bleiben die HA-Dialoge (Geräte & Dienste › Baustelle) für Container und Shellys, oder nur noch die Seite?
-- Fenster und Licht: sollen offene Fenster die Heizung pausieren wie Türen?
+| Frage | Entscheidung |
+|---|---|
+| Status eines Geräts | **ein Feld** aktiv / inaktiv / verliehen / defekt an einer Stelle; Container-Chip, ✎ und Inventar zeigen und ändern dasselbe (.02) |
+| Wann speichern Geräte- und Container-Dialog | **alles erst bei „Speichern“**, Abbrechen nimmt alles zurück; sofort wirken nur die Schalter direkt im Container (⏻, aktiv) (.01 für die heutigen Dialoge, .05) |
+| Fenster | **pausieren wie Türen** – offen oder gekippt nach derselben Regel (.03) |
+| HA-Dialoge (Geräte & Dienste › Baustelle) | **bleiben**; der Abgleich (.04) zieht Änderungen von dort ins Inventar nach |
 
 ## 7. Tests
 
