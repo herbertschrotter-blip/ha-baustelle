@@ -5,7 +5,7 @@ liegen heute an sieben Stellen und werden über verschiedene Wege geändert; das
 angebunden. Ziel: **jede Eigenschaft hat genau einen Besitzer**, jede Ansicht ändert sie über dieselbe Funktion der
 Integration, ein Abgleich hält Inventar, HA und Einstellungen beieinander.
 
-Stand: Plan vom 09.10.2026 (Sitzung „ha-baustelle Teil 6“, Herbert: „kochen die alle ihr eigenes Süppchen?“), Befund
+Stand: .01 fertig (0.8.115, 09.10.2026); Plan vom 09.10.2026 (Sitzung „ha-baustelle Teil 6“, Herbert: „kochen die alle ihr eigenes Süppchen?“), Befund
 aus zwei Durchsichten (Integration, Seite) auf 0.8.114. Aufgabe BSM-034, Unteraufgaben .01–.05 = Stufen in §5.
 
 ## 1. Befund – wo Geräte gespeichert sind
@@ -56,7 +56,9 @@ Heizkörper) · Einstellungen › Container & Geräte, › Geräte (nach Funktio
    `g.leistung` statt `leistungEigen`).
 4. ✎ an einer Pumpe: Typliste ohne „Pumpe“, Containerliste ohne Schächte – angezeigt wird etwas anderes, als
    gespeichert würde.
-5. Bestand übernehmen speichert Pumpen und Bautrockner als PLUG (`async_bestand`).
+5. ~~Bestand übernehmen speichert Pumpen und Bautrockner als PLUG (`async_bestand`).~~ Kein Fehler (Herbert
+   09.10.2026): PLUG ist der Shelly selbst, wie beim Zuordnen; was dranhängt, steht in der Rolle (Name `…_C_BTR_…`),
+   Pumpenschächte kommen nicht ins Inventar.
 6. Reste gelöschter Geräte/Container bleiben (`e.geraete`, Handbetrieb, Zähler, Stumm-Schlüssel, Reparatur-Hinweise
    `ohne_leistung_*` gelöschter Baustellen).
 7. Bearbeiten und ✎ mischen „sofort gespeichert“ und „bei Speichern“ – Abbrechen nimmt nur einen Teil zurück.
@@ -78,7 +80,7 @@ mit Test; die Seite rechnet nichts. Jede Änderung schreibt Protokoll und Datenb
 
 | ☐ | Stufe | Inhalt | Herbert sieht |
 |---|---|---|---|
-| ☐ | .01 Sofort-Fehler | Fehler 1–7 aus §3, Seite lädt nach Inventar-Änderungen neu | kaum – sicherer |
+| ☑ | .01 Sofort-Fehler | Fehler 1–7 aus §3, Seite lädt nach Inventar-Änderungen neu – **0.8.115** (Fehler 5 entfällt) | kaum – sicherer |
 | ☐ | .02 Baustein `kern/geraete` | Zuordnen, Entfernen, Verschieben, Rolle/Typ, Status über eine Stelle (Prüfregeln wie der HA-Dialog); Status als ein Feld, Abgleich mit Inventar in beide Richtungen; Bearbeiten, ✎, Chip und Inventar rufen dieselben Befehle | ein Status statt drei Schalter |
 | ☐ | .03 Sensoren vereinheitlichen | je Container eine Sensorliste (Fühler, Türen, Fenster, Licht); jede Tür pausiert, alle in › Geräte, Reparatur-Hinweisen, Mitschreiben, Inventar, Notprogramm | Tür 2/Fenster wirken |
 | ☐ | .04 Abgleich | beim Start, täglich und nach jeder Änderung: Inventar ↔ HA, offene Einsätze, Reste gelöschter Geräte, Notprogramm abschalten; Abweichungen im Inventar („2 Geräte ohne Inventar“) | Hinweis im Inventar |
