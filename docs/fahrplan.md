@@ -2,7 +2,7 @@
 
 Alle offenen Punkte in einer Reihenfolge zum Abhaken: eigene Datenbank (`bauplan-datenbank.md`), Notprogramm in den
 Shellys (`bauplan-0.7.md` §9) und die Schwachstellen aus der Bewertung vom 04.10.2026 (`bauplan-0.7.md` §7).
-Stand 05.10.2026 (0.8.51). Jeder Schritt ist eine Aufgabe in ClickUp (Liste „BSM Baustrommanager“, Nummer in Klammern, Tag `etappe-a` … `etappe-h`); abgehakt wird hier und dort.
+Stand 09.10.2026 (0.8.108). Jeder Schritt ist eine Aufgabe in ClickUp (Liste „BSM Baustrommanager“, Nummer in Klammern, Tag `etappe-a` … `etappe-h`); abgehakt wird hier und dort.
 
 **Erledigt vorher:** Berechtigungen (0.8.49), GitHub-Prüfläufe grün (0.8.50), WU-0018/FE-0021/FE-0022 (Ticket-Fenster).
 
@@ -70,8 +70,8 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 
 ## Etappe H – Betrieb in der Firma
 
-- [ ] **H1** (BSM-026) Datenbank Phase 8: zentral PostgreSQL + TimescaleDB, Puffer bei Verbindungsverlust, Ansichten und Lesebenutzer für Excel/Power BI, mehrere Instanzen – gebaut 0.8.102–0.8.104 (07.10.2026); offen: Server einrichten (Herbert), Excel-Probe, Datenschutz bestätigen
-- [ ] **H2** (BSM-027) Datenbank Phase 9 und Betriebsanleitung: einspielen, sichern, wiederherstellen, Störung; api-Doku auf die Datenbank – geschrieben 0.8.105 (`docs/betrieb.md`, `docs/api-datenbank.md`); offen: mit Herbert durchspielen
+- [ ] **H1** (BSM-026) Datenbank Phase 8: zentral PostgreSQL + TimescaleDB, Puffer bei Verbindungsverlust, Ansichten und Lesebenutzer für Excel/Power BI, mehrere Instanzen – gebaut 0.8.102–0.8.104 (07.10.2026); Server in Betrieb 08.10.2026 (Umzug 149.890 Zeilen, Excel über ODBC geprobt); offen: Datenschutz §6 mit Betriebsrat bestätigen
+- [ ] **H2** (BSM-027) Datenbank Phase 9 und Betriebsanleitung: einspielen, sichern, wiederherstellen, Störung; api-Doku auf die Datenbank – geschrieben 0.8.105 (`docs/betrieb.md`, `docs/api-datenbank.md`); durchgespielt 08.10.2026 (Schlüssel, Rückweg C und D); offen: Nachtsicherung mit PostgreSQL-Abzug prüfen
 - [ ] **H3** (BSM-028) Zweite Person einarbeiten (Code, Abläufe, Tickets)
 - [ ] **H4** (BSM-029) Präsentation für den Chef: Platzhalter füllen (Anzahl Heizkörper der Firma, zweite Baustelle)
 
@@ -80,12 +80,12 @@ Entscheidung: jetzt, auf main) ohnehin viel ändert, wird erst alles Große geba
 Eigene Container und Ausrüstung als Inventar mit ID und Geschichte; Namen (deutsche Kürzel POL/MAN/…, Endungen deutsch) und Labels automatisch beim Zuordnen mit Vorschau; Fremdcontainer als `<FIRMA>-NN_C_<Art>`, scheiden
 nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 
-- [ ] **I1** (BSM-031.01) Bauplan und Kürzeltabelle – geschrieben 08.10.2026 (`docs/bauplan-inventar.md`), Abnahme durch Herbert offen
-- [ ] **I2** (BSM-031.02) Datenbank: Inventar für Container und Ausrüstung
-- [ ] **I3** (BSM-031.03) Namens- und Labelregeln in `logik/`
+- [x] **I1** (BSM-031.01) Bauplan und Kürzeltabelle – abgenommen 08.10.2026 (`docs/bauplan-inventar.md`, deutsche Kürzel)
+- [x] **I2** (BSM-031.02) Datenbank: Inventar für Container und Ausrüstung – 0.8.106 (Aufbau 9), eingespielt
+- [x] **I3** (BSM-031.03) Namens- und Labelregeln in `logik/` – 0.8.106
 - [x] **I4** (BSM-031.04) Mockup: Container anlegen, Ausrüstung zuordnen, Vorschau – abgenommen 08.10.2026, Variante 1 (`mockups/inventar.html`)
-- [ ] **I5** (BSM-031.05) WebSocket-API Inventar und Rechte
-- [ ] **I6** (BSM-031.06) Umbenennen ausführen (HA, Plug, BTHome, Labels, Verweise)
+- [x] **I5** (BSM-031.05) WebSocket-API Inventar und Rechte – 0.8.107
+- [ ] **I6** (BSM-031.06) Umbenennen ausführen (HA, Plug, BTHome, Labels, Verweise) – 06a Vorschau in 0.8.108; offen 06b Ausführen in HA, 06c Plug-Name/Nachholen, 06d Rückgängig
 - [ ] **I7** (BSM-031.07) Seite: Inventar, Dialoge, Vorschau
 - [ ] **I8** (BSM-031.08) Status statt „inaktiv“
 - [ ] **I9** (BSM-031.09) Bestand übernehmen (Kürzel bleiben, alte Namen und Entity-IDs angleichen)
