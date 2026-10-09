@@ -104,3 +104,15 @@ Baseline; die Baseline-Läufe plant und fährt die Integration selbst (startet a
 - [ ] **J2** (BSM-033.02) Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung
 - [ ] **J3** (BSM-033.03) Anzeige mit Spanne, Signatur, Baseline (Mockup)
 - [ ] **J4** (BSM-033.04) Automatische Baseline-Läufe (startet aus, Budget, Ankündigung, Abbruch)
+
+## Etappe K – Geräte zusammenführen (BSM-034, Herbert 09.10.2026)
+
+Geräte, ihre Einstellungen und ihr Status liegen an sieben Stellen und werden über verschiedene Wege geändert; das
+Inventar hängt nur in einer Richtung daran. Ziel: ein Besitzer je Eigenschaft, eine Stelle in der Integration für jede
+Änderung, ein Abgleich (`docs/bauplan-geraete.md`).
+
+- [ ] **K1** (BSM-034.01) Sofort-Fehler: Notprogramm entfernter Plugs, Ausrüstung beim Ausscheiden frei, Sensoren nicht festschreiben, ✎ an Pumpen, Bestand-Typ, Reste löschen, sofort/Speichern
+- [ ] **K2** (BSM-034.02) Baustein `kern/geraete` und ein Status je Gerät, Abgleich mit dem Inventar in beide Richtungen
+- [ ] **K3** (BSM-034.03) Sensoren je Container vereinheitlichen (Fühler, Türen, Fenster, Licht)
+- [ ] **K4** (BSM-034.04) Abgleich Inventar ↔ HA beim Start, täglich, nach jeder Änderung
+- [ ] **K5** (BSM-034.05) Seite: Geräte und Inventar zusammenführen (erst Mockup)
