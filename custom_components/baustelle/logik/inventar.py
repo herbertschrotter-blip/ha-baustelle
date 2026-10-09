@@ -277,7 +277,7 @@ def vorschau(eingabe: Mapping[str, Any], belegt: Iterable[str] = ()) -> dict[str
 
 
 # ---------------------------------------------------------------------- Umbenennen ausführen (BSM-031.06b, §6)
-ERGEBNIS_ERLEDIGT = ("ok", "gleich")
+ERGEBNIS_ERLEDIGT = ("ok", "gleich", "entfaellt")   # entfällt: kein Shelly Gen2+ bzw. BTHome (Kopplungspflege)
 
 
 def ausfuehrbar(schritte: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
@@ -323,3 +323,28 @@ def status(schritte: Iterable[Mapping[str, Any]]) -> str:
     """`ausgefuehrt`, wenn jeder Schritt erledigt ist; sonst `teilweise` (fehlgeschlagen oder noch offen, z. B. der
     Plug-Name) – die fehlenden lassen sich nachholen (§6.5)."""
     return "ausgefuehrt" if all(s.get("ergebnis") in ERGEBNIS_ERLEDIGT for s in schritte) else "teilweise"
+
+
+def fuer_plug(schritte: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Plug-Namen, die im Shelly selbst zu setzen sind (`Sys.SetConfig`, 06c) – nach den Schritten in HA."""
+    return [dict(s) for s in schritte if s["ziel"] == "plug" and s["zustand"] != "gleich"]
+
+
+def nachholen_mischen(alt: Iterable[Mapping[str, Any]], neu: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Ergebnis eines Nachholens in eine `teilweise` gebliebene Umbenennung eintragen (§6.5).
+
+    Ein offener oder fehlgeschlagener Schritt gilt als erledigt, wenn er jetzt geklappt hat oder inzwischen schon passt
+    (`gleich`); sein alter Wert bleibt für Rückgängig. Schlägt er wieder fehl, steht der neue Fehler da. Schritte, die erst
+    beim Nachholen dazukamen, werden angehängt."""
+    neu_je = {(s["ziel"], s["ref"]): dict(s) for s in neu}
+    aus: list[dict[str, Any]] = []
+    for s in alt:
+        n = neu_je.pop((s["ziel"], s["ref"]), None)
+        if s.get("ergebnis") in ERGEBNIS_ERLEDIGT or n is None:
+            aus.append(dict(s))
+        elif n.get("ergebnis") in ERGEBNIS_ERLEDIGT:
+            aus.append({**{k: w for k, w in s.items() if k != "fehler"}, "ergebnis": "ok", "nachgeholt": True})
+        else:
+            aus.append({**s, "ergebnis": n.get("ergebnis"), **({"fehler": n["fehler"]} if n.get("fehler") else {})})
+    aus += [n for n in neu_je.values() if n.get("ergebnis") != "gleich"]
+    return aus

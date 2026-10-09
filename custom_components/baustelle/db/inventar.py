@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Connection, and_, insert, select, update
+from sqlalchemy import Connection, and_, func, insert, select, update
 
 from ..logik.inventar import STATUS_AUSRUESTUNG, firmenkuerzel_pruefen, naechste
 from . import schema as s
@@ -93,3 +93,25 @@ def umbenennung_merken(v: Connection, *, container_id: str, benutzer: str | None
     schluessel = r.inserted_primary_key
     assert schluessel is not None
     return int(schluessel[0])
+
+
+def umbenennung_letzte(v: Connection, container_id: str) -> dict[str, Any] | None:
+    """Jüngste Umbenennung eines Containers (für Nachholen und Rückgängig)."""
+    r = v.execute(select(s.umbenennung).where(s.umbenennung.c.container_id == container_id)
+                  .order_by(s.umbenennung.c.id.desc()).limit(1)).first()
+    return _zeile(r) if r is not None else None
+
+
+def umbenennung_aendern(v: Connection, nr: int, schritte: list[dict[str, Any]], status: str) -> int:
+    """Schritte und Status einer Umbenennung nach dem Nachholen."""
+    v.execute(update(s.umbenennung).where(s.umbenennung.c.id == nr).values(schritte=schritte, status=status))
+    return nr
+
+
+def umbenennungen_offen(v: Connection) -> list[str]:
+    """Container, deren jüngste Umbenennung `teilweise` ist (selbst nachholen)."""
+    juengste = select(s.umbenennung.c.container_id, func.max(s.umbenennung.c.id).label("nr")) \
+        .group_by(s.umbenennung.c.container_id).subquery()
+    return list(v.execute(select(s.umbenennung.c.container_id)
+                          .join(juengste, s.umbenennung.c.id == juengste.c.nr)
+                          .where(s.umbenennung.c.status == "teilweise")).scalars())

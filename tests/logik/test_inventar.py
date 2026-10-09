@@ -165,3 +165,29 @@ def test_verweise_tauschen_und_status():
     assert status(schritte) == "teilweise"
     assert status([{"ergebnis": "ok"}, {"ergebnis": "gleich"}]) == "ausgefuehrt"
     assert status([{"ergebnis": "ok"}, {"ergebnis": "offen"}]) == "teilweise"   # Plug-Name kommt mit 06c
+
+
+def test_fuer_plug_und_nachholen_mischen():
+    from logik.inventar import fuer_plug, nachholen_mischen, status, vorschau
+    v = vorschau({"art": "MAN", "praefix": "002", "plugs": [_plug(bthome=[])]}, belegt=set())
+    assert [(s["ref"], s["neu"]) for s in fuer_plug(v["schritte"])] == [("sub_g1", "002-01_C_PLUG_MAN")]
+    fertig = vorschau({"art": "MAN", "praefix": "002", "plugs": [_plug(bthome=[], plug_name="002-01_C_PLUG_MAN")]})
+    assert fuer_plug(fertig["schritte"]) == []
+
+    alt = [{"ziel": "entitaet_id", "ref": "switch.a", "alt": "switch.a", "neu": "switch.b", "ergebnis": "ok"},
+           {"ziel": "plug", "ref": "g1", "alt": "heizung-01", "neu": "001-01_C_PLUG_MAN", "ergebnis": "offen"},
+           {"ziel": "plug", "ref": "g2", "alt": "heizung-02", "neu": "001-02_C_PLUG_MAN", "ergebnis": "fehler", "fehler": "offline"},
+           {"ziel": "plug", "ref": "g3", "alt": "heizung-03", "neu": "001-03_C_PLUG_MAN", "ergebnis": "offen"}]
+    neu = [{"ziel": "entitaet_id", "ref": "switch.b", "alt": "switch.b", "neu": "switch.b", "ergebnis": "gleich"},
+           {"ziel": "plug", "ref": "g1", "alt": "heizung-01", "neu": "001-01_C_PLUG_MAN", "ergebnis": "ok"},
+           {"ziel": "plug", "ref": "g2", "alt": "heizung-02", "neu": "001-02_C_PLUG_MAN", "ergebnis": "fehler", "fehler": "Timeout"},
+           {"ziel": "plug", "ref": "g3", "alt": "001-03_C_PLUG_MAN", "neu": "001-03_C_PLUG_MAN", "ergebnis": "gleich"},
+           {"ziel": "label", "ref": "dev9", "alt": None, "neu": "Container", "ergebnis": "ok"}]
+    m = nachholen_mischen(alt, neu)
+    je = {(s["ziel"], s["ref"]): s for s in m}
+    assert je[("plug", "g1")]["ergebnis"] == "ok" and je[("plug", "g1")]["nachgeholt"]
+    assert je[("plug", "g2")]["fehler"] == "Timeout" and je[("plug", "g2")]["ergebnis"] == "fehler"
+    assert je[("plug", "g3")]["ergebnis"] == "ok" and je[("plug", "g3")]["alt"] == "heizung-03"   # alter Wert bleibt
+    assert je[("entitaet_id", "switch.a")]["ergebnis"] == "ok" and ("entitaet_id", "switch.b") not in je
+    assert ("label", "dev9") in je and status(m) == "teilweise"
+    assert status(nachholen_mischen(m, [{**neu[2], "ergebnis": "ok"}])) == "ausgefuehrt"

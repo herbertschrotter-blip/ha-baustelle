@@ -89,6 +89,16 @@ def skript_lesen() -> tuple[int, str]:
     return int(treffer.group(1)), code + "\n"
 
 
+def shelly_host(hass: HomeAssistant, entity_id: str) -> str | None:
+    """Adresse des Shelly (Gen2+, Shelly-Integration) hinter einer Entität – auch fürs Umbenennen (BSM-031.06c)."""
+    eintrag = er.async_get(hass).async_get(entity_id)
+    geraet = dr.async_get(hass).async_get(eintrag.device_id) if eintrag is not None and eintrag.device_id else None
+    entry = hass.config_entries.async_get_entry(geraet.config_entry_id) if geraet is not None and geraet.config_entry_id else None
+    if entry is not None and entry.domain == "shelly" and entry.data.get("host") and int(entry.data.get("gen") or 1) >= 2:
+        return str(entry.data["host"])
+    return None
+
+
 class Plug:
     """RPC über HTTP an einen Shelly Gen2+."""
 
@@ -250,19 +260,8 @@ class Notprogramm:
     # ------------------------------------------------------------------ Plugs
     def plugs(self) -> list[tuple[GeraetInfo, str]]:
         """Heizkörper-Plugs der Baustelle mit Adresse (Shelly-Integration, Gen2+)."""
-        ents, devs = er.async_get(self.hass), dr.async_get(self.hass)
-        raus = []
-        for g in self.st.geraete.values():
-            if g.rolle != ROLLE_HEIZKOERPER or (eintrag := ents.async_get(g.schalter)) is None or eintrag.device_id is None:
-                continue
-            if (geraet := devs.async_get(eintrag.device_id)) is None:
-                continue
-            for entry_id in geraet.config_entries:
-                entry = self.hass.config_entries.async_get_entry(entry_id)
-                if entry is not None and entry.domain == "shelly" and entry.data.get("host") and int(entry.data.get("gen") or 1) >= 2:
-                    raus.append((g, str(entry.data["host"])))
-                    break
-        return raus
+        return [(g, host) for g in self.st.geraete.values()
+                if g.rolle == ROLLE_HEIZKOERPER and (host := shelly_host(self.hass, g.schalter)) is not None]
 
     def _bt_adresse(self, entity_id: str | None) -> str | None:
         """Bluetooth-Adresse des Geräts hinter einer Entität (BTHome), klein geschrieben."""

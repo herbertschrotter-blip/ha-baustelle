@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.110] – 2026-10-09
+
+- Container-Inventar, Schritt 5 (BSM-031.06c): Beim Umbenennen bekommt jetzt auch der Shelly-Plug selbst den neuen
+  Namen. Ist ein Plug gerade nicht erreichbar, bleibt die Umbenennung „teilweise“: Nochmal Umbenennen holt nur die
+  fehlenden Schritte nach (in derselben Umbenennung), und die Integration versucht es alle 30 Minuten selbst, sobald
+  der Plug wieder da ist. Plugs ohne Shelly der 2. Generation lässt sie dabei aus.
+
 ## [0.8.109] – 2026-10-09
 
 - Container-Inventar, Schritt 4 (BSM-031.06b): Umbenennen übernehmen – als Admin bringt die Integration HA-Gerät,

@@ -425,13 +425,19 @@ Energie, mit denen die Integration rechnet; eigene Entitäten der Integration un
 bleiben, wie sie sind. Eigene Labels (Bauplan Inventar §5), die nicht mehr passen, stehen als Schritt mit `neu: null`.
 
 **`baustelle/inventar_umbenennen`** (nur Admins, sonst `unauthorized`; 0.8.109, BSM-031.06b), `container_id` →
-`{id, status, schritte, geaendert}`. Bildet die Vorschau selbst neu (übernimmt nie die der Seite); bei einem Konflikt
+`{id, status, schritte, geaendert, nachgeholt}`. Bildet die Vorschau selbst neu (übernimmt nie die der Seite); bei einem Konflikt
 Fehler `konflikt` (Nachricht nennt alt → neu) und **nichts** ändert sich, ohne Bereich `not_found`. Sonst in fester
 Reihenfolge: Entitätsregister (Name und Entity-ID), HA-Gerät (`name_by_user`), Labels (fehlende anlegen, nur eigene
 entfernen), dann die eigenen Verweise (Unter-Einträge: Schalter, Leistung, Energie, Fühler, Name des Heizkörpers;
-Optionen; Einstellungen der Bereiche wie Tür und Symbol). Die Steuerung der Baustelle hält dabei an und lädt danach
-einmal neu. Je Schritt `ergebnis`: `ok`, `gleich`, `fehler` (mit `fehler`) oder `offen` (Plug-Name, BTHome – 06c).
-`status`: `ausgefuehrt`, `teilweise` (etwas fehlgeschlagen oder offen) oder `nichts` (in HA schon alles nach Schema;
-dann kein Eintrag). `id` = Zeile in der Tabelle `umbenennung` (mit allen Schritten, für Nachholen und Rückgängig),
+Optionen; Einstellungen der Bereiche wie Tür und Symbol), zuletzt der Name im Plug selbst (`Sys.SetConfig`, 0.8.110,
+BSM-031.06c; nur Shelly Gen2+ mit Adresse in der Shelly-Integration, sonst entfällt der Schritt; ist der Schalter
+`unavailable`, gilt der Plug als nicht erreichbar). Die Steuerung der Baustelle hält dabei an und lädt danach einmal
+neu (nur wenn sich in HA etwas ändert). Je Schritt `ergebnis`: `ok`, `gleich`, `fehler` (mit `fehler`) oder
+`entfaellt` (Plug ohne Shelly Gen2+, BTHome – zieht die Kopplungspflege nach). `status`: `ausgefuehrt`, `teilweise`
+(etwas fehlgeschlagen) oder `nichts` (schon alles nach Schema; dann kein Eintrag). **Nachholen:** Ist die jüngste
+Umbenennung des Containers `teilweise`, führt derselbe Befehl nur die fehlenden Schritte aus und trägt sie dort ein
+(`nachgeholt: true`, gleiche `id`, nachgeholte Schritte mit `nachgeholt`, der alte Wert bleibt für Rückgängig). Die
+Integration holt Plug-Namen offener Umbenennungen auch selbst nach, alle 30 Minuten, sobald der Plug erreichbar ist
+(nie Schritte in HA, kein Neu-Laden; Benutzer „automatisch“). `id` = Zeile in der Tabelle `umbenennung` (mit allen Schritten, für Nachholen und Rückgängig),
 `geaendert` = welche eigenen Verweise angepasst wurden. Im Protokoll der Baustelle eine Zeile „Umbenannt nach Schema
 (NNN_C_ART): …“. Rückgängig folgt (06d).

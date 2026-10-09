@@ -22,6 +22,7 @@ from .entity import HERSTELLER, MODELL
 from .notprogramm import DATA_NOTPROGRAMM, Notprogramm
 from .panel import DATA_MELDUNGEN, async_panel_anmelden
 from .steuerung import Steuerung
+from .umbenennen import nachholen_planen
 
 type BaustelleConfigEntry = ConfigEntry[Steuerung]
 
@@ -114,6 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BaustelleConfigEntry) ->
     def _notprogramm_weg() -> None:
         hass.data.get(DATA_NOTPROGRAMM, {}).pop(entry.entry_id, None)
     entry.async_on_unload(_notprogramm_weg)
+    entry.async_on_unload(nachholen_planen(hass, entry.entry_id))   # Plug-Namen offener Umbenennungen (BSM-031.06c)
     # Optionen und Subentries (Bereiche, Geräte) geändert → neu laden (Muster der Kern-Helfer)
     entry.async_on_unload(entry.add_update_listener(_neu_laden))
     return True

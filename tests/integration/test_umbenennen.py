@@ -1,19 +1,27 @@
-"""BSM-031.06b: Umbenennen nach dem Schema in HA ausführen – mit echtem Entitäts-, Geräte- und Labelregister."""
+"""BSM-031.06b/c: Umbenennen nach dem Schema in HA und im Plug ausführen, Nachholen – mit echtem Entitäts-, Geräte- und
+Labelregister."""
 
 from __future__ import annotations
 
+from datetime import timedelta
+import json
+from typing import Any
+
+import aiohttp
 import pytest
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er, label_registry as lr
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
+from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker, AiohttpClientMockResponse
 
 from .conftest import C1, HK1, baustelle_anlegen, zeilen_db
 
 
-def _shellys_im_register(hass: HomeAssistant) -> None:
-    """Plug von Heizkörper 1 und Fühler von Container 1 als echte Geräte (wie die Shelly-Integration sie anlegt)."""
-    quelle = MockConfigEntry(domain="shelly", title="Shelly")
+def _shellys_im_register(hass: HomeAssistant, host: str | None = None) -> None:
+    """Plug von Heizkörper 1 und Fühler von Container 1 als echte Geräte (wie die Shelly-Integration sie anlegt); mit
+    `host` ist der Plug ein Shelly Gen2+ mit Adresse (Name per RPC)."""
+    quelle = MockConfigEntry(domain="shelly", title="Shelly", data={"host": host, "gen": 3} if host else {})
     quelle.add_to_hass(hass)
     geraete, ents, labels = dr.async_get(hass), er.async_get(hass), lr.async_get(hass)
     plug = geraete.async_get_or_create(config_entry_id=quelle.entry_id, identifiers={("shelly", "plug1")}, name="Heizung 01")
@@ -61,8 +69,8 @@ async def test_umbenennen_in_ha(hass: HomeAssistant, baustelle_register, hass_ws
     assert antwort["success"], antwort
     await hass.async_block_till_done()
     erg = antwort["result"]
-    assert erg["status"] == "teilweise"   # Plug-Name kommt mit 06c
-    assert {s["ergebnis"] for s in erg["schritte"] if s["ziel"] == "plug"} == {"offen"}
+    assert erg["status"] == "ausgefuehrt"   # ohne Shelly-Adresse entfällt der Plug-Name
+    assert {s["ergebnis"] for s in erg["schritte"] if s["ziel"] == "plug"} == {"entfaellt"}
     assert not [s for s in erg["schritte"] if s["ergebnis"] == "fehler"], erg["schritte"]
 
     ents, geraete, labels = er.async_get(hass), dr.async_get(hass), lr.async_get(hass)
@@ -91,7 +99,7 @@ async def test_umbenennen_in_ha(hass: HomeAssistant, baustelle_register, hass_ws
     assert any("Umbenannt nach Schema (001_C_MAN)" in p[3] for p in neu.e["protokoll"])
 
     zeilen = zeilen_db(hass, "umbenennung")
-    assert len(zeilen) == 1 and zeilen[0]["status"] == "teilweise" and zeilen[0]["container_id"] == cid
+    assert len(zeilen) == 1 and zeilen[0]["status"] == "ausgefuehrt" and zeilen[0]["container_id"] == cid
     assert erg["id"] == zeilen[0]["id"]
 
     nochmal = await _senden(ws, 3, type="baustelle/inventar_umbenennen", container_id=cid)
@@ -122,3 +130,77 @@ async def test_nur_admins(hass: HomeAssistant, baustelle_register, hass_ws_clien
     assert not antwort["success"] and antwort["error"]["code"] == "unauthorized"
     assert er.async_get(hass).async_get("switch.hk1") is not None
 
+
+
+class FakeShelly:
+    """Shelly Gen2+ für `Sys.SetConfig`: merkt den Namen; `erreichbar=False` = offline."""
+
+    def __init__(self) -> None:
+        self.erreichbar, self.namen = False, []
+
+    async def antwort(self, method: str, url: Any, data: Any) -> AiohttpClientMockResponse:
+        if not self.erreichbar:
+            return AiohttpClientMockResponse(method, url, exc=aiohttp.ClientConnectionError())
+        anfrage = json.loads(data)
+        if anfrage["method"] != "Sys.SetConfig":   # Runde des Notprogramms (ausgeschaltet: Skripte prüfen)
+            return AiohttpClientMockResponse(method, url, json={"id": 1, "result": {"scripts": []}})
+        self.namen.append(anfrage["params"]["config"]["device"]["name"])
+        return AiohttpClientMockResponse(method, url, json={"id": 1, "result": {"restart_required": False}})
+
+
+@pytest.fixture
+async def baustelle_shelly(hass: HomeAssistant, freezer, shellys, nachrichten, aioclient_mock: AiohttpClientMocker):
+    plug = FakeShelly()
+    aioclient_mock.post("http://plug1/rpc", side_effect=plug.antwort)
+    _shellys_im_register(hass, host="plug1")
+    entry = await baustelle_anlegen(hass, freezer)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    shellys.anmelden()
+    return entry, plug
+
+
+async def test_plug_name_offline_und_nachholen(hass: HomeAssistant, baustelle_shelly, hass_ws_client) -> None:
+    """06c: Plug offline → teilweise; derselbe Befehl holt nach und trägt es in dieselbe Umbenennung ein."""
+    entry, plug = baustelle_shelly
+    ws = await hass_ws_client(hass)
+    cid = await _container(ws, entry)
+    erst = await _senden(ws, 2, type="baustelle/inventar_umbenennen", container_id=cid)
+    await hass.async_block_till_done()
+    assert erst["success"] and erst["result"]["status"] == "teilweise" and not erst["result"]["nachgeholt"]
+    schritt = next(s for s in erst["result"]["schritte"] if s["ziel"] == "plug")
+    assert schritt["ergebnis"] == "fehler" and "Sys.SetConfig" in schritt["fehler"]
+    assert er.async_get(hass).async_get("switch.001_01_c_plug_man") is not None   # HA ist trotzdem umbenannt
+
+    plug.erreichbar = True
+    hass.states.async_set("switch.001_01_c_plug_man", "off")   # die Shelly-Integration meldet den Schalter neu
+    danach = await _senden(ws, 3, type="baustelle/inventar_umbenennen", container_id=cid)
+    await hass.async_block_till_done()
+    assert danach["success"] and danach["result"]["nachgeholt"] and danach["result"]["status"] == "ausgefuehrt"
+    assert danach["result"]["id"] == erst["result"]["id"] and plug.namen == ["001-01_C_PLUG_MAN"]
+    zeilen = zeilen_db(hass, "umbenennung")
+    assert len(zeilen) == 1 and zeilen[0]["status"] == "ausgefuehrt"
+    plug_schritt = next(s for s in json.loads(zeilen[0]["schritte"]) if s["ziel"] == "plug")
+    assert plug_schritt["alt"] == "Heizung 01" and plug_schritt["nachgeholt"]   # alter Name bleibt für Rückgängig
+    assert any("Umbenennung nachgeholt (001_C_MAN)" in p[3] for p in entry.runtime_data.e["protokoll"])
+
+
+async def test_selbst_nachholen(hass: HomeAssistant, baustelle_shelly, hass_ws_client, freezer) -> None:
+    """06c: Plug-Namen holt die Integration alle 30 min selbst nach – nur wenn der Plug erreichbar ist."""
+    entry, plug = baustelle_shelly
+    ws = await hass_ws_client(hass)
+    cid = await _container(ws, entry)
+    await _senden(ws, 2, type="baustelle/inventar_umbenennen", container_id=cid)
+    await hass.async_block_till_done()
+    hass.states.async_set("switch.001_01_c_plug_man", "unavailable")
+    freezer.tick(timedelta(minutes=31))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)   # die Runde läuft als Hintergrundaufgabe
+    assert plug.namen == [] and zeilen_db(hass, "umbenennung")[0]["status"] == "teilweise"   # nicht erreichbar: kein Versuch
+
+    plug.erreichbar = True
+    hass.states.async_set("switch.001_01_c_plug_man", "off")
+    freezer.tick(timedelta(minutes=31))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)   # die Runde läuft als Hintergrundaufgabe
+    assert plug.namen == ["001-01_C_PLUG_MAN"] and zeilen_db(hass, "umbenennung")[0]["status"] == "ausgefuehrt"
