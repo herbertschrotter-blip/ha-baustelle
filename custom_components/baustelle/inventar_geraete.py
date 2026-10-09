@@ -25,7 +25,8 @@ from .const import (
 from .db import inventar as db_inventar
 from .kern import geraete as k_geraete
 from .logik.geraete import FEHLER_TEXT
-from .logik.inventar import HAENGT, typ_vorschlag
+from .logik.inventar import HAENGT, SENSOR_TYP, typ_vorschlag
+from .logik.symbol import sensor_eintragen
 
 if TYPE_CHECKING:
     from .steuerung import Steuerung
@@ -71,9 +72,8 @@ def _belegt(hass: HomeAssistant) -> dict[str, str]:
         for g in st.geraete.values():
             aus[g.schalter] = f"{st.entry.title} › {st.bereiche[g.bereich].name}"
         for b in st.bereiche.values():
-            for eid in (b.fuehler, st.einstellungen.bereich(b.id).get("tuer")):
-                if eid:
-                    aus[eid] = f"{st.entry.title} › {b.name}"
+            for x in st.sensoren(b.id):   # BSM-034.03: alle Sensoren des Containers
+                aus[x.entity_id] = f"{st.entry.title} › {b.name}"
     return aus
 
 
@@ -148,6 +148,13 @@ def _verdrahten(hass: HomeAssistant, st: Steuerung, bid: str, geraet: dr.DeviceE
     if typ == "DOOR" and eid and not st.einstellungen.bereich(bid).get("tuer"):
         st.einstellung_setzen(("bereiche", bid, "tuer"), eid)
         return None, "als Türkontakt des Containers eingetragen"
+    if typ in ("DOOR", "FEN") and eid:   # BSM-034.03: weitere Tür bzw. Fenster ins Aussehen – pausiert dann auch
+        e = st.einstellungen.bereich(bid)
+        art = "tuer" if typ == "DOOR" else "fenster"
+        if (neu := sensor_eintragen(e.get("symbol"), art, eid, e.get("tuer"))) is not None:
+            st.einstellung_setzen(("bereiche", bid, "symbol"), neu)
+            nr = next(i + 1 for i, x in enumerate(neu["tueren" if art == "tuer" else "fenster"]) if x["sensor"] == eid)
+            return None, f"als {'Tür' if art == 'tuer' else 'Fenster'} {nr} des Containers eingetragen"
     return None, None
 
 
@@ -186,15 +193,15 @@ async def async_zuordnen(hass: HomeAssistant, db: Any, roh: dict[str, Any], cont
 
 
 async def async_bestand(hass: HomeAssistant, db: Any, container_id: str, bereich_id: str, baustelle_id: str) -> list[dict[str, Any]]:
-    """Beim Anlegen mit Bereich: was der Bereich schon hat (Shellys nach Namen, Fühler, Tür) ins Inventar übernehmen."""
+    """Beim Anlegen mit Bereich: was der Bereich schon hat (Shellys nach Namen, Fühler, Türen, Fenster) ins Inventar."""
     st = _steuerung(hass, baustelle_id)
     if st is None or bereich_id not in st.bereiche:
         return []
     geraete = dr.async_get(hass)
     eintraege: list[tuple[str, str, str | None]] = [(g.schalter, "PLUG", g.id) for g in sorted(st.geraete_in(bereich_id), key=lambda g: g.name)]
-    for typ, eid in (("TEMP", st.bereiche[bereich_id].fuehler), ("DOOR", st.einstellungen.bereich(bereich_id).get("tuer"))):
-        if eid:
-            eintraege.append((eid, typ, None))
+    for x in st.sensoren(bereich_id):   # BSM-034.03: die Sensorliste (Licht kommt nicht ins Inventar)
+        if (typ := SENSOR_TYP.get(x.art)) is not None:
+            eintraege.append((x.entity_id, typ, None))
     aus = []
     for eid, typ, geraet_id in eintraege:
         eintrag = er.async_get(hass).async_get(eid)

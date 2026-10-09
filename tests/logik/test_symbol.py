@@ -41,3 +41,20 @@ def test_fenster_zustand() -> None:
 def test_licht_an() -> None:
     assert licht_an("on", None) and not licht_an("off", None) and not licht_an(None, None)
     assert licht_an("120", 120.0) and not licht_an("10", 10.0)
+
+
+def test_sensor_eintragen() -> None:
+    """BSM-034.03: Tür/Fenster aus dem Inventar ins Aussehen – erst in freie Plätze, dann neu, solange Platz ist."""
+    from logik.symbol import sensor_eintragen
+
+    s = sensor_eintragen(None, "fenster", "binary_sensor.f1")
+    assert s["fenster"][0]["sensor"] == "binary_sensor.f1"
+    assert sensor_eintragen(s, "fenster", "binary_sensor.f1") is None                      # schon eingetragen
+    s = sensor_eintragen(s, "tuer", "binary_sensor.t2", tuerkontakt="binary_sensor.t1")     # Tür 1 hat den Türkontakt
+    assert [t["sensor"] for t in s["tueren"]] == [None, "binary_sensor.t2"] and s["tueren"][1]["pos"] not in (0.15, 0.67)
+    assert sensor_eintragen(s, "tuer", "binary_sensor.t3", tuerkontakt="binary_sensor.t1") is None   # nur 2 Türen
+    assert sensor_eintragen(s, "tuer", "binary_sensor.t1", tuerkontakt="binary_sensor.t1") is None   # Türkontakt selbst
+    for i in range(2, 5):
+        s = sensor_eintragen(s, "fenster", f"binary_sensor.f{i}")
+    assert len(s["fenster"]) == 4 and sensor_eintragen(s, "fenster", "binary_sensor.f5") is None
+    assert sensor_eintragen(None, "tuer", "binary_sensor.t9")["tueren"][0]["sensor"] == "binary_sensor.t9"   # ohne Türkontakt

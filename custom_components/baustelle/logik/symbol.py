@@ -76,3 +76,26 @@ def licht_an(zustand: str | None, zahl: float | None) -> bool:
     if zahl is not None:
         return zahl > LICHT_AB_LUX
     return zustand == "on"
+
+
+def sensor_eintragen(symbol: dict[str, Any] | None, art: str, entity_id: str, tuerkontakt: str | None = None
+                     ) -> dict[str, Any] | None:
+    """Tür- bzw. Fensterkontakt aus dem Inventar ins Aussehen eintragen (BSM-034.03): in die erste Tür bzw. das erste
+    Fenster ohne Sensor (Tür 1 hat den Türkontakt des Containers, wenn einer gesetzt ist), sonst eine neue Tür bzw. ein
+    neues Fenster an der Front, solange Platz ist. None = nichts zu tun (schon eingetragen oder kein Platz)."""
+    s = bereinigen(symbol) or standard()
+    liste_art = "tueren" if art == "tuer" else "fenster"
+    eingetragen = [x["sensor"] for k in ("tueren", "fenster") for x in s[k]] + [tuerkontakt]
+    if entity_id in eingetragen:
+        return None
+    liste = s[liste_art]
+    for i, x in enumerate(liste):
+        if not x["sensor"] and not (liste_art == "tueren" and i == 0 and tuerkontakt):
+            x["sensor"] = entity_id
+            return s
+    if len(liste) >= (MAX_TUEREN if liste_art == "tueren" else MAX_FENSTER):
+        return None
+    belegt = {x["pos"] for k in ("tueren", "fenster") for x in s[k] if x["wand"] == "front"}
+    pos = next((lage for lage in LAGEN if lage not in belegt), 0.5)
+    liste.append({"wand": "front", "pos": pos, "sensor": entity_id})
+    return s

@@ -291,7 +291,7 @@ class Steuerung:
         erwartet = {o[k] for k in (CONF_WETTER, CONF_TEMP_SENSOR, CONF_REGEN_SENSOR, CONF_FEIERTAG_KALENDER, CONF_URLAUB_KALENDER) if o.get(k)}
         for g in self.geraete.values():
             erwartet.update(x for x in (g.schalter, g.leistung, g.energie) if x)
-        erwartet.update(b.fuehler for b in self.bereiche.values() if b.fuehler)
+        erwartet.update(s.entity_id for b in self.bereiche.values() for s in self.sensoren(b.id))   # BSM-034.03: alle Sensoren
         return erwartet
 
     def _hinweise_aufraeumen(self) -> None:
@@ -497,6 +497,16 @@ class Steuerung:
         """Nur Geräte mit Status „aktiv“ schaltet die Automatik, sie zählen in der Staffelung und melden (WU-0004,
         BSM-034.02: inaktiv, verliehen, defekt lässt sie aus)."""
         return geraete_logik.schaltet(k_geraete.status(self, g))
+
+    def sensoren(self, bid: str) -> list[Any]:
+        """Sensoren eines Bereichs (BSM-034.03, logik/sensoren)."""
+        return k_geraete.sensoren(self, bid)
+
+    def kontakt_offen_seit(self, bid: str) -> datetime | None:
+        return k_geraete.kontakt_offen_seit(self, bid)
+
+    def batterie(self, entity_id: str) -> float | None:
+        return k_geraete.batterie(self, entity_id)
 
     def geraet_status(self, g: GeraetInfo) -> str:
         return k_geraete.status(self, g)

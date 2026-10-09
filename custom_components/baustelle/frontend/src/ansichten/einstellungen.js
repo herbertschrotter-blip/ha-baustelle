@@ -58,11 +58,14 @@ function geraeteListe(p) {
     !g.erreichbar ? 'nicht erreichbar' : g.an ? `an · ${de(zahl(g.kwJetzt) ? g.kwJetzt : g.kw, 2)} kW` : 'aus', !g.erreichbar, p.npMarke(g))));
   const temp = [...C.filter(b => b.fuehler).map(b => { const [t, x] = wert(b.fuehler); return zeileG(b.fuehler, '🌡', b.name, t, x); }),
     ...(o.temp_sensor ? [(() => { const [t, x] = wert(o.temp_sensor); return zeileG(o.temp_sensor, '🌡', 'Außen', t, x); })()] : [])];
-  const tuer = C.filter(b => b.tuer).map(b => { const s = z(b.tuer.eid); return zeileG(b.tuer.eid, '🚪', b.name, weg(s) ? 'meldet nichts' : s.state === 'on' ? 'offen' : 'zu', weg(s)); });
+  // BSM-034.03: alle Türen, Fenster und Licht aus der Sensorliste der Integration
+  const IC_S = { tuer: '🚪', fenster: '🪟', licht: '💡' };
+  const tuer = C.flatMap(b => b.sensoren.filter(x => x.art !== 'fuehler').map(x => { const s = z(x.entity_id);
+    return zeileG(x.entity_id, IC_S[x.art] || '•', `${b.name} · ${x.name}`, weg(s) ? 'meldet nichts' : x.art === 'licht' ? (s.state === 'on' ? 'an' : s.state === 'off' ? 'aus' : wert(x.entity_id)[0]) : s.state === 'on' ? 'offen' : 'zu', weg(s)); }));
   const wetter = [o.wetter && zeileG(o.wetter, '☁', 'Wetter', weg(z(o.wetter)) ? 'meldet nichts' : WETTER_TEXT[z(o.wetter).state] || z(o.wetter).state, weg(z(o.wetter))),
     o.regen_sensor && (() => { const [t, x] = wert(o.regen_sensor); return zeileG(o.regen_sensor, '🌧', 'Regen', t, x); })()].filter(Boolean);
   const teil = (titel, zeilen) => zeilen.length ? html`<div class="glas-panel liste"><div class="gruppe">${titel} · ${zeilen.length}</div>${zeilen}</div>` : nothing;
-  return { inhalt: html`${teil('Schaltgeräte', schalt)}${teil('Temperaturfühler', temp)}${teil('Türkontakte', tuer)}${teil('Wetter und Regen', wetter)}<div class="leise p-fuss">Tippen öffnet die Website des Geräts (z. B. die Shelly-Oberfläche); ohne Website die Geräteseite in Home Assistant.</div>`, n, offline };
+  return { inhalt: html`${teil('Schaltgeräte', schalt)}${teil('Temperaturfühler', temp)}${teil('Türen, Fenster, Licht', tuer)}${teil('Wetter und Regen', wetter)}<div class="leise p-fuss">Tippen öffnet die Website des Geräts (z. B. die Shelly-Oberfläche); ohne Website die Geräteseite in Home Assistant.</div>`, n, offline };
 }
 
 function pumpen(p) {

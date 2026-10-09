@@ -84,7 +84,7 @@ def _weg_zaehler(key: str, bereiche: set[str], geraete: set[str]) -> bool:
 def _weg_stumm(key: str, bereiche: set[str], geraete: set[str]) -> bool:
     """Warnungs-Schlüssel `art[:bereich[:gerät]]` (logik/warnungen.warn_key)."""
     teile = key.split(":")
-    return (len(teile) > 1 and teile[1] not in bereiche) or (len(teile) > 2 and teile[2] not in geraete)
+    return (len(teile) > 1 and teile[1] not in bereiche) or (len(teile) > 2 and "." not in teile[2] and teile[2] not in geraete)
 
 
 def reste_entfernen(daten: dict[str, Any], bereiche: Iterable[str], geraete: Iterable[str]) -> list[str]:

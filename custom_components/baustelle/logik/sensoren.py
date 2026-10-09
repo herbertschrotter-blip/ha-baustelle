@@ -1,0 +1,78 @@
+"""Sensoren eines Containers: die eine Liste (BSM-034.03, Bauplan Geräte §5 .03, Herbert 09.10.2026) – ohne HA-Code.
+
+Keine eigene Ablage: Die Liste entsteht aus dem Fühler des Containers (Unter-Eintrag), seinem Türkontakt (Einstellung
+`tuer`) und dem Aussehen (`symbol`: Türen, Fenster, Licht, logik/symbol). Der Türkontakt ist Tür 1, wenn die keinen
+eigenen Sensor hat. Dieselbe Liste gilt überall: Pause der Heizung, Beobachten, fehlende Sensoren, Mitschreiben,
+› Geräte, Inventar, Notprogramm.
+
+Regeln:
+- Jede Tür und jedes Fenster pausiert wie früher der Türkontakt – offen oder gekippt (der Kontakt meldet bei beidem
+  „offen“; Herbert 09.10.2026: Fenster nach derselben Regel). Maßgeblich ist der am längsten offene Kontakt.
+- Batterie schwach: unter der Grenze aus den Meldungen (Prozent) – je Sensor eine Warnung.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
+
+from .symbol import standard
+
+ARTEN = ("fuehler", "tuer", "fenster", "licht")
+KONTAKTE = ("tuer", "fenster")
+NAME = {"fuehler": "Fühler", "tuer": "Tür", "fenster": "Fenster", "licht": "Licht"}
+
+
+@dataclass(frozen=True)
+class Sensor:
+    art: str          # fuehler | tuer | fenster | licht
+    entity_id: str
+    nr: int           # 1, 2, … je Art (Tür 1, Tür 2, Fenster 1 …)
+
+    @property
+    def name(self) -> str:
+        return NAME[self.art] if self.art in ("fuehler", "licht") else f"{NAME[self.art]} {self.nr}"
+
+    def als_dict(self) -> dict[str, Any]:
+        return {"art": self.art, "entity_id": self.entity_id, "nr": self.nr, "name": self.name}
+
+
+def sensoren(fuehler: str | None, tuer: str | None, symbol: Mapping[str, Any] | None) -> list[Sensor]:
+    """Fühler, Türen, Fenster, Licht eines Containers; jede Entität nur einmal (die erste Rolle zählt)."""
+    s = symbol or standard()
+    roh: list[tuple[str, str | None]] = [("fuehler", fuehler)]
+    roh += [("tuer", t.get("sensor") or (tuer if i == 0 else None)) for i, t in enumerate(s.get("tueren") or [])]
+    if not s.get("tueren"):
+        roh.append(("tuer", tuer))
+    roh += [("fenster", f.get("sensor")) for f in s.get("fenster") or []]
+    roh.append(("licht", s.get("licht")))
+    aus: list[Sensor] = []
+    zaehler = dict.fromkeys(ARTEN, 0)
+    for art, eid in roh:
+        if art in KONTAKTE:
+            zaehler[art] += 1   # Nummer wie im Aussehen (Fenster 2 bleibt Fenster 2, auch wenn Fenster 1 keinen Sensor hat)
+        if eid and all(x.entity_id != eid for x in aus):
+            aus.append(Sensor(art, eid, zaehler[art] if art in KONTAKTE else 1))
+    return aus
+
+
+def aus_einstellungen(fuehler: str | None, bereich: Mapping[str, Any]) -> list[Sensor]:
+    """Die Liste aus dem Fühler und den Einstellungen des Containers (Türkontakt `tuer`, Aussehen `symbol`)."""
+    return sensoren(fuehler, bereich.get("tuer"), bereich.get("symbol"))
+
+
+def kontakte(liste: Iterable[Sensor]) -> list[str]:
+    """Entitäten aller Türen und Fenster – jeder pausiert."""
+    return [s.entity_id for s in liste if s.art in KONTAKTE]
+
+
+def offen_seit(zeiten: Iterable[datetime | None]) -> datetime | None:
+    """Seit wann offen: der am längsten offene Kontakt (None = alle zu)."""
+    offen = [z for z in zeiten if z is not None]
+    return min(offen) if offen else None
+
+
+def batterie_schwach(prozent: float | None, grenze: float) -> bool:
+    return prozent is not None and prozent < grenze

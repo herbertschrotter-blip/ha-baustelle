@@ -118,49 +118,103 @@
     "name": "Poliercontainer",
     "art": "container",
     "fuehler": "sensor.polier_temperatur",
-    "nr": 0
+    "nr": 0,
+    "sensoren": [
+     {
+      "art": "fuehler",
+      "entity_id": "sensor.polier_temperatur",
+      "nr": 1,
+      "name": "Fühler",
+      "batterie": null
+     },
+     {
+      "art": "tuer",
+      "entity_id": "binary_sensor.tuer_polier",
+      "nr": 1,
+      "name": "Tür 1",
+      "batterie": null
+     }
+    ]
    },
    {
     "id": "mannschaft",
     "name": "Mannschaft",
     "art": "container",
     "fuehler": "sensor.mannschaft_temperatur",
-    "nr": 1
+    "nr": 1,
+    "sensoren": [
+     {
+      "art": "fuehler",
+      "entity_id": "sensor.mannschaft_temperatur",
+      "nr": 1,
+      "name": "Fühler",
+      "batterie": null
+     }
+    ]
    },
    {
     "id": "magazin",
     "name": "Magazin",
     "art": "container",
     "fuehler": null,
-    "nr": 2
+    "nr": 2,
+    "sensoren": [
+     {
+      "art": "tuer",
+      "entity_id": "binary_sensor.tuer_magazin",
+      "nr": 1,
+      "name": "Tür 1",
+      "batterie": null
+     }
+    ]
    },
    {
     "id": "sanitaer",
     "name": "Sanitär",
     "art": "container",
     "fuehler": "sensor.sanitaer_temperatur",
-    "nr": 3
+    "nr": 3,
+    "sensoren": [
+     {
+      "art": "fuehler",
+      "entity_id": "sensor.sanitaer_temperatur",
+      "nr": 1,
+      "name": "Fühler",
+      "batterie": null
+     }
+    ]
    },
    {
     "id": "lager",
     "name": "Lager Süd",
     "art": "container",
     "fuehler": null,
-    "nr": 4
+    "nr": 4,
+    "sensoren": []
    },
    {
     "id": "besprechung",
     "name": "Besprechung",
     "art": "container",
     "fuehler": "sensor.besprechung_temperatur",
-    "nr": 3
+    "nr": 3,
+    "sensoren": [
+     {
+      "art": "fuehler",
+      "entity_id": "sensor.besprechung_temperatur",
+      "nr": 1,
+      "name": "Fühler",
+      "batterie": null
+     }
+    ]
    },
    {
     "id": "schacht",
     "name": "Pumpenschacht Nord",
     "art": "pumpenschacht",
     "fuehler": null,
-    "nr": 5
+    "nr": 5,
+    "sensoren": []
    }
   ],
   "geraete": [
@@ -2720,21 +2774,40 @@
     "name": "Polier Kalsdorf",
     "art": "container",
     "fuehler": "sensor.k_polier_temperatur",
-    "nr": 0
+    "nr": 0,
+    "sensoren": [
+     {
+      "art": "fuehler",
+      "entity_id": "sensor.k_polier_temperatur",
+      "nr": 1,
+      "name": "Fühler",
+      "batterie": null
+     }
+    ]
    },
    {
     "id": "k-mannschaft",
     "name": "Mannschaft Kalsdorf",
     "art": "container",
     "fuehler": "sensor.k_mannschaft_temperatur",
-    "nr": 1
+    "nr": 1,
+    "sensoren": [
+     {
+      "art": "fuehler",
+      "entity_id": "sensor.k_mannschaft_temperatur",
+      "nr": 1,
+      "name": "Fühler",
+      "batterie": null
+     }
+    ]
    },
    {
     "id": "k-lager",
     "name": "Lager Kalsdorf",
     "art": "container",
     "fuehler": null,
-    "nr": 2
+    "nr": 2,
+    "sensoren": []
    }
   ],
   "geraete": [
@@ -3551,35 +3624,40 @@
     "name": "Polier",
     "art": "container",
     "fuehler": null,
-    "nr": 0
+    "nr": 0,
+    "sensoren": []
    },
    {
     "id": "lieboch-1",
     "name": "Mannschaft 1",
     "art": "container",
     "fuehler": null,
-    "nr": 1
+    "nr": 1,
+    "sensoren": []
    },
    {
     "id": "lieboch-2",
     "name": "Mannschaft 2",
     "art": "container",
     "fuehler": null,
-    "nr": 2
+    "nr": 2,
+    "sensoren": []
    },
    {
     "id": "lieboch-3",
     "name": "Sanitär",
     "art": "container",
     "fuehler": null,
-    "nr": 3
+    "nr": 3,
+    "sensoren": []
    },
    {
     "id": "lieboch-4",
     "name": "Magazin",
     "art": "container",
     "fuehler": null,
-    "nr": 4
+    "nr": 4,
+    "sensoren": []
    }
   ],
   "geraete": [
@@ -3856,21 +3934,24 @@
     "name": "Polier",
     "art": "container",
     "fuehler": null,
-    "nr": 0
+    "nr": 0,
+    "sensoren": []
    },
    {
     "id": "wundschuh-1",
     "name": "Mannschaft",
     "art": "container",
     "fuehler": null,
-    "nr": 1
+    "nr": 1,
+    "sensoren": []
    },
    {
     "id": "wundschuh-2",
     "name": "Sanitär",
     "art": "container",
     "fuehler": null,
-    "nr": 2
+    "nr": 2,
+    "sensoren": []
    }
   ],
   "geraete": [

@@ -18,12 +18,11 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.const import STATE_ON
 from homeassistant.util import dt as dt_util
 
 from ...const import ART_CONTAINER, CONF_HEIZUNG, HEIZROLLEN, ROLLE_HEIZKOERPER, ZIEHT_STROM_W
 from ...logik import bedarf as bedarf_logik, lernen, soll as soll_logik, stufen
-from ...logik import warnungen as warn_logik
+from ...logik import sensoren as sensor_logik, warnungen as warn_logik
 from ...logik.arbeitszeit import HeizRegeln, Plan, WarmAb
 from ...logik.regelung import LageContainer, Soll, SollGrund
 from ..basis import Funktion, zeit
@@ -174,8 +173,8 @@ class Heizung(Funktion):
 
     # ------------------------------------------------------------------ Einrichtung und Kalender
     def entitaeten(self) -> set[str]:
-        """Türkontakte der Container."""
-        return {t for b in self.bereiche() if (t := self.st.einstellungen.bereich(b.id).get("tuer"))}
+        """Türen und Fenster der Container (BSM-034.03: jeder Kontakt pausiert)."""
+        return {eid for b in self.bereiche() for eid in sensor_logik.kontakte(self.st.sensoren(b.id))}
 
     def kalender_neu(self, pfad: tuple[str, ...]) -> bool:
         # Termine gehören nur zu Bedarfs-Containern: nach dem Umstellen gleich neu zuordnen, nicht erst in 15 min
@@ -281,10 +280,9 @@ class Heizung(Funktion):
     def _lernen(self, jetzt: datetime, wetter: WetterWerte) -> None:
         h_lernregelung._lernen(self, jetzt, wetter)
 
-    def _tuer_offen(self, e: Mapping[str, Any]) -> bool:
-        """Türkontakt des Containers offen (WU-0009: schützt das Lernen)."""
-        tuer = e.get("tuer")
-        return bool(tuer) and (z := self.st.hass.states.get(str(tuer))) is not None and z.state == STATE_ON
+    def _tuer_offen(self, bid: str) -> bool:
+        """Eine Tür oder ein Fenster des Containers offen (WU-0009: schützt das Lernen; BSM-034.03)."""
+        return self.st.kontakt_offen_seit(bid) is not None
 
     def lern_anzeige(self, bid: str) -> dict[str, Any] | None:
         return h_lernregelung.lern_anzeige(self, bid)

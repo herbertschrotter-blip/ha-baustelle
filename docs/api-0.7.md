@@ -17,7 +17,9 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
                 "version": "0.7.0", "zeitzone": "Europe/Vienna", "heute": "2026-09-29", "jetzt": "ISO",
                 "beginn": "2026-09-08", "beginn_auto": false},   // geltender Beginn; auto = ohne `beginn` → Tag der Anlage (AN-0002)
   "entitaeten": {"<unique_id>": "<entity_id>"},
-  "bereiche": [{"id": "", "name": "", "art": "container|pumpenschacht", "fuehler": "sensor.x|null", "nr": 0}],
+  "bereiche": [{"id": "", "name": "", "art": "container|pumpenschacht", "fuehler": "sensor.x|null", "nr": 0,
+                "sensoren": [{"art": "fuehler|tuer|fenster|licht", "entity_id": "", "nr": 1, "name": "Tür 1", "batterie": 87}]}],
+                // sensoren (0.8.118, BSM-034.03): die eine Liste aus Fühler, Türkontakt (= Tür 1) und Aussehen; batterie in % oder null
   "geraete": [{"id": "", "name": "", "bereich": "", "schalter": "switch.x", "rolle": "heizung|trockner|pumpe|steckdose",
                "typ": "oelradiator|konvektor|…", "leistung": "sensor.x|null", "energie": "sensor.x|null", "nenn_kw": 2.0}],
   "einstellungen": {"…": "Store v2 ohne zaehler, protokoll, meldungen, laufzeit (siehe bauplan §1)"},
@@ -480,3 +482,11 @@ Eine Stelle für Änderungen an Geräten (`kern/geraete`, Bauplan Geräte §4). 
 
 Unbekannte Baustelle oder Gerät → `not_found`; falscher Status → `invalid_format`. Lädt die Baustelle gerade neu, wartet
 der Befehl bis zu 15 s. Das Zuordnen im Inventar (§10) prüft nach denselben Regeln.
+
+**Sensoren je Container (0.8.118, BSM-034.03):** Die Liste `bereiche[].sensoren` (logik/sensoren) gilt überall: Jede
+Tür und jedes Fenster (offen oder gekippt) pausiert wie früher der Türkontakt, maßgeblich ist der am längsten offene;
+`laufzeit.container.<id>.tuer` = `{offen, seit}` über alle Kontakte (null ohne Kontakt). Alle Sensoren werden beobachtet,
+als fehlend gemeldet (Reparatur-Hinweis), stehen in `geraete_links`, im Mitschreiben (`tuer_offen_s` = irgendein Kontakt
+offen; Ereignis `tuer` mit `sensor`) und im Inventar (Bestand, Vorschau; Zuordnen eines Tür- oder Fensterkontakts trägt ihn
+ins Aussehen ein). Batterie unter der Grenze der Meldungen: Warnung `fuehler_fehlt` je Sensor („Tür 1: Batterie schwach,
+5 %“, Schlüssel `fuehler_fehlt:<bereich>:<entity_id>`).

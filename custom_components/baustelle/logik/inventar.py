@@ -24,7 +24,8 @@ GERAETE: dict[str, str] = {   # Kürzel → Label (Gerätetyp)
     "PLUG": "Shelly Plug", "HZ": "Heizkörper", "TEMP": "Shelly H&Temp Sensor", "DOOR": "Shelly Door Sensor",
     "FEN": "Shelly Door Sensor", "PUMP": "Pumpe", "BTR": "Bautrockner",
 }
-AM_CONTAINER = ("TEMP", "DOOR", "FEN")   # gehören zum Container, nicht zu einem Plug (ohne GG)
+AM_CONTAINER = ("TEMP", "DOOR", "FEN")
+SENSOR_TYP = {"fuehler": "TEMP", "tuer": "DOOR", "fenster": "FEN"}   # Sensorliste (logik/sensoren) → Inventar; Licht nicht   # gehören zum Container, nicht zu einem Plug (ohne GG)
 HEIZTYPEN = {"konvektor": "Konvektor", "oelradiator": "Radiator", "radiator": "Radiator"}
 ENDUNGEN = ("Temperatur", "Feuchte", "Batterie", "Tuer", "Drehung", "Lichtstufe", "Licht")
 LABEL_CONTAINER = "Container"

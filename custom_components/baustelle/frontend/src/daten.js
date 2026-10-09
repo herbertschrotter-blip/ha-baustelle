@@ -74,7 +74,7 @@ export function bauen(r, hass, ersatzZone) {
     if (offline) zst = 'offline';
     const tuerS = eb.tuer && hass && hass.states[eb.tuer];
     const tuer = eb.tuer ? { eid: eb.tuer, sensor: (tuerS && tuerS.attributes.friendly_name) || eb.tuer, offen: c.tuer && c.tuer.offen ? Math.max(1, minSeitAb(c.tuer.seit, jetztMs) ?? 1) : 0 } : undefined;
-    return { id: b.id, name: b.name || b.id, f: zahl(b.nr) ? Number(b.nr) : i, art: b.art, pumpe, fuehler: b.fuehler || null, z: zst, grund: c.grund || null,
+    return { id: b.id, name: b.name || b.id, f: zahl(b.nr) ? Number(b.nr) : i, art: b.art, pumpe, fuehler: b.fuehler || null, sensoren: b.sensoren || [], z: zst, grund: c.grund || null,
       t: zahl(c.temperatur) ? Number(c.temperatur) : null, kw: zahl(c.kw) ? Number(c.kw) : null, text: c.text || '', geraete,
       auto: eb.auto !== false, trocknen: !!eb.trocknen, stufenAn: !!eb.stufen, stufen: c.stufen || null, sollJ: c.soll || null, bedarfGrad: c.bedarf || null, soll: zahl(eb.soll) ? Number(eb.soll) : undefined, bedarf: !!eb.bedarf, prio: eb.prio || 'normal',
       anschluss: eb.anschluss || (anschluesse[0] && anschluesse[0].id) || null, firma: c.firma || 'eigen', tuer, offline,

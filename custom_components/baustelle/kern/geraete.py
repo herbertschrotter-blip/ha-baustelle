@@ -11,6 +11,7 @@ neuen Container beginnen), Unter-Einträge, Protokoll, am Ende einmal neu laden.
 
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
@@ -26,7 +27,7 @@ from ..const import (
 )
 from ..db import DATA_DB
 from ..db import inventar as db_inventar
-from ..logik import geraete as logik
+from ..logik import geraete as logik, sensoren as sensor_logik
 from .typen import GeraetInfo
 
 if TYPE_CHECKING:
@@ -189,3 +190,34 @@ async def async_speichern(hass: HomeAssistant, st: Steuerung, schritte: list[dic
         await st.einstellungen.async_jetzt_speichern()
         await hass.config_entries.async_reload(entry.entry_id)
     return neu
+
+
+# ---------------------------------------------------------------------- BSM-034.03: Sensoren je Container
+def sensoren(st: Steuerung, bid: str) -> list[sensor_logik.Sensor]:
+    """Sensoren des Bereichs (logik/sensoren) – die eine Liste für alles."""
+    info = st.bereiche.get(bid)
+    return [] if info is None else sensor_logik.aus_einstellungen(info.fuehler, st.einstellungen.bereich(bid))
+
+
+def kontakt_offen_seit(st: Steuerung, bid: str) -> datetime | None:
+    """Seit wann ein Kontakt des Bereichs offen ist (der am längsten offene, logik/sensoren); None = alle zu."""
+    zeiten = []
+    for eid in sensor_logik.kontakte(sensoren(st, bid)):
+        s = st.hass.states.get(eid)
+        zeiten.append(dt_util.as_local(s.last_changed) if s is not None and s.state == STATE_ON else None)
+    return sensor_logik.offen_seit(zeiten)
+
+
+def batterie(st: Steuerung, entity_id: str) -> float | None:
+    """Batterie (%) am Gerät des Sensors, sonst None."""
+    ents = er.async_get(st.hass)
+    eintrag = ents.async_get(entity_id)
+    if eintrag is None or eintrag.device_id is None:
+        return None
+    for x in er.async_entries_for_device(ents, eintrag.device_id):
+        if (x.device_class or x.original_device_class) == "battery" and x.entity_id.startswith("sensor."):
+            try:
+                return float(st.hass.states.get(x.entity_id).state)  # type: ignore[union-attr]
+            except (AttributeError, TypeError, ValueError):
+                return None
+    return None

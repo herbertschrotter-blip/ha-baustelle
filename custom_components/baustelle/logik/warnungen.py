@@ -154,7 +154,8 @@ class ContainerZustand:
     soll: float | None = None
     in_arbeitszeit: bool = False
     fuehler: bool = False
-    batterie: float | None = None
+    batterie: float | None = None   # Batterie des Fühlers (%)
+    batterien: tuple[tuple[str, str, float | None], ...] = ()   # BSM-034.03: (Name, Entität, %) der Türen, Fenster, Licht
     unter_soll_seit: datetime | None = None
     tuer_offen_seit: datetime | None = None
     tuer_pausiert: bool = True      # Tür pausiert die Heizung (sonst nur ein Sicherheitshinweis, Szenarien)
@@ -368,6 +369,9 @@ def _pruefe_container(c: ContainerZustand, einst: WarnEinstellungen, jetzt: date
         and einst.aktiv(Art.FUEHLER_FEHLT)
     ):
         w.append(_warnung(Art.FUEHLER_FEHLT, jetzt, c.id, batterie=c.batterie))
+    for name, eid, prozent in c.batterien:   # BSM-034.03: jeder Sensor des Containers, eigene Warnung
+        if prozent is not None and prozent < einst.batterie_unter and einst.aktiv(Art.FUEHLER_FEHLT):
+            w.append(_warnung(Art.FUEHLER_FEHLT, jetzt, c.id, eid, name=name, batterie=prozent))
     if t is not None and einst.frost and t < einst.frost_grenze and einst.aktiv(Art.FROSTGEFAHR):
         w.append(_warnung(Art.FROSTGEFAHR, jetzt, c.id, temperatur=t, grenze=einst.frost_grenze))
     if (
@@ -533,7 +537,7 @@ def titel(w: Warnung) -> str:
             return f"zu kalt: {_zahl(v['temperatur'])} °C statt {_grad(v['soll'])} °C"
         case Art.FUEHLER_FEHLT:
             if "batterie" in v:
-                return f"Fühler-Batterie schwach: {_zahl(v['batterie'], 0)} %"
+                return f"{name}: Batterie schwach, {_zahl(v['batterie'], 0)} %" if name else f"Fühler-Batterie schwach: {_zahl(v['batterie'], 0)} %"
             return "Fühler meldet nichts"
         case Art.KEIN_WETTER:
             return "keine Wettervorhersage"

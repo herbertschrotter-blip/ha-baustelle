@@ -168,6 +168,14 @@ def test_fuehler_fehlt_ohne_messwert_oder_batterie_schwach():
     assert nur(Art.FUEHLER_FEHLT, zustand(container=[ContainerZustand(id="lager")])) == []  # ohne Fühler
 
 
+def test_batterie_jedes_sensors():
+    """BSM-034.03: Türen, Fenster, Licht bekommen je eine eigene Warnung bei schwacher Batterie."""
+    c = ContainerZustand(id="polier", batterien=(("Tür 1", "binary_sensor.t1", 5), ("Fenster 2", "binary_sensor.f2", 50),
+                                                ("Tür 2", "binary_sensor.t2", None)))
+    (w,) = nur(Art.FUEHLER_FEHLT, zustand(container=[c]))
+    assert titel(w) == "Tür 1: Batterie schwach, 5 %" and w.key == "fuehler_fehlt:polier:binary_sensor.t1"
+
+
 def test_kein_wetter():
     (w,) = nur(Art.KEIN_WETTER, zustand(wetter=False))
     assert (w.stufe, w.bereich, w.key) == ("hinweis", None, "kein_wetter")

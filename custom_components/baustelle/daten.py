@@ -21,6 +21,7 @@ from .funktionen.pumpen import Pumpen
 from .logik import groesse, symbol as symbol_logik
 from .logik.abrechnung import EIGEN, firma_von
 from .logik.arbeitszeit import Plan, uhrzeit
+from .logik.sensoren import kontakte
 from .logik.warnungen import titel as warn_titel
 from .notprogramm import DATA_NOTPROGRAMM
 from . import texte
@@ -167,11 +168,10 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             (_zahl(hass, g.leistung) or 0.0) / 1000 for g in st.geraete_in(bid)
             if g.leistung and (s := hass.states.get(g.schalter)) is not None and s.state == STATE_ON
         )
-        tuer = None
-        if info.art == ART_CONTAINER and (tuer_id := st.einstellungen.bereich(bid).get("tuer")):
-            s = hass.states.get(tuer_id)
-            offen = s is not None and s.state == STATE_ON
-            tuer = {"offen": offen, "seit": _iso(dt_util.as_local(s.last_changed)) if offen and s else None}
+        tuer = None   # BSM-034.03: irgendeine Tür oder ein Fenster offen (der am längsten offene)
+        if info.art == ART_CONTAINER and kontakte(st.sensoren(bid)):
+            seit = st.kontakt_offen_seit(bid)
+            tuer = {"offen": seit is not None, "seit": _iso(seit)}
         container[bid] = {
             "zustand": d.zustand.get(bid, "aus"), "grund": d.grund.get(bid), "text": d.text.get(bid, ""),
             "temperatur": d.temperatur.get(bid), "kw": round(kw, 3),
@@ -264,7 +264,10 @@ def struktur(hass: HomeAssistant, entry: ConfigEntry, version: str = "") -> dict
         daten.update(bereiche=[], geraete=[], einstellungen={}, zaehler={}, laufzeit={})
         return daten
     daten.update(
-        bereiche=[{"id": b.id, "name": b.name, "art": b.art, "fuehler": b.fuehler, "nr": b.nr} for b in st.bereiche.values()],
+        bereiche=[{"id": b.id, "name": b.name, "art": b.art, "fuehler": b.fuehler, "nr": b.nr,
+                   # BSM-034.03: die eine Sensorliste (Fühler, Türen, Fenster, Licht) mit Batterie (%)
+                   "sensoren": [{**x.als_dict(), "batterie": st.batterie(x.entity_id)} for x in st.sensoren(b.id)]}
+                  for b in st.bereiche.values()],
         geraete=[
             {"id": g.id, "name": g.name, "bereich": g.bereich, "schalter": g.schalter,
              "rolle": ROLLE_API.get(g.rolle, g.rolle), "typ": g.typ, "leistung": g.leistung, "energie": g.energie,
@@ -290,7 +293,7 @@ def _geraete_links(hass: HomeAssistant, st: Steuerung, entry: ConfigEntry) -> di
     for g in st.geraete.values():
         ents |= {g.schalter, g.leistung, g.energie}
     for b in st.bereiche.values():
-        ents |= {b.fuehler, st.einstellungen.bereich(b.id).get("tuer")}
+        ents |= {x.entity_id for x in st.sensoren(b.id)}   # BSM-034.03: alle Sensoren des Containers
     ents |= {entry.options.get(k) for k in (CONF_TEMP_SENSOR, CONF_REGEN_SENSOR, CONF_WETTER)}
     ereg, dreg = er.async_get(hass), dr.async_get(hass)
     links: dict[str, dict[str, Any]] = {}

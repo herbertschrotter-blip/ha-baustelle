@@ -7,7 +7,6 @@ from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import STATE_ON
-from homeassistant.util import dt as dt_util
 
 from ...const import ROLLE_HEIZKOERPER
 from ...logik import bedarf as bedarf_logik, groesse, lernen
@@ -192,10 +191,9 @@ def soll(hz: Heizung, jetzt: datetime, wetter: WetterWerte) -> SollJeBereich:
         temp = hz.temperatur_gehalten(bid, info.fuehler, jetzt)   # Fühler kurz weg: letzter Wert (Szenarien)
         soll_t = hz.soll_temperatur(bid)
         tuer_min = None
-        tuer = e.get("tuer")
-        if tuer and (s := hass.states.get(tuer)) is not None and s.state == STATE_ON:
+        if (offen_seit := st.kontakt_offen_seit(bid)) is not None:   # BSM-034.03: jede Tür und jedes Fenster
             if bid not in hz.tuer_trotzdem:
-                tuer_min = minuten_seit(dt_util.as_local(s.last_changed), jetzt)
+                tuer_min = minuten_seit(offen_seit, jetzt)
         else:
             if bid in hz.tuer_trotzdem:
                 hz.tuer_trotzdem.discard(bid)

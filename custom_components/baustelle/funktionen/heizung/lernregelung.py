@@ -108,7 +108,7 @@ def _lernen(hz: Heizung, jetzt: datetime, wetter: WetterWerte) -> None:
         alt = hz.lern_staende.get(info.id) or lernen.neuer_stand()
         neu = lernen.takt(
             alt, jetzt=jetzt, heizt=any(hz._zieht_strom(g) for g in heizer), anzahl=sum(1 for g in heizer if hz._zieht_strom(g)),
-            tuer_offen=hz._tuer_offen(e), innen=hz.st.temperatur(info.fuehler),
+            tuer_offen=hz._tuer_offen(info.id), innen=hz.st.temperatur(info.fuehler),
             hand=any(g.id in hz.st.lz["hand"] for g in heizer),
             kint_ok=hz._grund_beim_heizen.get(info.id) != SollGrund.BOOST,   # Grund der letzten Heizminute
             soll=hz.soll_temperatur(info.id), aussen=wetter.aussen, art=hz._lern_art(info.id), regelt=regelt,

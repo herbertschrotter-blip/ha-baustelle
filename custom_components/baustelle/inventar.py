@@ -20,7 +20,7 @@ from .db import DATA_DB
 from .db import inventar as db_inventar
 from .inventar_geraete import async_bestand, async_verweise, async_zuordnen, kandidaten, status_uebernehmen
 from .logik.inventar import (
-    CONTAINER_ARTEN, GERAETE, HAENGT, STATUS_AUSRUESTUNG, InventarFehler, aufbereiten, firmenkuerzel_pruefen, nummer_frei,
+    CONTAINER_ARTEN, GERAETE, HAENGT, SENSOR_TYP, STATUS_AUSRUESTUNG, InventarFehler, aufbereiten, firmenkuerzel_pruefen, nummer_frei,
     praefix, vorschau,
 )
 from .logik.rechte import darf
@@ -227,9 +227,9 @@ def vorschau_eingabe(hass: HomeAssistant, roh: dict[str, Any], container_id: str
                       "schalter": schalter, "entitaeten": messwerte,
                       "plug_name": geraet["original"] if geraet else None, "labels": namen})
     sensoren = []
-    for typ, entity_id in (("TEMP", st.bereiche[bid].fuehler), ("DOOR", st.einstellungen.bereich(bid).get("tuer"))):
-        if entity_id:
-            geraet, entitaeten, namen = _geraet(hass, entity_id)
+    for x in st.sensoren(bid):   # BSM-034.03: Fühler, Türen, Fenster (Licht nicht)
+        if (typ := SENSOR_TYP.get(x.art)) is not None:
+            geraet, entitaeten, namen = _geraet(hass, x.entity_id)
             sensoren.append({"typ": typ, "geraet": geraet, "entitaeten": entitaeten, "labels": namen})
     firma = next((f["name"] for f in roh["firmen"] if c.get("firma_kuerzel") and f.get("kuerzel") == c["firma_kuerzel"]), None)
     return {"art": c["art"], "firma": firma, "plugs": plugs, "sensoren": sensoren,

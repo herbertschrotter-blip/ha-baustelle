@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.118] – 2026-10-09
+
+- Sensoren je Container (BSM-034.03, Lieferung 1): Jede Tür und jedes Fenster pausiert jetzt die Heizung – offen oder
+  gekippt –, nicht nur der Türkontakt. Die Sensoren kommen aus dem Container (Fühler, Türkontakt = Tür 1) und dem
+  Aussehen (Tür 2, Fenster, Licht); eine Liste für alles: Beobachten, Hinweis bei fehlendem Sensor, Mitschreiben,
+  Einstellungen › Geräte („Türen, Fenster, Licht“), Inventar. Ein Fensterkontakt aus dem Inventar wird gleich als Fenster
+  im Aussehen eingetragen. Batterie-Warnung für jeden Sensor (die für den Fühler kam bisher nie).
+
 ## [0.8.117] – 2026-10-09
 
 - Geräte über eine Stelle (BSM-034.02, Lieferung 2): Anlegen, Ändern, Verschieben und Entfernen von Shellys auf der Seite

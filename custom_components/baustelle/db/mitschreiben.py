@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import ART_CONTAINER
 from ..logik.minute import BereichSammler, GeraetSammler
+from ..logik.sensoren import kontakte
 from . import schema as s
 from .schreiber import arbeit, schreibarbeit
 
@@ -58,6 +59,7 @@ class Mitschreiber:
         self._bereiche: dict[str, BereichSammler] = {}
         self._wer: dict[str, list[tuple[str, str]]] = {}   # entity_id → [(art, id)]
         self._zustand_alt: dict[str, str] = {}
+        self._kontakte: dict[str, list[str]] = {}
         self._lernen_alt: dict[str, str] = {}
         self._abmelden: list[Callable[[], None]] = []
         self.start_zeit = dt_util.utcnow()
@@ -77,16 +79,24 @@ class Mitschreiber:
             if g.energie:
                 self._merken(g.energie, "energie", gid)
         for bid, info in self.st.bereiche.items():
-            tuer = self.st.einstellungen.bereich(bid).get("tuer") if info.art == ART_CONTAINER else None
+            # BSM-034.03: alle Türen und Fenster; „Tür offen“ je Minute = irgendein Kontakt offen
+            tueren = kontakte(self.st.sensoren(bid)) if info.art == ART_CONTAINER else []
+            self._kontakte[bid] = tueren
             self._bereiche[bid] = BereichSammler(
-                jetzt, _zahl(get(info.fuehler)) if info.fuehler else None, _an(get(tuer)) if tuer else None, mit_tuer=bool(tuer))
+                jetzt, _zahl(get(info.fuehler)) if info.fuehler else None, self._offen(bid) if tueren else None,
+                mit_tuer=bool(tueren))
             if info.fuehler:
                 self._merken(info.fuehler, "fuehler", bid)
-            if tuer:
-                self._merken(tuer, "tuer", bid)
+            for eid in tueren:
+                self._merken(eid, "tuer", bid)
         if self._wer:
             self._abmelden.append(async_track_state_change_event(self.hass, list(self._wer), self._geaendert))
         self._abmelden.append(async_track_time_change(self.hass, self._minute, second=0))
+
+    def _offen(self, bid: str) -> bool | None:
+        """Irgendein Kontakt des Containers offen; None, wenn keiner etwas meldet."""
+        werte = [_an(self.hass.states.get(eid)) for eid in self._kontakte.get(bid, [])]
+        return True if any(werte) else (False if any(w is False for w in werte) else None)
 
     def _merken(self, entity_id: str, art: str, wessen: str) -> None:
         self._wer.setdefault(entity_id, []).append((art, wessen))
@@ -116,9 +126,9 @@ class Mitschreiber:
             elif art == "fuehler" and (b := self._bereiche.get(wessen)):
                 b.temperatur(t, _zahl(neu))
             elif art == "tuer" and (b := self._bereiche.get(wessen)):
-                b.tuer(t, _an(neu))
+                b.tuer(t, self._offen(wessen))
                 if _an(neu) != _an(alt):
-                    self.ereignis(t, "tuer", {"offen": _an(neu)}, "automatik", bereich_id=wessen)
+                    self.ereignis(t, "tuer", {"offen": _an(neu), "sensor": event.data["entity_id"]}, "automatik", bereich_id=wessen)
 
     def _messwert(self, gid: str, t: datetime, watt: float | None) -> None:
         """Jeder gemeldete Wert der Leistung (Aufbau 5) – für „Leistung einer Stunde“ auch nach 62 Tagen."""

@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.const import STATE_ON
-from homeassistant.util import dt as dt_util
 
 from ...const import HEIZROLLEN
 from ...logik import lernen
@@ -35,15 +34,15 @@ def warnungen(hz: Heizung, jetzt: datetime, soll: SollJeBereich) -> list[warn_lo
             hz._unter_soll_seit.setdefault(info.id, jetzt)
         else:
             hz._unter_soll_seit.pop(info.id, None)
-        tuer_seit = None
-        tuer = st.einstellungen.bereich(info.id).get("tuer")
         frost = s_c is not None and s_c[0].grund == SollGrund.FROST   # Frost geht vor: nicht „pausiert“ melden (Szenario-Befund)
-        if tuer and not frost and info.id not in hz.tuer_trotzdem and (s := st.hass.states.get(tuer)) is not None and s.state == STATE_ON:
-            tuer_seit = dt_util.as_local(s.last_changed)
+        tuer_seit = None if frost or info.id in hz.tuer_trotzdem else st.kontakt_offen_seit(info.id)   # BSM-034.03
+        sens = st.sensoren(info.id)
         pausiert = s_c is not None and s_c[0].grund == SollGrund.TUER_OFFEN   # sonst: Sicherheitshinweis (Szenarien)
         liste.append(
             warn_logik.ContainerZustand(
                 id=info.id, temperatur=temp, soll=soll_t, in_arbeitszeit=in_az, fuehler=bool(info.fuehler),
+                batterie=st.batterie(info.fuehler) if info.fuehler else None,
+                batterien=tuple((x.name, x.entity_id, st.batterie(x.entity_id)) for x in sens if x.art != "fuehler"),
                 unter_soll_seit=hz._unter_soll_seit.get(info.id), tuer_offen_seit=tuer_seit, tuer_pausiert=pausiert,
                 modus=hz.modus(info.id),
             )
@@ -117,7 +116,7 @@ def anzeige(hz: Heizung, bid: str, info: BereichInfo, jetzt: datetime, soll: Sol
                 text = f"Soll erreicht · hält {warn_logik._zahl(hz.soll_temperatur(bid))} °C"
     if an and not heizer_an and zustand == "aus":
         text = "aus · Steckdose an"
-    if zustand in ("aus", "bereit") and grund != SollGrund.TUER_OFFEN and hz._tuer_offen(e):
+    if zustand in ("aus", "bereit") and grund != SollGrund.TUER_OFFEN and hz._tuer_offen(bid):
         text = f"{text} · 🚪 Tür offen"
     return zustand, text, str(grund)
 

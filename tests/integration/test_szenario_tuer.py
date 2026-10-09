@@ -646,3 +646,37 @@ async def test_kein_vermuten_ohne_durchgehendes_heizen(hass: HomeAssistant, baus
     for i in range(12):
         await minute(16.5 - 0.1 * i)
     assert not _an(hass, "switch.hk1") and st.lz["lernen"][C1]["offen"] is None
+
+
+# ====================================================================== BSM-034.03: jede Tür und jedes Fenster
+async def test_fenster_und_zweite_tuer_pausieren(hass: HomeAssistant, baustelle, freezer, shellys, nachrichten) -> None:
+    """Herbert 09.10.2026: Fenster pausieren wie Türen – offen oder gekippt (der Kontakt meldet bei beidem „an“). Der
+    Türkontakt ist Tür 1; Tür 2 und die Fenster kommen aus dem Aussehen. Maßgeblich ist der am längsten offene."""
+    st = baustelle.runtime_data
+    fenster, tuer2 = "binary_sensor.fenster_c1", "binary_sensor.tuer2_c1"
+    for eid in (fenster, tuer2):
+        hass.states.async_set(eid, "off")
+    await _start(hass, freezer, st)
+    st.einstellung_setzen(("bereiche", C1, "symbol"), {
+        "doppel": False, "farbe": None, "rahmen": None, "licht": None, "tueren": [{"wand": "front", "pos": 0.15, "sensor": None}, {"wand": "seite", "pos": 0.5, "sensor": tuer2}],
+        "fenster": [{"wand": "front", "pos": 0.67, "sensor": fenster}]})
+    await hass.async_block_till_done()
+    assert {fenster, tuer2, TUER1} <= Heizung.von(st).entitaeten()   # werden beobachtet
+    sens = next(b for b in struktur(hass, baustelle)["bereiche"] if b["id"] == C1)["sensoren"]
+    assert [(s["art"], s["name"]) for s in sens] == [("fuehler", "Fühler"), ("tuer", "Tür 1"), ("tuer", "Tür 2"), ("fenster", "Fenster 1")]
+    await _zu(hass, freezer, "10:01:00", st)
+    assert _an(hass, "switch.hk1")
+
+    await _tuer(hass, fenster, "on")   # gekippt
+    await _zu(hass, freezer, "10:03:00", st)
+    assert _an(hass, "switch.hk1")       # noch unter der Pausenzeit
+    await _tuer(hass, tuer2, "on")
+    await _zu(hass, freezer, "10:05:00", st)
+    assert not _an(hass, "switch.hk1") and st.daten.grund[C1] == "tuer_offen"
+    assert _c(hass, baustelle)["tuer"] == {"offen": True, "seit": "2026-09-29T10:01:00+02:00"}   # das Fenster ist länger offen
+    await _tuer(hass, fenster, "off")
+    await _zu(hass, freezer, "10:06:00", st)
+    assert st.daten.grund[C1] == "tuer_offen"   # Tür 2 ist noch offen (seit 10:03, ≥ 3 min)
+    await _tuer(hass, tuer2, "off")
+    await _zu(hass, freezer, "10:07:00", st)
+    assert _an(hass, "switch.hk1") and _c(hass, baustelle)["tuer"] == {"offen": False, "seit": None}

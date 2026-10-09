@@ -146,3 +146,24 @@ async def test_vorschau_nennt_verweise(hass: HomeAssistant, baustelle_register, 
     c = await _anlegen(ws, 1, entry, art="POL", bereich_id=C1)
     v = (await _senden(ws, 2, type="baustelle/inventar_vorschau", container_id=c["id"]))["result"]
     assert {"art": "Automation", "name": "Polier morgens", "alt": "switch.hk1", "neu": "switch.001_01_c_plug_pol"} in v["verweise"]
+
+
+async def test_fensterkontakt_zuordnen_traegt_ins_aussehen_ein(hass: HomeAssistant, baustelle_register, hass_ws_client) -> None:
+    """BSM-034.03: Ein Fensterkontakt (FEN) aus dem Inventar landet als Fenster im Aussehen – die Sensorliste, das
+    Pausieren und der Bestand kennen ihn dann."""
+    entry = baustelle_register
+    quelle = MockConfigEntry(domain="bthome", data={})
+    quelle.add_to_hass(hass)
+    geraet = dr.async_get(hass).async_get_or_create(config_entry_id=quelle.entry_id, connections={(dr.CONNECTION_BLUETOOTH, "AA:BB:CC:00:00:F1")},
+                                                    name="BLU Fenster", model="Shelly BLU Door/Window")
+    er.async_get(hass).async_get_or_create("binary_sensor", "bthome", "f1-window", suggested_object_id="fenster_c1",
+                                           config_entry=quelle, device_id=geraet.id, original_device_class="window")
+    ws = await hass_ws_client(hass)
+    c = await _anlegen(ws, 1, entry, art="POL", bereich_id=C1)
+    z = await _senden(ws, 2, type="baustelle/inventar_aendern", aktion="ausruestung_zuordnen", container_id=c["id"], device_id=geraet.id)
+    await hass.async_block_till_done()
+    assert z["success"], z
+    assert z["result"]["typ"] == "FEN" and z["result"]["verdrahtet"] == "als Fenster 1 des Containers eingetragen"
+    st = entry.runtime_data
+    assert st.einstellungen.bereich(C1)["symbol"]["fenster"][0]["sensor"] == "binary_sensor.fenster_c1"
+    assert ("fenster", "binary_sensor.fenster_c1") in [(x.art, x.entity_id) for x in st.sensoren(C1)]

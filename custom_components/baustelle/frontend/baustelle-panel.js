@@ -963,6 +963,7 @@ function bauen(r5, hass, ersatzZone) {
       art: b3.art,
       pumpe,
       fuehler: b3.fuehler || null,
+      sensoren: b3.sensoren || [],
       z: zst,
       grund: c4.grund || null,
       t: zahl(c4.temperatur) ? Number(c4.temperatur) : null,
@@ -3075,10 +3076,11 @@ function geraeteListe(p4) {
       return zeileG(o6.temp_sensor, "🌡", "Außen", t5, x2);
     })()] : []
   ];
-  const tuer = C2.filter((b3) => b3.tuer).map((b3) => {
-    const s4 = z2(b3.tuer.eid);
-    return zeileG(b3.tuer.eid, "🚪", b3.name, weg(s4) ? "meldet nichts" : s4.state === "on" ? "offen" : "zu", weg(s4));
-  });
+  const IC_S = { tuer: "🚪", fenster: "🪟", licht: "💡" };
+  const tuer = C2.flatMap((b3) => b3.sensoren.filter((x2) => x2.art !== "fuehler").map((x2) => {
+    const s4 = z2(x2.entity_id);
+    return zeileG(x2.entity_id, IC_S[x2.art] || "•", `${b3.name} · ${x2.name}`, weg(s4) ? "meldet nichts" : x2.art === "licht" ? s4.state === "on" ? "an" : s4.state === "off" ? "aus" : wert2(x2.entity_id)[0] : s4.state === "on" ? "offen" : "zu", weg(s4));
+  }));
   const wetter2 = [
     o6.wetter && zeileG(o6.wetter, "☁", "Wetter", weg(z2(o6.wetter)) ? "meldet nichts" : WETTER_TEXT[z2(o6.wetter).state] || z2(o6.wetter).state, weg(z2(o6.wetter))),
     o6.regen_sensor && (() => {
@@ -3087,7 +3089,7 @@ function geraeteListe(p4) {
     })()
   ].filter(Boolean);
   const teil = (titel, zeilen) => zeilen.length ? b2`<div class="glas-panel liste"><div class="gruppe">${titel} · ${zeilen.length}</div>${zeilen}</div>` : A;
-  return { inhalt: b2`${teil("Schaltgeräte", schalt)}${teil("Temperaturfühler", temp)}${teil("Türkontakte", tuer)}${teil("Wetter und Regen", wetter2)}<div class="leise p-fuss">Tippen öffnet die Website des Geräts (z. B. die Shelly-Oberfläche); ohne Website die Geräteseite in Home Assistant.</div>`, n: n4, offline };
+  return { inhalt: b2`${teil("Schaltgeräte", schalt)}${teil("Temperaturfühler", temp)}${teil("Türen, Fenster, Licht", tuer)}${teil("Wetter und Regen", wetter2)}<div class="leise p-fuss">Tippen öffnet die Website des Geräts (z. B. die Shelly-Oberfläche); ohne Website die Geräteseite in Home Assistant.</div>`, n: n4, offline };
 }
 function pumpen(p4) {
   const st = (k2, s4, fmt) => stepperVorlage(p4, k2, s4, fmt), P2 = p4.d.bereiche.filter((b3) => b3.pumpe);
@@ -5062,7 +5064,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.117";
+var SEITE_VERSION = "0.8.118";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", ...Object.keys(INVENTAR_EINBLENDUNGEN), "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS), r(INV_CSS)];
