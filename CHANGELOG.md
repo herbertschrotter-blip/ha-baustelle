@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.116] – 2026-10-09
+
+- Ein Status je Gerät (BSM-034.02, Lieferung 1): aktiv, inaktiv, verliehen oder defekt – an einer Stelle in der
+  Integration, im Inventar dieselben vier Werte und in beide Richtungen gleich. Nur „aktiv“ schaltet die Automatik.
+  ✎ Gerät hat vier Knöpfe statt des Schalters „Aktiv“; der Chip im Container schaltet weiter schnell aktiv/inaktiv und
+  zeigt „verliehen“ bzw. „defekt“ (Tippen öffnet ✎); im Inventar wechselt der Knopf aktiv → inaktiv → verliehen →
+  defekt. Neuer Befehl `baustelle/geraet` (API §11).
+
 ## [0.8.115] – 2026-10-09
 
 - Geräte, Sofort-Fehler (BSM-034.01, Bauplan Geräte §3):

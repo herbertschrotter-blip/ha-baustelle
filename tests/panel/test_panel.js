@@ -842,9 +842,17 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     pol().modus = 'plan'; await panel.neuZeichnen(); erwarte('WU-0004: im Zeitplan nur Ist, kein Soll ±', ui.innerHTML.includes('class="c-rad"') && !litEl('.c-rad-pm .c-pm') && /Zeitplan – der Heizkörperthermostat regelt/.test(ui.innerHTML));
     erwarte('WU-0004: Geräte-Chips mit ⏻, aktiv, ✎', ['class="c-power', 'class="c-aktiv"', 'class="bs-ic nur-admin"'].every(t => ui.innerHTML.includes(t)));
     neu(); await klick({ act: 'g-aktiv', i: '0' }, 20);
-    erwarte('WU-0004: aktiv über baustelle/aktion', letzte('baustelle/aktion').some(x => x.aktion === 'aktiv' && x.geraet === pol().geraete[0].id && x.an === false));
+    erwarte('BSM-034.02: Chip setzt den Status über baustelle/geraet', letzte('baustelle/geraet').some(x => x.aktion === 'status' && x.geraet === pol().geraete[0].id && x.status === 'inaktiv'));
     await klick({ act: 'g-bearbeiten', i: '0' }); pruefe('Gerät bearbeiten');
-    erwarte('WU-0004: Gerät bearbeiten mit Shelly, Typ, Container, Sensoren, aktiv', ['data-f="schalter"', 'data-f="typ"', 'data-f="bereich"', 'data-f="leistung"', 'data-f="energie"', '<b>Aktiv</b>'].every(t => ui.innerHTML.includes(t)));
+    erwarte('WU-0004: Gerät bearbeiten mit Shelly, Typ, Container, Sensoren, Status', ['data-f="schalter"', 'data-f="typ"', 'data-f="bereich"', 'data-f="leistung"', 'data-f="energie"', 'data-zeile="status"'].every(t => ui.innerHTML.includes(t)));
+    { neu(); const g0 = pol().geraete[0]; await klick('.sheet [data-zeile="status"] [data-v="verliehen"]', 5);
+      erwarte('BSM-034.02: Status im ✎ erst bei „Speichern“', !letzte('baustelle/geraet').length && panel.s.sheet.form.status === 'verliehen');
+      await klick({ act: 'gf-speichern' }, 30);
+      erwarte('BSM-034.02: ✎ setzt den Status über baustelle/geraet', letzte('baustelle/geraet').some(x => x.geraet === g0.id && x.status === 'verliehen'));
+      const vorher = g0.status; g0.status = 'defekt'; g0.aktiv = false; await panel.neuZeichnen();
+      erwarte('BSM-034.02: Chip zeigt „defekt“ statt des Schalters', ui.innerHTML.includes('data-status="defekt"') && ui.innerHTML.includes('defekt – die Automatik lässt es aus'));
+      g0.status = vorher; g0.aktiv = vorher === 'aktiv'; await panel.neuZeichnen(); }
+    await klick({ act: 'g-bearbeiten', i: '0' });
     neu(); eingabe({ f: 'n' }, 'Radiator Nord'); await klick({ act: 'gf-speichern' }, 30);
     { const o = api.find(a => /subentries\/flow/.test(a[1]) && a[2] && a[2].subentry_id); const f = api.find(a => /subentries\/flow\/F/.test(a[1]));
       erwarte('WU-0004: Gerät bearbeiten über den Subentry-Dialog', o && JSON.stringify(o[2].handler) === '["dobl","geraet"]' && f && f[2].name === 'Radiator Nord'); }
@@ -1224,7 +1232,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         await klick('.inv-c[data-id="c1"]', 20);
         erwarte('BSM-031.07: Container mit Einsatz, Ausrüstung, Geschichte', ['001-01_C_PLUG_POL', 'Geschichte', 'Einsatz', 'GG 01'].every(t => ui.innerHTML.includes(t)));
         neu(); await klick('.sheet .inv-st', 10);
-        erwarte('BSM-031.08: Status der Ausrüstung über inventar_aendern', aufrufe.some(m => m.type === 'baustelle/inventar_aendern' && m.aktion === 'ausruestung_status' && m.status === 'verliehen'));
+        erwarte('BSM-031.08: Status der Ausrüstung über inventar_aendern', aufrufe.some(m => m.type === 'baustelle/inventar_aendern' && m.aktion === 'ausruestung_status' && m.status === 'inaktiv'));
         erwarte('BSM-034.01: Seite lädt nach Inventar-Änderung neu', aufrufe.some(m => m.type === 'baustelle/struktur'));
         await klick('.inv-c[data-id="c1"]', 20); await klick('.sheet [data-k="pruefen"]', 30);
         let v = ui.innerHTML;

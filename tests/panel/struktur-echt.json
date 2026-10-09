@@ -23,7 +23,7 @@
    "beginn": "2026-09-01",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.115",
+   "version": "0.8.116",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -891,6 +891,7 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
+     "status": "aktiv",
      "zusatz": false,
      "notprogramm": {
       "zustand": "aus",
@@ -922,6 +923,7 @@
      "hand_seit": "2026-09-29T11:00:00+02:00",
      "warte": null,
      "aktiv": true,
+     "status": "aktiv",
      "zusatz": false,
      "notprogramm": {
       "zustand": "aus",
@@ -953,6 +955,7 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
+     "status": "aktiv",
      "zusatz": false,
      "notprogramm": {
       "zustand": "aus",
@@ -984,6 +987,7 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
+     "status": "aktiv",
      "zusatz": false,
      "notprogramm": {
       "zustand": "aus",
@@ -1015,6 +1019,7 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
+     "status": "aktiv",
      "zusatz": false,
      "notprogramm": {
       "zustand": "aus",
@@ -1046,6 +1051,7 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
+     "status": "aktiv",
      "zusatz": false,
      "notprogramm": null
     },
@@ -1056,6 +1062,7 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
+     "status": "aktiv",
      "zusatz": false,
      "notprogramm": null
     }
@@ -2102,7 +2109,7 @@
    "beginn": "2025-11-03",
    "beginn_auto": false,
    "geladen": true,
-   "version": "0.8.115",
+   "version": "0.8.116",
    "zeitzone": "Europe/Vienna",
    "heute": "2026-09-29",
    "jetzt": "2026-09-29T16:20:00+02:00"
@@ -2408,6 +2415,7 @@
      "hand_seit": null,
      "warte": null,
      "aktiv": true,
+     "status": "aktiv",
      "zusatz": false,
      "notprogramm": {
       "zustand": "aus",

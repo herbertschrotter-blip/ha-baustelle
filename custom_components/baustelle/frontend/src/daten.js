@@ -68,7 +68,7 @@ export function bauen(r, hass, ersatzZone) {
     const geraete = (r.geraete || []).filter(g => g.bereich === b.id).map(g => { const x = gAlle[g.id] || {};
       return { id: g.id, n: g.name || g.id, typ: TYP_TEXT(g), rolle: g.rolle, gtyp: g.typ, heizer: HEIZER(g), kw: v(g.nenn_kw, 0), kwJetzt: x.kw, an: !!x.an,
         hand: !!x.hand_seit, hand_seit: x.hand_seit || null, warte: x.warte || null, erreichbar: x.erreichbar !== false, schalter: g.schalter, leistung: g.leistung, energie: g.energie,
-        aktiv: x.aktiv !== false, zusatz: !!x.zusatz, np: x.notprogramm || null, nennKwEigen: zahl(g.nenn_kw_eigen) ? Number(g.nenn_kw_eigen) : null, leistungEigen: g.leistung_eigen || null, energieEigen: g.energie_eigen || null }; });
+        aktiv: x.aktiv !== false, status: x.status || (x.aktiv === false ? 'inaktiv' : 'aktiv'), zusatz: !!x.zusatz, np: x.notprogramm || null, nennKwEigen: zahl(g.nenn_kw_eigen) ? Number(g.nenn_kw_eigen) : null, leistungEigen: g.leistung_eigen || null, energieEigen: g.energie_eigen || null }; });
     let zst = c.zustand in FARBE ? c.zustand : (pumpe ? 'aus' : 'aus');
     const offline = zst === 'offline' || (geraete.length > 0 && geraete.every(g => !g.erreichbar));
     if (offline) zst = 'offline';

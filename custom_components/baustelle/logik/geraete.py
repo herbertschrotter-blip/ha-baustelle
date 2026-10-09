@@ -1,4 +1,7 @@
-"""Geräte einer Baustelle: was nach dem Entfernen eines Geräts oder Containers übrig bleibt – ohne Home-Assistant-Code.
+"""Geräte einer Baustelle: Status und was nach dem Entfernen übrig bleibt – ohne Home-Assistant-Code.
+
+Status (BSM-034.02, Bauplan Geräte §4, Herbert 09.10.2026): ein Feld je Gerät – aktiv, inaktiv, verliehen, defekt; im
+Inventar dieselben vier Werte. Nur „aktiv“ schaltet die Automatik, zählt in der Staffelung und meldet Warnungen.
 
 BSM-034.01 (Bauplan Geräte §3 Fehler 6): Einstellungen je Gerät, Zähler, „stumm“ und Reparatur-Hinweise hängen an der
 ID des Unter-Eintrags (Gerät `gid`, Container `bid`). Wird einer gelöscht, räumt die Integration beim nächsten Laden auf.
@@ -7,8 +10,29 @@ Die Werte im Verlauf (Datenbank, Langzeitstatistik) bleiben.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
+
+STATUS = ("aktiv", "inaktiv", "verliehen", "defekt")
+STATUS_TEXT = {"aktiv": "aktiv", "inaktiv": "inaktiv", "verliehen": "verliehen", "defekt": "defekt"}
+
+
+def status_von(eintrag: Mapping[str, Any] | None) -> str:
+    """Status aus den Einstellungen des Geräts; vor 0.8.116 stand dort nur `aktiv: False` (= inaktiv, WU-0004)."""
+    e = eintrag or {}
+    if e.get("status") in STATUS:
+        return str(e["status"])
+    return "inaktiv" if e.get("aktiv") is False else "aktiv"
+
+
+def schaltet(status: str) -> bool:
+    """Nur ein aktives Gerät schaltet die Automatik, zählt in der Staffelung und meldet Warnungen."""
+    return status == "aktiv"
+
+
+def status_protokoll(name: str, status: str) -> str:
+    return f"{name}: {STATUS_TEXT.get(status, status)}" + ("" if schaltet(status) else " – die Automatik lässt es aus")
+
 
 # Zähler je Gerät bzw. je Container: Schlüssel `<art>:<id>` (bei `stand` auch `stand:<id>:zeit`)
 ZAEHLER_GERAET = ("stand", "mittel", "pumpzeit", "zyklen")

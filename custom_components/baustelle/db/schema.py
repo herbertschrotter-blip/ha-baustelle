@@ -171,7 +171,7 @@ ausruestung = Table(
     Column("typ", String(10), nullable=False),   # Kürzel (PLUG, HZ, TEMP, …)
     Column("modell", String(200)),
     Column("kennung", String(255)),              # MAC bzw. HA-Gerät – nur hier, nie im Repo
-    Column("status", String(20), nullable=False, default="aktiv"),   # aktiv | verliehen | defekt
+    Column("status", String(20), nullable=False, default="aktiv"),   # aktiv | inaktiv | verliehen | defekt
     Column("notiz", Text),
     _zeit("angelegt", nullable=False),
     Index("ux_ausruestung_kennung", "kennung", unique=True),

@@ -106,6 +106,36 @@ async def test_status_defekt_schaltet_aus(hass: HomeAssistant, baustelle_registe
     assert wieder["success"] and st.geraet_aktiv(g)
 
 
+async def test_status_ein_feld_in_beide_richtungen(hass: HomeAssistant, baustelle_register, hass_ws_client) -> None:
+    """BSM-034.02: ein Status je Gerät – Seite (baustelle/geraet) und Inventar ändern dasselbe Feld."""
+    entry = baustelle_register
+    ws = await hass_ws_client(hass)
+    c = await _anlegen(ws, 1, entry, art="POL", bereich_id=C1)
+    plug = next(a for a in c["ausruestung"] if a["typ"] == "PLUG")
+    st = entry.runtime_data
+    g = st.geraete[HK1]
+
+    nummer = iter(range(2, 100))
+
+    async def inventar_status() -> str:
+        alles = (await _senden(ws, next(nummer), type="baustelle/inventar"))["result"]
+        return next(a["status"] for x in alles["container"] for a in x["ausruestung"] if a["id"] == plug["id"])
+
+    r = await _senden(ws, next(nummer), type="baustelle/geraet", entry_id=entry.entry_id, geraet=HK1, aktion="status", status="verliehen")
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert r["success"] and r["result"]["status"] == "verliehen" and not st.geraet_aktiv(g)
+    assert await inventar_status() == "verliehen"
+    assert st.e["protokoll"][0][3].endswith("verliehen – die Automatik lässt es aus")
+    r = await _senden(ws, next(nummer), type="baustelle/inventar_aendern", aktion="ausruestung_status", ausruestung_id=plug["id"], status="inaktiv")
+    assert r["success"] and st.geraet_status(g) == "inaktiv" and "aktiv" not in st.e["geraete"][HK1]
+    r = await _senden(ws, next(nummer), type="baustelle/aktion", entry_id=entry.entry_id, aktion="aktiv", geraet=HK1, an=True)   # Container-Chip
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert r["success"] and st.geraet_aktiv(g) and await inventar_status() == "aktiv"
+    falsch = await _senden(ws, next(nummer), type="baustelle/geraet", entry_id=entry.entry_id, geraet=HK1, aktion="status", status="weg")
+    keins = await _senden(ws, next(nummer), type="baustelle/geraet", entry_id=entry.entry_id, geraet="gibts_nicht", aktion="status", status="aktiv")
+    assert not falsch["success"] and not keins["success"]
+
+
 async def test_vorschau_nennt_verweise(hass: HomeAssistant, baustelle_register, hass_ws_client) -> None:
     """§6.2: eigene Automationen mit einer alten Entity-ID stehen in der Vorschau."""
     entry = baustelle_register

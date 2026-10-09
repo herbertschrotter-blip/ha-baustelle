@@ -85,7 +85,7 @@ async def ws_inventar_aendern(hass: HomeAssistant, connection: websocket_api.Act
         if aktion == "container_status" and msg.get("status") not in ("aktiv", "ausgeschieden"):
             raise InventarFehler("Container: Status aktiv oder ausgeschieden")
         if aktion == "ausruestung_status" and msg.get("status") not in STATUS_AUSRUESTUNG:
-            raise InventarFehler("Ausrüstung: Status aktiv, verliehen oder defekt")
+            raise InventarFehler(f"Ausrüstung: Status {', '.join(STATUS_AUSRUESTUNG)}")
         if aktion == "container_anlegen" and msg.get("nr"):
             if msg.get("firma_kuerzel"):
                 raise InventarFehler("Eine feste Nummer gibt es nur für eigene Container")

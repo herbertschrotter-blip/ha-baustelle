@@ -1726,7 +1726,7 @@ class BaustellePanel extends LitElement {
         const r = await this.dialog('config/config_entries/subentries/flow', { handler: [d.entry, 'geraet'], subentry_id: g.id },
           this.geraetDaten(f.bereich, { n: f.n.trim(), typ: f.typ, schalter: f.schalter, leistung: f.leistung || undefined, energie: f.energie || undefined }));
         if (this.flowFehler(r)) return r; }
-      if (f.aktiv !== g.aktiv) await this._hass.callWS({ type: 'baustelle/aktion', entry_id: d.entry, aktion: 'aktiv', geraet: g.id, an: f.aktiv });
+      if (f.status !== g.status) { await this._hass.callWS({ type: 'baustelle/geraet', entry_id: d.entry, geraet: g.id, aktion: 'status', status: f.status }); this.invNeu(); }   // BSM-034.02
       const call = (k, w) => this._hass.callWS({ type: 'baustelle/setzen', entry_id: d.entry, pfad: ['geraete', g.id, k], wert: w });
       if (f.nennKw !== (g.nennKwEigen ?? null)) await call('nenn_kw', f.nennKw);   // BSM-034.01: erst bei „Speichern“
       if (f.zusatz !== !!g.zusatz) await call('zusatz', f.zusatz);
@@ -1870,10 +1870,11 @@ class BaustellePanel extends LitElement {
   }
   gefuehl(x, v) { return this.aktion('gefuehl', { bereich: x.id, wert: v }, v === 0 ? 'Gemerkt: passt' : `Gemerkt: ${v < 0 ? 'zu kalt' : 'zu warm'} – das Soll lernt mit`); }
   sollZurueck(x) { return this.aktion('soll_versch_weg', { bereich: x.id }, 'Zurück auf gleitendes Soll'); }
-  geraetAktiv(b, i) { const g = b.geraete[i]; return this.aktion('aktiv', { geraet: g.id, an: !g.aktiv }, g.aktiv ? `${g.n} inaktiv – die Automatik lässt es aus` : `${g.n} wieder aktiv`); }
+  geraetAktiv(b, i) { const g = b.geraete[i]; this.invNeu();   // BSM-034.02: derselbe Status wie ✎ und Inventar
+    return this.ws({ type: 'baustelle/geraet', entry_id: this.d.entry, geraet: g.id, aktion: 'status', status: g.aktiv ? 'inaktiv' : 'aktiv' }, g.aktiv ? `${g.n} inaktiv – die Automatik lässt es aus` : `${g.n} wieder aktiv`); }
   geraetAutomatik(b, i) { const g = b.geraete[i]; return this.aktion('automatik', { geraet: g.id }, `${g.n}: Automatik übernimmt`); }
   geraetBearbeiten(b, i) { const g = b.geraete[i];
-    return this.unterDialog({ art: 'geraet-edit', i, form: { n: g.n, schalter: g.schalter, typ: g.typ, bereich: b.id, leistung: g.leistungEigen || '', energie: g.energieEigen || '', aktiv: g.aktiv,
+    return this.unterDialog({ art: 'geraet-edit', i, form: { n: g.n, schalter: g.schalter, typ: g.typ, bereich: b.id, leistung: g.leistungEigen || '', energie: g.energieEigen || '', status: g.status,
       nennKw: g.nennKwEigen ?? null, zusatz: !!g.zusatz } }); }
   lernenUmschalten(x) { return this.setzen(['bereiche', x.id, 'lernen'], !(x.lern && x.lern.an)); }
   trocknenUmschalten(x) { return this.setzen(['bereiche', x.id, 'trocknen'], !x.trocknen); }

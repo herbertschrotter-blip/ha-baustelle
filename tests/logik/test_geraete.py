@@ -1,6 +1,18 @@
-"""Reste gelöschter Geräte und Container (logik/geraete, BSM-034.01)."""
+"""Status und Reste gelöschter Geräte und Container (logik/geraete, BSM-034.01, .02)."""
 
-from logik.geraete import hinweise_reste, reste_entfernen
+from logik.geraete import STATUS, hinweise_reste, reste_entfernen, schaltet, status_protokoll, status_von
+from logik.inventar import STATUS_AUSRUESTUNG
+
+
+def test_status_ein_feld() -> None:
+    """BSM-034.02: ein Status je Gerät, dieselben vier Werte im Inventar; nur „aktiv“ schaltet."""
+    assert STATUS == ("aktiv", "inaktiv", "verliehen", "defekt") and STATUS_AUSRUESTUNG == STATUS
+    assert status_von(None) == "aktiv" and status_von({}) == "aktiv" and status_von({"zusatz": True}) == "aktiv"
+    assert status_von({"aktiv": False}) == "inaktiv" and status_von({"aktiv": True}) == "aktiv"   # bis 0.8.115
+    assert status_von({"aktiv": False, "status": "defekt"}) == "defekt" and status_von({"status": "x"}) == "aktiv"
+    assert [schaltet(s) for s in STATUS] == [True, False, False, False]
+    assert status_protokoll("HK 1", "verliehen") == "HK 1: verliehen – die Automatik lässt es aus"
+    assert status_protokoll("HK 1", "aktiv") == "HK 1: aktiv"
 
 
 def test_reste_entfernen() -> None:

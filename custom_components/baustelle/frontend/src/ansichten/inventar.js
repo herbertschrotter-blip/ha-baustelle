@@ -7,8 +7,8 @@ import { html, nothing } from 'lit';
 const GRIFF = html`<div class="griff"></div>`;
 const knopf = (t, fn, art = '', k = '') => html`<button class="knopf ${art}" data-k=${k || nothing} @click=${fn}>${t}</button>`;
 const IC = { PLUG: '🔌', HZ: '♨', TEMP: '🌡', DOOR: '🚪', FEN: '🪟', PUMP: '💧', BTR: '💨' };
-const ST_TEXT = { aktiv: '● aktiv', verliehen: '↗ verliehen', defekt: '✕ defekt' };
-const ST_WEITER = { aktiv: 'verliehen', verliehen: 'defekt', defekt: 'aktiv' };
+const ST_TEXT = { aktiv: '● aktiv', inaktiv: '○ inaktiv', verliehen: '↗ verliehen', defekt: '✕ defekt' };   // BSM-034.02: wie das Gerät
+const ST_WEITER = { aktiv: 'inaktiv', inaktiv: 'verliehen', verliehen: 'defekt', defekt: 'aktiv' };
 const HAENGT = [['konvektor', 'Konvektor'], ['radiator', 'Radiator'], ['bautrockner', 'Bautrockner'], ['nichts', 'nichts']];
 const FILTER = [['alle', 'Alle'], ['eigen', 'Eigen'], ['fremd', 'Fremd'], ['ausgeschieden', 'Ausgeschieden']];
 const datum = iso => iso ? new Date(iso).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
@@ -21,7 +21,7 @@ function ort(p, e) {
   return bs + (ber ? ' › ' + ber.name : '');
 }
 const sichtbar = (I, f) => I.container.filter(c => f === 'ausgeschieden' ? c.status === 'ausgeschieden' : c.status === 'aktiv' && (f === 'alle' || f === (c.eigen ? 'eigen' : 'fremd')));
-const statusChip = (p, a) => html`<button class="inv-st ${a.status} nur-admin" title="Status ändern (aktiv → verliehen → defekt)"
+const statusChip = (p, a) => html`<button class="inv-st ${a.status} nur-admin" title="Status ändern (aktiv → inaktiv → verliehen → defekt)"
     @click=${p.nurAdmin(() => p.invSenden({ aktion: 'ausruestung_status', ausruestung_id: a.id, status: ST_WEITER[a.status] || 'aktiv' }, `Status: ${ST_WEITER[a.status] || 'aktiv'}`))}>${ST_TEXT[a.status] || a.status}</button>`;
 
 /* ---------- Gruppe der Einstellungen ---------- */
@@ -151,7 +151,7 @@ export const INV_CSS = `
 .inv-c { text-align: left; } .inv-c-t { flex: 1; min-width: 0; } .inv-c .badge { margin-left: 6px; } .inv-zahl { white-space: nowrap; }
 .inv-g { min-width: 0; flex: 1; }
 .inv-st { font-size: 12px; padding: 3px 10px !important; border-radius: 12px !important; white-space: nowrap; background: rgba(120,120,128,.18) !important; flex: none; }
-.inv-st.aktiv { color: #30d158; } .inv-st.verliehen { color: var(--blau); } .inv-st.defekt { color: var(--rot); }
+.inv-st.aktiv { color: #30d158; } .inv-st.inaktiv { color: var(--leise, #8e8e93); } .inv-st.verliehen { color: var(--blau); } .inv-st.defekt { color: var(--rot); }
 .inv-x { flex: none; padding: 3px 8px !important; color: var(--ink2) !important; background: none !important; }
 .inv-arten { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .inv-art { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 4px !important; border-radius: 12px !important; background: rgba(120,120,128,.18) !important; color: var(--ink) !important; text-align: center !important; }

@@ -12,6 +12,7 @@ from homeassistant.core import Context, State
 from ..funktionen.basis import SollJeBereich
 from ..logik import warnungen as warn_logik
 from ..texte import GRUND_TEXT
+from . import geraete as k_geraete
 from .typen import GeraetInfo, WARTE_TEXT
 
 if TYPE_CHECKING:
@@ -86,20 +87,8 @@ def _schalten(st: Steuerung, g: GeraetInfo, zustand: State | None, ein: bool, je
 
 
 def geraet_aktiv_setzen(st: Steuerung, g: GeraetInfo, aktiv: bool) -> None:
-    """Aktiv/inaktiv setzen; beim Deaktivieren einmal ausschalten und den Handbetrieb beenden."""
-    st.e.setdefault("geraete", {}).setdefault(g.id, {})["aktiv"] = aktiv
-    st.lz["hand"].pop(g.id, None)
-    st.protokoll("einstellung", g.bereich, f"{g.name}: {'aktiv' if aktiv else 'inaktiv – die Automatik lässt es aus'}")
-    zustand = st.hass.states.get(g.schalter)
-    if not aktiv and zustand is not None and zustand.state == STATE_ON:
-        kontext = Context()
-        st._eigene_kontexte.append(kontext.id)
-        st.hass.async_create_task(
-            st.hass.services.async_call("switch", "turn_off", {"entity_id": g.schalter}, context=kontext),
-            f"baustelle_inaktiv_{g.schalter}", eager_start=False,
-        )
-    st.einstellungen.speichern()
-    st.auswerten()
+    """Aktiv/inaktiv (Schalter von früher) – setzt den Status (kern/geraete, BSM-034.02)."""
+    k_geraete.status_setzen(st, g, "aktiv" if aktiv else "inaktiv")
 
 
 def geraet_schalten(st: Steuerung, g: GeraetInfo, an: bool) -> None:

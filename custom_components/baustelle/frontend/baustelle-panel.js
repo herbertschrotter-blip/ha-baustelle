@@ -943,6 +943,7 @@ function bauen(r5, hass, ersatzZone) {
         leistung: g2.leistung,
         energie: g2.energie,
         aktiv: x2.aktiv !== false,
+        status: x2.status || (x2.aktiv === false ? "inaktiv" : "aktiv"),
         zusatz: !!x2.zusatz,
         np: x2.notprogramm || null,
         nennKwEigen: zahl(g2.nenn_kw_eigen) ? Number(g2.nenn_kw_eigen) : null,
@@ -2161,12 +2162,12 @@ function geraete(p4, b3) {
   return b3.geraete.map((g2, i7) => {
     const off = b3.offline || !g2.erreichbar, an = g2.an && g2.aktiv;
     const st = b3.stufen && b3.stufen.an ? b3.stufen.zusatz.includes(g2.id) ? b3.stufen.zusatz_an ? b2` · <em class="warte">Zusatz – ${b3.stufen.text}</em>` : " · Zusatz – wartet, einer reicht" : " · Haupt" : "";
-    const info = !g2.aktiv ? "inaktiv – die Automatik lässt es aus" : off ? b2`<span class="rot-t">offline</span>` : b2`${g2.typ} · ${an ? de(zahl(g2.kwJetzt) ? g2.kwJetzt : g2.kw, 2) + " kW" : "aus"}${st}`;
+    const info = !g2.aktiv ? `${g2.status} – die Automatik lässt es aus` : off ? b2`<span class="rot-t">offline</span>` : b2`${g2.typ} · ${an ? de(zahl(g2.kwJetzt) ? g2.kwJetzt : g2.kw, 2) + " kW" : "aus"}${st}`;
     return b2`<div class="c-chip glas-panel ${an ? "an" : ""} ${g2.aktiv ? "" : "inaktiv"}" data-i=${i7}>
         <span class="c-chip-t">${g2.typ === "Steckdose" || g2.typ === "Bautrockner" ? "⏻" : "♨"} <b>${g2.n}</b><small>${info}${g2.hand && g2.aktiv ? b2` · <em class="hand">✋ Hand</em>` : A}${g2.warte && g2.aktiv ? b2` · <em class="warte">wartet – ${(d3.anschluesse.find((a3) => a3.id === b3.anschluss) || {}).name || "Anschluss"} ausgelastet</em>` : A}</small>
           ${g2.hand && g2.aktiv ? b2`<button class="link" @click=${() => p4.geraetAutomatik(b3, i7)}>Automatik übernehmen</button>` : A}</span>
         <button class="c-power ${an ? "an" : ""}" ?disabled=${!g2.aktiv || off} aria-label="${g2.n} ${g2.an ? "ausschalten" : "einschalten"}" title="${g2.an ? "Ausschalten" : "Einschalten"} (Handbetrieb)" @click=${() => p4.geraetSchalten(b3, i7)}>${o5(IC_POWER)}</button>
-        <label class="c-aktiv" title="Gerät aktiv – aus: die Automatik schaltet es nicht, keine Warnungen">${schalterVorlage(g2.aktiv, () => p4.geraetAktiv(b3, i7))}<small>aktiv</small></label>
+        ${g2.status === "verliehen" || g2.status === "defekt" ? b2`<button class="c-aktiv link nur-admin" data-status=${g2.status} title="Status ändern" @click=${p4.nurAdmin(() => p4.geraetBearbeiten(b3, i7))}><small>${g2.status}</small></button>` : b2`<label class="c-aktiv" title="Gerät aktiv – aus: die Automatik schaltet es nicht, keine Warnungen">${schalterVorlage(g2.aktiv, () => p4.geraetAktiv(b3, i7))}<small>aktiv</small></label>`}
         <button class="bs-ic nur-admin" title="Gerät bearbeiten" aria-label="${g2.n} bearbeiten" @click=${p4.nurAdmin(() => p4.geraetBearbeiten(b3, i7))}>✎</button></div>`;
   });
 }
@@ -2825,8 +2826,8 @@ function npPlugEinblendung(p4, s4) {
 var GRIFF5 = b2`<div class="griff"></div>`;
 var knopf5 = (t5, fn, art = "", k2 = "") => b2`<button class="knopf ${art}" data-k=${k2 || A} @click=${fn}>${t5}</button>`;
 var IC = { PLUG: "🔌", HZ: "♨", TEMP: "🌡", DOOR: "🚪", FEN: "🪟", PUMP: "💧", BTR: "💨" };
-var ST_TEXT = { aktiv: "● aktiv", verliehen: "↗ verliehen", defekt: "✕ defekt" };
-var ST_WEITER = { aktiv: "verliehen", verliehen: "defekt", defekt: "aktiv" };
+var ST_TEXT = { aktiv: "● aktiv", inaktiv: "○ inaktiv", verliehen: "↗ verliehen", defekt: "✕ defekt" };
+var ST_WEITER = { aktiv: "inaktiv", inaktiv: "verliehen", verliehen: "defekt", defekt: "aktiv" };
 var HAENGT = [["konvektor", "Konvektor"], ["radiator", "Radiator"], ["bautrockner", "Bautrockner"], ["nichts", "nichts"]];
 var FILTER = [["alle", "Alle"], ["eigen", "Eigen"], ["fremd", "Fremd"], ["ausgeschieden", "Ausgeschieden"]];
 var datum2 = (iso) => iso ? new Date(iso).toLocaleDateString("de-AT", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
@@ -2837,7 +2838,7 @@ function ort(p4, e6) {
   return bs + (ber ? " › " + ber.name : "");
 }
 var sichtbar = (I2, f3) => I2.container.filter((c4) => f3 === "ausgeschieden" ? c4.status === "ausgeschieden" : c4.status === "aktiv" && (f3 === "alle" || f3 === (c4.eigen ? "eigen" : "fremd")));
-var statusChip = (p4, a3) => b2`<button class="inv-st ${a3.status} nur-admin" title="Status ändern (aktiv → verliehen → defekt)"
+var statusChip = (p4, a3) => b2`<button class="inv-st ${a3.status} nur-admin" title="Status ändern (aktiv → inaktiv → verliehen → defekt)"
     @click=${p4.nurAdmin(() => p4.invSenden({ aktion: "ausruestung_status", ausruestung_id: a3.id, status: ST_WEITER[a3.status] || "aktiv" }, `Status: ${ST_WEITER[a3.status] || "aktiv"}`))}>${ST_TEXT[a3.status] || a3.status}</button>`;
 function invGruppeVorlage(p4) {
   const I2 = p4.invDaten(), C2 = I2 ? sichtbar(I2, "alle") : [];
@@ -2991,7 +2992,7 @@ var INV_CSS = `
 .inv-c { text-align: left; } .inv-c-t { flex: 1; min-width: 0; } .inv-c .badge { margin-left: 6px; } .inv-zahl { white-space: nowrap; }
 .inv-g { min-width: 0; flex: 1; }
 .inv-st { font-size: 12px; padding: 3px 10px !important; border-radius: 12px !important; white-space: nowrap; background: rgba(120,120,128,.18) !important; flex: none; }
-.inv-st.aktiv { color: #30d158; } .inv-st.verliehen { color: var(--blau); } .inv-st.defekt { color: var(--rot); }
+.inv-st.aktiv { color: #30d158; } .inv-st.inaktiv { color: var(--leise, #8e8e93); } .inv-st.verliehen { color: var(--blau); } .inv-st.defekt { color: var(--rot); }
 .inv-x { flex: none; padding: 3px 8px !important; color: var(--ink2) !important; background: none !important; }
 .inv-arten { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .inv-art { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 4px !important; border-radius: 12px !important; background: rgba(120,120,128,.18) !important; color: var(--ink) !important; text-align: center !important; }
@@ -3421,10 +3422,11 @@ function geraetEdit(p4, s4) {
           <label class="feld">${b3.pumpe ? "Pumpenschacht" : "Container"}${auswahl2(f3, "bereich", optionenVorlage(d3.bereiche.filter((x2) => !!x2.pumpe === !!b3.pumpe).map((x2) => [x2.id, x2.name]), f3.bereich))}</label></div>
         <label class="feld">Leistungssensor${auswahl2(f3, "leistung", optionenVorlage(leistung, f3.leistung, auto(g2.leistung, g2.leistungEigen)))}</label>
         <label class="feld">Energiesensor${auswahl2(f3, "energie", optionenVorlage(energie, f3.energie, auto(g2.energie, g2.energieEigen)))}</label>
-        <div class="zeile"><div><b>Aktiv</b><div class="leise">aus: die Automatik schaltet das Gerät nicht, es zählt nicht in der Staffelung, keine Warnungen</div></div>${schalterVorlage(f3.aktiv, () => {
-    f3.aktiv = !f3.aktiv;
+        <div class="zeile" data-zeile="status"><div><b>Status</b><div class="leise">nur „aktiv“ schaltet die Automatik, zählt in der Staffelung und meldet Warnungen; gilt auch im Inventar</div></div>
+          <div class="seg klein">${[["aktiv", "aktiv"], ["inaktiv", "inaktiv"], ["verliehen", "verliehen"], ["defekt", "defekt"]].map(([v2, t5]) => b2`<button data-v=${v2} class=${f3.status === v2 ? "on" : ""} @click=${() => {
+    f3.status = v2;
     p4.neuZeichnen();
-  })}</div>
+  }}>${t5}</button>`)}</div></div>
         ${!g2.leistung ? b2`<div class="zeile"><div><b>Leistung ohne Messung</b><div class="leise">zählt so in der Staffelung, wenn das Gerät an ist${f3.nennKw === null ? " · Standard" : ""}</div></div><span class="stepper klein"><button data-d="-0.1" @click=${() => p4.geraetNennKw(f3, g2, -0.1)}>−</button><b class=${f3.nennKw !== null ? "eigen" : ""}>${de(f3.nennKw ?? g2.kw, 1)} kW</b><button data-d="0.1" @click=${() => p4.geraetNennKw(f3, g2, 0.1)}>+</button></span></div>` : A}
         ${g2.heizer && b3.geraete.filter((x2) => x2.heizer).length >= 2 ? b2`<div class="zeile" data-zeile="zusatz"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">${b3.stufenAn ? "heizt nur dazu, wenn einer nicht reicht" : "wirkt, wenn im Container „Zusatz nur bei Bedarf“ an ist"}${b3.stufen && b3.stufen.haupt.includes(g2.id) && !f3.zusatz ? " · jetzt der erste" : ""}</div></div>${schalterVorlage(f3.zusatz, () => {
     f3.zusatz = !f3.zusatz;
@@ -5060,7 +5062,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.115";
+var SEITE_VERSION = "0.8.116";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", ...Object.keys(INVENTAR_EINBLENDUNGEN), "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS), r(INV_CSS)];
@@ -6479,7 +6481,10 @@ var BaustellePanel = class extends i4 {
         );
         if (this.flowFehler(r5)) return r5;
       }
-      if (f3.aktiv !== g2.aktiv) await this._hass.callWS({ type: "baustelle/aktion", entry_id: d3.entry, aktion: "aktiv", geraet: g2.id, an: f3.aktiv });
+      if (f3.status !== g2.status) {
+        await this._hass.callWS({ type: "baustelle/geraet", entry_id: d3.entry, geraet: g2.id, aktion: "status", status: f3.status });
+        this.invNeu();
+      }
       const call = (k2, w2) => this._hass.callWS({ type: "baustelle/setzen", entry_id: d3.entry, pfad: ["geraete", g2.id, k2], wert: w2 });
       if (f3.nennKw !== (g2.nennKwEigen ?? null)) await call("nenn_kw", f3.nennKw);
       if (f3.zusatz !== !!g2.zusatz) await call("zusatz", f3.zusatz);
@@ -6810,7 +6815,8 @@ var BaustellePanel = class extends i4 {
   }
   geraetAktiv(b3, i7) {
     const g2 = b3.geraete[i7];
-    return this.aktion("aktiv", { geraet: g2.id, an: !g2.aktiv }, g2.aktiv ? `${g2.n} inaktiv – die Automatik lässt es aus` : `${g2.n} wieder aktiv`);
+    this.invNeu();
+    return this.ws({ type: "baustelle/geraet", entry_id: this.d.entry, geraet: g2.id, aktion: "status", status: g2.aktiv ? "inaktiv" : "aktiv" }, g2.aktiv ? `${g2.n} inaktiv – die Automatik lässt es aus` : `${g2.n} wieder aktiv`);
   }
   geraetAutomatik(b3, i7) {
     const g2 = b3.geraete[i7];
@@ -6825,7 +6831,7 @@ var BaustellePanel = class extends i4 {
       bereich: b3.id,
       leistung: g2.leistungEigen || "",
       energie: g2.energieEigen || "",
-      aktiv: g2.aktiv,
+      status: g2.status,
       nennKw: g2.nennKwEigen ?? null,
       zusatz: !!g2.zusatz
     } });

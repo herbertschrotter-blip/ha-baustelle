@@ -57,11 +57,13 @@ from .funktionen import FUNKTIONEN
 from .funktionen.basis import ZAEHLER_SPEICHERN_S, Funktion, SollJeBereich, zahl as _zahl, zeit as _zeit
 from .logik import staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import Arbeitszeit, Ausnahme, WetterTag
+from .logik import geraete as geraete_logik
 from .logik.geraete import hinweise_reste
 from .logik import preise as preise_logik
 from .db import protokoll_merken
 from .kern import (
     einrichtung as k_einrichtung,
+    geraete as k_geraete,
     kalender as k_kalender,
     schalten as k_schalten,
     staffelung as k_staffelung,
@@ -492,9 +494,15 @@ class Steuerung:
         return k_schalten._schalten(self, g, zustand, ein, jetzt)
 
     def geraet_aktiv(self, g: GeraetInfo) -> bool:
-        """Inaktive Geräte (z. B. ausgeliehen oder defekt) schaltet die Automatik nicht, sie zählen nicht in der
-        Staffelung und melden nichts (WU-0004)."""
-        return (self.e.get("geraete") or {}).get(g.id, {}).get("aktiv", True) is not False
+        """Nur Geräte mit Status „aktiv“ schaltet die Automatik, sie zählen in der Staffelung und melden (WU-0004,
+        BSM-034.02: inaktiv, verliehen, defekt lässt sie aus)."""
+        return geraete_logik.schaltet(k_geraete.status(self, g))
+
+    def geraet_status(self, g: GeraetInfo) -> str:
+        return k_geraete.status(self, g)
+
+    def geraet_status_setzen(self, g: GeraetInfo, status: str, *, ins_inventar: bool = True) -> bool:
+        return k_geraete.status_setzen(self, g, status, ins_inventar=ins_inventar)
 
     def geraet_aktiv_setzen(self, g: GeraetInfo, aktiv: bool) -> None:
         k_schalten.geraet_aktiv_setzen(self, g, aktiv)

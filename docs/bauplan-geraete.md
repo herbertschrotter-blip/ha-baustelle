@@ -81,7 +81,7 @@ mit Test; die Seite rechnet nichts. Jede Änderung schreibt Protokoll und Datenb
 | ☐ | Stufe | Inhalt | Herbert sieht |
 |---|---|---|---|
 | ☑ | .01 Sofort-Fehler | Fehler 1–7 aus §3, Seite lädt nach Inventar-Änderungen neu – **0.8.115** (Fehler 5 entfällt) | kaum – sicherer |
-| ☐ | .02 Baustein `kern/geraete` | Zuordnen, Entfernen, Verschieben, Rolle/Typ, Status über eine Stelle (Prüfregeln wie der HA-Dialog); Status als ein Feld, Abgleich mit Inventar in beide Richtungen; Bearbeiten, ✎, Chip und Inventar rufen dieselben Befehle | ein Status statt drei Schalter |
+| ◐ | .02 Baustein `kern/geraete` – Lieferung 1 Status **0.8.116**, Lieferung 2 Zuordnen/Entfernen/Verschieben offen | Zuordnen, Entfernen, Verschieben, Rolle/Typ, Status über eine Stelle (Prüfregeln wie der HA-Dialog); Status als ein Feld, Abgleich mit Inventar in beide Richtungen; Bearbeiten, ✎, Chip und Inventar rufen dieselben Befehle | ein Status statt drei Schalter |
 | ☐ | .03 Sensoren vereinheitlichen | je Container eine Sensorliste (Fühler, Türen, Fenster, Licht); jede Tür pausiert, alle in › Geräte, Reparatur-Hinweisen, Mitschreiben, Inventar, Notprogramm | Tür 2/Fenster wirken |
 | ☐ | .04 Abgleich | beim Start, täglich und nach jeder Änderung: Inventar ↔ HA, offene Einsätze, Reste gelöschter Geräte, Notprogramm abschalten; Abweichungen im Inventar („2 Geräte ohne Inventar“) | Hinweis im Inventar |
 | ☐ | .05 Seite zusammenführen | **erst Mockup**: Gruppe „Geräte“ mit Reitern Übersicht/Inventar, ein Gerätedialog statt drei (überall gleich sofort oder überall erst bei Speichern), einheitliche Symbole und Zähler, Gerätewarnungen sichtbar, Batterie/Signal im Container | neue Ansicht |
@@ -94,6 +94,9 @@ mit Test; die Seite rechnet nichts. Jede Änderung schreibt Protokoll und Datenb
 | Wann speichern Geräte- und Container-Dialog | **alles erst bei „Speichern“**, Abbrechen nimmt alles zurück; sofort wirken nur die Schalter direkt im Container (⏻, aktiv) (.01 für die heutigen Dialoge, .05) |
 | Fenster | **pausieren wie Türen** – offen oder gekippt nach derselben Regel (.03) |
 | HA-Dialoge (Geräte & Dienste › Baustelle) | **bleiben**; der Abgleich (.04) zieht Änderungen von dort ins Inventar nach |
+| .02 in wie vielen Lieferungen | **zwei**: 1) Status, 2) Zuordnen/Entfernen/Verschieben/Rolle über `kern/geraete` |
+| Status auf der Seite bis .05 | ✎ Gerät mit vier Knöpfen; Container-Chip schaltet schnell aktiv↔inaktiv, zeigt verliehen/defekt (Tippen → ✎); Inventar-Knopf mit allen vier |
+| „inaktiv“ im Inventar | **vier Werte überall** – das Inventar kennt auch „inaktiv“ |
 
 ## 7. Tests
 

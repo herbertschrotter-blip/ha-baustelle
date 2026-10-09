@@ -200,6 +200,7 @@ def laufzeit(st: Steuerung) -> dict[str, Any]:
             "hand_seit": lz["hand"].get(gid),
             "warte": d.warte.get(gid),
             "aktiv": st.geraet_aktiv(g),   # WU-0004
+            "status": st.geraet_status(g),   # BSM-034.02: aktiv | inaktiv | verliehen | defekt
             "zusatz": bool((st.e.get("geraete") or {}).get(gid, {}).get("zusatz")),   # AN-0006
             "notprogramm": np.geraet_info(gid) if np is not None else None,   # BSM-019
         }

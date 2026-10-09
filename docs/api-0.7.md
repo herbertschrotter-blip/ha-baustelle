@@ -30,7 +30,8 @@ Zeiten: ISO 8601 mit Zeitzone; Uhrzeiten `"HH:MM"`; Minuten seit Mitternacht als
     "container": {"<bid>": {"zustand": "heizt|trocknen|aus|frost|offline|laeuft|pause|bereit", "grund": "<SollGrund>",
                    "text": "heizt · Arbeitszeit", "temperatur": 19.4, "kw": 3.99,
                    "bedarf_bis": "ISO|null", "boost_bis": "ISO|null", "tuer": {"offen": true, "seit": "ISO"} }},
-    "geraete": {"<gid>": {"an": true, "kw": 2.0, "erreichbar": true, "hand_seit": "ISO|null",
+    "geraete": {"<gid>": {"an": true, "kw": 2.0, "erreichbar": true, "hand_seit": "ISO|null", "aktiv": true,
+                "status": "aktiv|inaktiv|verliehen|defekt",
                 "warte": {"grund": "anschluss_voll|max_gleichzeitig|mindestpause|rundlauf|anlauf", "dran_in_min": 6} }},
     "plan_woche": [{"datum": "2026-09-28", "plan": {"start": 375, "vor": 375, "a": 420, "b": 990, "nach": 1005,
                     "ende": 1050, "gruende": ["trocknen"], "ausnahme": null}, "frei": "feiertag|urlaub|ausnahme|null"}],
@@ -252,9 +253,10 @@ Entfallen (samt Plattformen, wo leer): Zeitplan- und Regel-Entitäten (`time`, `
   Heizkörper läuft; sonst Warnung `tuer_offen` mit `werte.pausiert = false` (Hinweis ohne „Trotzdem heizen“).
 - Tür offen schützt das Lernen (WU-0009): `lernen.offen` = `{art: "vermutet"|"kontakt", seit}` oder `null`, `lernen.ruhe_bis`
   (bis dahin keine neue Messung). Vermutet: beim durchgehenden Heizen in 10 min ≥ 0,3 °C kälter, außen ≤ 0,2 °C kälter.
-- Gerät aktiv/inaktiv (WU-0004): `baustelle/aktion` `aktiv` mit `geraet` und `an` (bool). Inaktiv: einmal ausschalten,
-  danach schaltet die Automatik es nicht, es zählt nicht in der Staffelung, keine Warnungen; gespeichert unter
-  `einstellungen.geraete.<id>.aktiv`, sichtbar in `laufzeit.geraete.<id>.aktiv`. `geraete[]` hat zusätzlich
+- Gerät aktiv/inaktiv (WU-0004): `baustelle/aktion` `aktiv` mit `geraet` und `an` (bool) – ab 0.8.116 dasselbe wie
+  `baustelle/geraet` Status aktiv bzw. inaktiv (§11). Nicht aktiv: einmal ausschalten, danach schaltet die Automatik es
+  nicht, es zählt nicht in der Staffelung, keine Warnungen; gespeichert unter `einstellungen.geraete.<id>.status` (bis
+  0.8.115 `aktiv: false`, wird weiter als „inaktiv“ gelesen), sichtbar in `laufzeit.geraete.<id>.status` und `.aktiv`. `geraete[]` hat zusätzlich
   `leistung_eigen`/`energie_eigen` (selbst gewählter Sensor, sonst `null` = am Shelly automatisch erkannt).
   Gerät bearbeiten: Subentry-Dialog `geraet` mit `subentry_id` (Bereich, Schalter, Name, Rolle, Typ, Sensoren).
 - `baustelle/setzen`: `erklaer` (Erklärtexte der Seite), `heizung.frost_immer` (0.7.9: Frostschutz auch bei
@@ -410,7 +412,7 @@ naechste_nr, aendern}`
 |---|---|---|
 | `container_anlegen` | `entry_id`, `art`, optional `firma_kuerzel` (fremd), `bereich_id` (verknüpfen), `nr` (nur eigen, 0.8.112: feste Nummer für den Bestand – nur eine nie vergebene) | `{id, art, nr, firma_kuerzel, fremd_nr}` – Nummer sonst automatisch (eigen: ganze Datenbank, fremd: je Baustelle und Firma); mit `bereich_id` zusätzlich `ausruestung` [{id, typ, gg, neu}]: Shellys des Bereichs (GG nach Namen), Fühler und Tür kommen ins Inventar |
 | `container_status` | `container_id`, `status` (aktiv/ausgeschieden) | `{ok}`; ausgeschieden beendet den Einsatz und löst den Bereich |
-| `ausruestung_status` | `ausruestung_id`, `status` (aktiv/verliehen/defekt) | `{ok}`; ab 0.8.112 (BSM-031.08): steckt sie als Shelly in einer geladenen Baustelle, lässt die Automatik das Gerät bei verliehen/defekt aus (wie „inaktiv“, WU-0004), bei aktiv ist es wieder dabei |
+| `ausruestung_status` | `ausruestung_id`, `status` (aktiv/inaktiv/verliehen/defekt; `inaktiv` ab 0.8.116) | `{ok}`; steckt sie als Shelly in einer geladenen Baustelle, bekommt das Gerät denselben Status (ab 0.8.116 ein Feld, §11; 0.8.112–0.8.115: verliehen/defekt = inaktiv) |
 | `firma_kuerzel` | `entry_id`, `firma_id`, `kuerzel` (2–5 Buchstaben) | `{ok}` |
 | `ausruestung_zuordnen` (0.8.112) | `container_id`, `device_id` (HA-Gerät), optional `typ` (sonst erkannt), `haengt` bei Plugs (`konvektor`, `radiator`, `bautrockner`, `nichts`) | `{id, gg, neu, typ, verdrahtet}` – Ausrüstung per Kennung (MAC, sonst HA-Gerät; nur in der Datenbank), neuer Einsatz, GG bei PLUG/PUMP/BTR die nächste im Container. Steht der Container mit Bereich auf einer geladenen Baustelle, hängt die Integration das Gerät dort ein: Shelly als Unter-Eintrag (Rolle/Typ aus `haengt`, vorhandener wird angepasst), Fühler bzw. Tür am Bereich, wenn dort noch keiner steht (`verdrahtet` sagt, was geschah). Defekt, in einem anderen Container oder Shelly einer anderen aktiven Baustelle → `invalid_format`; schon in diesem Container → `neu: false` |
 | `ausruestung_entfernen` (0.8.112) | `ausruestung_id` | `{ok}`; der laufende Einsatz endet, die Ausrüstung ist frei (in HA bleibt alles, wie es ist) |
@@ -462,3 +464,16 @@ hat kein `name_by_user` mehr; ein Name, der vorher leer war, wird wieder leer. I
 Im Protokoll „Umbenennung zurückgenommen (NNN_C_ART): …“. `id` = Zeile in der Tabelle `umbenennung` (mit allen Schritten, für Nachholen und Rückgängig),
 `geaendert` = welche eigenen Verweise angepasst wurden. Im Protokoll der Baustelle eine Zeile „Umbenannt nach Schema
 (NNN_C_ART): …“.
+
+## 11. Geräte (BSM-034.02, ab 0.8.116)
+
+Eine Stelle für Änderungen an Geräten (`kern/geraete`, Bauplan Geräte §4). Nur Admins.
+
+**`baustelle/geraet`** `{entry_id, geraet, aktion, …}` → `{ok, status, geaendert}`
+
+| `aktion` | Felder | Wirkung |
+|---|---|---|
+| `status` | `status`: aktiv / inaktiv / verliehen / defekt | ein Feld je Gerät (`logik/geraete`): nur „aktiv“ schaltet die Automatik, zählt in der Staffelung und meldet Warnungen; beim Wechsel weg von aktiv einmal ausschalten und Handbetrieb beenden. Protokoll „<Name>: verliehen – die Automatik lässt es aus“, Einstellung in der Datenbank (`geraet.status`); steckt das Gerät als Ausrüstung im Inventar, bekommt sie denselben Status. Umgekehrt setzt `inventar_aendern` `ausruestung_status` das Gerät (§10) |
+
+Unbekannte Baustelle oder Gerät → `not_found`; falscher Status → `invalid_format`. Zuordnen, Entfernen, Verschieben und
+Rolle/Typ folgen in Lieferung 2 (bis dahin die Subentry-Dialoge, §7).

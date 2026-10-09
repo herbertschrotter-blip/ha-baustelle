@@ -77,7 +77,7 @@ def container_status(v: Connection, cid: str, status: str, jetzt: datetime) -> b
 
 
 def ausruestung_status(v: Connection, aid: str, status: str) -> bool:
-    """aktiv | verliehen | defekt."""
+    """aktiv | inaktiv | verliehen | defekt (logik/geraete.STATUS)."""
     if status not in STATUS_AUSRUESTUNG:
         raise ValueError(status)
     return bool(v.execute(update(s.ausruestung).where(s.ausruestung.c.id == aid).values(status=status)).rowcount)
@@ -148,6 +148,16 @@ def ausruestung_zuordnen(v: Connection, *, kennung: str, typ: str, modell: str |
         gg = naechste(v.execute(select(lfd.c.gg).where(lfd.c.container_id == container_id, lfd.c.bis.is_(None))).scalars())
     v.execute(insert(lfd).values(ausruestung_id=aid, von=jetzt, container_id=container_id, gg=gg, geraet_id=geraet_id))
     return {"id": aid, "gg": gg, "neu": True}
+
+
+def status_fuer_geraet(v: Connection, geraet_id: str, status: str) -> bool:
+    """Status der Ausrüstung, die gerade als Gerät `geraet_id` (Unter-Eintrag) eingesetzt ist (BSM-034.02); False, wenn
+    das Gerät nicht im Inventar ist."""
+    if status not in STATUS_AUSRUESTUNG:
+        raise ValueError(status)
+    lfd = s.ausruestung_einsatz
+    ids = select(lfd.c.ausruestung_id).where(lfd.c.geraet_id == geraet_id, lfd.c.bis.is_(None))
+    return bool(v.execute(update(s.ausruestung).where(s.ausruestung.c.id.in_(ids)).values(status=status)).rowcount)
 
 
 def ausruestung_entfernen(v: Connection, aid: str, jetzt: datetime) -> bool:

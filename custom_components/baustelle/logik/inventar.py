@@ -13,6 +13,8 @@ import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from .geraete import STATUS
+
 # Die eine Kürzeltabelle (§3) – neue Kürzel nur hier, mit Test
 CONTAINER_ARTEN: dict[str, str] = {
     "POL": "Polier", "MAN": "Mannschaft", "BES": "Besprechung", "BUE": "Büro",
@@ -26,7 +28,7 @@ AM_CONTAINER = ("TEMP", "DOOR", "FEN")   # gehören zum Container, nicht zu eine
 HEIZTYPEN = {"konvektor": "Konvektor", "oelradiator": "Radiator", "radiator": "Radiator"}
 ENDUNGEN = ("Temperatur", "Feuchte", "Batterie", "Tuer", "Drehung", "Lichtstufe", "Licht")
 LABEL_CONTAINER = "Container"
-STATUS_AUSRUESTUNG = ("aktiv", "verliehen", "defekt")
+STATUS_AUSRUESTUNG = STATUS   # dieselben vier Werte wie der Status des Geräts (logik/geraete, BSM-034.02)
 
 _KUERZEL = re.compile(r"^[A-Z]{2,5}$")
 

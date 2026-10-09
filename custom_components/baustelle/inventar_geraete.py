@@ -23,7 +23,6 @@ from .const import (
     CONF_BEREICH, CONF_FUEHLER, CONF_ROLLE, CONF_SCHALTER, CONF_TYP, DOMAIN, STATUS_AKTIV, SUB_BEREICH, SUB_GERAET,
 )
 from .db import inventar as db_inventar
-from .kern.schalten import geraet_aktiv_setzen
 from .logik.inventar import HAENGT, typ_vorschlag
 
 if TYPE_CHECKING:
@@ -201,16 +200,13 @@ async def async_bestand(hass: HomeAssistant, db: Any, container_id: str, bereich
 
 
 def status_uebernehmen(hass: HomeAssistant, roh: dict[str, Any], aid: str, status: str) -> None:
-    """BSM-031.08: verliehen/defekt = die Automatik lässt das Gerät aus (wie „inaktiv“, WU-0004); aktiv = wieder dabei."""
+    """Status aus dem Inventar ans Gerät (BSM-034.02: ein Feld, kern/geraete); das Inventar hat ihn schon."""
     e = next((x for x in roh["ausruestung_einsaetze"] if x["ausruestung_id"] == aid and not x.get("bis") and x.get("geraet_id")), None)
     einsatz = _einsatz(roh, e["container_id"]) if e is not None else None
     st = _steuerung(hass, einsatz["baustelle_id"]) if einsatz is not None else None
     if st is None or e is None or (g := st.geraete.get(e["geraet_id"])) is None:
         return
-    if st.geraet_aktiv(g) != (status == "aktiv"):
-        geraet_aktiv_setzen(st, g, status == "aktiv")
-        st.einstellungen.speichern()
-        st.auswerten()
+    st.geraet_status_setzen(g, status, ins_inventar=False)
 
 
 async def async_verweise(hass: HomeAssistant, ids: dict[str, str]) -> list[dict[str, Any]]:
