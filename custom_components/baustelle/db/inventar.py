@@ -61,7 +61,8 @@ def container_anlegen(v: Connection, *, art: str, baustelle_id: str, instanz_id:
 
 
 def container_status(v: Connection, cid: str, status: str, jetzt: datetime) -> bool:
-    """aktiv | ausgeschieden; beim Ausscheiden endet der laufende Einsatz (die Daten bleiben bei der Baustelle)."""
+    """aktiv | ausgeschieden; beim Ausscheiden enden der laufende Einsatz (die Daten bleiben bei der Baustelle) und die
+    Einsätze seiner Ausrüstung – sie wird frei für einen anderen Container (BSM-034.01)."""
     if status not in ("aktiv", "ausgeschieden"):
         raise ValueError(status)
     if not v.execute(update(s.container).where(s.container.c.id == cid).values(status=status)).rowcount:
@@ -70,6 +71,8 @@ def container_status(v: Connection, cid: str, status: str, jetzt: datetime) -> b
         v.execute(update(s.container_einsatz).where(and_(s.container_einsatz.c.container_id == cid,
                                                          s.container_einsatz.c.bis.is_(None))).values(bis=jetzt))
         v.execute(update(s.bereich).where(s.bereich.c.container_id == cid).values(container_id=None))
+        lfd = s.ausruestung_einsatz
+        v.execute(update(lfd).where(and_(lfd.c.container_id == cid, lfd.c.bis.is_(None))).values(bis=jetzt))
     return True
 
 

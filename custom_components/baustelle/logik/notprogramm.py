@@ -172,6 +172,25 @@ class Kopplung:
     name: str | None = None
 
 
+def verwaist(bekannt: Mapping[str, str], aktuell: Mapping[str, str], fremd: Iterable[str]) -> tuple[list[str], list[str]]:
+    """Plugs mit Skript, die keine Heizkörper dieser Baustelle mehr sind (BSM-034.01, Bauplan Geräte §3 Fehler 1).
+
+    `bekannt` = Gerät → Schalter aller Plugs, die das Skript bekommen haben; `aktuell` = dasselbe für die Heizkörper-Plugs
+    jetzt; `fremd` = Schalter anderer aktiver Baustellen. Ergebnis (abschalten, vergessen): Ein entfernter oder auf eine
+    andere Rolle umgestellter Plug wird abgeschaltet, sonst ginge er mit dem alten Programm in Notbetrieb. Steckt derselbe
+    Schalter wieder als Heizkörper hier (neuer Unter-Eintrag) oder in einer anderen Baustelle, ist deren Runde zuständig:
+    nur vergessen.
+    """
+    hier, andere = set(aktuell.values()), set(fremd)
+    abschalten: list[str] = []
+    vergessen: list[str] = []
+    for gid, schalter in bekannt.items():
+        if gid in aktuell:
+            continue
+        (vergessen if schalter in hier or schalter in andere else abschalten).append(gid)
+    return abschalten, vergessen
+
+
 def kopplungen(gewollt: Mapping[str, tuple[str, str]], geraete: Mapping[str, tuple[int, str | None]],
                sensoren: Mapping[tuple[str, int], tuple[int, str | None]]) -> list[Kopplung]:
     """Was am Plug zu tun ist, damit genau die Sensoren des Containers gekoppelt und richtig benannt sind.

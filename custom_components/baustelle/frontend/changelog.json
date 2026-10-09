@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.115",
+    "datum": "2026-10-09",
+    "punkte": [
+      "Geräte, Sofort-Fehler (BSM-034.01, Bauplan Geräte §3): - Notprogramm: Ein entfernter oder auf eine andere Rolle umgestellter Plug behielt sein Skript und konnte mit dem alten Programm in Notbetrieb gehen; jetzt hält die nächste Runde das Skript an (Eintrag im Protokoll). - Inventar: Ein ausgeschiedener Container gibt seine Ausrüstung frei – sie lässt sich wieder zuordnen. - Container bearbeiten › Speichern schreibt die automatisch gefundenen Leistungs- und Energiesensoren nicht mehr fest. - ✎ an einer Pumpe zeigt Typ „Pumpe“ und die Pumpenschächte (vorher Heizkörper-Typen und Container). - Reste gelöschter Geräte und Container (Einstellungen je Gerät, Zähler, „stumm“, Reparatur-Hinweise) werden beim nächsten Laden entfernt; die Werte im Verlauf bleiben. - Dialoge Bearbeiten, ✎ Gerät und Aussehen speichern alles erst bei „Speichern“ (auch Warm ab, Zusatz-Heizkörper, Leistung ohne Messung, Aussehen); Abbrechen nimmt alles zurück. ✎ und Aussehen aus „Bearbeiten“ führen dorthin zurück, ohne den Entwurf zu verlieren. - Nach Änderungen im Inventar lädt die Seite die Container gleich neu."
+    ]
+  },
+  {
     "version": "0.8.114",
     "datum": "2026-10-09",
     "punkte": [

@@ -54,6 +54,8 @@ async def test_ausruestung_status_und_ausscheiden(hass: HomeAssistant, baustelle
         v.execute(insert(s.ausruestung).values(id="a1", typ="PLUG", kennung="k1", status="aktiv", angelegt=zeit))
         v.execute(insert(s.ausruestung_einsatz).values(ausruestung_id="a1", von=zeit, container_id=c["id"], gg=1))
         v.execute(insert(s.ausruestung).values(id="a2", typ="TEMP", kennung="k2", status="aktiv", angelegt=zeit))
+        v.execute(insert(s.ausruestung).values(id="a3", typ="TEMP", kennung="k3", status="aktiv", angelegt=zeit))
+        v.execute(insert(s.ausruestung_einsatz).values(ausruestung_id="a3", von=zeit, container_id=c["id"]))
     alles = (await _senden(ws, 2, type="baustelle/inventar"))["result"]
     assert alles["container"][0]["ausruestung"][0]["name"] == "HUBE-01-01_C_PLUG_MAN"
     assert [a["id"] for a in alles["ausruestung_frei"]] == ["a2"]
@@ -67,6 +69,8 @@ async def test_ausruestung_status_und_ausscheiden(hass: HomeAssistant, baustelle
     alles = (await _senden(ws, 6, type="baustelle/inventar"))["result"]
     assert alles["container"][0]["status"] == "ausgeschieden" and alles["container"][0]["einsatz"] is None
     assert alles["container"][0]["geschichte"][0]["bis"]   # Einsatz beendet, Geschichte bleibt
+    # BSM-034.01: die Ausrüstung des ausgeschiedenen Containers ist wieder frei
+    assert alles["container"][0]["ausruestung"] == [] and {a["id"] for a in alles["ausruestung_frei"]} == {"a1", "a2", "a3"}
     assert db.fehler is None   # falsche Eingabe hat die Datenbank nicht auf „fehler“ gesetzt
 
 

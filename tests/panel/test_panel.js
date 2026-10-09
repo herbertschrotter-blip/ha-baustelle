@@ -321,6 +321,8 @@ async function allgemein() {
   if (x.geraete.length > 1) await klick(`.sheet .ge-zeile[data-i=\"${String(x.geraete.length - 1)}\"] .x`);
   if (frei[1]) { await klick('.sheet > button.zeile'); eingabe({ f: 'schalter', i: String(x.geraete.length) }, frei[1]); eingabe({ f: 'n', i: String(x.geraete.length) }, 'Heizung neu'); }
   await klick({ act: 'b-speichern' }, 60);
+  if (hk >= 0 && !x.geraete[hk].leistungEigen) erwarte('BSM-034.01: Speichern schreibt automatisch gefundene Sensoren nicht fest',
+    !api.some(a => a[2] && a[2].schalter === x.geraete[hk].schalter && (a[2].leistung || a[2].energie)));
   erwarte('Bearbeiten: Name, Gerät ändern/hinzufügen über Subentry-Dialoge', api.some(a => a[2] && a[2].subentry_id === x.id) && (!frei[1] || api.some(a => a[2] && a[2].schalter === frei[1])));
   erwarte('Bearbeiten: Tür, Anschluss, Bedarf über baustelle/setzen', ['tuer', 'bedarf'].every(k => letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', x.id, k]))));
   if (an.id !== x.anschluss) erwarte('Bearbeiten: Anschluss', letzte('baustelle/setzen').some(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', x.id, 'anschluss'])));
@@ -336,6 +338,23 @@ async function allgemein() {
     eingabe({ f: 'bm2' }, '19.5'); await klick({ act: 'b-speichern' }, 60);
     erwarte('AN-0014: m² frei gespeichert', letzte('baustelle/setzen').some(a => a.pfad[2] === 'groesse_m2' && a.wert === 19.5));
   }
+  {   // BSM-034.01: ✎ aus „Bearbeiten“ führt zurück, der Entwurf bleibt; Abbrechen sendet nichts; ✎ an Pumpen
+    const y = C().find(b => b.geraete.length);
+    await klick({ act: 'container', id: y.id }, 20); await klick({ act: 'sheet', s: 'bereich' });
+    eingabe({ f: 'name' }, `${y.name} Süd`); neu();
+    await klick('.sheet .ge-zeile[data-i="0"] .bs-ic', 10);
+    erwarte('BSM-034.01: ✎ aus Bearbeiten', panel.s.sheet.art === 'geraet-edit' && panel.s.sheet.zurueck && panel.s.sheet.zurueck.art === 'bereich');
+    await klick({ act: 'zu' }, 5);
+    erwarte('BSM-034.01: zurück zu „Bearbeiten“ mit Entwurf', panel.s.sheet.art === 'bereich' && panel.s.sheet.edit.name === `${y.name} Süd`);
+    await klick({ act: 'zu' }, 5);
+    erwarte('BSM-034.01: Abbrechen sendet nichts', !panel.s.sheet && !aufrufe.some(m => m.type === 'baustelle/setzen') && !api.length);
+    const sch = d().bereiche.find(b => b.pumpe && b.geraete.length);
+    if (sch) { await klick({ act: 'container', id: sch.id }, 20); await klick({ act: 'g-bearbeiten', i: '0' }, 10);
+      const typ = litEl('.sheet select[data-f="typ"]'), ber = litEl('.sheet select[data-f="bereich"]');
+      erwarte('BSM-034.01: ✎ an Pumpe zeigt Typ Pumpe und Pumpenschächte', typ && typ.value === 'Pumpe' && ber && ber.value === sch.id
+        && [...ber.options].every(o => !o.value || d().bereiche.find(b => b.id === o.value).pumpe));
+      await klick({ act: 'zu' }, 5); }
+  }
   {   // BSM-032: Container-Symbol – Aussehen bearbeiten
     const y = C().find(b => !b.pumpe), sy = () => letzte('baustelle/setzen').filter(a => JSON.stringify(a.pfad) === JSON.stringify(['bereiche', y.id, 'symbol'])).pop();
     await klick({ act: 'container', id: y.id }, 20); await klick({ act: 'sheet', s: 'bereich' });
@@ -343,11 +362,24 @@ async function allgemein() {
     await klick('.sheet .sym-zeile', 10);
     erwarte('BSM-032: Dialog Aussehen mit Vorschau', ui.innerHTML.includes('class="sym-vorschau"') && ui.innerHTML.includes('Doppelcontainer') && ui.innerHTML.includes('data-f="licht"'));
     neu(); const dop = !!(y.symbol && y.symbol.doppel); await klick('.sheet .liste .zeile .sw', 10);
+    erwarte('BSM-034.01: Aussehen ändert nur den Entwurf', !sy() && panel.s.sheet.sym.doppel === !dop);
+    await klick('.sheet [aria-label=\"Rahmen #c62828\"]', 10); erwarte('BSM-032: Rahmenfarbe in der Vorschau', ui.innerHTML.includes('Rahmen #c62828'));
+    await klick('.sheet button.zeile[data-art=\"fenster\"]', 10);
+    await klick('.sheet [data-z=\"lage\"][data-art=\"tueren\"][data-i=\"0\"] [data-v=\"0.85\"]', 10);
+    { const l = litEl('.sheet select[data-f="licht"]'); if (!l.querySelector('option[value="switch.licht"]')) l.insertAdjacentHTML('beforeend', '<option value="switch.licht">x</option>'); l.value = 'switch.licht'; l.dispatchEvent(new Event('change', { bubbles: true, composed: true })); } await ruhe(10);
+    erwarte('BSM-034.01: bis „Speichern“ nichts gesendet', !sy());
+    await klick({ act: 'zu' }, 5); erwarte('BSM-034.01: Abbrechen führt zurück zu „Bearbeiten“', panel.s.sheet && panel.s.sheet.art === 'bereich' && !sy());
+    await klick('.sheet .sym-zeile', 10); erwarte('BSM-034.01: Abbrechen hat den Entwurf verworfen', panel.s.sheet.sym === undefined || panel.s.sheet.sym.doppel === dop);
+    await klick('.sheet .liste .zeile .sw', 10); await klick('.sheet [aria-label=\"Rahmen #c62828\"]', 10); await klick('.sheet button.zeile[data-art=\"fenster\"]', 10);
+    await klick('.sheet [data-z=\"lage\"][data-art=\"tueren\"][data-i=\"0\"] [data-v=\"0.85\"]', 10);
+    { const l = litEl('.sheet select[data-f="licht"]'); if (!l.querySelector('option[value="switch.licht"]')) l.insertAdjacentHTML('beforeend', '<option value="switch.licht">x</option>'); l.value = 'switch.licht'; l.dispatchEvent(new Event('change', { bubbles: true, composed: true })); } await ruhe(10);
+    await klick({ act: 'sym-speichern' }, 10);
     erwarte('BSM-032: Doppel über baustelle/setzen', sy() && sy().wert.doppel === !dop);
-    neu(); await klick('.sheet [aria-label=\"Rahmen #c62828\"]', 10); erwarte('BSM-032: Rahmenfarbe', sy() && sy().wert.rahmen === '#c62828' && ui.innerHTML.includes('Rahmen #c62828'));
-    neu(); await klick('.sheet button.zeile[data-art=\"fenster\"]', 10); erwarte('BSM-032: Fenster dazu', sy() && sy().wert.fenster.length >= 2);
-    neu(); await klick('.sheet [data-z=\"lage\"][data-art=\"tueren\"][data-i=\"0\"] [data-v=\"0.85\"]', 10); erwarte('BSM-032: Lage der Tür', sy() && sy().wert.tueren[0].pos === 0.85);
-    neu(); { const l = litEl('.sheet select[data-f="licht"]'); if (!l.querySelector('option[value="switch.licht"]')) l.insertAdjacentHTML('beforeend', '<option value="switch.licht">x</option>'); l.value = 'switch.licht'; l.dispatchEvent(new Event('change', { bubbles: true, composed: true })); } await ruhe(10); erwarte('BSM-032: Licht-Quelle', sy() && sy().wert.licht === 'switch.licht');
+    erwarte('BSM-032: Rahmenfarbe', sy() && sy().wert.rahmen === '#c62828');
+    erwarte('BSM-032: Fenster dazu', sy() && sy().wert.fenster.length >= 2);
+    erwarte('BSM-032: Lage der Tür', sy() && sy().wert.tueren[0].pos === 0.85);
+    erwarte('BSM-032: Licht-Quelle', sy() && sy().wert.licht === 'switch.licht');
+    erwarte('BSM-034.01: nach „Speichern“ zurück zu „Bearbeiten“', panel.s.sheet && panel.s.sheet.art === 'bereich');
     await klick({ act: 'zu' }, 5);
     if (REFERENZ) { await klick({ act: 'tab', v: 'uebersicht' }, 20);
       erwarte('BSM-032: Doppelcontainer, offene Tür und gekipptes Fenster im Symbol', ui.innerHTML.includes('viewBox="0 0 200 131"') && ui.innerHTML.includes('l-7 ') && ui.innerHTML.includes('class="bc-licht"')); }
@@ -1083,16 +1115,22 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'zu' }, 5); await klick({ act: 'container', id: b0.id }, 10); await klick({ act: 'sheet', s: 'bereich' }, 10);
       erwarte('AN-0006: Schalter im Container', ui.innerHTML.includes('Zusatz-Heizkörper nur bei Bedarf') && ui.innerHTML.includes('data-zeile="stufen"'));
       neu(); await klick('.sheet [data-zeile="stufen"] .sw', 10);
-      erwarte('AN-0006: Schalter speichert bereiche.<id>.stufen', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `bereiche.${b0.id}.stufen` && m.wert === true));
-      await klick({ act: 'zu' }, 5);
+      const stufen = () => aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `bereiche.${b0.id}.stufen` && m.wert === true);
+      erwarte('BSM-034.01: Schalter im Dialog wartet auf „Speichern“', !stufen());
+      await klick({ act: 'b-speichern' }, 60);
+      erwarte('AN-0006: Schalter speichert bereiche.<id>.stufen', stufen());
+      await klick({ act: 'container', id: b0.id }, 10);
       const g2 = b0.geraete.filter(g => g.heizer)[1], i2 = b0.geraete.indexOf(g2);
       await klick({ act: 'g-bearbeiten', i: String(i2) }, 10);
       erwarte('AN-0006: Gerät als Zusatz einstellbar', ui.innerHTML.includes('data-zeile="zusatz"'));
       neu(); await klick('.sheet [data-zeile="zusatz"] .sw', 10);
+      if (!g2.leistung) await klick('.sheet .stepper [data-d=\"0.1\"]', 10);
+      const ws = k => aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `geraete.${g2.id}.${k}`);
+      erwarte('BSM-034.01: ✎ sendet erst bei „Speichern“', !ws('zusatz') && !ws('nenn_kw'));
+      await klick({ act: 'gf-speichern' }, 60);
       erwarte('AN-0006: speichert geraete.<id>.zusatz', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `geraete.${g2.id}.zusatz` && m.wert === true));
-      if (!g2.leistung) { neu(); await klick('.sheet .stepper [data-d=\"0.1\"]', 10);
-        erwarte('Szenarien: Nennleistung ohne Messung einstellbar', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `geraete.${g2.id}.nenn_kw`)); }
-      await klick({ act: 'zu' }, 5);
+      if (!g2.leistung) erwarte('Szenarien: Nennleistung ohne Messung einstellbar', ws('nenn_kw'));
+      await klick({ act: 'container', id: b0.id }, 10);
       c.stufen = { an: true, haupt: [b0.geraete.filter(g => g.heizer)[0].id], zusatz: [g2.id], zusatz_an: false, grund: null, text: '' };
       panel.d.r.laufzeit.container[b0.id] = JSON.parse(JSON.stringify(c)); panel._neuBauen(); await panel.neuZeichnen(); await ruhe();
       erwarte('AN-0006: Chip zeigt „Zusatz – wartet“', ui.innerHTML.includes('Zusatz – wartet, einer reicht') && ui.innerHTML.includes(' · Haupt'));
@@ -1122,7 +1160,10 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick({ act: 'zu' }, 5); await klick({ act: 'sheet', s: 'bereich' }, 10);
     erwarte('AN-0004: Bearbeiten mit eigenem „Warm ab“', ui.innerHTML.includes('🧠 Warm ab') && ui.innerHTML.includes('data-w="vor"'));
     neu(); await klick('.sheet .stepper[data-w=\"vor\"] [data-d=\"5\"]', 10);
-    erwarte('AN-0004: eigener Wert je Container', aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `bereiche.${b0.id}.warm_vor`));
+    const warmVor = () => aufrufe.some(m => m.type === 'baustelle/setzen' && m.pfad.join('.') === `bereiche.${b0.id}.warm_vor`);
+    erwarte('BSM-034.01: „Warm ab“ im Entwurf', !warmVor() && ui.innerHTML.includes('eigener Wert'));
+    await klick({ act: 'b-speichern' }, 60);
+    erwarte('AN-0004: eigener Wert je Container', warmVor());
     c.lernen.offen = { art: 'vermutet', seit: '2026-09-29T10:00:00+02:00' }; nachPanel();   // WU-0009
     await klick({ act: 'container', id: b0.id }, 10);
     erwarte('WU-0009: Hinweis „Tür vermutlich offen“ im Container', ui.innerHTML.includes('Tür vermutlich offen – kühlt beim Heizen ab, lernt gerade nicht'));
@@ -1184,6 +1225,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         erwarte('BSM-031.07: Container mit Einsatz, Ausrüstung, Geschichte', ['001-01_C_PLUG_POL', 'Geschichte', 'Einsatz', 'GG 01'].every(t => ui.innerHTML.includes(t)));
         neu(); await klick('.sheet .inv-st', 10);
         erwarte('BSM-031.08: Status der Ausrüstung über inventar_aendern', aufrufe.some(m => m.type === 'baustelle/inventar_aendern' && m.aktion === 'ausruestung_status' && m.status === 'verliehen'));
+        erwarte('BSM-034.01: Seite lädt nach Inventar-Änderung neu', aufrufe.some(m => m.type === 'baustelle/struktur'));
         await klick('.inv-c[data-id="c1"]', 20); await klick('.sheet [data-k="pruefen"]', 30);
         let v = ui.innerHTML;
         erwarte('BSM-031.07: Vorschau als Tabelle Was/Alt/Neu/Zustand, breit', v.includes('inv-th') && v.includes('switch.001_01_c_plug_pol') && /class="sheet glas-panel an breit"/.test(v));

@@ -28,6 +28,7 @@ from .db import DATA_DB, instanz_von, meldungen_merken
 from .db.schreiber import arbeit
 from .db.speicher import OHNE, baustelle_laden, meldungen_laden
 from .logik.arbeitszeit import arbeitszeiten_bereinigen, erste_arbeitszeit
+from .logik.geraete import reste_entfernen
 from .logik.warnungen import Art
 
 _LOGGER = logging.getLogger(__name__)
@@ -103,7 +104,8 @@ STANDARD: dict[str, Any] = {
     # „nach Regen früher“ am Folgetag
     "laufzeit": {"bedarf_bis": {}, "boost_bis": {}, "taste_bis": {}, "jetzt_bis": None, "hand": {}, "frueher": {}, "regen": {},
                  "lernen": {}, "warm_start": {},
-                 "aussen_tage": {}, "gefuehl": [], "soll_versch": {}},   # Soll gleitend: Tagesmittel außen, Rückmeldungen, + / −   # lernen: Lernstand je Container (logik/lernen, 0.8)
+                 "aussen_tage": {}, "gefuehl": [], "soll_versch": {},
+                 "np_plugs": {}},   # Notprogramm: Gerät → Schalter aller Plugs mit Skript (zum Abschalten, BSM-034.01)   # Soll gleitend: Tagesmittel außen, Rückmeldungen, + / −   # lernen: Lernstand je Container (logik/lernen, 0.8)
     "meldungen_einst": {
         "empfaenger": [],
         "knoepfe": True,
@@ -183,8 +185,10 @@ class Einstellungen:
         self._db_alt: dict[str, str] = {}
         self._db_merker = False
 
-    async def async_laden(self, bereich_ids: list[str], empfaenger: list[str] | None = None) -> None:
-        """Laden, fehlende Werte ergänzen, Einstellungen gelöschter Bereiche entfernen.
+    async def async_laden(self, bereich_ids: list[str], empfaenger: list[str] | None = None,
+                          geraet_ids: list[str] | None = None) -> None:
+        """Laden, fehlende Werte ergänzen, Einstellungen gelöschter Bereiche (mit `geraet_ids` auch Einstellungen, Zähler
+        und „stumm“ gelöschter Geräte und Container, logik/geraete) entfernen.
 
         `empfaenger` (aus den Optionen von 0.6) wird übernommen, solange im Store noch keiner eingetragen ist.
         """
@@ -210,6 +214,9 @@ class Einstellungen:
         for bid in bereich_ids:
             b = bereiche.setdefault(bid, {})
             _ergaenzen(b, {**STANDARD_BEREICH, "anschluss": erster})
+        if geraet_ids is not None and (weg := reste_entfernen(self.daten, bereich_ids, geraet_ids)):
+            _LOGGER.debug("Reste gelöschter Geräte und Container entfernt: %s", weg)
+            geaendert = True
         del self.daten["protokoll"][PROTOKOLL_MAX:]
         if neu or geaendert or (self.quelle == "store" and self._db_bereit()):
             self.speichern()   # beim ersten Start mit der Datenbank: ganzer Stand als Ausgangsstand (Merker)

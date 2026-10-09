@@ -974,7 +974,8 @@
     "location": null,
     "uid": null,
     "recurrence_id": null,
-    "rrule": null
+    "rrule": null,
+    "status": null
    }
   ],
   "calendar.urlaub": [
@@ -990,7 +991,8 @@
     "location": null,
     "uid": "u1",
     "recurrence_id": null,
-    "rrule": null
+    "rrule": null,
+    "status": null
    }
   ],
   "calendar.termine": [
@@ -1006,7 +1008,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20260929T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1020,7 +1023,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261006T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1034,7 +1038,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261013T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1048,7 +1053,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261020T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1062,7 +1068,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261027T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1076,7 +1083,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261103T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1090,7 +1098,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261110T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1104,7 +1113,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261117T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1118,7 +1128,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261124T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1132,7 +1143,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261201T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1146,7 +1158,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261208T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1160,7 +1173,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261215T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1174,7 +1188,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261222T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1188,7 +1203,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20261229T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1202,7 +1218,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270105T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1216,7 +1233,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270112T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1230,7 +1248,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270119T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1244,7 +1263,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270126T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1258,7 +1278,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270202T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1272,7 +1293,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270209T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1286,7 +1308,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270216T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1300,7 +1323,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270223T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1314,7 +1338,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270302T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1328,7 +1353,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270309T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1342,7 +1368,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270316T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1356,7 +1383,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270323T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1370,7 +1398,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270330T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1384,7 +1413,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270406T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1398,7 +1428,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270413T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1412,7 +1443,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270420T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1426,7 +1458,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270427T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1440,7 +1473,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270504T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1454,7 +1488,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270511T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1468,7 +1503,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270518T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1482,7 +1518,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270525T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1496,7 +1533,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270601T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1510,7 +1548,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270608T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1524,7 +1563,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270615T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1538,7 +1578,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270622T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1552,7 +1593,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270629T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1566,7 +1608,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270706T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1580,7 +1623,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270713T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1594,7 +1638,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270720T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1608,7 +1653,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270727T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1622,7 +1668,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270803T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1636,7 +1683,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270810T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1650,7 +1698,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270817T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1664,7 +1713,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270824T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1678,7 +1728,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270831T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1692,7 +1743,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270907T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1706,7 +1758,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270914T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1720,7 +1773,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270921T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1734,7 +1788,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20270928T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1748,7 +1803,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20271005T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1762,7 +1818,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20271012T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1776,7 +1833,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20271019T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1790,7 +1848,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20271026T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1804,7 +1863,8 @@
     "location": null,
     "uid": "termin-1",
     "recurrence_id": "20271102T130000",
-    "rrule": "FREQ=WEEKLY"
+    "rrule": "FREQ=WEEKLY",
+    "status": null
    },
    {
     "start": {
@@ -1818,7 +1878,8 @@
     "location": null,
     "uid": "termin-2",
     "recurrence_id": null,
-    "rrule": null
+    "rrule": null,
+    "status": null
    }
   ]
  }

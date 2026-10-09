@@ -5,7 +5,7 @@ import json
 
 from logik.arbeitszeit import Plan
 from logik.notprogramm import (
-    LEER, MAX_WERT, Vorgaben, frost, minuten_fenster, modus, programm, stand, tag_wert, zusammenfassen,
+    LEER, MAX_WERT, Vorgaben, frost, minuten_fenster, modus, programm, stand, tag_wert, verwaist, zusammenfassen,
 )
 
 T0 = 1791158400   # Mo 05.10.2026 00:00 UTC
@@ -136,3 +136,13 @@ def test_stundenbuch() -> None:
     # Ausfall 00:40 bis 06:10 → Stunden 0, 1 und 6
     assert [s.stunde for s in im_ausfall(buch, T0 + 40 * 60, T0 + 6 * H + 600)] == [h, h + 1, h + 6]
     assert [s.stunde for s in im_ausfall(buch, T0 + H, T0 + 2 * H)] == [h + 1]
+
+
+def test_verwaist_entfernt_umgestellt_oder_weitergegeben() -> None:
+    """BSM-034.01: Plugs mit Skript, die kein Heizkörper dieser Baustelle mehr sind."""
+    bekannt = {"g1": "switch.a", "g2": "switch.b", "g3": "switch.c", "g4": "switch.d"}
+    aktuell = {"g1": "switch.a", "g5": "switch.c"}   # g3 neu angelegt als g5 (gleicher Schalter)
+    abschalten, vergessen = verwaist(bekannt, aktuell, {"switch.d"})   # g4 jetzt in einer anderen Baustelle
+    assert abschalten == ["g2"]
+    assert vergessen == ["g3", "g4"]
+    assert verwaist({}, aktuell, ()) == ([], [])

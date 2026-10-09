@@ -57,6 +57,7 @@ from .funktionen import FUNKTIONEN
 from .funktionen.basis import ZAEHLER_SPEICHERN_S, Funktion, SollJeBereich, zahl as _zahl, zeit as _zeit
 from .logik import staffel as staffel_logik, warnungen as warn_logik
 from .logik.arbeitszeit import Arbeitszeit, Ausnahme, WetterTag
+from .logik.geraete import hinweise_reste
 from .logik import preise as preise_logik
 from .db import protokoll_merken
 from .kern import (
@@ -172,7 +173,8 @@ class Steuerung:
         from .nachrichten import Nachrichten  # noqa: PLC0415  (gegenseitiger Import)
 
         self._einrichtung_lesen()
-        await self.einstellungen.async_laden(list(self.bereiche), self.entry.options.get(CONF_EMPFAENGER))
+        await self.einstellungen.async_laden(list(self.bereiche), self.entry.options.get(CONF_EMPFAENGER), list(self.geraete))
+        self._hinweise_aufraeumen()
         if self.einstellungen.von_v1:
             self.protokoll("einstellung", None, "Umstellung auf 0.7.0: Einstellungen neu, Zähler übernommen")
         self._warnungen_laden()
@@ -289,6 +291,12 @@ class Steuerung:
             erwartet.update(x for x in (g.schalter, g.leistung, g.energie) if x)
         erwartet.update(b.fuehler for b in self.bereiche.values() if b.fuehler)
         return erwartet
+
+    def _hinweise_aufraeumen(self) -> None:
+        """Reparatur-Hinweise gelöschter Geräte und nicht mehr erwarteter Entitäten entfernen (BSM-034.01)."""
+        eigene = [i for (d, i) in ir.async_get(self.hass).issues if d == DOMAIN]
+        for issue_id in hinweise_reste(eigene, self.entry.entry_id, self.geraete, self._erwartete_entitaeten()):
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     def _fehlende_pruefen(self, jetzt: datetime) -> None:
         """Reparatur-Hinweis, wenn eine eingestellte Entität fehlt (z. B. Shelly umbenannt oder entfernt)."""

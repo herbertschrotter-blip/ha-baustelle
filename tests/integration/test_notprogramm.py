@@ -247,6 +247,35 @@ async def test_ausschalten_haelt_das_skript_an(hass: HomeAssistant, anlage) -> N
         assert not skript["running"] and not skript["enable"]   # übernimmt nicht nach 15 min ohne Lebenszeichen
 
 
+async def test_entfernter_oder_umgestellter_plug_wird_abgeschaltet(hass: HomeAssistant, anlage) -> None:
+    """BSM-034.01 (Bauplan Geräte §3 Fehler 1): kein Notbetrieb mit altem Programm in Plugs, die kein Heizkörper mehr sind."""
+    entry, np, plugs = anlage
+    st = entry.runtime_data
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    assert set(st.lz["np_plugs"].values()) == {"switch.hk1", "switch.hk2"}
+    hk1 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk1")
+    hk2 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk2")
+
+    # Heizkörper 2 entfernen: die neue Runde (nach dem Neuladen) hält sein Skript an
+    hass.config_entries.async_remove_subentry(entry, hk2)
+    await hass.async_block_till_done()
+    st, np = entry.runtime_data, hass.data[DATA_NOTPROGRAMM][entry.entry_id]
+    await np.async_runde()
+    assert not plugs["plug2"].eigenes()[1]["running"] and not plugs["plug2"].eigenes()[1]["enable"]
+    assert plugs["plug1"].eigenes()[1]["running"]
+    assert set(st.lz["np_plugs"].values()) == {"switch.hk1"} and hk2 not in np.stand
+    assert any("switch.hk2 abgeschaltet" in e[-1] for e in st.e["protokoll"] if isinstance(e[-1], str))
+
+    # Heizkörper 1 auf Steckdose umstellen: ebenso
+    sub = entry.subentries[hk1]
+    hass.config_entries.async_update_subentry(entry, sub, data={**sub.data, "rolle": "steckdose"})
+    await hass.async_block_till_done()
+    np = hass.data[DATA_NOTPROGRAMM][entry.entry_id]
+    await np.async_runde()
+    assert not plugs["plug1"].eigenes()[1]["running"] and entry.runtime_data.lz["np_plugs"] == {}
+
+
 async def test_plug_nicht_erreichbar(hass: HomeAssistant, anlage) -> None:
     entry, np, plugs = anlage
     st = entry.runtime_data

@@ -3301,11 +3301,11 @@ function bereich(p4, s4) {
   if (e6.fuehler && !fuehler.some((x2) => x2[0] === e6.fuehler)) fuehler.unshift([e6.fuehler, p4.name(e6.fuehler)]);
   if (e6.tuer && !tueren.some((x2) => x2[0] === e6.tuer)) tueren.unshift([e6.tuer, p4.name(e6.tuer)]);
   const warm = () => {
-    const w2 = { vor: b3.warmVor ?? d3.e.warm_vor, nach: b3.warmNach ?? d3.e.warm_nach, vor_eigen: b3.warmVor !== null, nach_eigen: b3.warmNach !== null };
-    const sw = (k2, v2, eigen, f3) => b2`<span class="stepper klein" data-w=${k2}><button data-d="-5" @click=${p4.nurAdmin(() => p4.warmEigen(b3, k2, -5))}>−</button><b class=${eigen ? "eigen" : ""}>${f3(v2)}</b><button data-d="5" @click=${p4.nurAdmin(() => p4.warmEigen(b3, k2, 5))}>+</button></span>`;
+    const w2 = { vor: e6.warmVor ?? d3.e.warm_vor, nach: e6.warmNach ?? d3.e.warm_nach, vor_eigen: e6.warmVor !== null, nach_eigen: e6.warmNach !== null };
+    const sw = (k2, v2, eigen, f3) => b2`<span class="stepper klein" data-w=${k2}><button data-d="-5" @click=${p4.nurAdmin(() => p4.warmEigen(e6, k2, -5))}>−</button><b class=${eigen ? "eigen" : ""}>${f3(v2)}</b><button data-d="5" @click=${p4.nurAdmin(() => p4.warmEigen(e6, k2, 5))}>+</button></span>`;
     return b2`<div class="gruppe-t">🧠 Warm ab</div><div class="zeile"><div><span>Soll erreicht</span><div class="leise">${w2.vor_eigen ? "eigener Wert" : "wie die Baustelle"}</div></div>${sw("vor", w2.vor, w2.vor_eigen, (v2) => v2 ? `${v2} min vorher` : "bei Beginn")}</div>
             <div class="zeile"><div><span>Warm halten</span><div class="leise">${w2.nach_eigen ? "eigener Wert" : "wie die Baustelle"}</div></div>${sw("nach", w2.nach, w2.nach_eigen, (v2) => v2 ? `${v2} min länger` : "bis Ende")}</div>
-            ${w2.vor_eigen || w2.nach_eigen ? b2`<button class="zeile" @click=${p4.nurAdmin(() => p4.warmZurueck(b3))}><span class="blau">Wie die Baustelle</span></button>` : A}`;
+            ${w2.vor_eigen || w2.nach_eigen ? b2`<button class="zeile" @click=${p4.nurAdmin(() => p4.warmZurueck(e6))}><span class="blau">Wie die Baustelle</span></button>` : A}`;
   };
   const geraet = (g2, i7) => g2.weg ? b2`<div class="ge-zeile weg" data-i=${i7}><span>${g2.n} wird entfernt</span><button class="chip glas-panel" @click=${() => {
     g2.weg = false;
@@ -3320,7 +3320,10 @@ function bereich(p4, s4) {
   })}>✕</button></div>`;
   return b2`${GRIFF6}<div class="block-kopf"><h3>Bearbeiten</h3><span class="leise">${b3.pumpe ? "Pumpenschacht" : "Container"}</span></div>
         <label class="feld">Name${text(e6, "name")}</label>
-        ${!b3.pumpe && b3.geraete.filter((g2) => g2.heizer).length >= 2 ? b2`<div class="zeile" data-zeile="stufen"><div><b>🔥 Zusatz-Heizkörper nur bei Bedarf</b><div class="leise">zuerst heizt einer; der Zusatz kommt bei Kälte, weit unter dem Soll oder wenn einer es nicht schafft. Welcher Zusatz ist, steht im Gerät.</div></div>${schalterVorlage(b3.stufenAn, () => p4.setzen(["bereiche", b3.id, "stufen"], !b3.stufenAn))}</div>` : A}
+        ${!b3.pumpe && b3.geraete.filter((g2) => g2.heizer).length >= 2 ? b2`<div class="zeile" data-zeile="stufen"><div><b>🔥 Zusatz-Heizkörper nur bei Bedarf</b><div class="leise">zuerst heizt einer; der Zusatz kommt bei Kälte, weit unter dem Soll oder wenn einer es nicht schafft. Welcher Zusatz ist, steht im Gerät.</div></div>${schalterVorlage(e6.stufen, () => {
+    e6.stufen = !e6.stufen;
+    z2();
+  })}</div>` : A}
         ${b3.pumpe ? A : b2`<div class="zeile" data-zeile="bedarf"><div><b>Nur bei Bedarf heizen</b><div class="leise">z. B. Besprechungscontainer: heizt nur per Schalter oder Termin, sonst Frostschutz</div></div>${schalterVorlage(e6.bedarf, () => {
     e6.bedarf = !e6.bedarf;
     z2();
@@ -3398,7 +3401,8 @@ function aussehen(p4, s4) {
     k2.licht = v2 || null;
   }), "licht")}</label></div>
       <div class="leise p-fuss">Türen sitzen links, mittig oder rechts an ihrer Wand; mehrere Fenster verteilen sich gleichmäßig auf den Platz daneben. Tür offen/zu, Fenster offen/gekippt/zu und Licht kommen von den zugeordneten Sensoren; ohne Sensor bleibt das Element zu bzw. dunkel.</div>
-      ${b3.symbol && b3.symbol.eigen ? b2`<button class="knopf" @click=${() => p4.symStandard(b3)}>Standard (eine Tür, ein Fenster)</button>` : A}${knopf7("Fertig", () => p4.schliessen())}`;
+      ${b3.symbol && b3.symbol.eigen && !s4.std ? b2`<button class="knopf" @click=${() => p4.symStandard()}>Standard (eine Tür, ein Fenster)</button>` : A}
+      ${knopf7("Speichern", p4.nurAdmin(() => p4.symSpeichern(b3)), "amber nur-admin")}${knopf7("Abbrechen", () => p4.schliessen(), "leise-k")}`;
 }
 function geraetEdit(p4, s4) {
   const d3 = p4.d, b3 = p4.b, g2 = b3 && b3.geraete[s4.i];
@@ -3406,7 +3410,7 @@ function geraetEdit(p4, s4) {
     p4.s.sheet = null;
     return A;
   }
-  const f3 = s4.form, typen = ["Ölradiator", "Konvektor", "Bautrockner", "Steckdose"];
+  const f3 = s4.form, typen = b3.pumpe ? ["Pumpe"] : ["Ölradiator", "Konvektor", "Bautrockner", "Steckdose"];
   const leistung = p4.entitaeten((x2) => x2.entity_id.startsWith("sensor.") && x2.attributes.device_class === "power");
   const energie = p4.entitaeten((x2) => x2.entity_id.startsWith("sensor.") && x2.attributes.device_class === "energy");
   const auto = (eid, eigen) => `automatisch${!eigen && eid ? ` · ${p4.name(eid) || eid}` : ""}`;
@@ -3414,15 +3418,18 @@ function geraetEdit(p4, s4) {
         <label class="feld">Name${text(f3, "n")}</label>
         <label class="feld">Shelly (Schalter)${auswahl2(f3, "schalter", optionenVorlage(p4.freieSchalter(g2.schalter).map(([v2, n4]) => [v2, `${n4} (${v2})`]), f3.schalter))}</label>
         <div class="raster-2"><label class="feld">Typ${auswahl2(f3, "typ", typen.map((t5) => b2`<option ?selected=${f3.typ === t5}>${t5}</option>`))}</label>
-          <label class="feld">Container${auswahl2(f3, "bereich", optionenVorlage(d3.bereiche.filter((x2) => !x2.pumpe).map((x2) => [x2.id, x2.name]), f3.bereich))}</label></div>
+          <label class="feld">${b3.pumpe ? "Pumpenschacht" : "Container"}${auswahl2(f3, "bereich", optionenVorlage(d3.bereiche.filter((x2) => !!x2.pumpe === !!b3.pumpe).map((x2) => [x2.id, x2.name]), f3.bereich))}</label></div>
         <label class="feld">Leistungssensor${auswahl2(f3, "leistung", optionenVorlage(leistung, f3.leistung, auto(g2.leistung, g2.leistungEigen)))}</label>
         <label class="feld">Energiesensor${auswahl2(f3, "energie", optionenVorlage(energie, f3.energie, auto(g2.energie, g2.energieEigen)))}</label>
         <div class="zeile"><div><b>Aktiv</b><div class="leise">aus: die Automatik schaltet das Gerät nicht, es zählt nicht in der Staffelung, keine Warnungen</div></div>${schalterVorlage(f3.aktiv, () => {
     f3.aktiv = !f3.aktiv;
     p4.neuZeichnen();
   })}</div>
-        ${!g2.leistung ? b2`<div class="zeile"><div><b>Leistung ohne Messung</b><div class="leise">zählt so in der Staffelung, wenn das Gerät an ist${g2.nennKwEigen === null ? " · Standard" : ""}</div></div><span class="stepper klein"><button data-d="-0.1" @click=${() => p4.geraetNennKw(g2, -0.1)}>−</button><b class=${g2.nennKwEigen !== null ? "eigen" : ""}>${de(g2.nennKwEigen ?? g2.kw, 1)} kW</b><button data-d="0.1" @click=${() => p4.geraetNennKw(g2, 0.1)}>+</button></span></div>` : A}
-        ${g2.heizer && b3.geraete.filter((x2) => x2.heizer).length >= 2 ? b2`<div class="zeile" data-zeile="zusatz"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">${b3.stufenAn ? "heizt nur dazu, wenn einer nicht reicht" : "wirkt, wenn im Container „Zusatz nur bei Bedarf“ an ist"}${b3.stufen && b3.stufen.haupt.includes(g2.id) && !g2.zusatz ? " · jetzt der erste" : ""}</div></div>${schalterVorlage(g2.zusatz, () => p4.setzen(["geraete", g2.id, "zusatz"], !g2.zusatz))}</div>` : A}
+        ${!g2.leistung ? b2`<div class="zeile"><div><b>Leistung ohne Messung</b><div class="leise">zählt so in der Staffelung, wenn das Gerät an ist${f3.nennKw === null ? " · Standard" : ""}</div></div><span class="stepper klein"><button data-d="-0.1" @click=${() => p4.geraetNennKw(f3, g2, -0.1)}>−</button><b class=${f3.nennKw !== null ? "eigen" : ""}>${de(f3.nennKw ?? g2.kw, 1)} kW</b><button data-d="0.1" @click=${() => p4.geraetNennKw(f3, g2, 0.1)}>+</button></span></div>` : A}
+        ${g2.heizer && b3.geraete.filter((x2) => x2.heizer).length >= 2 ? b2`<div class="zeile" data-zeile="zusatz"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">${b3.stufenAn ? "heizt nur dazu, wenn einer nicht reicht" : "wirkt, wenn im Container „Zusatz nur bei Bedarf“ an ist"}${b3.stufen && b3.stufen.haupt.includes(g2.id) && !f3.zusatz ? " · jetzt der erste" : ""}</div></div>${schalterVorlage(f3.zusatz, () => {
+    f3.zusatz = !f3.zusatz;
+    p4.neuZeichnen();
+  })}</div>` : A}
         <div class="leise">Neuer Shelly: die Werte des alten bleiben im Verlauf. Anderer Container: der Verbrauch zählt ab jetzt dort.</div>
         ${knopf7("Speichern", p4.nurAdmin(() => p4.geraetSpeichern()), "amber nur-admin")}${knopf7("Abbrechen", () => p4.schliessen(), "leise-k")}`;
 }
@@ -5053,7 +5060,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.114";
+var SEITE_VERSION = "0.8.115";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", ...Object.keys(INVENTAR_EINBLENDUNGEN), "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS), r(INV_CSS)];
@@ -6302,6 +6309,7 @@ var BaustellePanel = class extends i4 {
       if (text2) this.toast(text2);
       if (schliessen) this.s.sheet = null;
       this.neuZeichnen();
+      this._laden();
       return r5 || { ok: true };
     } catch (e6) {
       this.toast(this.fehlerText(e6));
@@ -6335,6 +6343,7 @@ var BaustellePanel = class extends i4 {
     try {
       const r5 = await this._hass.callWS(s4.rueck ? { type: "baustelle/inventar_rueckgaengig", container_id: s4.id } : { type: "baustelle/inventar_umbenennen", container_id: s4.id });
       this.invNeu();
+      this._laden();
       if (r5.status === "nichts") {
         this.toast("Schon alles nach Schema");
         return this.invAuf({ art: "inv-container", id: s4.id });
@@ -6422,6 +6431,9 @@ var BaustellePanel = class extends i4 {
         if (m22 !== void 0 && m22 !== (eb.groesse_m2 ?? null)) await call("groesse_m2", m22);
       }
       if ((e6.tuer || null) !== (eb.tuer || null)) await call("tuer", e6.tuer || null);
+      if (e6.warmVor !== (x2.warmVor ?? null)) await call("warm_vor", e6.warmVor);
+      if (e6.warmNach !== (x2.warmNach ?? null)) await call("warm_nach", e6.warmNach);
+      if (e6.stufen !== !!x2.stufenAn) await call("stufen", e6.stufen);
       if (e6.anschluss && e6.anschluss !== x2.anschluss) await call("anschluss", e6.anschluss);
       if (e6.firma !== x2.firma) {
         if (x2.firma !== "eigen") await this._hass.callWS({ type: "baustelle/liste", entry_id: d3.entry, liste: "firmen", aktion: "speichern", eintrag: { id: x2.firma, name: this.firma(x2.firma).name, container: d3.bereiche.filter((y3) => y3.firma === x2.firma && y3.id !== x2.id).map((y3) => y3.id) } });
@@ -6455,7 +6467,7 @@ var BaustellePanel = class extends i4 {
     const S3 = this.s, d3 = this.d, b3 = this.b, neu = () => this.neuZeichnen();
     const f3 = S3.sheet.form, g2 = b3.geraete[S3.sheet.i], x2 = b3;
     if (!f3.n.trim() || !f3.schalter) return this.toast("Bitte Name und Shelly wählen");
-    S3.sheet = null;
+    S3.sheet = S3.sheet.zurueck || null;
     neu();
     const geaendert = f3.n.trim() !== g2.n || f3.schalter !== g2.schalter || f3.typ !== g2.typ || f3.bereich !== x2.id || f3.leistung !== (g2.leistungEigen || "") || f3.energie !== (g2.energieEigen || "");
     return this.einrichten(async () => {
@@ -6468,23 +6480,36 @@ var BaustellePanel = class extends i4 {
         if (this.flowFehler(r5)) return r5;
       }
       if (f3.aktiv !== g2.aktiv) await this._hass.callWS({ type: "baustelle/aktion", entry_id: d3.entry, aktion: "aktiv", geraet: g2.id, an: f3.aktiv });
+      const call = (k2, w2) => this._hass.callWS({ type: "baustelle/setzen", entry_id: d3.entry, pfad: ["geraete", g2.id, k2], wert: w2 });
+      if (f3.nennKw !== (g2.nennKwEigen ?? null)) await call("nenn_kw", f3.nennKw);
+      if (f3.zusatz !== !!g2.zusatz) await call("zusatz", f3.zusatz);
       return true;
     }, `${f3.n.trim()} gespeichert`).then(() => this._laden());
   }
-  warmEigen(x2, k2, dd) {
-    const d3 = this.d, vor = k2 === "vor", alt = vor ? x2.warmVor ?? d3.e.warm_vor : x2.warmNach ?? d3.e.warm_nach;
-    return this.setzen(["bereiche", x2.id, vor ? "warm_vor" : "warm_nach"], Math.max(0, Math.min(240, alt + dd)));
+  /* Dialoge ändern nur ihren Entwurf; gespeichert wird bei „Speichern“, Abbrechen nimmt alles zurück (BSM-034.01) */
+  warmEigen(e6, k2, dd) {
+    const d3 = this.d, key = k2 === "vor" ? "warmVor" : "warmNach", alt = e6[key] ?? (k2 === "vor" ? d3.e.warm_vor : d3.e.warm_nach);
+    e6[key] = Math.max(0, Math.min(240, alt + dd));
+    return this.neuZeichnen();
   }
-  warmZurueck(x2) {
-    return this.setzen(["bereiche", x2.id, "warm_vor"], null).then(() => this.setzen(["bereiche", x2.id, "warm_nach"], null));
+  warmZurueck(e6) {
+    e6.warmVor = null;
+    e6.warmNach = null;
+    return this.neuZeichnen();
   }
-  geraetNennKw(g2, dd) {
-    return this.setzen(["geraete", g2.id, "nenn_kw"], Math.max(0, Math.min(10, Math.round(((g2.nennKwEigen ?? g2.kw) + dd) * 10) / 10)));
+  geraetNennKw(f3, g2, dd) {
+    f3.nennKw = Math.max(0, Math.min(10, Math.round(((f3.nennKw ?? g2.kw) + dd) * 10) / 10));
+    return this.neuZeichnen();
   }
   // Szenarien: Nennleistung ohne Messung
-  aussehenAuf(x2) {
-    this.s.sheet = { art: "aussehen", id: x2.id };
+  unterDialog(sheet) {
+    const s4 = this.s.sheet;
+    this.s.sheet = { ...sheet, zurueck: s4 && s4.art === "bereich" ? s4 : null };
     return this.neuZeichnen();
+  }
+  // aus „Bearbeiten“: danach dorthin zurück, Entwurf bleibt
+  aussehenAuf(x2) {
+    return this.unterDialog({ art: "aussehen", id: x2.id });
   }
   // BSM-032
   bereichEntwurf(x2, s4) {
@@ -6498,7 +6523,11 @@ var BaustellePanel = class extends i4 {
       fuehler: x2.fuehler || "",
       groesseArt: x2.groesse && x2.groesse.art || "einzel",
       m2: x2.groesse ? x2.groesse.m2 : null,
-      geraete: x2.geraete.map((g2) => ({ id: g2.id, n: g2.n, typ: g2.typ, schalter: g2.schalter, leistung: g2.leistung, energie: g2.energie, alt: { n: g2.n, typ: g2.typ } }))
+      warmVor: x2.warmVor ?? null,
+      warmNach: x2.warmNach ?? null,
+      stufen: !!x2.stufenAn,
+      // nur eigene Sensoren – die automatisch gefundenen sucht die Integration weiter selbst (BSM-034.01)
+      geraete: x2.geraete.map((g2) => ({ id: g2.id, n: g2.n, typ: g2.typ, schalter: g2.schalter, leistung: g2.leistungEigen || void 0, energie: g2.energieEigen || void 0, alt: { n: g2.n, typ: g2.typ } }))
     };
   }
   symAendern(x2, fn) {
@@ -6506,9 +6535,17 @@ var BaustellePanel = class extends i4 {
     fn(c4);
     return this.symSenden(x2, c4);
   }
-  symStandard(x2) {
-    this.s.sheet.sym = null;
-    return this.setzen(["bereiche", x2.id, "symbol"], null);
+  symStandard() {
+    const s4 = this.s.sheet;
+    s4.sym = null;
+    s4.std = true;
+    return this.neuZeichnen();
+  }
+  symSpeichern(b3) {
+    const s4 = this.s.sheet, neu = s4.std ? null : s4.sym;
+    this.s.sheet = s4.zurueck || null;
+    this.neuZeichnen();
+    return (s4.std ? b3.symbol && b3.symbol.eigen : JSON.stringify(neu) !== s4.anfang) ? this.setzen(["bereiche", b3.id, "symbol"], neu) : null;
   }
   /* Dialoge rund um die Baustelle (src/ansichten/einblendungen-baustelle.js, BSM-022 3e) */
   berichtDaten() {
@@ -6724,7 +6761,7 @@ var BaustellePanel = class extends i4 {
   }
   /* Einblendungen der Container-Ansicht (src/ansichten/einblendungen-container.js, BSM-022 3d) */
   schliessen() {
-    this.s.sheet = null;
+    this.s.sheet = this.s.sheet && this.s.sheet.zurueck || null;
     return this.neuZeichnen();
   }
   zeitraumWahl(ziel, z2) {
@@ -6781,8 +6818,17 @@ var BaustellePanel = class extends i4 {
   }
   geraetBearbeiten(b3, i7) {
     const g2 = b3.geraete[i7];
-    this.s.sheet = { art: "geraet-edit", i: i7, form: { n: g2.n, schalter: g2.schalter, typ: g2.typ, bereich: b3.id, leistung: g2.leistungEigen || "", energie: g2.energieEigen || "", aktiv: g2.aktiv } };
-    return this.neuZeichnen();
+    return this.unterDialog({ art: "geraet-edit", i: i7, form: {
+      n: g2.n,
+      schalter: g2.schalter,
+      typ: g2.typ,
+      bereich: b3.id,
+      leistung: g2.leistungEigen || "",
+      energie: g2.energieEigen || "",
+      aktiv: g2.aktiv,
+      nennKw: g2.nennKwEigen ?? null,
+      zusatz: !!g2.zusatz
+    } });
   }
   lernenUmschalten(x2) {
     return this.setzen(["bereiche", x2.id, "lernen"], !(x2.lern && x2.lern.an));
@@ -7907,16 +7953,19 @@ var BaustellePanel = class extends i4 {
   }
   /* BSM-032: Container-Symbol – Aussehen bearbeiten; die Integration prüft und liefert den Zustand aus den Sensoren */
   symKonfig(b3) {
-    const x2 = this.s.sheet && this.s.sheet.sym;
+    const s4 = this.s.sheet, x2 = s4 && s4.sym;
     if (x2) return x2;
-    const q = b3.symbol || SYMBOL_STANDARD, el = (y3) => ({ wand: y3.wand, pos: y3.pos, sensor: y3.sensor || null });
-    return this.s.sheet.sym = { doppel: !!q.doppel, farbe: q.farbe || null, rahmen: q.rahmen || null, tueren: q.tueren.map(el), fenster: q.fenster.map(el), licht: q.licht || null };
+    const q = !s4.std && b3.symbol || SYMBOL_STANDARD, el = (y3) => ({ wand: y3.wand, pos: y3.pos, sensor: y3.sensor || null });
+    s4.sym = { doppel: !!q.doppel, farbe: q.farbe || null, rahmen: q.rahmen || null, tueren: q.tueren.map(el), fenster: q.fenster.map(el), licht: q.licht || null };
+    if (s4.anfang === void 0) s4.anfang = JSON.stringify(s4.sym);
+    return s4.sym;
   }
   symSenden(b3, c4) {
     this.s.sheet.sym = c4;
-    this.neuZeichnen();
-    return this.setzen(["bereiche", b3.id, "symbol"], c4);
+    this.s.sheet.std = false;
+    return this.neuZeichnen();
   }
+  // erst „Speichern“ schickt es (BSM-034.01)
   /* BSM-019: Notprogramm in den Plugs – Zustand je Heizkörper-Plug kommt fertig von der Integration (laufzeit.geraete.<id>.notprogramm) */
   npPlugs() {
     return this.d.bereiche.flatMap((b3) => b3.geraete.filter((g2) => g2.np).map((g2) => ({ b: b3, g: g2, np: g2.np })));

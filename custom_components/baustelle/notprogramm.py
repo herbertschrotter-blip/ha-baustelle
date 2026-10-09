@@ -243,6 +243,7 @@ class Notprogramm:
                 stand = self.stand.setdefault(g.id, Stand())
                 try:
                     if self.an:
+                        self._merken(g)
                         await self._async_plug(g, Plug(session, host), stand)
                     elif not stand.geprueft_aus:
                         await self._async_abschalten(Plug(session, host), stand)
@@ -251,6 +252,7 @@ class Notprogramm:
                     if stand.fehler != str(err):
                         _LOGGER.info("Notprogramm %s: %s", g.name, err)
                     stand.fehler, stand.fehler_seit = str(err), stand.fehler_seit or dt_util.now()
+            await self._async_verwaiste(session)
             self.geprueft = dt_util.now()
             self._tasten_beobachten()
             # Warnung „Notprogramm nicht bereit“ (logik/warnungen, nach 15 min) – nur, solange es eingeschaltet ist
@@ -262,6 +264,40 @@ class Notprogramm:
         """Heizkörper-Plugs der Baustelle mit Adresse (Shelly-Integration, Gen2+)."""
         return [(g, host) for g in self.st.geraete.values()
                 if g.rolle == ROLLE_HEIZKOERPER and (host := shelly_host(self.hass, g.schalter)) is not None]
+
+    @property
+    def _bekannt(self) -> dict[str, str]:
+        return cast("dict[str, str]", self.st.lz.setdefault("np_plugs", {}))
+
+    def _merken(self, g: GeraetInfo) -> None:
+        """Plug bekommt das Skript: merken, damit es nach Entfernen oder Umstellen abgeschaltet wird."""
+        if self._bekannt.get(g.id) != g.schalter:
+            self._bekannt[g.id] = g.schalter
+            self.st.einstellungen.speichern()
+
+    async def _async_verwaiste(self, session: aiohttp.ClientSession) -> None:
+        """Skript in Plugs abschalten, die kein Heizkörper dieser Baustelle mehr sind (logik/notprogramm.verwaist)."""
+        from .config_flow import geraete_anderer_baustellen  # noqa: PLC0415  (config_flow lädt die Integration)
+
+        aktuell = {g.id: g.schalter for g, _ in self.plugs()}
+        abschalten, vergessen = logik.verwaist(self._bekannt, aktuell, geraete_anderer_baustellen(self.hass, self.st.entry.entry_id))
+        for gid in abschalten:
+            schalter = self._bekannt[gid]
+            if (host := shelly_host(self.hass, schalter)) is None:
+                continue   # Shelly nicht (mehr) in HA – nächste Runde wieder versuchen
+            try:
+                await self._async_abschalten(Plug(session, host), Stand())
+            except PlugFehler as err:
+                _LOGGER.info("Notprogramm %s abschalten: %s", schalter, err)
+                continue
+            self.st.protokoll("einstellung", None, f"Notprogramm in {schalter} abgeschaltet – kein Heizkörper der Baustelle mehr")
+            vergessen.append(gid)
+        for gid in vergessen:
+            self._bekannt.pop(gid, None)
+        for gid in [x for x in self.stand if x not in aktuell]:
+            del self.stand[gid]
+        if vergessen:
+            self.st.einstellungen.speichern()
 
     def _bt_adresse(self, entity_id: str | None) -> str | None:
         """Bluetooth-Adresse des Geräts hinter einer Entität (BTHome), klein geschrieben."""

@@ -49,6 +49,7 @@ function aktion(p, roh) {
       case 'b-speichern': return p.bereichSpeichern();
       case 'b-weg': return p.bereichWeg();
       case 'gf-speichern': return p.geraetSpeichern();
+      case 'sym-speichern': return p.symSpeichern(p.d.bereiche.find(x => x.id === p.s.sheet.id));
       case 'boost': return p.boostUmschalten(d.bereiche.find(y => y.id === ds.id));
       case 'ausn-neu': return p.ausnahmeNeu(ds.v);
       case 'au-speichern': return p.ausnahmeSpeichern();

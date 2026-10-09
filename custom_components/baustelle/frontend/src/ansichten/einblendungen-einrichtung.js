@@ -88,11 +88,11 @@ function bereich(p, s) {
   const fuehler = p.entitaeten(x => (x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'temperature') || x.entity_id.startsWith('climate.'));
   if (e.fuehler && !fuehler.some(x => x[0] === e.fuehler)) fuehler.unshift([e.fuehler, p.name(e.fuehler)]);
   if (e.tuer && !tueren.some(x => x[0] === e.tuer)) tueren.unshift([e.tuer, p.name(e.tuer)]);
-  const warm = () => { const w = { vor: b.warmVor ?? d.e.warm_vor, nach: b.warmNach ?? d.e.warm_nach, vor_eigen: b.warmVor !== null, nach_eigen: b.warmNach !== null };   // AN-0004
-    const sw = (k, v, eigen, f) => html`<span class="stepper klein" data-w=${k}><button data-d="-5" @click=${p.nurAdmin(() => p.warmEigen(b, k, -5))}>−</button><b class=${eigen ? 'eigen' : ''}>${f(v)}</b><button data-d="5" @click=${p.nurAdmin(() => p.warmEigen(b, k, 5))}>+</button></span>`;
+  const warm = () => { const w = { vor: e.warmVor ?? d.e.warm_vor, nach: e.warmNach ?? d.e.warm_nach, vor_eigen: e.warmVor !== null, nach_eigen: e.warmNach !== null };   // AN-0004
+    const sw = (k, v, eigen, f) => html`<span class="stepper klein" data-w=${k}><button data-d="-5" @click=${p.nurAdmin(() => p.warmEigen(e, k, -5))}>−</button><b class=${eigen ? 'eigen' : ''}>${f(v)}</b><button data-d="5" @click=${p.nurAdmin(() => p.warmEigen(e, k, 5))}>+</button></span>`;
     return html`<div class="gruppe-t">🧠 Warm ab</div><div class="zeile"><div><span>Soll erreicht</span><div class="leise">${w.vor_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('vor', w.vor, w.vor_eigen, v => v ? `${v} min vorher` : 'bei Beginn')}</div>
             <div class="zeile"><div><span>Warm halten</span><div class="leise">${w.nach_eigen ? 'eigener Wert' : 'wie die Baustelle'}</div></div>${sw('nach', w.nach, w.nach_eigen, v => v ? `${v} min länger` : 'bis Ende')}</div>
-            ${w.vor_eigen || w.nach_eigen ? html`<button class="zeile" @click=${p.nurAdmin(() => p.warmZurueck(b))}><span class="blau">Wie die Baustelle</span></button>` : nothing}`; };
+            ${w.vor_eigen || w.nach_eigen ? html`<button class="zeile" @click=${p.nurAdmin(() => p.warmZurueck(e))}><span class="blau">Wie die Baustelle</span></button>` : nothing}`; };
   const geraet = (g, i) => g.weg ? html`<div class="ge-zeile weg" data-i=${i}><span>${g.n} wird entfernt</span><button class="chip glas-panel" @click=${() => { g.weg = false; z(); }}>rückgängig</button></div>`
     : html`<div class="ge-zeile" data-i=${i}><div class="ge-felder">
             ${g.neu ? auswahl(g, 'schalter', optionenVorlage(p.freieSchalter().map(([v, n]) => [v, `${n} (${v})`]), g.schalter, '– Shelly wählen –'), null, null, i) : html`<span class="leise ge-shelly">${p.name(g.schalter)} · ${g.schalter}</span>`}
@@ -100,7 +100,7 @@ function bereich(p, s) {
             ${g.neu ? nothing : html`<button class="bs-ic nur-admin" title="Gerät bearbeiten" aria-label="${g.n} bearbeiten" @click=${p.nurAdmin(() => p.geraetBearbeiten(b, i))}>✎</button>`}<button class="x nur-admin" title="Gerät entfernen" @click=${p.nurAdmin(() => { if (g.neu) e.geraete.splice(i, 1); else g.weg = true; z(); })}>✕</button></div>`;
   return html`${GRIFF}<div class="block-kopf"><h3>Bearbeiten</h3><span class="leise">${b.pumpe ? 'Pumpenschacht' : 'Container'}</span></div>
         <label class="feld">Name${text(e, 'name')}</label>
-        ${!b.pumpe && b.geraete.filter(g => g.heizer).length >= 2 ? html`<div class="zeile" data-zeile="stufen"><div><b>🔥 Zusatz-Heizkörper nur bei Bedarf</b><div class="leise">zuerst heizt einer; der Zusatz kommt bei Kälte, weit unter dem Soll oder wenn einer es nicht schafft. Welcher Zusatz ist, steht im Gerät.</div></div>${schalterVorlage(b.stufenAn, () => p.setzen(['bereiche', b.id, 'stufen'], !b.stufenAn))}</div>` : nothing}
+        ${!b.pumpe && b.geraete.filter(g => g.heizer).length >= 2 ? html`<div class="zeile" data-zeile="stufen"><div><b>🔥 Zusatz-Heizkörper nur bei Bedarf</b><div class="leise">zuerst heizt einer; der Zusatz kommt bei Kälte, weit unter dem Soll oder wenn einer es nicht schafft. Welcher Zusatz ist, steht im Gerät.</div></div>${schalterVorlage(e.stufen, () => { e.stufen = !e.stufen; z(); })}</div>` : nothing}
         ${b.pumpe ? nothing : html`<div class="zeile" data-zeile="bedarf"><div><b>Nur bei Bedarf heizen</b><div class="leise">z. B. Besprechungscontainer: heizt nur per Schalter oder Termin, sonst Frostschutz</div></div>${schalterVorlage(e.bedarf, () => { e.bedarf = !e.bedarf; z(); })}</div>`}
         ${b.lern && b.lern.warm ? warm() : nothing}
         ${b.pumpe || !b.groesse ? nothing : groesse(p, b, e)}
@@ -140,13 +140,14 @@ function aussehen(p, s) {
       <div class="glas-panel liste"><div class="gruppe">Fenster · ${c.fenster.length} von 4</div>${c.fenster.map((x, i) => element('fenster', x, i, c.fenster.length))}${c.fenster.length < 4 ? html`<button class="zeile" data-art="fenster" @click=${() => neu('fenster')}><span class="blau">+ Fenster</span></button>` : nothing}</div>
       <div class="glas-panel liste"><div class="gruppe">Licht im Symbol</div><label class="zeile"><div><span>Licht kommt von</span><div class="leise">Fenster leuchten, wenn im Container Licht brennt</div></div>${wahl(optionenVorlage(lichter, c.licht || '', 'keins'), v => aendern(k => { k.licht = v || null; }), 'licht')}</label></div>
       <div class="leise p-fuss">Türen sitzen links, mittig oder rechts an ihrer Wand; mehrere Fenster verteilen sich gleichmäßig auf den Platz daneben. Tür offen/zu, Fenster offen/gekippt/zu und Licht kommen von den zugeordneten Sensoren; ohne Sensor bleibt das Element zu bzw. dunkel.</div>
-      ${b.symbol && b.symbol.eigen ? html`<button class="knopf" @click=${() => p.symStandard(b)}>Standard (eine Tür, ein Fenster)</button>` : nothing}${knopf('Fertig', () => p.schliessen())}`;
+      ${b.symbol && b.symbol.eigen && !s.std ? html`<button class="knopf" @click=${() => p.symStandard()}>Standard (eine Tür, ein Fenster)</button>` : nothing}
+      ${knopf('Speichern', p.nurAdmin(() => p.symSpeichern(b)), 'amber nur-admin')}${knopf('Abbrechen', () => p.schliessen(), 'leise-k')}`;
 }
 
 /* WU-0004: Gerät bearbeiten – Name, Shelly, Typ, Container, Leistungs-/Energiesensor (leer = automatisch), aktiv */
 function geraetEdit(p, s) {
   const d = p.d, b = p.b, g = b && b.geraete[s.i]; if (!g) { p.s.sheet = null; return nothing; }
-  const f = s.form, typen = ['Ölradiator', 'Konvektor', 'Bautrockner', 'Steckdose'];
+  const f = s.form, typen = b.pumpe ? ['Pumpe'] : ['Ölradiator', 'Konvektor', 'Bautrockner', 'Steckdose'];   // wie im Bearbeiten-Dialog
   const leistung = p.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'power');
   const energie = p.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'energy');
   const auto = (eid, eigen) => `automatisch${!eigen && eid ? ` · ${p.name(eid) || eid}` : ''}`;
@@ -154,12 +155,12 @@ function geraetEdit(p, s) {
         <label class="feld">Name${text(f, 'n')}</label>
         <label class="feld">Shelly (Schalter)${auswahl(f, 'schalter', optionenVorlage(p.freieSchalter(g.schalter).map(([v, n]) => [v, `${n} (${v})`]), f.schalter))}</label>
         <div class="raster-2"><label class="feld">Typ${auswahl(f, 'typ', typen.map(t => html`<option ?selected=${f.typ === t}>${t}</option>`))}</label>
-          <label class="feld">Container${auswahl(f, 'bereich', optionenVorlage(d.bereiche.filter(x => !x.pumpe).map(x => [x.id, x.name]), f.bereich))}</label></div>
+          <label class="feld">${b.pumpe ? 'Pumpenschacht' : 'Container'}${auswahl(f, 'bereich', optionenVorlage(d.bereiche.filter(x => !!x.pumpe === !!b.pumpe).map(x => [x.id, x.name]), f.bereich))}</label></div>
         <label class="feld">Leistungssensor${auswahl(f, 'leistung', optionenVorlage(leistung, f.leistung, auto(g.leistung, g.leistungEigen)))}</label>
         <label class="feld">Energiesensor${auswahl(f, 'energie', optionenVorlage(energie, f.energie, auto(g.energie, g.energieEigen)))}</label>
         <div class="zeile"><div><b>Aktiv</b><div class="leise">aus: die Automatik schaltet das Gerät nicht, es zählt nicht in der Staffelung, keine Warnungen</div></div>${schalterVorlage(f.aktiv, () => { f.aktiv = !f.aktiv; p.neuZeichnen(); })}</div>
-        ${!g.leistung ? html`<div class="zeile"><div><b>Leistung ohne Messung</b><div class="leise">zählt so in der Staffelung, wenn das Gerät an ist${g.nennKwEigen === null ? ' · Standard' : ''}</div></div><span class="stepper klein"><button data-d="-0.1" @click=${() => p.geraetNennKw(g, -0.1)}>−</button><b class=${g.nennKwEigen !== null ? 'eigen' : ''}>${de(g.nennKwEigen ?? g.kw, 1)} kW</b><button data-d="0.1" @click=${() => p.geraetNennKw(g, 0.1)}>+</button></span></div>` : nothing}
-        ${g.heizer && b.geraete.filter(x => x.heizer).length >= 2 ? html`<div class="zeile" data-zeile="zusatz"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">${b.stufenAn ? 'heizt nur dazu, wenn einer nicht reicht' : 'wirkt, wenn im Container „Zusatz nur bei Bedarf“ an ist'}${b.stufen && b.stufen.haupt.includes(g.id) && !g.zusatz ? ' · jetzt der erste' : ''}</div></div>${schalterVorlage(g.zusatz, () => p.setzen(['geraete', g.id, 'zusatz'], !g.zusatz))}</div>` : nothing}
+        ${!g.leistung ? html`<div class="zeile"><div><b>Leistung ohne Messung</b><div class="leise">zählt so in der Staffelung, wenn das Gerät an ist${f.nennKw === null ? ' · Standard' : ''}</div></div><span class="stepper klein"><button data-d="-0.1" @click=${() => p.geraetNennKw(f, g, -0.1)}>−</button><b class=${f.nennKw !== null ? 'eigen' : ''}>${de(f.nennKw ?? g.kw, 1)} kW</b><button data-d="0.1" @click=${() => p.geraetNennKw(f, g, 0.1)}>+</button></span></div>` : nothing}
+        ${g.heizer && b.geraete.filter(x => x.heizer).length >= 2 ? html`<div class="zeile" data-zeile="zusatz"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">${b.stufenAn ? 'heizt nur dazu, wenn einer nicht reicht' : 'wirkt, wenn im Container „Zusatz nur bei Bedarf“ an ist'}${b.stufen && b.stufen.haupt.includes(g.id) && !f.zusatz ? ' · jetzt der erste' : ''}</div></div>${schalterVorlage(f.zusatz, () => { f.zusatz = !f.zusatz; p.neuZeichnen(); })}</div>` : nothing}
         <div class="leise">Neuer Shelly: die Werte des alten bleiben im Verlauf. Anderer Container: der Verbrauch zählt ab jetzt dort.</div>
         ${knopf('Speichern', p.nurAdmin(() => p.geraetSpeichern()), 'amber nur-admin')}${knopf('Abbrechen', () => p.schliessen(), 'leise-k')}`;
 }

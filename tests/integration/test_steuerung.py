@@ -470,6 +470,28 @@ async def test_bereich_loeschen_laedt_neu(hass: HomeAssistant, baustelle) -> Non
     assert er.async_get(hass).async_get_entity_id("binary_sensor", DOMAIN, f"{HK2}_problem") is None
 
 
+async def test_geraet_loeschen_raeumt_reste_weg(hass: HomeAssistant, baustelle) -> None:
+    """BSM-034.01 (Bauplan Geräte §3 Fehler 6): Einstellungen, Zähler, stumm und Hinweise des gelöschten Geräts."""
+    from homeassistant.helpers import issue_registry as ir   # noqa: PLC0415
+
+    st = baustelle.runtime_data
+    st.e["geraete"][HK2] = {"aktiv": False}
+    st.e["zaehler"].update({f"mittel:{HK2}": 900.0, f"stand:{HK2}": 3.0, f"mittel:{HK1}": 800.0})
+    st.e["stumm"][f"offline:{C2}:{HK2}"] = "2099-01-01T00:00:00+00:00"
+    eid_alt = f"ohne_leistung_{baustelle.entry_id}_{HK2}"
+    ir.async_create_issue(hass, DOMAIN, eid_alt, is_fixable=False, severity=ir.IssueSeverity.WARNING, translation_key="ohne_leistung",
+                          translation_placeholders={"geraet": "x", "schalter": "x", "baustelle": "x"})
+    st.einstellungen.speichern(0)
+    await hass.async_block_till_done()
+    hass.config_entries.async_remove_subentry(baustelle, HK2)
+    await hass.async_block_till_done()
+    st = baustelle.runtime_data
+    assert HK2 not in st.e["geraete"] and f"mittel:{HK2}" not in st.e["zaehler"] and f"stand:{HK2}" not in st.e["zaehler"]
+    assert st.e["zaehler"][f"mittel:{HK1}"] == 800.0
+    assert f"offline:{C2}:{HK2}" not in st.e["stumm"]
+    assert ir.async_get(hass).async_get_issue(DOMAIN, eid_alt) is None
+
+
 async def test_entladen(hass: HomeAssistant, baustelle) -> None:
     assert await hass.config_entries.async_unload(baustelle.entry_id)
     await hass.async_block_till_done()
