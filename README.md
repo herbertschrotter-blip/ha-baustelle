@@ -207,11 +207,11 @@ python3 tools/changelog.py --pruefen && node custom_components/baustelle/fronten
   && node mockups/quelle/glas.js --pruefen
 python3 -m pytest -q -p no:cacheprovider tests/logik
 uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
-  --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 \
-  python -m pytest -q -p no:cacheprovider tests/integration
+  --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 --with pytest-xdist==3.8.0 \
+  python -m pytest -q -p no:cacheprovider -n auto tests/integration     # parallel auf allen Kernen (Pi: ~3 statt ~10 min)
 BAUSTELLE_TEST_PG=$(tools/pg-test.sh) uv run --no-project --python 3.14 --index-strategy unsafe-best-match \
   --with pytest-homeassistant-custom-component --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" \
-  python -m pytest -q -p no:cacheprovider tests/integration     # dieselben Tests gegen PostgreSQL mit TimescaleDB
+  --with pytest-xdist==3.8.0 python -m pytest -q -p no:cacheprovider -n auto tests/integration     # dieselben gegen PostgreSQL
 node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js \
   custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
 node tests/shelly/test_notprogramm.js custom_components/baustelle/shelly/notprogramm.js

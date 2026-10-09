@@ -13,7 +13,7 @@ import pytest
 from homeassistant.config_entries import ConfigSubentryDataWithId
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry, get_test_config_dir
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.baustelle.const import DOMAIN
 
@@ -30,14 +30,21 @@ def eigene_integration(enable_custom_integrations):
 
 # Phase 8 (BSM-026): mit BAUSTELLE_TEST_PG (Verwaltungs-Adresse eines Test-PostgreSQL, tools/pg-test.sh) laufen alle
 # Integrationstests gegen PostgreSQL – je Test eine frische Datenbank „baustelle_test“; ohne die Variable SQLite.
+# Parallel mit pytest-xdist (-n 4): je Worker eigene Test-Datenbanken (Name mit _gw0 …) und je Test ein eigener
+# Konfigurationsordner (hass_config_dir unten).
 TEST_PG = os.environ.get("BAUSTELLE_TEST_PG")
+WORKER = os.environ.get("PYTEST_XDIST_WORKER", "")
 nur_sqlite = pytest.mark.skipif(bool(TEST_PG), reason="prüft die SQLite-Datei selbst")
 nur_postgres = pytest.mark.skipif(not TEST_PG, reason="braucht BAUSTELLE_TEST_PG (tools/pg-test.sh)")
 
 
+def _je_worker(name: str) -> str:
+    return f"{name}_{WORKER}" if WORKER else name
+
+
 def pg_url(name: str = "baustelle_test") -> str:
     from sqlalchemy import make_url   # noqa: PLC0415
-    return make_url(TEST_PG).set(database=name).render_as_string(hide_password=False)
+    return make_url(TEST_PG).set(database=_je_worker(name)).render_as_string(hide_password=False)
 
 
 def pg_frisch(name: str = "baustelle_test") -> str:
@@ -46,24 +53,25 @@ def pg_frisch(name: str = "baustelle_test") -> str:
     engine = create_engine(TEST_PG, isolation_level="AUTOCOMMIT")
     try:
         with engine.connect() as v:
-            v.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
-            v.execute(text(f'CREATE DATABASE "{name}"'))
+            v.execute(text(f'DROP DATABASE IF EXISTS "{_je_worker(name)}" WITH (FORCE)'))
+            v.execute(text(f'CREATE DATABASE "{_je_worker(name)}"'))
     finally:
         engine.dispose()
     return pg_url(name)
 
 
+@pytest.fixture
+def hass_config_dir(hass_tmp_config_dir: str) -> str:
+    """Je Test ein eigener Konfigurationsordner (Kopie des Test-Ordners): die eigene Datenbank, der Puffer und die
+    Meldungen liegen dort – nichts aufzuräumen, Tests laufen parallel (pytest-xdist) ohne sich zu stören."""
+    return hass_tmp_config_dir
+
+
 @pytest.fixture(autouse=True)
 def leere_datenbank(monkeypatch):
-    """Eigene Datenbank (BSM-006) liegt im gemeinsamen Test-Konfigurationsordner: vor und nach jedem Test entfernen.
-    Ohne `hass` als Fixture, damit Tests mit `recorder_mock` den Recorder vor HA einrichten können. Mit TEST_PG startet
-    die Integration auf einer frischen PostgreSQL-Datenbank (wie mit `db_url` in YAML)."""
-    def weg() -> None:
-        for datei in (Path(get_test_config_dir()) / "baustelle").glob("baustelle.db*"):
-            datei.unlink()
-        for datei in (Path(get_test_config_dir()) / "baustelle" / "puffer").glob("*"):   # Phase 8b
-            datei.unlink()
-    weg()
+    """Die SQLite-Datei liegt im eigenen Konfigurationsordner des Tests (oben), ist also jedes Mal neu. Ohne `hass` als
+    Fixture, damit Tests mit `recorder_mock` den Recorder vor HA einrichten können. Mit TEST_PG startet die Integration
+    auf einer frischen PostgreSQL-Datenbank (wie mit `db_url` in YAML)."""
     if TEST_PG:
         import custom_components.baustelle as integration   # noqa: PLC0415
         url, starten = pg_frisch(), integration.async_datenbank_starten
@@ -73,7 +81,6 @@ def leere_datenbank(monkeypatch):
 
         monkeypatch.setattr(integration, "async_datenbank_starten", mit_postgres)
     yield
-    weg()
 
 
 def roh(wert: Any) -> Any:

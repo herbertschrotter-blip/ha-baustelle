@@ -31,11 +31,11 @@ jobs:
       - name: Fachlogik
         run: uv run --no-project --python 3.12 --with pytest python -m pytest -q -p no:cacheprovider tests/logik
       - name: Integration gegen Home Assistant
-        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" python -m pytest -q -p no:cacheprovider tests/integration
+        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" --with pytest-xdist==3.8.0 python -m pytest -q -p no:cacheprovider -n auto tests/integration
       - name: Integration gegen PostgreSQL mit TimescaleDB
         env:
           BAUSTELLE_TEST_PG: postgresql+psycopg://postgres@127.0.0.1:5432/postgres
-        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" python -m pytest -q -p no:cacheprovider tests/integration
+        run: uv run --no-project --python 3.14 --with pytest-homeassistant-custom-component==0.13.367 --with home-assistant-frontend==20260826.7 --with "psycopg[binary]==3.3.6" --with pytest-xdist==3.8.0 python -m pytest -q -p no:cacheprovider -n auto tests/integration
       - name: Seite (Panel)
         run: node --check custom_components/baustelle/frontend/baustelle-panel.js && node tests/panel/test_panel.js custom_components/baustelle/frontend/baustelle-panel.js tests/panel/struktur-0.7.json
       - name: Notprogramm (Shelly)
