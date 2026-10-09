@@ -204,3 +204,73 @@ async def test_selbst_nachholen(hass: HomeAssistant, baustelle_shelly, hass_ws_c
     async_fire_time_changed(hass)
     await hass.async_block_till_done(wait_background_tasks=True)   # die Runde läuft als Hintergrundaufgabe
     assert plug.namen == ["001-01_C_PLUG_MAN"] and zeilen_db(hass, "umbenennung")[0]["status"] == "ausgefuehrt"
+
+
+def _zustaende_umziehen(hass: HomeAssistant) -> None:
+    """Was die echte Plattform nach dem Umbenennen tut: Zustand unter der neuen Entity-ID, die alte ist frei."""
+    for alt, neu in (("switch.hk1", "switch.001_01_c_plug_man"), ("sensor.hk1_power", "sensor.001_01_c_plug_man_leistung"),
+                     ("sensor.temp_c1", "sensor.001_c_temp_man_temperatur")):
+        if (zustand := hass.states.get(alt)) is not None:
+            hass.states.async_remove(alt)
+            hass.states.async_set(neu, zustand.state)
+
+
+async def test_rueckgaengig(hass: HomeAssistant, baustelle_shelly, hass_ws_client) -> None:
+    """06d: Vorschau, dann alles zurück – Entity-IDs, Namen, Gerät, Labels, Verweise und Plug-Name; nur die jüngste."""
+    entry, plug = baustelle_shelly
+    plug.erreichbar = True
+    ws = await hass_ws_client(hass)
+    cid = await _container(ws, entry)
+    keine = await _senden(ws, 2, type="baustelle/inventar_rueckgaengig", container_id=cid, vorschau=True)
+    assert not keine["success"] and keine["error"]["code"] == "not_found"   # noch nichts umbenannt
+    um = await _senden(ws, 3, type="baustelle/inventar_umbenennen", container_id=cid)
+    await hass.async_block_till_done()
+    assert um["result"]["status"] == "ausgefuehrt"
+    _zustaende_umziehen(hass)
+
+    vorschau = await _senden(ws, 4, type="baustelle/inventar_rueckgaengig", container_id=cid, vorschau=True)
+    assert vorschau["success"] and vorschau["result"]["konflikte"] == {}
+    ids = {s["ref"]: s["neu"] for s in vorschau["result"]["schritte"] if s["ziel"] == "entitaet_id"}
+    assert ids["switch.001_01_c_plug_man"] == "switch.hk1"
+    assert er.async_get(hass).async_get("switch.001_01_c_plug_man") is not None   # Vorschau ändert nichts
+
+    zurueck = await _senden(ws, 5, type="baustelle/inventar_rueckgaengig", container_id=cid)
+    await hass.async_block_till_done()
+    assert zurueck["success"] and zurueck["result"]["status"] == "zurueck", zurueck
+    ents, geraete, labels = er.async_get(hass), dr.async_get(hass), lr.async_get(hass)
+    schalter = ents.async_get("switch.hk1")
+    assert schalter is not None and schalter.name is None and ents.async_get("switch.001_01_c_plug_man") is None
+    assert ents.async_get("sensor.temp_c1") is not None and ents.async_get("sensor.hk1_power") is not None
+    geraet = geraete.async_get(schalter.device_id)
+    assert geraet is not None and geraet.name_by_user is None   # wieder der eigene Name „Heizung 01“
+    assert {labels.async_get_label(i).name for i in geraet.labels} == {"Lager", "Herbert"}
+    hk1, c1 = entry.subentries[HK1], entry.subentries[C1]
+    assert hk1.data["schalter"] == "switch.hk1" and hk1.data["leistung"] == "sensor.hk1_power" and hk1.title == "Heizkörper 1"
+    assert c1.data["fuehler"] == "sensor.temp_c1" and entry.runtime_data.geraete[HK1].schalter == "switch.hk1"
+    assert plug.namen == ["001-01_C_PLUG_MAN", "Heizung 01"]
+    assert any("Umbenennung zurückgenommen (001_C_MAN)" in p[3] for p in entry.runtime_data.e["protokoll"])
+    zeilen = zeilen_db(hass, "umbenennung")
+    assert len(zeilen) == 1 and zeilen[0]["status"] == "zurueck"
+    assert all(s.get("zurueck") in ("ok", None) for s in json.loads(zeilen[0]["schritte"]))
+
+    nochmal = await _senden(ws, 6, type="baustelle/inventar_rueckgaengig", container_id=cid)
+    assert not nochmal["success"] and nochmal["error"]["code"] == "not_found"   # nur einmal, nur die jüngste
+
+
+async def test_rueckgaengig_nur_admins_und_konflikt(hass: HomeAssistant, baustelle_register, hass_ws_client,
+                                                    hass_admin_user) -> None:
+    entry = baustelle_register
+    ws = await hass_ws_client(hass)
+    cid = await _container(ws, entry)
+    await _senden(ws, 2, type="baustelle/inventar_umbenennen", container_id=cid)
+    await hass.async_block_till_done()
+    _zustaende_umziehen(hass)
+    er.async_get(hass).async_get_or_create("switch", "andere", "neu-belegt", suggested_object_id="hk1")   # alte ID vergeben
+    konflikt = await _senden(ws, 3, type="baustelle/inventar_rueckgaengig", container_id=cid)
+    assert not konflikt["success"] and konflikt["error"]["code"] == "konflikt"
+    assert er.async_get(hass).async_get("switch.001_01_c_plug_man") is not None
+    hass_admin_user.groups = []
+    lesen = await _senden(ws, 4, type="baustelle/inventar_rueckgaengig", container_id=cid, vorschau=True)
+    verboten = await _senden(ws, 5, type="baustelle/inventar_rueckgaengig", container_id=cid)
+    assert lesen["success"] and lesen["result"]["konflikte"] == {"switch.001_01_c_plug_man": "switch.hk1"}
+    assert not verboten["success"] and verboten["error"]["code"] == "unauthorized"

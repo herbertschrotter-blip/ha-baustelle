@@ -438,6 +438,17 @@ neu (nur wenn sich in HA etwas ändert). Je Schritt `ergebnis`: `ok`, `gleich`, 
 Umbenennung des Containers `teilweise`, führt derselbe Befehl nur die fehlenden Schritte aus und trägt sie dort ein
 (`nachgeholt: true`, gleiche `id`, nachgeholte Schritte mit `nachgeholt`, der alte Wert bleibt für Rückgängig). Die
 Integration holt Plug-Namen offener Umbenennungen auch selbst nach, alle 30 Minuten, sobald der Plug erreichbar ist
-(nie Schritte in HA, kein Neu-Laden; Benutzer „automatisch“). `id` = Zeile in der Tabelle `umbenennung` (mit allen Schritten, für Nachholen und Rückgängig),
+(nie Schritte in HA, kein Neu-Laden; Benutzer „automatisch“).
+
+**`baustelle/inventar_rueckgaengig`** (0.8.111, BSM-031.06d), `container_id`, optional `vorschau` (Standard `false`).
+Nimmt die **jüngste** Umbenennung des Containers zurück (Status `ausgefuehrt`, `teilweise` oder `zurueck_teilweise`,
+sonst `not_found`). Mit `vorschau: true` (alle Benutzer) → `{id, schritte, konflikte}`: die Umkehr-Schritte (erledigte
+Schritte mit vertauschtem alt/neu, umgekehrte Reihenfolge, `ref` = aktuelle Entity-ID, `nr` = Platz in der
+Umbenennung), ändert nichts. Ohne (nur Admins, sonst `unauthorized`): ist eine alte Entity-ID inzwischen vergeben
+(Registry oder Zustand), Fehler `konflikt` und nichts ändert sich; sonst wie beim Umbenennen (anhalten, in HA, eigene
+Verweise, Plug-Name, einmal neu laden) → `{id, status, schritte}`. Ein HA-Gerät, das wieder seinen eigenen Namen trägt,
+hat kein `name_by_user` mehr; ein Name, der vorher leer war, wird wieder leer. In der Umbenennung je Schritt `zurueck`
+(Ergebnis) und ggf. `zurueck_fehler`; Status `zurueck` oder `zurueck_teilweise` (nochmal aufrufen holt den Rest nach).
+Im Protokoll „Umbenennung zurückgenommen (NNN_C_ART): …“. `id` = Zeile in der Tabelle `umbenennung` (mit allen Schritten, für Nachholen und Rückgängig),
 `geaendert` = welche eigenen Verweise angepasst wurden. Im Protokoll der Baustelle eine Zeile „Umbenannt nach Schema
-(NNN_C_ART): …“. Rückgängig folgt (06d).
+(NNN_C_ART): …“.

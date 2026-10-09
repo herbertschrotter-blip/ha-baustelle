@@ -348,3 +348,38 @@ def nachholen_mischen(alt: Iterable[Mapping[str, Any]], neu: Iterable[Mapping[st
             aus.append({**s, "ergebnis": n.get("ergebnis"), **({"fehler": n["fehler"]} if n.get("fehler") else {})})
     aus += [n for n in neu_je.values() if n.get("ergebnis") != "gleich"]
     return aus
+
+
+# ---------------------------------------------------------------------- Rückgängig (BSM-031.06d, §6.6)
+RUECKGAENGIG_MOEGLICH = ("ausgefuehrt", "teilweise", "zurueck_teilweise")
+
+
+def rueckgaengig(schritte: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Umkehr-Schritte einer Umbenennung: jeder erledigte Schritt (`ok`, noch nicht zurück) mit vertauschtem alt/neu, in
+    umgekehrter Reihenfolge. Entitäten heißen inzwischen nach der neuen Entity-ID – `ref` ist die aktuelle. `nr` = Platz
+    des Schritts in der Umbenennung (für das Ergebnis). Ergebnis im Format der Vorschau (`ausfuehrbar`, `fuer_plug`)."""
+    liste = list(schritte)
+    aktuell = {s["ref"]: s["neu"] for s in liste if s["ziel"] == "entitaet_id" and s.get("ergebnis") == "ok"}
+    aus: list[dict[str, Any]] = []
+    for nr in range(len(liste) - 1, -1, -1):
+        s = liste[nr]
+        if s.get("ergebnis") != "ok" or s.get("zurueck") in ERGEBNIS_ERLEDIGT:
+            continue
+        ref = aktuell.get(s["ref"], s["ref"]) if s["ziel"] in ("entitaet_name", "entitaet_id") else s["ref"]
+        aus.append({**{k: s[k] for k in ("ziel", "was", "gruppe") if k in s}, "ref": ref, "alt": s["neu"], "neu": s["alt"],
+                    "zustand": "aendern", "nr": nr})
+    return aus
+
+
+def zurueck_eintragen(schritte: Iterable[Mapping[str, Any]], umkehr: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any]], str]:
+    """Ergebnis des Rückgängig je Schritt der Umbenennung eintragen (`zurueck`, ggf. `zurueck_fehler`) und Status:
+    `zurueck`, wenn alles Erledigte zurück ist, sonst `zurueck_teilweise` (nochmal Rückgängig holt den Rest)."""
+    aus = [dict(s) for s in schritte]
+    for u in umkehr:
+        ziel = aus[u["nr"]]
+        ziel["zurueck"] = u["ergebnis"]
+        ziel.pop("zurueck_fehler", None)
+        if u.get("fehler"):
+            ziel["zurueck_fehler"] = u["fehler"]
+    fertig = all(s.get("zurueck") in ERGEBNIS_ERLEDIGT for s in aus if s.get("ergebnis") == "ok")
+    return aus, "zurueck" if fertig else "zurueck_teilweise"

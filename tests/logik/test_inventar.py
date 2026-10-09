@@ -191,3 +191,38 @@ def test_fuer_plug_und_nachholen_mischen():
     assert je[("entitaet_id", "switch.a")]["ergebnis"] == "ok" and ("entitaet_id", "switch.b") not in je
     assert ("label", "dev9") in je and status(m) == "teilweise"
     assert status(nachholen_mischen(m, [{**neu[2], "ergebnis": "ok"}])) == "ausgefuehrt"
+
+
+def test_rueckgaengig_umkehr_und_eintragen():
+    from logik.inventar import ausfuehrbar, fuer_plug, rueckgaengig, zurueck_eintragen
+    schritte = [
+        {"ziel": "geraet", "ref": "dev1", "was": "HA-Gerät", "alt": "Heizung 01", "neu": "001-01_C_PLUG_MAN", "ergebnis": "ok"},
+        {"ziel": "label", "ref": "dev1", "was": "Label", "alt": None, "neu": "Container", "ergebnis": "ok"},
+        {"ziel": "label", "ref": "dev1", "was": "Label", "alt": "Lager", "neu": None, "ergebnis": "ok"},
+        {"ziel": "entitaet_name", "ref": "switch.hk1", "was": "Name", "alt": None, "neu": "001-01_C_PLUG_MAN", "ergebnis": "ok"},
+        {"ziel": "entitaet_id", "ref": "switch.hk1", "was": "Entity-ID", "alt": "switch.hk1", "neu": "switch.001_01_c_plug_man",
+         "ergebnis": "ok"},
+        {"ziel": "entitaet_id", "ref": "sensor.x", "was": "Entity-ID", "alt": "sensor.x", "neu": "sensor.y", "ergebnis": "fehler"},
+        {"ziel": "plug", "ref": "sub_hk1", "was": "Plug-Name", "alt": "Heizung 01", "neu": "001-01_C_PLUG_MAN", "ergebnis": "ok"},
+        {"ziel": "unter_eintrag", "ref": "sub_hk1", "was": "Heizkörper", "alt": "Heizkörper 1", "neu": "001-01_C_HZ_MAN_Radiator01",
+         "ergebnis": "gleich"},
+    ]
+    umkehr = rueckgaengig(schritte)
+    assert [u["nr"] for u in umkehr] == [6, 4, 3, 2, 1, 0]   # umgekehrt, nur erledigte (nicht fehler, nicht gleich)
+    je = {(u["ziel"], u["nr"]): u for u in umkehr}
+    assert je[("entitaet_id", 4)]["ref"] == "switch.001_01_c_plug_man" and je[("entitaet_id", 4)]["neu"] == "switch.hk1"
+    assert je[("entitaet_name", 3)]["ref"] == "switch.001_01_c_plug_man" and je[("entitaet_name", 3)]["neu"] is None
+    plan = ausfuehrbar(umkehr)
+    label = next(p for p in plan if p["art"] == "label")
+    assert label["dazu"] == ["Lager"] and label["weg"] == ["Container"]
+    assert next(p for p in plan if p["art"] == "geraet")["name"] == "Heizung 01"
+    assert [p["neu"] for p in fuer_plug(umkehr)] == ["Heizung 01"]
+
+    ergebnis = [{**u, "ergebnis": "ok"} for u in umkehr]
+    ergebnis[0] = {**ergebnis[0], "ergebnis": "fehler", "fehler": "nicht erreichbar"}   # Plug offline
+    neu, stand = zurueck_eintragen(schritte, ergebnis)
+    assert stand == "zurueck_teilweise" and neu[6]["zurueck_fehler"] == "nicht erreichbar" and neu[0]["zurueck"] == "ok"
+    rest = rueckgaengig(neu)
+    assert [u["nr"] for u in rest] == [6]   # nochmal: nur der Plug
+    fertig, stand = zurueck_eintragen(neu, [{**rest[0], "ergebnis": "ok"}])
+    assert stand == "zurueck" and "zurueck_fehler" not in fertig[6]

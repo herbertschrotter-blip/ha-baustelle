@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.111] – 2026-10-09
+
+- Container-Inventar, Schritt 6 (BSM-031.06d): Eine Umbenennung lässt sich zurücknehmen – die jüngste je Container, mit
+  Vorschau. Die Integration spielt dann alle Schritte mit den alten Werten zurück: Entity-IDs und Namen, HA-Gerät,
+  Labels, ihre eigenen Verweise und den Namen im Plug. Ist die alte Entity-ID inzwischen vergeben, ändert sie nichts;
+  ist ein Plug nicht erreichbar, holt nochmal Zurücknehmen den Rest nach. Noch ohne Knopf auf der Seite.
+
 ## [0.8.110] – 2026-10-09
 
 - Container-Inventar, Schritt 5 (BSM-031.06c): Beim Umbenennen bekommt jetzt auch der Shelly-Plug selbst den neuen
