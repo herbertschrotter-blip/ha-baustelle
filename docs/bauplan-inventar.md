@@ -127,7 +127,7 @@ kurz an (Verweise werden getauscht) und schaltet danach wie vorher.
 | ☑ | .06 Umbenennen | **06a ☑ 0.8.108**: Vorschau `baustelle/inventar_vorschau` (logik `vorschau`, liest HA-Register, ändert nichts); BTHome-Namen an den Plugs zieht die Kopplungspflege aus den HA-Gerätenamen nach (kein eigener Schritt). **06b ☑ 0.8.109**: Ausführen in HA `baustelle/inventar_umbenennen` (Register, Gerät, Labels, eigene Verweise, Steuerung hält an und lädt einmal neu, Tabelle `umbenennung`; Statistik zieht HA mit – Test mit Recorder). **06c ☑ 0.8.110**: Plug-Name per `Sys.SetConfig` (nur Shelly Gen2+), Nachholen in dieselbe Umbenennung (derselbe Befehl, selbst alle 30 min für Plug-Namen). **06d ☑ 0.8.111**: Rückgängig `baustelle/inventar_rueckgaengig` (nur die jüngste je Container, mit Vorschau, Konflikt blockiert, `zurueck_teilweise` holt nach) | nichts |
 | ☑ | .07 Seite | Herbert 09.10.2026: alles aus dem Mockup. **Teil 2 ☑ 0.8.113**: Einstellungen › 📦 Inventar nach Variante 1 (`frontend/src/ansichten/inventar.js`), Panel-Test mit dem ganzen Ablauf. **Teil 1 ☑ 0.8.112** (Schnittstelle): `baustelle/inventar_kandidaten`, `inventar_aendern` mit `ausruestung_zuordnen` (Verdrahtung: Shelly als Unter-Eintrag, Fühler/Tür am Bereich), `ausruestung_entfernen`, `container_anlegen` mit Bestand des Bereichs und fester `nr`, `verweise` in der Vorschau (Automationen, Skripte, Dashboards). Teil 2: Seite nach Variante 1 | neue Ansicht |
 | ☑ | .08 Status | aktiv/verliehen/defekt statt „inaktiv“; verliehen/defekt = Automatik lässt aus wie bisher – **Schnittstelle ☑ 0.8.112** (`ausruestung_status` setzt „inaktiv“ am Gerät), Anzeige ☑ 0.8.113 (Chip am Gerät, antippen schaltet weiter) | Status am Gerät |
-| ☐ | .09 Bestand | vorher Sicherung; Container 001–004 ins Inventar übernehmen (Nummern und Kürzel bleiben), alte Namen und Entity-IDs über die Vorschau angleichen; danach regelt die Integration unverändert | neue Entity-IDs |
+| ☑ | .09 Bestand | Container 001–004 ins Inventar übernehmen (Nummern und Kürzel bleiben), alte Namen und Entity-IDs über die Vorschau angleichen; danach regelt die Integration unverändert – **erledigt 09.10.2026 von Herbert über die Seite** (0.8.113, ohne neue Sicherung – Nachtsicherung galt): 001_C_POL, 002–004_C_MAN, alle Umbenennungen vollständig samt Plug-Name; keine YAML-Verweise auf alte IDs übrig. Andere Shelly-Entitäten (Überhitzung, Signalstärke …) und eigene Entitäten der Integration behalten ihre IDs | neue Entity-IDs |
 | ☐ | .10 Aufkleber | Name und QR-Code (später) | – |
 
 ## 8. Offen
@@ -142,7 +142,7 @@ kurz an (Verweise werden getauscht) und schaltet danach wie vorher.
 
 - **Aus dem Mockup (08.10.2026), beim Bau klären:** Name des Bereichs (Anzeigename im Unter-Eintrag bleibt, Inventarname
   daneben – so im Mockup angenommen); Bautrockner als `NNN-GG_C_BTR_<Art>`; Endungen am Plug `_Leistung`, `_Energie`;
-  BTHome-Batterie als eigener Messwert oder nicht; nimmt Shelly `-` und `_` im Gerätenamen an; zählt „N Änderungen offen“
+  BTHome-Batterie als eigener Messwert oder nicht; ~~nimmt Shelly `-` und `_` im Gerätenamen an~~ – ja (09.10.2026, `Sys.SetConfig` bei 001–004 ohne Fehler); zählt „N Änderungen offen“
   auch Labels und BTHome-Schritte.
 
 ## 9. Tests

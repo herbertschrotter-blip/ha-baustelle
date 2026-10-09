@@ -88,7 +88,7 @@ nach der Baustelle aus (Daten bleiben). Unteraufgaben in ClickUp:
 - [x] **I6** (BSM-031.06) Umbenennen ausführen (HA, Plug, BTHome, Labels, Verweise) – 06a Vorschau in 0.8.108, 06b Ausführen in HA in 0.8.109, 06c Plug-Name/Nachholen in 0.8.110, 06d Rückgängig in 0.8.111
 - [x] **I7** (BSM-031.07) Seite: Inventar, Dialoge, Vorschau – Schnittstelle in 0.8.112, Seite in 0.8.113
 - [x] **I8** (BSM-031.08) Status statt „inaktiv“ – Schnittstelle in 0.8.112, Anzeige in 0.8.113
-- [ ] **I9** (BSM-031.09) Bestand übernehmen (Kürzel bleiben, alte Namen und Entity-IDs angleichen)
+- [x] **I9** (BSM-031.09) Bestand übernehmen (Kürzel bleiben, alte Namen und Entity-IDs angleichen) – 09.10.2026 von Herbert über die Seite (001–004)
 - [ ] **I10** (BSM-031.10) Aufkleber mit Name und QR-Code (später)
 - [x] **I11** (BSM-032) Container-Symbol anpassbar: Doppelcontainer, Türen 1–2 und Fenster 1–4 mit Lage, Farbe; echter Zustand (Tür offen/zu, Fenster gekippt, Licht an/aus) – erledigt 0.8.68, eingespielt 06.10.2026
 - [ ] **I12** (BSM-031.11) Container-Ansicht am Handy zu breit (Kopf +19 px, „zu kalt / passt / zu warm“ bis +284 px) – gefunden beim Inventar-Mockup 08.10.2026
