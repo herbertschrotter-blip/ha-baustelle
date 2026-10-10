@@ -5,6 +5,31 @@
 //   mit(m)/mitRest(r): jeden WebSocket- bzw. REST-Aufruf mitschreiben
 (function (wurzel) {
 'use strict';
+/* BSM-033.03: Hochrechnung wie baustelle/auswertung › hochrechnung (logik/hochrechnung): Tagesreihe der Heizperiode,
+   je Container Signatur mit Punkten, Klimamittel und Vorhersage – Beispielwerte (Modell kWh = Grundlast + je Grad · (Grenze − außen)) */
+const KLIMA_BSP = [0.3, 2.0, 6.3, 11.1, 15.6, 19.4, 21.1, 20.6, 15.8, 10.6, 5.4, 1.0];
+function beispielHochrechnung(b, preis) {
+  const C = b.bereiche.filter(c => c.art !== 'pumpenschacht'), P = [[15.5, 1.9, 2.1, 0.12], [14.0, 2.4, 1.6, 0.17], [16.0, 2.1, 2.4, 0.24], [13.0, 0.9, 0.8, 0.27]];
+  const sig = C.map((c, i) => { const [g, k, d0, cv] = P[i % 4];
+    return { bereich: c.id, methode: 'signatur', stand: cv <= 0.2 ? 'gut' : 'brauchbar', grund: null, tage: 30 + i, grenze: g, kwh_je_grad: k, grundlast: d0, cv_rmse: cv,
+      punkte: Array.from({ length: 24 }, (_, n) => { const t = -4 + (n * 7 + i * 3) % 22; return [t, +(d0 + k * Math.max(0, g - t) + Math.sin(n * 2.3 + i) * cv * 4).toFixed(2)]; }) }; });
+  const tagKwh = t => sig.reduce((s, c) => s + c.grundlast + c.kwh_je_grad * Math.max(0, c.grenze - t), 0);
+  const reihe = [], start = Date.UTC(2025, 9, 1), n = 212, heute = 106;
+  let ist = 0, mit = 0, unten = 0, oben = 0;
+  for (let i = 0; i < n; i++) {
+    const d = new Date(start + i * 864e5), m = d.getUTCMonth(), t = KLIMA_BSP[m] + (KLIMA_BSP[(m + 1) % 12] - KLIMA_BSP[m]) * (d.getUTCDate() - 1) / 31, ohne = +(9000 * (i + 1) / n).toFixed(3);
+    if (i <= heute) { ist += tagKwh(t + Math.sin(i) * 2); mit = unten = oben = ist; reihe.push([d.toISOString().slice(0, 10), +ist.toFixed(3), +ist.toFixed(3), +ist.toFixed(3), +ist.toFixed(3), ohne]); }
+    else { mit += tagKwh(t); unten += tagKwh(t + 1.5); oben += tagKwh(t - 1.5); const k = i - heute, st = 1.645 * 3 * Math.sqrt(k);
+      reihe.push([d.toISOString().slice(0, 10), null, +mit.toFixed(3), +Math.max(ist, unten - st).toFixed(3), +(oben + st).toFixed(3), ohne]); }
+  }
+  const z = reihe[n - 1], bisher = reihe[heute][1];
+  return { bisher_kwh: bisher, bisher_eur: bisher * preis, mit_kwh: z[2], mit_eur: z[2] * preis, ohne_kwh: z[5], ohne_eur: z[5] * preis, gespart_eur: (z[5] - z[2]) * preis,
+    methode: 'signatur', unten_kwh: z[3], unten_eur: z[3] * preis, oben_kwh: z[4], oben_eur: z[4] * preis, normjahr_kwh: z[2] * 1.03, normjahr_eur: z[2] * 1.03 * preis,
+    hgt_rest: 1860, vorhersage_tage: 6, container: sig.map(c => ({ ...c, rest_kwh: 400, rest_eur: 400 * preis })), reihe,
+    klima: KLIMA_BSP, klima_vorgabe: true, vorhersage: [['2026-01-16', 1.5], ['2026-01-17', -0.5], ['2026-01-18', -2.0], ['2026-01-19', 0.5], ['2026-01-20', 2.5], ['2026-01-21', 3.0]],
+    beginn: '2025-10-01', ende: '2026-04-30' };
+}
+
 function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {}, WELT = null, JETZT = Date.parse('2026-09-29T16:20:00+02:00'),
   welt = () => STRUKTUR, fehlt = () => false, haengt = () => false, mit = () => {}, mitRest = () => {} }) {
   const api = [];
@@ -124,7 +149,7 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
         return { faktor: f, oel, konvektor: k, oel_kwh: so, konvektor_kwh: sk, erspart_kwh: sk - so, erspart_eur: (sk - so) * preis }; })() }
       : { oelradiator: { kwh_gradh: null, auf: null, ab: null, container: [], ids: [] }, konvektor: { kwh_gradh: null, auf: null, ab: null, container: [], ids: [] }, weniger: null, vergleichbar: false, ausgeschlossen: [], ersparnis: null },
       heizperiode: { ende: '2026-04-30', bis: ende && ende < '2026-04-30' ? ende : '2026-04-30' }, heiztage: zl.heiztage ?? 0,
-      hochrechnung: { bisher_kwh: 412, bisher_eur: 115.36, mit_kwh: 2310, mit_eur: 646.8, ohne_kwh: 10626, ohne_eur: 2975.28, gespart_eur: 2328.48 },
+      hochrechnung: beispielHochrechnung(b, preis),
       // WU-0005: Rangliste und Erkenntnisse (wie logik/auswertung.rangliste/erkenntnisse)
       rangliste: b.bereiche.filter(c => c.art !== 'pumpenschacht').map((c, i) => ({ bereich: c.id, name: c.name, baustelle: b.baustelle.titel, kwh: 40 - i * 5, heizzeit: 20 - i, eur: (40 - i * 5) * preis, kwh_h: (40 - i * 5) / (20 - i), anteil: 0 })),
       erkenntnisse: kwh ? [{ art: 'gespart', eur: kwh * 2 * preis, prozent: 66.7 }, { art: 'groesster', bereich: b.bereiche[0].id, name: b.bereiche[0].name, kwh: 40, anteil: 38 }, { art: 'wetter', kwh_je_grad: 7.2, eur_je_grad: 2, null0: 15.5 }, { art: 'mehr', prozent: 18 }] : [] };

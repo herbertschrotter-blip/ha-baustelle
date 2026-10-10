@@ -66,13 +66,37 @@ async def test_hochrechnung_aus_der_datenbank(hass: HomeAssistant, baustelle_nov
     assert je[C1]["methode"] == "signatur" and je[C1]["tage"] == 30
     assert je[C1]["grenze"] == pytest.approx(15.0) and je[C1]["kwh_je_grad"] == pytest.approx(2.0)
     assert je[C2]["tage"] == 29                                     # Tag im Notbetrieb zählt nicht
-    # Sensor und Auswertung: bisher (Zähler) + Rest beider Container, Spanne um die Mitte
-    st.zaehler["energie_heizen"] = 500.0
-    w = werte(hz, 500.0)
+    # Sensor und Auswertung: bisher (Tage der Heizperiode aus der Datenbank) + Rest beider Container, Spanne um die Mitte
+    b = erg["bisher_kwh"]
+    assert b == pytest.approx(2 * sum(modell(-3 + i % 22) for i in range(30)), rel=0.01)
+    w = werte(hz)
     assert w["methode"] == "signatur"
-    assert w["mit_kwh"] == pytest.approx(500.0 + je[C1]["rest_kwh"] + je[C2]["rest_kwh"])
+    assert w["mit_kwh"] == pytest.approx(b + je[C1]["rest_kwh"] + je[C2]["rest_kwh"])
     assert w["unten_kwh"] < w["mit_kwh"] < w["oben_kwh"]
     assert hz.hochrechnung_heizperiode("energie_heizen") == pytest.approx(w["mit_kwh"])
+    # Karte „Heizperiode“ (BSM-033.03): Tagesreihe Oktober bis April, letzter Tag = Hochrechnung; Punkte, Klima, Vorhersage
+    R = erg["reihe"]
+    assert R[0][0] == "2026-10-01" and R[-1][0] == "2027-04-30"
+    assert R[-1][2] == pytest.approx(w["mit_kwh"], rel=1e-4) and R[-1][3] == pytest.approx(w["unten_kwh"], rel=1e-4)
+    assert len(je[C1]["punkte"]) == 30 and erg["klima_vorgabe"] is True and len(erg["klima"]) == 12
+    assert erg["vorhersage"] == [[(HEUTE + timedelta(days=1)).isoformat(), -8.0]]
+
+
+async def test_klimamittel_einstellen(hass: HomeAssistant, baustelle_november, hass_ws_client) -> None:
+    """BSM-033.03: Klimamittel als Einstellung (12 Werte, sonst abgelehnt); die Hochrechnung rechnet gleich damit."""
+    st = baustelle_november.runtime_data
+    hz = Heizung.von(st)
+    ws = await hass_ws_client(hass)
+    await ws.send_json({"id": 1, "type": "baustelle/setzen", "entry_id": baustelle_november.entry_id,
+                        "pfad": ["heizung", "klimamittel"], "wert": [1.0] * 11})
+    assert (await ws.receive_json())["success"] is False
+    werte12 = [-2.0, 0.0, 4.0, 9.0, 14.0, 17.0, 19.0, 18.5, 14.0, 9.0, 3.5, -1.0]
+    await ws.send_json({"id": 2, "type": "baustelle/setzen", "entry_id": baustelle_november.entry_id,
+                        "pfad": ["heizung", "klimamittel"], "wert": werte12})
+    assert (await ws.receive_json())["success"] is True
+    await hass.async_block_till_done()
+    assert st.e["heizung"]["klimamittel"] == werte12
+    assert hz.hochrechnung is not None and hz.hochrechnung["klima"] == werte12 and hz.hochrechnung["klima_vorgabe"] is False
 
 
 async def test_ohne_tage_bleibt_der_tagesschnitt(hass: HomeAssistant, baustelle_november) -> None:
@@ -81,7 +105,7 @@ async def test_ohne_tage_bleibt_der_tagesschnitt(hass: HomeAssistant, baustelle_
     await async_rechnen(hass, hz)
     assert hz.hochrechnung is not None
     assert {c["methode"] for c in hz.hochrechnung["container"]} == {"keine"}
-    assert werte(hz, 100.0)["mit_kwh"] is None
+    assert werte(hz)["mit_kwh"] is None
     st.zaehler["energie_heizen"] = 100.0
     st.zaehler["seit"] = (datetime(2026, 11, 10, tzinfo=WIEN)).isoformat()
     assert hz.hochrechnung_heizperiode("energie_heizen") == pytest.approx(100.0 / 10.4167 * 212, rel=0.02)

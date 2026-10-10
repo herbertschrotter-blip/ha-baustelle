@@ -203,7 +203,9 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
     assert set(h) == {"bisher_kwh", "bisher_eur", "mit_kwh", "mit_eur", "ohne_kwh", "ohne_eur", "gespart_eur",
                       # BSM-033.02: Hochrechnung mit Signatur (Spanne, Normjahr, Heizgradtage, je Container)
                       "methode", "unten_kwh", "unten_eur", "oben_kwh", "oben_eur", "normjahr_kwh", "normjahr_eur",
-                      "hgt_rest", "vorhersage_tage", "container"}
+                      "hgt_rest", "vorhersage_tage", "container",
+                      # BSM-033.03: Karte „Heizperiode“ (Tagesreihe, Klimamittel, Vorhersage, Zeitraum)
+                      "reihe", "klima", "klima_vorgabe", "vorhersage", "beginn", "ende"}
     if h["mit_kwh"] is not None:
         assert h["mit_eur"] == pytest.approx(h["mit_kwh"] * 0.25)
     punkte = r["wetter"]["punkte"]

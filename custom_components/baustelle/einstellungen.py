@@ -93,6 +93,7 @@ STANDARD: dict[str, Any] = {
         "feiertag_frei": True,
         "notprogramm": False,     # Notprogramm in den Plugs (BSM-017, startet aus wie die Automatik)
         "taste": False,           # Taste am Plug = 1 h heizen (BSM-018, braucht das Notprogramm; startet aus)
+        "klimamittel": None,      # 12 Monatsmittel außen °C für die Hochrechnung (BSM-033.03); None = Vorgabe Graz
     },
     "staffel": {"an": True, "nutzbar_prozent": 67, "max_gleichzeitig": 5, "min_lauf_min": 10, "min_pause_min": 5,
                 "takt_min": 15},

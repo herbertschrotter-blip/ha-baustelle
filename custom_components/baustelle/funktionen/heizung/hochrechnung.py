@@ -1,10 +1,11 @@
 """Heizung: Hochrechnung der Heizperiode mit Energiesignatur und Heizgradtagen (BSM-033.02, Bauplan Hochrechnung §4).
 
-Beim Start und täglich um 03:50 (nach den Tagessummen von gestern): je Container die Tage der laufenden Heizperiode aus
+Beim Start und stündlich (:50, damit „bisher“ mit heute frisch bleibt; BSM-033.03): je Container die Tage der laufenden Heizperiode aus
 der Datenbank (`db/tage.hochrechnung_tage`), dazu die Vorhersage der nächsten Tage (Tagesmittel aus `wetter_tage`) und
 die Klimamittel (Einstellung `heizung.klimamittel`, sonst Vorgabe). Gerechnet wird nur in `logik/hochrechnung`; das
 Ergebnis liegt bei der Heizung (`Heizung.hochrechnung`) – Sensor `prognose_heizperiode` und `baustelle/auswertung`
-lesen es. Ohne Datenbank bleibt es bei der bisherigen Hochrechnung (Tagesschnitt).
+lesen es; dazu für die Karte „Heizperiode“ die Tagesreihe, die Punkte der Signatur je Container, Klimamittel und
+Vorhersage. Ohne Datenbank bleibt es bei der bisherigen Hochrechnung (Tagesschnitt seit Zählbeginn).
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
     from . import Heizung
 
 _LOGGER = logging.getLogger(__name__)
-TAEGLICH = {"hour": 3, "minute": 50, "second": 0}
+STUENDLICH = {"minute": 50, "second": 0}
 
 
 def zeitraum(st: Steuerung, heute: date) -> tuple[date, date]:
@@ -57,18 +58,26 @@ def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date) -> dict[s
     """Hochrechnung aus den Tagen je Container (ohne Datenbank, damit testbar)."""
     st = hz.st
     beginn, ende = zeitraum(st, heute)
-    klima = h.klimamittel((st.e.get("heizung") or {}).get("klimamittel"))
+    eigen = (st.e.get("heizung") or {}).get("klimamittel")
+    klima = h.klimamittel(eigen)
     vor = vorhersage(st, heute)
-    reste = {bid: h.container_rest(roh.get(bid, []), heute, ende, vor, klima, beginn) for bid in (b.id for b in hz.bereiche())}
+    ids = [b.id for b in hz.bereiche()]
+    roh = {bid: roh.get(bid, []) for bid in ids}
+    reste = {bid: h.container_rest(roh[bid], heute, ende, vor, klima, beginn) for bid in ids}
     container = [{
         "bereich": bid, "methode": r.methode, "rest_kwh": r.rest_kwh, "unten_kwh": r.unten_kwh, "oben_kwh": r.oben_kwh,
         "normjahr_kwh": r.normjahr_kwh, "stand": r.signatur.stand, "grund": r.signatur.grund, "tage": r.signatur.tage,
         "grenze": r.signatur.grenze, "kwh_je_grad": r.signatur.kwh_je_grad, "grundlast": r.signatur.grundlast,
         "cv_rmse": r.signatur.cv_rmse,
+        "punkte": [[t.aussen, round(t.kwh or 0.0, 2)] for t in roh[bid] if h.tag_zaehlt(t, heute)],
     } for bid, r in reste.items()]
     rest_temps = [t for t, _ in h.temperaturen(h.tage(heute, ende), vor, klima)]
     return {"heute": heute.isoformat(), "beginn": beginn.isoformat(), "ende": ende.isoformat(), "reste": reste,
-            "container": container, "hgt_rest": h.hgt_summe(rest_temps[1:]), "vorhersage_tage": len(vor)}
+            "container": container, "hgt_rest": h.hgt_summe(rest_temps[1:]), "vorhersage_tage": len(vor),
+            "bisher_kwh": h.bisher(roh, heute, beginn),
+            "reihe": h.reihe(roh, reste, heute, beginn, ende, hz.hochrechnung_heizperiode("ohne")),
+            "klima": list(klima), "klima_vorgabe": eigen is None,
+            "vorhersage": [[d.isoformat(), t] for d, t in sorted(vor.items()) if d <= ende]}
 
 
 async def async_rechnen(hass: HomeAssistant, hz: Heizung) -> None:
@@ -86,21 +95,22 @@ async def async_rechnen(hass: HomeAssistant, hz: Heizung) -> None:
     hz.hochrechnung = ergebnis(hz, roh, heute)
 
 
-def werte(hz: Heizung, bisher_kwh: float | None) -> dict[str, Any] | None:
-    """Hochrechnung der Baustelle aus dem letzten Ergebnis; None ohne Ergebnis (dann gilt der Tagesschnitt)."""
+def werte(hz: Heizung) -> dict[str, Any] | None:
+    """Hochrechnung der Baustelle aus dem letzten Ergebnis (bisher = Tage der Heizperiode aus der Datenbank); None ohne
+    Ergebnis (dann gilt der Tagesschnitt)."""
     if not hz.hochrechnung:
         return None
-    return h.baustelle(bisher_kwh, hz.hochrechnung["reste"])
+    return h.baustelle(hz.hochrechnung["bisher_kwh"], hz.hochrechnung["reste"])
 
 
 @callback
 def hochrechnung_planen(hass: HomeAssistant, st: Steuerung) -> Callable[[], None]:
-    """Beim Start und täglich um 03:50."""
+    """Beim Start und stündlich."""
     from . import Heizung   # noqa: PLC0415
 
     hz = Heizung.von(st)
     st.entry.async_create_background_task(hass, async_rechnen(hass, hz), "baustelle_hochrechnung")
 
-    async def _taeglich(_jetzt: datetime) -> None:
+    async def _stuendlich(_jetzt: datetime) -> None:
         await async_rechnen(hass, hz)
-    return async_track_time_change(hass, _taeglich, **TAEGLICH)
+    return async_track_time_change(hass, _stuendlich, **STUENDLICH)

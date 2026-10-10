@@ -10,7 +10,10 @@ Je Container:
 - **Spanne**: wärmerer bzw. kälterer Winter (alle Tage ohne Vorhersage um `WINTER_K` wärmer/kälter) und die Streuung der
   Signatur (1,645 · rmse · √Tage, rund 90 %).
 
-Für die Baustelle: bisher (Zähler) + Summe der Reste; Spanne nur, wenn jeder Container eine Signatur hat.
+Für die Baustelle: bisher + Summe der Reste; Spanne nur, wenn jeder Container eine Signatur hat. **Tagesreihe** (`reihe`,
+BSM-033.03): je Tag der Heizperiode aufsummiert tatsächlich (bis heute), Prognose mit Automatik (mit Spanne) und ohne
+Automatik (bis zur gemessenen Baseline die bisherige Schätzung 24/7 – gleichmäßig über die Tage, wie sie gerechnet ist);
+der letzte Tag ist die Hochrechnung. Bisher = Summe der Tage der Heizperiode bis heute (heute mit, soweit gerechnet).
 **Heizgradtage** nach ÖNORM B 8135 (HGT 20/12): je Tag 20 − außen, wenn außen unter 12 °C. **Witterungsbereinigt**
 (Normjahr): die ganze Heizperiode bei Klimamitteln – damit lassen sich Baustellen und Jahre vergleichen.
 """
@@ -51,6 +54,10 @@ class ContainerRest:
     methode: str                  # "signatur" | "tagesschnitt" | "keine"
     signatur: Signatur
     normjahr_kwh: float | None    # ganze Heizperiode bei Klimamitteln (nur mit Signatur)
+    je_tag: tuple[float, ...] = ()            # erwarteter Verbrauch je Resttag (Mitte)
+    je_tag_warm: tuple[float, ...] = ()       # … im wärmeren Winter (nur mit Signatur)
+    je_tag_kalt: tuple[float, ...] = ()       # … im kälteren Winter
+    rmse: float = 0.0
 
 
 def klimamittel(werte: Sequence[float] | None) -> tuple[float, ...]:
@@ -58,6 +65,20 @@ def klimamittel(werte: Sequence[float] | None) -> tuple[float, ...]:
     if werte is not None and len(werte) == 12 and all(isinstance(v, (int, float)) for v in werte):
         return tuple(float(v) for v in werte)
     return KLIMA_GRAZ
+
+
+def klimamittel_pruefen(werte: object) -> list[float] | None:
+    """Einstellung `heizung.klimamittel`: None (Vorgabe) oder genau 12 Zahlen von −30 bis 35 °C; sonst ValueError."""
+    if werte is None:
+        return None
+    if not isinstance(werte, (list, tuple)) or len(werte) != 12:
+        raise ValueError("Klimamittel: genau 12 Monatswerte")
+    aus = []
+    for v in werte:
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not -30 <= v <= 35:
+            raise ValueError("Klimamittel: Zahlen von −30 bis 35 °C")
+        aus.append(round(float(v), 1))
+    return aus
 
 
 def klima_tag(tag: date, klima: Sequence[float]) -> float:
@@ -99,23 +120,22 @@ def container_rest(
     """Rest der Heizperiode eines Containers (morgen bis `ende`); `beginn` = erster Tag der Heizperiode (Normjahr)."""
     gezaehlt = [t for t in roh if tag_zaehlt(t, heute)]
     sig = berechnen(Tag(t.aussen, t.kwh) for t in gezaehlt)    # type: ignore[arg-type]  # tag_zaehlt prüft None
-    rest_tage = tage(heute + timedelta(days=1), ende)
+    rest_tage = tage(max(heute + timedelta(days=1), beginn), ende)
     temps = temperaturen(rest_tage, vorhersage, klima)
     if erwartet(sig, 0.0) is None:
         if not gezaehlt:
-            return ContainerRest(0.0, None, None, "keine", sig, None)
+            return ContainerRest(0.0, None, None, "keine", sig, None, (0.0,) * len(rest_tage))
         schnitt = sum(t.kwh or 0.0 for t in gezaehlt) / len(gezaehlt)
-        return ContainerRest(schnitt * len(rest_tage), None, None, "tagesschnitt", sig, None)
+        return ContainerRest(schnitt * len(rest_tage), None, None, "tagesschnitt", sig, None, (schnitt,) * len(rest_tage))
 
-    def summe(verschiebung: float) -> float:
-        return sum(erwartet(sig, t + (0.0 if fest else verschiebung)) or 0.0 for t, fest in temps)
+    def je_tag(verschiebung: float) -> tuple[float, ...]:
+        return tuple(erwartet(sig, t + (0.0 if fest else verschiebung)) or 0.0 for t, fest in temps)
 
-    mitte = summe(0.0)
+    mitte, warm, kalt = je_tag(0.0), je_tag(WINTER_K), je_tag(-WINTER_K)
     streuung = Z90 * (sig.rmse or 0.0) * sqrt(len(rest_tage))
-    unten = max(0.0, summe(WINTER_K) - streuung)
-    oben = summe(-WINTER_K) + streuung
     norm = sum(erwartet(sig, klima_tag(d, klima)) or 0.0 for d in tage(beginn, ende))
-    return ContainerRest(mitte, unten, oben, "signatur", sig, norm)
+    return ContainerRest(sum(mitte), max(0.0, sum(warm) - streuung), sum(kalt) + streuung, "signatur", sig, norm,
+                         mitte, warm, kalt, sig.rmse or 0.0)
 
 
 def baustelle(bisher_kwh: float | None, reste: Mapping[str, ContainerRest]) -> dict[str, float | str | None]:
@@ -136,3 +156,43 @@ def baustelle(bisher_kwh: float | None, reste: Mapping[str, ContainerRest]) -> d
 
 def hgt_summe(temps: Iterable[float]) -> float:
     return sum(hgt(t) for t in temps)
+
+
+def bisher(roh: Mapping[str, Sequence[TagRoh]], heute: date, beginn: date) -> float:
+    """Verbrauch der Heizperiode bis heute (alle Container, heute so weit gerechnet)."""
+    return sum(t.kwh or 0.0 for liste in roh.values() for t in liste if beginn <= t.datum <= heute)
+
+
+def reihe(
+    roh: Mapping[str, Sequence[TagRoh]], reste: Mapping[str, ContainerRest], heute: date, beginn: date, ende: date,
+    ohne_kwh: float | None,
+) -> list[tuple[str, float | None, float, float | None, float | None, float | None]]:
+    """Je Tag der Heizperiode (Tag, tatsächlich, mit, unten, oben, ohne), aufsummiert in kWh (siehe Modul-Docstring)."""
+    alle_tage = tage(beginn, ende)
+    je_tag: dict[date, float] = {}
+    for liste in roh.values():
+        for t in liste:
+            if beginn <= t.datum <= heute:
+                je_tag[t.datum] = je_tag.get(t.datum, 0.0) + (t.kwh or 0.0)
+    werte = list(reste.values())
+    spanne = bool(werte) and all(r.methode == "signatur" for r in werte)
+    aus: list[tuple[str, float | None, float, float | None, float | None, float | None]] = []
+    ist = mit = warm = kalt = 0.0
+    k = 0
+    for i, d in enumerate(alle_tage):
+        ohne = round(ohne_kwh * (i + 1) / len(alle_tage), 3) if ohne_kwh is not None else None
+        if d <= heute:
+            ist += je_tag.get(d, 0.0)
+            mit = warm = kalt = ist
+            aus.append((d.isoformat(), round(ist, 3), round(ist, 3), round(ist, 3) if spanne else None,
+                        round(ist, 3) if spanne else None, ohne))
+            continue
+        mit += sum(r.je_tag[k] for r in werte if k < len(r.je_tag))
+        if spanne:
+            warm += sum(r.je_tag_warm[k] for r in werte)
+            kalt += sum(r.je_tag_kalt[k] for r in werte)
+        k += 1
+        streu = sum(Z90 * r.rmse * sqrt(k) for r in werte) if spanne else 0.0
+        aus.append((d.isoformat(), None, round(mit, 3), round(max(ist, warm - streu), 3) if spanne else None,
+                    round(kalt + streu, 3) if spanne else None, ohne))
+    return aus

@@ -4,14 +4,15 @@
 // der Integration (p.awDaten, p.abDaten); die Seite ordnet nur an. Diagramme bleiben bis Stufe 4 SVG-Text (unsafeHTML).
 import { html, nothing } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
-import { MONATE, MONATE_LANG, datum, de, erkl, esc, kurzDatum, summe, wtag, zahl } from '../hilfen.js';
+import { de, erkl, esc, kurzDatum, summe, wtag, zahl } from '../hilfen.js';
 import { BEREICH_FARBEN } from '../symbole.js';
-import { flaeche, linien, streu } from '../diagramme.js';
+import { flaeche, linien } from '../diagramme.js';
 import { AW_BAUSTEINE, AW_VORLAGEN, KK, awStufen } from '../kacheln-daten.js';
 import { kopfVorlage, schalterVorlage } from './allgemein.js';
 import { zeitraumVorlage } from './zeitraum.js';
 import { verbrauchVorlage } from './einblendungen-uebersicht.js';
 import { kachelVorlage, rasterVorlage } from './kacheln.js';
+import { heizperiodeVorlage } from './heizperiode.js';
 
 const LAEDT = html`<div class="leer">Lädt …</div>`;
 const STUNDEN = [...Array(24)].map((_, h) => String(h).padStart(2, '0'));
@@ -69,18 +70,6 @@ function geraeteBlock(p, z, A) {
       ${unsafeHTML(erkl(d.e.erklaer, 'Ø kW ist die mittlere Leistung, während das Gerät läuft – so sieht man, ob ein Heizkörper schwächer ist als angegeben. kWh kommen aus dem Zählerstand des Shelly (ohne Energiezähler „–“), Stunden ≈ kWh ÷ Ø kW, bei Pumpen die gemessene Pumpzeit.'))}</div>`;
 }
 
-/* Hochrechnung: kWh und € rechnet die Integration (hochrechnung, heizperiode) */
-function hochrechnung(p, A) {
-  const d = p.d, [von, bis] = d.hp, mon = (bis - von + 12) % 12 + 1, hp = A && A.heizperiode, h = A && A.hochrechnung;
-  const max = h ? Math.max(h.bisher_kwh || 0, h.mit_kwh || 0, h.ohne_kwh || 0) || 1 : 1;
-  const balkenZ = (t, kwh, eur, farbe) => html`<div class="hbar"><span class="hb-n">${t}</span><span class="hb-spur"><i style="width:${zahl(kwh) ? kwh / max * 100 : 0}%;background:${farbe}"></i></span><span class="hb-w">${zahl(eur) ? `${de(eur, 0)} €` : '–'}</span></div>`;
-  return html`<div class="glas-panel block"><div class="block-kopf"><b>Hochrechnung Heizperiode</b><span class="leise">${MONATE[von - 1]}–${MONATE[bis - 1]} · ${mon} Monate</span></div>
-      ${!A ? LAEDT : !h || !zahl(h.mit_kwh) ? html`<div class="leer">Noch zu wenige Tage für eine Hochrechnung</div>` : html`${balkenZ('bisher', h.bisher_kwh, h.bisher_eur, 'var(--s3)')}${balkenZ('mit Automatik', h.mit_kwh, h.mit_eur, 'var(--s1)')}${balkenZ('ohne (24/7)', h.ohne_kwh, h.ohne_eur, 'var(--s2)')}
-      <div class="gespart">bis ${hp && hp.bis !== hp.ende ? datum(hp.bis) : `Ende ${MONATE_LANG[bis - 1]}`} rund <b>${de(h.mit_kwh, 0)} kWh</b> · ${de(h.mit_eur, 0)} €${zahl(h.gespart_eur) ? html` – gespart ≈ <b>${de(h.gespart_eur, 0)} €</b>` : ''}</div>`}
-      <div class="leise">aus dem bisherigen Verbrauch je Tag hochgerechnet${d.ende ? ` – bis zum geplanten Ende ${datum(d.ende)}, wenn es früher liegt` : ''}. Heizperiode unter Einstellungen › Baustelle.</div>
-      ${unsafeHTML(erkl(d.e.erklaer, 'Die Hochrechnung nimmt den Verbrauch je Tag bisher und rechnet ihn auf die ganze Heizperiode hoch. Endet die Baustelle früher, zählt nur bis zum Ende.'))}</div>`;
-}
-
 /* „Was fällt auf“: die Integration wählt aus (logik/auswertung.erkenntnisse), die Seite macht nur den Text */
 function erkenntnisse(p, A, z) {
   return ((A && A.erkenntnisse) || []).map(x => ({
@@ -125,16 +114,6 @@ function bausteine(p) {
   const kwh = A ? S.kwh : null, hz = A ? S.heizzeit : null, pz = A ? S.pumpzeit : null, ohne = A ? S.ohne : null;
   const vgl = p.zrVgl(z, vs);
   const kz = (wert, text, dl) => html`<div><b>${wert}</b><span>${text}</span>${dl !== null ? html`<em class="${dl > 0 ? 'mehr' : 'weniger'}">${dl > 0 ? '▲' : '▼'} ${Math.abs(dl)} %</em>` : nothing}</div>`;
-  // Wetter-Einfluss: letzte 30 Heiztage, kWh je Tag gegen Tagesmittel außen, mit Gerade der Integration
-  const W = A ? A.wetter || {} : null, pkt = W && (W.punkte || []), gerade = W && W.gerade;
-  let streuT;
-  if (!W) streuT = LAEDT;
-  else if (!gerade) streuT = html`<div class="leer">Noch zu wenige Heiztage für einen Vergleich</div>`;
-  else {
-    const { k, d0, null0, eur_je_grad } = gerade;
-    streuT = html`<div class="chart-wrap">${unsafeHTML(streu('streu', pkt, k, d0))}</div>
-        <div class="hinweis-k">${k < 0 ? html`Je Grad kälter <b>≈ +${de(-k, 1)} kWh</b> am Tag (${de(eur_je_grad, 2)} €).${zahl(null0) ? html` Ab etwa <b>${de(null0, 0)} °C</b> wird kaum mehr geheizt – ` : ' '}` : 'Noch kein klarer Zusammenhang mit der Außentemperatur. '}die Heizgrenze steht auf ${de(d.e.grenze, 0)} °C.</div>`;
-  }
   // AN-0008: fair – nur Zeiten im Modus Thermostat mit Fühler, Container mit einem Typ, kWh je Gradstunde (Integration)
   const T = ['oelradiator', 'konvektor'].map(t => { const x = (A && A.typ && A.typ[t]) || {}; return { kwhG: x.kwh_gradh ?? null, kwhGm2: x.kwh_gradh_m2 ?? null, auf: x.auf ?? null, ab: x.ab ?? null, container: x.container || [] }; });
   const vglOk = !!(A && A.typ && A.typ.vergleichbar), aussen = (A && A.typ && A.typ.ausgeschlossen) || [];
@@ -169,15 +148,15 @@ function bausteine(p) {
     temperaturen: alle ? '' : temperaturen(p),
     abrechnung: abrechnung(p, z),
     geraete: alle ? '' : geraeteBlock(p, z, A),
-    wetter: html`<div class="glas-panel block"><div class="block-kopf"><b>Wetter-Einfluss</b><span class="leise">letzte 30 Heiztage · kWh je Tag gegen Außentemperatur</span></div>
-        ${streuT}</div>`,
+    // BSM-033.03: „Wetter-Einfluss“ und „Hochrechnung“ sind jetzt die Karte „Heizperiode“ (Reiter Signatur bzw. Hochrechnung)
+    wetter: alle ? '' : heizperiodeVorlage(p, A, 'sig'),
     ohne: html`<div class="glas-panel block"><div class="block-kopf"><b>Ohne Automatik</b><span class="leise">wenn alles rund um die Uhr liefe</span></div>
         ${!zahl(ohne) || !zahl(kwh) ? (ohne === null || kwh === null ? LAEDT : html`<div class="leer">Noch keine Werte</div>`) : !oa ? html`<div class="leer">Noch keine Werte</div>` : html`
         <div class="hbar"><span class="hb-n">mit Automatik</span><span class="hb-spur"><i style="width:${Math.min(100, kwh / ohne * 100)}%;background:var(--s1)"></i></span><span class="hb-w">${de(S.eur, 0)} €</span></div>
         <div class="hbar"><span class="hb-n">ohne (24/7)</span><span class="hb-spur"><i style="width:100%;background:var(--s2)"></i></span><span class="hb-w">${de(oa.ohne_eur, 0)} €</span></div>
         <div class="gespart">gespart <b>${de(oa.gespart_eur, 2)} €</b> · ${de(oa.prozent, 0)} %</div>`}
         <div class="leise">So rechnet „ohne Automatik“: jeder Heizkörper mit seiner gemessenen Ø-Leistung im Betrieb (sobald er Strom zieht, ab 5 W) rund um die Uhr seit Beginn der Baustelle; gespart = ohne Automatik − tatsächlich verbraucht, mal Strompreis.</div></div>`,   // AN-0007: woher der Vergleich kommt
-    hochrechnung: alle ? '' : hochrechnung(p, A),
+    hochrechnung: alle ? '' : heizperiodeVorlage(p, A),
     vergleich: html`<div class="glas-panel block"><div class="block-kopf"><b>Ölradiator oder Konvektor</b><span class="leise">fair: gleiche Regelung · aus eigenen Messungen</span></div>
         <table class="vergleich"><tr><th></th><th>Ölradiator</th><th>Konvektor</th></tr>
           ${zeile('kWh je Gradstunde', 'kwhG', true, v => de(v, 3))}
@@ -228,7 +207,7 @@ function stueck(p, k, B, A, z, gr = { w: 4, h: 4 }) {
     case 'k-oel': { const w = A && A.typ && A.typ.weniger; return kachel('vergleich', html`<small>ÖLRADIATOR</small><b>${zahl(w) ? `${w > 0 ? '−' : '+'}${de(Math.abs(w), 0)} %` : '–'}</b><span>gegenüber Konvektor</span>`); }
     case 'k-temp': { const C = d.bereiche.filter(b => !b.pumpe && b.t !== null).slice(0, 4);
       return kachel('temperaturen', html`<small>TEMPERATUREN JETZT</small>${C.length ? C.map(b => html`<div class="aw-zeile"><span>${b.name}</span><b>${de(b.t)} °C</b></div>`) : html`<span>kein Fühler</span>`}`); }
-    case 'links': return html`<div class="glas-panel liste">${[['abrechnung', '💶 Abrechnung nach Firma'], ['geraete', '♨ Je Gerät'], ['temperaturen', '🌡 Temperaturen'], ['wetter', '🌦 Wetter-Einfluss'], ['vergleich', '⚖ Ölradiator oder Konvektor'], ['hochrechnung', '📅 Hochrechnung Heizperiode']]
+    case 'links': return html`<div class="glas-panel liste">${[['abrechnung', '💶 Abrechnung nach Firma'], ['geraete', '♨ Je Gerät'], ['temperaturen', '🌡 Temperaturen'], ['wetter', '🌦 Energiesignatur'], ['vergleich', '⚖ Ölradiator oder Konvektor'], ['hochrechnung', '📅 Heizperiode · Hochrechnung']]
       .filter(([kk]) => B[kk]).map(([kk, t]) => html`<button class="zeile" data-k=${kk} @click=${() => p.awDetail(kk)}><span>${t}</span><span class="chev">›</span></button>`)}</div>`;
     case 'verlauf': return diagramm(p, z, gr);   // FE-0006: füllt die Kachel, ohne eigene Zeitraum-Leiste
     case 'wetter': return gr.w <= 1 ? stueck(p, 'k-wetter', B, A, z) : B.wetter;

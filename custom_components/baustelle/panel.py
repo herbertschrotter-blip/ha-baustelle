@@ -32,7 +32,7 @@ from .umbenennen import BEFEHLE as UMBENENNEN_BEFEHLE
 from .logik import preise as preise_logik
 from .logik.arbeitszeit import arbeitszeit_loeschen, arbeitszeiten_speichern
 from .logik.auswertung import ARTEN
-from .logik import symbol as symbol_logik
+from .logik import hochrechnung as hochrechnung_logik, symbol as symbol_logik
 from .logik.rechte import AKTIONEN_ALLE, darf, rechte
 from .notprogramm import DATA_NOTPROGRAMM
 from .logik.warnungen import Art
@@ -101,6 +101,7 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("heizung", "hand_nachfrist_min"): vol.All(GANZ, vol.Range(0, 240)),   # AN-0012
     ("heizung", "fuehler_halten_min"): vol.All(GANZ, vol.Range(0, 120)),
     ("heizung", "zieht_strom_w"): vol.All(GANZ, vol.Range(5, 500)),
+    ("heizung", "klimamittel"): lambda w: _klima_pruefen(w),   # noqa: PLW0108 – BSM-033.03: 12 Monatsmittel oder None
     ("heizung", "feiertag_frei"): cv.boolean,
     ("staffel", "an"): cv.boolean,
     ("staffel", "nutzbar_prozent"): vol.All(GANZ, vol.Range(10, 100)),
@@ -125,6 +126,13 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("meldungen_einst", "trocken_unter_w"): vol.All(ZAHL, vol.Range(0, 5000)),
     ("meldungen_einst", "offline_min"): vol.All(ZAHL, vol.Range(0, 1440)),
 }
+def _klima_pruefen(wert: Any) -> Any:
+    try:
+        return hochrechnung_logik.klimamittel_pruefen(wert)
+    except ValueError as err:
+        raise vol.Invalid(str(err)) from err
+
+
 def _symbol_pruefen(wert: Any) -> Any:
     try:
         return symbol_logik.bereinigen(wert)
@@ -431,6 +439,9 @@ def ws_setzen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
     einstellung_merken(hass, st.entry.entry_id, ".".join(pfad), wert, _benutzer(connection),   # BSM-007: mit Benutzer
                        bereich_id=pfad[1] if pfad[0] == "bereiche" else None, geraet_id=pfad[1] if pfad[0] == "geraete" else None)
     hass.async_create_task(async_spiegeln(hass, struktur(hass, st.entry)), "baustelle_datenbank_spiegeln")
+    if pfad == ["heizung", "klimamittel"]:   # Hochrechnung gleich neu (BSM-033.03)
+        from .funktionen.heizung.hochrechnung import async_rechnen   # noqa: PLC0415
+        st.entry.async_create_background_task(hass, async_rechnen(hass, Heizung.von(st)), "baustelle_hochrechnung")
     if pfad[0] == "bereiche" and pfad[-1] in ("tuer", "symbol"):   # Sensoren geändert: Inventar nachziehen (BSM-034.04)
         st.entry.async_create_background_task(hass, async_abgleich(hass, st), "baustelle_abgleich")
     connection.send_result(msg["id"], {"ok": True})

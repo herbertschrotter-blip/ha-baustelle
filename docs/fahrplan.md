@@ -103,7 +103,7 @@ Bauplan: `docs/bauplan-hochrechnung.md`.
 
 - [x] **J1** (BSM-033.01, 0.8.123) Energiesignatur je Container (logik, Gütemaß) – `logik/signatur.py`, Bauplan `docs/bauplan-hochrechnung.md`
 - [x] **J2** (BSM-033.02, 0.8.124) Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung – Sensor und `baustelle/auswertung`; Klimamittel Vorgabe Graz (prüfen)
-- [ ] **J3** (BSM-033.03) Anzeige mit Spanne, Signatur, Baseline (Mockup)
+- [x] **J3** (BSM-033.03, 0.8.125) Anzeige: Karte „Heizperiode“ mit Hochrechnung (Diagramm tatsächlich/Prognose mit/ohne), Signatur, Klima (Mockup `hochrechnung.html`); offen: Kachel Wetter/Erkenntnis auf die Signatur
 - [ ] **J4** (BSM-033.04) Automatische Baseline-Läufe (startet aus, Budget, Ankündigung, Abbruch)
 
 ## Etappe K – Geräte zusammenführen (BSM-034, Herbert 09.10.2026)

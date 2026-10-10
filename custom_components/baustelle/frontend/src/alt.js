@@ -35,6 +35,7 @@ import { EINRICHTUNG_EINBLENDUNGEN } from './ansichten/einblendungen-einrichtung
 import { npPlugEinblendung } from './ansichten/notprogramm.js';
 import { INVENTAR_EINBLENDUNGEN, INV_BREIT, INV_CSS } from './ansichten/inventar.js';
 import { GERAETE_CSS, GERAETE_EINBLENDUNGEN } from './ansichten/geraete.js';
+import { HEIZPERIODE_CSS, HEIZPERIODE_EINBLENDUNGEN } from './ansichten/heizperiode.js';
 import { uebersichtVorlage } from './ansichten/uebersicht.js';
 import { katalogEinblendung } from './ansichten/kacheln.js';
 import { UEBERSICHT_EINBLENDUNGEN } from './ansichten/einblendungen-uebersicht.js';
@@ -901,9 +902,9 @@ function einblendungen(s) {
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', ...Object.keys(INVENTAR_EINBLENDUNGEN), ...Object.keys(GERAETE_EINBLENDUNGEN), 'kk-katalog', ...Object.keys(UEBERSICHT_EINBLENDUNGEN), 'aw-detail'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', ...Object.keys(INVENTAR_EINBLENDUNGEN), ...Object.keys(GERAETE_EINBLENDUNGEN), ...Object.keys(HEIZPERIODE_EINBLENDUNGEN), 'kk-katalog', ...Object.keys(UEBERSICHT_EINBLENDUNGEN), 'aw-detail'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
-  static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS), unsafeCSS(INV_CSS), unsafeCSS(GERAETE_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
+  static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS), unsafeCSS(INV_CSS), unsafeCSS(GERAETE_CSS), unsafeCSS(HEIZPERIODE_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
     super();
     this.s = einblendungen({ view: 'uebersicht', cid: null, sheet: null, chart: 'temp', verlauf: 'aktiv' });
@@ -2016,6 +2017,7 @@ class BaustellePanel extends LitElement {
     else if (S.sheet && S.sheet.art === 'np-plug') sheet = npPlugEinblendung(this, S.sheet);
     else if (S.sheet && INVENTAR_EINBLENDUNGEN[S.sheet.art]) sheet = INVENTAR_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && GERAETE_EINBLENDUNGEN[S.sheet.art]) sheet = GERAETE_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
+    else if (S.sheet && HEIZPERIODE_EINBLENDUNGEN[S.sheet.art]) sheet = HEIZPERIODE_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'kk-katalog') sheet = katalogEinblendung(this, S.sheet);
     else if (S.sheet && S.sheet.art === 'aw-detail') sheet = awDetailEinblendung(this, S.sheet);
     else if (S.sheet && UEBERSICHT_EINBLENDUNGEN[S.sheet.art]) sheet = UEBERSICHT_EINBLENDUNGEN[S.sheet.art](this, S.sheet);

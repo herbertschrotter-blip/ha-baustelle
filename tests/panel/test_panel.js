@@ -997,6 +997,19 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick(AW.layout);
     for (const k of ['abrechnung', 'geraete', 'temperaturen', 'wetter', 'ohne', 'hochrechnung', 'vergleich']) { panel.awDetail(k); await ruhe(); pruefe(`Auswertung Detail ${k}`); erwarte(`WU-0005: Detail ${k}`, panel.s.sheet && panel.s.sheet.art === 'aw-detail' && !/Nur für diese Baustelle/.test(ui.innerHTML)); await klick({ act: 'zu' }); }
     await klick(AW.bearb); await klick('.aw-wahl [data-v="misch"]'); await klick(AW.bearb); }
+  /* BSM-033.03: Karte „Heizperiode“ – Reiter Hochrechnung (Diagramm, Legende), Signatur, Klima; Klimamittel speichern / Vorgabe */
+  { panel.awDetail('hochrechnung'); await ruhe(); pruefe('Heizperiode Hochrechnung');
+    erwarte('BSM-033.03: Diagramm tatsächlich/Prognose mit/ohne', ui.innerHTML.includes('hp-dia') && ui.innerHTML.includes('Prognose mit Automatik') && ui.innerHTML.includes('Prognose ohne Automatik') && ui.innerHTML.includes('hp-band'));
+    await klick('.hp-reiter [data-v="sig"]'); pruefe('Heizperiode Signatur');
+    erwarte('BSM-033.03: Signatur je Container', ui.innerHTML.includes('hp-streu') && ui.innerHTML.includes('Heizgrenze') && ui.innerHTML.includes('kWh je Grad'));
+    await klick('.hp-reiter [data-v="klima"]'); pruefe('Heizperiode Klima');
+    erwarte('BSM-033.03: Klimamittel und Vorhersage', ui.innerHTML.includes('hp-monate') && ui.innerHTML.includes('Vorhersage') && ui.innerHTML.includes('Heizgradtage'));
+    const klima = async k => { neu(); await klick({ act: 'sheet', s: 'hp-klima' }); pruefe('Klimamittel'); await klick(`[data-k="${k}"]`, 30); return letzte('baustelle/setzen').at(-1); };
+    const k = await klima('hp-speichern');
+    erwarte('BSM-033.03: 12 Klimamittel gespeichert', k && k.entry_id === panel.d.entry && k.pfad.join('.') === 'heizung.klimamittel' && Array.isArray(k.wert) && k.wert.length === 12);
+    const v = await klima('hp-vorgabe');
+    erwarte('BSM-033.03: Vorgabe = keine eigenen Werte', v && v.wert === null);
+    panel.s.hpReiter = null; await klick({ act: 'zu' }); }
   /* FE-0011: Stromverteilung nach gemessenem Verbrauch – ein eingeschalteter Heizkörper ohne Strom zeigt „zieht gerade nichts“ */
   { await klick({ act: 'tab', v: 'uebersicht' }, 10); const g = panel.d.bereiche.flatMap(b => b.geraete).find(x => x.heizer);
     if (g) { const alt = [g.an, g.kwJetzt]; g.an = true; g.kwJetzt = 0; await klick({ act: 'sheet', s: 'strom' }, 10); pruefe('Stromverteilung gemessen');
@@ -1057,7 +1070,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     await klick(AW.layout); await klick(AW.bearb); await klick('.aw-wahl [data-v="misch"]'); await klick(AW.bearb); panel.s.kkUe = null; }
   panel.awAuswahl().forEach(x => { x.an = true; });   // WU-0005: alle Bausteine zeigen – die Inhalte prüfen die folgenden Tests
   await klick({ act: 'tab', v: 'auswertung' }, 30);
-  erwarte('Auswertung: Leistung heute, Temperaturen, Je Gerät, Hochrechnung', ['Leistung heute', 'Temperaturen', 'Je Gerät', 'Hochrechnung Heizperiode'].every(t => ui.innerHTML.includes(t)));
+  erwarte('Auswertung: Leistung heute, Temperaturen, Je Gerät, Heizperiode', ['Leistung heute', 'Temperaturen', 'Je Gerät', 'hp-karte'].every(t => ui.innerHTML.includes(t)));
   for (const v of ['7', '30', 'heute']) { await klick(`.seite .seg [data-v="${v}"]`, 30); pruefe('Temperaturen ' + v); }
   erwarte('Temperaturen: alle Container mit Fühler und außen', ['Poliercontainer', 'Mannschaft', 'Außen'].every(t => ui.innerHTML.includes(t)) && ui.innerHTML.includes('data-chart="tp-heute"'));
   await klick(AW.scope('alle'), 30); pruefe('Auswertung alle');
@@ -1357,8 +1370,8 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('Abrechnung nach Firma: Firmen und kWh der Integration', Z.length > 1 && Z.every(z => h.includes(`<b>${esc(z.firma)}</b>`) && h.includes(`${deT(z.kwh, 0)} kWh · `)));
     const G = fall('je-geraet', 'dobl Monat').zeilen.filter(z => z.kwh !== null);
     erwarte('Je Gerät: kWh der Integration', G.length && G.every(z => h.includes(`<td>${deT(z.kwh, 1)}</td>`)));
-    const R = fall('wetter', 'dobl').regression;
-    erwarte('Wetter-Einfluss: Gerade der Integration', R && (R.k < 0 ? h.includes(`≈ +${deT(-R.k, 1)} kWh`) : h.includes('Noch kein klarer Zusammenhang')));
+    // BSM-033.03: „Wetter-Einfluss“ ist jetzt die Karte „Heizperiode“ im Reiter Signatur (Werte der Integration)
+    erwarte('Energiesignatur der Integration (Karte Heizperiode)', h.includes('hp-karte') && h.includes('Heizgrenze') && h.includes('kWh je Grad'));
     const A = fall('abrechnung', 'dobl diese Monat');
     erwarte('CSV Abrechnung = CSV der Integration', JSON.stringify(panel.csv('firma')) === JSON.stringify(A.csv_firma));
     erwarte('CSV Verbrauch = CSV der Integration', JSON.stringify(panel.csv()) === JSON.stringify(A.csv_verbrauch));

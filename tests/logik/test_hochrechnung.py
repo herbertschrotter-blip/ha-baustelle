@@ -5,8 +5,8 @@ from datetime import date, timedelta
 import pytest
 
 from logik.hochrechnung import (
-    KLIMA_GRAZ, VOLL_ANTEIL, WINTER_K, ContainerRest, TagRoh, baustelle, container_rest, hgt, hgt_summe, klima_tag,
-    klimamittel, tag_zaehlt, tage, temperaturen,
+    KLIMA_GRAZ, VOLL_ANTEIL, WINTER_K, ContainerRest, TagRoh, baustelle, bisher, container_rest, hgt, hgt_summe, klima_tag,
+    klimamittel, klimamittel_pruefen, reihe, tag_zaehlt, tage, temperaturen,
 )
 from logik.signatur import Signatur
 
@@ -105,3 +105,52 @@ def test_baustelle_summe_und_spanne():
     assert h["mit_kwh"] == 330.0 and h["unten_kwh"] is None and h["methode"] == "tagesschnitt"
     assert baustelle(None, {"a": a})["mit_kwh"] is None
     assert baustelle(10.0, {})["methode"] == "keine"
+
+
+def test_klimamittel_pruefen():
+    assert klimamittel_pruefen(None) is None
+    assert klimamittel_pruefen([1.23] * 12) == [1.2] * 12
+    for falsch in ([1] * 11, [1] * 13, [40] + [1] * 11, ["a"] * 12, [True] * 12, "x"):
+        with pytest.raises(ValueError):
+            klimamittel_pruefen(falsch)
+
+
+def test_bisher_nur_heizperiode_bis_heute():
+    r = {"a": [TagRoh(date(2026, 9, 30), 99.0, 5.0, 86400), TagRoh(date(2026, 10, 1), 10.0, 5.0, 86400),
+               TagRoh(HEUTE, 4.0, 5.0, 3600), TagRoh(HEUTE + timedelta(days=1), 50.0, 5.0, 0)],
+         "b": [TagRoh(date(2026, 10, 2), None, 5.0, 86400), TagRoh(date(2026, 10, 3), 6.0, 5.0, 86400)]}
+    assert bisher(r, HEUTE, date(2026, 10, 1)) == pytest.approx(20.0)   # vor Beginn, nach heute und None zählen nicht
+
+
+def test_reihe_endet_bei_der_hochrechnung():
+    """Tagesreihe: tatsächlich bis heute, dann Prognose; der letzte Tag = bisher + Rest, Spanne um die Mitte."""
+    beginn, ende = date(2026, 10, 1), date(2027, 4, 30)
+    a = roh(start=date(2026, 10, 21)) + [TagRoh(HEUTE, 3.0, 5.0, 3600)]
+    rest = container_rest(a, HEUTE, ende, {}, KLIMA, beginn)
+    R = reihe({"a": a}, {"a": rest}, HEUTE, beginn, ende, 9000.0)
+    assert len(R) == len(tage(beginn, ende)) and R[0][0] == "2026-10-01" and R[-1][0] == "2027-04-30"
+    b = bisher({"a": a}, HEUTE, beginn)
+    heute = next(z for z in R if z[0] == HEUTE.isoformat())
+    assert heute[1] == pytest.approx(b) and heute[2] == pytest.approx(b)
+    morgen = R[R.index(heute) + 1]
+    assert morgen[1] is None and morgen[2] > b
+    tag, ist, mit, unten, oben, ohne = R[-1]
+    assert ist is None and mit == pytest.approx(b + rest.rest_kwh, rel=1e-6)
+    assert unten == pytest.approx(b + rest.unten_kwh, rel=1e-6) and oben == pytest.approx(b + rest.oben_kwh, rel=1e-6)
+    assert unten < mit < oben
+    assert ohne == pytest.approx(9000.0) and R[0][5] == pytest.approx(9000.0 / len(R), abs=1e-3)   # Schätzung 24/7: gleichmäßig
+
+
+def test_reihe_lernt_ohne_spanne_und_ohne():
+    beginn, ende = date(2026, 10, 1), date(2026, 12, 31)
+    a = roh(5, start=date(2026, 11, 10))
+    rest = container_rest(a, HEUTE, ende, {}, KLIMA, beginn)
+    R = reihe({"a": a}, {"a": rest}, HEUTE, beginn, ende, None)
+    assert all(z[3] is None and z[4] is None and z[5] is None for z in R)
+    assert R[-1][2] == pytest.approx(bisher({"a": a}, HEUTE, beginn) + rest.rest_kwh)
+
+
+def test_vor_der_heizperiode_beginnt_der_rest_am_ersten_tag():
+    beginn, ende = date(2026, 12, 1), date(2026, 12, 31)
+    r = container_rest(roh(), HEUTE, ende, {}, KLIMA, beginn)
+    assert len(r.je_tag) == 31

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.125] – 2026-10-10
+
+- Auswertung: Karte **„Heizperiode“** (BSM-033.03, Mockup `hochrechnung.html`, abgenommen 10.10.2026) statt der Blöcke
+  „Hochrechnung Heizperiode“ und „Wetter-Einfluss“, mit drei Reitern:
+  - **Hochrechnung:** Prognose mit Spanne und ein Diagramm über die ganze Heizperiode – tatsächlich verbraucht bis heute,
+    Prognose mit Automatik (Band = milder/kalter Winter) und Prognose ohne Automatik (bis zur Baseline geschätzt), dazu
+    die Beträge, „gespart“ und woher die Zahl kommt.
+  - **Signatur:** je Container Tagesverbrauch gegen Außentemperatur mit Knickgerade, Heizgrenze, kWh je Grad, Grundlast
+    und Güte (bzw. „lernt noch“).
+  - **Klima:** Klimamittel, Vorhersage, Heizgradtage bis zum Ende, Normjahr; „Klimamittel ändern“ (12 Monatswerte,
+    „Vorgabe Graz“).
+  Die Heizperiode stellst du direkt in der Karte ein (✎, dieselbe Einstellung wie Einstellungen › Baustelle).
+- Hochrechnung: „bisher“ zählt jetzt die Tage der Heizperiode aus der Datenbank (vorher seit Zählbeginn) und wird
+  stündlich nachgerechnet.
+
 ## [0.8.124] – 2026-10-10
 
 - Hochrechnung der Heizperiode mit Energiesignatur (BSM-033.02): Statt „Tagesschnitt seit Zählbeginn × Tage“ rechnet die

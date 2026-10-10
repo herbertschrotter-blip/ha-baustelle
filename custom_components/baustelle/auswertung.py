@@ -464,4 +464,4 @@ def _hochrechnung(q: Quelle) -> tuple[dict[str, Any] | None, dict[str, Any] | No
     from .funktionen.heizung.hochrechnung import werte   # noqa: PLC0415
 
     hz = Heizung.von(q.st)
-    return werte(hz, q.zaehler.get("energie_heizen")), hz.hochrechnung
+    return werte(hz), hz.hochrechnung

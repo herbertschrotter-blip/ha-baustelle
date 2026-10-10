@@ -131,7 +131,7 @@ def hochrechnung_heizperiode(hz: Heizung, key: str) -> float | None:
     if key == "energie_heizen":
         from .hochrechnung import werte   # noqa: PLC0415
 
-        if (w := werte(hz, st.zaehler.get(key))) is not None and w["mit_kwh"] is not None:
+        if (w := werte(hz)) is not None and w["mit_kwh"] is not None:
             return float(w["mit_kwh"])
     seit = dt_util.parse_datetime(st.zaehler["seit"]) if st.zaehler.get("seit") else None
     if seit is None:

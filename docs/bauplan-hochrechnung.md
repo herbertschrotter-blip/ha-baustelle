@@ -6,7 +6,7 @@ Ersparnis wirkt dadurch zu groß. Ziel (Herbert 07.10.2026): nach professionelle
 Energiesignatur je Container (ASHRAE Guideline 14), eine Hochrechnung mit Heizgradtagen als Spanne (ÖNORM B 8135,
 Klimamittel GeoSphere Austria) und die Ersparnis aus einer gemessenen Baseline (IPMVP Option B).
 
-Stand: .01 fertig (0.8.123), .02 fertig (0.8.124, 10.10.2026). Aufgabe BSM-033, Unteraufgaben .01–.04 = Stufen in §2.
+Stand: .01 fertig (0.8.123), .02 fertig (0.8.124), .03 fertig (0.8.125, 10.10.2026). Aufgabe BSM-033, Unteraufgaben .01–.04 = Stufen in §2.
 
 ## 1. Grundsätze
 
@@ -21,7 +21,7 @@ Stand: .01 fertig (0.8.123), .02 fertig (0.8.124, 10.10.2026). Aufgabe BSM-033, 
 |---|---|---|
 | .01 | Energiesignatur je Container: `logik/signatur.py` | ☑ 0.8.123 |
 | .02 | Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung; Daten aus `tag_bereich` an die Signatur | ☑ 0.8.124 |
-| .03 | Anzeige: Karte „Heizperiode“ (Mockup `hochrechnung.html`, abgenommen 10.10.2026) | ☐ |
+| .03 | Anzeige: Karte „Heizperiode“ (Mockup `hochrechnung.html`, abgenommen 10.10.2026) | ☑ 0.8.125 |
 | .04 | Automatische Baseline-Läufe (startet aus, Kostenrahmen, Ankündigung, Abbruch) | ☐ |
 
 ## 3. Energiesignatur (.01)
@@ -82,6 +82,12 @@ Die Integration liefert alles; die Seite zeichnet nur. Neu in `baustelle/auswert
 (`reihe`: Tag, tatsächlich aufsummiert, Prognose mit/unten/oben/ohne aufsummiert), die **Punkte der Signatur** je
 Container (Tag: außen, kWh), die **Klimamittel** und die **Vorhersage**. Die Klimamittel speichert `baustelle/setzen`
 (`heizung.klimamittel`, logik prüft 12 Zahlen).
+
+Gebaut 0.8.125: Seite `frontend/src/ansichten/heizperiode.js` (Bausteine „hochrechnung“ und „wetter“ der Auswertung zeigen
+die Karte, „wetter“ öffnet mit dem Reiter Signatur; ✎ öffnet die Einblendung „zeitraum-bs“). „Bisher“ = Tage der
+Heizperiode aus `tag_bereich` (vorher Zähler seit Zählbeginn), Rechnung stündlich (:50) und gleich nach dem Speichern der
+Klimamittel. Noch offen: Kachel „Wetter“, Kachel-Katalog „Wetter-Einfluss“ und die Erkenntnis „je Grad kälter“ nutzen noch
+die Gerade `wetter_einfluss` – sie ziehen auf die Signatur um, danach fällt die Gerade weg (Regel nur einmal).
 
 ## 6. Tests
 

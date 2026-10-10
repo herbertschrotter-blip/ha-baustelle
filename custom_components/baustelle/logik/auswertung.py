@@ -531,7 +531,9 @@ def hochrechnung_signatur(
     werte: dict[str, Any], signatur: Mapping[str, Any] | None, ergebnis: Mapping[str, Any] | None, preis: float
 ) -> dict[str, Any]:
     """Hochrechnung (`hochrechnung_werte`) um die Signatur ergänzt (BSM-033.02): Methode, Spanne und Normjahr in kWh und €,
-    Heizgradtage des Rests und je Container Signatur und Rest. Ohne Signatur: Methode „tagesschnitt“, Spanne leer."""
+    Heizgradtage des Rests und je Container Signatur, Punkte und Rest; für die Karte „Heizperiode“ (BSM-033.03) die
+    Tagesreihe `reihe` ([Tag, tatsächlich, mit, unten, oben, ohne] kWh aufsummiert), Klimamittel und Vorhersage. Ohne
+    Signatur: Methode „tagesschnitt“, Spanne leer."""
     s = signatur or {}
     e = ergebnis or {}
     aus = {**werte, "methode": s.get("methode") or "tagesschnitt"}
@@ -541,6 +543,11 @@ def hochrechnung_signatur(
     aus["hgt_rest"] = e.get("hgt_rest")
     aus["vorhersage_tage"] = e.get("vorhersage_tage")
     aus["container"] = [{**c, "rest_eur": geld(c.get("rest_kwh"), preis)} for c in e.get("container") or []]
+    # BSM-033.03: Karte „Heizperiode“ – bisher aus den Tagen der Heizperiode, Tagesreihe, Klimamittel, Vorhersage
+    if e.get("bisher_kwh") is not None:
+        aus["bisher_kwh"], aus["bisher_eur"] = e["bisher_kwh"], geld(e["bisher_kwh"], preis)
+    for k in ("reihe", "klima", "klima_vorgabe", "vorhersage", "beginn", "ende"):
+        aus[k] = e.get(k)
     return aus
 
 
