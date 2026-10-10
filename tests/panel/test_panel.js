@@ -1236,6 +1236,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
         erwarte('BSM-031.07: Bestand der Baustelle zum Übernehmen', ui.innerHTML.includes('Noch nicht im Inventar'));
         await klick('.inv-c[data-id="c1"]', 20);
         erwarte('BSM-031.07: Container mit Einsatz, Ausrüstung, Geschichte', ['001-01_C_PLUG_POL', 'Geschichte', 'Einsatz', 'GG 01'].every(t => ui.innerHTML.includes(t)));
+        erwarte('BSM-034.04: Ausrüstung, die HA nicht zuordnet, ist markiert', ui.innerHTML.includes('class="amber-t inv-fremd"') && ui.innerHTML.includes('1 nicht in HA'));
         neu(); await klick('.sheet .inv-st', 10);
         erwarte('BSM-031.08: Status der Ausrüstung über inventar_aendern', aufrufe.some(m => m.type === 'baustelle/inventar_aendern' && m.aktion === 'ausruestung_status' && m.status === 'inaktiv'));
         erwarte('BSM-034.01: Seite lädt nach Inventar-Änderung neu', aufrufe.some(m => m.type === 'baustelle/struktur'));

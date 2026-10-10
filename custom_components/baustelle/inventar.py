@@ -18,6 +18,7 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN
 from .db import DATA_DB
 from .db import inventar as db_inventar
+from .abgleich import nicht_in_ha
 from .inventar_geraete import async_bestand, async_verweise, async_zuordnen, kandidaten, status_uebernehmen
 from .logik.inventar import (
     CONTAINER_ARTEN, GERAETE, HAENGT, SENSOR_TYP, STATUS_AUSRUESTUNG, InventarFehler, aufbereiten, firmenkuerzel_pruefen, nummer_frei,
@@ -47,8 +48,13 @@ async def ws_inventar(hass: HomeAssistant, connection: websocket_api.ActiveConne
     if roh is None:
         connection.send_error(msg["id"], "nicht_bereit", db.fehler or "Datenbank nicht lesbar")
         return
-    connection.send_result(msg["id"], {**aufbereiten(roh),
-                                       "aendern": bool(connection.user and connection.user.is_admin)})
+    aus = aufbereiten(roh)
+    fremd = nicht_in_ha(hass, roh)   # BSM-034.04: im Inventar, aber HA ordnet es dem Bereich nicht (mehr) zu
+    for c in aus["container"]:
+        for a in c["ausruestung"]:
+            a["nicht_in_ha"] = a["id"] in fremd
+        c["nicht_in_ha"] = sum(1 for a in c["ausruestung"] if a["nicht_in_ha"])
+    connection.send_result(msg["id"], {**aus, "aendern": bool(connection.user and connection.user.is_admin)})
 
 
 @websocket_api.websocket_command({

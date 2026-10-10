@@ -167,3 +167,36 @@ async def test_fensterkontakt_zuordnen_traegt_ins_aussehen_ein(hass: HomeAssista
     st = entry.runtime_data
     assert st.einstellungen.bereich(C1)["symbol"]["fenster"][0]["sensor"] == "binary_sensor.fenster_c1"
     assert ("fenster", "binary_sensor.fenster_c1") in [(x.art, x.entity_id) for x in st.sensoren(C1)]
+
+
+async def test_abgleich_traegt_nach_und_zeigt_fremdes(hass: HomeAssistant, baustelle_register, hass_ws_client) -> None:
+    """BSM-034.04 (Herbert 10.10.2026): Was HA dem Bereich zuordnet (auch über den HA-Dialog), trägt der Abgleich ins
+    Inventar nach; was nur im Inventar steckt, zeigt die Seite (`nicht_in_ha`), ohne es zu entfernen; Plugs aus dem
+    Inventar, die kein Heizkörper mehr sind, kommen auf die Abschalt-Liste des Notprogramms."""
+    from types import MappingProxyType   # noqa: PLC0415
+
+    from homeassistant.config_entries import ConfigSubentry   # noqa: PLC0415
+
+    entry = baustelle_register
+    _neuer_shelly(hass)
+    ws = await hass_ws_client(hass)
+    c = await _anlegen(ws, 1, entry, art="POL", bereich_id=C1)
+    plug = next(a for a in c["ausruestung"] if a["typ"] == "PLUG")
+    # wie über Geräte & Dienste › Baustelle › Shelly hinzufügen: HA lädt neu, der Abgleich läuft beim Start
+    hass.config_entries.async_add_subentry(entry, ConfigSubentry(
+        data=MappingProxyType({"bereich": C1, "schalter": "switch.plug_lager_09", "name": "Lager 09", "rolle": "heizkoerper",
+                               "typ": "konvektor"}), subentry_type="geraet", title="Lager 09", unique_id=None))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    st = entry.runtime_data
+    alles = (await _senden(ws, 2, type="baustelle/inventar"))["result"]
+    pol = next(x for x in alles["container"] if x["id"] == c["id"])
+    assert len([a for a in pol["ausruestung"] if a["typ"] == "PLUG"]) == 2 and pol["nicht_in_ha"] == 0
+    assert any(e[3] == "Inventar nachgetragen: Lager 09 (Container 1)" for e in st.e["protokoll"])
+
+    # HK1 im HA-Dialog gelöscht: der Plug bleibt im Container, die Seite zeigt „nicht in HA“
+    hass.config_entries.async_remove_subentry(entry, HK1)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    alles = (await _senden(ws, 3, type="baustelle/inventar"))["result"]
+    pol = next(x for x in alles["container"] if x["id"] == c["id"])
+    assert pol["nicht_in_ha"] == 1 and next(a for a in pol["ausruestung"] if a["id"] == plug["id"])["nicht_in_ha"] is True
+    assert entry.runtime_data.lz["np_plugs"].get(f"inventar:{plug['id']}") == "switch.hk1"   # Notprogramm schaltet ab

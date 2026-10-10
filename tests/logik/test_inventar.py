@@ -241,3 +241,12 @@ def test_zuordnen_regeln():
         nummer_frei(2, [1, 2])
     with pytest.raises(InventarFehler):
         nummer_frei(0, [])
+
+
+def test_abgleich_ha_gilt_inventar_nur_anzeigen() -> None:
+    """BSM-034.04: HA-Zuordnung wird nachgetragen, Ausrüstung nur im Inventar wird nur gemeldet."""
+    from logik.inventar import abgleich
+
+    nach, fremd = abgleich(["mac:1", "mac:2", "mac:2", "bt:3"], {"mac:1": "a1", "mac:9": "a9"})
+    assert nach == ["mac:2", "bt:3"] and fremd == ["a9"]
+    assert abgleich([], {}) == ([], [])

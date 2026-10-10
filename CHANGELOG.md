@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.120] – 2026-10-10
+
+- Abgleich Inventar ↔ HA (BSM-034.04): Was ein Container in Home Assistant hat (Shellys, Fühler, Türen, Fenster – auch
+  über Geräte & Dienste eingetragen), kommt beim Start, täglich um 03:40 und nach Änderungen am Türkontakt oder
+  Aussehen von selbst ins Inventar (Protokoll „Inventar nachgetragen: …“). Ausrüstung, die nur im Inventar steckt, zeigt
+  die Inventar-Seite als „nicht in HA“ – entfernt wird sie nur mit ✕. Shelly-Plugs aus dem Inventar, die kein Heizkörper
+  mehr sind, bekommen ihr Notprogramm abgeschaltet (auch von vor 0.8.115).
+
 ## [0.8.119] – 2026-10-10
 
 - Notprogramm mit allen Türen und Fenstern (BSM-034.03, Lieferung 2): Die Plugs koppeln jetzt alle Tür- und

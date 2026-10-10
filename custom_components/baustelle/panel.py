@@ -19,6 +19,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
+from .abgleich import async_abgleich
 from . import auswertung
 from .const import DOMAIN, EVENT_PROTOKOLL
 from .daten import struktur
@@ -430,6 +431,8 @@ def ws_setzen(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
     einstellung_merken(hass, st.entry.entry_id, ".".join(pfad), wert, _benutzer(connection),   # BSM-007: mit Benutzer
                        bereich_id=pfad[1] if pfad[0] == "bereiche" else None, geraet_id=pfad[1] if pfad[0] == "geraete" else None)
     hass.async_create_task(async_spiegeln(hass, struktur(hass, st.entry)), "baustelle_datenbank_spiegeln")
+    if pfad[0] == "bereiche" and pfad[-1] in ("tuer", "symbol"):   # Sensoren geändert: Inventar nachziehen (BSM-034.04)
+        st.entry.async_create_background_task(hass, async_abgleich(hass, st), "baustelle_abgleich")
     connection.send_result(msg["id"], {"ok": True})
 
 

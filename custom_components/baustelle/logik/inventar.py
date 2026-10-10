@@ -419,3 +419,17 @@ def nummer_frei(nr: int, vorhanden: Iterable[int | None]) -> int:
     if nr in set(vorhanden):
         raise InventarFehler(f"Nummer {nr:03d} ist schon vergeben – eine Nummer gilt für immer")
     return nr
+
+
+# ---------------------------------------------------------------------- Abgleich Inventar ↔ HA (BSM-034.04)
+def abgleich(ha: Iterable[str], im_container: Mapping[str, str]) -> tuple[list[str], list[str]]:
+    """Ein Bereich mit Inventar-Container: `ha` = Kennungen dessen, was HA dem Bereich zuordnet (Shellys, Fühler, Türen,
+    Fenster), `im_container` = Kennung → Ausrüstung der laufenden Einsätze im Container.
+
+    Ergebnis (nachtragen, nicht_in_ha): Was HA hat und das Inventar nicht, trägt der Abgleich nach (Herbert 10.10.2026:
+    HA gilt, der Abgleich zieht nach). Was nur im Inventar steckt, wird nur angezeigt – nichts verschwindet von selbst.
+    """
+    ha_set = list(dict.fromkeys(ha))
+    nachtragen = [k for k in ha_set if k not in im_container]
+    nicht_in_ha = [aid for k, aid in im_container.items() if k not in ha_set]
+    return nachtragen, nicht_in_ha

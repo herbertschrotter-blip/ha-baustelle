@@ -403,7 +403,12 @@ naechste_nr, aendern}`
 - `container[]`: `id`, `name` (`002_C_MAN`, `STRA-01_C_MAN`), `nr`, `art`, `art_label`, `eigen`, `firma_kuerzel`,
   `fremd_nr`, `status` (aktiv/ausgeschieden), `labels`, `einsatz` (aktueller: `baustelle_id`, `bereich_id`, `von`; sonst
   `null`), `geschichte` (alle Einsätze mit `von`/`bis`), `ausruestung[]` (`id`, `typ`, `typ_label`, `name`
-  (`002-01_C_PLUG_MAN`), `gg`, `status`, `modell`, `geraet_id`, `seit`)
+  (`002-01_C_PLUG_MAN`), `gg`, `status`, `modell`, `geraet_id`, `seit`, `nicht_in_ha`), `nicht_in_ha` (Anzahl)
+- Abgleich (0.8.120, BSM-034.04): beim Start jeder Baustelle, täglich 03:40 und nach Änderungen an Türkontakt oder
+  Aussehen trägt die Integration nach, was HA einem Bereich mit Inventar-Container zuordnet (Shellys, Fühler, Türen,
+  Fenster; Protokoll „Inventar nachgetragen: …“); was nur im Inventar steckt, markiert `nicht_in_ha` – es bleibt, bis
+  jemand es mit `ausruestung_entfernen` herausnimmt. Plugs aus dem Inventar, die in keiner Baustelle Heizkörper sind,
+  schaltet das Notprogramm ab (Skript von vor 0.8.115).
 - `ausruestung_frei[]`: Ausrüstung ohne Container; `bereiche_ohne[]`: Container-Bereiche der Baustellen ohne
   Inventar-Container (`id`, `baustelle_id`, `name`); `firmen[]` mit `kuerzel`
 - `arten`, `geraete`: die Kürzeltabelle mit deutschen Labels; `naechste_nr`: nächste Nummer für einen eigenen Container;

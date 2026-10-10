@@ -5,7 +5,7 @@ liegen heute an sieben Stellen und werden über verschiedene Wege geändert; das
 angebunden. Ziel: **jede Eigenschaft hat genau einen Besitzer**, jede Ansicht ändert sie über dieselbe Funktion der
 Integration, ein Abgleich hält Inventar, HA und Einstellungen beieinander.
 
-Stand: .01 fertig (0.8.115), .02 fertig (0.8.116/0.8.117), .03 fertig (0.8.118/0.8.119, 10.10.2026); Plan vom 09.10.2026 (Sitzung „ha-baustelle Teil 6“, Herbert: „kochen die alle ihr eigenes Süppchen?“), Befund
+Stand: .01 fertig (0.8.115), .02 fertig (0.8.116/0.8.117), .03 fertig (0.8.118/0.8.119), .04 fertig (0.8.120, 10.10.2026); Plan vom 09.10.2026 (Sitzung „ha-baustelle Teil 6“, Herbert: „kochen die alle ihr eigenes Süppchen?“), Befund
 aus zwei Durchsichten (Integration, Seite) auf 0.8.114. Aufgabe BSM-034, Unteraufgaben .01–.05 = Stufen in §5.
 
 ## 1. Befund – wo Geräte gespeichert sind
@@ -83,7 +83,7 @@ mit Test; die Seite rechnet nichts. Jede Änderung schreibt Protokoll und Datenb
 | ☑ | .01 Sofort-Fehler | Fehler 1–7 aus §3, Seite lädt nach Inventar-Änderungen neu – **0.8.115** (Fehler 5 entfällt) | kaum – sicherer |
 | ☑ | .02 Baustein `kern/geraete` – Lieferung 1 Status **0.8.116**, Lieferung 2 Anlegen/Ändern/Verschieben/Entfernen **0.8.117** | Zuordnen, Entfernen, Verschieben, Rolle/Typ, Status über eine Stelle (Prüfregeln wie der HA-Dialog); Status als ein Feld, Abgleich mit Inventar in beide Richtungen; Bearbeiten, ✎, Chip und Inventar rufen dieselben Befehle | ein Status statt drei Schalter |
 | ☑ | .03 Sensoren vereinheitlichen – Lieferung 1 **0.8.118** (Integration, Seite, Inventar, Batterie), Lieferung 2 Notprogramm **0.8.119** | je Container eine Sensorliste (Fühler, Türen, Fenster, Licht); jede Tür pausiert, alle in › Geräte, Reparatur-Hinweisen, Mitschreiben, Inventar, Notprogramm | Tür 2/Fenster wirken |
-| ☐ | .04 Abgleich | beim Start, täglich und nach jeder Änderung: Inventar ↔ HA, offene Einsätze, Reste gelöschter Geräte, Notprogramm abschalten; Abweichungen im Inventar („2 Geräte ohne Inventar“) | Hinweis im Inventar |
+| ☑ | .04 Abgleich – **0.8.120** (nachtragen, „nicht in HA“ anzeigen, verwaiste Plugs abschalten) | beim Start, täglich und nach jeder Änderung: Inventar ↔ HA, offene Einsätze, Reste gelöschter Geräte, Notprogramm abschalten; Abweichungen im Inventar („2 Geräte ohne Inventar“) | Hinweis im Inventar |
 | ☐ | .05 Seite zusammenführen | **erst Mockup**: Gruppe „Geräte“ mit Reitern Übersicht/Inventar, ein Gerätedialog statt drei (überall gleich sofort oder überall erst bei Speichern), einheitliche Symbole und Zähler, Gerätewarnungen sichtbar, Batterie/Signal im Container | neue Ansicht |
 
 ## 6. Entscheidungen (Herbert, 09.10.2026)
@@ -100,6 +100,8 @@ mit Test; die Seite rechnet nichts. Jede Änderung schreibt Protokoll und Datenb
 | Ablage der Sensorliste (.03) | **keine neue Ablage**: aus Fühler, Türkontakt (= Tür 1) und Aussehen gebildet (`logik/sensoren`) |
 | Batterie (.03) | **für alle Sensoren** eine Warnung bei schwacher Batterie |
 | .03 in wie vielen Lieferungen | **zwei**: 1) Integration, Seite, Inventar, Batterie; 2) Notprogramm mit mehreren Türen/Fenstern |
+| Abgleich HA → Inventar (.04, 10.10.2026) | **selbst nachtragen** (HA gilt), mit Protokoll |
+| Abgleich Inventar → HA (.04) | **nur anzeigen** („nicht in HA“), entfernen nur von Hand |
 
 ## 7. Tests
 

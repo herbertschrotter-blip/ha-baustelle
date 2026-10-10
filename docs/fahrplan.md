@@ -114,5 +114,5 @@ Inventar hängt nur in einer Richtung daran. Ziel: ein Besitzer je Eigenschaft, 
 - [x] **K1** (BSM-034.01, 0.8.115) Sofort-Fehler: Notprogramm entfernter Plugs, Ausrüstung beim Ausscheiden frei, Sensoren nicht festschreiben, ✎ an Pumpen, Reste löschen, alles erst bei „Speichern“ (Bestand-Typ war kein Fehler)
 - [x] **K2** (BSM-034.02, 0.8.116/0.8.117) Baustein `kern/geraete` und ein Status je Gerät, Abgleich mit dem Inventar in beide Richtungen; Geräte der Seite über `baustelle/geraet`
 - [x] **K3** (BSM-034.03, 0.8.118/0.8.119) Sensoren je Container vereinheitlichen (Fühler, Türen, Fenster, Licht) – jeder Kontakt pausiert, auch im Notprogramm
-- [ ] **K4** (BSM-034.04) Abgleich Inventar ↔ HA beim Start, täglich, nach jeder Änderung
+- [x] **K4** (BSM-034.04, 0.8.120) Abgleich Inventar ↔ HA beim Start, täglich, nach jeder Änderung (nachtragen, „nicht in HA“ anzeigen)
 - [ ] **K5** (BSM-034.05) Seite: Geräte und Inventar zusammenführen (erst Mockup)

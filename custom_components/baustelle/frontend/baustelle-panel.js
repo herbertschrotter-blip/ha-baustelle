@@ -2852,7 +2852,7 @@ function invInhalt(p4, I2) {
   const f3 = p4.s.invFilter || "alle", C2 = sichtbar(I2, f3), hier = I2.bereiche_ohne.filter((b3) => b3.baustelle_id === p4.d.entry);
   const zeile2 = (c4) => b2`<button class="zeile inv-c" data-id=${c4.id} @click=${() => p4.invAuf({ art: "inv-container", id: c4.id })}><div class="inv-c-t"><b class="inv-id">${c4.name}</b>${c4.eigen ? A : b2`<span class="badge">fremd${(I2.firmen.find((x2) => x2.kuerzel === c4.firma_kuerzel) || {}).name ? " · " + I2.firmen.find((x2) => x2.kuerzel === c4.firma_kuerzel).name : ""}</span>`}
       <div class="leise">${c4.art_label} · ${c4.status === "aktiv" ? ort(p4, c4.einsatz) || "ohne Einsatz" : "ausgeschieden"}</div></div>
-      <span class="leise inv-zahl">${c4.ausruestung.length} ${c4.ausruestung.length === 1 ? "Gerät" : "Geräte"}</span><span class="chev">›</span></button>`;
+      <span class="leise inv-zahl">${c4.nicht_in_ha ? b2`<span class="amber-t">${c4.nicht_in_ha} nicht in HA</span> · ` : A}${c4.ausruestung.length} ${c4.ausruestung.length === 1 ? "Gerät" : "Geräte"}</span><span class="chev">›</span></button>`;
   return b2`<div class="seg glas-panel inv-filter">${FILTER.map(([k2, t5]) => b2`<button data-v=${k2} class=${f3 === k2 ? "on" : ""} @click=${() => {
     p4.s.invFilter = k2;
     p4.neuZeichnen();
@@ -2869,13 +2869,13 @@ function containerSheet(p4, s4) {
   const I2 = p4.invDaten(), c4 = I2 && I2.container.find((x2) => x2.id === s4.id);
   if (!c4) return b2`${GRIFF5}<div class="leer">${I2 === void 0 ? "lädt …" : "Container nicht gefunden"}</div>${knopf5("Schließen", () => p4.schliessen(), "leise-k")}`;
   const aktiv = c4.status === "aktiv", firma2 = I2.firmen.find((x2) => x2.kuerzel === c4.firma_kuerzel);
-  const zeileA = (a3) => b2`<div class="zeile"><div class="inv-g"><b class="inv-id">${a3.name || a3.typ_label}</b><div class="leise">${IC[a3.typ] || ""} ${a3.modell || ""} · ${a3.typ_label}${a3.gg ? " · GG " + String(a3.gg).padStart(2, "0") : ""}</div></div>
+  const zeileA = (a3) => b2`<div class="zeile"><div class="inv-g"><b class="inv-id">${a3.name || a3.typ_label}</b>${a3.nicht_in_ha ? b2` <span class="amber-t inv-fremd" title="Steht im Inventar, Home Assistant ordnet es diesem Container aber nicht zu – ✕ nimmt es heraus">nicht in HA</span>` : A}<div class="leise">${IC[a3.typ] || ""} ${a3.modell || ""} · ${a3.typ_label}${a3.gg ? " · GG " + String(a3.gg).padStart(2, "0") : ""}</div></div>
       ${statusChip(p4, a3)}${aktiv ? b2`<button class="inv-x nur-admin" title="Aus dem Container nehmen (wird frei)" @click=${p4.nurAdmin(() => p4.invSenden({ aktion: "ausruestung_entfernen", ausruestung_id: a3.id }, "Aus dem Container genommen"))}>✕</button>` : A}</div>`;
   return b2`${GRIFF5}<div class="block-kopf"><h3 class="inv-id inv-gross">${c4.name}</h3></div>
     <div class="leise inv-unterzeile">${c4.art_label} · ${c4.eigen ? "eigener Container · Nr. " + String(c4.nr).padStart(3, "0") : `Fremdcontainer · ${firma2 ? firma2.name : ""} (${c4.firma_kuerzel})`}${aktiv ? "" : " · ausgeschieden"}</div>
     <div class="glas-panel liste inv-liste"><div class="gruppe">Einsatz</div><div class="zeile"><span>${aktiv ? ort(p4, c4.einsatz) || "ohne Einsatz" : "keiner"}</span><span class="leise">${c4.einsatz ? "seit " + datum2(c4.einsatz.von) : ""}</span></div>
       <div class="zeile"><span>Labels</span><span class="leise">${c4.labels.join(", ")}</span></div></div>
-    <div class="glas-panel liste inv-liste"><div class="gruppe">Ausrüstung · ${c4.ausruestung.length}</div>${c4.ausruestung.length ? c4.ausruestung.map(zeileA) : b2`<div class="leer">Noch keine Ausrüstung</div>`}
+    <div class="glas-panel liste inv-liste"><div class="gruppe">Ausrüstung · ${c4.ausruestung.length}${c4.nicht_in_ha ? b2` · <span class="amber-t">${c4.nicht_in_ha} nicht in HA</span>` : A}</div>${c4.ausruestung.length ? c4.ausruestung.map(zeileA) : b2`<div class="leer">Noch keine Ausrüstung</div>`}
       ${aktiv ? b2`<button class="zeile nur-admin" data-k="zuordnen-auf" @click=${p4.nurAdmin(() => p4.invAuf({ art: "inv-zuordnen", id: c4.id, haengt: "konvektor" }))}><span class="blau">+ Gerät zuordnen</span></button>` : A}</div>
     <div class="glas-panel liste inv-liste"><div class="gruppe">Geschichte</div>${c4.geschichte.slice().reverse().map((e6) => b2`<div class="zeile"><span>${ort(p4, e6)}</span><span class="leise">${e6.bis ? datum2(e6.von) + " – " + datum2(e6.bis) : "seit " + datum2(e6.von)}</span></div>`)}</div>
     ${aktiv && c4.einsatz && c4.einsatz.bereich_id ? b2`${knopf5("Namen prüfen", () => p4.invAuf({ art: "inv-vorschau", id: c4.id }), "amber", "pruefen")}${knopf5("Rückgängig …", p4.nurAdmin(() => p4.invAuf({ art: "inv-vorschau", id: c4.id, rueck: true })), "nur-admin", "rueck")}` : A}
@@ -5064,7 +5064,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.119";
+var SEITE_VERSION = "0.8.120";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", ...Object.keys(INVENTAR_EINBLENDUNGEN), "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS), r(INV_CSS)];

@@ -5,7 +5,7 @@ schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und 
 Vorlage der Oberfläche ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`);
 Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
-## Funktionen (Stand 0.8.119)
+## Funktionen (Stand 0.8.120)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (auch direkt von der Seite aus). Ein Shelly gehört nur
@@ -65,6 +65,7 @@ custom_components/baustelle/   Integration (→ /config/custom_components/bauste
   inventar.py                  WebSocket-Befehle fürs Container-Inventar (Namen aus logik/inventar.py)
   inventar_geraete.py          Ausrüstung aus HA: Kandidaten, Zuordnen mit Verdrahtung, Bestand, Status, Verweise
   geraete.py                   WebSocket-Befehl baustelle/geraet: Status, Geräte anlegen/ändern/entfernen (über kern/geraete)
+  abgleich.py                  Abgleich Inventar ↔ HA (Start, täglich, nach Sensor-Änderungen; nachtragen, „nicht in HA“)
   umbenennen.py                Umbenennen nach dem Schema ausführen (Register, Labels, eigene Verweise, Plug-Name, Nachholen, Rückgängig)
   notprogramm.py, shelly/      Notprogramm: Skript notprogramm.js in die Plugs bringen, Programm, Kopplungen, Nachtrag
   backup.py                    Datenbank während der HA-Sicherung anhalten bzw. abziehen

@@ -144,7 +144,7 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
       { id: 'c1', name: '001_C_POL', nr: 1, art: 'POL', art_label: 'Polier', eigen: true, firma_kuerzel: null, fremd_nr: null, status: 'aktiv', labels: ['Container', 'Polier'],
         einsatz: jetzt, geschichte: [e('c1', null, '2026-03-09T06:00:00+00:00', '2026-08-28T15:00:00+00:00', 'wundschuh'), jetzt],
         ausruestung: [{ id: 'a1', typ: 'PLUG', typ_label: 'Shelly Plug', name: '001-01_C_PLUG_POL', gg: 1, status: 'aktiv', modell: 'Shelly Plug S Gen3', geraet_id: g1 ? g1.id : null, seit: jetzt.von },
-          { id: 'a2', typ: 'TEMP', typ_label: 'Shelly H&Temp Sensor', name: '001_C_TEMP_POL', gg: null, status: 'aktiv', modell: 'Shelly H&T Gen3', geraet_id: null, seit: jetzt.von }] },
+          { id: 'a2', typ: 'TEMP', typ_label: 'Shelly H&Temp Sensor', name: '001_C_TEMP_POL', gg: null, status: 'aktiv', modell: 'Shelly H&T Gen3', geraet_id: null, seit: jetzt.von, nicht_in_ha: true }], nicht_in_ha: 1 },   // BSM-034.04
       { id: 'f1', name: 'STRA-01_C_MAN', nr: null, art: 'MAN', art_label: 'Mannschaft', eigen: false, firma_kuerzel: 'STRA', fremd_nr: 1, status: 'aktiv', labels: ['Container', 'Mannschaft', 'Strabag AG'],
         einsatz: e('f1', null, '2026-09-22T06:00:00+00:00'), geschichte: [e('f1', null, '2026-09-22T06:00:00+00:00')], ausruestung: [] },
       { id: 'x1', name: '002_C_LAG', nr: 2, art: 'LAG', art_label: 'Lager', eigen: true, firma_kuerzel: null, fremd_nr: null, status: 'ausgeschieden', labels: ['Container', 'Lager'],

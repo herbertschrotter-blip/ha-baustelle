@@ -171,8 +171,8 @@ def geraet_entfernt(v: Connection, geraet_id: str, jetzt: datetime) -> int:
     return v.execute(update(lfd).where(lfd.c.geraet_id == geraet_id, lfd.c.bis.is_(None)).values(bis=jetzt)).rowcount
 
 
-def geraet_im_container(v: Connection, *, kennung: str, modell: str | None, container_id: str | None, geraet_id: str,
-                        jetzt: datetime) -> dict[str, Any] | None:
+def geraet_im_container(v: Connection, *, kennung: str, modell: str | None, container_id: str | None, geraet_id: str | None,
+                        jetzt: datetime, typ: str = "PLUG") -> dict[str, Any] | None:
     """Gerät (Shelly) steckt jetzt im Bereich mit `container_id` (None = Bereich ohne Inventar): ein laufender Einsatz in
     einem anderen Container endet, im neuen beginnt einer (PLUG, nächste GG). Defekte Ausrüstung bleibt draußen.
     Was HA sagt, gilt – der Abgleich (BSM-034.04) zieht das Inventar nach, nicht umgekehrt."""
@@ -181,11 +181,12 @@ def geraet_im_container(v: Connection, *, kennung: str, modell: str | None, cont
     if a is not None:
         v.execute(update(lfd).where(lfd.c.ausruestung_id == a.id, lfd.c.bis.is_(None),
                                     lfd.c.container_id != (container_id or "")).values(bis=jetzt))
-    v.execute(update(lfd).where(lfd.c.geraet_id == geraet_id, lfd.c.bis.is_(None),
-                                lfd.c.container_id != (container_id or "")).values(bis=jetzt))
+    if geraet_id:
+        v.execute(update(lfd).where(lfd.c.geraet_id == geraet_id, lfd.c.bis.is_(None),
+                                    lfd.c.container_id != (container_id or "")).values(bis=jetzt))
     if container_id is None or (a is not None and a.status == "defekt"):
         return None
-    return ausruestung_zuordnen(v, kennung=kennung, typ="PLUG", modell=modell, container_id=container_id,
+    return ausruestung_zuordnen(v, kennung=kennung, typ=typ, modell=modell, container_id=container_id,
                                 geraet_id=geraet_id, jetzt=jetzt)
 
 
