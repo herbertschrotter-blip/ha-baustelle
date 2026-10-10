@@ -80,10 +80,8 @@ def _verwaiste_plugs(hass: HomeAssistant, st: Steuerung, roh: dict[str, Any]) ->
         if a.get("typ") != "PLUG" or not k:
             continue
         art, _, wert = k.partition(":")
-        geraet = geraete.async_get(wert) if art == "ha" else geraete.async_get_device(connections={(art, wert)})
-        if geraet is None:
-            continue
-        schalter = next((x.entity_id for x in er.async_entries_for_device(er.async_get(hass), geraet.id)
+        kandidaten = [g for g in [geraete.async_get(wert)] if g] if art == "ha" else geraete.async_get_devices(connections={(art, wert)})
+        schalter = next((x.entity_id for g in kandidaten for x in er.async_entries_for_device(er.async_get(hass), g.id)
                          if x.domain == "switch" and x.platform == "shelly"), None)
         if schalter and schalter not in heizer and schalter not in bekannt.values():
             bekannt[f"inventar:{a['id']}"] = schalter

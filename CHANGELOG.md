@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.121] – 2026-10-10
+
+- Abgleich (BSM-034.04): HA meldete beim Start die Warnung „async_get_device is deprecated“ (fällt mit HA 2027.8 weg);
+  die Integration sucht die Geräte jetzt über die neue Schnittstelle.
+
 ## [0.8.120] – 2026-10-10
 
 - Abgleich Inventar ↔ HA (BSM-034.04): Was ein Container in Home Assistant hat (Shellys, Fühler, Türen, Fenster – auch
