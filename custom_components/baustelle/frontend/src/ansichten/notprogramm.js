@@ -36,7 +36,7 @@ export function npPlugEinblendung(p, s) {
   return html`${GRIFF}<div class="block-kopf"><h3>🛟 ${p.name(x.g.schalter) || x.g.n}</h3></div><div class="leise" style="padding:0 4px 8px">${x.b.name}</div>
       <div class="glas-panel liste">${z('Zustand', chip(p, np))}${z('Skript', np.version ? `Version ${np.version} · läuft` : '–')}${z('Programm', np.bis ? `gültig bis ${p.npZeit(np.bis)} · geladen` : np.programm ? 'geladen · ohne Heizzeit in den nächsten 7 Tagen' : '–')}
         ${z('Im Notbetrieb', p.npModus(np))}${z('Frostschutz', frost)}${z('Fühler am Plug', np.fuehler ? `Messwert Nr. ${np.fuehler}` : np.fuehler_fehlt ? html`<span class="amber-t">keiner – Zeitplan</span>` : '–')}
-        ${z('Tür am Plug', np.tuer ? `✓ Messwert Nr. ${np.tuer}` : '–')}${z('Letzte Prüfung', p.npVor(np.zuletzt))}</div>
+        ${z('Türen/Fenster am Plug', np.tuer ? `✓ Messwert Nr. ${[].concat(np.tuer).join(', ')}` : '–')}${z('Letzte Prüfung', p.npVor(np.zuletzt))}</div>
       <div class="glas-panel liste"><div class="gruppe">Notbetrieb</div>${np.zustand === 'not' ? z('läuft seit', `${p.npZeit(np.notbetrieb_seit)} · Home Assistant meldet sich nicht`) : nothing}
         ${z('zuletzt', np.notbetrieb_zuletzt ? `${p.npZeit(np.notbetrieb_zuletzt[0])} – ${p.npZeit(np.notbetrieb_zuletzt[1], false)}` : 'noch nie (seit dem Start von Home Assistant)')}</div>
       ${an ? html`<div class="glas-panel liste"><div class="gruppe">Ausfall-Probe</div>

@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.119",
+    "datum": "2026-10-10",
+    "punkte": [
+      "Notprogramm mit allen Türen und Fenstern (BSM-034.03, Lieferung 2): Die Plugs koppeln jetzt alle Tür- und Fensterkontakte ihres Containers (aus der Sensorliste) und pausieren im Notbetrieb, sobald einer länger als die Tür-Pause offen ist – vorher nur der eine Türkontakt. Neues Skript (Version 6); die Integration spielt es in der nächsten Runde selbst ein, wenn das Notprogramm an ist. Einstellungen › Notprogramm › Plug zeigt „Türen/Fenster am Plug“."
+    ]
+  },
+  {
     "version": "0.8.118",
     "datum": "2026-10-09",
     "punkte": [

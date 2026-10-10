@@ -33,6 +33,7 @@ import json
 import logging
 from pathlib import Path
 import re
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast
 
 import aiohttp
@@ -50,6 +51,7 @@ from .db.nachtrag import messung, nachtragen
 from .db.tage import async_tage_rechnen
 from .logik import notprogramm as logik
 from .logik.arbeitszeit import ausnahme_am, bedarf_fenster, frei_gilt
+from .logik.sensoren import kontakte
 
 if TYPE_CHECKING:
     from .funktionen.heizung import Heizung
@@ -151,7 +153,7 @@ class Stand:
     programm: int | None = None       # Stand, den das Skript geladen hat
     notbetrieb: int = 0               # Notbetrieb seit (Unix-Sekunden, 0 = nein) laut letzter Antwort
     fuehler: int | None = None
-    tuer: int | None = None
+    tuer: list[int] | None = None   # Messwerte der Türen und Fenster am Plug (BSM-034.03)
     fehler: str | None = None
     fehler_seit: datetime | None = None
     zuletzt: datetime | None = None
@@ -330,11 +332,14 @@ class Notprogramm:
                 return geraete, sensoren
 
     def _gewollt(self, g: GeraetInfo) -> dict[str, tuple[str, str]]:
-        """BLU-Sensoren des Containers: Bluetooth-Adresse → (Gerätename in HA, Rolle)."""
+        """BLU-Sensoren des Containers: Bluetooth-Adresse → (Gerätename in HA, Rolle) – Fühler, alle Türen und Fenster
+        (BSM-034.03, Sensorliste des Containers; Licht nicht)."""
         raus: dict[str, tuple[str, str]] = {}
-        for entity_id, rolle in ((self.st.bereiche[g.bereich].fuehler, "fuehler"), (self.st.einstellungen.bereich(g.bereich).get("tuer"), "tuer")):
-            if (a := self._bt_adresse(entity_id)) is not None and (name := self._geraet_name(entity_id)):
-                raus[a] = (name, rolle)
+        for s in self.st.sensoren(g.bereich):
+            if s.art == "licht":
+                continue
+            if (a := self._bt_adresse(s.entity_id)) is not None and a not in raus and (name := self._geraet_name(s.entity_id)):
+                raus[a] = (name, "fuehler" if s.art == "fuehler" else "tuer")
         return raus
 
     def _geraet_name(self, entity_id: str | None) -> str | None:
@@ -441,9 +446,10 @@ class Notprogramm:
         _, sensoren = await self._gekoppelt(plug)
         messwerte = {k: nr for k, (nr, _) in sensoren.items()}
         info = self.st.bereiche[g.bereich]
-        e = self.st.einstellungen.bereich(g.bereich)
         stand.fuehler = messwerte.get((a, OBJ_TEMPERATUR)) if (a := self._bt_adresse(info.fuehler)) else None
-        stand.tuer = messwerte.get((a, OBJ_FENSTER)) if (a := self._bt_adresse(e.get("tuer"))) else None
+        tueren = [nr for x in kontakte(self.st.sensoren(g.bereich))
+                  if (a := self._bt_adresse(x)) and (nr := messwerte.get((a, OBJ_FENSTER))) is not None]
+        stand.tuer = list(dict.fromkeys(tueren)) or None
         werte = self.werte(g, stand.fuehler, stand.tuer)
         if stand.geschrieben is None:
             stand.geschrieben = {k["key"]: k["value"] for k in
@@ -632,7 +638,7 @@ class Notprogramm:
             self.st.auswerten()
 
     # ------------------------------------------------------------------ Programm
-    def werte(self, g: GeraetInfo, temp_nr: int | None, tuer_nr: int | None, jetzt: datetime | None = None) -> dict[str, str]:
+    def werte(self, g: GeraetInfo, temp_nr: int | None, tuer_nrn: Iterable[int] | None, jetzt: datetime | None = None) -> dict[str, str]:
         """KVS-Werte für den Plug eines Heizkörpers (logik/notprogramm)."""
         st = self.st
         h = cast("Heizung", st.funktion("heizung"))
@@ -642,7 +648,7 @@ class Notprogramm:
             automatik=st.automatik, auto=bool(e["auto"]), hand=g.id in st.lz["hand"], aktiv=st.geraet_aktiv(g),
             modus=h.modus(bid), bedarf=bool(e["bedarf"]), toleranz=float(eh["toleranz"]), frost=bool(eh["frost"]),
             frost_grenze=float(eh["frost_grenze"]), frost_aus=None if eh.get("frost_aus") is None else float(eh["frost_aus"]),
-            frost_immer=bool(eh.get("frost_immer")), tuer_pause_min=int(eh["tuer_pause_min"]), temp_nr=temp_nr, tuer_nr=tuer_nr,
+            frost_immer=bool(eh.get("frost_immer")), tuer_pause_min=int(eh["tuer_pause_min"]), temp_nr=temp_nr, tuer_nrn=tuple(tuer_nrn or ()),
         )
         soll, modus = h.soll_temperatur(bid), logik.modus(v)
         fenster: list[logik.Fenster] = []

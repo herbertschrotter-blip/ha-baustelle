@@ -14,7 +14,7 @@ TAG = 24 * H
 WOCHE = {T0 + i * TAG: i for i in range(7)}   # Mo = 0
 
 V = Vorgaben(automatik=True, auto=True, hand=False, aktiv=True, modus="thermo", bedarf=False, toleranz=0.3,
-             frost=True, frost_grenze=5.0, frost_aus=None, frost_immer=False, tuer_pause_min=3, temp_nr=202, tuer_nr=None)
+             frost=True, frost_grenze=5.0, frost_aus=None, frost_immer=False, tuer_pause_min=3, temp_nr=202)
 
 
 def test_modus_wie_die_regelung() -> None:

@@ -306,7 +306,7 @@ async def test_kopplungen_in_ordnung_halten(hass: HomeAssistant, anlage) -> None
     assert set(k2) == {"002_C_DOOR_C2", "002_C_DOOR_C2_Batterie", "002_C_DOOR_C2_Tuer", "002_C_DOOR_C2_Drehung",
                        "002_C_DOOR_C2_Lichtstufe"}   # Fühler von Container 1 an Plug 2 entfernt, Tür gekoppelt
     cfg2 = json.loads(plugs["plug2"].kvs["bs_cfg"])
-    assert cfg2["d"] == k2["002_C_DOOR_C2_Tuer"]["id"] and cfg2["t"] is None
+    assert cfg2["d"] == [k2["002_C_DOOR_C2_Tuer"]["id"]] and cfg2["t"] is None   # BSM-034.03: Liste
     texte = [e[3] for e in st.einstellungen.daten["protokoll"] if e[3].startswith("Notprogramm")]
     assert any("002_C_DOOR_C2 gekoppelt" in t for t in texte) and any("001_C_TEMP_C1 umbenannt" in t for t in texte)
     for plug in plugs.values():
@@ -315,6 +315,31 @@ async def test_kopplungen_in_ordnung_halten(hass: HomeAssistant, anlage) -> None
     for plug in plugs.values():
         assert not [a for a in plug.aufrufe if a.startswith("BTHome")], plug.aufrufe   # alles in Ordnung: nichts zu tun
     assert {k["key"] for k in plugs["plug1"].komponenten if k["key"].startswith("bthome")} == set(k1)
+
+
+async def test_tuer_und_fenster_am_plug(hass: HomeAssistant, anlage) -> None:
+    """BSM-034.03: alle Türen und Fenster des Containers werden gekoppelt und stehen im Programm (`d` als Liste)."""
+    entry, np, plugs = anlage
+    st = entry.runtime_data
+    bthome = next(e for e in hass.config_entries.async_entries("bthome"))
+    fenster = dr.async_get(hass).async_get_or_create(config_entry_id=bthome.entry_id,
+                                                     connections={(dr.CONNECTION_BLUETOOTH, "08:B9:5F:00:00:03")},
+                                                     name="002_C_FEN_C2")
+    er.async_get(hass).async_get_or_create("binary_sensor", "bthome", "08:B9:5F:00:00:03-window", suggested_object_id="fenster_c2",
+                                           device_id=fenster.id, config_entry=bthome)
+    st.einstellungen.bereich("sub_c2")["tuer"] = "binary_sensor.tuer_c2"
+    st.einstellungen.bereich("sub_c2")["symbol"] = {"doppel": False, "farbe": None, "rahmen": None, "licht": None,
+                                                    "tueren": [{"wand": "front", "pos": 0.15, "sensor": None}],
+                                                    "fenster": [{"wand": "front", "pos": 0.67, "sensor": "binary_sensor.fenster_c2"}]}
+    st.e["heizung"]["notprogramm"] = True
+    await np.async_runde()
+    await np.async_runde()   # Messwerte, die in der ersten Runde neu gekoppelt wurden, stehen jetzt im Programm
+    k2 = {c["name"]: c for c in (k["config"] for k in plugs["plug2"].komponenten)}
+    assert {"002_C_DOOR_C2_Tuer", "002_C_FEN_C2_Tuer"} <= set(k2)
+    cfg2 = json.loads(plugs["plug2"].kvs["bs_cfg"])
+    assert sorted(cfg2["d"]) == sorted([k2["002_C_DOOR_C2_Tuer"]["id"], k2["002_C_FEN_C2_Tuer"]["id"]])
+    g2 = next(g for g in st.geraete if st.geraete[g].schalter == "switch.hk2")
+    assert sorted(np.stand[g2].info()["tuer"]) == sorted(cfg2["d"])
 
 
 async def test_anzeige_pruefen_dienst_rechte(hass: HomeAssistant, anlage, hass_ws_client, hass_admin_user) -> None:

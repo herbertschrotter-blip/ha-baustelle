@@ -51,7 +51,7 @@ class Vorgaben:
     frost_immer: bool
     tuer_pause_min: int
     temp_nr: int | None
-    tuer_nr: int | None
+    tuer_nrn: tuple[int, ...] = ()   # Messwerte aller Türen und Fenster am Plug (BSM-034.03)
 
 
 def modus(v: Vorgaben) -> str:
@@ -133,7 +133,7 @@ def programm(v: Vorgaben, fenster: Iterable[Fenster], wochentag: Mapping[int, in
         je_tag[wochentag[beginn]].append(f)
     fe, fa = frost(v)
     werte = {f"bs_p{w}": tag_wert(je_tag.get(w, [])) for w in range(TAGE)}
-    cfg: dict[str, object] = {"m": modus(v), "tol": v.toleranz, "fe": fe, "fa": fa, "t": v.temp_nr, "d": v.tuer_nr,
+    cfg: dict[str, object] = {"m": modus(v), "tol": v.toleranz, "fe": fe, "fa": fa, "t": v.temp_nr, "d": list(v.tuer_nrn) or None,
                               "tp": v.tuer_pause_min}
     stand = zlib.crc32(json.dumps([cfg, werte], sort_keys=True).encode()) % 100000
     werte["bs_cfg"] = json.dumps({"v": stand, **cfg}, separators=(",", ":"))

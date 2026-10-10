@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.119] – 2026-10-10
+
+- Notprogramm mit allen Türen und Fenstern (BSM-034.03, Lieferung 2): Die Plugs koppeln jetzt alle Tür- und
+  Fensterkontakte ihres Containers (aus der Sensorliste) und pausieren im Notbetrieb, sobald einer länger als die
+  Tür-Pause offen ist – vorher nur der eine Türkontakt. Neues Skript (Version 6); die Integration spielt es in der
+  nächsten Runde selbst ein, wenn das Notprogramm an ist. Einstellungen › Notprogramm › Plug zeigt „Türen/Fenster am Plug“.
+
 ## [0.8.118] – 2026-10-09
 
 - Sensoren je Container (BSM-034.03, Lieferung 1): Jede Tür und jedes Fenster pausiert jetzt die Heizung – offen oder

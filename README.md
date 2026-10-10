@@ -5,7 +5,7 @@ schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und 
 Vorlage der Oberfläche ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`);
 Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
-## Funktionen (Stand 0.8.114)
+## Funktionen (Stand 0.8.119)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (auch direkt von der Seite aus). Ein Shelly gehört nur
@@ -17,7 +17,8 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
   als Kopie). Als Entitäten bleiben der Automatik-Schalter und die Sensoren.
 - **Heizung**: in der Arbeitszeit (plus Vor-/Nachheizen, nach Regen länger) – mit Fühler auf Soll, ohne Fühler an und der
   Heizkörperthermostat regelt; Staffelung je Anschluss (nur Heizkörper werden geschaltet); Bedarfs-Container über
-  Schalter oder Termine aus einem Kalender; schnell aufheizen; „alle jetzt heizen“; Tür offen pausiert.
+  Schalter oder Termine aus einem Kalender; schnell aufheizen; „alle jetzt heizen“; jede offene Tür und jedes offene oder gekippte Fenster pausiert (Sensoren aus
+  Türkontakt und Aussehen).
 - **Warnungen, Protokoll, Nachrichten**: Störungen und Hinweise, dauerhaftes Protokoll (auch im Logbuch), Handy-Nachrichten
   mit Knöpfen, Wochen-/Monatsbericht per Handy und E-Mail (CSV-Anhang nur mit dem SMTP-Dienst).
 - **Verbrauch und Kosten**: Zähler je Baustelle und Container wie bisher (bleiben beim Umstieg erhalten), Auswertung je
@@ -26,7 +27,7 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
   immer – SQLite auf dem Pi oder ein gemeinsamer PostgreSQL-Server mit TimescaleDB für mehrere Instanzen, mit Puffer bei
   Ausfall und Ansichten für Excel/Power BI (Einrichtung unten, Betrieb `docs/betrieb.md`).
 - **Notprogramm in den Plugs**: Fällt HA, Internet oder VPN aus, heizen die Shelly-Plugs nach dem übertragenen Programm
-  der nächsten 7 Tage weiter (Fühler und Tür am Plug, Frostschutz, Taste = 1 h heizen); danach trägt die Integration das
+  der nächsten 7 Tage weiter (Fühler, Türen und Fenster am Plug, Frostschutz, Taste = 1 h heizen); danach trägt die Integration das
   Stundenbuch nach.
 - **Container-Inventar** (im Aufbau, BSM-031): eigene Container mit fester Nummer für die ganze Firma und Fremdcontainer
   mit Firmenkürzel, Ausrüstung mit Status und Geschichte, Namen nach dem Schema (`002_C_MAN`, `002-01_C_PLUG_MAN`,

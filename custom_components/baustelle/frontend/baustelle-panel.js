@@ -2813,7 +2813,7 @@ function npPlugEinblendung(p4, s4) {
   return b2`${GRIFF4}<div class="block-kopf"><h3>🛟 ${p4.name(x2.g.schalter) || x2.g.n}</h3></div><div class="leise" style="padding:0 4px 8px">${x2.b.name}</div>
       <div class="glas-panel liste">${z2("Zustand", chip(p4, np))}${z2("Skript", np.version ? `Version ${np.version} · läuft` : "–")}${z2("Programm", np.bis ? `gültig bis ${p4.npZeit(np.bis)} · geladen` : np.programm ? "geladen · ohne Heizzeit in den nächsten 7 Tagen" : "–")}
         ${z2("Im Notbetrieb", p4.npModus(np))}${z2("Frostschutz", frost)}${z2("Fühler am Plug", np.fuehler ? `Messwert Nr. ${np.fuehler}` : np.fuehler_fehlt ? b2`<span class="amber-t">keiner – Zeitplan</span>` : "–")}
-        ${z2("Tür am Plug", np.tuer ? `✓ Messwert Nr. ${np.tuer}` : "–")}${z2("Letzte Prüfung", p4.npVor(np.zuletzt))}</div>
+        ${z2("Türen/Fenster am Plug", np.tuer ? `✓ Messwert Nr. ${[].concat(np.tuer).join(", ")}` : "–")}${z2("Letzte Prüfung", p4.npVor(np.zuletzt))}</div>
       <div class="glas-panel liste"><div class="gruppe">Notbetrieb</div>${np.zustand === "not" ? z2("läuft seit", `${p4.npZeit(np.notbetrieb_seit)} · Home Assistant meldet sich nicht`) : A}
         ${z2("zuletzt", np.notbetrieb_zuletzt ? `${p4.npZeit(np.notbetrieb_zuletzt[0])} – ${p4.npZeit(np.notbetrieb_zuletzt[1], false)}` : "noch nie (seit dem Start von Home Assistant)")}</div>
       ${an ? b2`<div class="glas-panel liste"><div class="gruppe">Ausfall-Probe</div>
@@ -5064,7 +5064,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.118";
+var SEITE_VERSION = "0.8.119";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", ...Object.keys(INVENTAR_EINBLENDUNGEN), "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS), r(INV_CSS)];

@@ -101,7 +101,7 @@ function mitFuehler(wert) { return (p) => fuehler(p, 202, typeof wert === 'funct
 fall('Programm wird beim Start mit einem Aufruf geladen', () => {
   const p = plug({ kvs: { ...GRUND, bs_p1: fenster([30, 42, 21]), anderes: 'x' } });
   const a = p.hb();
-  gleich([a.v, a.programm, a.fenster], [5, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
+  gleich([a.v, a.programm, a.fenster], [6, 1, 2], 'hb-Antwort (Version, Programm, Fenster)');
   gleich(p.maxOffen, 1, 'gleichzeitige Aufrufe beim Laden');
   return p;
 });
@@ -223,6 +223,20 @@ fall('Tür länger offen als die Pause: aus, danach wieder Programm', () => {
   gleich(p.relais, false, 'Tür über 3 min offen: aus');
   p.minuten(1, (q) => fuehler(q, 201, false));
   gleich(p.relais, true, 'Tür zu: wieder ein');
+  return p;
+});
+
+fall('BSM-034.03: mehrere Türen und Fenster – irgendeiner offen pausiert', () => {
+  const p = plug({ kvs: { ...GRUND, bs_cfg: cfg({ m: 'plan', d: [201, 205] }) } });
+  p.minuten(7 * 60); p.hb(); p.minuten(16);
+  gleich(p.relais, true, 'Fenster ein');
+  p.minuten(2, (q) => fuehler(q, 205, true));
+  gleich(p.relais, true, 'Fenster 2 min gekippt: noch ein');
+  p.minuten(1, (q) => { fuehler(q, 205, true); fuehler(q, 201, true); });
+  p.minuten(2, (q) => { fuehler(q, 205, false); fuehler(q, 201, true); });
+  gleich(p.relais, false, 'Fenster zu, Tür noch offen – seit über 3 min irgendein Kontakt offen: aus');
+  p.minuten(1, (q) => { fuehler(q, 205, false); fuehler(q, 201, false); });
+  gleich(p.relais, true, 'alle zu: wieder ein');
   return p;
 });
 
