@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.123] – 2026-10-10
+
+- Energiesignatur je Container (BSM-033.01, Grundlage für die neue Hochrechnung): Die Integration kann aus Tagesverbrauch
+  und mittlerer Außentemperatur die Heizgrenze, die kWh je Grad kälter und die Grundlast eines Containers bestimmen, mit
+  Gütemaß (CV(RMSE) nach ASHRAE Guideline 14: gut bis 20 %, brauchbar bis 30 %). Bis 10 Tage und 4 K Temperaturspanne
+  da sind, „lernt“ sie noch; Tage mit und ohne Automatik werden getrennt gerechnet. Noch ohne Anzeige (folgt mit J2/J3).
+
 ## [0.8.122] – 2026-10-10
 
 - Seite „Geräte“ (BSM-034.05, Mockup `geraete.html` Variante 1): Einstellungen › 🔌 Geräte mit den Reitern **Übersicht**

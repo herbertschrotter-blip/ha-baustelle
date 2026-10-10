@@ -99,8 +99,9 @@ Heute: Tagesschnitt × Tage der Heizperiode (im milden Oktober zu niedrig) und �
 hoch). Künftig nach professionellem Vorgehen: Energiesignatur je Container (ASHRAE Guideline 14), Hochrechnung mit
 Heizgradtagen (ÖNORM B 8135, Klimamittel GeoSphere Austria) als Spanne, Ersparnis nach IPMVP aus einer gemessenen
 Baseline; die Baseline-Läufe plant und fährt die Integration selbst (startet aus, Kostenrahmen, Ankündigung, Abbruch).
+Bauplan: `docs/bauplan-hochrechnung.md`.
 
-- [ ] **J1** (BSM-033.01) Energiesignatur je Container (logik, Gütemaß)
+- [x] **J1** (BSM-033.01, 0.8.123) Energiesignatur je Container (logik, Gütemaß) – `logik/signatur.py`, Bauplan `docs/bauplan-hochrechnung.md`
 - [ ] **J2** (BSM-033.02) Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung
 - [ ] **J3** (BSM-033.03) Anzeige mit Spanne, Signatur, Baseline (Mockup)
 - [ ] **J4** (BSM-033.04) Automatische Baseline-Läufe (startet aus, Budget, Ankündigung, Abbruch)
