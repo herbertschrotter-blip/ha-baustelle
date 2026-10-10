@@ -6,7 +6,7 @@ Ersparnis wirkt dadurch zu groß. Ziel (Herbert 07.10.2026): nach professionelle
 Energiesignatur je Container (ASHRAE Guideline 14), eine Hochrechnung mit Heizgradtagen als Spanne (ÖNORM B 8135,
 Klimamittel GeoSphere Austria) und die Ersparnis aus einer gemessenen Baseline (IPMVP Option B).
 
-Stand: .01 fertig (0.8.123, 10.10.2026). Aufgabe BSM-033, Unteraufgaben .01–.04 = Stufen in §2.
+Stand: .01 fertig (0.8.123), .02 fertig (0.8.124, 10.10.2026). Aufgabe BSM-033, Unteraufgaben .01–.04 = Stufen in §2.
 
 ## 1. Grundsätze
 
@@ -20,7 +20,7 @@ Stand: .01 fertig (0.8.123, 10.10.2026). Aufgabe BSM-033, Unteraufgaben .01–.0
 | Stufe | Inhalt | Stand |
 |---|---|---|
 | .01 | Energiesignatur je Container: `logik/signatur.py` | ☑ 0.8.123 |
-| .02 | Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung; Daten aus `tag_bereich` an die Signatur | ☐ |
+| .02 | Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung; Daten aus `tag_bereich` an die Signatur | ☑ 0.8.124 |
 | .03 | Anzeige: Spanne, Signatur, Baseline (Mockup zuerst) | ☐ |
 | .04 | Automatische Baseline-Läufe (startet aus, Kostenrahmen, Ankündigung, Abbruch) | ☐ |
 
@@ -38,10 +38,35 @@ Modell mit Heizgrenze („3P-Heizen“): **kWh am Tag = Grundlast + kWh je Grad 
 - **Mit und ohne Automatik** getrennt (`je_betrieb`); Baseline-Tage kommen erst mit .04.
 - Grenzwerte sind Konstanten in `logik/signatur.py`. Einstellbar werden sie erst, wenn sich das im Betrieb zeigt.
 
-Offen für .02: Welche Tage zählen (ganze Tage, Container in Betrieb, ohne Ausfall) und ob die Außentemperatur über
-24 h (`tag_bereich.aussen_mittel`) oder nur über die Heizstunden gemittelt wird.
+## 4. Hochrechnung (.02)
 
-## 4. Tests
+Entscheidungen Herbert 10.10.2026: Außentemperatur als **24-h-Mittel** (`tag_bereich.aussen_mittel`, wie die Heizgradtage
+nach ÖNORM); es zählen nur **ganze Tage ohne Ausfall und ohne Notbetrieb** (mindestens 95 % des Tages in
+`bereich_minute` mitgeschrieben, Quelle HA oder übernommen, nicht `notprogramm`).
+
+- Rechnen nur in `logik/hochrechnung.py`; `funktionen/heizung/hochrechnung.py` liest die Tage der laufenden Heizperiode
+  (`db/tage.hochrechnung_tage`) beim Start und täglich um 03:50 und legt das Ergebnis bei der Heizung ab.
+- **Rest** = morgen bis Ende der Heizperiode (oder geplantes Ende der Baustelle). Je Tag die Außentemperatur aus der
+  Vorhersage (Tagesmittel, neu in `wetter_tage`: stündlich gemittelt, sonst (Höchst + Tiefst) ÷ 2), sonst aus den
+  **Klimamitteln** (12 Monatsmittel, zwischen den Monatsmitten linear). Vorgabe: Näherung Graz 1991–2020; je Baustelle
+  als Einstellung `heizung.klimamittel` (Eingabe auf der Seite mit .03). **Herbert: Werte mit GeoSphere Austria
+  (Klimamittel der nächsten Station) prüfen.**
+- **Spanne** (rund 90 %): wärmerer bzw. kälterer Winter um 1,5 K an allen Tagen ohne Vorhersage, dazu 1,645 · rmse · √Tage.
+  Nur wenn jeder Container eine Signatur hat.
+- **Container ohne Signatur** (lernt, unsicher): Tagesschnitt der gezählten Tage × Resttage, wie vorher.
+- **Normjahr** (Witterungsbereinigung): die ganze Heizperiode bei Klimamitteln; **Heizgradtage 20/12** des Rests.
+- Bisher = Zähler `energie_heizen` (wie vorher); heute zählt dort mit, der Rest beginnt morgen.
+- Sensor `prognose_heizperiode` (und Kosten) zeigt den neuen Wert, `baustelle/auswertung` › `hochrechnung` dazu
+  `methode`, `unten_*`, `oben_*`, `normjahr_*`, `hgt_rest`, `vorhersage_tage` und je Container Signatur und Rest.
+- **Ohne Automatik** bleibt bis zur gemessenen Baseline (.04) die bisherige Schätzung; dann aus der Signatur „ohne“.
+- Arbeitszeitplan, Vorheizen und Frostschutz stecken in der Signatur, weil sie aus dem echten Betrieb gelernt ist.
+  Getrennte Signaturen für Arbeits- und freie Tage erst, wenn das Gütemaß zeigt, dass es nötig ist.
+
+## 5. Tests
 
 `tests/logik/test_signatur.py`: Grenze und Steigung aus Modelldaten, Streuung, lernt (Tage, Spanne), Gerade, ohne
 Zusammenhang, starke Streuung, Gütestufen, erwarteter Verbrauch, getrennter Betrieb.
+`tests/logik/test_hochrechnung.py`: Klimamittel, Klima je Tag, HGT, welche Tage zählen (auch Sommerzeit), Vorhersage vor
+Klima, Rest mit Spanne und Normjahr, lernt (Tagesschnitt), ohne Tage, Summe der Baustelle.
+`tests/integration/test_hochrechnung.py`: Tage aus der Datenbank (ein Tag im Notbetrieb fällt weg) → Signatur, Sensorwert,
+ohne Tage der Tagesschnitt.

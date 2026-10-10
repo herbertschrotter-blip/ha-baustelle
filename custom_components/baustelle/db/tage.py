@@ -14,11 +14,12 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, tzinfo
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Connection, delete, insert, select
+from sqlalchemy import Connection, delete, func, insert, select
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from ..logik.hochrechnung import TagRoh
 from ..logik.tag import BereichZeile, GeraetZeile, bereich_tag, geraet_tag
 from . import schema as s
 
@@ -179,3 +180,23 @@ async def async_abgleich(hass: HomeAssistant, db: Datenbank, st: Steuerung, von:
                                "abweichung_kwh": None if a is None or h is None else round(a - h, 3)})
             tag += timedelta(days=1)
     return zeilen
+
+
+def hochrechnung_tage(v: Connection, baustelle_id: str, von: date, bis: date, zone: tzinfo) -> dict[str, list[TagRoh]]:
+    """Je Container die Tage `von` … `bis` für die Hochrechnung (BSM-033.02): Verbrauch, Außenmittel und wie viel des
+    Tages mitgeschrieben ist (HA oder übernommen, ohne Stunden aus dem Notprogramm)."""
+    tb, bm = s.tag_bereich, s.bereich_minute
+    zeilen = list(v.execute(select(tb.c.bereich_id, tb.c.datum, tb.c.kwh, tb.c.aussen_mittel).where(
+        tb.c.baustelle_id == baustelle_id, tb.c.datum >= von, tb.c.datum <= bis).order_by(tb.c.datum)))
+    erfasst: dict[tuple[str, date], float] = {}
+    dauer: dict[date, float] = {}
+    for tag in sorted({z.datum for z in zeilen}):
+        a, b = _grenzen(tag, zone)
+        dauer[tag] = (b - a).total_seconds()
+        for bid, sek in v.execute(select(bm.c.bereich_id, func.sum(bm.c.dauer_s)).where(
+                bm.c.baustelle_id == baustelle_id, bm.c.zeit >= a, bm.c.zeit < b, bm.c.quelle != "notprogramm").group_by(bm.c.bereich_id)):
+            erfasst[(bid, tag)] = float(sek or 0)
+    aus: dict[str, list[TagRoh]] = defaultdict(list)
+    for z in zeilen:
+        aus[z.bereich_id].append(TagRoh(z.datum, z.kwh, z.aussen_mittel, erfasst.get((z.bereich_id, z.datum), 0.0), dauer[z.datum]))
+    return dict(aus)

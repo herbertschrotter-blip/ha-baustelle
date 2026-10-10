@@ -449,7 +449,19 @@ async def async_auswertung(
                         "bis": a.heizperiode_bis(heute, hp_von, hp_bis, q.option_datum(CONF_ENDE)).isoformat()},
         "heiztage": verlauf["heiztage"],
         # Hochrechnung (Sensoren prognose_heizperiode*, Zähler energie_heizen) in kWh und € – die Seite zeigt sie nur an
-        "hochrechnung": a.hochrechnung_werte(
-            q.zaehler.get("energie_heizen"), _zustand(hass, q.eid(eid, "prognose_heizperiode")),
-            _zustand(hass, q.eid(eid, "prognose_heizperiode_ohne")), preis),
+        "hochrechnung": a.hochrechnung_signatur(
+            a.hochrechnung_werte(q.zaehler.get("energie_heizen"), _zustand(hass, q.eid(eid, "prognose_heizperiode")),
+                                 _zustand(hass, q.eid(eid, "prognose_heizperiode_ohne")), preis),
+            *_hochrechnung(q), preis),
     }
+
+
+def _hochrechnung(q: Quelle) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Hochrechnung mit Signatur der Heizung (BSM-033.02): (Werte der Baustelle, letztes Ergebnis)."""
+    if q.st is None:
+        return None, None
+    from .funktionen.heizung import Heizung   # noqa: PLC0415  (Kreis-Import, wie oben)
+    from .funktionen.heizung.hochrechnung import werte   # noqa: PLC0415
+
+    hz = Heizung.von(q.st)
+    return werte(hz, q.zaehler.get("energie_heizen")), hz.hochrechnung

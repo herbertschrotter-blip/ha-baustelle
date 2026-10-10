@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.124",
+    "datum": "2026-10-10",
+    "punkte": [
+      "Hochrechnung der Heizperiode mit Energiesignatur (BSM-033.02): Statt „Tagesschnitt seit Zählbeginn × Tage“ rechnet die Integration je Container den Rest der Heizperiode aus seiner Signatur – mit der Wettervorhersage für die nächsten Tage und danach mit den Klimamitteln (Monatsmittel, Vorgabe Graz). Gezählt werden nur ganze Tage ohne Ausfall und ohne Notbetrieb, Außentemperatur als 24-h-Mittel. Dazu eine Spanne (wärmerer/kälterer Winter und Streuung der Signatur), die Heizgradtage (20/12) des Rests und das Normjahr zum Vergleichen von Baustellen. Solange ein Container noch lernt, gilt für ihn der Tagesschnitt wie bisher. Der Sensor „Prognose Heizperiode“ zeigt den neuen Wert; Spanne und Signatur liefert `baustelle/auswertung`, auf der Seite folgen sie mit J3. „Ohne Automatik“ bleibt bis zur gemessenen Baseline (J4) wie bisher."
+    ]
+  },
+  {
     "version": "0.8.123",
     "datum": "2026-10-10",
     "punkte": [

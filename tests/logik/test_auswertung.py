@@ -291,6 +291,21 @@ def test_hochrechnung_werte():
                                                             "ohne_kwh": None, "ohne_eur": None, "gespart_eur": None}
 
 
+def test_hochrechnung_signatur():
+    """BSM-033.02: Spanne und Normjahr in kWh und €, je Container der Rest in €; ohne Signatur Tagesschnitt."""
+    basis = a.hochrechnung_werte(400.0, 2000.0, 9000.0, 0.25)
+    sig = {"methode": "signatur", "unten_kwh": 1800.0, "oben_kwh": 2300.0, "normjahr_kwh": 2100.0}
+    erg = {"hgt_rest": 2500.0, "vorhersage_tage": 7, "container": [{"bereich": "c1", "rest_kwh": 800.0, "stand": "gut"}]}
+    h = a.hochrechnung_signatur(basis, sig, erg, 0.25)
+    assert h["methode"] == "signatur" and h["mit_eur"] == pytest.approx(500.0)
+    assert (h["unten_eur"], h["oben_eur"], h["normjahr_eur"]) == pytest.approx((450.0, 575.0, 525.0))
+    assert h["hgt_rest"] == 2500.0 and h["vorhersage_tage"] == 7
+    assert h["container"] == [{"bereich": "c1", "rest_kwh": 800.0, "stand": "gut", "rest_eur": 200.0}]
+    leer = a.hochrechnung_signatur(basis, None, None, 0.25)
+    assert leer["methode"] == "tagesschnitt" and leer["unten_kwh"] is None and leer["unten_eur"] is None
+    assert leer["container"] == [] and leer["hgt_rest"] is None
+
+
 # ---------------------------------------------------------------- WU-0005: Rangliste und Erkenntnisse
 from logik.auswertung import erkenntnisse, rangliste  # noqa: E402
 

@@ -139,8 +139,10 @@ def _antwort_liste(antwort: ServiceResponse, entity_id: str, key: str) -> list[d
 
 
 def _prognose_je_tag(liste: list[dict[str, Any]], art: str) -> dict[date, dict[str, float | None]]:
-    """Je Tag: tiefster Wert 4–8 Uhr („frueh“), Tageshöchstwert („max“), Niederschlag („regen“)."""
+    """Je Tag: tiefster Wert 4–8 Uhr („frueh“), Tageshöchstwert („max“), Niederschlag („regen“), Tagesmittel („mittel“:
+    stündlich das Mittel der Stunden, täglich (Höchst + Tiefst) ÷ 2)."""
     tage: dict[date, dict[str, float | None]] = {}
+    stunden: dict[date, list[float]] = {}
     for eintrag in liste:
         zeit = dt_util.parse_datetime(str(eintrag.get("datetime", "")))
         if zeit is None:
@@ -151,6 +153,7 @@ def _prognose_je_tag(liste: list[dict[str, Any]], art: str) -> dict[date, dict[s
         regen = eintrag.get("precipitation")
         if art == "hourly":
             if temp is not None:
+                stunden.setdefault(zeit.date(), []).append(float(temp))
                 tag["max"] = temp if tag["max"] is None else max(tag["max"], temp)
                 if 4 <= zeit.hour <= 8:
                     tag["frueh"] = temp if tag["frueh"] is None else min(tag["frueh"], temp)
@@ -160,6 +163,11 @@ def _prognose_je_tag(liste: list[dict[str, Any]], art: str) -> dict[date, dict[s
             tag["max"] = temp
             tag["frueh"] = eintrag.get("templow")
             tag["regen"] = float(regen) if regen is not None else None
+            tief = eintrag.get("templow")
+            tag["mittel"] = (float(temp) + float(tief)) / 2 if temp is not None and tief is not None else None
+    for tag_, werte in stunden.items():
+        if len(werte) >= 20:   # nur fast ganze Tage (die Vorhersage beginnt mitten am heutigen Tag)
+            tage[tag_]["mittel"] = sum(werte) / len(werte)
     return tage
 
 

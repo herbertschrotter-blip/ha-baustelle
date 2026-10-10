@@ -200,7 +200,10 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
     assert geraete[P1]["std"] == pytest.approx(s["pumpzeit"])   # Pumpe: gemessene Pumpzeit
     assert r["heizperiode"] == {"ende": "2026-04-30", "bis": "2026-04-30"} and r["heiztage"] == 20
     h = r["hochrechnung"]   # kWh und € der Hochrechnung rechnet die Integration (Seite zeigt nur an)
-    assert set(h) == {"bisher_kwh", "bisher_eur", "mit_kwh", "mit_eur", "ohne_kwh", "ohne_eur", "gespart_eur"}
+    assert set(h) == {"bisher_kwh", "bisher_eur", "mit_kwh", "mit_eur", "ohne_kwh", "ohne_eur", "gespart_eur",
+                      # BSM-033.02: Hochrechnung mit Signatur (Spanne, Normjahr, Heizgradtage, je Container)
+                      "methode", "unten_kwh", "unten_eur", "oben_kwh", "oben_eur", "normjahr_kwh", "normjahr_eur",
+                      "hgt_rest", "vorhersage_tage", "container"}
     if h["mit_kwh"] is not None:
         assert h["mit_eur"] == pytest.approx(h["mit_kwh"] * 0.25)
     punkte = r["wetter"]["punkte"]

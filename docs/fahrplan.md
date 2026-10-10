@@ -102,7 +102,7 @@ Baseline; die Baseline-Läufe plant und fährt die Integration selbst (startet a
 Bauplan: `docs/bauplan-hochrechnung.md`.
 
 - [x] **J1** (BSM-033.01, 0.8.123) Energiesignatur je Container (logik, Gütemaß) – `logik/signatur.py`, Bauplan `docs/bauplan-hochrechnung.md`
-- [ ] **J2** (BSM-033.02) Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung
+- [x] **J2** (BSM-033.02, 0.8.124) Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung – Sensor und `baustelle/auswertung`; Klimamittel Vorgabe Graz (prüfen)
 - [ ] **J3** (BSM-033.03) Anzeige mit Spanne, Signatur, Baseline (Mockup)
 - [ ] **J4** (BSM-033.04) Automatische Baseline-Läufe (startet aus, Budget, Ankündigung, Abbruch)
 

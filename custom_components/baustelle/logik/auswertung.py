@@ -527,6 +527,23 @@ def hochrechnung_werte(
             "ohne_kwh": ohne_kwh, "ohne_eur": geld(ohne_kwh, preis), "gespart_eur": gespart}
 
 
+def hochrechnung_signatur(
+    werte: dict[str, Any], signatur: Mapping[str, Any] | None, ergebnis: Mapping[str, Any] | None, preis: float
+) -> dict[str, Any]:
+    """Hochrechnung (`hochrechnung_werte`) um die Signatur ergänzt (BSM-033.02): Methode, Spanne und Normjahr in kWh und €,
+    Heizgradtage des Rests und je Container Signatur und Rest. Ohne Signatur: Methode „tagesschnitt“, Spanne leer."""
+    s = signatur or {}
+    e = ergebnis or {}
+    aus = {**werte, "methode": s.get("methode") or "tagesschnitt"}
+    for k in ("unten", "oben", "normjahr"):
+        kwh = s.get(f"{k}_kwh")
+        aus[f"{k}_kwh"], aus[f"{k}_eur"] = kwh, geld(kwh, preis)
+    aus["hgt_rest"] = e.get("hgt_rest")
+    aus["vorhersage_tage"] = e.get("vorhersage_tage")
+    aus["container"] = [{**c, "rest_eur": geld(c.get("rest_kwh"), preis)} for c in e.get("container") or []]
+    return aus
+
+
 def monate_summen(reihen_: Sequence[Mapping[str, Any]], preis: float) -> list[dict[str, float]]:
     """Je Container über alle Monate: kWh, € und Anteil in % am Verbrauch aller Container (alle 0 → 0 %)."""
     kwh = [summe(r["v"]) for r in reihen_]
