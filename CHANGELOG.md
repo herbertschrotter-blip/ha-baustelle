@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.127] – 2026-10-11
+
+- Baseline-Läufe „ohne Automatik“ (BSM-033.04, Teil a – noch ohne Anzeige, startet aus): Ist „Baseline messen“
+  eingeschaltet, plant die Integration an Wochenenden und freien Tagen (ohne Arbeitszeit, Termin, Bedarf) je einen
+  Container, kündigt ihn am Vortag um 12:00 aufs Handy an (mit „Absagen“) und lässt dann alle seine Heizkörper bis zu
+  48 h durchgehend am Strom – der Thermostat am Gerät regelt. Abwechselnd ein Container mit Ölradiator und einer mit
+  Konvektor, nur im Kostenrahmen (Vorgabe 60 € je Monat). Abbruch bei offener Tür/Fenster, Taste am Plug, Bedarf,
+  Termin oder Automatik aus. Aus den Lauftagen entsteht je Container die Signatur „ohne Automatik“; sobald das für alle
+  Container reicht (gemessen oder über das Verhältnis je Heizkörper-Typ), ersetzt sie die Schätzung „24 h Volllast“ in
+  Hochrechnung und Ersparnis (IPMVP). Schalter, Kostenrahmen und Liste der Läufe auf der Seite folgen (Teil b).
+
 ## [0.8.126] – 2026-10-10
 
 - Wetter-Einfluss aus der Energiesignatur (BSM-033): Kachel „Wetter“, Kachel „Wetter-Einfluss“ und die Erkenntnis „je

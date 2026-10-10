@@ -101,6 +101,8 @@ SETZEN: dict[tuple[str, ...], Any] = {
     ("heizung", "hand_nachfrist_min"): vol.All(GANZ, vol.Range(0, 240)),   # AN-0012
     ("heizung", "fuehler_halten_min"): vol.All(GANZ, vol.Range(0, 120)),
     ("heizung", "zieht_strom_w"): vol.All(GANZ, vol.Range(5, 500)),
+    ("heizung", "baseline"): cv.boolean,   # BSM-033.04
+    ("heizung", "baseline_eur_monat"): vol.All(ZAHL, vol.Range(0, 1000)),
     ("heizung", "klimamittel"): lambda w: _klima_pruefen(w),   # noqa: PLW0108 – BSM-033.03: 12 Monatsmittel oder None
     ("heizung", "feiertag_frei"): cv.boolean,
     ("staffel", "an"): cv.boolean,

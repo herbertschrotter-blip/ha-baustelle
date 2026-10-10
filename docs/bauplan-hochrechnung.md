@@ -6,7 +6,7 @@ Ersparnis wirkt dadurch zu groß. Ziel (Herbert 07.10.2026): nach professionelle
 Energiesignatur je Container (ASHRAE Guideline 14), eine Hochrechnung mit Heizgradtagen als Spanne (ÖNORM B 8135,
 Klimamittel GeoSphere Austria) und die Ersparnis aus einer gemessenen Baseline (IPMVP Option B).
 
-Stand: .01 fertig (0.8.123), .02 fertig (0.8.124), .03 fertig (0.8.125, 10.10.2026). Aufgabe BSM-033, Unteraufgaben .01–.04 = Stufen in §2.
+Stand: .01 fertig (0.8.123), .02 fertig (0.8.124), .03 fertig (0.8.125/0.8.126), .04a fertig (0.8.127, 11.10.2026). Aufgabe BSM-033, Unteraufgaben .01–.04 = Stufen in §2.
 
 ## 1. Grundsätze
 
@@ -22,7 +22,7 @@ Stand: .01 fertig (0.8.123), .02 fertig (0.8.124), .03 fertig (0.8.125, 10.10.20
 | .01 | Energiesignatur je Container: `logik/signatur.py` | ☑ 0.8.123 |
 | .02 | Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung; Daten aus `tag_bereich` an die Signatur | ☑ 0.8.124 |
 | .03 | Anzeige: Karte „Heizperiode“ (Mockup `hochrechnung.html`, abgenommen 10.10.2026) | ☑ 0.8.125 |
-| .04 | Automatische Baseline-Läufe (startet aus, Kostenrahmen, Ankündigung, Abbruch) | ☐ |
+| .04 | Automatische Baseline-Läufe (§6): **a** Logik und Integration ☑ 0.8.127, **b** Anzeige (Mockup zuerst) ☐ | ◐ |
 
 ## 3. Energiesignatur (.01)
 
@@ -91,7 +91,48 @@ der **Signatur der ganzen Baustelle** (`logik/hochrechnung.baustelle_tage`: nur 
 `logik/auswertung.wetter_aus_signatur`: schräger Teil als Gerade, `null0` = Heizgrenze). Die Gerade `wetter_einfluss`
 (letzte 30 Heiztage aus der HA-Statistik) ist entfernt.
 
-## 6. Tests
+## 6. Baseline-Läufe (.04) – Plan 11.10.2026
+
+Ziel: „ohne Automatik“ messen statt schätzen (IPMVP Option B). Ein Lauf hält **alle Heizkörper eines Containers** über
+ganze freie Tage durchgehend am Strom; ihr eigener Thermostat regelt. Aus diesen Tagen entsteht die Signatur „ohne
+Automatik“ des Containers (`logik/signatur.je_betrieb`).
+
+**Entscheidungen Herbert 11.10.2026:** ganzer Container je Lauf · Kostenrahmen **60 € je Monat** (einstellbar) ·
+Ankündigung **am Vortag 12:00** aufs Handy mit Knopf „Absagen“, ohne Absage startet der Lauf · nur **Wochenenden und
+freie Tage** (keine Arbeitszeit, keine Ausnahme mit Arbeit, kein Termin, kein Bedarf).
+
+**Regeln (logik/baseline.py, mit Test):**
+- **Startet aus:** Einstellung `heizung.baseline` (Vorgabe aus); Läufe nur bei eingeschalteter Automatik.
+- **Lauf** = ein freier Block aus 1–2 ganzen Tagen (00:00–24:00, Samstag+Sonntag = 48 h), frühestens morgen.
+- **Welcher Container:** abwechselnd Ölradiator und Konvektor (Container mit nur einem Heizkörper-Typ zuerst), darunter
+  der mit den wenigsten Baseline-Tagen; ein Container ist fertig, sobald seine Signatur „ohne“ gut ist.
+- **Kosten** vorher geschätzt: Nennleistung aller Heizkörper × Stunden × 50 % (Thermostat) × Strompreis; mit Signatur
+  „ohne“ deren erwarteter Verbrauch. Ein Lauf startet nur, wenn er in den Rest des Monatsrahmens passt (gemessene
+  Kosten der Läufe des Monats + Schätzung).
+- **Abbruch** (Lauf endet, Tag zählt nicht): Tür/Fenster länger als die Tür-Pause offen, Taste am Plug, Bedarf, Termin,
+  Automatik aus, Absagen über die Nachricht oder die Seite. Frostschutz, Hand und Tür-Pause haben weiter Vorrang.
+- **Zählende Tage:** ganze Tage eines nicht abgebrochenen Laufs (wie §4: ohne Ausfall/Notbetrieb) → `Tag(automatik=False)`;
+  diese Tage fehlen in der Signatur „mit Automatik“.
+- **Ersparnis:** je Container mit Signatur „ohne“ (gut/brauchbar) dieselbe Hochrechnung wie „mit“; Container ohne eigene
+  Messung übernehmen das Verhältnis ohne ÷ mit eines gemessenen Containers mit demselben Heizkörper-Typ; erst wenn das
+  für alle geht, ersetzt das die 24/7-Schätzung.
+
+**Integration (J4a):** `funktionen/heizung/baseline.py` – Planen und Ankündigen um 12:00 für morgen, Start/Ende an den
+Tagesgrenzen, Abbruch je Minute, Läufe in `lz["baseline"]`, Protokoll „Baseline“; Soll-Grund `BASELINE` nach „Taste“
+(Frost, Hand, Tür-Pause bleiben davor), alle Heizkörper an (Stufen aus), Staffelung wie sonst (Sicherheit vor Messung –
+wird gekürzt, zählt der Tag trotzdem, die Signatur sieht nur den Verbrauch); Nachrichtenknopf `baseline_absagen`.
+**Anzeige (J4b, Mockup zuerst):** Schalter „Baseline messen“, Kostenrahmen, nächster Lauf mit Absagen, Liste der Läufe,
+Signatur „ohne“ im Reiter Signatur, Ersparnis im Diagramm.
+
+Gebaut 0.8.127 (J4a): `logik/baseline.py` (Block, Container, Kosten, Rahmen, Abbruch, zählende Tage),
+`logik/hochrechnung.ohne_container/ohne_baustelle` (IPMVP), `funktionen/heizung/baseline.py` (Takt je Minute aus
+`nach_schalten`), Soll-Grund `BASELINE` in `logik/regelung` nach „Taste“, `geraet_ein` schaltet im Lauf alle Heizkörper,
+Nachrichtenknopf `baseline_absagen`, Einstellungen `heizung.baseline` (aus) und `heizung.baseline_eur_monat` (60).
+`baustelle/auswertung` › `hochrechnung` liefert `baseline` (an, Läufe) und `ohne_methode` (baseline/schaetzung); der
+Sensor „Heizperiode ohne Automatik“ nimmt die Baseline, sobald es sie gibt. Kosten eines beendeten Laufs = Verbrauch der
+Lauftage × Preis (stündlich nachgetragen). Einschalten erst mit J4b (Seite).
+
+## 7. Tests
 
 `tests/logik/test_signatur.py`: Grenze und Steigung aus Modelldaten, Streuung, lernt (Tage, Spanne), Gerade, ohne
 Zusammenhang, starke Streuung, Gütestufen, erwarteter Verbrauch, getrennter Betrieb.

@@ -192,6 +192,9 @@ class Nachrichten:
             w = next((x for x in st.daten.warnungen if x.key == wert), None)
             st.protokoll("nachricht", w.bereich if w else None,
                          f"Knopf „{texte_bis}“: {warn_logik.titel(w) if w else wert}")
+        elif befehl == "baseline_absagen":   # BSM-033.04: Baseline-Lauf absagen bzw. abbrechen
+            from .funktionen.heizung.baseline import absagen   # noqa: PLC0415
+            absagen(Heizung.von(st), wert, "Knopf „Absagen“")
         elif befehl == "trotzdem" and wert in st.bereiche:
             Heizung.von(st).tuer_trotzdem.add(wert)
             Heizung.von(st).trotzdem_merken()

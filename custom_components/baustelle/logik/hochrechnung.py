@@ -20,7 +20,7 @@ der letzte Tag ist die Hochrechnung. Bisher = Summe der Tage der Heizperiode bis
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from math import sqrt
@@ -115,10 +115,11 @@ def temperaturen(rest: Iterable[date], vorhersage: Mapping[date, float], klima: 
 
 def container_rest(
     roh: Sequence[TagRoh], heute: date, ende: date, vorhersage: Mapping[date, float], klima: Sequence[float],
-    beginn: date,
+    beginn: date, ohne_tage: Collection[date] = (),
 ) -> ContainerRest:
-    """Rest der Heizperiode eines Containers (morgen bis `ende`); `beginn` = erster Tag der Heizperiode (Normjahr)."""
-    gezaehlt = [t for t in roh if tag_zaehlt(t, heute)]
+    """Rest der Heizperiode eines Containers (morgen bis `ende`); `beginn` = erster Tag der Heizperiode (Normjahr).
+    Tage eines Baseline-Laufs (`ohne_tage`, BSM-033.04) zählen nicht für die Signatur mit Automatik."""
+    gezaehlt = [t for t in roh if tag_zaehlt(t, heute) and t.datum not in ohne_tage]
     sig = berechnen(Tag(t.aussen, t.kwh) for t in gezaehlt)    # type: ignore[arg-type]  # tag_zaehlt prüft None
     rest_tage = tage(max(heute + timedelta(days=1), beginn), ende)
     temps = temperaturen(rest_tage, vorhersage, klima)
@@ -165,9 +166,10 @@ def bisher(roh: Mapping[str, Sequence[TagRoh]], heute: date, beginn: date) -> fl
 
 def reihe(
     roh: Mapping[str, Sequence[TagRoh]], reste: Mapping[str, ContainerRest], heute: date, beginn: date, ende: date,
-    ohne_kwh: float | None,
+    ohne_kwh: float | None, *, ohne_wie_mit: bool = False,
 ) -> list[tuple[str, float | None, float, float | None, float | None, float | None]]:
-    """Je Tag der Heizperiode (Tag, tatsächlich, mit, unten, oben, ohne), aufsummiert in kWh (siehe Modul-Docstring)."""
+    """Je Tag der Heizperiode (Tag, tatsächlich, mit, unten, oben, ohne), aufsummiert in kWh (siehe Modul-Docstring).
+    `ohne_wie_mit`: „ohne“ aus der Baseline (BSM-033.04) verläuft wie „mit“ (wetterabhängig), nicht gleichmäßig."""
     alle_tage = tage(beginn, ende)
     je_tag: dict[date, float] = {}
     for liste in roh.values():
@@ -195,6 +197,9 @@ def reihe(
         streu = sum(Z90 * r.rmse * sqrt(k) for r in werte) if spanne else 0.0
         aus.append((d.isoformat(), None, round(mit, 3), round(max(ist, warm - streu), 3) if spanne else None,
                     round(kalt + streu, 3) if spanne else None, ohne))
+    if ohne_wie_mit and ohne_kwh is not None and aus and aus[-1][2] > 0:
+        f = ohne_kwh / aus[-1][2]
+        aus = [(t, i, m, u, o, round(m * f, 3)) for t, i, m, u, o, _ in aus]
     return aus
 
 
@@ -209,3 +214,59 @@ def baustelle_tage(roh: Mapping[str, Sequence[TagRoh]], heute: date) -> list[Tag
     n = len(roh)
     return [Tag(sum(t.aussen for t in ts) / n, sum(t.kwh for t in ts))   # type: ignore[misc]  # tag_zaehlt prüft None
             for d, ts in sorted(je_tag.items()) if n and len(ts) == n]
+
+
+# ------------------------------------------------------------------ Ersparnis nach IPMVP (BSM-033.04)
+
+@dataclass(frozen=True)
+class Ohne:
+    signatur: Signatur
+    tage: int                       # gemessene Baseline-Tage
+    heizperiode_kwh: float | None   # ganze Heizperiode „ohne Automatik“ (nur mit guter/brauchbarer Signatur)
+
+
+def ohne_container(
+    roh: Sequence[TagRoh], ohne_tage: Collection[date], heute: date, beginn: date, ende: date,
+    vorhersage: Mapping[date, float], klima: Sequence[float],
+) -> Ohne:
+    """Signatur „ohne Automatik“ aus den Baseline-Tagen und die Heizperiode damit gerechnet: jeder Tag bis heute bei
+    seiner gemessenen Außentemperatur (Baseline-Tage mit ihrem Verbrauch), danach Vorhersage bzw. Klimamittel."""
+    gemessen = [t for t in roh if t.datum in ohne_tage and tag_zaehlt(t, heute)]
+    sig = berechnen(Tag(t.aussen, t.kwh, automatik=False) for t in gemessen)   # type: ignore[arg-type]
+    if erwartet(sig, 0.0) is None:
+        return Ohne(sig, len(gemessen), None)
+    je_tag = {t.datum: t for t in roh}
+    summe = 0.0
+    for d in tage(beginn, ende):
+        t = je_tag.get(d)
+        if d in ohne_tage and t is not None and t.kwh is not None:
+            summe += t.kwh
+        elif d <= heute:
+            aussen = t.aussen if t is not None and t.aussen is not None else klima_tag(d, klima)
+            summe += erwartet(sig, aussen) or 0.0
+        else:
+            summe += erwartet(sig, vorhersage.get(d, klima_tag(d, klima))) or 0.0
+    return Ohne(sig, len(gemessen), summe)
+
+
+def ohne_baustelle(
+    ohne: Mapping[str, Ohne], mit_kwh: Mapping[str, float], typen: Mapping[str, str],
+) -> float | None:
+    """„Ohne Automatik“ der ganzen Heizperiode aus den Baseline-Messungen: gemessene Container mit ihrer Signatur, die
+    anderen mit dem Verhältnis ohne ÷ mit gemessener Container desselben Heizkörper-Typs; None, solange das nicht für
+    jeden Container geht (dann bleibt die Schätzung 24/7)."""
+    verh: dict[str, list[float]] = {}
+    for bid, o in ohne.items():
+        if o.heizperiode_kwh is not None and mit_kwh.get(bid):
+            verh.setdefault(typen.get(bid, ""), []).append(o.heizperiode_kwh / mit_kwh[bid])
+    summe = 0.0
+    for bid, mit in mit_kwh.items():
+        o = ohne.get(bid)
+        if o is not None and o.heizperiode_kwh is not None:
+            summe += o.heizperiode_kwh
+        elif verh.get(typen.get(bid, "")):
+            r = verh[typen[bid]]
+            summe += mit * sum(r) / len(r)
+        else:
+            return None
+    return summe if mit_kwh else None

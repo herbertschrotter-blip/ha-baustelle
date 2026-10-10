@@ -124,15 +124,16 @@ def mittel_typ(hz: Heizung, typ: str) -> float | None:
     return sum(werte) / len(werte) if werte else None
 
 
-def hochrechnung_heizperiode(hz: Heizung, key: str) -> float | None:
+def hochrechnung_heizperiode(hz: Heizung, key: str, *, schaetzung: bool = False) -> float | None:
     """Hochrechnung der Heizperiode (kWh): mit Automatik aus Energiesignatur und Klimamitteln (BSM-033.02), solange es
     davon noch keine gibt – und „ohne Automatik“ bis zur gemessenen Baseline (BSM-033.04) – Tagesschnitt seit Zählbeginn."""
     st = hz.st
-    if key == "energie_heizen":
+    if not schaetzung and key in ("energie_heizen", "ohne"):
         from .hochrechnung import werte   # noqa: PLC0415
 
-        if (w := werte(hz)) is not None and w["mit_kwh"] is not None:
-            return float(w["mit_kwh"])
+        feld = "mit_kwh" if key == "energie_heizen" else "ohne_kwh"   # ohne: gemessene Baseline (BSM-033.04)
+        if (w := werte(hz)) is not None and w.get(feld) is not None:
+            return float(w[feld])
     seit = dt_util.parse_datetime(st.zaehler["seit"]) if st.zaehler.get("seit") else None
     if seit is None:
         return None

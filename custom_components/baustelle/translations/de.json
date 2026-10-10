@@ -253,7 +253,8 @@
           "trocknen": "Kleidung trocknen",
           "ausserhalb": "Außerhalb der Heizzeit",
           "aus": "Aus – nur Frostschutz",
-          "absenken": "Abgesenkt"
+          "absenken": "Abgesenkt",
+          "baseline": "Baseline-Messung"
         }
       },
       "leistung": {

@@ -205,7 +205,9 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
                       "methode", "unten_kwh", "unten_eur", "oben_kwh", "oben_eur", "normjahr_kwh", "normjahr_eur",
                       "hgt_rest", "vorhersage_tage", "container",
                       # BSM-033.03: Karte „Heizperiode“ (Tagesreihe, Klimamittel, Vorhersage, Zeitraum)
-                      "reihe", "klima", "klima_vorgabe", "vorhersage", "beginn", "ende"}
+                      "reihe", "klima", "klima_vorgabe", "vorhersage", "beginn", "ende",
+                      # BSM-033.04: Baseline-Läufe, „ohne Automatik“ gemessen oder geschätzt
+                      "baseline", "ohne_methode"}
     if h["mit_kwh"] is not None:
         assert h["mit_eur"] == pytest.approx(h["mit_kwh"] * 0.25)
     # BSM-033: Wetter-Einfluss aus der Energiesignatur der Baustelle (Tage aus der Datenbank; hier noch keine ganzen Tage)

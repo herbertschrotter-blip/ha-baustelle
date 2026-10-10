@@ -77,6 +77,7 @@ class SollGrund(StrEnum):
     AUSSERHALB = "ausserhalb"
     AUS = "aus"
     ABSENKEN = "absenken"
+    BASELINE = "baseline"   # BSM-033.04: Baseline-Lauf – alle Heizkörper ohne Automatik am Strom
 
 
 @dataclass(frozen=True)
@@ -117,6 +118,7 @@ class LageContainer:
     aussen: float | None = None         # Außentemperatur (Frostschutz ohne Fühler)
     frost_aussen: float | None = None   # ohne Fühler: Frostschutz ein unter dieser Außentemperatur (None = aus)
     taste: bool = False                 # BSM-018: Taste am Plug gedrückt – 1 h heizen (wie Bei Bedarf, in jedem Modus)
+    baseline: bool = False              # BSM-033.04: Baseline-Lauf – durchgehend an, der Thermostat am Gerät regelt
 
 
 @dataclass(frozen=True)
@@ -237,6 +239,8 @@ def _ohne_tuer(lage: LageContainer) -> Soll:
         return Soll(None, SollGrund.HAND)
     if lage.taste:   # BSM-018: wie das Notprogramm im Plug – vor Modus, frei, Heizgrenze und Plan; mit Fühler bis zum Soll
         return Soll(_heizen(lage), SollGrund.TASTE)
+    if lage.baseline:   # BSM-033.04: nach Hand, Frost, Tür und Taste; vor Modus, frei, Heizgrenze und Plan
+        return Soll(True, SollGrund.BASELINE)
     if lage.boost and (lage.temperatur is None or lage.temperatur < lage.soll):
         return Soll(True, SollGrund.BOOST)
     if lage.modus == "aus":

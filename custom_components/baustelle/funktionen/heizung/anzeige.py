@@ -83,6 +83,8 @@ def anzeige(hz: Heizung, bid: str, info: BereichInfo, jetzt: datetime, soll: Sol
     elif grund == SollGrund.TASTE and heizer_an:   # BSM-018
         bis = hz.bis("taste_bis", bid, jetzt)
         zustand, text = "heizt", "Taste am Plug" + (f" · bis {bis:%H:%M}" if bis else "")
+    elif grund == SollGrund.BASELINE and heizer_an:   # BSM-033.04
+        zustand, text = "heizt", "Baseline-Messung · Thermostat am Gerät regelt"
     elif grund == SollGrund.BEREIT:
         zustand, text = "bereit", "bei Bedarf · nur Frostschutz"
     elif grund == SollGrund.AUS and not heizer_an:

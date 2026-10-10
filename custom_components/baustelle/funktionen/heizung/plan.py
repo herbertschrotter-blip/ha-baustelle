@@ -14,6 +14,8 @@ from ...logik.arbeitszeit import Plan, WarmAb, ausnahme_am, frei_gilt, bedarf_fe
 from ...logik.regelung import FUEHLER_HALTEN_MIN, LageContainer, Soll, SollGrund, letzter_wert, soll_container
 from ..basis import ev_zeit, minuten_seit, zeit
 
+from . import baseline as h_baseline
+
 if TYPE_CHECKING:
     from . import Heizung
     from ...steuerung import BereichInfo, WetterWerte
@@ -221,6 +223,7 @@ def soll(hz: Heizung, jetzt: datetime, wetter: WetterWerte) -> SollJeBereich:
                               for g in st.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER),
             tuer_vorher=hz._tuer_pause.get(bid, False),
             taste=hz.bis("taste_bis", bid, jetzt) is not None,   # BSM-018: Taste am Plug
+            baseline=h_baseline.laeuft(hz, bid, jetzt),   # BSM-033.04: Baseline-Lauf
         )
         soll = soll_container(lage, int(h["tuer_pause_min"]))
         hz._lern_grund[bid] = soll.grund

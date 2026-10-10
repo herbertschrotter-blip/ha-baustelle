@@ -6,7 +6,7 @@ from ...logik.regelung import HandEnde, SollGrund
 
 HEIZ_GRUENDE = {
     SollGrund.FRUEHSTART, SollGrund.VORHEIZEN, SollGrund.ARBEITSZEIT, SollGrund.NACHHEIZEN, SollGrund.TROCKNEN,
-    SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN, SollGrund.TASTE,
+    SollGrund.BEDARF, SollGrund.BOOST, SollGrund.FROST, SollGrund.ABSENKEN, SollGrund.TASTE, SollGrund.BASELINE,
 }
 # lernende Regelung: nur in diesen Gründen regelt der Container selbst (K außen lernen)
 LERN_GRUENDE = {

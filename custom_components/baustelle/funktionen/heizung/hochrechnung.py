@@ -11,7 +11,8 @@ Vorhersage. Ohne Datenbank bleibt es bei der bisherigen Hochrechnung (Tagesschni
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date, datetime
+from dataclasses import replace
+from datetime import date, datetime, timedelta
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -19,12 +20,14 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 
-from ...const import CONF_ENDE, CONF_HEIZPERIODE_BIS, CONF_HEIZPERIODE_VON
+from ...const import CONF_ENDE, CONF_HEIZPERIODE_BIS, CONF_HEIZPERIODE_VON, ROLLE_HEIZKOERPER
 from ...db import DATA_DB
 from ...db.tage import hochrechnung_tage
-from ...logik import hochrechnung as h
+from ...logik import baseline as b, hochrechnung as h
 from ...logik.signatur import Tag, berechnen
 from ...logik.auswertung import heizperiode_bis, heizperiode_ende
+
+from . import baseline as h_baseline, zaehlen as h_zaehlen
 
 if TYPE_CHECKING:
     from ...steuerung import Steuerung
@@ -71,7 +74,14 @@ def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date) -> dict[s
     vor = vorhersage(st, heute)
     ids = [b.id for b in hz.bereiche()]
     roh = {bid: roh.get(bid, []) for bid in ids}
-    reste = {bid: h.container_rest(roh[bid], heute, ende, vor, klima, beginn) for bid in ids}
+    ohne_tage = b.zaehlende_tage(h_baseline.laeufe(hz))   # BSM-033.04: Tage der Baseline-Läufe
+    reste = {bid: h.container_rest(roh[bid], heute, ende, vor, klima, beginn, ohne_tage.get(bid, set())) for bid in ids}
+    # Ersparnis nach IPMVP: Signatur „ohne“ je Container, Heizperiode damit; andere über das Verhältnis je Heizkörper-Typ
+    ohne = {bid: h.ohne_container(roh[bid], ohne_tage.get(bid, set()), heute, beginn, ende, vor, klima) for bid in ids}
+    mit = {bid: sum(t.kwh or 0.0 for t in roh[bid] if beginn <= t.datum <= heute) + reste[bid].rest_kwh for bid in ids}
+    typen = {bid: h_baseline._typ({g.typ for g in st.geraete_in(bid) if g.rolle == ROLLE_HEIZKOERPER}) for bid in ids}
+    ohne_kwh = h.ohne_baustelle(ohne, mit, typen)
+    _kosten_nachtragen(hz, roh)
     container = [{
         "bereich": bid, "methode": r.methode, "rest_kwh": r.rest_kwh, "unten_kwh": r.unten_kwh, "oben_kwh": r.oben_kwh,
         "normjahr_kwh": r.normjahr_kwh, "stand": r.signatur.stand, "grund": r.signatur.grund, "tage": r.signatur.tage,
@@ -84,9 +94,32 @@ def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date) -> dict[s
             "container": container, "hgt_rest": h.hgt_summe(rest_temps[1:]), "vorhersage_tage": len(vor),
             "bisher_kwh": h.bisher(roh, heute, beginn),
             "signatur": _signatur(h.baustelle_tage(roh, heute)),
-            "reihe": h.reihe(roh, reste, heute, beginn, ende, hz.hochrechnung_heizperiode("ohne")),
+            "reihe": h.reihe(roh, reste, heute, beginn, ende,
+                             ohne_kwh if ohne_kwh is not None else h_zaehlen.hochrechnung_heizperiode(hz, "ohne", schaetzung=True),
+                             ohne_wie_mit=ohne_kwh is not None),
+            "ohne": {"methode": "baseline" if ohne_kwh is not None else "schaetzung", "kwh": ohne_kwh,
+                     "container": [{"bereich": bid, "stand": o.signatur.stand, "tage": o.tage, "heizperiode_kwh": o.heizperiode_kwh,
+                                    "grenze": o.signatur.grenze, "kwh_je_grad": o.signatur.kwh_je_grad,
+                                    "grundlast": o.signatur.grundlast, "cv_rmse": o.signatur.cv_rmse,
+                                    "kwh_je_tag": (o.heizperiode_kwh / max(1, (ende - beginn).days + 1)) if o.heizperiode_kwh else None}
+                                   for bid, o in ohne.items()]},
+            "baseline": {"an": h_baseline.eingeschaltet(hz), "laeufe": [l.als_dict() for l in h_baseline.laeufe(hz)][-12:]},
             "klima": list(klima), "klima_vorgabe": eigen is None,
             "vorhersage": [[d.isoformat(), t] for d, t in sorted(vor.items()) if d <= ende]}
+
+
+def _kosten_nachtragen(hz: Heizung, roh: dict[str, list[h.TagRoh]]) -> None:
+    """Gemessene Kosten beendeter Baseline-Läufe (Verbrauch der Lauftage × Preis) – zählen gegen den Monatsrahmen."""
+    liste, neu = h_baseline.laeufe(hz), False
+    for i, l in enumerate(liste):
+        if l.status in ("fertig", "abgebrochen") and l.kosten_eur is None:
+            letzter = l.ende or (l.bis - timedelta(days=1))
+            tage = {t.datum: t for t in roh.get(l.bereich, [])}
+            liste[i] = replace(l, kosten_eur=round(sum((tage[d].kwh or 0.0) * hz.st.preis_am(d)
+                                                       for d in l.tage() if d <= letzter and d in tage), 2))
+            neu = True
+    if neu:
+        h_baseline._speichern(hz, liste)
 
 
 async def async_rechnen(hass: HomeAssistant, hz: Heizung) -> None:
@@ -109,7 +142,8 @@ def werte(hz: Heizung) -> dict[str, Any] | None:
     Ergebnis (dann gilt der Tagesschnitt)."""
     if not hz.hochrechnung:
         return None
-    return h.baustelle(hz.hochrechnung["bisher_kwh"], hz.hochrechnung["reste"])
+    return {**h.baustelle(hz.hochrechnung["bisher_kwh"], hz.hochrechnung["reste"]),
+            "ohne_kwh": (hz.hochrechnung.get("ohne") or {}).get("kwh")}
 
 
 @callback

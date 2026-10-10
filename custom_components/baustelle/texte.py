@@ -98,6 +98,7 @@ GRUND_TEXT: dict[str, str] = {
     SollGrund.BEDARF: "Bei Bedarf",
     SollGrund.BOOST: "Schnell aufheizen",
     SollGrund.TASTE: "Taste am Plug · 1 h heizen",
+    SollGrund.BASELINE: "Baseline-Messung · ohne Automatik",
     SollGrund.FROST: "Frostschutz",
     SollGrund.TUER_OFFEN: "Tür offen – Heizung pausiert",
     SollGrund.BEREIT: "Bedarf vorbei",

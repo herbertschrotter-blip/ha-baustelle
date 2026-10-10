@@ -179,7 +179,8 @@
      "trocknen",
      "ausserhalb",
      "aus",
-     "absenken"
+     "absenken",
+     "baseline"
     ],
     "device_class": "enum",
     "friendly_name": "Büro Heating"
@@ -435,7 +436,8 @@
      "trocknen",
      "ausserhalb",
      "aus",
-     "absenken"
+     "absenken",
+     "baseline"
     ],
     "device_class": "enum",
     "friendly_name": "Magazin Heating"
@@ -523,7 +525,8 @@
      "trocknen",
      "ausserhalb",
      "aus",
-     "absenken"
+     "absenken",
+     "baseline"
     ],
     "device_class": "enum",
     "friendly_name": "Mannschaft Heating"
@@ -630,7 +633,8 @@
      "trocknen",
      "ausserhalb",
      "aus",
-     "absenken"
+     "absenken",
+     "baseline"
     ],
     "device_class": "enum",
     "friendly_name": "Polier Heating"

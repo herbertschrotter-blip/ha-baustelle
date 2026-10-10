@@ -28,6 +28,7 @@ from ...logik.regelung import LageContainer, Soll, SollGrund
 from ..basis import Funktion, zeit
 from . import (
     anzeige as h_anzeige,
+    baseline as h_baseline,
     bedarf as h_bedarf,
     hand as h_hand,
     lernregelung as h_lernregelung,
@@ -257,7 +258,9 @@ class Heizung(Funktion):
         h_lernregelung._stufen_rechnen(self, bid, soll, temp, soll_t, wetter, jetzt, plan, minute, warm)
 
     def geraet_ein(self, g: GeraetInfo, soll: Soll) -> bool | None:
-        """Zusatz-Heizkörper bleibt aus, solange einer reicht (AN-0006); sonst wie der Container."""
+        """Zusatz-Heizkörper bleibt aus, solange einer reicht (AN-0006); sonst wie der Container. Baseline-Lauf: alle an."""
+        if soll.grund == SollGrund.BASELINE:
+            return True
         if soll.ein and g.rolle == ROLLE_HEIZKOERPER and self.stufen_an(g.bereich) and g.id in self.haupt_und_zusatz(g.bereich)[1]:
             return self._stufen.get(g.bereich, (False, None))[0]
         return soll.ein
@@ -327,6 +330,7 @@ class Heizung(Funktion):
 
     def nach_schalten(self, jetzt: datetime, wetter: WetterWerte) -> None:
         h_hand.nach_schalten(self, jetzt, wetter)
+        h_baseline.takt(self, jetzt)   # BSM-033.04: Baseline-Läufe planen, starten, abbrechen
 
     # ------------------------------------------------------------------ Hand
     def nach_soll(self, soll: SollJeBereich) -> None:

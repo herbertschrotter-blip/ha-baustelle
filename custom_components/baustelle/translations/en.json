@@ -253,7 +253,8 @@
           "trocknen": "Drying clothes",
           "ausserhalb": "Outside heating time",
           "aus": "Off – frost protection only",
-          "absenken": "Setback"
+          "absenken": "Setback",
+          "baseline": "Baseline measurement"
         }
       },
       "leistung": {

@@ -5,8 +5,8 @@ from datetime import date, timedelta
 import pytest
 
 from logik.hochrechnung import (
-    KLIMA_GRAZ, VOLL_ANTEIL, WINTER_K, ContainerRest, TagRoh, baustelle, baustelle_tage, bisher, container_rest, hgt, hgt_summe, klima_tag,
-    klimamittel, klimamittel_pruefen, reihe, tag_zaehlt, tage, temperaturen,
+    KLIMA_GRAZ, VOLL_ANTEIL, WINTER_K, ContainerRest, Ohne, TagRoh, baustelle, baustelle_tage, bisher, container_rest, hgt, hgt_summe, klima_tag,
+    klimamittel, klimamittel_pruefen, ohne_baustelle, ohne_container, reihe, tag_zaehlt, tage, temperaturen,
 )
 from logik.signatur import Signatur
 
@@ -163,3 +163,48 @@ def test_baustelle_tage_nur_wenn_alle_container_zaehlen():
     T = baustelle_tage(r, HEUTE)
     assert len(T) == 1 and T[0].kwh == 15.0 and T[0].aussen == 2.0
     assert baustelle_tage({}, HEUTE) == []
+
+
+# ------------------------------------------------------------------ IPMVP (BSM-033.04)
+
+def ohne_modell(t: float) -> float:   # ohne Automatik: mehr Grundlast, mehr je Grad (Heizkörper hängt immer am Strom)
+    return 3.0 + 3.0 * max(0.0, 16.0 - t)
+
+
+def test_baseline_tage_fehlen_in_der_signatur_mit_automatik():
+    a = roh()
+    lauf = {a[3].datum, a[4].datum}
+    mit = container_rest(a, HEUTE, date(2027, 4, 30), {}, KLIMA, date(2026, 10, 1), ohne_tage=lauf)
+    assert mit.signatur.tage == len(a) - 2
+
+
+def test_ohne_container_und_heizperiode():
+    beginn, ende = date(2026, 10, 1), date(2027, 4, 30)
+    start = date(2026, 10, 20)
+    temps = [-3 + (i % 22) for i in range(30)]
+    ohne_tage = {start + timedelta(days=i) for i in range(0, 30, 2)}      # jeder zweite Tag ein Baseline-Tag
+    r = [TagRoh(start + timedelta(days=i), (ohne_modell if start + timedelta(days=i) in ohne_tage else modell)(t), t, 86400)
+         for i, t in enumerate(temps)]
+    o = ohne_container(r, ohne_tage, HEUTE, beginn, ende, {}, KLIMA)
+    assert o.tage == 15 and o.signatur.stand == "gut"
+    assert o.signatur.grenze == pytest.approx(16.0) and o.signatur.kwh_je_grad == pytest.approx(3.0)
+    erwartet = 0.0
+    je = {t.datum: t for t in r}
+    for d in tage(beginn, ende):
+        t = je.get(d)
+        erwartet += t.kwh if d in ohne_tage else ohne_modell(t.aussen if t and d <= HEUTE else klima_tag(d, KLIMA))
+    assert o.heizperiode_kwh == pytest.approx(erwartet, rel=1e-6)
+    wenig = ohne_container(r, set(list(ohne_tage)[:3]), HEUTE, beginn, ende, {}, KLIMA)
+    assert wenig.signatur.stand == "lernt" and wenig.heizperiode_kwh is None
+
+
+def test_ohne_baustelle_mit_verhaeltnis_je_typ():
+    g = Ohne(Signatur("gut", 12), 12, 3000.0)
+    lernt = Ohne(Signatur("lernt", 2), 2, None)
+    mit = {"a": 1500.0, "b": 1000.0, "c": 800.0}
+    typen = {"a": "oelradiator", "b": "oelradiator", "c": "konvektor"}
+    assert ohne_baustelle({"a": g, "b": lernt}, mit, typen) is None                         # Konvektor ohne Messung
+    k = Ohne(Signatur("gut", 10), 10, 1200.0)
+    v = ohne_baustelle({"a": g, "b": lernt, "c": k}, mit, typen)
+    assert v == pytest.approx(3000.0 + 1000.0 * 2.0 + 1200.0)                              # b: Verhältnis von a
+    assert ohne_baustelle({}, {}, {}) is None

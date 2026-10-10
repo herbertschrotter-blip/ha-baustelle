@@ -546,8 +546,9 @@ def hochrechnung_signatur(
     # BSM-033.03: Karte „Heizperiode“ – bisher aus den Tagen der Heizperiode, Tagesreihe, Klimamittel, Vorhersage
     if e.get("bisher_kwh") is not None:
         aus["bisher_kwh"], aus["bisher_eur"] = e["bisher_kwh"], geld(e["bisher_kwh"], preis)
-    for k in ("reihe", "klima", "klima_vorgabe", "vorhersage", "beginn", "ende"):
+    for k in ("reihe", "klima", "klima_vorgabe", "vorhersage", "beginn", "ende", "baseline"):
         aus[k] = e.get(k)
+    aus["ohne_methode"] = (e.get("ohne") or {}).get("methode") or "schaetzung"   # BSM-033.04: gemessen oder 24/7 geschätzt
     return aus
 
 
