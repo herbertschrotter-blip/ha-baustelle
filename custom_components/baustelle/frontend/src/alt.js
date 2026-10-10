@@ -34,6 +34,7 @@ import { BAUSTELLE_EINBLENDUNGEN } from './ansichten/einblendungen-baustelle.js'
 import { EINRICHTUNG_EINBLENDUNGEN } from './ansichten/einblendungen-einrichtung.js';
 import { npPlugEinblendung } from './ansichten/notprogramm.js';
 import { INVENTAR_EINBLENDUNGEN, INV_BREIT, INV_CSS } from './ansichten/inventar.js';
+import { GERAETE_CSS, GERAETE_EINBLENDUNGEN } from './ansichten/geraete.js';
 import { uebersichtVorlage } from './ansichten/uebersicht.js';
 import { katalogEinblendung } from './ansichten/kacheln.js';
 import { UEBERSICHT_EINBLENDUNGEN } from './ansichten/einblendungen-uebersicht.js';
@@ -900,9 +901,9 @@ function einblendungen(s) {
 /* ---------- Seite ---------- */
 const STATISCH = '/baustelle_static';
 const SEITE_VERSION = __BAUSTELLE_VERSION__;   // Version dieser Seite – beim Bauen aus version.json (tools/changelog.py → bauen.mjs, BSM-022)
-const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', ...Object.keys(INVENTAR_EINBLENDUNGEN), 'kk-katalog', ...Object.keys(UEBERSICHT_EINBLENDUNGEN), 'aw-detail'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
+const LIT_SHEETS = ['melden', 'leistung', 'heizzeit-c', 'bedarf', 'termin', 'lernen', 'hz', 'heizplan', 'az', 'ausnahme', 'az-neu', ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), 'np-plug', ...Object.keys(INVENTAR_EINBLENDUNGEN), ...Object.keys(GERAETE_EINBLENDUNGEN), 'kk-katalog', ...Object.keys(UEBERSICHT_EINBLENDUNGEN), 'aw-detail'];   // Einblendungen, die Lit zeichnet (BSM-022 2a.2, 3d)
 class BaustellePanel extends LitElement {
-  static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS), unsafeCSS(INV_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
+  static styles = [unsafeCSS(CSS), unsafeCSS(GLAS_CSS), unsafeCSS(INV_CSS), unsafeCSS(GERAETE_CSS)];   // BSM-022 2b: Stile über Lit (adoptedStyleSheets)
   constructor() {
     super();
     this.s = einblendungen({ view: 'uebersicht', cid: null, sheet: null, chart: 'temp', verlauf: 'aktiv' });
@@ -1872,6 +1873,10 @@ class BaustellePanel extends LitElement {
   geraetAktiv(b, i) { const g = b.geraete[i]; this.invNeu();   // BSM-034.02: derselbe Status wie ✎ und Inventar
     return this.ws({ type: 'baustelle/geraet', entry_id: this.d.entry, geraet: g.id, aktion: 'status', status: g.aktiv ? 'inaktiv' : 'aktiv' }, g.aktiv ? `${g.n} inaktiv – die Automatik lässt es aus` : `${g.n} wieder aktiv`); }
   geraetAutomatik(b, i) { const g = b.geraete[i]; return this.aktion('automatik', { geraet: g.id }, `${g.n}: Automatik übernimmt`); }
+  /* BSM-034.05: Gerät oder Sensor aus Einstellungen › Geräte öffnen (Gerätedialog bzw. Einblendung „Sensor“) */
+  geraetOeffnen(bid, gid) { const b = this.d.bereiche.find(x => x.id === bid), i = b ? b.geraete.findIndex(g => g.id === gid) : -1;
+    if (i < 0) return undefined; this.s.cid = bid; return this.geraetBearbeiten(b, i); }
+  sensorOeffnen(bid, eid) { this.s.sheet = { art: 'sensor', bid, eid }; return this.neuZeichnen(); }
   geraetBearbeiten(b, i) { const g = b.geraete[i];
     return this.unterDialog({ art: 'geraet-edit', i, form: { n: g.n, schalter: g.schalter, typ: g.typ, bereich: b.id, leistung: g.leistungEigen || '', energie: g.energieEigen || '', status: g.status,
       nennKw: g.nennKwEigen ?? null, zusatz: !!g.zusatz } }); }
@@ -2010,6 +2015,7 @@ class BaustellePanel extends LitElement {
     else if (S.sheet && EINRICHTUNG_EINBLENDUNGEN[S.sheet.art]) sheet = EINRICHTUNG_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'np-plug') sheet = npPlugEinblendung(this, S.sheet);
     else if (S.sheet && INVENTAR_EINBLENDUNGEN[S.sheet.art]) sheet = INVENTAR_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
+    else if (S.sheet && GERAETE_EINBLENDUNGEN[S.sheet.art]) sheet = GERAETE_EINBLENDUNGEN[S.sheet.art](this, S.sheet);
     else if (S.sheet && S.sheet.art === 'kk-katalog') sheet = katalogEinblendung(this, S.sheet);
     else if (S.sheet && S.sheet.art === 'aw-detail') sheet = awDetailEinblendung(this, S.sheet);
     else if (S.sheet && UEBERSICHT_EINBLENDUNGEN[S.sheet.art]) sheet = UEBERSICHT_EINBLENDUNGEN[S.sheet.art](this, S.sheet);

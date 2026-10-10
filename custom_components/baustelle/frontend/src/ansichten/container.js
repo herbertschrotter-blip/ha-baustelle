@@ -2,6 +2,7 @@
 // Regeltext und Heizzeiten kommen aus der Integration; die Seite ordnet nur zu. Rad, Tagesdiagramm und Balken bleiben bis
 // Stufe 4 SVG-Text (unsafeHTML). Neue Messwerte zeichnen nur, was sich geändert hat (B4).
 import { html, nothing } from 'lit';
+import { sensorLeisteVorlage } from './geraete.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { TAGE, de, kurzDatum, minu, naechsterTermin, plusTage, uhr, wtag, zahl } from '../hilfen.js';
 import { FARBE, MODI, TEXT, WIEDER, kwVon } from '../tabellen.js';
@@ -94,8 +95,9 @@ export function containerVorlage(p) {
         <div class="chart-wrap">${unsafeHTML(chart)}</div></div>
       <div class="glas-panel block"><div class="block-kopf"><b>Geräte</b><span class="leise">⏻ = Handbetrieb · aktiv aus = die Automatik lässt es aus</span></div>
         ${b.geraete.length ? html`<div class="c-chips">${geraete(p, b)}</div>` : html`<div class="leise">Noch kein Gerät</div>`}</div>
+      ${sensorLeisteVorlage(p, b)}
       <div class="glas-panel liste">
-        ${b.tuer ? html`<div class="zeile"><div><b>🚪 ${b.tuer.sensor}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min – Heizung pausiert nach ${d.e.tuer_pause} min, Meldung nach ${d.e.tuer_melden} min` : 'zu'}</div></div></div>` : nothing}
+        ${b.tuer && b.tuer.offen ? html`<div class="zeile"><div><b>🚪 ${b.tuer.sensor}</b><div class="leise">${b.tuer.offen ? `offen seit ${b.tuer.offen} min – Heizung pausiert nach ${d.e.tuer_pause} min, Meldung nach ${d.e.tuer_melden} min` : 'zu'}</div></div></div>` : nothing}
         ${!b.fuehler || !b.lern ? nothing : html`<div class="zeile"><div><b>🧠 Lernende Regelung</b><div class="leise">${['thermo', 'bedarf'].includes(b.modus) ? 'lernt, wie lange der Raum nach dem Ausschalten nachheizt, und schaltet früher ab' : 'wirkt nur im Modus Thermostat oder Bei Bedarf'}${b.lern.an ? html` · <button class="link" @click=${() => p.einblenden('lernen')}>Lernstand ›</button>` : nothing}</div></div>${schalterVorlage(b.lern.an, () => p.lernenUmschalten(b))}</div>`}
         <div class="zeile"><span>👕 Kleidung trocknen nach Regen</span>${schalterVorlage(b.trocknen, () => p.trocknenUmschalten(b))}</div>
       </div>`;

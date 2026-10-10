@@ -5,7 +5,7 @@ schalten und Grundwasserpumpen überwachen – je Baustelle, mit Containern und 
 Vorlage der Oberfläche ist das abgenommene Mockup `mockups/glas.html` (Abnahme 30.09.2026, `mockups/README.md`);
 Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
 
-## Funktionen (Stand 0.8.120)
+## Funktionen (Stand 0.8.122)
 
 - **Einrichtung** unter Einstellungen → Geräte & Dienste → Baustelle: je Baustelle ein Eintrag; darin
   **Container / Pumpenschächte** und **Shellys** als Unter-Einträge (auch direkt von der Seite aus). Ein Shelly gehört nur
@@ -33,7 +33,10 @@ Bauplan und Schnittstelle stehen in `docs/bauplan-0.7.md` und `docs/api-0.7.md`.
   mit Firmenkürzel, Ausrüstung mit Status und Geschichte, Namen nach dem Schema (`002_C_MAN`, `002-01_C_PLUG_MAN`,
   deutsche Kürzel). Datenbank und Schnittstelle sind da, Umbenennen nach dem Schema samt Entity-IDs geht über die
   Schnittstelle (Vorschau, Übernehmen, auch den Namen im Plug, Nachholen, Rückgängig), Geräte aus HA zuordnen samt Verdrahtung,
-  Status verliehen/defekt – auf der Seite unter Einstellungen › 📦 Inventar (`docs/bauplan-inventar.md`).
+  Status verliehen/defekt – auf der Seite unter Einstellungen › 🔌 Geräte › 📦 Inventar (`docs/bauplan-inventar.md`).
+- **Geräte an einer Stelle** (BSM-034): Einstellungen › 🔌 Geräte zeigt alle Shellys und Sensoren je Container mit
+  Zustand, Batterie, Signal, Status (aktiv/inaktiv/verliehen/defekt) und Warnungen; ein Gerätedialog; das Inventar
+  gleicht sich mit HA ab (`docs/bauplan-geraete.md`).
 
 ## Aufbau
 

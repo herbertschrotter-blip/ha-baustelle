@@ -2,6 +2,7 @@
 // (mit Größe, „Warm ab“ und Geräteliste), Aussehen (BSM-032), Gerät bearbeiten. Entwürfe in s.form bzw. s.edit, getrennt
 // von den Serverdaten; gespeichert wird über die Seite (Options-/Unterdialoge der Integration, baustelle/liste, setzen).
 import { html, nothing } from 'lit';
+import { geraeteZeilen, inventarVorlage, jetztVorlage } from './geraete.js';
 import { live } from 'lit/directives/live.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { de, zahl } from '../hilfen.js';
@@ -147,11 +148,14 @@ function aussehen(p, s) {
 /* WU-0004: Gerät bearbeiten – Name, Shelly, Typ, Container, Leistungs-/Energiesensor (leer = automatisch), aktiv */
 function geraetEdit(p, s) {
   const d = p.d, b = p.b, g = b && b.geraete[s.i]; if (!g) { p.s.sheet = null; return nothing; }
+  const x = geraeteZeilen(p).find(y => y.art === 'schalt' && y.id === g.id);   // BSM-034.05: Jetzt, Warnungen, Inventar wie in › Geräte
   const f = s.form, typen = b.pumpe ? ['Pumpe'] : ['Ölradiator', 'Konvektor', 'Bautrockner', 'Steckdose'];   // wie im Bearbeiten-Dialog
   const leistung = p.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'power');
   const energie = p.entitaeten(x => x.entity_id.startsWith('sensor.') && x.attributes.device_class === 'energy');
   const auto = (eid, eigen) => `automatisch${!eigen && eid ? ` · ${p.name(eid) || eid}` : ''}`;
   return html`${GRIFF}<div class="block-kopf"><h3>Gerät bearbeiten</h3><span class="leise">${b.name}</span></div>
+        ${x ? jetztVorlage(p, x) : nothing}
+        <div class="gruppe-t">Einstellungen</div>
         <label class="feld">Name${text(f, 'n')}</label>
         <label class="feld">Shelly (Schalter)${auswahl(f, 'schalter', optionenVorlage(p.freieSchalter(g.schalter).map(([v, n]) => [v, `${n} (${v})`]), f.schalter))}</label>
         <div class="raster-2"><label class="feld">Typ${auswahl(f, 'typ', typen.map(t => html`<option ?selected=${f.typ === t}>${t}</option>`))}</label>
@@ -163,6 +167,7 @@ function geraetEdit(p, s) {
         ${!g.leistung ? html`<div class="zeile"><div><b>Leistung ohne Messung</b><div class="leise">zählt so in der Staffelung, wenn das Gerät an ist${f.nennKw === null ? ' · Standard' : ''}</div></div><span class="stepper klein"><button data-d="-0.1" @click=${() => p.geraetNennKw(f, g, -0.1)}>−</button><b class=${f.nennKw !== null ? 'eigen' : ''}>${de(f.nennKw ?? g.kw, 1)} kW</b><button data-d="0.1" @click=${() => p.geraetNennKw(f, g, 0.1)}>+</button></span></div>` : nothing}
         ${g.heizer && b.geraete.filter(x => x.heizer).length >= 2 ? html`<div class="zeile" data-zeile="zusatz"><div><b>🔥 Zusatz-Heizkörper</b><div class="leise">${b.stufenAn ? 'heizt nur dazu, wenn einer nicht reicht' : 'wirkt, wenn im Container „Zusatz nur bei Bedarf“ an ist'}${b.stufen && b.stufen.haupt.includes(g.id) && !f.zusatz ? ' · jetzt der erste' : ''}</div></div>${schalterVorlage(f.zusatz, () => { f.zusatz = !f.zusatz; p.neuZeichnen(); })}</div>` : nothing}
         <div class="leise">Neuer Shelly: die Werte des alten bleiben im Verlauf. Anderer Container: der Verbrauch zählt ab jetzt dort.</div>
+        ${x ? inventarVorlage(p, x) : nothing}
         ${knopf('Speichern', p.nurAdmin(() => p.geraetSpeichern()), 'amber nur-admin')}${knopf('Abbrechen', () => p.schliessen(), 'leise-k')}`;
 }
 

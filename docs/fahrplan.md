@@ -115,4 +115,4 @@ Inventar hängt nur in einer Richtung daran. Ziel: ein Besitzer je Eigenschaft, 
 - [x] **K2** (BSM-034.02, 0.8.116/0.8.117) Baustein `kern/geraete` und ein Status je Gerät, Abgleich mit dem Inventar in beide Richtungen; Geräte der Seite über `baustelle/geraet`
 - [x] **K3** (BSM-034.03, 0.8.118/0.8.119) Sensoren je Container vereinheitlichen (Fühler, Türen, Fenster, Licht) – jeder Kontakt pausiert, auch im Notprogramm
 - [x] **K4** (BSM-034.04, 0.8.120) Abgleich Inventar ↔ HA beim Start, täglich, nach jeder Änderung (nachtragen, „nicht in HA“ anzeigen)
-- [ ] **K5** (BSM-034.05) Seite: Geräte und Inventar zusammenführen (erst Mockup)
+- [x] **K5** (BSM-034.05, 0.8.122) Seite: Geräte und Inventar zusammenführen (Mockup `geraete.html` Variante 1, Einstellungen › 🔌 Geräte)

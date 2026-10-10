@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.122] – 2026-10-10
+
+- Seite „Geräte“ (BSM-034.05, Mockup `geraete.html` Variante 1): Einstellungen › 🔌 Geräte mit den Reitern **Übersicht**
+  und **📦 Inventar** (ersetzt › Geräte und › Inventar). Die Übersicht zeigt alle Schaltgeräte und Sensoren nach Container
+  mit Erreichbar-Punkt, Zustand, Batterie, Signal, Status und Warnungen, dazu Zähler und Filter (Alle, Schaltgeräte,
+  Sensoren, Probleme). Ein Gerät öffnet den Gerätedialog, jetzt mit „Jetzt“ (Zustand, Signal, Notprogramm, Link zur
+  Geräte-Website bzw. HA-Geräteseite), Warnungen mit „stumm“ und Inventar; ein Sensor öffnet „Sensor“ mit Sprung zu
+  Bearbeiten bzw. Aussehen. Im Container eine Leiste mit allen Sensoren samt Batterie und Signal.
+
 ## [0.8.121] – 2026-10-10
 
 - Abgleich (BSM-034.04): HA meldete beim Start die Warnung „async_get_device is deprecated“ (fällt mit HA 2027.8 weg);

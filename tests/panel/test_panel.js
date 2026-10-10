@@ -1195,20 +1195,34 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
       await klick({ act: 'ev-gruppe', v: 'strom' }, 10); erwarte('FE-0013: Position bleibt (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 200);
       links = 700; await klick({ act: 'ev-gruppe', v: 'ueber' }, 10);
       erwarte('FE-0013: gewählte Kategorie mittig (' + neuLeiste().scrollLeft + ')', neuLeiste().scrollLeft === 700 - (300 - 80) / 2); layout.setzen(null); }
-    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'inventar', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-v="${g}"`)));
+    erwarte('WU-0007: Seitenleiste bzw. Chips mit allen Gruppen', ['baustelle', 'heizung', 'notprogramm', 'container', 'geraete', 'pumpen', 'strom', 'firmen', 'meldungen', 'bericht', 'app', 'dev', 'ueber'].every(g => ui.innerHTML.includes(`data-v="${g}"`)));
     const soll = { baustelle: ['Beginn und Ende', 'Heizperiode', 'Regenmenge', 'Termine (Bei Bedarf)', 'Feiertage'], heizung: ['Vorheizen', 'Frostschutz', 'Kleidung trocknen', 'An Feiertagen frei', 'Automatik', 'data-k="frost_aussen"'],
       notprogramm: ['Notprogramm in den Plugs', 'Taste am Plug'], container: ['Container und Geräte', 'Je Container'],
-      geraete: ['Schaltgeräte', 'class="zeile ger"'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Neuer Preis ab', 'Staffelung'], firmen: ['Firma hinzufügen'],
+      geraete: ['Schaltgeräte', 'class="zeile ger g-zeile"', '📦 Inventar'], pumpen: ['data-k="offline_min"', 'data-k="trocken_w"', 'data-k="zyklen_h"'], strom: ['Neuer Preis ab', 'Staffelung'], firmen: ['Firma hinzufügen'],
       meldungen: ['Test-Nachricht senden', 'data-k="kalt_min"', 'data-k="hand_h"'], bericht: ['Wie oft'], app: ['Erklärungen anzeigen', 'Melden-Knopf', 'Auswertung auf Vorschlag zurücksetzen'],
       dev: ['Meldungen', 'ev-dev-reiter'], ueber: ['Version'] };
     for (const [g, texte] of Object.entries(soll)) { const h = await gruppe(g); const fehlt = texte.filter(t => !h.includes(t)); erwarte(`WU-0007: Gruppe ${g} – fehlt ${fehlt.join(', ')}`, !fehlt.length); }
     { const h = await gruppe('geraete'), L = (panel.d.r && panel.d.r.geraete_links) || {};   // WU-0010
       if (REFERENZ) {
-        erwarte('WU-0010: Geräte nach Funktion', ['Schaltgeräte', 'Temperaturfühler', 'Türen, Fenster, Licht', 'Wetter und Regen'].every(t => h.includes(t)));
-        const web = Object.entries(L).find(([, l]) => l.web), ha = Object.entries(L).find(([, l]) => !l.web && l.ha);
+        erwarte('BSM-034.05: eine Liste nach Container mit Zählern und Filter', ['g-zahlen', 'erreichbar', 'data-v="probleme"', 'Container ›'].every(t => h.includes(t)) && panel.d.bereiche.filter(b => b.geraete.length).every(b => h.includes(b.name)));
         erwarte('AN-0009: Statuspunkt und Signalbalken', h.includes('class="ger-punkt da"') && /class="ger-sig s[0-4]" title="Signal -\d+ dBm"/.test(h));
-        erwarte('BSM-019: Heizungs-Plugs mit 🛟', h.includes('class="np-marke'));
-        erwarte('WU-0010: Klick öffnet Website bzw. HA-Geräteseite', (!web || (h.includes(`href="${web[1].web}"`) && h.includes('target="_blank"'))) && (!ha || h.includes(`href="${ha[1].ha}"`)));
+        erwarte('BSM-019: Heizungs-Plugs mit 🛟', h.includes('🛟 Notprogramm'));
+        neu(); await klick('.g-filter [data-v="sensor"]', 10);
+        erwarte('BSM-034.05: Filter Sensoren', !ui.innerHTML.includes('class="zeile ger g-zeile" data-id="' + panel.d.bereiche.flatMap(b => b.geraete)[0].id + '"'));
+        await klick('.g-filter [data-v="alle"]', 10);
+        // Gerät antippen: derselbe Gerätedialog wie ✎ – mit Jetzt, Warnungen, Inventar und Link zum Gerät (WU-0010)
+        const gx = panel.d.bereiche.flatMap(b => b.geraete.map(g => ({ b, g }))).find(x => L[x.g.schalter] && (L[x.g.schalter].web || L[x.g.schalter].ha));
+        if (gx) { await klick(`.g-zeile[data-id="${gx.g.id}"]`, 10); const l = L[gx.g.schalter], s = ui.innerHTML;
+          erwarte('BSM-034.05: Gerät öffnet den Gerätedialog mit Jetzt und Inventar', panel.s.sheet && panel.s.sheet.art === 'geraet-edit' && s.includes('Jetzt') && s.includes('Inventar'));
+          erwarte('WU-0010: Link zur Website bzw. HA-Geräteseite', s.includes(`href="${l.web || l.ha}"`) && s.includes('target="_blank"'));
+          await klick({ act: 'zu' }, 5); }
+        const sx = panel.d.bereiche.flatMap(b => (b.sensoren || []).map(s => ({ b, s })))[0];
+        if (sx) { await klick(`.g-zeile[data-id="${sx.s.entity_id}"]`, 10);
+          erwarte('BSM-034.05: Sensor öffnet „Sensor“ mit Ändern-Knopf', panel.s.sheet && panel.s.sheet.art === 'sensor' && ui.innerHTML.includes('data-k="sensor-aendern"'));
+          await klick({ act: 'zu' }, 5); }
+        await klick('.g-reiter [data-v="inventar"]', 10);
+        erwarte('BSM-034.05: Reiter Inventar zeigt das Inventar', ui.innerHTML.includes('inv-liste'));
+        panel.s.gerReiter = 'uebersicht';
       } }
     { const h = await gruppe('notprogramm');   // BSM-019: Notprogramm anzeigen und prüfen
       if (REFERENZ) {

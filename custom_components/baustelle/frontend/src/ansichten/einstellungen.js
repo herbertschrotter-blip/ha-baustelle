@@ -1,19 +1,17 @@
 // Einstellungen mit Lit (BSM-022 Stufe 3e; WU-0007, Mockup einstellungen-varianten.html Variante 1 „Seitenleiste“).
 // Alle Einstellungen in Gruppen: links die Seitenleiste, auf dem Handy Chips oben. Jede Gruppe ist eine eigene Vorlage
 // (vorher schnitt einstBlock() die Gruppen per Titelsuche aus einem HTML-Text). Die Heizung-Blöcke kommen aus heizung.js,
-// „Entwicklung“ und „Über“ aus dev.js/ueber.js, das Notprogramm aus notprogramm.js, das Inventar aus inventar.js.
+// „Entwicklung“ und „Über“ aus dev.js/ueber.js, das Notprogramm aus notprogramm.js, Geräte und Inventar aus geraete.js (BSM-034.05).
 import { html, nothing } from 'lit';
-import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { MONATE, de, zahl } from '../hilfen.js';
-import { BEREICH_FARBEN, sigHtml } from '../symbole.js';
-import { WETTER_TEXT } from '../tabellen.js';
+import { BEREICH_FARBEN } from '../symbole.js';
 import { kopfVorlage, schalterVorlage, stepperVorlage } from './allgemein.js';
 import { HZ_BLOECKE } from './heizung.js';
 import { preisListeVorlage } from './einblendungen-baustelle.js';
 import { devVorlage } from './dev.js';
 import { ueberVorlage } from '../ueber.js';
 import { npGruppeVorlage } from './notprogramm.js';
-import { invGruppeVorlage } from './inventar.js';
+import { geraeteGruppeVorlage } from './geraete.js';
 
 const liste = (titel, inhalt) => html`<div class="glas-panel liste"><div class="gruppe">${titel}</div>${inhalt}</div>`;
 const zeile = (t, x, sub = '') => html`<div class="zeile"><div><b>${t}</b>${sub ? html`<div class="leise">${sub}</div>` : nothing}</div>${x}</div>`;
@@ -35,38 +33,6 @@ const heizung = p => html`${liste('Automatik', zeile('Automatik', schalterVorlag
 const container = p => { const d = p.d; return html`<div class="glas-panel liste"><div class="gruppe">Container und Geräte</div>
         ${d.bereiche.map(b => html`<button class="zeile" data-id=${b.id} @click=${() => p.bereichEinst(b.id)}><span><i class="farbpunkt" style="background:${BEREICH_FARBEN[b.f % 6]}"></i>${b.name}</span><span class="leise">${b.geraete.length} ${b.pumpe ? 'Pumpen' : 'Geräte'} ›</span></button>`)}
         <button class="zeile nur-admin" @click=${p.nurAdmin(() => p.einblenden('container-neu'))}><span class="blau">+ Container oder Schacht</span></button></div>${HZ_BLOECKE.container(p, 'glas-panel block')}`; };
-
-/* WU-0010: alle eingebundenen Geräte nach Funktion – Ort, Zustand, Batterie; Klick öffnet die Gerätewebsite
-   (configuration_url), sonst die Geräteseite in HA (Links von der Integration: geraete_links) */
-function geraeteListe(p) {
-  const d = p.d, L = (d.r && d.r.geraete_links) || {}, o = d.optionen || {}, z = eid => p._hass && p._hass.states[eid];
-  const weg = s => !s || s.state === 'unavailable' || s.state === 'unknown';
-  let n = 0, offline = 0;
-  const balken = sig => !sig || !zahl(sig.state) ? '' : sigHtml(+sig.state);   // AN-0009: Signal in 4 Strichen, Wert im Tooltip
-  const zeileG = (eid, ic, ort, text, schlecht, marke = '') => {
-    n++; if (schlecht) offline++;
-    const l = L[eid] || {}, href = l.web || l.ha, bat = l.batterie && z(l.batterie), name = p.name(eid) || eid, s0 = z(eid);
-    const seit = schlecht && s0 && s0.last_changed ? ` seit ${new Date(s0.last_changed).toLocaleTimeString('de-AT', { timeZone: d.z.zone, hour: '2-digit', minute: '2-digit' })}` : '';
-    const inhalt = html`<span class="ger-ic">${ic}<i class="ger-punkt ${schlecht ? 'weg' : 'da'}" title=${schlecht ? 'nicht erreichbar – angemeldet, aber nicht gefunden (Stecker gezogen?)' : 'erreichbar'}></i></span><div><b>${name}</b>${unsafeHTML(marke)}<div class="leise">${ort}${l.modell ? ` · ${l.modell}` : ''}${l.web ? ' · Website' : ''}</div></div>
-        <span class="ger-z ${schlecht ? 'rot-t' : ''}">${text}${seit}${bat && zahl(bat.state) ? ` · 🔋 ${de(+bat.state, 0)} %` : ''} ${schlecht ? '' : unsafeHTML(balken(l.signal && z(l.signal)))}</span>${href ? html`<span class="chev">↗</span>` : nothing}`;
-    return href ? html`<a class="zeile ger" href=${href} target="_blank" rel="noopener" title=${l.web ? 'Website des Geräts öffnen' : 'Gerät in Home Assistant öffnen'}>${inhalt}</a>` : html`<div class="zeile ger">${inhalt}</div>`;
-  };
-  const wert = eid => { const s = z(eid); if (weg(s)) return ['meldet nichts', true]; const e = (s.attributes || {}).unit_of_measurement || '';
-    return [zahl(s.state) ? `${de(+s.state)} ${e}` : s.state, false]; };
-  const C = d.bereiche;
-  const schalt = C.flatMap(b => b.geraete.map(g => zeileG(g.schalter, g.heizer ? '♨' : b.pumpe ? '💧' : '⏻', `${b.name} · ${g.typ}${g.aktiv ? '' : ' · inaktiv'}`,
-    !g.erreichbar ? 'nicht erreichbar' : g.an ? `an · ${de(zahl(g.kwJetzt) ? g.kwJetzt : g.kw, 2)} kW` : 'aus', !g.erreichbar, p.npMarke(g))));
-  const temp = [...C.filter(b => b.fuehler).map(b => { const [t, x] = wert(b.fuehler); return zeileG(b.fuehler, '🌡', b.name, t, x); }),
-    ...(o.temp_sensor ? [(() => { const [t, x] = wert(o.temp_sensor); return zeileG(o.temp_sensor, '🌡', 'Außen', t, x); })()] : [])];
-  // BSM-034.03: alle Türen, Fenster und Licht aus der Sensorliste der Integration
-  const IC_S = { tuer: '🚪', fenster: '🪟', licht: '💡' };
-  const tuer = C.flatMap(b => b.sensoren.filter(x => x.art !== 'fuehler').map(x => { const s = z(x.entity_id);
-    return zeileG(x.entity_id, IC_S[x.art] || '•', `${b.name} · ${x.name}`, weg(s) ? 'meldet nichts' : x.art === 'licht' ? (s.state === 'on' ? 'an' : s.state === 'off' ? 'aus' : wert(x.entity_id)[0]) : s.state === 'on' ? 'offen' : 'zu', weg(s)); }));
-  const wetter = [o.wetter && zeileG(o.wetter, '☁', 'Wetter', weg(z(o.wetter)) ? 'meldet nichts' : WETTER_TEXT[z(o.wetter).state] || z(o.wetter).state, weg(z(o.wetter))),
-    o.regen_sensor && (() => { const [t, x] = wert(o.regen_sensor); return zeileG(o.regen_sensor, '🌧', 'Regen', t, x); })()].filter(Boolean);
-  const teil = (titel, zeilen) => zeilen.length ? html`<div class="glas-panel liste"><div class="gruppe">${titel} · ${zeilen.length}</div>${zeilen}</div>` : nothing;
-  return { inhalt: html`${teil('Schaltgeräte', schalt)}${teil('Temperaturfühler', temp)}${teil('Türen, Fenster, Licht', tuer)}${teil('Wetter und Regen', wetter)}<div class="leise p-fuss">Tippen öffnet die Website des Geräts (z. B. die Shelly-Oberfläche); ohne Website die Geräteseite in Home Assistant.</div>`, n, offline };
-}
 
 function pumpen(p) {
   const st = (k, s, fmt) => stepperVorlage(p, k, s, fmt), P = p.d.bereiche.filter(b => b.pumpe);
@@ -138,14 +104,13 @@ function entwicklung(p) {
 function gruppen(p) {
   const d = p.d, e = d.e, M = p.meldungen(), P = d.bereiche.filter(b => b.pumpe), C = d.bereiche.filter(b => !b.pumpe), geraete = d.bereiche.reduce((a, b) => a + b.geraete.length, 0);
   const mAn = ['m_offline', 'm_trocken', 'm_dauer', 'm_zyklen', 'm_leistung', 'm_frost', 'm_selbst', 'm_kalt', 'm_fuehler', 'm_wetter', 'm_hand'].filter(k => e[k]).length;
-  const offen = M === null ? '–' : M.filter(m => p.meldungOffen(m)).length, np = npGruppeVorlage(p), gl = geraeteListe(p);
+  const offen = M === null ? '–' : M.filter(m => p.meldungOffen(m)).length, np = npGruppeVorlage(p);
   return [
     { k: 'baustelle', ic: '🏗', t: 'Baustelle', kurz: `${d.titel} · ${p.bsZeit(d)}`, inhalt: () => baustelle(p) },
     { k: 'heizung', ic: '🔥', t: 'Heizung', kurz: `Automatik ${e.auto ? 'an' : 'aus'} · Soll ${de(e.soll)} °C · Vorheizen ${e.vorheizen} min`, inhalt: () => heizung(p) },
     np,
     { k: 'container', ic: '🏠', t: 'Container & Geräte', kurz: `${C.length} Container · ${P.length} ${P.length === 1 ? 'Schacht' : 'Schächte'} · ${geraete} Geräte`, inhalt: () => container(p) },
-    invGruppeVorlage(p),
-    { k: 'geraete', ic: '🔌', t: 'Geräte', kurz: `${gl.n} Geräte${gl.offline ? ` · ${gl.offline} meldet nichts` : ' · alle erreichbar'}`, inhalt: () => gl.inhalt },
+    geraeteGruppeVorlage(p),   // BSM-034.05: Übersicht und 📦 Inventar in einer Gruppe
     { k: 'pumpen', ic: '💧', t: 'Pumpen', kurz: P.length ? `offline nach ${e.offline_min} min · Trockenlauf unter ${e.trocken_w} W` : 'keine Schächte', inhalt: () => pumpen(p) },
     { k: 'strom', ic: '⚡', t: 'Strom & Staffelung', kurz: `${de(e.preis, 2)} €/kWh · Staffelung ${e.staffel ? 'an' : 'aus'}`, inhalt: () => strom(p) },
     { k: 'firmen', ic: '🏢', t: 'Firmen', kurz: `${d.firmen.length} ${d.firmen.length === 1 ? 'Firma' : 'Firmen'} für die Abrechnung`, inhalt: () => firmen(p) },
@@ -158,6 +123,7 @@ function gruppen(p) {
 }
 
 export function einstellungenVorlage(p) {
+  if (p.s.evGruppe === 'inventar') { p.s.evGruppe = 'geraete'; p.s.gerReiter = 'inventar'; }   // BSM-034.05: Inventar ist ein Reiter der Geräte
   const G = gruppen(p), g = G.find(x => x.k === p.s.evGruppe) || G[0], schmal = p.narrow, wahl = k => () => p.einstGruppeWahl(k);
   const nav = html`<nav class="ev-nav glas-panel">${G.map(x => html`${x.dev ? html`<div class="ev-trenn"></div>` : nothing}<button data-v=${x.k} class=${x === g ? 'on' : ''} @click=${wahl(x.k)}><span class="ev-ic">${x.ic}</span><span>${x.t}</span><small>${x.kurz}</small></button>`)}</nav>`;
   const chips = html`<div class="ev-chips">${G.map(x => html`<button class="glas-panel chip ${x === g ? 'amber' : ''}" data-v=${x.k} @click=${wahl(x.k)}>${x.ic} ${x.t}</button>`)}</div>`;
