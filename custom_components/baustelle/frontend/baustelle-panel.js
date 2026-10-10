@@ -61,7 +61,7 @@ var KK = {
   "b-kosten": { ber: "baustelle", ic: "💶", name: "Kosten & Verbrauch", text: "Betrag und kWh im Zeitraum, Vergleich zum Zeitraum davor", such: "euro geld kwh strom monat" },
   "b-gespart": { ber: "baustelle", ic: "🌱", name: "Gespart · ohne Automatik", text: "Was die Automatik gegenüber Dauerbetrieb spart", such: "euro ersparnis 24/7 dauerbetrieb" },
   "b-hoch": { ber: "baustelle", ic: "📅", name: "Hochrechnung Heizperiode", text: "Kosten bis Ende der Heizperiode, mit und ohne Automatik", such: "prognose euro heizperiode ende" },
-  "b-wetter": { ber: "baustelle", ic: "🌦", name: "Wetter-Einfluss", text: "kWh je Grad kälter, letzte 30 Heiztage", such: "temperatur außen kälte grad" },
+  "b-wetter": { ber: "baustelle", ic: "🌦", name: "Wetter-Einfluss", text: "kWh je Grad kälter und Heizgrenze (Energiesignatur)", such: "temperatur außen kälte grad" },
   "b-strom": { ber: "baustelle", ic: "⚡", name: "Stromverteilung · Staffelung", text: "Last je Anschluss, Grenze und Reserve", such: "anschluss ampere kw last verteiler staffel" },
   "b-oel": { ber: "baustelle", ic: "⚖", name: "Ölradiator-Ersparnis", text: "Ölradiator gegen Konvektor, fair verglichen", such: "konvektor heizkörper typ vergleich euro" },
   "b-preis": { ber: "baustelle", ic: "🧮", name: "Preis simulieren", text: "Verbrauch mit einem anderen Strompreis – was hätte es gekostet", such: "euro preis simulieren tarif was wäre wenn" },
@@ -743,14 +743,14 @@ function stufen(id, reihen, von, bis, einheit = "W", achse = null) {
   CHARTS[id] = { art: "stufen", einheit, reihen, von, bis, L: L2, B: W - R2, W, x: x2, y: y3, unten: H2 - U };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H2}">${raster}${achseSvg}${pfade}<g class="hover"></g></svg>`;
 }
-function streu(id, pkt, k2, d0) {
+function streu(id, pkt, k2, d0, grenze = null) {
   const W = 320, H2 = 170, L2 = 30, R2 = 8, T2 = 10, U = 24;
   const tx = [-10, -5, 0, 5, 10, 15], ymax = Math.max(50, Math.ceil(Math.max(...pkt.map((q) => q[1])) / 50) * 50);
   const x2 = (t5) => L2 + (Math.max(-10, Math.min(15, t5)) + 10) / 25 * (W - L2 - R2), y3 = (v2) => T2 + (1 - v2 / ymax) * (H2 - T2 - U);
   const raster = [...Array(ymax / 50 + 1)].map((_2, q) => q * 50).map((v2) => `<line x1="${L2}" x2="${W - R2}" y1="${y3(v2)}" y2="${y3(v2)}" class="gr"/><text x="${L2 - 5}" y="${y3(v2) + 3}" class="ax" text-anchor="end">${v2}</text>`).join("");
   const achse = tx.map((t5) => `<text x="${x2(t5)}" y="${H2 - 8}" class="ax" text-anchor="middle">${t5}°</text>`).join("");
-  const t1 = -8, t22 = k2 < 0 ? Math.min(15, -d0 / k2) : 15;
-  const trend = `<line x1="${x2(t1)}" y1="${y3(Math.max(0, Math.min(ymax, k2 * t1 + d0)))}" x2="${x2(t22)}" y2="${y3(Math.max(0, Math.min(ymax, k2 * t22 + d0)))}" stroke="var(--s2)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  const t1 = -8, t22 = grenze !== null ? Math.min(15, grenze) : k2 < 0 ? Math.min(15, -d0 / k2) : 15, yy = (t5) => y3(Math.max(0, Math.min(ymax, k2 * t5 + d0)));
+  const trend = `<polyline points="${x2(t1)},${yy(t1)} ${x2(t22)},${yy(t22)}${grenze !== null && t22 < 15 ? ` ${x2(15)},${yy(t22)}` : ""}" fill="none" stroke="var(--s2)" stroke-width="2" stroke-dasharray="5 4"/>`;
   const punkte = pkt.map((q, i7) => `<circle class="punkt-s" data-i="${i7}" cx="${x2(q[0]).toFixed(1)}" cy="${y3(q[1]).toFixed(1)}" r="4.5" fill="var(--s1)"/>`).join("");
   CHARTS[id] = { art: "streu", pkt, x: x2, y: y3 };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H2}">${raster}${achse}<text x="${W - R2}" y="${H2 - 8}" class="ax" text-anchor="end" dx="0" opacity="0">.</text>${trend}${punkte}<g class="hover"></g></svg>
@@ -5306,7 +5306,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.125";
+var SEITE_VERSION = "0.8.126";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", ...Object.keys(INVENTAR_EINBLENDUNGEN), ...Object.keys(GERAETE_EINBLENDUNGEN), ...Object.keys(HEIZPERIODE_EINBLENDUNGEN), "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS), r(INV_CSS), r(GERAETE_CSS), r(HEIZPERIODE_CSS)];
@@ -7726,9 +7726,9 @@ var BaustellePanel = class extends i4 {
           zahl: g2 && g2.k < 0 ? `+${de(-g2.k, 1)}` : "–",
           einh: "kWh/°C",
           wo: "je Grad kälter am Tag",
-          vgl: g2 ? `≈ ${f3(g2.eur_je_grad, 2)} € je Grad${zahl(g2.null0) ? ` · kaum geheizt ab ${de(g2.null0, 0)} °C` : ""}` : "noch zu wenige Heiztage",
-          kennz: [["je Grad kälter", g2 ? `+${f3(-g2.k, 1)} kWh` : "–"], ["je Grad", `${f3(g2 && g2.eur_je_grad, 2)} €`], ["Heiztage im Vergleich", `${P2.length}`], ["kaum geheizt ab", `${f3(g2 && g2.null0, 0)} °C`]],
-          dia: (id) => g2 ? streu(id, P2, g2.k, g2.d0) : ""
+          vgl: g2 ? `≈ ${f3(g2.eur_je_grad, 2)} € je Grad${zahl(g2.null0) ? ` · kaum geheizt ab ${de(g2.null0, 0)} °C` : ""}` : W.stand === "lernt" ? `lernt noch (${W.tage || 0} ganze Tage)` : "noch keine Signatur",
+          kennz: [["je Grad kälter", g2 ? `+${f3(-g2.k, 1)} kWh` : "–"], ["je Grad", `${f3(g2 && g2.eur_je_grad, 2)} €`], ["ganze Tage", `${P2.length}`], ["kaum geheizt ab", `${f3(g2 && g2.null0, 0)} °C`]],
+          dia: (id) => g2 ? streu(id, P2, g2.k, g2.d0, g2.grenze ?? null) : ""
         };
       }
       case "b-strom": {

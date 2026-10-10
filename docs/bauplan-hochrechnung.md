@@ -11,8 +11,8 @@ Stand: .01 fertig (0.8.123), .02 fertig (0.8.124), .03 fertig (0.8.125, 10.10.20
 ## 1. Grundsätze
 
 - Jede Fachregel nur in `logik/` mit Test; die Seite zeigt nur an (CLAUDE.md).
-- Die einfache Gerade `logik/auswertung.wetter_einfluss` (kWh = k · außen + d0, „Wetter-Einfluss“ auf der Seite) ist
-  eine Vorstufe der Signatur. Mit der Anzeige (.02/.03) ersetzt die Signatur sie, damit die Regel nicht zweimal da ist.
+- Die frühere Gerade `logik/auswertung.wetter_einfluss` (kWh = k · außen + d0) war eine Vorstufe der Signatur; seit
+  0.8.126 kommt der Wetter-Einfluss aus der Signatur, die Gerade ist entfernt (Regel nur einmal).
 - Nichts schaltet von selbst: Baseline-Läufe (.04) starten aus, wie die Automatik.
 
 ## 2. Stufen (je eigene Lieferung)
@@ -86,8 +86,10 @@ Container (Tag: außen, kWh), die **Klimamittel** und die **Vorhersage**. Die Kl
 Gebaut 0.8.125: Seite `frontend/src/ansichten/heizperiode.js` (Bausteine „hochrechnung“ und „wetter“ der Auswertung zeigen
 die Karte, „wetter“ öffnet mit dem Reiter Signatur; ✎ öffnet die Einblendung „zeitraum-bs“). „Bisher“ = Tage der
 Heizperiode aus `tag_bereich` (vorher Zähler seit Zählbeginn), Rechnung stündlich (:50) und gleich nach dem Speichern der
-Klimamittel. Noch offen: Kachel „Wetter“, Kachel-Katalog „Wetter-Einfluss“ und die Erkenntnis „je Grad kälter“ nutzen noch
-die Gerade `wetter_einfluss` – sie ziehen auf die Signatur um, danach fällt die Gerade weg (Regel nur einmal).
+Klimamittel. 0.8.126: Kachel „Wetter“, Kachel-Katalog „Wetter-Einfluss“ und die Erkenntnis „je Grad kälter“ rechnen mit
+der **Signatur der ganzen Baustelle** (`logik/hochrechnung.baustelle_tage`: nur Tage, an denen jeder Container zählt;
+`logik/auswertung.wetter_aus_signatur`: schräger Teil als Gerade, `null0` = Heizgrenze). Die Gerade `wetter_einfluss`
+(letzte 30 Heiztage aus der HA-Statistik) ist entfernt.
 
 ## 6. Tests
 

@@ -196,3 +196,16 @@ def reihe(
         aus.append((d.isoformat(), None, round(mit, 3), round(max(ist, warm - streu), 3) if spanne else None,
                     round(kalt + streu, 3) if spanne else None, ohne))
     return aus
+
+
+def baustelle_tage(roh: Mapping[str, Sequence[TagRoh]], heute: date) -> list[Tag]:
+    """Tage der ganzen Baustelle für ihre Signatur (Kachel „Wetter“, Erkenntnis): nur Tage, an denen jeder Container zählt;
+    kWh summiert, Außentemperatur gemittelt (dieselbe Messung je Baustelle)."""
+    je_tag: dict[date, list[TagRoh]] = {}
+    for liste in roh.values():
+        for t in liste:
+            if tag_zaehlt(t, heute):
+                je_tag.setdefault(t.datum, []).append(t)
+    n = len(roh)
+    return [Tag(sum(t.aussen for t in ts) / n, sum(t.kwh for t in ts))   # type: ignore[misc]  # tag_zaehlt prüft None
+            for d, ts in sorted(je_tag.items()) if n and len(ts) == n]

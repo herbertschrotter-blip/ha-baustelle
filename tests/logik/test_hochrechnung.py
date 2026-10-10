@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import pytest
 
 from logik.hochrechnung import (
-    KLIMA_GRAZ, VOLL_ANTEIL, WINTER_K, ContainerRest, TagRoh, baustelle, bisher, container_rest, hgt, hgt_summe, klima_tag,
+    KLIMA_GRAZ, VOLL_ANTEIL, WINTER_K, ContainerRest, TagRoh, baustelle, baustelle_tage, bisher, container_rest, hgt, hgt_summe, klima_tag,
     klimamittel, klimamittel_pruefen, reihe, tag_zaehlt, tage, temperaturen,
 )
 from logik.signatur import Signatur
@@ -154,3 +154,12 @@ def test_vor_der_heizperiode_beginnt_der_rest_am_ersten_tag():
     beginn, ende = date(2026, 12, 1), date(2026, 12, 31)
     r = container_rest(roh(), HEUTE, ende, {}, KLIMA, beginn)
     assert len(r.je_tag) == 31
+
+
+def test_baustelle_tage_nur_wenn_alle_container_zaehlen():
+    d1, d2 = date(2026, 11, 1), date(2026, 11, 2)
+    r = {"a": [TagRoh(d1, 10.0, 2.0, 86400), TagRoh(d2, 8.0, 4.0, 86400)],
+         "b": [TagRoh(d1, 5.0, 2.0, 86400), TagRoh(d2, 4.0, 4.0, 1000)]}   # b am 2.11. nicht ganz
+    T = baustelle_tage(r, HEUTE)
+    assert len(T) == 1 and T[0].kwh == 15.0 and T[0].aussen == 2.0
+    assert baustelle_tage({}, HEUTE) == []

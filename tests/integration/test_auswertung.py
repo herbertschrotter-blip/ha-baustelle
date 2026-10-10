@@ -208,10 +208,8 @@ async def test_auswertung_befehl(hass: HomeAssistant, baustelle, ws, statistik) 
                       "reihe", "klima", "klima_vorgabe", "vorhersage", "beginn", "ende"}
     if h["mit_kwh"] is not None:
         assert h["mit_eur"] == pytest.approx(h["mit_kwh"] * 0.25)
-    punkte = r["wetter"]["punkte"]
-    assert 5 <= len(punkte) <= 30 and r["wetter"]["gerade"]["k"] is not None
-    g = r["wetter"]["gerade"]
-    assert g["eur_je_grad"] == (pytest.approx(-g["k"] * 0.25) if g["k"] < 0 else None)
+    # BSM-033: Wetter-Einfluss aus der Energiesignatur der Baustelle (Tage aus der Datenbank; hier noch keine ganzen Tage)
+    assert set(r["wetter"]) == {"punkte", "gerade", "stand", "tage"} and r["wetter"]["gerade"] is None
     assert set(r["typ"]) == {"oelradiator", "konvektor", "weniger", "vergleichbar", "ausgeschlossen", "ersparnis"}   # AN-0008: fair
     assert set(r["typ"]["oelradiator"]) == {"kwh_gradh", "kwh_gradh_m2", "auf", "ab", "container", "ids"}
     # WU-0005: Rangliste je Container (Summe = kWh der Container) und „Was fällt auf“

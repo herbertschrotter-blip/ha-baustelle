@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.126] – 2026-10-10
+
+- Wetter-Einfluss aus der Energiesignatur (BSM-033): Kachel „Wetter“, Kachel „Wetter-Einfluss“ und die Erkenntnis „je
+  Grad kälter“ rechnen jetzt mit der Signatur der ganzen Baustelle (ganze Tage der Heizperiode, an denen jeder Container
+  zählt) statt mit einer einfachen Geraden über die letzten 30 Heiztage. Das Diagramm zeigt die Knickgerade mit
+  Heizgrenze; solange die Signatur lernt, steht dort „lernt noch“. Die alte Gerade gibt es nicht mehr – die Regel steht
+  nur noch einmal (`logik/signatur`).
+
 ## [0.8.125] – 2026-10-10
 
 - Auswertung: Karte **„Heizperiode“** (BSM-033.03, Mockup `hochrechnung.html`, abgenommen 10.10.2026) statt der Blöcke

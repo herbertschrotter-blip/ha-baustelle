@@ -23,6 +23,7 @@ from ...const import CONF_ENDE, CONF_HEIZPERIODE_BIS, CONF_HEIZPERIODE_VON
 from ...db import DATA_DB
 from ...db.tage import hochrechnung_tage
 from ...logik import hochrechnung as h
+from ...logik.signatur import Tag, berechnen
 from ...logik.auswertung import heizperiode_bis, heizperiode_ende
 
 if TYPE_CHECKING:
@@ -54,6 +55,13 @@ def vorhersage(st: Steuerung, heute: date) -> dict[date, float]:
     return aus
 
 
+def _signatur(tage: list[Tag]) -> dict[str, Any]:
+    """Signatur der ganzen Baustelle (Kachel „Wetter“, Erkenntnis „je Grad kälter“) mit ihren Punkten."""
+    sig = berechnen(tage)
+    return {"stand": sig.stand, "tage": sig.tage, "grenze": sig.grenze, "kwh_je_grad": sig.kwh_je_grad, "grundlast": sig.grundlast,
+            "bezug": sig.bezug, "cv_rmse": sig.cv_rmse, "punkte": [[round(t.aussen, 2), round(t.kwh, 2)] for t in tage]}
+
+
 def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date) -> dict[str, Any]:
     """Hochrechnung aus den Tagen je Container (ohne Datenbank, damit testbar)."""
     st = hz.st
@@ -75,6 +83,7 @@ def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date) -> dict[s
     return {"heute": heute.isoformat(), "beginn": beginn.isoformat(), "ende": ende.isoformat(), "reste": reste,
             "container": container, "hgt_rest": h.hgt_summe(rest_temps[1:]), "vorhersage_tage": len(vor),
             "bisher_kwh": h.bisher(roh, heute, beginn),
+            "signatur": _signatur(h.baustelle_tage(roh, heute)),
             "reihe": h.reihe(roh, reste, heute, beginn, ende, hz.hochrechnung_heizperiode("ohne")),
             "klima": list(klima), "klima_vorgabe": eigen is None,
             "vorhersage": [[d.isoformat(), t] for d, t in sorted(vor.items()) if d <= ende]}

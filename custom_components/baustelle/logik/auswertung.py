@@ -2,7 +2,7 @@
 
 Bisher rechnete das die Seite selbst (`frontend/baustelle-panel.js`: `zeitraum`, `statistik`, `verbrauch`,
 `abrechnungDaten`, `firmaAm`, `bucketMs`, `csv`, `heizperiodeEnde`, `verlaufWerte`, `kennzahlen`,
-`monateJeContainer`, `typVergleich`, `tageswerte`, Gerade in `v_auswertung`, `jeGeraet`). Hier steht jede Regel einmal;
+`monateJeContainer`, `typVergleich`, `jeGeraet`; der Wetter-Einfluss kommt seit BSM-033 aus der Energiesignatur). Hier steht jede Regel einmal;
 Integration, Bericht und Seite nehmen dieselben Zahlen (docs/bauplan-module.md). Geprüft gegen die Referenzwerte der
 Seite in `tests/vektoren/auswertung-*.json`.
 
@@ -680,50 +680,17 @@ def typ_ersparnis(oel: Sequence[float], typ: Mapping[str, Any], preis: float) ->
             "konvektor_kwh": summe(waere), "erspart_kwh": erspart, "erspart_eur": erspart * preis}
 
 
-def tageswerte_zeitraum(heute: date) -> tuple[date, date]:
-    """Tage für den Wetter-Einfluss: die letzten 45 Tage bis heute."""
-    return heute - timedelta(days=45), heute + timedelta(days=1)
-
-
-def tageswerte(statistik: Statistik, energie: Sequence[str], aussen: str | None, heute: date, zone: tzinfo) -> list[list[float]]:
-    """Heiztage vor heute (mehr als 0,5 kWh und ein Tagesmittel außen) als `[außen °C, kWh]`, die letzten 30."""
-    if not aussen:
-        return []
-    tage: dict[date, dict[str, Any]] = {}
-    for sid in sorted({*energie, aussen}):
-        for p in statistik.get(sid) or []:
-            x = tage.setdefault(lokal(p["start"], zone).date(), {"kwh": 0.0, "aussen": None})
-            if sid == aussen:
-                if ist_zahl(p.get("mean")):
-                    x["aussen"] = float(p["mean"])
-            elif ist_zahl(p.get("change")):
-                x["kwh"] += float(p["change"])
-    liste = [[x["aussen"], x["kwh"]] for t, x in sorted(tage.items()) if t < heute and x["kwh"] > 0.5 and x["aussen"] is not None]
-    return liste[-WETTER_TAGE:]
-
-
-def wetter_einfluss(punkte: Sequence[Sequence[float]]) -> dict[str, float | None] | None:
-    """Gerade kWh je Tag = k · außen + d0 (kleinste Quadrate); `null0` = Außentemperatur, ab der kaum mehr geheizt wird.
-
-    Unter 5 Tagen None; alle Tage gleich warm → k = 0.
-    """
-    n = len(punkte)
-    if n < WETTER_MIN_TAGE:
-        return None
-    mx = summe(p[0] for p in punkte) / n
-    my = summe(p[1] for p in punkte) / n
-    nn = summe((p[0] - mx) ** 2 for p in punkte)
-    k = summe((p[0] - mx) * (p[1] - my) for p in punkte) / nn if nn else 0.0
-    d0 = my - k * mx
-    return {"k": k, "d0": d0, "null0": -d0 / k if k < 0 else None}
-
-
-def wetter_kosten(gerade: Mapping[str, Any] | None, preis: float) -> dict[str, Any] | None:
-    """Gerade des Wetter-Einflusses mit `eur_je_grad`: Mehrkosten am Tag je Grad kälter (nur wenn k < 0, sonst None)."""
-    if gerade is None:
-        return None
-    k = gerade["k"]
-    return {**gerade, "eur_je_grad": -k * preis if k < 0 else None}
+def wetter_aus_signatur(sig: Mapping[str, Any] | None, preis: float) -> dict[str, Any]:
+    """Wetter-Einfluss aus der Energiesignatur der Baustelle (BSM-033, ersetzt die einfache Gerade): Punkte der gezählten Tage
+    und – sobald die Signatur gut oder brauchbar ist – der schräge Teil als Gerade `kWh = k · außen + d0` mit `null0` =
+    Heizgrenze (darüber Grundlast), `eur_je_grad` = Mehrkosten am Tag je Grad kälter. Lernt sie noch: `gerade` None."""
+    s = sig or {}
+    gerade = None
+    if s.get("stand") in ("gut", "brauchbar") and ist_zahl(s.get("kwh_je_grad")) and ist_zahl(s.get("grundlast")):
+        j, ref = float(s["kwh_je_grad"]), s.get("grenze") if ist_zahl(s.get("grenze")) else s.get("bezug")
+        gerade = {"k": -j, "d0": float(s["grundlast"]) + j * float(ref or 0.0), "null0": s.get("grenze"),
+                  "grenze": s.get("grenze"), "eur_je_grad": j * preis}
+    return {"punkte": s.get("punkte") or [], "gerade": gerade, "stand": s.get("stand"), "tage": s.get("tage")}
 
 
 # ------------------------------------------------------------------ Je Gerät

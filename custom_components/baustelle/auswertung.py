@@ -400,13 +400,6 @@ async def async_auswertung(
     g_ids = sorted({g["energie"] for g in q.geraete if g["energie"]})
     roh_g = await async_statistik(hass, g_ids, a.mitternacht(zr.von, zone), a.mitternacht(zr.bis, zone), zr.periode,
                                   {"change"})
-    # Wetter-Einfluss: letzte 30 Heiztage dieser Baustelle
-    w_von, w_bis = a.tageswerte_zeitraum(heute)
-    en = [i for b in q.bereiche if (i := q.eid(b["id"], "energie"))]
-    aussen = q.eid(eid, "aussen")
-    roh_w = await async_statistik(hass, [*en, aussen] if aussen else [], a.mitternacht(w_von, zone),
-                                  a.mitternacht(w_bis, zone), "day", {"change", "mean"})
-    punkte = a.tageswerte(roh_w, en, aussen, heute, zone)
     # Ölradiator oder Konvektor: Heiztage wie im Verlauf (Zähler, sonst aus der Heizzeit)
     verlauf = await async_verlauf(hass, q)
     # Ölradiator oder Konvektor – fair (AN-0008): nur Zeiten im Modus Thermostat mit Fühler, kWh je Gradstunde
@@ -428,7 +421,9 @@ async def async_auswertung(
         oel = a.verbrauch(a.reihen(zr, {i: roh_o.get(i, []) for i in oel_ids}, zone), oel_ids, zr.n)
         typ["ersparnis"] = a.typ_ersparnis(oel, typ, preis)
     rang = a.rangliste([c for s in jetzt for c in s["je_container"]], preis)
-    gerade = a.wetter_kosten(a.wetter_einfluss(punkte), preis)
+    hr_werte, hr_erg = _hochrechnung(q)
+    wetter = a.wetter_aus_signatur((hr_erg or {}).get("signatur"), preis)   # BSM-033: Energiesignatur der Baustelle
+    gerade = wetter["gerade"]
     oa = a.ohne_automatik(summen["kwh"], summen["ohne"], preis)
     hp_von = min(12, max(1, int(entry.options.get(CONF_HEIZPERIODE_VON) or 10)))
     hp_bis = min(12, max(1, int(entry.options.get(CONF_HEIZPERIODE_BIS) or 4)))
@@ -443,7 +438,7 @@ async def async_auswertung(
                                        typ_weniger=typ.get("weniger") if isinstance(typ, dict) else None),
         "je_geraet": [{**z, "eur": a.geld(z["kwh"], preis)}
                       for z in a.je_geraet(q.geraete, q.zaehler, roh_g, eigene["pumpzeit_je"])],
-        "wetter": {"punkte": punkte, "gerade": gerade},
+        "wetter": wetter,
         "typ": typ,
         "heizperiode": {"ende": a.heizperiode_ende(heute, hp_von, hp_bis).isoformat(),
                         "bis": a.heizperiode_bis(heute, hp_von, hp_bis, q.option_datum(CONF_ENDE)).isoformat()},
@@ -452,7 +447,7 @@ async def async_auswertung(
         "hochrechnung": a.hochrechnung_signatur(
             a.hochrechnung_werte(q.zaehler.get("energie_heizen"), _zustand(hass, q.eid(eid, "prognose_heizperiode")),
                                  _zustand(hass, q.eid(eid, "prognose_heizperiode_ohne")), preis),
-            *_hochrechnung(q), preis),
+            hr_werte, hr_erg, preis),
     }
 
 

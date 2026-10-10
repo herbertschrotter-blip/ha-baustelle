@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.baustelle.db import DATA_DB, schema as s
 from custom_components.baustelle.funktionen.heizung import Heizung
 from custom_components.baustelle.funktionen.heizung.hochrechnung import async_rechnen, werte, zeitraum
+from custom_components.baustelle.logik import auswertung as auswertung_logik
 
 from .conftest import C1, C2, baustelle_anlegen
 
@@ -80,12 +81,18 @@ async def test_hochrechnung_aus_der_datenbank(hass: HomeAssistant, baustelle_nov
     assert R[-1][2] == pytest.approx(w["mit_kwh"], rel=1e-4) and R[-1][3] == pytest.approx(w["unten_kwh"], rel=1e-4)
     assert len(je[C1]["punkte"]) == 30 and erg["klima_vorgabe"] is True and len(erg["klima"]) == 12
     assert erg["vorhersage"] == [[(HEUTE + timedelta(days=1)).isoformat(), -8.0]]
+    # BSM-033: Signatur der ganzen Baustelle – nur Tage, an denen beide Container zählen (ohne den Notbetrieb-Tag)
+    sig = erg["signatur"]
+    assert sig["tage"] == 29 and sig["stand"] == "gut" and sig["kwh_je_grad"] == pytest.approx(4.0) and sig["grenze"] == pytest.approx(15.0)
+    g = auswertung_logik.wetter_aus_signatur(sig, 0.25)["gerade"]
+    assert g["k"] == pytest.approx(-4.0) and g["null0"] == pytest.approx(15.0) and g["eur_je_grad"] == pytest.approx(1.0)
 
 
 async def test_klimamittel_einstellen(hass: HomeAssistant, baustelle_november, hass_ws_client) -> None:
     """BSM-033.03: Klimamittel als Einstellung (12 Werte, sonst abgelehnt); die Hochrechnung rechnet gleich damit."""
     st = baustelle_november.runtime_data
     hz = Heizung.von(st)
+    await hass.async_block_till_done()   # Rechnung beim Start fertig, damit sie die nach dem Speichern nicht überholt
     ws = await hass_ws_client(hass)
     await ws.send_json({"id": 1, "type": "baustelle/setzen", "entry_id": baustelle_november.entry_id,
                         "pfad": ["heizung", "klimamittel"], "wert": [1.0] * 11})

@@ -238,26 +238,19 @@ def test_typvergleich(fall):
     nahe(a.typ_vergleich(e["bereiche"], e["zaehler"], e["energie"], e["heizzeit"], e["heiztage"], e["preis"]), fall["erwartet"])
 
 
-@pytest.mark.parametrize("fall", faelle("wetter"))
-def test_wetter(fall):
-    e, soll = fall["eingabe"], fall["erwartet"]
-    if "punkte" in e:
-        punkte = e["punkte"]
-    else:
-        zone, heute = ZoneInfo(e["zone"]), date.fromisoformat(e["heute"])
-        von, bis = a.tageswerte_zeitraum(heute)
-        assert (a.mitternacht(von, zone), a.mitternacht(bis, zone)) == (utc(soll["anfrage"]["start_time"]), utc(soll["anfrage"]["end_time"]))
-        punkte = a.tageswerte(e["statistik"], e["energie"], e["aussen"], heute, zone)
-        nahe(punkte, soll["punkte"], "punkte")
-    nahe(a.wetter_einfluss(punkte), soll["regression"], "regression")
+def test_wetter_aus_signatur():
+    """BSM-033: Wetter-Einfluss aus der Energiesignatur der Baustelle – schräger Teil als Gerade, null0 = Heizgrenze."""
+    sig = {"stand": "gut", "tage": 20, "grenze": 15.0, "kwh_je_grad": 2.0, "grundlast": 1.0, "bezug": None, "punkte": [[0.0, 31.0]]}
+    w = a.wetter_aus_signatur(sig, 0.25)
+    assert w["punkte"] == [[0.0, 31.0]] and w["stand"] == "gut" and w["tage"] == 20
+    g = w["gerade"]
+    assert g["k"] == -2.0 and g["d0"] == pytest.approx(31.0) and g["null0"] == 15.0 and g["eur_je_grad"] == pytest.approx(0.5)
+    gerade = a.wetter_aus_signatur({**sig, "grenze": None, "bezug": 10.0}, 0.25)["gerade"]   # Grenze noch offen: Bezug wärmster Tag
+    assert gerade["d0"] == pytest.approx(21.0) and gerade["null0"] is None
+    assert a.wetter_aus_signatur({**sig, "stand": "lernt"}, 0.25)["gerade"] is None
+    assert a.wetter_aus_signatur({**sig, "stand": "unsicher"}, 0.25)["gerade"] is None
+    assert a.wetter_aus_signatur(None, 0.25) == {"punkte": [], "gerade": None, "stand": None, "tage": None}
 
-
-def test_wetter_kosten():
-    """€ je Grad kälter beim Wetter-Einfluss: −k · Preis, nur wenn es mit Kälte mehr wird."""
-    g = {"k": -1.2, "d0": 20.0, "null0": 16.7}
-    assert a.wetter_kosten(g, 0.25) == {**g, "eur_je_grad": pytest.approx(0.3)}
-    assert a.wetter_kosten({"k": 0.0, "d0": 5.0, "null0": None}, 0.25)["eur_je_grad"] is None
-    assert a.wetter_kosten(None, 0.25) is None
 
 
 @pytest.mark.parametrize("fall", faelle("je-geraet"))

@@ -2274,9 +2274,9 @@ class BaustellePanel extends LitElement {
           kennz: [['bisher', `${f(h.bisher_kwh, 0)} kWh`], ['mit Automatik', `${f(h.mit_kwh, 0)} kWh`], ['ohne (24/7)', `${f(h.ohne_kwh, 0)} kWh`], ['gespart ≈', `${f(h.gespart_eur, 0)} €`]],
           dia: id => zahl(h.mit_eur) ? balken(id, [h.bisher_eur, h.mit_eur, h.ohne_eur], ['bisher', 'mit', 'ohne'], '€', 0) : '' }; }
       case 'b-wetter': { const W = (A && A.wetter) || {}, g = W.gerade, P = W.punkte || [];
-        return { zahl: g && g.k < 0 ? `+${de(-g.k, 1)}` : '–', einh: 'kWh/°C', wo: 'je Grad kälter am Tag', vgl: g ? `≈ ${f(g.eur_je_grad, 2)} € je Grad${zahl(g.null0) ? ` · kaum geheizt ab ${de(g.null0, 0)} °C` : ''}` : 'noch zu wenige Heiztage',
-          kennz: [['je Grad kälter', g ? `+${f(-g.k, 1)} kWh` : '–'], ['je Grad', `${f(g && g.eur_je_grad, 2)} €`], ['Heiztage im Vergleich', `${P.length}`], ['kaum geheizt ab', `${f(g && g.null0, 0)} °C`]],
-          dia: id => g ? streu(id, P, g.k, g.d0) : '' }; }
+        return { zahl: g && g.k < 0 ? `+${de(-g.k, 1)}` : '–', einh: 'kWh/°C', wo: 'je Grad kälter am Tag', vgl: g ? `≈ ${f(g.eur_je_grad, 2)} € je Grad${zahl(g.null0) ? ` · kaum geheizt ab ${de(g.null0, 0)} °C` : ''}` : W.stand === 'lernt' ? `lernt noch (${W.tage || 0} ganze Tage)` : 'noch keine Signatur',
+          kennz: [['je Grad kälter', g ? `+${f(-g.k, 1)} kWh` : '–'], ['je Grad', `${f(g && g.eur_je_grad, 2)} €`], ['ganze Tage', `${P.length}`], ['kaum geheizt ab', `${f(g && g.null0, 0)} °C`]],
+          dia: id => g ? streu(id, P, g.k, g.d0, g.grenze ?? null) : '' }; }
       case 'b-strom': { const L = this.last(), an = d.e.staffel && L.A.length;
         return { zahl: an ? de(L.gesamt, 1) : '–', einh: 'kW', wo: an ? `${L.A.length} ${L.A.length === 1 ? 'Anschluss' : 'Anschlüsse'}` : 'Staffelung aus',
           vgl: an ? `von ${de(L.grenze, 1)} kW nutzbar · ${L.laufen} Heizkörper an${L.warten ? ` · ${L.warten} wartet` : ''}` : 'keine Anschlüsse', mini: an ? this.stromBalken(L, true) : '',

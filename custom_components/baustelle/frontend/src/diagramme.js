@@ -79,14 +79,14 @@ export function stufen(id, reihen, von, bis, einheit = 'W', achse = null) {
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achseSvg}${pfade}<g class="hover"></g></svg>`;
 }
 
-export function streu(id, pkt, k, d0) {
+export function streu(id, pkt, k, d0, grenze = null) {   // grenze: Heizgrenze der Signatur – darüber waagrecht (BSM-033)
   const W = 320, H = 170, L = 30, R = 8, T = 10, U = 24;
   const tx = [-10, -5, 0, 5, 10, 15], ymax = Math.max(50, Math.ceil(Math.max(...pkt.map(q => q[1])) / 50) * 50);
   const x = t => L + (Math.max(-10, Math.min(15, t)) + 10) / 25 * (W - L - R), y = v => T + (1 - v / ymax) * (H - T - U);
   const raster = [...Array(ymax / 50 + 1)].map((_, q) => q * 50).map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" class="gr"/><text x="${L - 5}" y="${y(v) + 3}" class="ax" text-anchor="end">${v}</text>`).join('');
   const achse = tx.map(t => `<text x="${x(t)}" y="${H - 8}" class="ax" text-anchor="middle">${t}°</text>`).join('');
-  const t1 = -8, t2 = k < 0 ? Math.min(15, -d0 / k) : 15;
-  const trend = `<line x1="${x(t1)}" y1="${y(Math.max(0, Math.min(ymax, k * t1 + d0)))}" x2="${x(t2)}" y2="${y(Math.max(0, Math.min(ymax, k * t2 + d0)))}" stroke="var(--s2)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  const t1 = -8, t2 = grenze !== null ? Math.min(15, grenze) : k < 0 ? Math.min(15, -d0 / k) : 15, yy = t => y(Math.max(0, Math.min(ymax, k * t + d0)));
+  const trend = `<polyline points="${x(t1)},${yy(t1)} ${x(t2)},${yy(t2)}${grenze !== null && t2 < 15 ? ` ${x(15)},${yy(t2)}` : ''}" fill="none" stroke="var(--s2)" stroke-width="2" stroke-dasharray="5 4"/>`;
   const punkte = pkt.map((q, i) => `<circle class="punkt-s" data-i="${i}" cx="${x(q[0]).toFixed(1)}" cy="${y(q[1]).toFixed(1)}" r="4.5" fill="var(--s1)"/>`).join('');
   CHARTS[id] = { art: 'streu', pkt, x, y };
   return `<svg class="chart" data-chart="${id}" viewBox="0 0 ${W} ${H}">${raster}${achse}<text x="${W - R}" y="${H - 8}" class="ax" text-anchor="end" dx="0" opacity="0">.</text>${trend}${punkte}<g class="hover"></g></svg>
