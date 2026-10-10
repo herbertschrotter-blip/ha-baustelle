@@ -21,7 +21,7 @@ Stand: .01 fertig (0.8.123), .02 fertig (0.8.124, 10.10.2026). Aufgabe BSM-033, 
 |---|---|---|
 | .01 | Energiesignatur je Container: `logik/signatur.py` | ☑ 0.8.123 |
 | .02 | Hochrechnung mit Heizgradtagen und Spanne, Witterungsbereinigung; Daten aus `tag_bereich` an die Signatur | ☑ 0.8.124 |
-| .03 | Anzeige: Spanne, Signatur, Baseline (Mockup zuerst) | ☐ |
+| .03 | Anzeige: Karte „Heizperiode“ (Mockup `hochrechnung.html`, abgenommen 10.10.2026) | ☐ |
 | .04 | Automatische Baseline-Läufe (startet aus, Kostenrahmen, Ankündigung, Abbruch) | ☐ |
 
 ## 3. Energiesignatur (.01)
@@ -62,7 +62,28 @@ nach ÖNORM); es zählen nur **ganze Tage ohne Ausfall und ohne Notbetrieb** (mi
 - Arbeitszeitplan, Vorheizen und Frostschutz stecken in der Signatur, weil sie aus dem echten Betrieb gelernt ist.
   Getrennte Signaturen für Arbeits- und freie Tage erst, wenn das Gütemaß zeigt, dass es nötig ist.
 
-## 5. Tests
+## 5. Anzeige (.03) – abgenommen 10.10.2026
+
+Mockup `mockups/hochrechnung.html`, Variante 2 (Herbert 10.10.2026): In der Auswertung ersetzt eine Karte **„Heizperiode“**
+die Blöcke „Hochrechnung Heizperiode“ und „Wetter-Einfluss“. Sie hat drei Reiter:
+
+- **Hochrechnung:** Prognose mit Spanne, dazu ein Diagramm über die ganze Heizperiode (aufsummiert): tatsächlich bis heute,
+  Prognose mit Automatik (Band = Spanne), Prognose ohne Automatik (bis J4 die bisherige Schätzung). Darunter die Legende
+  mit €, „gespart“ und woher die Zahl kommt.
+- **Signatur:** Container wählen; Streudiagramm Tagesverbrauch gegen Außentemperatur mit Knickgerade und Heizgrenze; je
+  Container Heizgrenze, kWh je Grad, Grundlast, Güte bzw. „lernt noch n/10“.
+- **Klima:** Klimamittel (Heizperiode hervorgehoben), Vorhersage der nächsten Tage, Heizgradtage bis zum Ende, Normjahr;
+  Link zur Einblendung **Klimamittel** (12 Monatswerte, „Vorgabe Graz“).
+
+Die **Heizperiode** ist in der Karte einstellbar (✎ → von/bis). Es ist dieselbe Einstellung wie unter Einstellungen ›
+Baustelle (`heizperiode_von/bis`). Die Kachel „Hochrechnung“ zeigt die Spanne bzw. „lernt noch“.
+
+Die Integration liefert alles; die Seite zeichnet nur. Neu in `baustelle/auswertung` › `hochrechnung`: die **Tagesreihe**
+(`reihe`: Tag, tatsächlich aufsummiert, Prognose mit/unten/oben/ohne aufsummiert), die **Punkte der Signatur** je
+Container (Tag: außen, kWh), die **Klimamittel** und die **Vorhersage**. Die Klimamittel speichert `baustelle/setzen`
+(`heizung.klimamittel`, logik prüft 12 Zahlen).
+
+## 6. Tests
 
 `tests/logik/test_signatur.py`: Grenze und Steigung aus Modelldaten, Streuung, lernt (Tage, Spanne), Gerade, ohne
 Zusammenhang, starke Streuung, Gütestufen, erwarteter Verbrauch, getrennter Betrieb.
