@@ -102,6 +102,7 @@ mit Test; die Seite rechnet nichts. Jede Änderung schreibt Protokoll und Datenb
 | .03 in wie vielen Lieferungen | **zwei**: 1) Integration, Seite, Inventar, Batterie; 2) Notprogramm mit mehreren Türen/Fenstern |
 | Abgleich HA → Inventar (.04, 10.10.2026) | **selbst nachtragen** (HA gilt), mit Protokoll |
 | Abgleich Inventar → HA (.04) | **nur anzeigen** („nicht in HA“), entfernen nur von Hand |
+| Seite „Geräte“ (.05, 10.10.2026) | **Mockup `mockups/geraete.html` Variante 1**: Einstellungen › 🔌 Geräte mit Reitern Übersicht/Inventar (ersetzt › Geräte und › 📦 Inventar), eine Liste, ein Gerätedialog, Sensor-Leiste im Container |
 
 ## 7. Tests
 

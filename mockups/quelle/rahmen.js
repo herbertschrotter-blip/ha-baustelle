@@ -20,6 +20,7 @@
 // Browser (R in browser(R)):
 //   R.html`…`, R.nothing        Vorlagen in derselben Form wie Lit (die Seite bündelt Lit; @click, .value, ?selected gehen)
 //   R.gruppe({ k, ic, t, kurz(p), inhalt(p), nach: 'container', marke: true, wann(p) })   Einstellungen-Gruppe (Seitenleiste + Chips)
+//   R.gruppeWeg({ k, wann(p) })  Gruppe der Seite ausblenden (Seitenleiste + Chips), z. B. wenn ein Vorschlag sie ersetzt (BSM-034.05)
 //   R.reiter({ k, t, tKurz, inhalt(p), nach: 'verlauf', wann(p) })                       Reiter oben mit eigener Ansicht (p.gehe(k))
 //   R.abschnitt({ ansicht: 'container', vor(p), nach(p), wann(p) })                       vor/nach den Inhalt einer Ansicht der Seite
 //   R.einblendung(art, vorlage(p, s), { breit(s) })                                        Einblendung im Sheet-Platz der Seite;
@@ -39,7 +40,7 @@ function laufzeit() {
   const html = (strings, ...values) => ({ _$litType$: 1, strings, values });   // Form einer Lit-Vorlage (lit-html)
   const nothing = Symbol.for('lit-nothing');
   const K = customElements.get('baustelle-panel'), proto = K.prototype, alt = { ui: proto._ui, schliessen: proto.schliessen, updated: proto.updated };
-  const GRUPPEN = [], REITER = [], ABSCHNITTE = [], EINBL = {}, STILE = [];
+  const GRUPPEN = [], WEG = [], REITER = [], ABSCHNITTE = [], EINBL = {}, STILE = [];
   let vorfuehren = null;
   const suche = (t, test, f) => { if (!t || typeof t !== 'object') return; if (Array.isArray(t)) return t.forEach(x => suche(x, test, f));
     if (Array.isArray(t.strings) && test(t)) f(t); if (Array.isArray(t.values)) t.values.forEach(x => suche(x, test, f)); };
@@ -54,7 +55,9 @@ function laufzeit() {
     // Einstellungen: eigene Gruppen in Seitenleiste und Chips; Inhalt, wenn gewählt
     // (einstellungen.js: Seitenleiste-Eintrag = [trenn, k, class, click, ic, t, kurz], Chip = [class, k, click, ic, t])
     if (S.view === 'einst') {
-      const G = GRUPPEN.filter(g => gilt(g, p)), aktiv = G.find(g => g.k === S.evGruppe);
+      const G = GRUPPEN.filter(g => gilt(g, p)), aktiv = G.find(g => g.k === S.evGruppe), weg = new Set(WEG.filter(w => gilt(w, p)).map(w => w.k));
+      if (weg.size) for (const s of ['<nav class="ev-nav', '<div class="ev-chips">'])   // Seitenleiste-Eintrag und Chip: values[1] = k
+        suche(t, enthaelt(s), x => { const L = x.values[0]; if (Array.isArray(L)) x.values[0] = L.filter(it => !weg.has(it.values[1])); });
       if (aktiv) suche(t, enthaelt('class="ev-inhalt"'), x => { const j = x.strings.findIndex(s => s.includes('class="ev-ic">'));
         x.values[j] = aktiv.ic; x.values[j + 1] = aktiv.marke ? html`${aktiv.t}${marke}` : aktiv.t; x.values[j + 2] = aktiv.kurz ? aktiv.kurz(p) : ''; x.values[j + 3] = aktiv.inhalt(p); });
       suche(t, enthaelt('<nav class="ev-nav'), x => { const L = x.values[0]; if (aktiv) for (const it of L) it.values[2] = '';
@@ -95,7 +98,7 @@ function laufzeit() {
     band: text => html`<div class="r-band">${text}</div>`,
     svg: s => { const d = document.createElement('div'); d.innerHTML = s; return d.firstElementChild; },
     auf: (p, s) => { p.s.sheet = s; return p.neuZeichnen(); },
-    gruppe: g => GRUPPEN.push(g), reiter: r => REITER.push(r), abschnitt: a => ABSCHNITTE.push(a),
+    gruppe: g => GRUPPEN.push(g), gruppeWeg: w => WEG.push(w), reiter: r => REITER.push(r), abschnitt: a => ABSCHNITTE.push(a),
     einblendung: (art, vorlage, o = {}) => { EINBL[art] = { vorlage, ...o }; },
     stil: css => STILE.push(blatt(css)),
     vorfuehren: fn => { vorfuehren = fn; },
