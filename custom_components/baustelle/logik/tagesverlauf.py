@@ -5,7 +5,10 @@ Je Stunde: gemessener Verbrauch (bis jetzt), Prognose mit Automatik, ohne Automa
   Stunden nach Heizplan und Temperatur – in der Heizzeit voll, außerhalb nur `FROST_ANTEIL` (Frostschutz), je Stunde
   gewichtet mit dem Abstand zur Heizgrenze (kälter = mehr). Die Summe bleibt der Tageswert der Signatur.
 - **Ohne Automatik je Stunde**: der Tageswert verteilt nach dem gemessenen Stundenprofil der Baseline-Tage
-  (`ohne_profil`: mittlerer Anteil je Stunde), solange es keine gibt rund um die Uhr nach der Temperatur.
+  (`ohne_profil`: mittlerer Anteil je Stunde), solange es keine gibt gleichmäßig – wie die Schätzung „jeder Heizkörper
+  rund um die Uhr“ selbst rechnet.
+- **Obergrenze** (`max_kwh_h`): keine Stunde über der Leistung aller Heizkörper; was darüber läge, geht anteilig auf die
+  übrigen Stunden (die Summe bleibt, solange sie überhaupt in die Stunden passt).
 - **Außentemperatur**: gemessen, sonst stündliche Vorhersage, sonst ein typischer Tagesgang (`tagesgang`) um das
   Tagesmittel (Vorhersage oder Klimamittel).
 """
@@ -53,12 +56,26 @@ def gewichte(anteile: Sequence[float], temps: Sequence[float], grenze: float | N
     return [(FROST_ANTEIL + (1 - FROST_ANTEIL) * a) * max(MIN_GRAD, g - t) for a, t in zip(anteile, temps)]
 
 
-def verteilen(kwh: float, stunden: Sequence[int], w: Sequence[float]) -> dict[int, float]:
-    """`kwh` auf die Stunden `stunden` nach den Gewichten `w` (je Stunde des Tages); ohne Gewicht gleichmäßig."""
+def verteilen(kwh: float, stunden: Sequence[int], w: Sequence[float],
+              grenze: Mapping[int, float] | None = None) -> dict[int, float]:
+    """`kwh` auf die Stunden `stunden` nach den Gewichten `w` (je Stunde des Tages); ohne Gewicht gleichmäßig. Mit
+    `grenze` (je Stunde höchstens) geht, was darüber läge, anteilig auf die anderen Stunden."""
     if not stunden:
         return {}
-    summe = sum(w[h] for h in stunden)
-    return {h: kwh * (w[h] / summe if summe > 0 else 1 / len(stunden)) for h in stunden}
+    aus: dict[int, float] = {}
+    offen, rest = list(stunden), kwh
+    while offen and rest > 1e-9:
+        summe = sum(w[h] for h in offen)
+        teil = {h: rest * (w[h] / summe if summe > 0 else 1 / len(offen)) for h in offen}
+        voll = [h for h in offen if grenze is not None and teil[h] > grenze.get(h, teil[h])]
+        if not voll:
+            aus.update(teil)
+            return {h: aus.get(h, 0.0) for h in stunden}
+        for h in voll:
+            aus[h] = grenze[h]   # type: ignore[index]  # voll nur mit grenze
+            rest -= grenze[h]    # type: ignore[index]
+            offen.remove(h)
+    return {h: aus.get(h, 0.0) for h in stunden}
 
 
 def ohne_profil(tage: Sequence[Sequence[float]]) -> list[float] | None:
@@ -72,7 +89,7 @@ def ohne_profil(tage: Sequence[Sequence[float]]) -> list[float] | None:
 def verlauf(
     *, ist: Mapping[int, float], aussen_gemessen: Mapping[int, float], aussen_vorhersage: Mapping[int, float],
     mittel: float | None, ab: int, prog_kwh: float, ohne_kwh: float | None, fenster: Sequence[tuple[int, int]],
-    grenze: float | None, profil: Sequence[float] | None,
+    grenze: float | None, profil: Sequence[float] | None, max_kwh_h: float | None = None,
 ) -> list[Stunde]:
     """Die 24 Stunden eines Tages. `ab` = erste Stunde der Prognose (0 = ganzer Tag Prognose, 24 = vorbei; heute die
     laufende Stunde – ihr gemessener Teil steht in `ist`). `prog_kwh` = Prognose für die Stunden ab `ab` (heute: Rest
@@ -90,11 +107,12 @@ def verlauf(
             temps.append(tagesgang(mittel if mittel is not None else GRENZE_VORGABE, h))
             quellen.append("tagesgang")
     ab = min(max(ab, 0), 24)
-    prog = verteilen(prog_kwh, list(range(ab, 24)), gewichte(plan_anteile(fenster), temps, grenze))
+    deckel = None if max_kwh_h is None else {h: max(0.0, max_kwh_h - (ist.get(h, 0.0) if h == ab else 0.0)) for h in range(24)}
+    prog = verteilen(prog_kwh, list(range(ab, 24)), gewichte(plan_anteile(fenster), temps, grenze), deckel)
     ohne: dict[int, float] | None = None
     if ohne_kwh is not None:
-        ohne = ({h: ohne_kwh * profil[h] for h in range(24)} if profil
-                else verteilen(ohne_kwh, list(range(24)), gewichte([1.0] * 24, temps, grenze)))
+        ohne = verteilen(ohne_kwh, list(range(24)), profil if profil else [1.0] * 24,
+                         None if max_kwh_h is None else {h: max_kwh_h for h in range(24)})
     return [Stunde(h, round(ist.get(h, 0.0), 3) if h < ab or h in ist else None,
                    round(prog[h], 3) if h in prog else None, round(ohne[h], 3) if ohne is not None else None,
                    round(temps[h], 1), quellen[h]) for h in range(24)]

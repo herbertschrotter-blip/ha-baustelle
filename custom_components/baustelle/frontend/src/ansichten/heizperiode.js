@@ -131,7 +131,7 @@ function kurve24(p, z) {
       ${S[0][3] !== null ? html`<span><i class="q-ol"></i>ohne Automatik</span>` : nothing}<span><i class="q-tl"></i>außen ${quellen}</span></div>
     <div class="leise">${v.frei ? 'Freier Tag: nur Frostschutz.' : 'Hell: Heizzeit laut Plan; außerhalb nur Frostschutz.'}
       ${S.some(s => s[2]) ? ' Die Prognose je Stunde verteilt den Tageswert nach Heizplan und Temperatur.' : ''}
-      ${S[0][3] !== null ? (v.ohne_quelle === 'baseline' ? ' „Ohne Automatik“ je Stunde nach den Baseline-Messungen.' : ' „Ohne Automatik“ je Stunde nach der Temperatur (bis zur Baseline).') : ''}</div>`;
+      ${S[0][3] !== null ? (v.ohne_quelle === 'baseline' ? ' „Ohne Automatik“ je Stunde nach den Baseline-Messungen.' : ' „Ohne Automatik“ gleichmäßig rund um die Uhr (Schätzung bis zur Baseline).') : ''}</div>`;
 }
 function detail(h, z, art, p) {
   const zeile = (k, t, kwh, e) => html`<div class=${k}><span>${t}</span><b>${de(kwh, 0)} kWh · ${eur(e)}</b></div>`;

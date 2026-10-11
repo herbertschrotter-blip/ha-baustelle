@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.131",
+    "datum": "2026-10-11",
+    "punkte": [
+      "Verlauf 24 h (Herbert: „warum stürzt die Kurve ab ca. 10 ab?“): „ohne Automatik“ je Stunde ist bis zur Baseline jetzt gleichmäßig rund um die Uhr – so rechnet die Schätzung selbst. Vorher wurde der Tageswert nach der Temperatur verteilt; bei einem milden Tag landete fast alles in den kalten Morgenstunden (bis 20 kWh je Stunde) und danach fast nichts. Neu ist auch eine Obergrenze: keine Stunde liegt über der Leistung aller Heizkörper (hier 9,7 kWh), weder bei der Prognose noch bei „ohne Automatik“; der Rest verteilt sich auf die übrigen Stunden."
+    ]
+  },
+  {
     "version": "0.8.130",
     "datum": "2026-10-11",
     "punkte": [

@@ -3676,7 +3676,7 @@ function kurve24(p4, z2) {
       ${S3[0][3] !== null ? b2`<span><i class="q-ol"></i>ohne Automatik</span>` : A}<span><i class="q-tl"></i>außen ${quellen}</span></div>
     <div class="leise">${v2.frei ? "Freier Tag: nur Frostschutz." : "Hell: Heizzeit laut Plan; außerhalb nur Frostschutz."}
       ${S3.some((s4) => s4[2]) ? " Die Prognose je Stunde verteilt den Tageswert nach Heizplan und Temperatur." : ""}
-      ${S3[0][3] !== null ? v2.ohne_quelle === "baseline" ? " „Ohne Automatik“ je Stunde nach den Baseline-Messungen." : " „Ohne Automatik“ je Stunde nach der Temperatur (bis zur Baseline)." : ""}</div>`;
+      ${S3[0][3] !== null ? v2.ohne_quelle === "baseline" ? " „Ohne Automatik“ je Stunde nach den Baseline-Messungen." : " „Ohne Automatik“ gleichmäßig rund um die Uhr (Schätzung bis zur Baseline)." : ""}</div>`;
 }
 function detail(h3, z2, art, p4) {
   const zeile3 = (k2, t5, kwh, e6) => b2`<div class=${k2}><span>${t5}</span><b>${de(kwh, 0)} kWh · ${eur(e6)}</b></div>`;
@@ -5444,7 +5444,7 @@ function einblendungen(s4) {
   return s4;
 }
 var STATISCH = "/baustelle_static";
-var SEITE_VERSION = "0.8.130";
+var SEITE_VERSION = "0.8.131";
 var LIT_SHEETS = ["melden", "leistung", "heizzeit-c", "bedarf", "termin", "lernen", "hz", "heizplan", "az", "ausnahme", "az-neu", ...Object.keys(BAUSTELLE_EINBLENDUNGEN), ...Object.keys(EINRICHTUNG_EINBLENDUNGEN), "np-plug", ...Object.keys(INVENTAR_EINBLENDUNGEN), ...Object.keys(GERAETE_EINBLENDUNGEN), ...Object.keys(HEIZPERIODE_EINBLENDUNGEN), "kk-katalog", ...Object.keys(UEBERSICHT_EINBLENDUNGEN), "aw-detail"];
 var BaustellePanel = class extends i4 {
   static styles = [r(CSS), r(GLAS_CSS), r(INV_CSS), r(GERAETE_CSS), r(HEIZPERIODE_CSS)];

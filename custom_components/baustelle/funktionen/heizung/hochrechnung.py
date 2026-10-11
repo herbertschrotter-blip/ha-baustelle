@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 
 from ...const import CONF_ENDE, CONF_HEIZPERIODE_BIS, CONF_HEIZPERIODE_VON, ROLLE_HEIZKOERPER
 from ...db import DATA_DB
+from ...kern.staffelung import nenn_kw
 from ...db.tage import hochrechnung_tage, stunden
 from ...logik import baseline as b, hochrechnung as h, tagesverlauf as tv
 from ...logik.signatur import Tag, berechnen
@@ -192,7 +193,9 @@ async def async_tagesverlauf(hass: HomeAssistant, hz: Heizung, tag: date) -> dic
     profil = tv.ohne_profil(profil_tage)
     S = tv.verlauf(ist=ist, aussen_gemessen={h: t for h, t in aussen.items() if h < ab or tag < heute},
                    aussen_vorhersage=vorhersage, mittel=z.get("aussen"), ab=ab, prog_kwh=z.get("prog") or 0.0,
-                   ohne_kwh=z.get("ohne"), fenster=fenster, grenze=sig.get("grenze"), profil=profil)
+                   ohne_kwh=z.get("ohne"), fenster=fenster, grenze=sig.get("grenze"), profil=profil,
+                   max_kwh_h=sum(nenn_kw(st, g) for g in st.geraete.values()
+                                 if g.bereich in ids and g.rolle == ROLLE_HEIZKOERPER and st.geraet_aktiv(g)) or None)
     return {"datum": tag.isoformat(), "jetzt_h": jetzt.hour + jetzt.minute / 60 if tag == heute else None,
             "stunden": [[x.h, x.ist, x.prog, x.ohne, x.aussen, x.quelle] for x in S], "heizzeit": tv.heizzeit(fenster),
             "frei": plan is None or not fenster, "ohne_quelle": "baseline" if profil else "temperatur"}
