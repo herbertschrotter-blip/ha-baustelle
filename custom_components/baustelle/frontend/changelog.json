@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.128",
+    "datum": "2026-10-11",
+    "punkte": [
+      "Hochrechnung der Heizperiode mit dem Rest von heute (BSM-033): Bisher zählte für heute nur der Verbrauch bis jetzt und die Prognose begann erst morgen – tagsüber lag die Hochrechnung (Sensor, Karte „Heizperiode“, Ersparnis) um den Rest des Tages zu niedrig. Jetzt kommt der Rest von heute anteilig dazu, bei der Außentemperatur von heute (Vorhersage, sonst das bis jetzt gemessene Mittel, sonst Klimamittel)."
+    ]
+  },
+  {
     "version": "0.8.127",
     "datum": "2026-10-11",
     "punkte": [

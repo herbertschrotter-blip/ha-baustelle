@@ -5,7 +5,9 @@ Je Container:
   zu mindestens `VOLL_ANTEIL` mitgeschrieben (HA oder übernommen) – Tage mit Ausfall oder Notbetrieb fallen weg (Herbert 10.10.2026).
 - **Rest der Heizperiode** (morgen bis zum Ende): je Tag der erwartete Verbrauch aus der Signatur (`logik/signatur`)
   bei der Außentemperatur des Tages – aus der Vorhersage, sonst aus den Klimamitteln (Monatsmittel, zwischen den
-  Monatsmitten linear). Solange die Signatur lernt oder unsicher ist: Tagesschnitt der gezählten Tage × Resttage
+  Monatsmitten linear). **Heute** (`rest_heute`, Anteil des Tages, der noch kommt): der gemessene Verbrauch bis jetzt
+  zählt zu „bisher“, der Rest des Tages anteilig bei der Außentemperatur von heute (Vorhersage, sonst gemessen bis jetzt,
+  sonst Klimamittel) – sonst läge die Hochrechnung tagsüber um den Rest des Tages zu niedrig. Solange die Signatur lernt oder unsicher ist: Tagesschnitt der gezählten Tage × Resttage
   (wie bisher), dann ohne Spanne.
 - **Spanne**: wärmerer bzw. kälterer Winter (alle Tage ohne Vorhersage um `WINTER_K` wärmer/kälter) und die Streuung der
   Signatur (1,645 · rmse · √Tage, rund 90 %).
@@ -13,7 +15,7 @@ Je Container:
 Für die Baustelle: bisher + Summe der Reste; Spanne nur, wenn jeder Container eine Signatur hat. **Tagesreihe** (`reihe`,
 BSM-033.03): je Tag der Heizperiode aufsummiert tatsächlich (bis heute), Prognose mit Automatik (mit Spanne) und ohne
 Automatik (bis zur gemessenen Baseline die bisherige Schätzung 24/7 – gleichmäßig über die Tage, wie sie gerechnet ist);
-der letzte Tag ist die Hochrechnung. Bisher = Summe der Tage der Heizperiode bis heute (heute mit, soweit gerechnet).
+heute: „mit“ = gemessen + Rest von heute; der letzte Tag ist die Hochrechnung. Bisher = Summe der Tage der Heizperiode bis heute (heute mit, soweit gerechnet).
 **Heizgradtage** nach ÖNORM B 8135 (HGT 20/12): je Tag 20 − außen, wenn außen unter 12 °C. **Witterungsbereinigt**
 (Normjahr): die ganze Heizperiode bei Klimamitteln – damit lassen sich Baustellen und Jahre vergleichen.
 """
@@ -58,6 +60,7 @@ class ContainerRest:
     je_tag_warm: tuple[float, ...] = ()       # … im wärmeren Winter (nur mit Signatur)
     je_tag_kalt: tuple[float, ...] = ()       # … im kälteren Winter
     rmse: float = 0.0
+    heute_kwh: float = 0.0                    # Rest von heute (in rest_kwh, unten_kwh und oben_kwh enthalten)
 
 
 def klimamittel(werte: Sequence[float] | None) -> tuple[float, ...]:
@@ -115,28 +118,32 @@ def temperaturen(rest: Iterable[date], vorhersage: Mapping[date, float], klima: 
 
 def container_rest(
     roh: Sequence[TagRoh], heute: date, ende: date, vorhersage: Mapping[date, float], klima: Sequence[float],
-    beginn: date, ohne_tage: Collection[date] = (),
+    beginn: date, ohne_tage: Collection[date] = (), *, rest_heute: float = 0.0, aussen_heute: float | None = None,
 ) -> ContainerRest:
-    """Rest der Heizperiode eines Containers (morgen bis `ende`); `beginn` = erster Tag der Heizperiode (Normjahr).
-    Tage eines Baseline-Laufs (`ohne_tage`, BSM-033.04) zählen nicht für die Signatur mit Automatik."""
+    """Rest der Heizperiode eines Containers (Rest von heute, morgen bis `ende`); `beginn` = erster Tag der Heizperiode
+    (Normjahr). Tage eines Baseline-Laufs (`ohne_tage`, BSM-033.04) zählen nicht für die Signatur mit Automatik.
+    `rest_heute`: Anteil des heutigen Tages, der noch kommt (0–1); `aussen_heute`: Außentemperatur dafür."""
     gezaehlt = [t for t in roh if tag_zaehlt(t, heute) and t.datum not in ohne_tage]
     sig = berechnen(Tag(t.aussen, t.kwh) for t in gezaehlt)    # type: ignore[arg-type]  # tag_zaehlt prüft None
     rest_tage = tage(max(heute + timedelta(days=1), beginn), ende)
     temps = temperaturen(rest_tage, vorhersage, klima)
+    anteil = min(1.0, max(0.0, rest_heute)) if beginn <= heute <= ende else 0.0
     if erwartet(sig, 0.0) is None:
         if not gezaehlt:
             return ContainerRest(0.0, None, None, "keine", sig, None, (0.0,) * len(rest_tage))
         schnitt = sum(t.kwh or 0.0 for t in gezaehlt) / len(gezaehlt)
-        return ContainerRest(schnitt * len(rest_tage), None, None, "tagesschnitt", sig, None, (schnitt,) * len(rest_tage))
+        return ContainerRest(schnitt * (len(rest_tage) + anteil), None, None, "tagesschnitt", sig, None,
+                             (schnitt,) * len(rest_tage), heute_kwh=schnitt * anteil)
 
     def je_tag(verschiebung: float) -> tuple[float, ...]:
         return tuple(erwartet(sig, t + (0.0 if fest else verschiebung)) or 0.0 for t, fest in temps)
 
     mitte, warm, kalt = je_tag(0.0), je_tag(WINTER_K), je_tag(-WINTER_K)
-    streuung = Z90 * (sig.rmse or 0.0) * sqrt(len(rest_tage))
+    heute_kwh = anteil * (erwartet(sig, aussen_heute if aussen_heute is not None else klima_tag(heute, klima)) or 0.0)
+    streuung = Z90 * (sig.rmse or 0.0) * sqrt(len(rest_tage) + anteil)
     norm = sum(erwartet(sig, klima_tag(d, klima)) or 0.0 for d in tage(beginn, ende))
-    return ContainerRest(sum(mitte), max(0.0, sum(warm) - streuung), sum(kalt) + streuung, "signatur", sig, norm,
-                         mitte, warm, kalt, sig.rmse or 0.0)
+    return ContainerRest(heute_kwh + sum(mitte), heute_kwh + max(0.0, sum(warm) - streuung), heute_kwh + sum(kalt) + streuung,
+                         "signatur", sig, norm, mitte, warm, kalt, sig.rmse or 0.0, heute_kwh)
 
 
 def baustelle(bisher_kwh: float | None, reste: Mapping[str, ContainerRest]) -> dict[str, float | str | None]:
@@ -185,9 +192,9 @@ def reihe(
         ohne = round(ohne_kwh * (i + 1) / len(alle_tage), 3) if ohne_kwh is not None else None
         if d <= heute:
             ist += je_tag.get(d, 0.0)
-            mit = warm = kalt = ist
-            aus.append((d.isoformat(), round(ist, 3), round(ist, 3), round(ist, 3) if spanne else None,
-                        round(ist, 3) if spanne else None, ohne))
+            mit = warm = kalt = ist + (sum(r.heute_kwh for r in werte) if d == heute else 0.0)
+            aus.append((d.isoformat(), round(ist, 3), round(mit, 3), round(mit, 3) if spanne else None,
+                        round(mit, 3) if spanne else None, ohne))
             continue
         mit += sum(r.je_tag[k] for r in werte if k < len(r.je_tag))
         if spanne:

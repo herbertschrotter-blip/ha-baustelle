@@ -59,10 +59,12 @@ async def test_hochrechnung_aus_der_datenbank(hass: HomeAssistant, baustelle_nov
     assert zeitraum(st, HEUTE) == (date(2026, 10, 1), date(2027, 4, 30))
     await _tage_eintragen(hass, C1)
     await _tage_eintragen(hass, C2, notbetrieb=HEUTE - timedelta(days=3))
-    st.lz["wetter_tage"] = {(HEUTE + timedelta(days=1)).isoformat(): {"mittel": -8.0}}
+    st.lz["wetter_tage"] = {(HEUTE + timedelta(days=1)).isoformat(): {"mittel": -8.0}, HEUTE.isoformat(): {"mittel": 5.0}}
     await async_rechnen(hass, hz)
     erg = hz.hochrechnung
     assert erg is not None and erg["vorhersage_tage"] == 1
+    # Rest von heute (10:00, noch 14 h) anteilig bei der Vorhersage für heute
+    assert erg["reste"][C1].heute_kwh == pytest.approx(14 / 24 * modell(5.0))
     je = {c["bereich"]: c for c in erg["container"]}
     assert je[C1]["methode"] == "signatur" and je[C1]["tage"] == 30
     assert je[C1]["grenze"] == pytest.approx(15.0) and je[C1]["kwh_je_grad"] == pytest.approx(2.0)

@@ -65,8 +65,24 @@ def _signatur(tage: list[Tag]) -> dict[str, Any]:
             "bezug": sig.bezug, "cv_rmse": sig.cv_rmse, "punkte": [[round(t.aussen, 2), round(t.kwh, 2)] for t in tage]}
 
 
-def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date) -> dict[str, Any]:
-    """Hochrechnung aus den Tagen je Container (ohne Datenbank, damit testbar)."""
+def aussen_heute(st: Steuerung, heute: date, roh: dict[str, list[h.TagRoh]]) -> float | None:
+    """Außentemperatur für den Rest von heute: Tagesmittel der Vorhersage, sonst das bis jetzt gemessene Mittel."""
+    mittel = ((st.lz.get("wetter_tage") or {}).get(heute.isoformat()) or {}).get("mittel")
+    if isinstance(mittel, (int, float)):
+        return float(mittel)
+    gemessen = [t.aussen for liste in roh.values() for t in liste if t.datum == heute and t.aussen is not None]
+    return sum(gemessen) / len(gemessen) if gemessen else None
+
+
+def rest_heute(jetzt: datetime) -> float:
+    """Anteil des heutigen Tages, der noch kommt (0–1; Sommerzeit: 23 h / 25 h)."""
+    beginn = dt_util.start_of_local_day(jetzt)
+    morgen = dt_util.start_of_local_day(jetzt.date() + timedelta(days=1))
+    return max(0.0, min(1.0, (morgen - jetzt).total_seconds() / (morgen - beginn).total_seconds()))
+
+
+def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date, anteil_heute: float = 0.0) -> dict[str, Any]:
+    """Hochrechnung aus den Tagen je Container (ohne Datenbank, damit testbar); `anteil_heute` = Rest von heute (0–1)."""
     st = hz.st
     beginn, ende = zeitraum(st, heute)
     eigen = (st.e.get("heizung") or {}).get("klimamittel")
@@ -75,7 +91,9 @@ def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date) -> dict[s
     ids = [b.id for b in hz.bereiche()]
     roh = {bid: roh.get(bid, []) for bid in ids}
     ohne_tage = b.zaehlende_tage(h_baseline.laeufe(hz))   # BSM-033.04: Tage der Baseline-Läufe
-    reste = {bid: h.container_rest(roh[bid], heute, ende, vor, klima, beginn, ohne_tage.get(bid, set())) for bid in ids}
+    aussen = aussen_heute(st, heute, roh)
+    reste = {bid: h.container_rest(roh[bid], heute, ende, vor, klima, beginn, ohne_tage.get(bid, set()),
+                                   rest_heute=anteil_heute, aussen_heute=aussen) for bid in ids}
     # Ersparnis nach IPMVP: Signatur „ohne“ je Container, Heizperiode damit; andere über das Verhältnis je Heizkörper-Typ
     ohne = {bid: h.ohne_container(roh[bid], ohne_tage.get(bid, set()), heute, beginn, ende, vor, klima) for bid in ids}
     mit = {bid: sum(t.kwh or 0.0 for t in roh[bid] if beginn <= t.datum <= heute) + reste[bid].rest_kwh for bid in ids}
@@ -127,14 +145,15 @@ async def async_rechnen(hass: HomeAssistant, hz: Heizung) -> None:
     db = hass.data.get(DATA_DB)
     if db is None or not db.bereit or not hz.aktiv():
         return
-    heute = dt_util.now().date()
+    jetzt = dt_util.now()
+    heute = jetzt.date()
     beginn, _ = zeitraum(st, heute)
     zone = dt_util.get_default_time_zone()
     roh = await db.async_ausfuehren(lambda v: hochrechnung_tage(v, st.entry.entry_id, beginn, heute, zone))
     if roh is None:
         _LOGGER.debug("Hochrechnung: Tage nicht lesbar (%s)", db.fehler)
         return
-    hz.hochrechnung = ergebnis(hz, roh, heute)
+    hz.hochrechnung = ergebnis(hz, roh, heute, rest_heute(jetzt))
 
 
 def werte(hz: Heizung) -> dict[str, Any] | None:

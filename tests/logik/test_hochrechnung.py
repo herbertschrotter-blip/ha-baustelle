@@ -141,6 +141,33 @@ def test_reihe_endet_bei_der_hochrechnung():
     assert ohne == pytest.approx(9000.0) and R[0][5] == pytest.approx(9000.0 / len(R), abs=1e-3)   # Schätzung 24/7: gleichmäßig
 
 
+def test_rest_von_heute_anteilig():
+    """Heute zählt der gemessene Verbrauch zu „bisher“; der Rest des Tages kommt anteilig dazu (Vorhersage, sonst Klima)."""
+    beginn, morgen = date(2026, 10, 1), HEUTE + timedelta(days=1)
+    ohne = container_rest(roh(), HEUTE, morgen, {morgen: -10.0}, KLIMA, beginn)
+    mit = container_rest(roh(), HEUTE, morgen, {morgen: -10.0}, KLIMA, beginn, rest_heute=0.25, aussen_heute=5.0)
+    assert ohne.heute_kwh == 0.0 and mit.heute_kwh == pytest.approx(0.25 * modell(5.0))
+    assert mit.rest_kwh == pytest.approx(modell(-10.0) + 0.25 * modell(5.0))
+    assert mit.unten_kwh == pytest.approx(mit.rest_kwh) and mit.oben_kwh == pytest.approx(mit.rest_kwh)
+    klima = container_rest(roh(), HEUTE, morgen, {}, KLIMA, beginn, rest_heute=0.5)
+    assert klima.heute_kwh == pytest.approx(0.5 * modell(klima_tag(HEUTE, KLIMA)))
+    schnitt = container_rest(roh(5), HEUTE, morgen, {}, KLIMA, beginn, rest_heute=0.5)
+    assert schnitt.methode == "tagesschnitt" and schnitt.rest_kwh == pytest.approx(1.5 * sum(t.kwh for t in roh(5)) / 5)
+    # außerhalb der Heizperiode zählt heute nicht
+    assert container_rest(roh(), HEUTE, morgen, {}, KLIMA, morgen, rest_heute=0.5).heute_kwh == 0.0
+
+
+def test_reihe_heute_mit_rest_des_tages():
+    beginn, ende = date(2026, 10, 1), date(2026, 12, 31)
+    a = roh(start=date(2026, 10, 21)) + [TagRoh(HEUTE, 3.0, 5.0, 3600)]
+    rest = container_rest(a, HEUTE, ende, {}, KLIMA, beginn, rest_heute=0.75, aussen_heute=5.0)
+    R = reihe({"a": a}, {"a": rest}, HEUTE, beginn, ende, None)
+    b = bisher({"a": a}, HEUTE, beginn)
+    heute = next(z for z in R if z[0] == HEUTE.isoformat())
+    assert heute[1] == pytest.approx(b) and heute[2] == pytest.approx(b + 0.75 * modell(5.0))
+    assert R[-1][2] == pytest.approx(b + rest.rest_kwh, rel=1e-6)
+
+
 def test_reihe_lernt_ohne_spanne_und_ohne():
     beginn, ende = date(2026, 10, 1), date(2026, 12, 31)
     a = roh(5, start=date(2026, 11, 10))

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.128] – 2026-10-11
+
+- Hochrechnung der Heizperiode mit dem Rest von heute (BSM-033): Bisher zählte für heute nur der Verbrauch bis jetzt und
+  die Prognose begann erst morgen – tagsüber lag die Hochrechnung (Sensor, Karte „Heizperiode“, Ersparnis) um den Rest
+  des Tages zu niedrig. Jetzt kommt der Rest von heute anteilig dazu, bei der Außentemperatur von heute (Vorhersage,
+  sonst das bis jetzt gemessene Mittel, sonst Klimamittel).
+
 ## [0.8.127] – 2026-10-11
 
 - Baseline-Läufe „ohne Automatik“ (BSM-033.04, Teil a – noch ohne Anzeige, startet aus): Ist „Baseline messen“
