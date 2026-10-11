@@ -200,3 +200,34 @@ def hochrechnung_tage(v: Connection, baustelle_id: str, von: date, bis: date, zo
     for z in zeilen:
         aus[z.bereich_id].append(TagRoh(z.datum, z.kwh, z.aussen_mittel, erfasst.get((z.bereich_id, z.datum), 0.0), dauer[z.datum]))
     return dict(aus)
+
+
+def stunden(
+    v: Connection, baustelle_id: str, geraete: Mapping[str, str], tage: Mapping[str, set[date]] | None, tag: date, zone: tzinfo,
+) -> tuple[dict[int, float], dict[int, float], list[list[float]]]:
+    """Verlauf 24 h (BSM-033.04): Verbrauch der Geräte `geraete` (geraet_id → Container) je Stunde des Tages, Außentemperatur
+    je Stunde und je Baseline-Tag eines Containers (`tage`: Container → Tage) die 24 Stundenwerte seines Verbrauchs."""
+    gm, wm = s.geraet_minute, s.wetter_minute
+
+    def je_stunde(von: date, bereich: str | None) -> list[float]:
+        a, b = _grenzen(von, zone)
+        aus = [0.0] * 24
+        for gid, zeit, wh in v.execute(select(gm.c.geraet_id, gm.c.zeit, gm.c.energie_wh).where(
+                gm.c.baustelle_id == baustelle_id, gm.c.zeit >= a, gm.c.zeit < b, gm.c.energie_wh.is_not(None))):
+            if gid in geraete and (bereich is None or geraete[gid] == bereich):
+                aus[dt_util.as_local(_utc(zeit)).hour] += wh / 1000
+        return aus
+
+    a, b = _grenzen(tag, zone)
+    ist = je_stunde(tag, None)
+    vorhanden = {dt_util.as_local(_utc(z)).hour for (z,) in v.execute(select(gm.c.zeit).where(
+        gm.c.baustelle_id == baustelle_id, gm.c.zeit >= a, gm.c.zeit < b).distinct())}
+    summe: dict[int, float] = defaultdict(float)
+    gewicht: dict[int, float] = defaultdict(float)
+    for zeit, dauer, temp in v.execute(select(wm.c.zeit, wm.c.dauer_s, wm.c.aussen_temp).where(
+            wm.c.baustelle_id == baustelle_id, wm.c.zeit >= a, wm.c.zeit < b, wm.c.aussen_temp.is_not(None))):
+        h = dt_util.as_local(_utc(zeit)).hour
+        summe[h] += temp * dauer
+        gewicht[h] += dauer
+    profil = [je_stunde(d, bid) for bid, ds in (tage or {}).items() for d in sorted(ds)]
+    return ({h: ist[h] for h in sorted(vorhanden)}, {h: summe[h] / gewicht[h] for h in summe if gewicht[h] > 0}, profil)

@@ -269,6 +269,12 @@ function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {
         case 'recorder/statistics_during_period': case 'baustelle/statistik': return statistik(m);   // BSM-014: Statistik aus der Datenbank (gleiche Form)
         case 'baustelle/auswertung': return fakeAuswertung(m);
         case 'baustelle/abrechnung': return fakeAbrechnung(m);
+        case 'baustelle/tagesverlauf': {   // BSM-033.04: Verlauf 24 h wie hochrechnung.async_tagesverlauf (Beispiel: heute 10 Uhr, Werktag 05–16 Uhr)
+          const tag = new Date(m.datum + 'T12:00:00'), wt = tag.getDay() > 0 && tag.getDay() < 6, heute = m.datum === '2026-01-15', vorbei = m.datum < '2026-01-15';
+          const ab = vorbei ? 24 : heute ? 10 : 0, w = h => (wt && h >= 5 && h < 16 ? (h === 5 ? 2.6 : 1) : 0.08), t = h => 1 + 3 * Math.sin(2 * Math.PI * (h + 0.5 - 9) / 24);
+          const stunden = Array.from({ length: 24 }, (_, h) => [h, h < ab || (heute && h === ab) ? +(9 * w(h) * (h === ab ? 0.4 : 1)).toFixed(3) : null, h >= ab ? +(9 * w(h) * (h === ab ? 0.6 : 1)).toFixed(3) : null,
+            +(4.5 + (1 - t(h)) * 0.4).toFixed(3), +t(h).toFixed(1), h < ab ? 'gemessen' : h < ab + 12 ? 'vorhersage' : 'tagesgang']);
+          return { datum: m.datum, jetzt_h: heute ? 10.3 : null, stunden, heizzeit: wt ? [[5, 16]] : [], frei: !wt, ohne_quelle: 'temperatur' }; }
         case 'baustelle/ohne': { const n = { Tag: 24, Woche: 7, Monat: 30, Jahr: 12 }[m.zeitraum] || 24, kw = m.basis === 'typ' ? 1.8 : 2.0;   // WU-0013
           const reihe = Array.from({ length: n }, (_, i) => m.zeitraum === 'Tag' ? (i <= 16 ? kw : 0) : kw * 24 * (i < 5 ? 1 : 0)), ohne = reihe.reduce((a, b) => a + b, 0), kwh = ohne * 0.35;
           return { zeitraum: { art: m.zeitraum, n }, basis: m.basis || 'geraet', preis: 0.28, kw, reihe, ohne_kwh: ohne, kwh,

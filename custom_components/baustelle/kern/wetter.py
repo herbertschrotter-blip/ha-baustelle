@@ -49,6 +49,8 @@ async def _async_prognose_holen(st: Steuerung, wetter: str) -> None:
             _LOGGER.debug("Vorhersage %s von %s nicht verfügbar: %s", art, wetter, err)
             continue
         liste = _antwort_liste(antwort, wetter, "forecast")
+        if art == "hourly":
+            st.lz["wetter_stunden"] = _stunden(liste, jetzt)
         for tag, werte in _prognose_je_tag(liste, art).items():
             ziel = tage.setdefault(tag, {})
             ziel.update({k: v for k, v in werte.items() if v is not None})
@@ -136,6 +138,17 @@ def _antwort_liste(antwort: ServiceResponse, entity_id: str, key: str) -> list[d
     je_entitaet = (antwort or {}).get(entity_id)
     liste = je_entitaet.get(key) if isinstance(je_entitaet, dict) else None
     return [x for x in liste if isinstance(x, dict)] if isinstance(liste, list) else []
+
+
+def _stunden(liste: list[dict[str, Any]], jetzt: datetime) -> dict[str, float]:
+    """Stündliche Vorhersage der Außentemperatur ab der laufenden Stunde (Verlauf 24 h, BSM-033.04): Stundenbeginn → °C."""
+    ab = jetzt.replace(minute=0, second=0, microsecond=0)
+    aus: dict[str, float] = {}
+    for eintrag in liste:
+        zeit = dt_util.parse_datetime(str(eintrag.get("datetime", "")))
+        if zeit is not None and eintrag.get("temperature") is not None and dt_util.as_local(zeit) >= ab:
+            aus[dt_util.as_local(zeit).isoformat()] = float(eintrag["temperature"])
+    return aus
 
 
 def _prognose_je_tag(liste: list[dict[str, Any]], art: str) -> dict[date, dict[str, float | None]]:

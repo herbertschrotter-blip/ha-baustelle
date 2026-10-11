@@ -58,6 +58,9 @@ nach ÖNORM); es zählen nur **ganze Tage ohne Ausfall und ohne Notbetrieb** (mi
 - Bisher = Zähler `energie_heizen` (wie vorher); heute zählt dort mit, der Rest beginnt morgen.
 - **Tag/Woche/Monat** (0.8.129): `tageswerte` (je Tag nicht aufsummiert, „ohne“ aus der Tagesreihe) und `perioden` (Tag,
   Woche ab Montag, Monat) in `logik/hochrechnung`; € je Zeitraum in `logik/auswertung`; die Seite wählt nur den Ausschnitt.
+- **Verlauf 24 h** (0.8.130): `logik/tagesverlauf` – Tageswert der Prognose nach Heizplan (außerhalb 5 % Frostschutz) und
+  Abstand zur Heizgrenze auf die Stunden verteilt; „ohne“ nach dem Stundenprofil der Baseline-Tage, sonst nach der
+  Temperatur rund um die Uhr; Temperatur gemessen → stündliche Vorhersage → typischer Tagesgang (±3 K). WS `baustelle/tagesverlauf`.
 - **Rest von heute** (0.8.128): der Anteil des Tages, der noch kommt, × erwarteter Tagesverbrauch bei der Außentemperatur
   von heute (Vorhersage, sonst gemessen bis jetzt, sonst Klimamittel) – sonst liegt die Hochrechnung tagsüber zu niedrig.
 - Sensor `prognose_heizperiode` (und Kosten) zeigt den neuen Wert, `baustelle/auswertung` › `hochrechnung` dazu

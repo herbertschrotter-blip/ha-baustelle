@@ -22,8 +22,8 @@ from homeassistant.util import dt as dt_util
 
 from ...const import CONF_ENDE, CONF_HEIZPERIODE_BIS, CONF_HEIZPERIODE_VON, ROLLE_HEIZKOERPER
 from ...db import DATA_DB
-from ...db.tage import hochrechnung_tage
-from ...logik import baseline as b, hochrechnung as h
+from ...db.tage import hochrechnung_tage, stunden
+from ...logik import baseline as b, hochrechnung as h, tagesverlauf as tv
 from ...logik.signatur import Tag, berechnen
 from ...logik.auswertung import heizperiode_bis, heizperiode_ende
 
@@ -150,12 +150,52 @@ async def async_rechnen(hass: HomeAssistant, hz: Heizung) -> None:
     jetzt = dt_util.now()
     heute = jetzt.date()
     beginn, _ = zeitraum(st, heute)
+    hz.hochrechnung_lauf += 1   # nur die zuletzt gestartete Rechnung zählt (eine ältere, langsamere überschreibt sonst)
+    lauf = hz.hochrechnung_lauf
     zone = dt_util.get_default_time_zone()
     roh = await db.async_ausfuehren(lambda v: hochrechnung_tage(v, st.entry.entry_id, beginn, heute, zone))
     if roh is None:
         _LOGGER.debug("Hochrechnung: Tage nicht lesbar (%s)", db.fehler)
         return
+    if lauf != hz.hochrechnung_lauf:
+        return
     hz.hochrechnung = ergebnis(hz, roh, heute, rest_heute(jetzt))
+
+
+async def async_tagesverlauf(hass: HomeAssistant, hz: Heizung, tag: date) -> dict[str, Any]:
+    """Verlauf 24 h eines Tages der Heizperiode (BSM-033.04): gemessen je Stunde aus der Datenbank, Prognose und „ohne“
+    aus dem Tageswert der Hochrechnung verteilt (logik/tagesverlauf), Außentemperatur, Heizzeit laut Plan."""
+    st, jetzt = hz.st, dt_util.now()
+    z = next((x for x in ((hz.hochrechnung or {}).get("perioden") or {}).get("tag", []) if x["von"] == tag.isoformat()), None)
+    if z is None:
+        return {"datum": tag.isoformat(), "stunden": [], "heizzeit": []}
+    ids = {b.id for b in hz.bereiche()}
+    geraete = {g.id: g.bereich for g in st.geraete.values() if g.bereich in ids}
+    ohne_tage = b.zaehlende_tage(h_baseline.laeufe(hz))
+    db = hass.data.get(DATA_DB)
+    ist: dict[int, float] = {}
+    aussen: dict[int, float] = {}
+    profil_tage: list[list[float]] = []
+    if db is not None and db.bereit:
+        zone = dt_util.get_default_time_zone()
+        erg = await db.async_ausfuehren(lambda v: stunden(v, st.entry.entry_id, geraete, ohne_tage, tag, zone))
+        if erg is not None:
+            ist, aussen, profil_tage = erg
+    heute = jetzt.date()
+    ab = 24 if tag < heute else jetzt.hour if tag == heute else 0
+    ist = {h: w for h, w in ist.items() if h < ab or (tag == heute and h == ab)}
+    vorhersage = {dt_util.parse_datetime(k).hour: v for k, v in (st.lz.get("wetter_stunden") or {}).items()   # type: ignore[union-attr]
+                  if (t := dt_util.parse_datetime(k)) is not None and t.date() == tag and t.hour >= ab}
+    plan = hz.plan(tag, False)
+    fenster = [(a, e) for a, e, _ in plan.abschnitte()] if plan is not None else []
+    sig = (hz.hochrechnung or {}).get("signatur") or {}
+    profil = tv.ohne_profil(profil_tage)
+    S = tv.verlauf(ist=ist, aussen_gemessen={h: t for h, t in aussen.items() if h < ab or tag < heute},
+                   aussen_vorhersage=vorhersage, mittel=z.get("aussen"), ab=ab, prog_kwh=z.get("prog") or 0.0,
+                   ohne_kwh=z.get("ohne"), fenster=fenster, grenze=sig.get("grenze"), profil=profil)
+    return {"datum": tag.isoformat(), "jetzt_h": jetzt.hour + jetzt.minute / 60 if tag == heute else None,
+            "stunden": [[x.h, x.ist, x.prog, x.ohne, x.aussen, x.quelle] for x in S], "heizzeit": tv.heizzeit(fenster),
+            "frei": plan is None or not fenster, "ohne_quelle": "baseline" if profil else "temperatur"}
 
 
 def werte(hz: Heizung) -> dict[str, Any] | None:

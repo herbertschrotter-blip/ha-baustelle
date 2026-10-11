@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.130] – 2026-10-11
+
+- Karte „Heizperiode“ › Tag: **Verlauf 24 h** des angetippten Tags (BSM-033.04, Mockup `hochrechnung-j4b.html`) – Verbrauch
+  je Stunde (gemessen bis jetzt, danach Prognose), „ohne Automatik“ je Stunde, Außentemperatur (gemessen, dann
+  stündliche Vorhersage, dann typischer Tagesgang) und die Heizzeit laut Plan. Die Prognose je Stunde verteilt den
+  Tageswert nach Heizplan und Temperatur, „ohne Automatik“ nach dem gemessenen Stundenprofil der Baseline-Läufe (bis
+  dahin nach der Temperatur). Neu: `baustelle/tagesverlauf`, `logik/tagesverlauf`; die stündliche Vorhersage wird
+  gemerkt (`wetter_stunden`).
+
 ## [0.8.129] – 2026-10-11
 
 - Karte „Heizperiode“, Reiter Hochrechnung (BSM-033.04, Mockup `hochrechnung-j4b.html`): Umschalter **Heizperiode ·

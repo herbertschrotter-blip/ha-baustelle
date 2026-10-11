@@ -77,6 +77,7 @@ class Heizung(Funktion):
         self._tuer_pause: dict[str, bool] = {}   # war zuletzt wegen offener Tür pausiert
         self._grund_beim_heizen: dict[str, str | None] = {}   # Grund der letzten Minute, in der geheizt wurde (K innen)
         self.hochrechnung: dict[str, Any] | None = None   # letzte Hochrechnung mit Signatur (BSM-033.02, hochrechnung.py)
+        self.hochrechnung_lauf = 0   # Nummer der zuletzt gestarteten Rechnung
         self._grund_letzte_minute: dict[str, str | None] = {}
         self._strom_jetzt: set[str] = set()   # AN-0011: Container, deren Heizkörper in diesem Zählschritt Strom ziehen
         self._unter_soll_seit: dict[str, datetime] = {}

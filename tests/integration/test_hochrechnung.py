@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -111,7 +113,11 @@ async def test_klimamittel_einstellen(hass: HomeAssistant, baustelle_november, h
     await ws.send_json({"id": 2, "type": "baustelle/setzen", "entry_id": baustelle_november.entry_id,
                         "pfad": ["heizung", "klimamittel"], "wert": werte12})
     assert (await ws.receive_json())["success"] is True
-    await hass.async_block_till_done()
+    for _ in range(100):   # PostgreSQL: die Abfrage läuft in einem eigenen Thread, auf den block_till_done nicht wartet
+        await hass.async_block_till_done()
+        if hz.hochrechnung is not None and hz.hochrechnung["klima"] == werte12:
+            break
+        await hass.async_add_executor_job(time.sleep, 0.05)   # echt warten (die Uhr ist eingefroren)
     assert st.e["heizung"]["klimamittel"] == werte12
     assert hz.hochrechnung is not None and hz.hochrechnung["klima"] == werte12 and hz.hochrechnung["klima_vorgabe"] is False
 
@@ -126,3 +132,32 @@ async def test_ohne_tage_bleibt_der_tagesschnitt(hass: HomeAssistant, baustelle_
     st.zaehler["energie_heizen"] = 100.0
     st.zaehler["seit"] = (datetime(2026, 11, 10, tzinfo=WIEN)).isoformat()
     assert hz.hochrechnung_heizperiode("energie_heizen") == pytest.approx(100.0 / 10.4167 * 212, rel=0.02)
+
+
+async def test_tagesverlauf_24h(hass: HomeAssistant, baustelle_november, hass_ws_client) -> None:
+    """BSM-033.04: Verlauf 24 h – heute gemessen bis jetzt (10:00), dann Prognose; morgen ganz Prognose mit stündlicher
+    Vorhersage; Summe der Stunden = Tageswert der Hochrechnung; Heizzeit laut Plan (Freitag ist Arbeitstag)."""
+    st = baustelle_november.runtime_data
+    hz = Heizung.von(st)
+    await _tage_eintragen(hass, C1)
+    await _tage_eintragen(hass, C2)
+    morgen = HEUTE + timedelta(days=1)
+    st.lz["wetter_stunden"] = {datetime(2026, 11, 21, 8, tzinfo=WIEN).isoformat(): -4.5}
+    await async_rechnen(hass, hz)
+    ws = await hass_ws_client(hass)
+    tag = {z["von"]: z for z in hz.hochrechnung["perioden"]["tag"]}
+    await ws.send_json({"id": 1, "type": "baustelle/tagesverlauf", "entry_id": baustelle_november.entry_id, "datum": HEUTE.isoformat()})
+    r = (await ws.receive_json())["result"]
+    S = r["stunden"]
+    assert len(S) == 24 and r["jetzt_h"] == pytest.approx(10.0) and not r["frei"] and r["heizzeit"]
+    assert all(x[2] is None for x in S[:10]) and S[11][1] is None
+    assert sum(x[2] for x in S[10:]) == pytest.approx(tag[HEUTE.isoformat()]["prog"], rel=1e-3)
+    ohne = tag[HEUTE.isoformat()]["ohne"]   # ohne Zählbeginn keine Schätzung „ohne Automatik“
+    assert (all(x[3] is None for x in S) if ohne is None else sum(x[3] for x in S) == pytest.approx(ohne, rel=1e-3))
+    assert r["ohne_quelle"] == "temperatur"
+    await ws.send_json({"id": 2, "type": "baustelle/tagesverlauf", "entry_id": baustelle_november.entry_id, "datum": morgen.isoformat()})
+    m = (await ws.receive_json())["result"]
+    assert m["jetzt_h"] is None and all(x[1] is None for x in m["stunden"]) and m["stunden"][8][4:] == [-4.5, "vorhersage"]
+    assert sum(x[2] for x in m["stunden"]) == pytest.approx(tag[morgen.isoformat()]["prog"], rel=1e-3)
+    await ws.send_json({"id": 3, "type": "baustelle/tagesverlauf", "entry_id": baustelle_november.entry_id, "datum": "2030-01-01"})
+    assert (await ws.receive_json())["result"]["stunden"] == []

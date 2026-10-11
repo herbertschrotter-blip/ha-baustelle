@@ -2,7 +2,8 @@
 // (Prognose mit Spanne, Diagramm tatsächlich / Prognose mit / ohne Automatik über die Heizperiode), Signatur (je Container
 // Streudiagramm mit Knickgerade, Heizgrenze, kWh je Grad, Grundlast, Güte) und Klima (Klimamittel, Vorhersage, Heizgradtage,
 // Normjahr), dazu die Einblendung „Klimamittel“. Im Reiter Hochrechnung Umschalter Heizperiode · Monat · Woche · Tag
-// (BSM-033.04, Mockup hochrechnung-j4b.html: Balken je Zeitraum aus `perioden`, Antippen zeigt die Zahlen). Alle Zahlen kommen von der Integration (`A.hochrechnung`, logik/hochrechnung,
+// (BSM-033.04, Mockup hochrechnung-j4b.html: Balken je Zeitraum aus `perioden`, Antippen zeigt die Zahlen; beim Tag der
+// Verlauf 24 h aus `baustelle/tagesverlauf`). Alle Zahlen kommen von der Integration (`A.hochrechnung`, logik/hochrechnung,
 // logik/signatur); die Seite rechnet nur Pixel. Die Heizperiode stellt ✎ über die Einblendung „zeitraum-bs“ ein.
 import { html, nothing } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
@@ -101,7 +102,38 @@ function balkenSvg(Z, art, wahl) {
     <text class="hp-yt" x="${L - 4}" y="${art === 'tag' ? O - 8 : 8}">${mwh ? 'MWh' : 'kWh'}</text>
     ${jetzt > 0 ? `<line class="hp-heute" x1="${x(jetzt)}" y1="${O}" x2="${x(jetzt)}" y2="${H - U}"/>` : ''}${b}</svg>`);
 }
-function detail(h, z, art) {
+/* Verlauf 24 h des gewählten Tags (baustelle/tagesverlauf: [h, gemessen, Prognose, ohne, außen, Herkunft]) – nur Anordnung */
+const TQ = { gemessen: 'gemessen', vorhersage: 'Vorhersage', tagesgang: 'typischer Tagesgang' };
+function kurve24(p, z) {
+  const v = p._holen(`tv:${p.d.entry}:${z.von}`, () => p._hass.callWS({ type: 'baustelle/tagesverlauf', entry_id: p.d.entry, datum: z.von }), z.heute ? 600000 : 3600000);
+  if (v === undefined) return html`<div class="hp-titel">Verlauf 24 h</div>${LAEDT}`;
+  const S = (v && v.stunden) || [];
+  if (S.length !== 24) return nothing;
+  const W = 340, H = 150, L = 30, R = 28, U = 18, O = 10, bw = (W - L - R) / 24;
+  const max = Math.max(0.1, ...S.map(s => Math.max((s[1] || 0) + (s[2] || 0), s[3] || 0))) * 1.1;
+  const T = S.map(s => s[4]), tmin = Math.floor(Math.min(...T) - 1), tmax = Math.ceil(Math.max(...T) + 1);
+  const x = h => L + h * bw, y = w => H - U - w / max * (H - U - O), yt = t => H - U - (t - tmin) / (tmax - tmin) * (H - U - O);
+  const svg = `<svg class="hp-dia hp-24" viewBox="0 0 ${W} ${H}">
+    ${(v.heizzeit || []).map(([a, b]) => `<rect class="hp-plan" x="${x(a)}" y="${O}" width="${(b - a) * bw}" height="${H - U - O}"/>`).join('')}
+    ${(v.heizzeit || []).length ? `<text class="hp-pt" x="${x(v.heizzeit[0][0]) + 3}" y="${O + 9}">Heizzeit</text>` : ''}
+    ${[0, .5, 1].map(f => max / 1.1 * f).map(w => `<line class="hp-gitter" x1="${L}" y1="${y(w)}" x2="${W - R}" y2="${y(w)}"/><text class="hp-yt" x="${L - 4}" y="${y(w) + 3}">${de(w, w < 10 ? 1 : 0)}</text>`).join('')}
+    <text class="hp-yt" x="${L - 4}" y="${O - 2}">kWh</text>
+    ${[tmin, tmax].map(t => `<text class="hp-tt" x="${W - R + 4}" y="${yt(t) + (t === tmax ? 8 : 0)}">${t}°</text>`).join('')}
+    ${S.map(([h, ist, prog]) => { const i = ist || 0, x0 = x(h) + bw * .12, b = bw * .76;
+      return `${i ? `<rect class="hp-bi" x="${x0}" y="${y(i)}" width="${b}" height="${y(0) - y(i)}"/>` : ''}${prog ? `<rect class="hp-bp" x="${x0}" y="${y(i + prog)}" width="${b}" height="${y(i) - y(i + prog)}"/>` : ''}`; }).join('')}
+    ${S[0][3] !== null ? `<path class="hp-ol" d="${S.map((s, h) => `${h ? 'L' : 'M'}${(x(h) + bw / 2).toFixed(1)},${y(s[3]).toFixed(1)}`).join(' ')}"/>` : ''}
+    <path class="hp-tl" d="${S.map((s, h) => `${h ? 'L' : 'M'}${(x(h) + bw / 2).toFixed(1)},${yt(s[4]).toFixed(1)}`).join(' ')}"/>
+    ${[0, 6, 12, 18, 24].map(h => `<text class="hp-x" x="${x(h)}" y="${H - 4}">${h}</text>`).join('')}
+    ${zahl(v.jetzt_h) ? `<line class="hp-heute" x1="${x(v.jetzt_h)}" y1="${O}" x2="${x(v.jetzt_h)}" y2="${H - U}"/><text class="hp-ht" x="${x(v.jetzt_h) + 3}" y="${H - U - 4}">jetzt</text>` : ''}</svg>`;
+  const quellen = [...new Set(S.map(s => s[5]))].map(q => TQ[q] || q).join(', dann ');
+  return html`<div class="hp-titel">Verlauf 24 h</div>${unsafeHTML(svg)}
+    <div class="hp-leg2"><span><i class="q-ist"></i>gemessen je Stunde</span><span><i class="q-prog"></i>Prognose</span>
+      ${S[0][3] !== null ? html`<span><i class="q-ol"></i>ohne Automatik</span>` : nothing}<span><i class="q-tl"></i>außen ${quellen}</span></div>
+    <div class="leise">${v.frei ? 'Freier Tag: nur Frostschutz.' : 'Hell: Heizzeit laut Plan; außerhalb nur Frostschutz.'}
+      ${S.some(s => s[2]) ? ' Die Prognose je Stunde verteilt den Tageswert nach Heizplan und Temperatur.' : ''}
+      ${S[0][3] !== null ? (v.ohne_quelle === 'baseline' ? ' „Ohne Automatik“ je Stunde nach den Baseline-Messungen.' : ' „Ohne Automatik“ je Stunde nach der Temperatur (bis zur Baseline).') : ''}</div>`;
+}
+function detail(h, z, art, p) {
   const zeile = (k, t, kwh, e) => html`<div class=${k}><span>${t}</span><b>${de(kwh, 0)} kWh · ${eur(e)}</b></div>`;
   const restText = !z.ist ? 'Prognose mit Automatik' : art === 'tag' ? 'Rest von heute' : `Prognose Rest ${art === 'woche' ? 'der Woche' : 'des Monats'}`;
   return html`<div class="glas-panel hp-det"><div class="hp-det-k"><b>${titel(z, art)}${z.heute ? ' · heute' : ''}</b>
@@ -112,7 +144,8 @@ function detail(h, z, art) {
       ${z.prog && z.ist ? zeile('sum', 'zusammen', z.mit, z.mit_eur) : nothing}
       ${z.prog && zahl(z.unten) && z.oben - z.unten > 0.5 ? html`<div class="leise"><span>Spanne milder–kalter Winter</span><span>${de(z.unten_eur, 0)}–${eur(z.oben_eur)}</span></div>` : nothing}
       ${zahl(z.ohne) ? zeile('', html`<i class="q-ohne"></i>ohne Automatik ${h.ohne_methode === 'baseline' ? '(gemessen)' : '(Schätzung)'}`, z.ohne, z.ohne_eur) : nothing}
-      ${zahl(z.gespart) ? html`<div class="gesp"><span>gespart</span><b>≈ ${eur(z.gespart_eur)}</b></div>` : nothing}</div></div>`;
+      ${zahl(z.gespart) ? html`<div class="gesp"><span>gespart</span><b>≈ ${eur(z.gespart_eur)}</b></div>` : nothing}</div>
+    ${art === 'tag' ? kurve24(p, z) : nothing}</div>`;
 }
 function zeitraeume(p, h, art) {
   const P = ((h.perioden || {})[art]) || [];
@@ -127,7 +160,7 @@ function zeitraeume(p, h, art) {
     <div @click=${e => { const g = e.target.closest('.hp-b'); if (g) { p.s.hpWahl = +g.dataset.i; p.neuZeichnen(); } }}>${balkenSvg(Z, art, wahl)}</div>
     <div class="hp-leg2"><span><i class="q-ist"></i>tatsächlich</span><span><i class="q-prog"></i>Prognose mit Automatik</span><span><i class="q-ohne"></i>ohne Automatik</span>
       ${art === 'tag' ? html`<span class="leise">°C: Vorhersage · <em>kursiv</em> = Klimamittel</span>` : nothing}</div>
-    ${detail(h, Z[wahl], art)}`;
+    ${detail(h, Z[wahl], art, p)}`;
 }
 function hochrechnung(p, h) {
   const a = p.s.hpAufl || 'hp';
@@ -215,6 +248,11 @@ export const HEIZPERIODE_CSS = `
 .q-ist { background: var(--s3); } .q-prog { background: var(--s1); opacity: .45; } .q-ohne { background: var(--s2); opacity: .75; }
 .hp-det { padding: 10px 12px; border-radius: 14px; margin: 4px 0; } .hp-det-k { display: flex; flex-direction: column; margin-bottom: 4px; }
 .hp-det-z > div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; } .hp-det-z b { white-space: nowrap; }
+.hp-titel { font-size: 12px; color: var(--ink2); text-transform: uppercase; letter-spacing: .04em; margin: 12px 0 2px; }
+.hp-24 .hp-bi { fill: var(--s3); } .hp-24 .hp-bp { fill: var(--s1); opacity: .45; } .hp-24 .hp-plan { fill: var(--amber); opacity: .14; }
+.hp-24 .hp-pt { fill: var(--amber); font-size: 8px; } .hp-24 .hp-x { text-anchor: middle; } .hp-24 .hp-tt { fill: var(--ink); }
+.hp-24 path.hp-ol { fill: none; stroke: var(--s2); stroke-width: 1.8; stroke-dasharray: 2 3; } .hp-24 path.hp-tl { fill: none; stroke: var(--ink); stroke-width: 1.6; }
+.q-ol, .q-tl { background: none !important; height: 0 !important; width: 14px !important; } .q-ol { border-top: 2px dotted var(--s2); } .q-tl { border-top: 2px solid var(--ink); }
 .hp-det-z .sum { border-top: 1px solid rgba(127,127,127,.2); } .hp-det-z .gesp b { color: #30d158; }
 .hp-zeit { font-size: 12px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
 .hp-reiter { margin: 4px 0 8px; } .hp-zahl { font-size: 26px; font-weight: 600; margin: 4px 0 2px; } .hp-zahl .leise { font-size: 14px; font-weight: 400; }

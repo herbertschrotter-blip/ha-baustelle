@@ -1007,6 +1007,7 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     /* BSM-033.04: Umschalter Heizperiode · Monat · Woche · Tag – Balken aus `perioden`, Antippen zeigt die Zahlen, ‹ › blättert */
     await klick('.hp-reiter [data-v="hoch"]'); await klick('.hp-aufl [data-v="tag"]'); pruefe('Heizperiode Tag');
     erwarte('BSM-033.04: Tag – Balken, heute mit Rest des Tages', ui.innerHTML.includes('hp-balken') && ui.innerHTML.includes('Rest von heute') && ui.innerHTML.includes('tatsächlich bis jetzt') && ui.innerHTML.includes('Klimamittel'));
+    await ruhe(); erwarte('BSM-033.04: Verlauf 24 h des Tages', ui.innerHTML.includes('hp-24') && ui.innerHTML.includes('Verlauf 24 h') && ui.innerHTML.includes('Heizzeit') && ui.innerHTML.includes('jetzt') && letzte('baustelle/tagesverlauf').length > 0);
     await klick('.hp-balken .hp-b[data-i="0"]'); pruefe('Heizperiode Tag gewählt');
     erwarte('BSM-033.04: Antippen zeigt den gewählten Tag', panel.s.hpWahl === 0 && !ui.innerHTML.includes('Rest von heute'));
     await klick('[data-k="hp-nav-1"]'); erwarte('BSM-033.04: ‹ blättert zurück', panel.s.hpAb === -1 && ui.innerHTML.includes('hp-balken'));
