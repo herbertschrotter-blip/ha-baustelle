@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.129] – 2026-10-11
+
+- Karte „Heizperiode“, Reiter Hochrechnung (BSM-033.04, Mockup `hochrechnung-j4b.html`): Umschalter **Heizperiode ·
+  Monat · Woche · Tag**. Monat, Woche und Tag zeigen Balken je Zeitraum – tatsächlich, Prognose mit Automatik (mit Spanne
+  milder/kalter Winter) und ohne Automatik; heute ist gemessen bis jetzt plus Rest des Tages. Beim Tag steht die
+  Außentemperatur über dem Balken (Vorhersage, Klimamittel kursiv). ‹ › blättert, „heute“ springt zurück; Antippen eines
+  Balkens zeigt kWh und €, Spanne, ohne Automatik, gespart und woher die Temperatur kommt. Die Zahlen je Zeitraum liefert
+  die Integration (`perioden`). Am Handy heißt der Reiter „Prognose“.
+
 ## [0.8.128] – 2026-10-11
 
 - Hochrechnung der Heizperiode mit dem Rest von heute (BSM-033): Bisher zählte für heute nur der Verbrauch bis jetzt und

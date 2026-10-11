@@ -108,13 +108,15 @@ def ergebnis(hz: Heizung, roh: dict[str, list[h.TagRoh]], heute: date, anteil_he
         "punkte": [[t.aussen, round(t.kwh or 0.0, 2)] for t in roh[bid] if h.tag_zaehlt(t, heute)],
     } for bid, r in reste.items()]
     rest_temps = [t for t, _ in h.temperaturen(h.tage(heute, ende), vor, klima)]
+    reihe = h.reihe(roh, reste, heute, beginn, ende,
+                    ohne_kwh if ohne_kwh is not None else h_zaehlen.hochrechnung_heizperiode(hz, "ohne", schaetzung=True),
+                    ohne_wie_mit=ohne_kwh is not None)
+    tw = h.tageswerte(roh, reste, heute, beginn, ende, reihe, vor, klima, aussen)   # BSM-033.04: Tag/Woche/Monat
     return {"heute": heute.isoformat(), "beginn": beginn.isoformat(), "ende": ende.isoformat(), "reste": reste,
             "container": container, "hgt_rest": h.hgt_summe(rest_temps[1:]), "vorhersage_tage": len(vor),
             "bisher_kwh": h.bisher(roh, heute, beginn),
             "signatur": _signatur(h.baustelle_tage(roh, heute)),
-            "reihe": h.reihe(roh, reste, heute, beginn, ende,
-                             ohne_kwh if ohne_kwh is not None else h_zaehlen.hochrechnung_heizperiode(hz, "ohne", schaetzung=True),
-                             ohne_wie_mit=ohne_kwh is not None),
+            "reihe": reihe, "perioden": {art: h.perioden(tw, art, heute) for art in h.PERIODEN},
             "ohne": {"methode": "baseline" if ohne_kwh is not None else "schaetzung", "kwh": ohne_kwh,
                      "container": [{"bereich": bid, "stand": o.signatur.stand, "tage": o.tage, "heizperiode_kwh": o.heizperiode_kwh,
                                     "grenze": o.signatur.grenze, "kwh_je_grad": o.signatur.kwh_je_grad,

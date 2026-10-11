@@ -6,7 +6,7 @@ import pytest
 
 from logik.hochrechnung import (
     KLIMA_GRAZ, VOLL_ANTEIL, WINTER_K, ContainerRest, Ohne, TagRoh, baustelle, baustelle_tage, bisher, container_rest, hgt, hgt_summe, klima_tag,
-    klimamittel, klimamittel_pruefen, ohne_baustelle, ohne_container, reihe, tag_zaehlt, tage, temperaturen,
+    klimamittel, klimamittel_pruefen, ohne_baustelle, ohne_container, perioden, reihe, tag_zaehlt, tage, tageswerte, temperaturen,
 )
 from logik.signatur import Signatur
 
@@ -235,3 +235,34 @@ def test_ohne_baustelle_mit_verhaeltnis_je_typ():
     v = ohne_baustelle({"a": g, "b": lernt, "c": k}, mit, typen)
     assert v == pytest.approx(3000.0 + 1000.0 * 2.0 + 1200.0)                              # b: Verhältnis von a
     assert ohne_baustelle({}, {}, {}) is None
+
+
+def test_tageswerte_und_perioden():
+    """BSM-033.04: je Tag nicht aufsummiert – Summe = Hochrechnung; Woche ab Montag, Monat; heute = gemessen + Rest."""
+    beginn, ende = date(2026, 10, 1), date(2026, 12, 31)
+    a = roh(start=date(2026, 10, 21)) + [TagRoh(HEUTE, 3.0, 5.0, 3600)]
+    morgen = HEUTE + timedelta(days=1)
+    rest = container_rest(a, HEUTE, ende, {morgen: -2.0}, KLIMA, beginn, rest_heute=0.5, aussen_heute=4.0)
+    R = reihe({"a": a}, {"a": rest}, HEUTE, beginn, ende, 9000.0)
+    T = tageswerte({"a": a}, {"a": rest}, HEUTE, beginn, ende, R, {morgen: -2.0}, KLIMA, 4.0)
+    assert len(T) == len(tage(beginn, ende))
+    assert sum((t.ist or 0.0) + t.prog for t in T) == pytest.approx(R[-1][2], rel=1e-6)
+    assert sum(t.ohne for t in T) == pytest.approx(9000.0, rel=1e-6)
+    h = next(t for t in T if t.datum == HEUTE)
+    assert h.ist == pytest.approx(3.0) and h.prog == pytest.approx(0.5 * modell(4.0)) and h.quelle == "vorhersage" and h.aussen == 4.0
+    m = next(t for t in T if t.datum == morgen)
+    assert m.ist is None and m.prog == pytest.approx(modell(-2.0)) and m.unten == m.oben == pytest.approx(modell(-2.0))
+    assert m.quelle == "vorhersage" and T[-1].quelle == "klima" and T[-1].unten < T[-1].prog < T[-1].oben
+    vorbei = next(t for t in T if t.datum == date(2026, 11, 1))
+    assert vorbei.quelle == "gemessen" and vorbei.prog == 0.0 and vorbei.unten is None
+    # Woche (Mo 16.11.–So 22.11.) mit heute; Monat November; Tag heute
+    W = perioden(T, "woche", HEUTE)
+    w = next(z for z in W if z["heute"])
+    assert (w["von"], w["bis"]) == ("2026-11-16", "2026-11-22") and w["quellen"] == ["gemessen", "vorhersage", "klima"]
+    assert w["mit"] == pytest.approx(w["ist"] + w["prog"], abs=1e-3) and w["unten"] <= w["mit"] <= w["oben"]
+    assert w["gespart"] == pytest.approx(w["ohne"] - w["mit"], abs=1e-3)
+    M = perioden(T, "monat", HEUTE)
+    assert [z["von"] for z in M] == ["2026-10-01", "2026-11-01", "2026-12-01"] and M[0]["vorbei"] and M[0]["unten"] is None
+    assert sum(z["mit"] for z in M) == pytest.approx(R[-1][2], rel=1e-5)
+    D = perioden(T, "tag", HEUTE)
+    assert len(D) == len(T) and next(z for z in D if z["heute"])["prog"] == pytest.approx(0.5 * modell(4.0), abs=1e-3)

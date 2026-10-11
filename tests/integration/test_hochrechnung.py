@@ -83,6 +83,12 @@ async def test_hochrechnung_aus_der_datenbank(hass: HomeAssistant, baustelle_nov
     assert R[-1][2] == pytest.approx(w["mit_kwh"], rel=1e-4) and R[-1][3] == pytest.approx(w["unten_kwh"], rel=1e-4)
     assert len(je[C1]["punkte"]) == 30 and erg["klima_vorgabe"] is True and len(erg["klima"]) == 12
     assert erg["vorhersage"] == [[(HEUTE + timedelta(days=1)).isoformat(), -8.0]]
+    # BSM-033.04: Tag/Woche/Monat – Summe der Monate = Hochrechnung, heute mit Rest des Tages
+    P = erg["perioden"]
+    assert set(P) == {"tag", "woche", "monat"} and len(P["tag"]) == len(R) and len(P["monat"]) == 7
+    assert sum(z["mit"] for z in P["monat"]) == pytest.approx(w["mit_kwh"], rel=1e-4)
+    heute = next(z for z in P["tag"] if z["heute"])
+    assert heute["prog"] == pytest.approx(2 * 14 / 24 * modell(5.0), rel=1e-3) and heute["quellen"] == ["vorhersage"]
     # BSM-033.04: ohne Baseline-Läufe bleibt „ohne Automatik“ die Schätzung; die Baseline startet aus
     assert erg["ohne"]["methode"] == "schaetzung" and erg["ohne"]["kwh"] is None and erg["baseline"] == {"an": False, "laeufe": []}
     # BSM-033: Signatur der ganzen Baustelle – nur Tage, an denen beide Container zählen (ohne den Notbetrieb-Tag)

@@ -56,6 +56,8 @@ nach ÖNORM); es zählen nur **ganze Tage ohne Ausfall und ohne Notbetrieb** (mi
 - **Container ohne Signatur** (lernt, unsicher): Tagesschnitt der gezählten Tage × Resttage, wie vorher.
 - **Normjahr** (Witterungsbereinigung): die ganze Heizperiode bei Klimamitteln; **Heizgradtage 20/12** des Rests.
 - Bisher = Zähler `energie_heizen` (wie vorher); heute zählt dort mit, der Rest beginnt morgen.
+- **Tag/Woche/Monat** (0.8.129): `tageswerte` (je Tag nicht aufsummiert, „ohne“ aus der Tagesreihe) und `perioden` (Tag,
+  Woche ab Montag, Monat) in `logik/hochrechnung`; € je Zeitraum in `logik/auswertung`; die Seite wählt nur den Ausschnitt.
 - **Rest von heute** (0.8.128): der Anteil des Tages, der noch kommt, × erwarteter Tagesverbrauch bei der Außentemperatur
   von heute (Vorhersage, sonst gemessen bis jetzt, sonst Klimamittel) – sonst liegt die Hochrechnung tagsüber zu niedrig.
 - Sensor `prognose_heizperiode` (und Kosten) zeigt den neuen Wert, `baustelle/auswertung` › `hochrechnung` dazu

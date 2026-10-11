@@ -23,11 +23,26 @@ function beispielHochrechnung(b, preis) {
       reihe.push([d.toISOString().slice(0, 10), null, +mit.toFixed(3), +Math.max(ist, unten - st).toFixed(3), +(oben + st).toFixed(3), ohne]); }
   }
   const z = reihe[n - 1], bisher = reihe[heute][1];
+  // BSM-033.04: je Tag/Woche/Monat (wie logik/hochrechnung.perioden; heute: gemessen + Rest des Tages)
+  const tage = reihe.map((r, i) => { const v = reihe[i - 1] || [null, 0, 0, 0, 0, 0], d = new Date(r[0] + 'T00:00:00Z'), m = d.getUTCMonth();
+    const vorbei = i < heute, jetzt = i === heute, wert = r[2] - v[2], ist = i <= heute ? (jetzt ? wert * 0.6 : wert) : null;
+    return { d, ist, prog: vorbei ? 0 : jetzt ? wert * 0.4 : wert, unten: vorbei ? 0 : jetzt ? wert * 0.4 : wert * 0.9, oben: vorbei ? 0 : jetzt ? wert * 0.4 : wert * 1.12,
+      ohne: r[5] - v[5], aussen: KLIMA_BSP[m] + Math.sin(i) * 2, quelle: i < heute ? 'gemessen' : i <= heute + 6 ? 'vorhersage' : 'klima', heute: jetzt }; });
+  const perioden = art => { const G = [];
+    for (const t of tage) { const k = art === 'tag' ? t.d.getTime() : art === 'monat' ? t.d.getUTCFullYear() * 12 + t.d.getUTCMonth() : Math.floor((t.d.getTime() / 864e5 + 3) / 7);
+      let g = G[G.length - 1]; if (!g || g.k !== k) G.push(g = { k, T: [] }); g.T.push(t); }
+    return G.map(({ T }) => { const S = f => T.reduce((s, t) => s + (t[f] || 0), 0), ist = S('ist'), prog = S('prog'), ohne = S('ohne'), vorbei = !T.some(t => t.ist === null || t.heute);
+      const q = ['gemessen', 'vorhersage', 'klima'].filter(x => T.some(t => t.quelle === x)), e = x => x === null ? null : x * preis;
+      const z = { von: T[0].d.toISOString().slice(0, 10), bis: T[T.length - 1].d.toISOString().slice(0, 10), ist: T.some(t => t.ist !== null) ? ist : null, prog, mit: ist + prog,
+        unten: vorbei ? null : ist + S('unten'), oben: vorbei ? null : ist + S('oben'), ohne, gespart: ohne - ist - prog,
+        aussen: T.reduce((s, t) => s + t.aussen, 0) / T.length, quellen: q, heute: T.some(t => t.heute), vorbei };
+      for (const k of ['ist', 'prog', 'mit', 'unten', 'oben', 'ohne', 'gespart']) z[k + '_eur'] = e(z[k]);
+      return z; }); };
   return { bisher_kwh: bisher, bisher_eur: bisher * preis, mit_kwh: z[2], mit_eur: z[2] * preis, ohne_kwh: z[5], ohne_eur: z[5] * preis, gespart_eur: (z[5] - z[2]) * preis,
     methode: 'signatur', unten_kwh: z[3], unten_eur: z[3] * preis, oben_kwh: z[4], oben_eur: z[4] * preis, normjahr_kwh: z[2] * 1.03, normjahr_eur: z[2] * 1.03 * preis,
     hgt_rest: 1860, vorhersage_tage: 6, container: sig.map(c => ({ ...c, rest_kwh: 400, rest_eur: 400 * preis })), reihe,
     klima: KLIMA_BSP, klima_vorgabe: true, vorhersage: [['2026-01-16', 1.5], ['2026-01-17', -0.5], ['2026-01-18', -2.0], ['2026-01-19', 0.5], ['2026-01-20', 2.5], ['2026-01-21', 3.0]],
-    beginn: '2025-10-01', ende: '2026-04-30' };
+    beginn: '2025-10-01', ende: '2026-04-30', perioden: { tag: perioden('tag'), woche: perioden('woche'), monat: perioden('monat') } };
 }
 
 function beispielHass({ STRUKTUR, REFERENZ = false, ZUSTAENDE = null, VEKTOR = {}, WELT = null, JETZT = Date.parse('2026-09-29T16:20:00+02:00'),

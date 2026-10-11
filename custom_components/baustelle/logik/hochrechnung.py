@@ -18,6 +18,7 @@ Automatik (bis zur gemessenen Baseline die bisherige Schätzung 24/7 – gleichm
 heute: „mit“ = gemessen + Rest von heute; der letzte Tag ist die Hochrechnung. Bisher = Summe der Tage der Heizperiode bis heute (heute mit, soweit gerechnet).
 **Heizgradtage** nach ÖNORM B 8135 (HGT 20/12): je Tag 20 − außen, wenn außen unter 12 °C. **Witterungsbereinigt**
 (Normjahr): die ganze Heizperiode bei Klimamitteln – damit lassen sich Baustellen und Jahre vergleichen.
+**Tag/Woche/Monat** (`tageswerte`, `perioden`, BSM-033.04): dieselben Zahlen je Tag (nicht aufsummiert) und je Zeitraum.
 """
 
 from __future__ import annotations
@@ -207,6 +208,98 @@ def reihe(
     if ohne_wie_mit and ohne_kwh is not None and aus and aus[-1][2] > 0:
         f = ohne_kwh / aus[-1][2]
         aus = [(t, i, m, u, o, round(m * f, 3)) for t, i, m, u, o, _ in aus]
+    return aus
+
+
+@dataclass(frozen=True)
+class Tageswert:
+    """Ein Tag der Heizperiode für die Ansicht Tag/Woche/Monat (BSM-033.04): gemessen bis jetzt, Prognose (Rest von heute
+    bzw. ganzer Tag), Spanne (milder/kalter Winter, nur mit Signatur), ohne Automatik, Außentemperatur und ihre Herkunft."""
+
+    datum: date
+    ist: float | None          # gemessen (bis heute)
+    prog: float                # Prognose mit Automatik (heute: Rest des Tages)
+    unten: float | None
+    oben: float | None
+    ohne: float | None
+    aussen: float | None
+    quelle: str                # "gemessen" | "vorhersage" | "klima"
+
+
+def tageswerte(
+    roh: Mapping[str, Sequence[TagRoh]], reste: Mapping[str, ContainerRest], heute: date, beginn: date, ende: date,
+    reihe_: Sequence[tuple[str, float | None, float, float | None, float | None, float | None]],
+    vorhersage: Mapping[date, float], klima: Sequence[float], aussen_heute: float | None = None,
+) -> list[Tageswert]:
+    """Je Tag der Heizperiode die Werte (nicht aufsummiert); „ohne“ aus der Tagesreihe (`reihe`, gleiche Rechnung)."""
+    werte = list(reste.values())
+    spanne = bool(werte) and all(r.methode == "signatur" for r in werte)
+    ist: dict[date, float] = {}
+    temp: dict[date, list[float]] = {}
+    for liste in roh.values():
+        for t in liste:
+            if beginn <= t.datum <= heute:
+                ist[t.datum] = ist.get(t.datum, 0.0) + (t.kwh or 0.0)
+                if t.aussen is not None:
+                    temp.setdefault(t.datum, []).append(t.aussen)
+    aus: list[Tageswert] = []
+    vorher_ohne, k = 0.0, 0
+    for i, d in enumerate(tage(beginn, ende)):
+        o = reihe_[i][5] if i < len(reihe_) else None
+        ohne = None if o is None else o - vorher_ohne
+        vorher_ohne = o or 0.0
+        if d < heute:
+            t = temp.get(d)
+            aus.append(Tageswert(d, ist.get(d, 0.0), 0.0, None, None, ohne, sum(t) / len(t) if t else None, "gemessen"))
+            continue
+        if d == heute:
+            rest = sum(r.heute_kwh for r in werte)
+            t = temp.get(d)
+            aussen, quelle = ((aussen_heute, "vorhersage") if aussen_heute is not None
+                              else (sum(t) / len(t), "gemessen") if t else (klima_tag(d, klima), "klima"))
+            aus.append(Tageswert(d, ist.get(d, 0.0), rest, rest if spanne else None, rest if spanne else None, ohne, aussen, quelle))
+            continue
+        prog = sum(r.je_tag[k] for r in werte if k < len(r.je_tag))
+        unten = sum(r.je_tag_warm[k] for r in werte) if spanne else None
+        oben = sum(r.je_tag_kalt[k] for r in werte) if spanne else None
+        k += 1
+        aussen, quelle = (vorhersage[d], "vorhersage") if d in vorhersage else (klima_tag(d, klima), "klima")
+        aus.append(Tageswert(d, None, prog, unten, oben, ohne, aussen, quelle))
+    return aus
+
+
+PERIODEN = ("tag", "woche", "monat")
+
+
+def perioden(werte: Sequence[Tageswert], art: str, heute: date) -> list[dict[str, object]]:
+    """Tage zu Zeiträumen (Tag, Woche ab Montag, Monat) zusammengefasst: tatsächlich, Prognose (Rest), mit = beides,
+    Spanne (nur wenn jeder Tag mit Prognose eine hat), ohne, gespart, Ø außen, Herkunft der Temperatur."""
+    def schluessel(d: date) -> date:
+        return d if art == "tag" else d - timedelta(days=d.weekday()) if art == "woche" else d.replace(day=1)
+
+    gruppen: dict[date, list[Tageswert]] = {}
+    for w in werte:
+        gruppen.setdefault(schluessel(w.datum), []).append(w)
+    aus: list[dict[str, object]] = []
+    for g in gruppen.values():
+        ist = sum(w.ist or 0.0 for w in g)
+        prog = sum(w.prog for w in g)
+        mit_prog = [w for w in g if w.datum >= heute]
+        spanne = bool(mit_prog) and all(w.unten is not None for w in mit_prog)
+        ohne = None if any(w.ohne is None for w in g) else sum(w.ohne or 0.0 for w in g)
+        temps = [w.aussen for w in g if w.aussen is not None]
+        aus.append({
+            "von": g[0].datum.isoformat(), "bis": g[-1].datum.isoformat(),
+            "ist": round(ist, 3) if any(w.ist is not None for w in g) else None, "prog": round(prog, 3),
+            "mit": round(ist + prog, 3),
+            "unten": round(ist + sum(w.unten or 0.0 for w in mit_prog), 3) if spanne else None,
+            "oben": round(ist + sum(w.oben or 0.0 for w in mit_prog), 3) if spanne else None,
+            "ohne": round(ohne, 3) if ohne is not None else None,
+            "gespart": round(ohne - ist - prog, 3) if ohne is not None else None,
+            "aussen": round(sum(temps) / len(temps), 1) if temps else None,
+            "quellen": [q for q in ("gemessen", "vorhersage", "klima") if any(w.quelle == q for w in g)],
+            "heute": any(w.datum == heute for w in g), "vorbei": g[-1].datum < heute,
+        })
     return aus
 
 

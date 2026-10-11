@@ -1,7 +1,8 @@
 // Karte „Heizperiode“ der Auswertung (BSM-033.03, Mockup hochrechnung.html, abgenommen 10.10.2026): Reiter Hochrechnung
 // (Prognose mit Spanne, Diagramm tatsächlich / Prognose mit / ohne Automatik über die Heizperiode), Signatur (je Container
 // Streudiagramm mit Knickgerade, Heizgrenze, kWh je Grad, Grundlast, Güte) und Klima (Klimamittel, Vorhersage, Heizgradtage,
-// Normjahr), dazu die Einblendung „Klimamittel“. Alle Zahlen kommen von der Integration (`A.hochrechnung`, logik/hochrechnung,
+// Normjahr), dazu die Einblendung „Klimamittel“. Im Reiter Hochrechnung Umschalter Heizperiode · Monat · Woche · Tag
+// (BSM-033.04, Mockup hochrechnung-j4b.html: Balken je Zeitraum aus `perioden`, Antippen zeigt die Zahlen). Alle Zahlen kommen von der Integration (`A.hochrechnung`, logik/hochrechnung,
 // logik/signatur); die Seite rechnet nur Pixel. Die Heizperiode stellt ✎ über die Einblendung „zeitraum-bs“ ein.
 import { html, nothing } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
@@ -60,6 +61,80 @@ function herkunft(h) {
     : html`<b>lernt noch</b> – ${lernen} von ${C.length} Containern rechnen mit dem Tagesschnitt, bis die Signatur steht (10 ganze Tage, 4 K Spanne).`;
 }
 
+/* ---------- Tag / Woche / Monat (BSM-033.04, Mockup hochrechnung-j4b.html) ---------- */
+const WT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const AUFL = [['hp', 'Heizperiode'], ['monat', 'Monat'], ['woche', 'Woche'], ['tag', 'Tag']];
+const FENSTER = { tag: [7, 14], woche: [3, 9], monat: [0, 7] };   // Zeiträume vor dem aktuellen, Anzahl im Bild
+const QTEXT = { gemessen: 'gemessen', vorhersage: 'Vorhersage', klima: 'Klimamittel' };
+const datum = iso => new Date(`${iso}T12:00:00`);
+const tm = iso => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
+function titel(z, art) {
+  if (art === 'monat') return `${MONATE[+z.von.slice(5, 7) - 1]} ${z.von.slice(0, 4)}`;
+  if (art === 'woche') return `${tm(z.von)}–${tm(z.bis)}`;
+  return `${WT[datum(z.von).getDay()]} ${tm(z.von)}`;
+}
+/* Ausschnitt der Zeiträume (nur Anordnung): um den aktuellen Zeitraum, mit ‹ › um ein Bild weiter */
+function fenster(P, art, ab) {
+  const [vor, n] = FENSTER[art], jetzt = Math.max(0, P.findIndex(z => !z.vorbei));
+  const start = Math.max(0, Math.min(P.length - n, (art === 'monat' ? 0 : jetzt - vor) + ab * n));
+  return { Z: P.slice(start, start + n), vor: start > 0, nach: start + n < P.length };
+}
+function balkenSvg(Z, art, wahl) {
+  const W = 340, H = 190, L = 34, U = art === 'tag' ? 30 : 22, O = art === 'tag' ? 22 : 10;
+  const max = Math.max(1, ...Z.map(z => Math.max(z.oben ?? z.mit, z.ohne ?? 0))) * 1.08, mwh = max > 4000;
+  const bw = (W - L - 6) / Z.length, y = v => H - U - v / max * (H - U - O), x = i => L + i * bw;
+  const stufen = [0, 0.25, 0.5, 0.75, 1].map(f => max / 1.08 * f), jetzt = Z.findIndex(z => !z.vorbei);
+  const b = Z.map((z, i) => {
+    const w = bw * 0.62, x0 = x(i) + bw * 0.12, ist = z.ist || 0, ow = Math.max(3, bw * 0.16), m = x0 + w / 2;
+    const sp = z.prog && zahl(z.unten) && z.oben - z.unten > 0.05 * max / 10;
+    const unterTag = art === 'tag' ? `<text class="hp-x2${z.heute ? ' heute' : ''}" x="${x(i) + bw / 2}" y="${H - U + 23}">${z.heute ? 'heute' : `${+z.von.slice(8, 10)}.`}</text>` : '';
+    return `<g class="hp-b${i === wahl ? ' on' : ''}" data-i="${i}"><rect class="hp-hit" x="${x(i)}" y="${O}" width="${bw}" height="${H - U - O}"/>
+      ${ist ? `<rect class="hp-bi" x="${x0}" y="${y(ist)}" width="${w}" height="${y(0) - y(ist)}"/>` : ''}
+      ${z.prog ? `<rect class="hp-bp" x="${x0}" y="${y(z.mit)}" width="${w}" height="${y(ist) - y(z.mit)}"/>` : ''}
+      ${sp ? `<path class="hp-bs" d="M${m},${y(z.oben)} V${y(z.unten)} M${x0 + w * .3},${y(z.oben)} H${x0 + w * .7} M${x0 + w * .3},${y(z.unten)} H${x0 + w * .7}"/>` : ''}
+      ${zahl(z.ohne) ? `<rect class="hp-bo" x="${x0 + w + 1}" y="${y(z.ohne)}" width="${ow}" height="${y(0) - y(z.ohne)}"/>` : ''}
+      ${art === 'tag' && zahl(z.aussen) ? `<text class="hp-bt${z.quellen.includes('klima') ? ' kl' : ''}" x="${x(i) + bw / 2}" y="${O - 8}">${de(z.aussen, 0)}°</text>` : ''}
+      <text class="hp-x${z.heute ? ' heute' : ''}" x="${x(i) + bw / 2}" y="${H - U + 12}">${art === 'monat' ? MONATE[+z.von.slice(5, 7) - 1] : art === 'woche' ? tm(z.von) : WT[datum(z.von).getDay()]}</text>${unterTag}</g>`;
+  }).join('');
+  return unsafeHTML(`<svg class="hp-dia hp-balken" viewBox="0 0 ${W} ${H}">
+    ${stufen.map(v => `<line class="hp-gitter" x1="${L}" y1="${y(v)}" x2="${W - 6}" y2="${y(v)}"/><text class="hp-yt" x="${L - 4}" y="${y(v) + 3}">${de(mwh ? v / 1000 : v, mwh ? 1 : 0)}</text>`).join('')}
+    <text class="hp-yt" x="${L - 4}" y="${art === 'tag' ? O - 8 : 8}">${mwh ? 'MWh' : 'kWh'}</text>
+    ${jetzt > 0 ? `<line class="hp-heute" x1="${x(jetzt)}" y1="${O}" x2="${x(jetzt)}" y2="${H - U}"/>` : ''}${b}</svg>`);
+}
+function detail(h, z, art) {
+  const zeile = (k, t, kwh, e) => html`<div class=${k}><span>${t}</span><b>${de(kwh, 0)} kWh · ${eur(e)}</b></div>`;
+  const restText = !z.ist ? 'Prognose mit Automatik' : art === 'tag' ? 'Rest von heute' : `Prognose Rest ${art === 'woche' ? 'der Woche' : 'des Monats'}`;
+  return html`<div class="glas-panel hp-det"><div class="hp-det-k"><b>${titel(z, art)}${z.heute ? ' · heute' : ''}</b>
+      <span class="leise">${zahl(z.aussen) ? `Ø ${de(z.aussen, 1)} °C außen · ` : ''}${z.quellen.map(q => QTEXT[q] || q).join(' + ')}</span></div>
+    <div class="hp-det-z">
+      ${zahl(z.ist) && z.ist > 0 ? zeile('', html`<i class="q-ist"></i>tatsächlich${z.prog ? ' bis jetzt' : ''}`, z.ist, z.ist_eur) : nothing}
+      ${z.prog ? zeile('', html`<i class="q-prog"></i>${restText}`, z.prog, z.prog_eur) : nothing}
+      ${z.prog && z.ist ? zeile('sum', 'zusammen', z.mit, z.mit_eur) : nothing}
+      ${z.prog && zahl(z.unten) && z.oben - z.unten > 0.5 ? html`<div class="leise"><span>Spanne milder–kalter Winter</span><span>${de(z.unten_eur, 0)}–${eur(z.oben_eur)}</span></div>` : nothing}
+      ${zahl(z.ohne) ? zeile('', html`<i class="q-ohne"></i>ohne Automatik ${h.ohne_methode === 'baseline' ? '(gemessen)' : '(Schätzung)'}`, z.ohne, z.ohne_eur) : nothing}
+      ${zahl(z.gespart) ? html`<div class="gesp"><span>gespart</span><b>≈ ${eur(z.gespart_eur)}</b></div>` : nothing}</div></div>`;
+}
+function zeitraeume(p, h, art) {
+  const P = ((h.perioden || {})[art]) || [];
+  if (!P.length) return html`<div class="leer">Keine Tage in der Heizperiode</div>`;
+  const ab = p.s.hpAb || 0, { Z, vor, nach } = fenster(P, art, ab);
+  const jetzt = Z.findIndex(z => !z.vorbei), wahl = Math.min(Z.length - 1, p.s.hpWahl ?? (jetzt < 0 ? Z.length - 1 : jetzt));
+  const geh = d => () => { p.s.hpAb = d === null ? 0 : ab + d; p.s.hpWahl = null; p.neuZeichnen(); };
+  const nav = (d, t, an) => html`<button class="chip glas-panel hp-nav" data-k=${`hp-nav${d}`} ?disabled=${!an} @click=${geh(d)}>${t}</button>`;
+  return html`<div class="hp-kopf">${art !== 'monat' ? nav(-1, '‹', vor) : nothing}
+      <span class="hp-zr">${titel(Z[0], art).split('–')[0]} – ${titel(Z[Z.length - 1], art).split('–').pop()}</span>
+      ${art !== 'monat' ? html`${nav(1, '›', nach)}${ab ? html`<button class="chip glas-panel hp-nav" @click=${geh(null)}>heute</button>` : nothing}` : nothing}</div>
+    <div @click=${e => { const g = e.target.closest('.hp-b'); if (g) { p.s.hpWahl = +g.dataset.i; p.neuZeichnen(); } }}>${balkenSvg(Z, art, wahl)}</div>
+    <div class="hp-leg2"><span><i class="q-ist"></i>tatsächlich</span><span><i class="q-prog"></i>Prognose mit Automatik</span><span><i class="q-ohne"></i>ohne Automatik</span>
+      ${art === 'tag' ? html`<span class="leise">°C: Vorhersage · <em>kursiv</em> = Klimamittel</span>` : nothing}</div>
+    ${detail(h, Z[wahl], art)}`;
+}
+function hochrechnung(p, h) {
+  const a = p.s.hpAufl || 'hp';
+  const seg = html`<div class="seg glas-panel hp-aufl">${AUFL.map(([k, t]) => html`<button data-v=${k} class=${a === k ? 'on' : ''} @click=${() => { p.s.hpAufl = k; p.s.hpAb = 0; p.s.hpWahl = null; p.neuZeichnen(); }}>${t}</button>`)}</div>`;
+  return html`${zahlZeile(h)}${seg}${a === 'hp' ? html`${diagramm(h)}${legende(h)}<div class="leise hp-her">${herkunft(h)}</div>` : zeitraeume(p, h, a)}`;
+}
+
 /* ---------- Signatur ---------- */
 function streu(c) {
   const P = c.punkte || [], W = 320, H = 150, tx = t => 28 + (t + 6) / 30 * (W - 36);
@@ -100,15 +175,15 @@ function klima(p, h) {
 }
 
 /* ---------- Karte ---------- */
-const REITER = [['hoch', 'Hochrechnung'], ['sig', 'Signatur'], ['klima', 'Klima']];
+const REITER = [['hoch', 'Hochrechnung', 'Prognose'], ['sig', 'Signatur'], ['klima', 'Klima']];
 export function heizperiodeVorlage(p, A, start = 'hoch') {
   const d = p.d, h = A && A.hochrechnung, r = p.s.hpReiter || start, [von, bis] = d.hp;
   return html`<div class="glas-panel block hp-karte"><div class="block-kopf"><b>Heizperiode</b>
       <button class="chip glas-panel hp-zeit nur-admin" @click=${p.nurAdmin(() => p.einblenden('zeitraum-bs'))}>${MONATE[von - 1]}–${MONATE[bis - 1]}${h && h.ende ? ` · bis ${tagText(h.ende)}` : ''} ✎</button></div>
-    <div class="seg glas-panel hp-reiter">${REITER.map(([k, t]) => html`<button data-v=${k} class=${r === k ? 'on' : ''} @click=${() => { p.s.hpReiter = k; p.neuZeichnen(); }}>${t}</button>`)}</div>
+    <div class="seg glas-panel hp-reiter">${REITER.map(([k, t, kurz]) => html`<button data-v=${k} class=${r === k ? 'on' : ''} @click=${() => { p.s.hpReiter = k; p.neuZeichnen(); }}>${p.narrow && kurz ? kurz : t}</button>`)}</div>
     ${!A ? LAEDT : !h || !zahl(h.mit_kwh) ? html`<div class="leer">Noch zu wenige Tage für eine Hochrechnung</div>`
       : r === 'sig' ? signatur(p, h) : r === 'klima' ? klima(p, h)
-      : html`${zahlZeile(h)}${diagramm(h)}${legende(h)}<div class="leise hp-her">${herkunft(h)}</div>`}</div>`;
+      : hochrechnung(p, h)}</div>`;
 }
 
 /* ---------- Einblendung Klimamittel (Einstellung heizung.klimamittel; leer = Vorgabe) ---------- */
@@ -127,6 +202,20 @@ function hpKlima(p, s) {
 export const HEIZPERIODE_EINBLENDUNGEN = { 'hp-klima': hpKlima };
 
 export const HEIZPERIODE_CSS = `
+.seg.hp-aufl { margin: 2px 0 8px; } .seg.hp-aufl button, .seg.hp-reiter button { padding: 6px 2px; min-width: 0; flex: 1 1 0; font-size: 12px; }
+.hp-kopf { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; } .hp-zr { flex: 1; text-align: center; font-size: 13px; font-weight: 600; }
+.hp-nav { font-size: 13px; padding: 3px 10px; cursor: pointer; } .hp-nav[disabled] { opacity: .35; }
+.hp-balken { cursor: pointer; } .hp-balken .hp-hit { fill: transparent; } .hp-balken .hp-b.on .hp-hit { fill: rgba(127,127,127,.12); }
+.hp-balken .hp-bi { fill: var(--s3); } .hp-balken .hp-bp { fill: var(--s1); opacity: .45; } .hp-balken .hp-bo { fill: var(--s2); opacity: .75; }
+.hp-balken path.hp-bs { stroke: var(--s1); stroke-width: 1.2; fill: none; }
+.hp-balken .hp-bt { text-anchor: middle; fill: var(--ink); } .hp-balken .hp-bt.kl { font-style: italic; fill: var(--ink2); }
+.hp-balken .hp-x, .hp-balken .hp-x2 { text-anchor: middle; } .hp-balken .heute { fill: var(--amber); font-weight: 600; }
+.hp-leg2 { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin: 2px 0 6px; }
+.hp-leg2 i, .hp-det-z i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.q-ist { background: var(--s3); } .q-prog { background: var(--s1); opacity: .45; } .q-ohne { background: var(--s2); opacity: .75; }
+.hp-det { padding: 10px 12px; border-radius: 14px; margin: 4px 0; } .hp-det-k { display: flex; flex-direction: column; margin-bottom: 4px; }
+.hp-det-z > div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; } .hp-det-z b { white-space: nowrap; }
+.hp-det-z .sum { border-top: 1px solid rgba(127,127,127,.2); } .hp-det-z .gesp b { color: #30d158; }
 .hp-zeit { font-size: 12px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
 .hp-reiter { margin: 4px 0 8px; } .hp-zahl { font-size: 26px; font-weight: 600; margin: 4px 0 2px; } .hp-zahl .leise { font-size: 14px; font-weight: 400; }
 .hp-dia { width: 100%; max-width: 540px; height: auto; display: block; margin: 6px auto; }

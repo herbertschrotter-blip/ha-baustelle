@@ -1004,6 +1004,17 @@ const plusTageT = (iso, n) => { const t = new Date(iso + 'T12:00:00Z'); t.setUTC
     erwarte('BSM-033.03: Signatur je Container', ui.innerHTML.includes('hp-streu') && ui.innerHTML.includes('Heizgrenze') && ui.innerHTML.includes('kWh je Grad'));
     await klick('.hp-reiter [data-v="klima"]'); pruefe('Heizperiode Klima');
     erwarte('BSM-033.03: Klimamittel und Vorhersage', ui.innerHTML.includes('hp-monate') && ui.innerHTML.includes('Vorhersage') && ui.innerHTML.includes('Heizgradtage'));
+    /* BSM-033.04: Umschalter Heizperiode · Monat · Woche · Tag – Balken aus `perioden`, Antippen zeigt die Zahlen, ‹ › blättert */
+    await klick('.hp-reiter [data-v="hoch"]'); await klick('.hp-aufl [data-v="tag"]'); pruefe('Heizperiode Tag');
+    erwarte('BSM-033.04: Tag – Balken, heute mit Rest des Tages', ui.innerHTML.includes('hp-balken') && ui.innerHTML.includes('Rest von heute') && ui.innerHTML.includes('tatsächlich bis jetzt') && ui.innerHTML.includes('Klimamittel'));
+    await klick('.hp-balken .hp-b[data-i="0"]'); pruefe('Heizperiode Tag gewählt');
+    erwarte('BSM-033.04: Antippen zeigt den gewählten Tag', panel.s.hpWahl === 0 && !ui.innerHTML.includes('Rest von heute'));
+    await klick('[data-k="hp-nav-1"]'); erwarte('BSM-033.04: ‹ blättert zurück', panel.s.hpAb === -1 && ui.innerHTML.includes('hp-balken'));
+    await klick('.hp-aufl [data-v="woche"]'); pruefe('Heizperiode Woche');
+    erwarte('BSM-033.04: Woche mit Rest der Woche', panel.s.hpAb === 0 && ui.innerHTML.includes('Prognose Rest der Woche'));
+    await klick('.hp-aufl [data-v="monat"]'); pruefe('Heizperiode Monat');
+    erwarte('BSM-033.04: Monate der Heizperiode', (ui.innerHTML.match(/class="hp-b[ "]/g) || []).length === 7 && ui.innerHTML.includes('Prognose Rest des Monats'));
+    await klick('.hp-aufl [data-v="hp"]'); erwarte('BSM-033.04: Heizperiode wie bisher', ui.innerHTML.includes('hp-band'));
     const klima = async k => { neu(); await klick({ act: 'sheet', s: 'hp-klima' }); pruefe('Klimamittel'); await klick(`[data-k="${k}"]`, 30); return letzte('baustelle/setzen').at(-1); };
     const k = await klima('hp-speichern');
     erwarte('BSM-033.03: 12 Klimamittel gespeichert', k && k.entry_id === panel.d.entry && k.pfad.join('.') === 'heizung.klimamittel' && Array.isArray(k.wert) && k.wert.length === 12);

@@ -532,7 +532,8 @@ def hochrechnung_signatur(
 ) -> dict[str, Any]:
     """Hochrechnung (`hochrechnung_werte`) um die Signatur ergänzt (BSM-033.02): Methode, Spanne und Normjahr in kWh und €,
     Heizgradtage des Rests und je Container Signatur, Punkte und Rest; für die Karte „Heizperiode“ (BSM-033.03) die
-    Tagesreihe `reihe` ([Tag, tatsächlich, mit, unten, oben, ohne] kWh aufsummiert), Klimamittel und Vorhersage. Ohne
+    Tagesreihe `reihe` ([Tag, tatsächlich, mit, unten, oben, ohne] kWh aufsummiert), Klimamittel und Vorhersage; je Tag,
+    Woche und Monat `perioden` mit €-Beträgen (BSM-033.04). Ohne
     Signatur: Methode „tagesschnitt“, Spanne leer."""
     s = signatur or {}
     e = ergebnis or {}
@@ -548,6 +549,9 @@ def hochrechnung_signatur(
         aus["bisher_kwh"], aus["bisher_eur"] = e["bisher_kwh"], geld(e["bisher_kwh"], preis)
     for k in ("reihe", "klima", "klima_vorgabe", "vorhersage", "beginn", "ende", "baseline"):
         aus[k] = e.get(k)
+    # BSM-033.04: Tag/Woche/Monat – je Zeitraum dazu die Beträge in €
+    aus["perioden"] = {art: [{**z, **{f"{k}_eur": geld(z.get(k), preis) for k in ("ist", "prog", "mit", "unten", "oben", "ohne", "gespart")}}
+                             for z in liste] for art, liste in (e.get("perioden") or {}).items()}
     aus["ohne_methode"] = (e.get("ohne") or {}).get("methode") or "schaetzung"   # BSM-033.04: gemessen oder 24/7 geschätzt
     return aus
 
